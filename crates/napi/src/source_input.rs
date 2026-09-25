@@ -292,12 +292,17 @@ pub struct HostRegion {
 }
 
 impl ProjectSource {
-    /// Builds the analyzer input, translating UTF-16 projection offsets into
-    /// byte spans and validating that the projection metadata is complete.
+    /// Builds the analyzer input, translating UTF-16 projection offsets into byte spans
+    /// and validating that the projection metadata is complete.
     ///
-    /// `original_id` names the editable file, `generated_id` the buffer the
-    /// parser sees, and `analysis_id` the file id used for spans created while
-    /// analyzing that buffer.
+    /// `original_id` names the editable file, `generated_id` the buffer the parser
+    /// sees, and `analysis_id` the file id used for spans created while analyzing that
+    /// buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid source coordinates or incomplete projection
+    /// metadata.
     pub fn input(
         &self,
         original_id: FileId,
@@ -344,19 +349,7 @@ impl ProjectSource {
                 ));
             }
             let index = CoordinateIndex::new(&original);
-            let span = |start, end| -> napi::Result<Span> {
-                let start = index
-                    .byte(Utf16Offset(start))
-                    .map_err(|error| Error::from_reason(error.to_string()))?;
-                let end = index
-                    .byte(Utf16Offset(end))
-                    .map_err(|error| Error::from_reason(error.to_string()))?;
-                let span = Span::new(original_id, start.0, end.0);
-                original
-                    .slice(span)
-                    .map_err(|error| Error::from_reason(error.to_string()))?;
-                Ok(span)
-            };
+            let span = |start, end| projection_span(&index, &original, original_id, start, end);
             let realms = self
                 .import_realms
                 .iter()
@@ -415,4 +408,29 @@ impl ProjectSource {
             projection,
         })
     }
+}
+
+/// Converts one host region from original-source UTF-16 offsets to a validated span.
+///
+/// # Errors
+///
+/// Returns an error when either offset is invalid or the resulting span is reversed.
+fn projection_span(
+    index: &CoordinateIndex,
+    original: &SourceFile,
+    original_id: FileId,
+    start: u32,
+    end: u32,
+) -> napi::Result<Span> {
+    let start = index
+        .byte(Utf16Offset(start))
+        .map_err(|error| Error::from_reason(error.to_string()))?;
+    let end = index
+        .byte(Utf16Offset(end))
+        .map_err(|error| Error::from_reason(error.to_string()))?;
+    let span = Span::new(original_id, start.0, end.0);
+    original
+        .slice(span)
+        .map_err(|error| Error::from_reason(error.to_string()))?;
+    Ok(span)
 }

@@ -103,10 +103,11 @@ impl<'a> MacroExtractor<'a> {
 
     /// Recognizes `<transition>` and `<transition>.for(key)` uses.
     ///
-    /// A literal key folds here and any other key expression is kept as a user span, never
-    /// evaluated. A use that the checker already described through a type fact becomes
-    /// dynamic even when only one candidate remains, and a value that carries a key of its
-    /// own is named from the value at runtime.
+    /// A literal key folds here and any other key expression is kept as a user span,
+    /// never evaluated. A use that the checker already described through a type fact
+    /// becomes dynamic even when only one candidate remains, and a value that carries a
+    /// key of its own is named from the value at runtime. An empty finite candidate set
+    /// produces no use node.
     pub(crate) fn view_transition_use(
         &mut self,
         expression: &Expression<'a>,

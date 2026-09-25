@@ -1,22 +1,31 @@
-//! Class expression lowering: utilities, arrays, conditionals, variants, and groups.
+//! Class and rule expression lowering for one `style()` call.
+//!
+//! [`CallEmitter::emit_item`] enters the source class tree. Rule descendants are
+//! resolved under their CSS variant wrappers; contiguous rules within a JavaScript
+//! condition region contribute to one generated class. Root object entries retain
+//! their independent props channels. Final framework fields and helper imports are
+//! selected later by fragment rendering.
 
 use stillwind_diagnostics::{LintFinding, LintKind};
-use stillwind_ir::{ClassExpression, ConditionalKind, GroupEntry, StyleVariant};
+use stillwind_ir::{
+    ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
+};
 
 use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmissionPart};
 use super::super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::super::variants::document_scoped_selector;
-use super::CallEmitter;
+use super::{CallEmitter, PendingRegion};
 use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
-    /// Reports a wrapper prefix whose variants would apply to the document instead of to the
-    /// styled element.
+    /// Reports a wrapper prefix whose variants would apply to the document instead of
+    /// to the styled element.
     ///
-    /// The check runs once per authored wrapper, so one wrapper covering several literals is
-    /// reported once. The wrapper still lowers; the host decides the policy's severity.
+    /// The check runs once per authored wrapper, so one wrapper covering several
+    /// literals is reported once. The wrapper still lowers; the host decides the
+    /// policy's severity.
     fn report_document_scoped_variant(&mut self, variant: &StyleVariant) {
         let StyleVariant::Prefix(prefix) = variant else {
             return;
@@ -58,12 +67,12 @@ impl CallEmitter<'_> {
 
     /// Lowers one class expression, tracking the guard path and the active wrappers.
     ///
-    /// `fold` is set at the top level of a call: a leaf reached without a guard can join the base
-    /// unit, while a leaf under any test keeps its own class unit. Conditional arms clear the flag
-    /// for their contents, so a nested leaf never merges into the base unit by accident.
-    /// `None` covers base-folded, provably empty, and failed contributions. Guard and
-    /// wrapper stacks are restored after nested traversal; callers inspect diagnostics
-    /// separately rather than treating absence as a successful empty expression.
+    /// `fold` is set at the top level of a call: a rule reached without a guard can
+    /// join the base unit. Conditional arms collect contiguous rules into guarded class
+    /// units. `None` covers base-folded, provably empty, and failed contributions.
+    /// Guard and wrapper stacks are restored after nested traversal; callers inspect
+    /// diagnostics separately rather than treating absence as a successful empty
+    /// expression.
     fn emit_expression(
         &mut self,
         expression: &ClassExpression,
@@ -88,38 +97,7 @@ impl CallEmitter<'_> {
         fold: bool,
     ) -> Option<Emitted> {
         match expression {
-            ClassExpression::Utilities(value) => {
-                let plan = StyleVariantPlan::resolve(
-                    self.identifiers,
-                    wrappers,
-                    self.theme,
-                    self.diagnostics,
-                )?;
-                let mut name_supplies = 0;
-                let contribution = LiteralContribution::resolve(
-                    value,
-                    &plan,
-                    self.options,
-                    self.theme,
-                    self.diagnostics,
-                    self.lint_findings,
-                    &mut name_supplies,
-                );
-                if name_supplies > 0 {
-                    self.view_transition_name_paths.insert(guard, name_supplies);
-                }
-                if fold && guard.is_empty() {
-                    self.units.fold(contribution);
-                    return None;
-                }
-                match self.units.leaf(contribution, guard) {
-                    Ok(leaf) => Some(leaf),
-                    Err(failure) => {
-                        self.reject_name(failure, self.call.span);
-                        None
-                    }
-                }
-            }
+            ClassExpression::Rule(rule) => self.emit_rule_expression(rule, guard, wrappers, fold),
             ClassExpression::Array(elements) => {
                 let mut items = Vec::new();
                 let mut any = false;
@@ -130,61 +108,58 @@ impl CallEmitter<'_> {
                 }
                 any.then_some(Emitted::Array(items))
             }
-            ClassExpression::Conditional {
-                test,
-                kind,
-                consequent,
-                alternate,
-            } => {
+            ClassExpression::Conditional { test, branches } => {
+                let in_region = self.pending_region.is_some();
+                let preceding = self.end_region(guard);
                 let test_span = *test;
-                guard.push(GuardStep {
-                    test: test_span,
-                    when_true: true,
-                });
-                let consequent = self.emit_sequence(consequent, guard, wrappers);
-                guard.pop();
                 let test = self.source_expression(test_span)?;
-                match kind {
-                    ConditionalKind::LogicalAnd => Some(Emitted::Conditional {
-                        code: test,
-                        kind: *kind,
-                        consequent: consequent.map(Box::new),
-                        alternate: None,
-                    }),
-                    ConditionalKind::Ternary => {
+                let branches = match branches {
+                    ConditionalBranches::And { consequent } => {
+                        guard.push(GuardStep {
+                            test: test_span,
+                            when_true: true,
+                        });
+                        let consequent = self.emit_sequence(consequent, guard, wrappers);
+                        guard.pop();
+                        ConditionalBranches::And {
+                            consequent: consequent.map(Box::new),
+                        }
+                    }
+                    ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    } => {
+                        guard.push(GuardStep {
+                            test: test_span,
+                            when_true: true,
+                        });
+                        let consequent = self.emit_sequence(consequent, guard, wrappers);
+                        guard.pop();
                         guard.push(GuardStep {
                             test: test_span,
                             when_true: false,
                         });
                         let alternate = self.emit_sequence(alternate, guard, wrappers);
                         guard.pop();
-                        Some(Emitted::Conditional {
-                            code: test,
-                            kind: *kind,
+                        ConditionalBranches::Ternary {
                             consequent: consequent.map(Box::new),
                             alternate: alternate.map(Box::new),
-                        })
+                        }
                     }
+                };
+                let conditional = Some(Emitted::Conditional {
+                    code: test,
+                    branches,
+                });
+                if in_region {
+                    self.begin_region();
                 }
-            }
-            ClassExpression::Variant { variant, inputs } => {
-                self.report_document_scoped_variant(variant);
-                wrappers.push(variant.clone());
-                let mut items = Vec::new();
-                let mut any = false;
-                for input in inputs {
-                    let item = self.emit_expression(input, guard, wrappers, fold);
-                    any |= item.is_some();
-                    items.push(item);
-                }
-                wrappers.pop();
-                if !any {
-                    return None;
-                }
-                if items.len() == 1 {
-                    items.remove(0)
-                } else {
-                    Some(Emitted::Array(items))
+                match (preceding, conditional) {
+                    (Some(preceding), Some(conditional)) => {
+                        Some(Emitted::Array(vec![Some(preceding), Some(conditional)]))
+                    }
+                    (None, conditional) => conditional,
+                    (Some(preceding), None) => Some(preceding),
                 }
             }
             ClassExpression::Group { entries, .. } => {
@@ -223,48 +198,284 @@ impl CallEmitter<'_> {
                 };
                 Some(Emitted::Expression(expression))
             }
-            ClassExpression::RefProjection {
+        }
+    }
+
+    /// Resolves a rule subtree under the active JavaScript guards and CSS variants.
+    /// Returns the retained runtime class contribution, or `None` when the rule folds
+    /// into a region/base unit, contributes nothing, or fails resolution. Diagnostics
+    /// are appended separately for failures.
+    #[allow(clippy::too_many_lines)] // One exhaustive match over rule expressions.
+    fn emit_rule_expression(
+        &mut self,
+        expression: &RuleExpression,
+        guard: &mut Vec<GuardStep>,
+        wrappers: &mut Vec<StyleVariant>,
+        fold: bool,
+    ) -> Option<Emitted> {
+        let emitted = match expression {
+            RuleExpression::Utilities(value) => {
+                let plan = StyleVariantPlan::resolve(
+                    self.identifiers,
+                    wrappers,
+                    self.theme,
+                    self.diagnostics,
+                )?;
+                let mut name_supplies = 0;
+                let contribution = LiteralContribution::resolve(
+                    value,
+                    &plan,
+                    self.options,
+                    self.theme,
+                    self.diagnostics,
+                    self.lint_findings,
+                    &mut name_supplies,
+                );
+                if name_supplies > 0 {
+                    self.view_transition_name_paths.insert(guard, name_supplies);
+                }
+                self.contribute_rule(contribution, guard, fold)
+            }
+            RuleExpression::Array(elements) => {
+                let items = elements
+                    .iter()
+                    .map(|element| self.emit_rule_expression(element, guard, wrappers, fold))
+                    .collect::<Vec<_>>();
+                items
+                    .iter()
+                    .any(Option::is_some)
+                    .then_some(Emitted::Array(items))
+            }
+            RuleExpression::Conditional { test, branches } => {
+                let in_region = self.pending_region.is_some();
+                let preceding = self.end_region(guard);
+                let code = self.source_expression(*test)?;
+                let mut emit_arm = |values: &[RuleExpression], when_true| {
+                    guard.push(GuardStep {
+                        test: *test,
+                        when_true,
+                    });
+                    let value = self.emit_rule_sequence(values, guard, wrappers);
+                    guard.pop();
+                    value.map(Box::new)
+                };
+                let branches = match branches {
+                    ConditionalBranches::And { consequent } => ConditionalBranches::And {
+                        consequent: emit_arm(consequent, true),
+                    },
+                    ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    } => ConditionalBranches::Ternary {
+                        consequent: emit_arm(consequent, true),
+                        alternate: emit_arm(alternate, false),
+                    },
+                };
+                if in_region {
+                    self.begin_region();
+                }
+                let conditional = Emitted::Conditional { code, branches };
+                Some(match preceding {
+                    Some(preceding) => Emitted::Array(vec![Some(preceding), Some(conditional)]),
+                    None => conditional,
+                })
+            }
+            RuleExpression::Variant { variant, inputs } => {
+                self.report_document_scoped_variant(variant);
+                wrappers.push(variant.clone());
+                let items = inputs
+                    .iter()
+                    .map(|input| self.emit_rule_expression(input, guard, wrappers, fold))
+                    .collect::<Vec<_>>();
+                wrappers.pop();
+                if !items.iter().any(Option::is_some) {
+                    None
+                } else if items.len() == 1 {
+                    items.into_iter().next().flatten()
+                } else {
+                    Some(Emitted::Array(items))
+                }
+            }
+            RuleExpression::Group { inputs, .. } => {
+                let items = inputs
+                    .iter()
+                    .map(|input| {
+                        self.emit_rule_expression(input, guard, wrappers, fold)
+                            .map(EmittedEntry::Class)
+                    })
+                    .collect::<Vec<_>>();
+                items
+                    .iter()
+                    .any(Option::is_some)
+                    .then_some(Emitted::Group(items))
+            }
+            RuleExpression::RefProjection {
                 definition,
                 value,
                 projection,
-            } => self.emit_ref_projection(definition, value, projection, guard),
-            ClassExpression::DynamicRefProjection {
+            } => self.emit_ref_projection(definition, value, projection, guard, wrappers),
+            RuleExpression::DynamicRefProjection {
                 value,
                 refs,
                 projection,
-            } => self.emit_dynamic_ref_projection(value, refs, projection, guard),
-            ClassExpression::KeyframesUse { keyframes, options } => {
+            } => self.emit_dynamic_ref_projection(value, refs, projection, guard, wrappers),
+            RuleExpression::ViewTransitionUse { transition, name } => {
+                if fold && guard.is_empty() && wrappers.is_empty() {
+                    self.emit_view_transition_use(transition, name, guard)?;
+                    None
+                } else {
+                    self.emit_view_transition_expression(transition, name, guard, wrappers)
+                }
+            }
+            RuleExpression::DynamicViewTransitionUse {
+                value,
+                transitions,
+                name,
+            } => self.emit_dynamic_view_transition_expression(
+                value,
+                transitions,
+                name,
+                guard,
+                wrappers,
+            ),
+            RuleExpression::KeyframesUse { keyframes, options } => {
                 self.emit_keyframes_use(keyframes, options, guard, wrappers, fold)
             }
-            ClassExpression::DynamicKeyframesUse {
+            RuleExpression::DynamicKeyframesUse {
                 value,
                 keyframes,
                 options,
             } => self.emit_dynamic_keyframes_use(value, keyframes, options, guard, wrappers),
+        };
+        emitted.filter(|value| !value.is_empty())
+    }
+
+    /// Collects all rule contributions in one conditional arm into contiguous regions.
+    /// Returns their runtime classes and values in encounter order, or `None` when the
+    /// arm has no retained contribution.
+    fn emit_rule_sequence(
+        &mut self,
+        expressions: &[RuleExpression],
+        guard: &mut Vec<GuardStep>,
+        wrappers: &mut Vec<StyleVariant>,
+    ) -> Option<Emitted> {
+        let outer = self.begin_region();
+        let mut items = Vec::new();
+        for expression in expressions {
+            if let Some(item) = self.emit_rule_expression(expression, guard, wrappers, false) {
+                items.push(item);
+            }
+        }
+        let trailing = self.end_region(guard);
+        self.pending_region = outer;
+        if let Some(class) = trailing {
+            items.push(class);
+        }
+        match items.len() {
+            0 => None,
+            1 => items.pop(),
+            _ => Some(Emitted::Array(items.into_iter().map(Some).collect())),
         }
     }
 
     /// Lowers a whole branch of a conditional expression.
     ///
-    /// Visits every child with base folding disabled under the current guard/wrappers.
-    /// Returns `None` for no children or one omitted child, the child for a singleton,
-    /// and an array retaining empty slots otherwise. Later evaluations are never
-    /// skipped because an earlier child was omitted; the pipeline owns diagnostics.
+    /// Visits every child under the same condition and collects its CSS rules into one
+    /// class. Empty contributions are removed under the macro purity contract; a
+    /// remaining singleton stays a single class expression.
     fn emit_sequence(
         &mut self,
         expressions: &[ClassExpression],
         guard: &mut Vec<GuardStep>,
         wrappers: &mut Vec<StyleVariant>,
     ) -> Option<Emitted> {
+        let outer = self.begin_region();
         let mut items = Vec::new();
         for expression in expressions {
-            items.push(self.emit_expression(expression, guard, wrappers, false));
+            if let Some(item) = self.emit_expression(expression, guard, wrappers, false) {
+                items.push(item);
+            }
+        }
+        let trailing = self.end_region(guard);
+        self.pending_region = outer;
+        if let Some(class) = trailing {
+            items.push(class);
         }
         match items.len() {
             0 => None,
-            1 => items.pop().flatten(),
-            _ => Some(Emitted::Array(items)),
+            1 => items.pop(),
+            _ => Some(Emitted::Array(items.into_iter().map(Some).collect())),
         }
+    }
+
+    /// Adds one resolved rule to the current condition region or the call's base unit.
+    /// Returns runtime-only names or a leaf class when needed; `None` means the rule
+    /// was absorbed into a pending region or base, or class allocation failed with a
+    /// separately recorded diagnostic.
+    pub(super) fn contribute_rule(
+        &mut self,
+        mut contribution: LiteralContribution,
+        guard: &[GuardStep],
+        fold: bool,
+    ) -> Option<Emitted> {
+        if let Some(region) = &mut self.pending_region {
+            let mut names = Vec::new();
+            names.append(&mut contribution.markers);
+            names.append(&mut contribution.external);
+            names.append(&mut contribution.plain);
+            region.rules.append_rules(contribution);
+            return (!names.is_empty()).then_some(Emitted::Leaf { names });
+        }
+        if fold && guard.is_empty() {
+            self.units.fold(contribution);
+            return None;
+        }
+        match self.units.leaf(contribution, guard) {
+            Ok(leaf) => Some(leaf),
+            Err(failure) => {
+                self.reject_name(failure, self.call.span);
+                None
+            }
+        }
+    }
+
+    /// Publishes one condition region's collected rules as one generated class. Returns
+    /// that class expression, or `None` when there are no rules or name allocation
+    /// fails with a separately recorded diagnostic.
+    pub(super) fn finish_region(
+        &mut self,
+        contribution: LiteralContribution,
+        guard: &[GuardStep],
+        order: u32,
+    ) -> Option<Emitted> {
+        if contribution.utilities.is_empty() {
+            return None;
+        }
+        match self.units.leaf_at(contribution, guard, order) {
+            Ok(class) => Some(class),
+            Err(failure) => {
+                self.reject_name(failure, self.call.span);
+                None
+            }
+        }
+    }
+
+    /// Starts a rule region and reserves its source order before visiting children.
+    /// Returns the previously pending region for the caller to restore, if any.
+    pub(super) fn begin_region(&mut self) -> Option<PendingRegion> {
+        let region = PendingRegion {
+            order: self.units.reserve_branch(),
+            rules: LiteralContribution::default(),
+        };
+        self.pending_region.replace(region)
+    }
+
+    /// Ends the pending contiguous rule region before another region begins. Returns
+    /// its generated class expression when it contributed rules and allocation
+    /// succeeded; `None` also covers the absence of a pending region.
+    pub(super) fn end_region(&mut self, guard: &[GuardStep]) -> Option<Emitted> {
+        let region = self.pending_region.take()?;
+        self.finish_region(region.rules, guard, region.order)
     }
 }
 
@@ -275,20 +486,33 @@ impl CallEmitter<'_> {
 /// contribution order; folding separately proves whether evaluations may move.
 pub(super) fn expression_position(expression: &ClassExpression) -> u32 {
     match expression {
-        ClassExpression::Utilities(value) => value.span.start.0,
+        ClassExpression::Rule(rule) => rule_position(rule),
         ClassExpression::Array(elements) => elements.first().map_or(0, expression_position),
         ClassExpression::Conditional { test, .. } => test.start.0,
-        ClassExpression::Variant { variant, .. } => match variant {
+        ClassExpression::Group { span, .. } | ClassExpression::ClassValue { span, .. } => {
+            span.start.0
+        }
+    }
+}
+
+/// Returns the original UTF-8 byte anchor of a rule for contribution ordering. An empty
+/// rule array uses zero.
+fn rule_position(expression: &RuleExpression) -> u32 {
+    match expression {
+        RuleExpression::Utilities(value) => value.span.start.0,
+        RuleExpression::Array(elements) => elements.first().map_or(0, rule_position),
+        RuleExpression::Conditional { test, .. } => test.start.0,
+        RuleExpression::Variant { variant, .. } => match variant {
             StyleVariant::Prefix(prefix)
             | StyleVariant::Ref { prefix, .. }
             | StyleVariant::Container { query: prefix, .. } => prefix.span.start.0,
         },
-        ClassExpression::Group { span, .. } | ClassExpression::ClassValue { span, .. } => {
-            span.start.0
-        }
-        ClassExpression::RefProjection { value, .. }
-        | ClassExpression::DynamicRefProjection { value, .. }
-        | ClassExpression::DynamicKeyframesUse { value, .. } => value.start.0,
-        ClassExpression::KeyframesUse { keyframes, .. } => keyframes.span.start.0,
+        RuleExpression::Group { span, .. } => span.start.0,
+        RuleExpression::RefProjection { value, .. }
+        | RuleExpression::DynamicRefProjection { value, .. }
+        | RuleExpression::DynamicViewTransitionUse { value, .. }
+        | RuleExpression::DynamicKeyframesUse { value, .. } => value.start.0,
+        RuleExpression::ViewTransitionUse { transition, .. } => transition.span.start.0,
+        RuleExpression::KeyframesUse { keyframes, .. } => keyframes.span.start.0,
     }
 }

@@ -14,7 +14,7 @@
 use oxc::ast::ast::TemplateLiteral;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ClassExpression, StyleVariant};
+use stillwind_ir::{ClassExpression, RuleExpression, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
@@ -150,14 +150,14 @@ impl TemplateToken {
             return Err(template_error(span));
         }
         if let Some(value) = self.tail.take() {
-            let mut expression = ClassExpression::Utilities(value);
+            let mut expression = RuleExpression::Utilities(value);
             for variant in self.variants.drain(..).rev() {
-                expression = ClassExpression::Variant {
+                expression = RuleExpression::Variant {
                     variant,
                     inputs: vec![expression],
                 };
             }
-            expressions.push(expression);
+            expressions.push(expression.into());
         }
         Ok(())
     }

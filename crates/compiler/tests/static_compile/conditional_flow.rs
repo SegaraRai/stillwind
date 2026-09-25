@@ -11,6 +11,32 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
 
+#[test]
+fn variant_rejects_ref_attachment_and_composition() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/InvalidVariantLeaf.tsx",
+        r#"import { style } from "stillwind/react";
+const ref = style.ref();
+const base = style("flex");
+export const one = style({ "hover:": ref });
+export const two = style({ "hover:": base });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter(|error| error.kind == CompileErrorKind::InvalidVariantInput)
+            .count(),
+        2,
+        "{:#?}",
+        result.diagnostics
+    );
+}
+
 fn compile(body: &str) -> CompileResult {
     let component = SourceFile::new(
         FileId(1),

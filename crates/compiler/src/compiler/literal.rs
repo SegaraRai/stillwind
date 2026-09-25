@@ -19,13 +19,15 @@ use super::utilities::resolve::{
 use super::variants::document_scoped_selector;
 use crate::CompilerOptions;
 
-/// The pieces one utility literal contributes before it becomes a leaf or a base-unit entry.
+/// The pieces one utility literal contributes before it becomes a leaf or a base-unit
+/// entry.
 ///
 /// [`Self::canonical`] is the text appended to the class-hash input. Keeping markers,
 /// external names, and resolved utilities in separate lists is what lets an unresolved
 /// candidate still reach the output as a class name while contributing no rule.
 /// A view transition contributes one class token and at most one static name, and they
-/// travel beside the utilities because a class unit declares them rather than a utility.
+/// travel beside the utilities because a class unit declares them rather than a
+/// utility.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Canonical candidate and wrapper spelling of the literal, in source order.
@@ -45,15 +47,26 @@ pub(super) struct LiteralContribution {
 }
 
 impl LiteralContribution {
-    /// Lowers one utility literal into its canonical input, resolved utilities, and classes.
+    /// Adds rule-bearing pieces in source order while leaving runtime-only names to the
+    /// caller.
+    pub(super) fn append_rules(&mut self, other: Self) {
+        if !other.utilities.is_empty() {
+            self.canonical.push_str(&other.canonical);
+            self.utilities.extend(other.utilities);
+        }
+    }
+
+    /// Lowers one utility literal into its canonical input, resolved utilities, and
+    /// classes.
     ///
-    /// A compatibility marker is emitted instead of utilities when the candidate only marks a
-    /// Tailwind relationship, and an unresolved candidate becomes an external class name plus a
-    /// lint finding, which keeps the user's class in the output rather than dropping it.
-    /// A resolved candidate whose own variants would apply to the document is reported without
-    /// changing its output, because the host decides that policy's severity.
-    /// A malformed CSS-registered runtime condition appends a compile diagnostic and skips
-    /// that candidate; callers must discard the compilation if diagnostics are present.
+    /// A compatibility marker is emitted instead of utilities when the candidate only
+    /// marks a Tailwind relationship, and an unresolved candidate becomes an external
+    /// class name plus a lint finding, which keeps the user's class in the output
+    /// rather than dropping it. A resolved candidate whose own variants would apply to
+    /// the document is reported without changing its output, because the host decides
+    /// that policy's severity. A malformed CSS-registered runtime condition appends a
+    /// compile diagnostic and skips that candidate; callers must discard the
+    /// compilation if diagnostics are present.
     pub(super) fn resolve(
         value: &Spanned<String>,
         plan: &StyleVariantPlan,

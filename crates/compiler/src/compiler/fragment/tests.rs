@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use stillwind_ir::{
-    AdapterKind, ConditionalKind, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, SourceAnalyzer,
+    AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile, Span};
@@ -18,11 +18,25 @@ use crate::compiler::expression_render::render_plain;
 use crate::compiler::props::{StyleEmission, StyleEmissionPart};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
+/// Returns the selected operator's branch shape for both differential test cases. The
+/// alternate fixture is unused for logical conjunction.
+fn branches<T>(ternary: bool, consequent: T, alternate: T) -> ConditionalBranches<T> {
+    if ternary {
+        ConditionalBranches::Ternary {
+            consequent,
+            alternate,
+        }
+    } else {
+        ConditionalBranches::And { consequent }
+    }
+}
+
 /// Builds a value call with a synthetic span used only as occurrence identity.
 /// The short span is not an exact text mapping for `render_transforms`.
 fn property(name: &str, index: u32) -> Property {
     Property {
         static_value: None,
+        computed_value: None,
         name: name.into(),
         value: format!("value({index})"),
         span: Span::new(FileId(1), index, index + 1),
@@ -157,18 +171,20 @@ fn folded_javascript_matches_runtime_materialization() {
             let input = emission(parts, mask % 2 == 0);
             append_case(&mut cases, &input, fw, &analysis);
         }
-        for kind in [ConditionalKind::LogicalAnd, ConditionalKind::Ternary] {
+        for ternary in [false, true] {
             for base in [false, true] {
                 let branch = Emitted::Conditional {
                     code: "test()".into(),
-                    kind,
-                    consequent: Some(Box::new(Emitted::Group(vec![
-                        Some(EmittedEntry::CustomProperty(property("--x", 2))),
-                        Some(EmittedEntry::Attribute(property("data-state", 3))),
-                    ]))),
-                    alternate: Some(Box::new(Emitted::Group(vec![Some(
-                        EmittedEntry::CustomProperty(property("--y", 4)),
-                    )]))),
+                    branches: branches(
+                        ternary,
+                        Some(Box::new(Emitted::Group(vec![
+                            Some(EmittedEntry::CustomProperty(property("--x", 2))),
+                            Some(EmittedEntry::Attribute(property("data-state", 3))),
+                        ]))),
+                        Some(Box::new(Emitted::Group(vec![Some(
+                            EmittedEntry::CustomProperty(property("--y", 4)),
+                        )]))),
+                    ),
                 };
                 append_case(
                     &mut cases,
@@ -188,11 +204,13 @@ fn folded_javascript_matches_runtime_materialization() {
                 );
                 let class = Emitted::Conditional {
                     code: "test()".into(),
-                    kind,
-                    consequent: Some(Box::new(Emitted::Leaf {
-                        names: vec!["_branch".into()],
-                    })),
-                    alternate: None,
+                    branches: branches(
+                        ternary,
+                        Some(Box::new(Emitted::Leaf {
+                            names: vec!["_branch".into()],
+                        })),
+                        None,
+                    ),
                 };
                 append_case(
                     &mut cases,
@@ -284,11 +302,11 @@ fn folded_javascript_matches_runtime_materialization() {
         let value = if scenario >= 2 {
             let guard = Emitted::Conditional {
                 code: "state.current".into(),
-                kind: ConditionalKind::LogicalAnd,
-                consequent: Some(Box::new(Emitted::Leaf {
-                    names: vec!["active".into()],
-                })),
-                alternate: None,
+                branches: ConditionalBranches::And {
+                    consequent: Some(Box::new(Emitted::Leaf {
+                        names: vec!["active".into()],
+                    })),
+                },
             };
             let call = Emitted::Expression(ValueExpr::Call {
                 helper: RuntimeHelper::Clsx,
@@ -303,9 +321,9 @@ fn folded_javascript_matches_runtime_materialization() {
         } else if scenario == 1 {
             Emitted::Conditional {
                 code: "test()".into(),
-                kind: ConditionalKind::LogicalAnd,
-                consequent: Some(Box::new(value)),
-                alternate: None,
+                branches: ConditionalBranches::And {
+                    consequent: Some(Box::new(value)),
+                },
             }
         } else {
             value
@@ -404,16 +422,10 @@ fn class_branches_and_single_style_payloads_materialize_without_merge() {
     let mut cases = Vec::new();
     for fw in FRAMEWORKS {
         for base in [false, true] {
-            for kind in [ConditionalKind::LogicalAnd, ConditionalKind::Ternary] {
+            for ternary in [false, true] {
                 let parts = vec![StyleEmissionPart::Conditional {
                     test: "test()".into(),
-                    kind,
-                    consequent: vec![class("selected")],
-                    alternate: if kind == ConditionalKind::Ternary {
-                        vec![class("other")]
-                    } else {
-                        vec![]
-                    },
+                    branches: branches(ternary, vec![class("selected")], vec![class("other")]),
                     position: 1,
                 }];
                 let input = emission(parts, base);

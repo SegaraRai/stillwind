@@ -14,6 +14,29 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use super::*;
 
 #[test]
+fn unresolved_variant_utility_keeps_only_its_authored_class() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/UnknownVariant.tsx",
+        r#"import { style } from "stillwind/react";
+export const item = style({ "hover:": "unknown-widget-class" });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(
+        transformed.contains("unknown-widget-class"),
+        "{transformed}"
+    );
+    assert!(
+        !transformed.contains("hover:unknown-widget-class"),
+        "{transformed}"
+    );
+}
+
+#[test]
 fn compiles_tailwind_group_peer_and_container_compatibility() {
     let component = SourceFile::new(
         FileId(1),

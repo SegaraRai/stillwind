@@ -3,6 +3,8 @@
 Lowering keeps class contributions and their guards in a structured tree. Output
 selection follows [contextual fragment folding](style-fragment-folding.md), and
 source expressions follow the [macro purity contract](macro-contract.md).
+The accepted leaf categories and variant boundary are defined in
+[the style input design](style-input-design.md).
 
 ## Contribution structure
 
@@ -33,9 +35,11 @@ Hooks, suspension, and explicit mutations must be evaluated outside macros.
 
 ## CSS ordering
 
-Unconditional utilities form the base unit and are emitted before conditional
-units. Conditional units follow the source order of their literals. The order of
-class tokens in an attribute does not control the cascade.
+Unconditional rules form the base unit and are emitted before conditional
+regions. A conditional region collects its rules into one class unit after
+walking its children; nested conditions start their own regions. Conditional
+units follow the source traversal order of those regions. The order of class
+tokens in an attribute does not control the cascade.
 
 The declaration, class-unit, module-unit, and delivered-CSS boundaries are described
 in [CSS ordering](css-ordering.md). Folding generated JavaScript does not reorder CSS.

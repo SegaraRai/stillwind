@@ -11,8 +11,8 @@
 //! analysed source.
 
 use oxc::ast::ast::{
-    ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectProperty,
-    ObjectPropertyKind, PropertyKind,
+    ArrayExpression, ArrayExpressionElement, CallExpression, Expression, ObjectExpression,
+    ObjectProperty, ObjectPropertyKind, PropertyKind,
 };
 use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
@@ -20,8 +20,8 @@ use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalKind, CustomPropertyEntry, GroupEntry, StyleInput,
-    StyleVariant,
+    AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
+    RuleExpression, StyleInput, StyleVariant,
 };
 use stillwind_semantic::{ExportedValue, IdentityId};
 use stillwind_source::Span;
@@ -132,6 +132,10 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         match expression {
+            Expression::ArrayExpression(array) => {
+                self.collect_style_array(array, inputs);
+                return;
+            }
             Expression::ConditionalExpression(conditional) => {
                 let mut consequent = Vec::new();
                 let mut alternate = Vec::new();
@@ -139,9 +143,10 @@ impl<'a> MacroExtractor<'a> {
                 self.collect_style_expression(&conditional.alternate, &mut alternate);
                 inputs.push(StyleInput::Conditional {
                     test: self.source_span(conditional.test.span()),
-                    kind: ConditionalKind::Ternary,
-                    consequent,
-                    alternate,
+                    branches: ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    },
                 });
                 return;
             }
@@ -150,9 +155,7 @@ impl<'a> MacroExtractor<'a> {
                 self.collect_style_expression(&logical.right, &mut consequent);
                 inputs.push(StyleInput::Conditional {
                     test: self.source_span(logical.left.span()),
-                    kind: ConditionalKind::LogicalAnd,
-                    consequent,
-                    alternate: Vec::new(),
+                    branches: ConditionalBranches::And { consequent },
                 });
                 return;
             }
@@ -189,17 +192,59 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Appends a mixed-channel array to `inputs`, keeping class-only arrays in the
+    /// class tree. Empty arrays and elisions append nothing; a nonliteral spread is
+    /// diagnosed and skipped.
+    fn collect_style_array(&mut self, array: &ArrayExpression<'a>, inputs: &mut Vec<StyleInput>) {
+        let mut elements = Vec::new();
+        for element in &array.elements {
+            match element {
+                ArrayExpressionElement::SpreadElement(spread) => {
+                    if matches!(
+                        spread.argument.get_inner_expression(),
+                        Expression::ArrayExpression(_)
+                    ) {
+                        self.collect_style_expression(&spread.argument, &mut elements);
+                    } else {
+                        self.diagnostics.push(CompileError::new(
+                            CompileErrorKind::StyleArraySpread,
+                            self.source_span(spread.span),
+                        ));
+                    }
+                }
+                ArrayExpressionElement::Elision(_) => {}
+                _ => {
+                    if let Some(expression) = element.as_expression() {
+                        self.collect_style_expression(expression, &mut elements);
+                    }
+                }
+            }
+        }
+        if !elements.is_empty() {
+            if let Some(classes) = elements
+                .iter()
+                .map(class_only_input)
+                .collect::<Option<Vec<_>>>()
+            {
+                inputs.push(StyleInput::Class(ClassExpression::Array(classes)));
+            } else {
+                inputs.push(StyleInput::Array(elements));
+            }
+        }
+    }
+
     /// Lowers one class-valued expression while mirroring the source structure.
     ///
     /// Returns `None` when the expression contributes no class, such as `null`,
-    /// `undefined`, or `false`. Conditional tests remain even when both branches are empty.
+    /// `undefined`, or `false`. Conditional tests remain even when both branches are
+    /// empty.
     ///
     /// Literal array spreads are expanded; empty slots contribute no class.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the class expression.
     fn class_expression(&mut self, expression: &Expression<'a>) -> Option<ClassExpression> {
         match expression {
             Expression::StringLiteral(literal) => {
-                Some(ClassExpression::Utilities(self.string_literal(literal)))
+                Some(RuleExpression::Utilities(self.string_literal(literal)).into())
             }
             Expression::TemplateLiteral(template) => {
                 let mut expressions = self.utility_template_expressions(template)?;
@@ -216,9 +261,7 @@ impl<'a> MacroExtractor<'a> {
                 let consequent = self.class_expression_sequence(&expression.right);
                 Some(ClassExpression::Conditional {
                     test,
-                    kind: ConditionalKind::LogicalAnd,
-                    consequent,
-                    alternate: Vec::new(),
+                    branches: ConditionalBranches::And { consequent },
                 })
             }
             Expression::ConditionalExpression(expression) => {
@@ -227,9 +270,10 @@ impl<'a> MacroExtractor<'a> {
                 let alternate = self.class_expression_sequence(&expression.alternate);
                 Some(ClassExpression::Conditional {
                     test,
-                    kind: ConditionalKind::Ternary,
-                    consequent,
-                    alternate,
+                    branches: ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    },
                 })
             }
             Expression::ParenthesizedExpression(parenthesized) => {
@@ -286,6 +330,26 @@ impl<'a> MacroExtractor<'a> {
                 if let Some(keyframes) = self.keyframes_use(expression) {
                     return Some(keyframes.into_class_expression());
                 }
+                if let Some(transition) = self.view_transition_use(expression) {
+                    return match transition {
+                        StyleInput::ViewTransitionUse { transition, name } => {
+                            Some(RuleExpression::ViewTransitionUse { transition, name }.into())
+                        }
+                        StyleInput::DynamicViewTransitionUse {
+                            value,
+                            transitions,
+                            name,
+                        } => Some(
+                            RuleExpression::DynamicViewTransitionUse {
+                                value,
+                                transitions,
+                                name,
+                            }
+                            .into(),
+                        ),
+                        _ => None,
+                    };
+                }
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidStyleInput,
                     self.source_span(expression.span()),
@@ -297,8 +361,8 @@ impl<'a> MacroExtractor<'a> {
 
     /// Lowers an expression to the sequence of class expressions it contributes.
     ///
-    /// Today at most one expression is produced; the vector shape is what lets a future
-    /// multi-part form reuse the wrapper logic unchanged.
+    /// Returns zero or one expression in source order. An empty vector means the source
+    /// expression contributes no class.
     fn class_expression_sequence(&mut self, expression: &Expression<'a>) -> Vec<ClassExpression> {
         self.class_expression(expression).into_iter().collect()
     }
@@ -476,56 +540,101 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Wraps a value in one variant, rejecting values a variant cannot apply to.
+    /// Returns one variant-wrapped rule entry when every contributing descendant can
+    /// produce CSS. Returns `None` for an empty value or after recording
+    /// [`CompileErrorKind::InvalidVariantInput`] for a props-only descendant.
     fn variant_entry(
         &mut self,
         variant: StyleVariant,
         value: &Expression<'a>,
     ) -> Option<GroupEntry> {
-        let inputs = self.class_expression_sequence(value);
+        let mut inputs = Vec::new();
+        self.collect_style_expression(value, &mut inputs);
         if inputs.is_empty() {
             return None;
         }
-        if !inputs.iter().all(variant_compatible) {
+        let Some(inputs) = inputs
+            .iter()
+            .map(rule_class_input)
+            .collect::<Option<Vec<_>>>()
+        else {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::InvalidVariantInput,
                 self.source_span(value.span()),
             ));
             return None;
-        }
-        Some(GroupEntry::Class(Box::new(ClassExpression::Variant {
-            variant,
-            inputs,
-        })))
+        };
+        Some(GroupEntry::Class(Box::new(
+            RuleExpression::Variant { variant, inputs }.into(),
+        )))
     }
 }
 
-/// Variant wrappers apply to stylesheet declarations. Custom-property object keys
-/// supply inline values even when literal; conditional variable changes use utility
-/// syntax. Attributes and external class values also have no stylesheet declaration to
-/// apply to.
-fn variant_compatible(expression: &ClassExpression) -> bool {
-    match expression {
-        ClassExpression::Utilities(_)
-        | ClassExpression::KeyframesUse { .. }
-        | ClassExpression::DynamicKeyframesUse { .. } => true,
-        ClassExpression::Array(elements) => elements.iter().all(variant_compatible),
-        ClassExpression::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => consequent
-            .iter()
-            .chain(alternate.iter())
-            .all(variant_compatible),
-        ClassExpression::Variant { inputs, .. } => inputs.iter().all(variant_compatible),
-        ClassExpression::Group { entries, .. } => entries.iter().all(|entry| match entry {
-            GroupEntry::Class(expression) => variant_compatible(expression),
-            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => false,
+/// Returns a rule subtree for a root input when every nested leaf supports CSS
+/// variants. Returns `None` for a props-only descendant or a failed conversion.
+fn rule_class_input(input: &StyleInput) -> Option<RuleExpression> {
+    match input {
+        StyleInput::Class(class) => RuleExpression::try_from(class.clone()).ok(),
+        StyleInput::Array(inputs) => Some(RuleExpression::Array(
+            inputs.iter().map(rule_class_input).collect::<Option<_>>()?,
+        )),
+        StyleInput::Conditional { test, branches } => Some(RuleExpression::Conditional {
+            test: *test,
+            branches: branches
+                .as_ref()
+                .try_map(|values| {
+                    values
+                        .iter()
+                        .map(rule_class_input)
+                        .collect::<Option<_>>()
+                        .ok_or(())
+                })
+                .ok()?,
         }),
-        ClassExpression::ClassValue { .. }
-        | ClassExpression::RefProjection { .. }
-        | ClassExpression::DynamicRefProjection { .. } => false,
+        StyleInput::ViewTransitionUse { transition, name } => {
+            Some(RuleExpression::ViewTransitionUse {
+                transition: transition.clone(),
+                name: name.clone(),
+            })
+        }
+        StyleInput::DynamicViewTransitionUse {
+            value,
+            transitions,
+            name,
+        } => Some(RuleExpression::DynamicViewTransitionUse {
+            value: *value,
+            transitions: transitions.clone(),
+            name: name.clone(),
+        }),
+        StyleInput::Composition { .. }
+        | StyleInput::RefAttachment(_)
+        | StyleInput::DynamicRefAttachment { .. } => None,
+    }
+}
+
+/// Returns a class-only subtree when every nested input is a class expression. Returns
+/// `None` when a composition, attachment, or root asset input needs another props
+/// channel.
+fn class_only_input(input: &StyleInput) -> Option<ClassExpression> {
+    match input {
+        StyleInput::Class(class) => Some(class.clone()),
+        StyleInput::Array(inputs) => Some(ClassExpression::Array(
+            inputs.iter().map(class_only_input).collect::<Option<_>>()?,
+        )),
+        StyleInput::Conditional { test, branches } => Some(ClassExpression::Conditional {
+            test: *test,
+            branches: branches
+                .as_ref()
+                .try_map(|values| {
+                    values
+                        .iter()
+                        .map(class_only_input)
+                        .collect::<Option<_>>()
+                        .ok_or(())
+                })
+                .ok()?,
+        }),
+        _ => None,
     }
 }
 

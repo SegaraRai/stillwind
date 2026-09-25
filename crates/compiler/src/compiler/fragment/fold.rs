@@ -170,28 +170,20 @@ pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
                 Fragment::Sequence(output)
             }
         }
-        Fragment::Branch {
-            test,
-            kind,
-            consequent,
-            alternate,
-        } => {
-            let consequent = fold(*consequent, fw);
-            let alternate = fold(*alternate, fw);
-            if let (Some(yes), Some(no)) = (class_branch(&consequent), class_branch(&alternate)) {
+        Fragment::Branch { test, branches } => {
+            let branches = branches.map(|value| Box::new(fold(*value, fw)));
+            let classes = branches.as_ref().try_map(|value| {
+                class_branch(value)
+                    .map(|class| Some(Box::new(class)))
+                    .ok_or(())
+            });
+            if let Ok(branches) = classes {
                 Fragment::Record(vec![Atom::Class(Emitted::Conditional {
                     code: test,
-                    kind,
-                    consequent: Some(Box::new(yes)),
-                    alternate: Some(Box::new(no)),
+                    branches,
                 })])
             } else {
-                Fragment::Branch {
-                    test,
-                    kind,
-                    consequent: Box::new(consequent),
-                    alternate: Box::new(alternate),
-                }
+                Fragment::Branch { test, branches }
             }
         }
         other => other,

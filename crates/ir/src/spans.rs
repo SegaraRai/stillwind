@@ -16,14 +16,15 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AssetReference, BoundaryRef, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition,
-    ModuleIr, RefDefinition, RefProjection, StyleInput, StyleVariant, ViewTransitionKey,
-    ViewTransitionName,
+    AssetReference, BoundaryRef, ClassExpression, ConditionalBranches, GroupEntry, KeyframesBody,
+    KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression, StyleInput,
+    StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
-    /// Maps local analysis spans while preserving original-coordinate identities. The
-    /// frontend owns correspondence validation and keeps its provenance.
+    /// Returns a copy with local analysis spans mapped to original source coordinates
+    /// while preserving declaration identities. The frontend owns correspondence
+    /// validation and keeps its provenance.
     ///
     /// The mapping function is called for each stored span occurrence, and the same
     /// coordinates can be visited more than once when roles share a span; it sees only
@@ -166,21 +167,39 @@ fn map_projection<E>(
     Ok(())
 }
 
+/// Rewrites every span in one root input. Returns success after all occurrences have
+/// been mapped.
+///
+/// # Errors
+///
+/// Returns the first error from the supplied mapping function.
 #[allow(clippy::too_many_lines)] // Exhaustive match makes new IR variants require an explicit mapping policy.
 fn map_input<E>(
     input: &mut StyleInput,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match input {
-        StyleInput::Conditional {
-            test,
-            consequent,
-            alternate,
-            ..
-        } => {
-            *test = map(*test)?;
-            for input in consequent.iter_mut().chain(alternate) {
+        StyleInput::Array(inputs) => {
+            for input in inputs {
                 map_input(input, map)?;
+            }
+        }
+        StyleInput::Conditional { test, branches } => {
+            *test = map(*test)?;
+            match branches {
+                ConditionalBranches::And { consequent } => {
+                    for input in consequent {
+                        map_input(input, map)?;
+                    }
+                }
+                ConditionalBranches::Ternary {
+                    consequent,
+                    alternate,
+                } => {
+                    for input in consequent.iter_mut().chain(alternate) {
+                        map_input(input, map)?;
+                    }
+                }
             }
         }
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
@@ -246,32 +265,41 @@ fn map_group_entry<E>(
     Ok(())
 }
 
+/// Rewrites every span in one mixed class expression. Returns success after its
+/// descendants are mapped.
+///
+/// # Errors
+///
+/// Returns the first error from the supplied mapping function.
 fn map_class_expression<E>(
     expression: &mut ClassExpression,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match expression {
-        ClassExpression::Utilities(value) => map_value(value, map)?,
+        ClassExpression::Rule(rule) => {
+            map_rule_expression(rule, map)?;
+        }
         ClassExpression::Array(elements) => {
             for element in elements {
                 map_class_expression(element, map)?;
             }
         }
-        ClassExpression::Conditional {
-            test,
-            consequent,
-            alternate,
-            ..
-        } => {
+        ClassExpression::Conditional { test, branches } => {
             *test = map(*test)?;
-            for expression in consequent.iter_mut().chain(alternate.iter_mut()) {
-                map_class_expression(expression, map)?;
-            }
-        }
-        ClassExpression::Variant { variant, inputs } => {
-            map_variant(variant, map)?;
-            for input in inputs {
-                map_class_expression(input, map)?;
+            match branches {
+                ConditionalBranches::And { consequent } => {
+                    for expression in consequent {
+                        map_class_expression(expression, map)?;
+                    }
+                }
+                ConditionalBranches::Ternary {
+                    consequent,
+                    alternate,
+                } => {
+                    for expression in consequent.iter_mut().chain(alternate.iter_mut()) {
+                        map_class_expression(expression, map)?;
+                    }
+                }
             }
         }
         ClassExpression::Group { span, entries } => {
@@ -286,7 +314,60 @@ fn map_class_expression<E>(
                 *argument = map(*argument)?;
             }
         }
-        ClassExpression::RefProjection {
+    }
+    Ok(())
+}
+
+/// Rewrites every span in one variant-capable rule subtree. Returns success after its
+/// descendants are mapped.
+///
+/// # Errors
+///
+/// Returns the first error from the supplied mapping function.
+fn map_rule_expression<E>(
+    expression: &mut RuleExpression,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    match expression {
+        RuleExpression::Utilities(value) => {
+            map_value(value, map)?;
+        }
+        RuleExpression::Array(elements) => {
+            for element in elements {
+                map_rule_expression(element, map)?;
+            }
+        }
+        RuleExpression::Group { span, inputs } => {
+            *span = map(*span)?;
+            for input in inputs {
+                map_rule_expression(input, map)?;
+            }
+        }
+        RuleExpression::Conditional { test, branches } => {
+            *test = map(*test)?;
+            match branches {
+                ConditionalBranches::And { consequent } => {
+                    for element in consequent {
+                        map_rule_expression(element, map)?;
+                    }
+                }
+                ConditionalBranches::Ternary {
+                    consequent,
+                    alternate,
+                } => {
+                    for element in consequent.iter_mut().chain(alternate.iter_mut()) {
+                        map_rule_expression(element, map)?;
+                    }
+                }
+            }
+        }
+        RuleExpression::Variant { variant, inputs } => {
+            map_variant(variant, map)?;
+            for input in inputs {
+                map_rule_expression(input, map)?;
+            }
+        }
+        RuleExpression::RefProjection {
             definition,
             value,
             projection,
@@ -295,7 +376,7 @@ fn map_class_expression<E>(
             *value = map(*value)?;
             map_projection(projection, map)?;
         }
-        ClassExpression::DynamicRefProjection {
+        RuleExpression::DynamicRefProjection {
             value,
             refs,
             projection,
@@ -306,11 +387,26 @@ fn map_class_expression<E>(
             }
             map_projection(projection, map)?;
         }
-        ClassExpression::KeyframesUse { keyframes, options } => {
+        RuleExpression::ViewTransitionUse { transition, name } => {
+            map_asset(transition, map)?;
+            map_view_transition_name(name, map)?;
+        }
+        RuleExpression::DynamicViewTransitionUse {
+            value,
+            transitions,
+            name,
+        } => {
+            *value = map(*value)?;
+            for transition in transitions {
+                map_asset(transition, map)?;
+            }
+            map_view_transition_name(name, map)?;
+        }
+        RuleExpression::KeyframesUse { keyframes, options } => {
             map_asset(keyframes, map)?;
             map_value(options, map)?;
         }
-        ClassExpression::DynamicKeyframesUse {
+        RuleExpression::DynamicKeyframesUse {
             value,
             keyframes,
             options,
@@ -352,13 +448,24 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
-    use crate::ConditionalKind;
 
     fn utilities(text: &str, start: u32) -> ClassExpression {
-        ClassExpression::Utilities(Spanned::new(
+        RuleExpression::Utilities(Spanned::new(
             text.to_owned(),
             Span::new(FileId(1), start, start + u32::try_from(text.len()).unwrap()),
         ))
+        .into()
+    }
+
+    /// Returns the utility text and span inside a rule-valued class fixture.
+    fn utility(expression: &ClassExpression) -> &Spanned<String> {
+        let ClassExpression::Rule(rule) = expression else {
+            panic!("rule")
+        };
+        let RuleExpression::Utilities(value) = rule.as_ref() else {
+            panic!("utilities")
+        };
+        value
     }
 
     /// Every span-bearing node is visited in source order, and each mapped span
@@ -369,9 +476,10 @@ mod tests {
             utilities("a", 0),
             ClassExpression::Conditional {
                 test: Span::new(FileId(1), 10, 14),
-                kind: ConditionalKind::Ternary,
-                consequent: vec![ClassExpression::Array(vec![utilities("b", 20)])],
-                alternate: vec![utilities("c", 30)],
+                branches: ConditionalBranches::Ternary {
+                    consequent: vec![ClassExpression::Array(vec![utilities("b", 20)])],
+                    alternate: vec![utilities("c", 30)],
+                },
             },
         ]);
         let mut seen = Vec::new();
@@ -384,23 +492,16 @@ mod tests {
         let ClassExpression::Array(elements) = &expression else {
             panic!("array")
         };
-        let ClassExpression::Utilities(first) = &elements[0] else {
-            panic!("utilities")
-        };
+        let first = utility(&elements[0]);
         assert_eq!(first.span, Span::new(FileId(1), 100, 101));
-        let ClassExpression::Conditional {
-            test, consequent, ..
-        } = &elements[1]
-        else {
+        let ClassExpression::Conditional { test, branches, .. } = &elements[1] else {
             panic!("conditional")
         };
         assert_eq!(*test, Span::new(FileId(1), 110, 114));
-        let ClassExpression::Array(inner) = &consequent[0] else {
+        let ClassExpression::Array(inner) = &branches.consequent()[0] else {
             panic!("array")
         };
-        let ClassExpression::Utilities(nested) = &inner[0] else {
-            panic!("utilities")
-        };
+        let nested = utility(&inner[0]);
         assert_eq!(nested.span, Span::new(FileId(1), 120, 121));
     }
 
@@ -423,13 +524,9 @@ mod tests {
         let ClassExpression::Array(elements) = &expression else {
             panic!("array")
         };
-        let ClassExpression::Utilities(first) = &elements[0] else {
-            panic!("utilities")
-        };
+        let first = utility(&elements[0]);
         assert_eq!(first.span, Span::new(FileId(1), 1, 2));
-        let ClassExpression::Utilities(second) = &elements[1] else {
-            panic!("utilities")
-        };
+        let second = utility(&elements[1]);
         assert_eq!(second.span, Span::new(FileId(1), 10, 11));
     }
 }

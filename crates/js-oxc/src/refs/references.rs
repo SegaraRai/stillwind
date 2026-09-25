@@ -59,7 +59,8 @@ impl<'a> MacroExtractor<'a> {
     /// Each alternative keeps its own permitted boundary: an alternative with a finite
     /// boundary set expands to one definition per boundary, while an alternative whose
     /// boundary set is a universe yields `None`, because no single boundary could be
-    /// chosen without changing the selector's meaning.
+    /// chosen without changing the selector's meaning. An empty finite boundary set
+    /// contributes no definitions and may leave the resulting vector empty.
     pub(crate) fn refs_from_alternatives(
         &self,
         alternatives: &[RefAlternative],

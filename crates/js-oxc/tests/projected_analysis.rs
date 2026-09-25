@@ -10,7 +10,7 @@ use std::sync::Arc;
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
-    ScriptLanguage, SourceAnalyzer, SourceInput, StyleInput, StyleVariant,
+    RuleExpression, ScriptLanguage, SourceAnalyzer, SourceInput, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::AssetKind;
@@ -116,7 +116,10 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
         assert_eq!(nested.len(), 1);
         leaf = &nested[0];
     }
-    let ClassExpression::Utilities(value) = leaf else {
+    let ClassExpression::Rule(rule) = leaf else {
+        panic!("rule");
+    };
+    let RuleExpression::Utilities(value) = rule.as_ref() else {
         panic!("utility");
     };
     assert_eq!(value.value, "flex");

@@ -11,6 +11,82 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use super::*;
 
 #[test]
+fn ref_projection_inside_variant_keeps_the_selector_gate() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ProjectionVariant.tsx",
+        r#"import { style } from "stillwind/react";
+const trigger = style.ref();
+export const item = style({ "hover:": trigger.positionAnchor });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("position-anchor:--sw-a-"),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains(":hover"), "{}", result.css);
+}
+
+#[test]
+fn conditional_region_collects_utilities_and_ref_projection_into_one_class() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ConditionalProjection.tsx",
+        r#"import { style } from "stillwind/react";
+const anchor = style.ref();
+export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"]);"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.classes.len(), 1, "{:?}", result.classes);
+    let class = &result.classes[0].class_name;
+    assert!(
+        result.css.contains(&format!(".{class}{{padding:")),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains(&format!(".{class}:where(.sw_")),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("position-anchor:--sw-a-"));
+    assert!(result.css.contains("color:"));
+    let output = result.transforms[0].replacement.as_str();
+    assert!(output.contains("stillwindClsx("), "{output}");
+    assert!(!output.contains("stillwindMerge("), "{output}");
+    assert!(output.contains("enabled"), "{output}");
+    assert!(output.contains("(anchor).c"), "{output}");
+    assert!(!output.contains("[(anchor).c]"), "{output}");
+}
+
+#[test]
+fn unconditional_projection_and_custom_property_materialize_direct_props() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/DirectProjection.tsx",
+        r#"import { style } from "stillwind/react";
+const anchor = style.ref();
+export const item = style("flex", anchor.positionAnchor, { "--x": size });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.classes.len(), 1, "{:?}", result.classes);
+    let output = result.transforms[0].replacement.as_str();
+    assert!(output.contains("className:"), "{output}");
+    assert!(output.contains("style:{"), "{output}");
+    assert!(!output.contains("stillwindMerge("), "{output}");
+}
+
+#[test]
 fn projects_one_ref_into_anchor_position_and_container_names() {
     let component = SourceFile::new(
         FileId(1),
@@ -62,10 +138,8 @@ const panel = style(popover.positionAnchor, "absolute");"#,
         transformed.contains("const popover = {c:\"sw_"),
         "{transformed}"
     );
-    assert!(
-        transformed.contains("({\"sw_") && transformed.contains("})[(popover).c]"),
-        "{transformed}"
-    );
+    assert!(transformed.contains("(popover).c"), "{transformed}");
+    assert!(!transformed.contains("})[(popover).c]"), "{transformed}");
 }
 
 #[test]

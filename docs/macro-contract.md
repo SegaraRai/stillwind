@@ -71,6 +71,14 @@ const props = style({ "--progress": value });
 | `style()` の utility / variant key                | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ                                                                                                               |
 | 配列・variant object                              | 対応する入力を再帰的に記述。literal spread と配列の穴に対応。getter・method は不可                                                                                                 |
 
+`style()` の variant value には utility、ref projection、view transition use、
+keyframes use と、それらの配列・条件分岐・variant object を置ける。
+ref attachment、外部 `class`、inline custom property、attribute、style composition は
+variant value に置けない。これらも `style()` の配列や条件分岐の中には置ける。
+動的な view transition name を CSS variant 内で使う場合は、値を条件付きの
+inline custom property に置き、`view-transition-name: var(...)` を variant の
+CSS rule に出力する。詳細は [style input design](style-input-design.md) を参照。
+
 コンパイル時に identity が確定すれば、receiver を実行時に読む必要がなくなる場合もある。
 型定義にある `StillwindDeclarationIdentity` の追加引数は checker 用の内部情報であり、
 ユーザーが副作用の実行場所として使う引数ではない。

@@ -1,12 +1,13 @@
 //! Source variants keep ref identity until they are lowered to CSS applications.
 //!
-//! A [`StyleVariantPlan`] walks the wrappers around one utility literal. Ordinary
-//! prefixes are collected into a string and handed to the ordinary candidate resolver,
-//! which is what makes a utility prefixed by `hover:` behave exactly like the same
-//! candidate written as one token. A ref wrapper cannot be spelled as a string: the
-//! selector depends on which element declares the ref and where it sits relative to the
-//! target, so the wrapper is lowered into [`VariantApplication`] alternatives that
-//! carry the generated marker and boundary selectors.
+//! A [`StyleVariantPlan`] walks the wrappers around one rule contribution. Ordinary
+//! prefixes around utility literals are collected into a string and handed to the
+//! candidate resolver, which is what makes a utility prefixed by `hover:` behave
+//! exactly like the same candidate written as one token. A ref wrapper cannot be
+//! spelled as a string: the selector depends on which element declares the ref and
+//! where it sits relative to the target, so the wrapper is lowered into
+//! [`VariantApplication`] alternatives that carry the generated marker and boundary
+//! selectors.
 //!
 //! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
 //! records the ref's generated identifiers and the authored prefix, independent of how
@@ -30,7 +31,7 @@ use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 use crate::identifiers::{IdentifierContext, RefMarker};
 
-/// The lowered form of the variant wrappers around one utility literal.
+/// The lowered form of the variant wrappers around one rule contribution.
 pub(super) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
     pub prefix: String,
@@ -276,8 +277,10 @@ impl StyleVariantPlan {
         }
     }
 
-    /// Applies the plan to an keyframes use, which has no candidate text to re-parse.
-    pub fn apply_keyframes(&self, utility: &mut CompiledUtility) {
+    /// Copies resolved variants and correlated ref applications onto a rule
+    /// supplied directly by an asset or ref projection. The caller retains
+    /// ownership of that rule's declarations and canonical class identity.
+    pub fn apply_rule(&self, utility: &mut CompiledUtility) {
         utility.variants.clone_from(&self.variants);
         if self.has_refs {
             utility.variant_applications.clone_from(&self.paths);

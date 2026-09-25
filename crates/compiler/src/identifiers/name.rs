@@ -99,14 +99,11 @@ macro_rules! brand {
 
 brand! {
     /// A generated utility class, written to a class attribute and to class selectors.
-    ///
-    /// A DOM class token and a class selector are one spelling, so one type covers both.
     UtilityClass, class_token;
     /// A ref marker class, written where a ref is attached.
     ///
-    /// Generated code keys a ref's projection lookup by this token, and a bounded ref
-    /// writes its boundary's token as the `:has()` root of its selectors.
-    RefMarker, object_key_class_token;
+    /// A bounded ref writes its boundary's token as the `:has()` root of its selectors.
+    RefMarker, class_token;
     /// An `anchor-name` value, which names the element a ref anchors to.
     AnchorName, custom_ident;
     /// A `container-name` custom-ident, which `@container` queries select.
@@ -279,22 +276,6 @@ fn class_token(name: &str) -> Result<String, IdentifierNameError> {
     non_empty(canonical)
 }
 
-/// Replaces what a class token cannot carry, and keeps the result an own object key.
-///
-/// Generated code writes these tokens as the keys of a projection lookup, and the key is the
-/// canonical token itself, so the token has to be an own entry of every object it is written
-/// to. A name an object already carries would not become one, and `__proto__` would even
-/// replace the prototype, so a colliding token gains one leading underscore here, where the
-/// name is decided: every writer of the declaration then sees one spelling.
-fn object_key_class_token(name: &str) -> Result<String, IdentifierNameError> {
-    let canonical = class_token(name)?;
-    Ok(if is_inherited_member(&canonical) {
-        format!("_{canonical}")
-    } else {
-        canonical
-    })
-}
-
 /// Keeps a custom-ident as written.
 ///
 /// A custom-ident value can escape every character it can hold, so nothing is replaced. Colon
@@ -317,25 +298,6 @@ fn non_empty(name: String) -> Result<String, IdentifierNameError> {
     } else {
         Ok(name)
     }
-}
-
-/// Whether every object already carries `name`, so it could not become an own entry.
-fn is_inherited_member(name: &str) -> bool {
-    matches!(
-        name,
-        "constructor"
-            | "toString"
-            | "toLocaleString"
-            | "valueOf"
-            | "hasOwnProperty"
-            | "isPrototypeOf"
-            | "propertyIsEnumerable"
-            | "__proto__"
-            | "__defineGetter__"
-            | "__defineSetter__"
-            | "__lookupGetter__"
-            | "__lookupSetter__"
-    )
 }
 
 /// Escapes one canonical name as a class selector.

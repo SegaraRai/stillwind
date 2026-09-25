@@ -49,10 +49,9 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
             use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
             naming_revision: input.naming_revision.unwrap_or(defaults.naming_revision),
-            hash_length: input
-                .hash_length
-                .map(|length| usize::try_from(length).unwrap_or(usize::MAX))
-                .unwrap_or(defaults.hash_length),
+            hash_length: input.hash_length.map_or(defaults.hash_length, |length| {
+                usize::try_from(length).unwrap_or(usize::MAX)
+            }),
         };
         options
             .validate()

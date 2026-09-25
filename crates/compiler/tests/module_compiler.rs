@@ -17,11 +17,15 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
-    ClassExpression, ConditionalKind, RefDefinition, SourceAnalyzer, StyleInput, StyleVariant,
+    ClassExpression, ConditionalBranches, RefDefinition, RuleExpression, SourceAnalyzer,
+    StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
 use stillwind_source::{FileId, Fingerprint, SourceFile, Span, Spanned};
+
+#[path = "../../test-support/css.rs"]
+mod css_fixture;
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
@@ -260,35 +264,41 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         call_span: span,
     };
     for (input, expected) in [
-        StyleInput::Class(ClassExpression::Variant {
-            variant: StyleVariant::Ref {
-                refs: vec![definition.clone()],
-                prefix: Spanned::new(":hover".into(), span),
-            },
-            inputs: vec![ClassExpression::Utilities(Spanned::new(
-                "flex".into(),
-                span,
-            ))],
-        }),
-        StyleInput::Class(ClassExpression::Variant {
-            variant: StyleVariant::Ref {
-                refs: vec![definition],
-                prefix: Spanned::new("hover::".into(), span),
-            },
-            inputs: vec![ClassExpression::Conditional {
-                test: span,
-                kind: ConditionalKind::LogicalAnd,
-                consequent: vec![ClassExpression::Utilities(Spanned::new(
-                    "flex".into(),
-                    span,
-                ))],
-                alternate: Vec::new(),
-            }],
-        }),
-        StyleInput::Class(ClassExpression::Utilities(Spanned::new(
-            "x".into(),
-            Span::new(FileId(1), u32::MAX, u32::MAX),
-        ))),
+        StyleInput::Class(
+            RuleExpression::Variant {
+                variant: StyleVariant::Ref {
+                    refs: vec![definition.clone()],
+                    prefix: Spanned::new(":hover".into(), span),
+                },
+                inputs: vec![RuleExpression::Utilities(Spanned::new("flex".into(), span))],
+            }
+            .into(),
+        ),
+        StyleInput::Class(
+            RuleExpression::Variant {
+                variant: StyleVariant::Ref {
+                    refs: vec![definition],
+                    prefix: Spanned::new("hover::".into(), span),
+                },
+                inputs: vec![RuleExpression::Conditional {
+                    test: span,
+                    branches: ConditionalBranches::And {
+                        consequent: vec![RuleExpression::Utilities(Spanned::new(
+                            "flex".into(),
+                            span,
+                        ))],
+                    },
+                }],
+            }
+            .into(),
+        ),
+        StyleInput::Class(
+            RuleExpression::Utilities(Spanned::new(
+                "x".into(),
+                Span::new(FileId(1), u32::MAX, u32::MAX),
+            ))
+            .into(),
+        ),
     ]
     .into_iter()
     .zip([
@@ -372,10 +382,12 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let upstream_key = compiler.key_for(&upstream_changed);
     assert_eq!(first.key.source_revision, upstream_key.source_revision);
     assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);
-    let StyleInput::Class(ClassExpression::Utilities(value)) =
-        &mut analysis.ir.style_calls[0].inputs[0]
+    let StyleInput::Class(ClassExpression::Rule(rule)) = &mut analysis.ir.style_calls[0].inputs[0]
     else {
         panic!("literal utility")
+    };
+    let RuleExpression::Utilities(value) = rule.as_mut() else {
+        panic!("utility")
     };
     value.value = "grid".into();
     let second = compiler.compile(&analysis);
@@ -387,16 +399,12 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     assert!(second.css.to_css().contains("display:grid"));
 }
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
-
 #[test]
-fn a_host_body_that_an_object_cannot_hold_is_prefixed_in_generated_code() {
+fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
     #[derive(Debug)]
     struct PrototypeGenerator;
 
     impl IdentifierGenerator for PrototypeGenerator {
-        // The marker reaches generated JavaScript as the projection table's key.
         fn ref_marker(
             &self,
             _context: &DeclarationContext,
@@ -434,20 +442,18 @@ fn a_host_body_that_an_object_cannot_hold_is_prefixed_in_generated_code() {
     let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
         .compile_with(&analysis, &identifiers);
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
-    // The marker is written to CSS and to the projection lookup, so both spell it the
-    // same way, and the lookup key is one an object literal can hold.
     let replacement = compiled
         .code_transforms
         .iter()
         .map(|transform| transform.replacement.as_str())
         .find(|replacement| replacement.starts_with("{c:"))
         .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
-    assert_eq!(replacement, "{c:\"___proto__\"}", "{replacement}");
+    assert_eq!(replacement, "{c:\"__proto__\"}", "{replacement}");
     let projection = compiled
         .code_transforms
         .iter()
         .map(|transform| transform.replacement.as_str())
-        .find(|replacement| replacement.contains("___proto__\""))
+        .find(|replacement| replacement.contains("(menu).c"))
         .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
     assert!(!projection.contains("\"__proto__\""), "{projection}");
 }

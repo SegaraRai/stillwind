@@ -2,36 +2,40 @@
 
 use stillwind_design_system::UtilityOrder;
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{RefDefinition, RefProjection};
+use stillwind_ir::{RefDefinition, RefProjection, StyleVariant};
 use stillwind_source::Span;
 
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
+use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::{
     anchor_name, identity_input_parts, projection_symbol, ref_container_name, ref_context,
     ref_identity, ref_marker_name, ref_projection_name,
 };
 use super::super::utilities::resolve::CompiledUtility;
-use super::{CLASS_KEY, CallEmitter};
+use super::CallEmitter;
 use crate::GeneratedSymbol;
-use crate::generated::{Code, code, js_string};
+use crate::generated::Code;
 use crate::identifiers::{IdentifierContext, IdentifierPool};
 
 impl CallEmitter<'_> {
     /// Lowers one static ref projection onto the element the projection is written on.
     ///
-    /// The declaration keeps its runtime value: the emitted lookup reads the canonical
-    /// token off the receiver expression the use site wrote, so the projection needs no
-    /// runtime helper of its own and an alias or member receiver names the same
-    /// declaration.
+    /// The emitted class read uses the receiver expression the use site wrote, so an
+    /// alias or member receiver names the same declaration. Returns the marker class
+    /// read, or `None` if variant resolution, source slicing, or generated-name
+    /// allocation fails.
     pub(super) fn emit_ref_projection(
         &mut self,
         definition: &RefDefinition,
         value: &Span,
         projection: &RefProjection,
         guard: &[GuardStep],
+        wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
+        let plan =
+            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
         let name = ref_projection_name(projection);
         // The projection reads the declaration's canonical token, so the
         // declaration has to keep its runtime value.
@@ -65,19 +69,20 @@ impl CallEmitter<'_> {
         if let Some(symbol) = name_symbol {
             self.written_name_symbols.push(symbol);
         }
-        let utility = CompiledUtility {
+        let mut utility = CompiledUtility {
             required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),
             declaration,
-            selector: None,
+            selector: Some(format!("&:where({})", marker.selector())),
             container: None,
             nested: Vec::new(),
             order: UtilityOrder::Authored(None),
             candidate: String::new(),
         };
+        plan.apply_rule(&mut utility);
         let contribution = LiteralContribution {
-            canonical: format!("ref:{}:{name}\u{0}", anchor.as_str()),
+            canonical: format!("{}ref:{}:{name}\u{0}", plan.canonical, anchor.as_str()),
             utilities: vec![utility],
             markers: Vec::new(),
             external: Vec::new(),
@@ -85,43 +90,29 @@ impl CallEmitter<'_> {
             view_transition_token: None,
             view_transition_name: None,
         };
-        // The projection is read through the token the receiver carries, so the element
-        // keeps its marker class and the caller needs no helper.
-        let class = match self.units.leaf(contribution, guard) {
-            Ok(leaf) => leaf,
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                return None;
-            }
-        };
-        let Emitted::Leaf { mut names } = class else {
-            return None;
-        };
-        names.push(marker.as_str().to_owned());
-        let entry = format!(
-            "{}:{}",
-            marker.javascript_string(),
-            js_string(&names.join(" "))
-        );
-        Some(Emitted::Expression(ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: CLASS_KEY.to_owned(),
-            table: format!("{{{entry}}}").into(),
-        }))
+        self.contribute_rule(contribution, guard, true);
+        Some(Emitted::Expression(ref_class_read(
+            self.source_expression(*value)?,
+        )))
     }
 
-    /// Lowers one dynamic ref projection by building the table the runtime value selects from.
+    /// Lowers one dynamic ref projection using each finite candidate for CSS planning.
     ///
-    /// Every statically known ref contributes its marker token and the class set of its own
-    /// projection, so the runtime reads one entry instead of recomputing declarations.
+    /// Every statically known ref contributes a marker token. Its projection rule is
+    /// gated by that marker within the surrounding class unit. Returns the marker class
+    /// read, or `None` if variant resolution, source slicing, or generated-name
+    /// allocation fails. An empty finite set emits no projection CSS but still reads
+    /// the runtime ref value.
     pub(super) fn emit_dynamic_ref_projection(
         &mut self,
         value: &Span,
         refs: &[RefDefinition],
         projection: &RefProjection,
         guard: &[GuardStep],
+        wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
-        let mut table = Vec::new();
+        let plan =
+            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
         for definition in refs {
             self.runtime_assets.insert(ref_identity(definition));
             let marker = match ref_marker_name(self.identifiers, definition) {
@@ -139,7 +130,8 @@ impl CallEmitter<'_> {
                 }
             };
             let canonical = format!(
-                "dynamic-ref:{}:{}",
+                "{}dynamic-ref:{}:{}",
+                plan.canonical,
                 anchor.as_str(),
                 ref_projection_name(projection)
             );
@@ -158,58 +150,46 @@ impl CallEmitter<'_> {
             if let Some(symbol) = name_symbol {
                 self.written_name_symbols.push(symbol);
             }
+            let mut utility = CompiledUtility {
+                required_properties: Vec::new(),
+                variants: Vec::new(),
+                variant_applications: Vec::new(),
+                declaration,
+                selector: Some(format!("&:where({})", marker.selector())),
+                container: None,
+                nested: Vec::new(),
+                order: UtilityOrder::Authored(None),
+                candidate: String::new(),
+            };
+            plan.apply_rule(&mut utility);
             let contribution = LiteralContribution {
                 canonical,
-                utilities: vec![CompiledUtility {
-                    required_properties: Vec::new(),
-                    variants: Vec::new(),
-                    variant_applications: Vec::new(),
-                    declaration,
-                    selector: None,
-                    container: None,
-                    nested: Vec::new(),
-                    order: UtilityOrder::Authored(None),
-                    candidate: String::new(),
-                }],
+                utilities: vec![utility],
                 markers: Vec::new(),
                 external: Vec::new(),
                 plain: Vec::new(),
                 view_transition_token: None,
                 view_transition_name: None,
             };
-            let class = match self.units.leaf(contribution, guard) {
-                Ok(class) => class,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
-            let Emitted::Leaf { names } = class else {
-                return None;
-            };
-            let class = js_string(&names.join(" "));
-            table.push(format!("{}:{class}", marker.javascript_string()));
+            self.contribute_rule(contribution, guard, true);
         }
-        let table = table.join(",");
-        let expression = ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: CLASS_KEY.to_owned(),
-            table: format!("{{{table}}}").into(),
-        };
-        Some(Emitted::Expression(expression))
+        Some(Emitted::Expression(ref_class_read(
+            self.source_expression(*value)?,
+        )))
     }
 }
 
 /// Reads the canonical class token off a compiled ref or scope value.
 ///
-/// Every ref value carries its token under `c`, so an attachment is a property read and
-/// needs no runtime helper.
+/// Every ref value carries its marker under `c`, so attachments and projections emit a
+/// direct property read. The returned value is a known class string.
 pub(super) fn ref_class_read(value: Code) -> ValueExpr {
-    ValueExpr::Source(code!["(", value, ").", CLASS_KEY])
+    ValueExpr::RefClassRead { value }
 }
 
-/// The declaration that makes a projection usable on the element itself, and the
-/// reportable symbol for the name it writes.
+/// Returns `(CSS declaration, optional generated-name symbol)` for a projection applied
+/// to the element itself. The symbol is present only when the projection writes an
+/// anchor or container name.
 ///
 /// An anchor projection writes the declaration's `anchor-name`, and a container
 /// projection writes its `container-name`, which is also the name `at()` queries; both

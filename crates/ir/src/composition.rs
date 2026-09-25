@@ -20,7 +20,7 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKin
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::Span;
 
-use crate::{ClassExpression, GroupEntry, ViewTransitionKey, ViewTransitionName};
+use crate::{ClassExpression, GroupEntry, RuleExpression, ViewTransitionKey, ViewTransitionName};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
 
 /// One `derived` style call that consumes the payload of `base`.
@@ -203,13 +203,14 @@ fn view_transitions(values: &[StyleInput]) -> BTreeSet<IdentityId> {
     let mut transitions = BTreeSet::new();
     for input in values {
         match input {
-            StyleInput::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => {
-                transitions.extend(view_transitions(consequent));
-                transitions.extend(view_transitions(alternate));
+            StyleInput::Array(inputs) => {
+                transitions.extend(view_transitions(inputs));
+            }
+            StyleInput::Conditional { branches, .. } => {
+                transitions.extend(view_transitions(branches.consequent()));
+                if let Some(alternate) = branches.alternate() {
+                    transitions.extend(view_transitions(alternate));
+                }
             }
             StyleInput::ViewTransitionUse { transition, .. } => {
                 transitions.insert(transition.identity.clone());
@@ -217,15 +218,95 @@ fn view_transitions(values: &[StyleInput]) -> BTreeSet<IdentityId> {
             StyleInput::DynamicViewTransitionUse {
                 transitions: candidates,
                 ..
-            } => transitions.extend(
-                candidates
-                    .iter()
-                    .map(|transition| transition.identity.clone()),
-            ),
+            } => {
+                transitions.extend(
+                    candidates
+                        .iter()
+                        .map(|transition| transition.identity.clone()),
+                );
+            }
+            StyleInput::Class(expression) => {
+                class_view_transitions(expression, &mut transitions);
+            }
             _ => {}
         }
     }
     transitions
+}
+
+/// Adds all statically reachable view-transition identities in a root class
+/// expression to `transitions`, including both arms of every ternary.
+fn class_view_transitions(expression: &ClassExpression, transitions: &mut BTreeSet<IdentityId>) {
+    match expression {
+        ClassExpression::Rule(rule) => {
+            rule_view_transitions(rule, transitions);
+        }
+        ClassExpression::Array(elements) => {
+            for element in elements {
+                class_view_transitions(element, transitions);
+            }
+        }
+        ClassExpression::Conditional { branches, .. } => {
+            for element in branches
+                .consequent()
+                .iter()
+                .chain(branches.alternate().into_iter().flatten())
+            {
+                class_view_transitions(element, transitions);
+            }
+        }
+        ClassExpression::Group { entries, .. } => {
+            for entry in entries {
+                if let GroupEntry::Class(element) = entry {
+                    class_view_transitions(element, transitions);
+                }
+            }
+        }
+        ClassExpression::ClassValue { .. } => {}
+    }
+}
+
+/// Adds all statically reachable view-transition identities in a rule subtree
+/// to `transitions`, including finite runtime candidates.
+fn rule_view_transitions(expression: &RuleExpression, transitions: &mut BTreeSet<IdentityId>) {
+    match expression {
+        RuleExpression::ViewTransitionUse { transition, .. } => {
+            transitions.insert(transition.identity.clone());
+        }
+        RuleExpression::DynamicViewTransitionUse {
+            transitions: candidates,
+            ..
+        } => {
+            transitions.extend(
+                candidates
+                    .iter()
+                    .map(|candidate| candidate.identity.clone()),
+            );
+        }
+        RuleExpression::Array(elements)
+        | RuleExpression::Group {
+            inputs: elements, ..
+        } => {
+            for element in elements {
+                rule_view_transitions(element, transitions);
+            }
+        }
+        RuleExpression::Conditional { branches, .. } => {
+            for element in branches
+                .consequent()
+                .iter()
+                .chain(branches.alternate().into_iter().flatten())
+            {
+                rule_view_transitions(element, transitions);
+            }
+        }
+        RuleExpression::Variant { inputs, .. } => {
+            for element in inputs {
+                rule_view_transitions(element, transitions);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// The base calls one input list composes.
@@ -233,16 +314,17 @@ fn composition_bases(values: &[StyleInput]) -> BTreeSet<IdentityId> {
     let mut bases = BTreeSet::new();
     for input in values {
         match input {
+            StyleInput::Array(inputs) => {
+                bases.extend(composition_bases(inputs));
+            }
             StyleInput::Composition { candidates, .. } => {
                 bases.extend(candidates.iter().cloned());
             }
-            StyleInput::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => {
-                bases.extend(composition_bases(consequent));
-                bases.extend(composition_bases(alternate));
+            StyleInput::Conditional { branches, .. } => {
+                bases.extend(composition_bases(branches.consequent()));
+                if let Some(alternate) = branches.alternate() {
+                    bases.extend(composition_bases(alternate));
+                }
             }
             _ => {}
         }
@@ -254,13 +336,14 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
     let mut props = false;
     for input in values {
         match input {
-            StyleInput::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => {
-                props |= inputs(consequent, dependencies);
-                props |= inputs(alternate, dependencies);
+            StyleInput::Array(values) => {
+                props |= inputs(values, dependencies);
+            }
+            StyleInput::Conditional { branches, .. } => {
+                props |= inputs(branches.consequent(), dependencies);
+                if let Some(alternate) = branches.alternate() {
+                    props |= inputs(alternate, dependencies);
+                }
             }
             StyleInput::Composition { candidates, .. } => {
                 dependencies.extend(candidates.iter().cloned());
@@ -285,20 +368,40 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
 /// Returns whether the expression carries non-class props (attributes).
 fn class_expression(expression: &ClassExpression) -> bool {
     match expression {
+        ClassExpression::Rule(rule) => rule_expression(rule),
         ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
             GroupEntry::Class(expression) => class_expression(expression),
             GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => true,
         }),
         ClassExpression::Array(elements) => elements.iter().any(class_expression),
-        ClassExpression::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => consequent
+        ClassExpression::Conditional { branches, .. } => branches
+            .consequent()
             .iter()
-            .chain(alternate.iter())
+            .chain(branches.alternate().into_iter().flatten())
             .any(class_expression),
-        ClassExpression::Variant { inputs, .. } => inputs.iter().any(class_expression),
+        ClassExpression::ClassValue { .. } => false,
+    }
+}
+
+/// Returns whether a rule subtree needs a runtime style property for a
+/// view-transition name; CSS-only rules and static names return `false`.
+fn rule_expression(expression: &RuleExpression) -> bool {
+    match expression {
+        RuleExpression::ViewTransitionUse { name, .. }
+        | RuleExpression::DynamicViewTransitionUse { name, .. } => matches!(
+            name,
+            ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)) | ViewTransitionName::Value
+        ),
+        RuleExpression::Array(elements)
+        | RuleExpression::Group {
+            inputs: elements, ..
+        } => elements.iter().any(rule_expression),
+        RuleExpression::Conditional { branches, .. } => branches
+            .consequent()
+            .iter()
+            .chain(branches.alternate().into_iter().flatten())
+            .any(rule_expression),
+        RuleExpression::Variant { inputs, .. } => inputs.iter().any(rule_expression),
         _ => false,
     }
 }

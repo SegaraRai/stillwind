@@ -406,6 +406,57 @@ fn nested_clsx_combines_with_later_value_calls() {
 }
 
 #[test]
+fn nested_conditions_collect_each_regions_rules_once() {
+    let (_, result) = compile(
+        "react",
+        "const props = style(enabled && ['m-2', inner && 'm-4', 'm-8']);",
+    );
+    assert_eq!(result.classes.len(), 3, "{:?}", result.classes);
+    assert_eq!(result.classes[0].guard_path.len(), 1);
+    assert_eq!(result.classes[1].guard_path.len(), 2);
+    assert_eq!(result.classes[2].guard_path.len(), 1);
+    let before = &result.classes[0].class_name;
+    let inner = &result.classes[1].class_name;
+    let after = &result.classes[2].class_name;
+    let before_css = result.css.find(&format!(".{before}{{")).unwrap();
+    let inner_css = result.css.find(&format!(".{inner}{{")).unwrap();
+    let after_css = result.css.find(&format!(".{after}{{")).unwrap();
+    assert!(
+        before_css < inner_css && inner_css < after_css,
+        "{}",
+        result.css
+    );
+    assert!(result.css[before_css..inner_css].contains("margin:"));
+    let output = result.transforms[0].replacement.as_str();
+    assert!(output.contains("stillwindClsx("), "{output}");
+    assert!(!output.contains("stillwindMerge("), "{output}");
+}
+
+#[test]
+fn nested_props_condition_splits_surrounding_rule_region() {
+    let (_, result) = compile(
+        "react",
+        "const props = style(enabled && ['m-2', inner && { '--x': size }, 'm-8']);",
+    );
+    assert_eq!(result.classes.len(), 2, "{:?}", result.classes);
+    assert!(
+        result
+            .classes
+            .iter()
+            .all(|class| class.guard_path.len() == 1)
+    );
+    let first = &result.classes[0].class_name;
+    let last = &result.classes[1].class_name;
+    assert!(
+        result.css.find(&format!(".{first}{{")).unwrap()
+            < result.css.find(&format!(".{last}{{")).unwrap()
+    );
+    let output = result.transforms[0].replacement.as_str();
+    assert!(output.contains("stillwindMerge("), "{output}");
+    assert_eq!(output.matches("inner").count(), 1, "{output}");
+}
+
+#[test]
 fn multiple_clsx_calls_merge_without_losing_source_occurrences() {
     let (source, result) = compile(
         "react",

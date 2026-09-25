@@ -39,7 +39,8 @@ pub struct ModuleIr {
     pub keyframes_declarations: Vec<KeyframesDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
-    /// In source order. Each entry is a `transition.for(key)` value built outside a call.
+    /// In source order. Each entry is a `transition.for(key)` value built outside a
+    /// call.
     pub view_transition_key_applications: Vec<ViewTransitionKeyApplication>,
 }
 
@@ -55,7 +56,8 @@ pub struct ViewTransitionKeyApplication {
     pub value: Span,
     /// The key the application states.
     pub key: ViewTransitionKey,
-    /// Every statically reachable transition of the receiver.
+    /// Every statically reachable transition of the receiver. An empty finite set
+    /// leaves the runtime key application in place but requires no definitions.
     pub transitions: Vec<AssetReference>,
 }
 
@@ -136,8 +138,8 @@ pub struct AttributeEntry {
 
 /// A `style.ref()` declaration serving as an identity and a prop producer.
 ///
-/// One declaration covers both roles a ref plays: the element it is attached to, and the
-/// boundary that other refs may be bounded by.
+/// One declaration covers both roles a ref plays: the element it is attached to, and
+/// the boundary that other refs may be bounded by.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefDefinition {
     /// Normalized module path of the declaring module.
@@ -190,7 +192,8 @@ pub struct KeyframesDefinition {
 pub struct KeyframesBody {
     /// Frame declarations in authored order; omitted frames are not inherited.
     pub frames: Vec<KeyframesFrame>,
-    /// Nested conditions conjoin with their ancestors and replace the complete definition.
+    /// Nested conditions conjoin with their ancestors and replace the complete
+    /// definition.
     pub branches: Vec<KeyframesBranch>,
 }
 
@@ -254,22 +257,33 @@ pub struct AssetReference {
 pub enum RefProjection {
     /// `ref.anchor`: the element is the anchor for positioning.
     Anchor,
-    /// `ref.positionAnchor`: the element is positioned against an anchor, writing `position-anchor`.
+    /// `ref.positionAnchor`: the element is positioned against an anchor, writing
+    /// `position-anchor`.
     PositionAnchor,
     /// `ref.anchorScope`: limits anchor-name visibility with `anchor-scope`.
     AnchorScope,
     /// `container()`: the element is a query container of the named type.
-    Container(Spanned<String>),
+    Container(
+        /// Literal CSS container type and its source span.
+        Spanned<String>,
+    ),
 }
 
 /// Ordered variants shared by object wrappers and direct template interpolation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleVariant {
-    /// A normal variant prefix, including its final separator.
-    Prefix(Spanned<String>),
+    /// A normal variant prefix. A nonempty prefix includes its final separator;
+    /// an empty prefix contributes no variants. The compiler validates the CSS
+    /// variant grammar when resolving the wrapper.
+    Prefix(
+        /// Authored prefix and its original source span.
+        Spanned<String>,
+    ),
     /// A named-container query over finite ref candidates, written as `ref.at(query)`.
     Container {
-        /// Each candidate supplies a container identity, independently of the subject selector.
+        /// Each candidate supplies a container identity, independently of the subject
+        /// selector. An empty set is diagnosed as an unidentified ref by variant
+        /// resolution.
         refs: Vec<RefDefinition>,
         /// Literal CSS query condition, without the generated container name.
         query: Spanned<String>,
@@ -277,10 +291,12 @@ pub enum StyleVariant {
     /// Correlated ref and boundary alternatives, written as `ref()`, `ref("variant:")`,
     /// or a ref tag, with a normalized variant prefix.
     Ref {
-        /// The refs this variant may refer to at this use site.
+        /// The refs this variant may refer to at this use site. An empty set is
+        /// diagnosed as an unidentified ref by variant resolution.
         refs: Vec<RefDefinition>,
-        /// The variant prefix applied to the referenced element, ending in its
-        /// separator; the surrounding variants apply to the target instead.
+        /// The variant prefix applied to the referenced element. A non-empty prefix
+        /// ends in its separator; the surrounding variants apply to the target instead.
+        /// The compiler validates this prefix when resolving the wrapper.
         prefix: Spanned<String>,
     },
 }
@@ -288,39 +304,51 @@ pub enum StyleVariant {
 /// One evaluated argument of a `style(...)` call.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum StyleInput {
-    /// Selects complete style contributions, including classes, names, refs, and composition.
+    /// Source array whose entries can contribute to multiple props channels.
+    Array(
+        /// Source elements in evaluation order, possibly empty.
+        Vec<Self>,
+    ),
+    /// Selects complete style contributions, including classes, names, refs, and
+    /// composition.
     Conditional {
         /// Original condition expression.
         test: Span,
-        /// Source operator; the alternate is empty for logical conjunction.
-        kind: ConditionalKind,
-        /// Contributions selected when the test is truthy, in source order.
-        consequent: Vec<Self>,
-        /// Contributions selected otherwise, in source order.
-        alternate: Vec<Self>,
+        /// Contributions selected by the source operator, in source order.
+        branches: ConditionalBranches<Vec<Self>>,
     },
-    /// `style(base)`: this call derives from another style call's payload. `candidates`
-    /// lists the base call's candidate spans so the identity can be resolved without
-    /// re-parsing the referenced expression.
+    /// `style(base)`: this call derives from another style call's payload.
+    /// `candidates` lists declaration identities reachable from the base value so
+    /// dependency planning does not re-parse the referenced expression.
     Composition {
         /// The referenced base expression, emitted verbatim.
         value: Span,
-        /// Candidate identities of the base call, deduplicated in identity order.
+        /// Candidate identities of the base call, deduplicated in identity order. An
+        /// empty finite set has no static dependency; the base expression is still
+        /// passed to the runtime composition path.
         candidates: Vec<IdentityId>,
     },
     /// Class contributions that keep the source expression structure.
-    Class(ClassExpression),
+    Class(
+        /// Root class expression, which may contain props-bearing object entries.
+        ClassExpression,
+    ),
     /// `style(ref)`: attach a ref's props and marker class to the element.
     ///
     /// The same attachment marks a boundary element: the class token is what bounded
     /// selectors read as the boundary of their `:has()` test.
-    RefAttachment(RefDefinition),
+    RefAttachment(
+        /// Ref whose marker and attachment props apply to this element.
+        RefDefinition,
+    ),
     /// A ref value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
     DynamicRefAttachment {
         /// The runtime ref value.
         value: Span,
-        /// Every statically reachable alternative, used for CSS planning.
+        /// Every statically reachable alternative, used for CSS planning. An empty
+        /// finite set contributes no planned ref assets; the runtime class read remains
+        /// in the emitted expression.
         refs: Vec<RefDefinition>,
     },
     /// `style(transition)` with a statically known transition.
@@ -334,7 +362,8 @@ pub enum StyleInput {
     DynamicViewTransitionUse {
         /// The runtime transition value.
         value: Span,
-        /// Every statically reachable alternative.
+        /// Every statically reachable alternative. The JavaScript frontend omits this
+        /// use when the finite set is empty.
         transitions: Vec<AssetReference>,
         /// How the use names its participants.
         name: ViewTransitionName,
@@ -365,44 +394,118 @@ pub enum ViewTransitionKey {
     Dynamic(Span),
 }
 
-/// Which operator produced a conditional branch.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ConditionalKind {
-    /// `test ? consequent : alternate`
-    Ternary,
-    /// `test && consequent`
-    LogicalAnd,
+/// Branches selected by a source conditional operator. The operator determines whether
+/// a falsy branch exists throughout parsing, lowering, and rendering. Deserialization
+/// rejects an `alternate` on `And` and requires it on `Ternary`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum ConditionalBranches<T> {
+    /// `test && consequent`.
+    And {
+        /// Values selected when the test is truthy.
+        consequent: T,
+    },
+    /// `test ? consequent : alternate`.
+    Ternary {
+        /// Values selected when the test is truthy.
+        consequent: T,
+        /// Values selected when the test is falsy.
+        alternate: T,
+    },
 }
 
-/// A class-valued expression that mirrors the source expression.
-///
-/// Utility leaves become generated classes; external class leaves retain their
-/// authored values. The tree preserves contribution precedence and guards while
-/// allowing value-expression folding under the macro purity contract.
+impl<T> ConditionalBranches<T> {
+    /// Returns the branch evaluated when the test is truthy for either operator.
+    pub fn consequent(&self) -> &T {
+        match self {
+            Self::And { consequent } | Self::Ternary { consequent, .. } => consequent,
+        }
+    }
+
+    /// Returns the falsy branch for a ternary, or `None` for logical conjunction.
+    pub fn alternate(&self) -> Option<&T> {
+        match self {
+            Self::And { .. } => None,
+            Self::Ternary { alternate, .. } => Some(alternate),
+        }
+    }
+
+    /// Returns branches of `U` by mapping the truthy branch, then any falsy branch,
+    /// without changing the source operator.
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> ConditionalBranches<U> {
+        match self {
+            Self::And { consequent } => ConditionalBranches::And {
+                consequent: f(consequent),
+            },
+            Self::Ternary {
+                consequent,
+                alternate,
+            } => ConditionalBranches::Ternary {
+                consequent: f(consequent),
+                alternate: f(alternate),
+            },
+        }
+    }
+
+    /// Returns branches of `U` by mapping the truthy branch, then any falsy branch,
+    /// without changing the source operator.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error produced by `f`, in branch order.
+    pub fn try_map<U, E>(
+        self,
+        mut f: impl FnMut(T) -> Result<U, E>,
+    ) -> Result<ConditionalBranches<U>, E> {
+        Ok(match self {
+            Self::And { consequent } => ConditionalBranches::And {
+                consequent: f(consequent)?,
+            },
+            Self::Ternary {
+                consequent,
+                alternate,
+            } => ConditionalBranches::Ternary {
+                consequent: f(consequent)?,
+                alternate: f(alternate)?,
+            },
+        })
+    }
+
+    /// Returns the same operator and branches as shared references.
+    pub fn as_ref(&self) -> ConditionalBranches<&T> {
+        match self {
+            Self::And { consequent } => ConditionalBranches::And { consequent },
+            Self::Ternary {
+                consequent,
+                alternate,
+            } => ConditionalBranches::Ternary {
+                consequent,
+                alternate,
+            },
+        }
+    }
+}
+
+/// A root expression that preserves mixed class and props contributions.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ClassExpression {
-    /// A utility string or utility template literal.
-    Utilities(Spanned<String>),
     /// `[a, b]`: elements are flattened at runtime in evaluation order.
-    Array(Vec<ClassExpression>),
+    Array(
+        /// Source elements in evaluation order, possibly empty.
+        Vec<Self>,
+    ),
     /// `test ? a : b` or `test && a`; an empty branch contributes nothing.
     Conditional {
         /// The guard expression, emitted verbatim.
         test: Span,
-        /// Which operator produced the branch, preserved for reporting.
-        kind: ConditionalKind,
-        /// Contribution when the guard holds, in source order.
-        consequent: Vec<ClassExpression>,
-        /// Contribution otherwise; empty for `&&`.
-        alternate: Vec<ClassExpression>,
+        /// Contributions selected by the source operator, in source order.
+        branches: ConditionalBranches<Vec<Self>>,
     },
-    /// `{ "hover:": … }`: the wrapper applies to every leaf below it.
-    Variant {
-        /// The wrapper every leaf below this node is resolved under.
-        variant: StyleVariant,
-        /// The wrapped leaves, in source order.
-        inputs: Vec<ClassExpression>,
-    },
+    /// CSS rules, including their variant wrappers and rule-only nested branches.
+    Rule(
+        /// Rule subtree permitted beneath a CSS variant.
+        Box<RuleExpression>,
+    ),
     /// An object literal: attributes become props, other entries are classes.
     Group {
         /// Span of the whole object literal, used for diagnostics.
@@ -418,6 +521,42 @@ pub enum ClassExpression {
         /// spread are expanded and holes omitted; spread arrays and guards remain
         /// complete expressions. An empty list contributes no class value.
         arguments: Vec<Span>,
+    },
+}
+
+/// A CSS rule expression whose every descendant may occur under a variant.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum RuleExpression {
+    /// A utility string or utility template literal.
+    Utilities(
+        /// Decoded utility text and its original source span.
+        Spanned<String>,
+    ),
+    /// A source array of rule expressions.
+    Array(
+        /// Rule elements in source order, possibly empty.
+        Vec<Self>,
+    ),
+    /// A source condition selecting rule expressions.
+    Conditional {
+        /// Original condition expression.
+        test: Span,
+        /// Rules selected by the source operator.
+        branches: ConditionalBranches<Vec<Self>>,
+    },
+    /// A CSS variant applied to rule expressions.
+    Variant {
+        /// Variant selector or at-rule.
+        variant: StyleVariant,
+        /// Rules under the variant.
+        inputs: Vec<Self>,
+    },
+    /// An object expression containing only rule entries.
+    Group {
+        /// Whole object span.
+        span: Span,
+        /// Rule entries in source order.
+        inputs: Vec<Self>,
     },
     /// `ref.anchor` and the other ref projections.
     RefProjection {
@@ -435,49 +574,169 @@ pub enum ClassExpression {
     DynamicRefProjection {
         /// The runtime ref value.
         value: Span,
-        /// Every statically reachable alternative, used for CSS planning.
+        /// Every statically reachable alternative, used for CSS planning. An empty
+        /// finite set produces no projection CSS; the runtime ref class read remains in
+        /// the emitted expression.
         refs: Vec<RefDefinition>,
         /// The CSS role the projected element plays in each alternative.
         projection: RefProjection,
+    },
+    /// A view-transition use resolved to one declared transition.
+    ViewTransitionUse {
+        /// The declared transition selected by the use.
+        transition: AssetReference,
+        /// Participant naming supplied by this use.
+        name: ViewTransitionName,
+    },
+    /// A view-transition use selected from finite runtime candidates.
+    DynamicViewTransitionUse {
+        /// The runtime transition receiver.
+        value: Span,
+        /// Every statically reachable transition declaration. The JavaScript frontend
+        /// omits this use when the finite set is empty.
+        transitions: Vec<AssetReference>,
+        /// Participant naming supplied by this use.
+        name: ViewTransitionName,
     },
     /// `style(keyframes("options"))` with a statically known keyframes.
     KeyframesUse {
         /// The declared keyframes being used.
         keyframes: AssetReference,
-        /// Literal option candidates resolved into keyframes declarations by the compiler.
+        /// Literal animation options and their source span, resolved into keyframes
+        /// declarations by the compiler.
         options: Spanned<String>,
     },
-    /// An keyframes use whose keyframes is only known at runtime.
+    /// A keyframes use whose declaration is only known at runtime.
     DynamicKeyframesUse {
         /// The receiver expression the use site wrote, whose keyframes name selects the
         /// prebuilt class.
         value: Span,
-        /// Every statically reachable alternative, used for CSS planning.
+        /// Every statically reachable alternative, used for CSS planning. The
+        /// JavaScript frontend omits this use when the finite set is empty.
         keyframes: Vec<AssetReference>,
-        /// Literal option candidates resolved into keyframes declarations by the compiler.
+        /// Literal animation options and their source span, resolved into keyframes
+        /// declarations by the compiler.
         options: Spanned<String>,
     },
+}
+
+/// A root class contribution that cannot be placed under a CSS variant.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum RuleExpressionError {
+    /// An object entry supplies an element attribute.
+    #[error("an attribute cannot be placed under a CSS variant")]
+    Attribute,
+    /// An object entry supplies an inline custom property.
+    #[error("a custom property cannot be placed under a CSS variant")]
+    CustomProperty,
+    /// A class value has no CSS rule for the variant to transform.
+    #[error("an external class cannot be placed under a CSS variant")]
+    ExternalClass,
+}
+
+impl TryFrom<ClassExpression> for RuleExpression {
+    type Error = RuleExpressionError;
+
+    /// Returns the rule subtree of a root expression when every descendant can
+    /// contribute CSS under a variant.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RuleExpressionError::Attribute`],
+    /// [`RuleExpressionError::CustomProperty`], or
+    /// [`RuleExpressionError::ExternalClass`] for the first incompatible descendant.
+    fn try_from(expression: ClassExpression) -> Result<Self, Self::Error> {
+        match expression {
+            ClassExpression::Rule(rule) => Ok(*rule),
+            ClassExpression::Array(elements) => Ok(Self::Array(
+                elements
+                    .into_iter()
+                    .map(Self::try_from)
+                    .collect::<Result<_, _>>()?,
+            )),
+            ClassExpression::Conditional { test, branches } => Ok(Self::Conditional {
+                test,
+                branches: branches
+                    .try_map(|values| values.into_iter().map(Self::try_from).collect())?,
+            }),
+            ClassExpression::Group { span, entries } => Ok(Self::Group {
+                span,
+                inputs: entries
+                    .into_iter()
+                    .map(|entry| match entry {
+                        GroupEntry::Class(expression) => Self::try_from(*expression),
+                        GroupEntry::Attribute(_) => Err(RuleExpressionError::Attribute),
+                        GroupEntry::CustomProperty(_) => Err(RuleExpressionError::CustomProperty),
+                    })
+                    .collect::<Result<_, _>>()?,
+            }),
+            ClassExpression::ClassValue { .. } => Err(RuleExpressionError::ExternalClass),
+        }
+    }
+}
+
+impl From<RuleExpression> for ClassExpression {
+    /// Wraps a rule subtree as one root class contribution.
+    fn from(rule: RuleExpression) -> Self {
+        Self::Rule(Box::new(rule))
+    }
 }
 
 /// One source-ordered entry of an object literal class expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum GroupEntry {
     /// An entry contributing classes. Boxed to keep the enum small.
-    Class(Box<ClassExpression>),
+    Class(
+        /// Class expression supplied by this object entry.
+        Box<ClassExpression>,
+    ),
     /// An entry emitted as a prop rather than a class.
-    Attribute(AttributeEntry),
+    Attribute(
+        /// Authored attribute key and source value.
+        AttributeEntry,
+    ),
     /// A custom CSS property evaluated at runtime and emitted into inline style.
-    CustomProperty(CustomPropertyEntry),
+    CustomProperty(
+        /// Authored custom-property key and source value.
+        CustomPropertyEntry,
+    ),
 }
 
 /// An inline CSS custom property with an expression evaluated at the call site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CustomPropertyEntry {
-    /// Decoded CSS property name, beginning with `--`.
+    /// Decoded CSS property name, beginning with `--`. The JavaScript frontend
+    /// selects this entry only after checking the prefix.
     pub name: Spanned<String>,
     /// Original expression whose value is converted to CSS text.
     pub value: Span,
-    /// Decoded CSS text when a literal can be converted without evaluating user code.
+    /// Decoded CSS text when a literal can be converted without evaluating user
+    /// code. When present, rendering uses this value instead of evaluating `value`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub static_value: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialization_requires_the_branches_of_the_source_operator() {
+        assert!(
+            serde_json::from_str::<ConditionalBranches<Vec<u8>>>(
+                r#"{"And":{"consequent":[1],"alternate":[2]}}"#
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_str::<ConditionalBranches<Vec<u8>>>(
+                r#"{"Ternary":{"consequent":[1]}}"#
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_str::<ConditionalBranches<Vec<u8>>>(r#"{"And":{"consequent":[1]}}"#)
+                .is_ok()
+        );
+    }
 }

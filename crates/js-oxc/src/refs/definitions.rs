@@ -171,9 +171,9 @@ impl<'a> MacroExtractor<'a> {
 
     /// Recognizes a ref used as a `style()` argument.
     ///
-    /// Returns true when the expression was consumed as an attachment; a set of several
-    /// candidates becomes an explicitly dynamic attachment rather than one of them
-    /// being chosen.
+    /// Returns true when the expression was consumed as an attachment. Any finite set
+    /// other than one candidate, including an empty set, keeps the runtime attachment
+    /// expression.
     pub(crate) fn collect_dynamic_ref_attachment(
         &mut self,
         expression: &Expression<'a>,

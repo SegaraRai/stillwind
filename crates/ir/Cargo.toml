@@ -6,11 +6,15 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 serde.workspace = true
+thiserror.workspace = true
 
-[lints]
-workspace = true
+[dev-dependencies]
+serde_json.workspace = true

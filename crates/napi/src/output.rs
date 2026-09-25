@@ -134,7 +134,7 @@ pub struct BindingLintFinding {
     pub notes: Vec<String>,
 }
 
-/// A url() reference the host must resolve.
+/// A `url()` reference the host must resolve.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeModuleResource {

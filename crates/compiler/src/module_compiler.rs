@@ -17,7 +17,9 @@ use std::collections::BTreeSet;
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ClassExpression, GroupEntry, ModuleAnalysis, StyleInput, StyleVariant};
+use stillwind_ir::{
+    ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
+};
 use stillwind_source::Fingerprint;
 
 use crate::{
@@ -306,16 +308,17 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
 fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
     for input in inputs {
         match input {
+            StyleInput::Array(inputs) => {
+                collect(inputs, prefix, candidates);
+            }
             StyleInput::Class(expression) => {
                 collect_class(expression, prefix, candidates);
             }
-            StyleInput::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => {
-                collect(consequent, prefix, candidates);
-                collect(alternate, prefix, candidates);
+            StyleInput::Conditional { branches, .. } => {
+                collect(branches.consequent(), prefix, candidates);
+                if let Some(alternate) = branches.alternate() {
+                    collect(alternate, prefix, candidates);
+                }
             }
             _ => {}
         }
@@ -324,35 +327,21 @@ fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String
 
 fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BTreeSet<String>) {
     match expression {
-        ClassExpression::Utilities(value) => {
-            candidates.extend(
-                value
-                    .value
-                    .split_whitespace()
-                    .map(|token| format!("{prefix}{token}")),
-            );
+        ClassExpression::Rule(rule) => {
+            collect_rule(rule, prefix, candidates);
         }
         ClassExpression::Array(elements) => {
             for element in elements {
                 collect_class(element, prefix, candidates);
             }
         }
-        ClassExpression::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => {
-            for expression in consequent.iter().chain(alternate.iter()) {
+        ClassExpression::Conditional { branches, .. } => {
+            for expression in branches
+                .consequent()
+                .iter()
+                .chain(branches.alternate().into_iter().flatten())
+            {
                 collect_class(expression, prefix, candidates);
-            }
-        }
-        ClassExpression::Variant { variant, inputs } => {
-            let prefix = match variant {
-                StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
-                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => prefix.to_owned(),
-            };
-            for input in inputs {
-                collect_class(input, &prefix, candidates);
             }
         }
         ClassExpression::Group { entries, .. } => {
@@ -360,6 +349,49 @@ fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BT
                 if let GroupEntry::Class(expression) = entry {
                     collect_class(expression, prefix, candidates);
                 }
+            }
+        }
+        ClassExpression::ClassValue { .. } => {}
+    }
+}
+
+/// Adds authored utility candidates in a rule subtree to the compilation set.
+/// Literal variant prefixes are included; ref and container variants do not
+/// alter the candidate spelling passed to the utility resolver.
+fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTreeSet<String>) {
+    match expression {
+        RuleExpression::Utilities(value) => {
+            candidates.extend(
+                value
+                    .value
+                    .split_whitespace()
+                    .map(|token| format!("{prefix}{token}")),
+            );
+        }
+        RuleExpression::Array(elements)
+        | RuleExpression::Group {
+            inputs: elements, ..
+        } => {
+            for element in elements {
+                collect_rule(element, prefix, candidates);
+            }
+        }
+        RuleExpression::Conditional { branches, .. } => {
+            for expression in branches
+                .consequent()
+                .iter()
+                .chain(branches.alternate().into_iter().flatten())
+            {
+                collect_rule(expression, prefix, candidates);
+            }
+        }
+        RuleExpression::Variant { variant, inputs } => {
+            let prefix = match variant {
+                StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
+                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => prefix.to_owned(),
+            };
+            for input in inputs {
+                collect_rule(input, &prefix, candidates);
             }
         }
         _ => {}

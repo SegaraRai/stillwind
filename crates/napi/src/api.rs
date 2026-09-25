@@ -70,6 +70,10 @@ pub fn compile_source_input(
 }
 
 /// Compiles one module with explicitly chosen compiler options.
+///
+/// # Errors
+///
+/// Returns an error when the options or source buffers are invalid.
 pub fn compile_source_input_with_options(
     source: &str,
     source_path: &str,
@@ -203,6 +207,11 @@ pub fn compile_project_input(
 }
 
 /// Compiles a whole source graph with explicitly chosen compiler options.
+///
+/// # Errors
+///
+/// Returns an error for invalid options or sources, exhausted file IDs, or an
+/// unresolved module edge.
 pub fn compile_project_input_with_options(
     input: &[ProjectSource],
     theme: &str,
@@ -385,6 +394,7 @@ pub fn summarize_source_input(
 ///
 /// Returns a JavaScript error for invalid source or options.
 #[napi(js_name = "compileSource", strict)]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn compile_source(
     source: String,
     source_path: Option<String>,
@@ -407,6 +417,7 @@ pub fn compile_source(
 ///
 /// Returns a JavaScript error for invalid input or an unresolved graph edge.
 #[napi(js_name = "compileProject", strict)]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn compile_project(
     sources: Vec<NativeProjectSource>,
     theme: String,
@@ -427,6 +438,7 @@ pub fn compile_project(
 ///
 /// Returns a JavaScript error when the theme or compiler options are invalid.
 #[napi(js_name = "renderStylesheet", strict)]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn render_stylesheet(
     module_css: String,
     theme: String,
@@ -445,6 +457,7 @@ pub fn render_stylesheet(
 ///
 /// Returns a JavaScript error for invalid source coordinates.
 #[napi(js_name = "summarizeSource")]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn summarize_source(
     source: String,
     source_path: Option<String>,
@@ -454,6 +467,10 @@ pub fn summarize_source(
 }
 
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the theme is invalid or vocabulary generation fails.
 #[napi(js_name = "generateVocabularyTypes")]
 pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
     let source =
@@ -467,6 +484,7 @@ pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
 /// semantic normalization. Expressions that do not parse, or that nest values deeper
 /// than the calculator accepts, are retained byte-for-byte.
 #[napi(js_name = "foldCalcExpressions")]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn fold_calc_expressions(css: String) -> String {
     stillwind_css::fold_calc_expressions(&css)
 }

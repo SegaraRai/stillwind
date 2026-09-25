@@ -36,7 +36,8 @@ pub enum Candidates {
     /// A proven candidate set, deduplicated at construction.
     ///
     /// Iteration order is the derived `Ord` order of [`IdentityId`], not source order.
-    /// Two sets built from the same identities in any order compare equal.
+    /// Two sets built from the same identities in any order compare equal. An empty set
+    /// means analysis proved that no declaration is reachable.
     Finite(BTreeSet<IdentityId>),
     /// Any asset of the value's kind. Sound only as an upper bound: consumers must not
     /// pick candidates from it, because nothing proved they can occur.
@@ -145,7 +146,8 @@ pub struct RefAlternative {
     /// `None` is the descendant-only ref relation, without a boundary.
     ///
     /// A finite ref value is a candidate set of the refs that may bound this one; a
-    /// universe value means the frontend could not narrow them.
+    /// universe value means the frontend could not narrow them. An empty finite set
+    /// makes this alternative unreachable during ref expansion.
     pub permitted_boundaries: Option<SymbolicValue>,
 }
 

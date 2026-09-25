@@ -20,6 +20,14 @@ export type FrameworkSpreadContracts = [
 
 // Wrappers compose recursively and preserve the public argument contract.
 function variantWrapperTypes(active: boolean) {
+  const anchor = react.ref("anchor");
+  const transition = react.viewTransition({ old: "opacity-0" });
+  react({ "hover:": [anchor.positionAnchor, active && transition.for("hero")] });
+  react([
+    anchor,
+    { "aria-busy": active, "--size": 4, class: "external" },
+    active && transition.for("hero"),
+  ]);
   react({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }, false, null, undefined] });
   vue({ "aria-busy:": active && "opacity-60" });
   // @ts-expect-error Raw CSS selectors are not variant wrappers.

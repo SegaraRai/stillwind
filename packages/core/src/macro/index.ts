@@ -122,6 +122,9 @@ export type StyleViewTransitionDefinition = {
 /** Variant wrappers compose from outermost to innermost, just like utility prefixes. */
 export type StyleVariantValue =
   | UtilityString
+  | StyleRefProjection<string, string>
+  | StyleViewTransition
+  | StyleViewTransitionUse
   | StyleKeyframesUse
   | false
   | null

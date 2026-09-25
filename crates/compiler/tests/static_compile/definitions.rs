@@ -416,6 +416,173 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     assert!(transformed.contains("(compact) &&"), "{transformed}");
 }
 
+#[test]
+fn variant_transition_dynamic_name_stays_in_the_source_condition() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/VariantTransition.tsx",
+        r#"import { style } from "stillwind/react";
+declare const enabled: boolean;
+declare const id: string;
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains(":hover"), "{}", result.css);
+    assert!(
+        result.css.contains("view-transition-name:var(--sw-vtc-"),
+        "{}",
+        result.css
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("(enabled) &&"), "{transformed}");
+    assert!(
+        transformed.contains("stillwindViewTransitionName("),
+        "{transformed}"
+    );
+    assert!(
+        !transformed.contains("\"view-transition-name\":stillwindViewTransitionName"),
+        "{transformed}"
+    );
+}
+
+#[test]
+fn conditional_transition_dynamic_name_uses_inline_style() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/ConditionalTransition.tsx",
+        r#"import { style } from "stillwind/react";
+declare const enabled: boolean;
+declare const id: string;
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style("block", enabled && motion.for(id));"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("(enabled) &&"), "{transformed}");
+    assert!(
+        transformed.contains("[stillwindStyleKey]:{\"view-transition-name\":"),
+        "{transformed}"
+    );
+    assert!(
+        !result.css.contains("view-transition-name:var("),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
+fn variant_transition_literal_name_needs_no_inline_style() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/StaticVariantTransition.tsx",
+        r#"import { style } from "stillwind/react";
+declare const enabled: boolean;
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style("block", { "hover:": enabled && motion.for("hero") });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains(":hover"), "{}", result.css);
+    assert!(
+        result.css.contains("view-transition-name:sw-vt-"),
+        "{}",
+        result.css
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(!transformed.contains("style:"), "{transformed}");
+    assert!(transformed.contains("stillwindClsx("), "{transformed}");
+}
+
+#[test]
+fn dynamic_names_in_distinct_variants_have_distinct_slots() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/DistinctVariantNames.tsx",
+        r#"import { style } from "stillwind/react";
+declare const first: string;
+declare const second: string;
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style({ "hover:": motion.for(first), "focus:": motion.for(second) });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let names = result
+        .css
+        .split("view-transition-name:var(")
+        .skip(1)
+        .map(|rule| rule.split(')').next().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(names.len(), 2, "{}", result.css);
+    assert_ne!(names[0], names[1], "{}", result.css);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains(&names[0]), "{transformed}");
+    assert!(transformed.contains(&names[1]), "{transformed}");
+}
+
+#[test]
+fn variant_transition_name_supports_string_style_adapters() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/StringStyleTransition.ts",
+        r#"import { style } from "stillwind/svelte";
+declare const id: string;
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style({ "hover:": motion.for(id) });"#,
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("view-transition-name:var(--sw-vtc-"),
+        "{}",
+        result.css
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(
+        transformed.contains("stillwindViewTransitionName("),
+        "{transformed}"
+    );
+    assert!(transformed.contains("--sw-vtc-"), "{transformed}");
+}
+
+#[test]
+fn mixed_array_keeps_props_inputs_and_conditional_transition() {
+    let component = SourceFile::new(
+        FileId(1),
+        "src/MixedArray.tsx",
+        r#"import { style } from "stillwind/react";
+declare const enabled: boolean;
+declare const id: string;
+const anchor = style.ref();
+const motion = style.viewTransition({ old: "opacity-0" });
+export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "external" }, enabled && motion.for(id)]);"#,
+    ).unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(transformed.contains("aria-busy"), "{transformed}");
+    assert!(transformed.contains("--size"), "{transformed}");
+    assert!(transformed.contains("external"), "{transformed}");
+    assert!(transformed.contains("(enabled) &&"), "{transformed}");
+    assert!(
+        transformed.contains("stillwindViewTransitionName("),
+        "{transformed}"
+    );
+}
+
 /// Two conditions that hold together each fill their own slot, so the resolved class list
 /// is the union of what the element declares rather than the last one to apply.
 #[test]

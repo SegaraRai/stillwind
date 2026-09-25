@@ -191,7 +191,7 @@ impl NativeNaming {
     /// Calls one host function, reading the arguments as the family expects them.
     fn call<Args>(
         &self,
-        function: &Option<FunctionRef<Args, Option<String>>>,
+        function: Option<&FunctionRef<Args, Option<String>>>,
         args: Args,
     ) -> Result<Option<String>, String>
     where
@@ -262,7 +262,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<UtilityClass>, String> {
         let Some(name) = self.call(
-            &self.utility_class,
+            self.utility_class.as_ref(),
             FnArgs::from((
                 NativeClassContext {
                     module: context.module.clone(),
@@ -287,7 +287,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<RefMarker>, String> {
         let Some(name) = self.call(
-            &self.ref_marker,
+            self.ref_marker.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
@@ -304,7 +304,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<AnchorName>, String> {
         let Some(name) = self.call(
-            &self.anchor_name,
+            self.anchor_name.as_ref(),
             FnArgs::from((locator(context), digest(hash))),
         )?
         else {
@@ -321,7 +321,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<ContainerName>, String> {
         let Some(name) = self.call(
-            &self.container_name,
+            self.container_name.as_ref(),
             FnArgs::from((locator(context), digest(hash))),
         )?
         else {
@@ -338,7 +338,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<KeyframesName>, String> {
         let Some(name) = self.call(
-            &self.keyframes_name,
+            self.keyframes_name.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
@@ -355,7 +355,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<ViewTransitionClass>, String> {
         let Some(name) = self.call(
-            &self.view_transition_class,
+            self.view_transition_class.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
@@ -372,7 +372,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
         let Some(name) = self.call(
-            &self.view_transition_slot,
+            self.view_transition_slot.as_ref(),
             FnArgs::from((
                 NativeClassContext {
                     module: context.module.clone(),
@@ -398,7 +398,7 @@ impl IdentifierGenerator for NativeNaming {
         text_hash: &IdentifierHash,
     ) -> Result<GeneratedName<ConditionHelperName>, String> {
         let Some(name) = self.call(
-            &self.condition_helper,
+            self.condition_helper.as_ref(),
             FnArgs::from((
                 NativeConditionContext {
                     role: context.role.as_str().to_owned(),
@@ -422,7 +422,7 @@ impl IdentifierGenerator for NativeNaming {
         hash: &IdentifierHash,
     ) -> Result<GeneratedName<LayerName>, String> {
         let Some(name) = self.call(
-            &self.layer_name,
+            self.layer_name.as_ref(),
             FnArgs::from((
                 NativeLayerContext {
                     template: context.template.clone(),

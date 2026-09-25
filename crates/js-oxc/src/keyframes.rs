@@ -14,7 +14,7 @@ use oxc::syntax::symbol::SymbolFlags;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
     AssetReference, ClassExpression, KeyframesBody, KeyframesBranch, KeyframesDefinition,
-    KeyframesFrame, StyleVariant,
+    KeyframesFrame, RuleExpression, StyleVariant,
 };
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::{Span, Spanned};
@@ -50,17 +50,18 @@ impl ParsedKeyframesUse {
     pub(crate) fn into_class_expression(self) -> ClassExpression {
         match self {
             Self::Static { keyframes, options } => {
-                ClassExpression::KeyframesUse { keyframes, options }
+                RuleExpression::KeyframesUse { keyframes, options }.into()
             }
             Self::Dynamic {
                 value,
                 keyframes,
                 options,
-            } => ClassExpression::DynamicKeyframesUse {
+            } => RuleExpression::DynamicKeyframesUse {
                 value,
                 keyframes,
                 options,
-            },
+            }
+            .into(),
         }
     }
 }

@@ -5,7 +5,7 @@
 //! helpers. Property-bearing groups belong to fragment rendering. These operations
 //! do not analyze source-value types or decide whether evaluations can be reordered.
 
-use stillwind_ir::ConditionalKind;
+use stillwind_ir::ConditionalBranches;
 
 use super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use crate::generated::{Code, code, js_string};
@@ -61,22 +61,23 @@ pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -
         }
         Emitted::Conditional {
             code: test,
-            kind,
-            consequent,
-            alternate,
+            branches,
             ..
         } => {
-            let consequent = match consequent {
-                Some(value) => render_plain(value, runtime)?,
-                None => "null".into(),
+            let mut render_arm = |value: &Option<Box<Emitted>>| match value {
+                Some(value) => render_plain(value, runtime),
+                None => Some("null".into()),
             };
-            match kind {
-                ConditionalKind::LogicalAnd => Some(code!["(", test, ") && (", consequent, ")"]),
-                ConditionalKind::Ternary => {
-                    let alternate = match alternate {
-                        Some(value) => render_plain(value, runtime)?,
-                        None => "null".into(),
-                    };
+            match branches {
+                ConditionalBranches::And { consequent } => {
+                    Some(code!["(", test, ") && (", render_arm(consequent)?, ")"])
+                }
+                ConditionalBranches::Ternary {
+                    consequent,
+                    alternate,
+                } => {
+                    let consequent = render_arm(consequent)?;
+                    let alternate = render_arm(alternate)?;
                     Some(code![
                         "(", test, ") ? (", consequent, ") : (", alternate, ")"
                     ])
@@ -88,7 +89,11 @@ pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -
             for entry in entries {
                 match entry {
                     // Props and inline styles cannot live inside one class property.
-                    Some(EmittedEntry::Attribute(_) | EmittedEntry::CustomProperty(_)) => {
+                    Some(
+                        EmittedEntry::Attribute(_)
+                        | EmittedEntry::CustomProperty(_)
+                        | EmittedEntry::StylePayload(_),
+                    ) => {
                         return None;
                     }
                     Some(EmittedEntry::Class(value)) => {
@@ -114,13 +119,10 @@ pub(crate) fn is_plain(value: &Emitted) -> bool {
         Emitted::Expression(ValueExpr::Source(_)) => false,
         Emitted::Expression(_) | Emitted::Leaf { .. } => true,
         Emitted::Array(items) => items.iter().flatten().all(is_plain),
-        Emitted::Conditional {
-            consequent,
-            alternate,
-            ..
-        } => consequent
+        Emitted::Conditional { branches, .. } => branches
+            .consequent()
             .iter()
-            .chain(alternate)
+            .chain(branches.alternate().into_iter().flatten())
             .all(|value| is_plain(value)),
         Emitted::Group(entries) => {
             entries
@@ -140,17 +142,16 @@ mod tests {
     fn argument_collection_preserves_value_guards_and_discards_empty_values() {
         let empty_guard = || Emitted::Conditional {
             code: "test()".into(),
-            kind: ConditionalKind::LogicalAnd,
-            consequent: None,
-            alternate: None,
+            branches: ConditionalBranches::And { consequent: None },
         };
         let guarded_array = Emitted::Conditional {
             code: "flag".into(),
-            kind: ConditionalKind::Ternary,
-            consequent: Some(Box::new(Emitted::Array(vec![Some(Emitted::Leaf {
-                names: vec!["a".into()],
-            })]))),
-            alternate: None,
+            branches: ConditionalBranches::Ternary {
+                consequent: Some(Box::new(Emitted::Array(vec![Some(Emitted::Leaf {
+                    names: vec!["a".into()],
+                })]))),
+                alternate: None,
+            },
         };
         let value = Emitted::Array(vec![
             None,

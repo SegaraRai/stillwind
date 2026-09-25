@@ -36,7 +36,11 @@ use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::source_input::{NativeProjectSource, ProjectSource};
-use crate::stylesheet::*;
+use crate::stylesheet::{
+    NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
+    NativeStylesheetOutput, NativeStylesheetPart, NativeStylesheetPlacement, NativeStylesheetPlan,
+    NativeStylesheetProducer, NativeStylesheetSelection, stylesheet_locations,
+};
 
 /// Failures specific to the stateful bindings.
 #[derive(Debug, thiserror::Error)]
@@ -277,6 +281,7 @@ impl NativeProjectSession {
     /// with a matching `naming_revision` so cached artifacts are not reused across a
     /// change to them.
     #[napi(constructor)]
+    #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn new(
         loader: &NativeDesignSystemLoader,
         watch: bool,
@@ -453,6 +458,7 @@ impl NativeProjectSession {
 
     /// Complete CSS for one producer, safe to transport across loader workers.
     #[napi]
+    #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn module_css(&self, env: Env, module: String) -> napi::Result<String> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         self.session
@@ -469,6 +475,7 @@ impl NativeProjectSession {
 
     /// Removes a producer, returning whether it was registered.
     #[napi]
+    #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn remove(&mut self, module: String) -> bool {
         self.session.remove_module(&module)
     }
@@ -479,6 +486,7 @@ impl NativeProjectSession {
     /// part of it, so the host supplies its text here. Returns the producers whose published
     /// artifacts now collide with an authored name, which the host recompiles or drops.
     #[napi]
+    #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn reserve_authored_css(
         &mut self,
         module: String,
@@ -502,6 +510,7 @@ impl NativeProjectSession {
     /// `producer` narrows the returned output to one module, but every supplied module
     /// is still compiled: cross-module values need the whole set.
     #[napi(strict)]
+    #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn compile(
         &mut self,
         env: Env,
@@ -544,11 +553,11 @@ impl NativeProjectSession {
         let mut transaction = self.session.clone();
         let mut attempted = Vec::new();
         for scan in scans {
-            let mut analysis =
+            let mut module_analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
-            analysis.attach_asset_support(&analyses);
-            let update = transaction.update_module(analysis.clone());
-            attempted.push(analysis);
+            module_analysis.attach_asset_support(&analyses);
+            let update = transaction.update_module(module_analysis.clone());
+            attempted.push(module_analysis);
             let mut result = transaction
                 .artifacts()
                 .get(&scan.module_id)

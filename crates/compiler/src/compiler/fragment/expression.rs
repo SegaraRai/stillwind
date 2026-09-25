@@ -5,48 +5,56 @@
 //! carry source provenance. Folding and field selection belong to [`super::fold`];
 //! rendering is deferred so rejected candidates never allocate helper imports.
 
-use stillwind_ir::ConditionalKind;
+use stillwind_ir::ConditionalBranches;
 use stillwind_source::Span;
 
+use super::super::emission::CLASS_KEY;
 use super::super::expression_render::is_plain;
 use super::super::props::{StyleEmission, StyleEmissionPart};
 use crate::generated::{Code, code, js_string};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
 
-/// A source expression or a runtime call whose binding is allocated only on output.
+/// A source expression or a deferred compiler-owned value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ValueExpr {
     /// An opaque value whose shape has not been proven.
     Source(
-        /// Complete expression code; source-derived text retains its occurrence mappings.
+        /// Complete expression code; source-derived text retains its occurrence
+        /// mappings.
         Code,
     ),
+    /// The marker class read from a compiled ref value.
+    ///
+    /// A ref is emitted as `{ c: "marker-class" }`, so this read is a class string that
+    /// can remain in a class-only expression.
+    RefClassRead {
+        /// Ref value expression with its source occurrence mappings.
+        value: Code,
+    },
     /// A compiler-owned call; arguments retain their evaluation order.
     Call {
         /// Runtime operation; its local binding is allocated only during rendering.
         helper: RuntimeHelper,
-        /// Complete argument expressions in JavaScript evaluation order, without separators.
+        /// Complete argument expressions in JavaScript evaluation order, without
+        /// separators.
         arguments: Vec<Code>,
         /// Original-source UTF-8 span selecting the helper import realm.
         span: Span,
     },
-    /// A projection table keyed by the ref's canonical token.
-    ///
-    /// The key is read from the ref value, so one declaration's projection is a
-    /// property read rather than a call, and no runtime helper is involved.
+    /// A table selecting a generated class from a runtime asset value.
     Lookup {
-        /// Value expression the projected class is read from.
+        /// Runtime asset value whose identity selects the class.
         value: Box<Self>,
-        /// Property read on the value, without its leading dot; `c` unless the value
-        /// expression already ends in that read.
+        /// Property containing the asset identity, without its leading dot.
         key: String,
-        /// Table literal mapping every canonical token to its projected class.
+        /// Table literal mapping candidate identities to generated classes.
         table: Code,
     },
     /// A one-entry style payload whose value a deferred expression produces.
     ///
-    /// A view-transition name is written as a style property rather than through a helper
-    /// that builds the whole payload, so the entry keeps the deferred call in one place.
+    /// A view-transition name is written as a style property rather than through a
+    /// helper that builds the whole payload, so the entry keeps the deferred call in
+    /// one place.
     Entry {
         /// Property name, written as a JavaScript string key.
         property: String,
@@ -62,6 +70,9 @@ impl ValueExpr {
     pub(crate) fn render(&self, runtime: &mut RuntimeBindings<'_>) -> Code {
         match self {
             Self::Source(expression) => expression.clone(),
+            Self::RefClassRead { value } => {
+                code!["(", value.clone(), ").", CLASS_KEY]
+            }
             Self::Call {
                 helper,
                 arguments,
@@ -114,6 +125,9 @@ impl From<&str> for ValueExpr {
 pub(crate) struct Property {
     /// Preconverted CSS text for literal custom-property values.
     pub static_value: Option<String>,
+    /// Compiler-generated expression already producing CSS text. Used when
+    /// `static_value` is absent, before falling back to source-value conversion.
+    pub computed_value: Option<ValueExpr>,
     /// Decoded property name, without JavaScript quoting.
     pub name: String,
     /// Verbatim UTF-8 expression text equal to the original source slice at `span`.
@@ -146,12 +160,8 @@ pub(crate) enum Emitted {
     Conditional {
         /// Complete test expression with original whitespace and occurrence mappings.
         code: Code,
-        /// Whether serialization uses a ternary or logical conjunction.
-        kind: ConditionalKind,
-        /// Truthy contributions; `None` contributes no value but does not itself erase the test.
-        consequent: Option<Box<Emitted>>,
-        /// Falsy contributions for a ternary; `None` for conjunction or an omitted arm.
-        alternate: Option<Box<Emitted>>,
+        /// Contributions selected by the source operator; `None` contributes no value.
+        branches: ConditionalBranches<Option<Box<Emitted>>>,
     },
     /// An object literal inside a conditional expression.
     Group(
@@ -168,6 +178,8 @@ pub(crate) enum EmittedEntry {
         /// Decoded custom-property name and unconverted source value.
         Property,
     ),
+    /// A whole-style value selected under the same source branch as its class.
+    StylePayload(ValueExpr),
     /// An ordinary property awaiting serialization.
     Attribute(
         /// Decoded property name, source value, and original value span.
@@ -202,19 +214,16 @@ pub(super) enum Atom {
 
 impl Emitted {
     /// Returns whether the subtree contributes no value under the macro purity
-    /// contract. Conditions whose arms are both empty may be discarded. namic
+    /// contract. Conditions whose arms are both empty may be discarded. Dynamic
     /// expressions and property entries are never treated as empty here.
     pub(crate) fn is_empty(&self) -> bool {
         match self {
             Self::Leaf { names } => names.iter().all(String::is_empty),
             Self::Array(items) => items.iter().flatten().all(Self::is_empty),
-            Self::Conditional {
-                consequent,
-                alternate,
-                ..
-            } => consequent
+            Self::Conditional { branches, .. } => branches
+                .consequent()
                 .iter()
-                .chain(alternate)
+                .chain(branches.alternate().into_iter().flatten())
                 .all(|item| item.is_empty()),
             Self::Group(entries) => entries
                 .iter()
@@ -244,12 +253,8 @@ pub(super) enum Fragment {
     Branch {
         /// Complete test expression with original occurrence mappings.
         test: Code,
-        /// Ternary or logical conjunction; the latter ignores `alternate`.
-        kind: ConditionalKind,
-        /// Value selected when the test is truthy.
-        consequent: Box<Self>,
-        /// Value selected when a ternary test is falsy; empty for conjunction.
-        alternate: Box<Self>,
+        /// Values selected by the source operator.
+        branches: ConditionalBranches<Box<Self>>,
     },
     /// A materialized props value requiring runtime conversion to symbolic channels.
     FromProps(
@@ -266,7 +271,8 @@ pub(super) enum Fragment {
 impl Fragment {
     /// Builds a tree from finalized class units without allocating helper bindings.
     /// Static names precede a stable sort of the dynamic parts by source position;
-    /// repeated positions keep their emission order and all retained code keeps its mappings.
+    /// repeated positions keep their emission order and all retained code keeps its
+    /// mappings.
     pub(super) fn from_emission(emission: &StyleEmission) -> Self {
         let mut children = Vec::new();
         if !emission.static_names.is_empty() {
@@ -278,7 +284,8 @@ impl Fragment {
         Self::Sequence(children)
     }
 
-    /// Orders branch-local contributions without moving them across their selecting test.
+    /// Returns a sequence of branch-local contributions sorted by original source
+    /// position without moving them across their selecting test.
     fn from_parts(parts: &[StyleEmissionPart]) -> Self {
         let mut parts = parts.iter().collect::<Vec<_>>();
         parts.sort_by_key(|part| match part {
@@ -293,17 +300,11 @@ impl Fragment {
             parts
                 .into_iter()
                 .map(|part| match part {
-                    StyleEmissionPart::Conditional {
-                        test,
-                        kind,
-                        consequent,
-                        alternate,
-                        ..
-                    } => Self::Branch {
+                    StyleEmissionPart::Conditional { test, branches, .. } => Self::Branch {
                         test: test.clone(),
-                        kind: *kind,
-                        consequent: Box::new(Self::from_parts(consequent)),
-                        alternate: Box::new(Self::from_parts(alternate)),
+                        branches: branches
+                            .as_ref()
+                            .map(|parts| Box::new(Self::from_parts(parts))),
                     },
                     StyleEmissionPart::Class { emitted, .. } => Self::from_class(emitted),
                     StyleEmissionPart::Attributes { property, .. } => {
@@ -323,8 +324,9 @@ impl Fragment {
         )
     }
 
-    /// Converts mixed-channel groups to fragment structure, omitting provably empty values.
-    /// Class-only trees remain one atom so their guard is never duplicated across fields.
+    /// Returns the fragment structure of a class contribution, using an empty record
+    /// for a provably empty value. Class-only trees remain one atom so their guard is
+    /// never duplicated across fields.
     fn from_class(value: &Emitted) -> Self {
         if value.is_empty() {
             return Self::Record(Vec::new());
@@ -346,6 +348,7 @@ impl Fragment {
                         EmittedEntry::CustomProperty(value) => {
                             Self::Record(vec![Atom::Custom(value.clone())])
                         }
+                        EmittedEntry::StylePayload(value) => Self::StylePayload(value.clone()),
                     })
                     .collect(),
             ),
@@ -354,23 +357,17 @@ impl Fragment {
             }
             Emitted::Conditional {
                 code: test,
-                kind,
-                consequent,
-                alternate,
+                branches,
                 ..
             } => Self::Branch {
                 test: test.clone(),
-                kind: *kind,
-                consequent: Box::new(
-                    consequent
-                        .as_deref()
-                        .map_or_else(|| Self::Record(Vec::new()), Self::from_class),
-                ),
-                alternate: Box::new(
-                    alternate
-                        .as_deref()
-                        .map_or_else(|| Self::Record(Vec::new()), Self::from_class),
-                ),
+                branches: branches.as_ref().map(|value| {
+                    Box::new(
+                        value
+                            .as_deref()
+                            .map_or_else(|| Self::Record(Vec::new()), Self::from_class),
+                    )
+                }),
             },
             Emitted::Leaf { .. } | Emitted::Expression(_) => {
                 Self::Record(vec![Atom::Class(value.clone())])

@@ -32,6 +32,7 @@ use stillwind_source::SourceFile;
 
 use super::CssContribution;
 use super::class_units::ClassUnits;
+use super::literal::LiteralContribution;
 use super::props::StyleEmissionPart;
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, GeneratedSymbol};
@@ -58,8 +59,8 @@ pub(super) const VIEW_TRANSITION_KEY: &str = "w";
 /// One `style()` call being lowered.
 ///
 /// The emitter accumulates state rather than building a tree in one pass, because the
-/// base unit has to be collected across argument positions while each conditional leaf
-/// needs its own class unit and guard path.
+/// base unit spans argument positions while each conditional region owns a generated
+/// rule class and guard path.
 pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
@@ -83,6 +84,8 @@ pub(super) struct CallEmitter<'a> {
     required_definitions: &'a mut BTreeSet<IdentityId>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
+    /// Rule-bearing contributions inside the current JavaScript condition region.
+    pending_region: Option<PendingRegion>,
     /// Owns class allocation and base-before-conditional CSS publication.
     units: ClassUnits<'a>,
     /// Anchor and container names this call wrote, reported with the class symbols.
@@ -92,6 +95,15 @@ pub(super) struct CallEmitter<'a> {
     /// Name supplies from utilities and transition uses, grouped by their shared guard paths.
     /// The maximum simultaneous count drives duplicate-name linting.
     view_transition_name_paths: TransitionNamePaths,
+}
+
+/// CSS rules gathered between JavaScript condition boundaries before one class identity
+/// is allocated for the region.
+struct PendingRegion {
+    /// Source traversal order reserved before visiting the region's children.
+    order: u32,
+    /// Rule-bearing contributions accumulated in encounter order.
+    rules: LiteralContribution,
 }
 
 /// Source, analysis, and shared output destinations for lowering one style call. Spans

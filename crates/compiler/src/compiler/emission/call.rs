@@ -1,12 +1,14 @@
 //! The walk over one call's style inputs.
 //!
-//! This file owns the entry point, the input dispatch, and the helpers every arm shares:
-//! source slicing, diagnostics, deferred runtime parts, and the attribute and
-//! custom-property captures. Class expressions and per-kind arms live in the sibling files.
+//! This file owns the entry point, the input dispatch, and the helpers every arm
+//! shares: source slicing, diagnostics, deferred runtime parts, and the attribute and
+//! custom-property captures. Class expressions and per-kind arms live in the sibling
+//! files.
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
-    AssetReference, AttributeEntry, ClassExpression, CustomPropertyEntry, GroupEntry, StyleInput,
+    AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
+    GroupEntry, StyleInput,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::Span;
@@ -42,6 +44,7 @@ impl<'a> CallEmitter<'a> {
             runtime_assets: inputs.runtime_assets,
             required_definitions: inputs.required_definitions,
             parts: Vec::new(),
+            pending_region: None,
             units: ClassUnits::new(
                 inputs.source,
                 inputs.options,
@@ -85,30 +88,53 @@ impl<'a> CallEmitter<'a> {
 
     /// Dispatches one style input.
     ///
-    /// Static utility contributions join class allocation; retained runtime values become
-    /// parts with original-source ordering anchors and mappings. `None` propagates a
-    /// required lowering/slicing failure; diagnostics and accumulated state remain owned
-    /// by the pipeline, including failures represented by omitted nested contributions.
+    /// Static utility contributions join class allocation; retained runtime values
+    /// become parts with original-source ordering anchors and mappings. `None`
+    /// propagates a required lowering/slicing failure; diagnostics and accumulated
+    /// state remain owned by the pipeline, including failures represented by omitted
+    /// nested contributions.
     #[allow(clippy::too_many_lines)] // One exhaustive match over the style inputs.
     fn emit_input(&mut self, input: &StyleInput, guard: &mut Vec<GuardStep>) -> Option<()> {
         match input {
-            StyleInput::Conditional {
-                test,
-                kind,
-                consequent,
-                alternate,
-            } => {
+            StyleInput::Array(inputs) => {
+                if let Some(expression) = class_input(input) {
+                    self.emit_item(&expression, expression_position(&expression), guard);
+                } else {
+                    for input in inputs {
+                        self.emit_input(input, guard)?;
+                    }
+                }
+            }
+            StyleInput::Conditional { test, branches } => {
                 if let Some(expression) = class_input(input) {
                     self.emit_item(&expression, test.start.0, guard);
                     return Some(());
                 }
-                let consequent = self.emit_branch(consequent, *test, true, guard)?;
-                let alternate = self.emit_branch(alternate, *test, false, guard)?;
+                let in_region = self.pending_region.is_some();
+                if let Some(emitted) = self.end_region(guard) {
+                    self.parts.push(StyleEmissionPart::Class {
+                        emitted,
+                        position: test.start.0,
+                    });
+                }
+                let branches = match branches {
+                    ConditionalBranches::And { consequent } => ConditionalBranches::And {
+                        consequent: self.emit_branch(consequent, *test, true, guard)?,
+                    },
+                    ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    } => ConditionalBranches::Ternary {
+                        consequent: self.emit_branch(consequent, *test, true, guard)?,
+                        alternate: self.emit_branch(alternate, *test, false, guard)?,
+                    },
+                };
+                if in_region {
+                    self.begin_region();
+                }
                 self.parts.push(StyleEmissionPart::Conditional {
                     test: self.source_expression(*test)?,
-                    kind: *kind,
-                    consequent,
-                    alternate,
+                    branches,
                     position: test.start.0,
                 });
             }
@@ -194,8 +220,10 @@ impl<'a> CallEmitter<'a> {
         Some(())
     }
 
-    /// Collects one branch's contributions with its inherited CSS and diagnostic guard path.
-    /// Restores the caller's contribution and guard stacks even if lowering fails.
+    /// Collects one branch's contributions with its inherited CSS and diagnostic guard
+    /// path. Returns the branch-local parts in source order, or `None` if any required
+    /// input fails to lower. Restores the caller's contribution and guard stacks in
+    /// either case.
     fn emit_branch(
         &mut self,
         inputs: &[StyleInput],
@@ -205,11 +233,23 @@ impl<'a> CallEmitter<'a> {
     ) -> Option<Vec<StyleEmissionPart>> {
         let outer = std::mem::take(&mut self.parts);
         guard.push(GuardStep { test, when_true });
+        let outer_region = self.begin_region();
         let result = inputs
             .iter()
             .try_for_each(|input| self.emit_input(input, guard));
+        let class = self.end_region(guard);
+        self.pending_region = outer_region;
         guard.pop();
-        let parts = std::mem::replace(&mut self.parts, outer);
+        let mut parts = std::mem::replace(&mut self.parts, outer);
+        if let Some(emitted) = class {
+            parts.insert(
+                0,
+                StyleEmissionPart::Class {
+                    emitted,
+                    position: test.start.0,
+                },
+            );
+        }
         result.map(|()| parts)
     }
 
@@ -259,18 +299,20 @@ impl<'a> CallEmitter<'a> {
     ) -> Option<Property> {
         Some(Property {
             static_value: property.static_value.clone(),
+            computed_value: None,
             name: property.name.value.clone(),
             value: self.slice(property.value)?,
             span: property.value,
         })
     }
 
-    /// Captures an ordinary property and its original value occurrence without conversion.
-    /// An authored `style` stays an ordinary property. Returns `None` for an unreadable
-    /// value span, without appending a diagnostic here.
+    /// Captures an ordinary property and its original value occurrence without
+    /// conversion. An authored `style` stays an ordinary property. Returns `None` for
+    /// an unreadable value span, without appending a diagnostic here.
     pub(super) fn render_attribute(&self, attribute: &AttributeEntry) -> Option<Property> {
         Some(Property {
             static_value: None,
+            computed_value: None,
             name: attribute.name.value.clone(),
             value: self.slice(attribute.value)?,
             span: attribute.value,
@@ -290,20 +332,26 @@ impl<'a> CallEmitter<'a> {
     }
 }
 
-/// Preserves class-only folding when a common input branch contains no other channels.
+/// Returns a class subtree for a root input whose every descendant uses only the class
+/// channel. Returns `None` when any descendant needs another channel.
 fn class_input(input: &StyleInput) -> Option<ClassExpression> {
     match input {
         StyleInput::Class(expression) => Some(expression.clone()),
-        StyleInput::Conditional {
-            test,
-            kind,
-            consequent,
-            alternate,
-        } => Some(ClassExpression::Conditional {
+        StyleInput::Array(inputs) => Some(ClassExpression::Array(
+            inputs.iter().map(class_input).collect::<Option<_>>()?,
+        )),
+        StyleInput::Conditional { test, branches } => Some(ClassExpression::Conditional {
             test: *test,
-            kind: *kind,
-            consequent: consequent.iter().map(class_input).collect::<Option<_>>()?,
-            alternate: alternate.iter().map(class_input).collect::<Option<_>>()?,
+            branches: branches
+                .as_ref()
+                .try_map(|values| {
+                    values
+                        .iter()
+                        .map(class_input)
+                        .collect::<Option<_>>()
+                        .ok_or(())
+                })
+                .ok()?,
         }),
         _ => None,
     }

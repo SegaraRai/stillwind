@@ -1,19 +1,21 @@
 //! Class identity allocation and base-before-conditional CSS publication.
 //!
-//! [`ClassUnits`] owns the call's base unit and deferred leaf rules.
-//! [`ClassUnits::leaf`] allocates identities in traversal order; [`ClassUnits::finish`]
-//! publishes the base before those leaves. JavaScript tree traversal and rendering do
-//! not choose stylesheet order.
+//! [`ClassUnits`] owns the call's base unit and deferred leaf rules. Regions reserve
+//! their traversal order before their rules are collected. [`ClassUnits::finish`]
+//! publishes the base before those regions. The emitter supplies resolved rules;
+//! this module allocates identities and CSS output without choosing framework props.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 
-use stillwind_design_system::ThemeIndex;
+use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_source::{SourceFile, Span, normalized_module_path};
 
 use super::fragment::Emitted;
 use super::literal::LiteralContribution;
 use super::props::{GeneratedClass, GuardStep};
+use super::style_variants::StyleVariantPlan;
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
@@ -30,8 +32,10 @@ use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 pub(super) struct ViewTransitionClassUnit {
     /// Escaped class tokens the unit declares literally, in first-seen order.
     classes: Vec<String>,
-    /// The slot custom property this unit fills, and the token it writes into it.
+    /// `(custom-property name, escaped class token)` filled by this unit.
     slot: Option<(String, String)>,
+    /// The slot and name are already emitted inside a CSS variant rule.
+    variant_wrapped: bool,
     /// Escaped names the unit declares statically, in order.
     names: Vec<String>,
 }
@@ -86,8 +90,13 @@ impl ViewTransitionClassUnit {
         css
     }
 
-    /// The rules a guarded unit writes: the slot it fills and its static names.
+    /// Returns the CSS a guarded unit writes for its slot and static names. Returns an
+    /// empty string when those declarations were already emitted inside a CSS variant
+    /// rule.
     fn guarded_rules(&self, selector: &str) -> String {
+        if self.variant_wrapped {
+            return String::new();
+        }
         let mut css = String::new();
         if let Some((property, token)) = &self.slot {
             css.push_str(selector);
@@ -148,13 +157,15 @@ pub(super) struct ClassUnits<'a> {
     pub(super) base: BaseUnit,
     /// View-transition declarations per class unit; slot zero is the base unit.
     view_transition_classes: Vec<ViewTransitionClassUnit>,
-    /// Class selector of each view-transition slot, index-aligned with `view_transitions`.
+    /// Class selector of each view-transition slot, index-aligned with
+    /// `view_transitions`.
     class_selectors: Vec<String>,
-    /// Conditional rules retained until the base has been emitted, each tagged with the
-    /// view-transition slot it declares.
-    runtime_css: Vec<(usize, CssContribution)>,
-    /// Class metadata, with the base inserted before conditional classes at finish.
-    classes: Vec<GeneratedClass>,
+    /// `(source traversal order, view-transition slot index, CSS contribution)`
+    /// retained until the base has been emitted.
+    runtime_css: Vec<(u32, usize, CssContribution)>,
+    /// `(source traversal order, class metadata)`; the base is inserted before
+    /// conditional classes at finish.
+    classes: Vec<(u32, GeneratedClass)>,
     /// Next leaf identity; zero is reserved for the base.
     class_index: u32,
 }
@@ -217,10 +228,33 @@ impl<'a> ClassUnits<'a> {
         contribution: LiteralContribution,
         guard: &[GuardStep],
     ) -> Result<Emitted, CompileErrorKind> {
+        let order = self.reserve_branch();
+        self.leaf_at(contribution, guard, order)
+    }
+
+    /// Reserves and returns the next source traversal order for a conditional region
+    /// before visiting its children. Zero remains reserved for the base.
+    pub(super) fn reserve_branch(&mut self) -> u32 {
+        self.class_index += 1;
+        self.class_index
+    }
+
+    /// Allocates one previously reserved rule region after all of its leaves are known.
+    /// Returns a leaf expression with its class names in emission order, including
+    /// retained marker and external names.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the utility class family.
+    pub(super) fn leaf_at(
+        &mut self,
+        contribution: LiteralContribution,
+        guard: &[GuardStep],
+        order: u32,
+    ) -> Result<Emitted, CompileErrorKind> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() || contribution.view_transition_token.is_some() {
-            self.class_index += 1;
-            let branch = format!("{}:{}", self.class_index, contribution.canonical);
+            let branch = format!("{}:{}", order, contribution.canonical);
             let canonical =
                 self.options
                     .style_class_input(self.source.path(), self.call_span.start.0, &branch);
@@ -249,12 +283,15 @@ impl<'a> ClassUnits<'a> {
             }
             self.view_transition_classes.push(unit);
             let slot = self.view_transition_classes.len() - 1;
-            self.classes.push(GeneratedClass {
-                class_name: name,
-                call_span: self.call_span,
-                guard_path: guard.to_vec(),
-            });
-            self.publish_unit(slot, rules);
+            self.classes.push((
+                order,
+                GeneratedClass {
+                    class_name: name,
+                    call_span: self.call_span,
+                    guard_path: guard.to_vec(),
+                },
+            ));
+            self.publish_unit(slot, order, rules);
         }
         names.extend(contribution.markers);
         names.extend(contribution.external);
@@ -262,9 +299,10 @@ impl<'a> ClassUnits<'a> {
         Ok(Emitted::Leaf { names })
     }
 
-    /// Publishes base CSS before leaf CSS and returns unconditional names and class
-    /// metadata. The generated base name precedes retained marker/external names, and
-    /// its metadata precedes leaf metadata. Leaf metadata retains allocation order.
+    /// Publishes base CSS before leaf CSS and returns `(unconditional class names,
+    /// generated class metadata)`. The generated base name precedes retained
+    /// marker/external names, and its metadata precedes conditional metadata.
+    /// Conditional metadata follows source traversal order.
     ///
     /// # Errors
     ///
@@ -303,16 +341,20 @@ impl<'a> ClassUnits<'a> {
             }
             self.classes.insert(
                 0,
-                GeneratedClass {
-                    class_name: name.clone(),
-                    call_span: self.call_span,
-                    guard_path: Vec::new(),
-                },
+                (
+                    0,
+                    GeneratedClass {
+                        class_name: name.clone(),
+                        call_span: self.call_span,
+                        guard_path: Vec::new(),
+                    },
+                ),
             );
             names.push(name);
         }
         names.extend(std::mem::take(&mut self.base.names));
-        for (slot, contribution) in std::mem::take(&mut self.runtime_css) {
+        self.runtime_css.sort_by_key(|(order, _, _)| *order);
+        for (_, slot, contribution) in std::mem::take(&mut self.runtime_css) {
             deferred.push(contribution);
             if let Some(unit) = self.view_transition_classes.get(slot) {
                 let declarations = unit.guarded_rules(&self.class_selectors[slot]);
@@ -326,10 +368,15 @@ impl<'a> ClassUnits<'a> {
             }
         }
         self.utility_css.append(&mut deferred);
-        Ok((names, self.classes))
+        self.classes.sort_by_key(|(order, _)| *order);
+        Ok((
+            names,
+            self.classes.into_iter().map(|(_, class)| class).collect(),
+        ))
     }
 
-    /// Generates one class unit and returns its rules without publishing them.
+    /// Generates one class unit and returns `(class name, CSS contributions)` without
+    /// publishing the contributions.
     ///
     /// `canonical` is the full identity input the name is generated from. Only the
     /// first caller for a name records its symbol, so an identical call that reuses a
@@ -374,19 +421,21 @@ impl<'a> ClassUnits<'a> {
         Ok((name.as_str().to_owned(), contributions))
     }
 
-    /// Publishes one conditional unit's rules, in traversal order.
-    fn publish_unit(&mut self, slot: usize, contributions: Vec<CssContribution>) {
+    /// Queues one conditional unit's CSS contributions with their source order and
+    /// view-transition slot for publication after the base unit.
+    fn publish_unit(&mut self, slot: usize, order: u32, contributions: Vec<CssContribution>) {
         self.runtime_css.extend(
             contributions
                 .into_iter()
-                .map(|contribution| (slot, contribution)),
+                .map(|contribution| (order, slot, contribution)),
         );
     }
 
     /// Allocates one class unit that declares only view-transition data.
     ///
-    /// A transition the value selects at runtime carries one of several tokens, so each token
-    /// needs a class of its own for the class attribute to choose between them.
+    /// A transition the value selects at runtime carries one of several tokens, so each
+    /// token needs a class of its own for the class attribute to choose between them.
+    /// Returns that generated class name.
     ///
     /// # Errors
     ///
@@ -410,6 +459,78 @@ impl<'a> ClassUnits<'a> {
             return Ok(String::new());
         };
         Ok(names.first().cloned().unwrap_or_default())
+    }
+
+    /// Allocates a transition class whose slot and name are gated by CSS variants.
+    /// Returns its generated class name.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the class or slot name family.
+    pub(super) fn view_transition_variant_class_unit(
+        &mut self,
+        token: &str,
+        name: Option<&str>,
+        dynamic_name_property: Option<&str>,
+        guard: &[GuardStep],
+        plan: &StyleVariantPlan,
+    ) -> Result<String, CompileErrorKind> {
+        let order = self.reserve_branch();
+        let branch = format!("{}:{}view-transition:{token}", order, plan.canonical);
+        let canonical =
+            self.options
+                .style_class_input(self.source.path(), self.call_span.start.0, &branch);
+        let property = self.view_transition_slot(&branch)?;
+        let mut declaration = format!("{property}:{};", escaped_identifier(token));
+        if let Some(name) = name {
+            let _ = write!(declaration, "view-transition-name:{name};");
+        }
+        if let Some(name_property) = dynamic_name_property {
+            let _ = write!(declaration, "view-transition-name:var({name_property});");
+        }
+        let mut utility = CompiledUtility {
+            required_properties: Vec::new(),
+            variants: Vec::new(),
+            variant_applications: Vec::new(),
+            declaration,
+            selector: None,
+            container: None,
+            nested: Vec::new(),
+            order: UtilityOrder::Authored(None),
+            candidate: String::new(),
+        };
+        plan.apply_rule(&mut utility);
+        let (name, rules) =
+            self.name_unit(self.call_span.start.0, &branch, &canonical, &[utility])?;
+        self.class_selectors.push(format!(".{name}"));
+        let mut unit = ViewTransitionClassUnit::default();
+        unit.attach_slot(property, token, None);
+        unit.variant_wrapped = true;
+        self.view_transition_classes.push(unit);
+        let slot = self.view_transition_classes.len() - 1;
+        self.classes.push((
+            order,
+            GeneratedClass {
+                class_name: name.clone(),
+                call_span: self.call_span,
+                guard_path: guard.to_vec(),
+            },
+        ));
+        self.publish_unit(slot, order, rules);
+        Ok(name)
+    }
+
+    /// Returns a distinct custom-property name for one dynamic transition name use.
+    /// `source_offset` is the original UTF-8 start byte of the receiver expression.
+    ///
+    /// # Errors
+    ///
+    /// Returns the host generator's failure for the slot name family.
+    pub(super) fn view_transition_dynamic_name_slot(
+        &self,
+        source_offset: u32,
+    ) -> Result<String, CompileErrorKind> {
+        self.view_transition_slot(&format!("view-transition-name:{source_offset}"))
     }
 
     /// The slot properties the base unit references, in the order their units were allocated.

@@ -20,8 +20,11 @@ use crate::identifiers::IdentifierContext;
 impl CallEmitter<'_> {
     /// Lowers one keyframes use whose keyframes is known at compile time.
     ///
-    /// A use reached without a guard can fold into the base unit, which is why `fold` is
-    /// passed down; the option list resolves into the use's own declarations.
+    /// A use reached without a guard can fold into the base unit, which is why `fold`
+    /// is passed down; the option list resolves into the use's own declarations.
+    /// Returns a retained class expression when needed. `None` means the rule joined a
+    /// pending region or base, or name allocation failed with a separately recorded
+    /// diagnostic.
     pub(super) fn emit_keyframes_use(
         &mut self,
         keyframes: &AssetReference,
@@ -40,7 +43,7 @@ impl CallEmitter<'_> {
             self.theme,
             self.diagnostics,
         );
-        plan.apply_keyframes(&mut utility);
+        plan.apply_rule(&mut utility);
         let canonical = format!(
             "{}{}:{}:{}\u{0}",
             plan.canonical, "keyframes:", keyframes.identity.binding_name, options.value
@@ -54,23 +57,15 @@ impl CallEmitter<'_> {
             view_transition_token: None,
             view_transition_name: None,
         };
-        if fold && guard.is_empty() {
-            self.units.fold(contribution);
-            return None;
-        }
-        match self.units.leaf(contribution, guard) {
-            Ok(leaf) => Some(leaf),
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                None
-            }
-        }
+        self.contribute_rule(contribution, guard, fold)
     }
 
     /// Lowers one keyframes use whose keyframes is only known at runtime.
     ///
     /// Every candidate contributes its own prebuilt class, so the runtime selects one
-    /// class set by the name the value carries.
+    /// class set by the name the value carries. Returns the candidate lookup
+    /// expression, or `None` if variant resolution, source slicing, or name allocation
+    /// fails.
     pub(super) fn emit_dynamic_keyframes_use(
         &mut self,
         value: &Span,
@@ -99,7 +94,7 @@ impl CallEmitter<'_> {
                 self.theme,
                 self.diagnostics,
             );
-            plan.apply_keyframes(&mut utility);
+            plan.apply_rule(&mut utility);
             let canonical = if plan.canonical.is_empty() {
                 format!("dynamic-keyframes:{identity}:{}", options.value)
             } else {
@@ -140,10 +135,11 @@ impl CallEmitter<'_> {
     }
 }
 
-/// Builds the declarations one keyframes use contributes.
+/// Returns the resolved utility containing the declarations one keyframes use
+/// contributes. Invalid options append diagnostics to `diagnostics`.
 ///
-/// The `animation-name` always names this declaration's keyframes, and the options follow in
-/// their written order.
+/// The `animation-name` always names this declaration's keyframes, and the options
+/// follow in their written order.
 fn resolve_keyframes_use(
     identifiers: &IdentifierContext,
     keyframes: &AssetReference,

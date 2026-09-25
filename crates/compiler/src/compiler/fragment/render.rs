@@ -6,7 +6,7 @@
 //! transform's fallback location. The caller supplies finalized CSS identities and
 //! validates the macro contract.
 
-use stillwind_ir::{ConditionalKind, FrameworkSpec, StyleFormat};
+use stillwind_ir::{ConditionalBranches, FrameworkSpec, StyleFormat};
 use stillwind_source::Span;
 
 use super::super::expression_render::{collect_class_arguments, render_plain};
@@ -129,28 +129,25 @@ impl Renderer<'_, '_> {
                 ),
                 "]"
             ],
-            Fragment::Branch {
-                test,
-                kind,
-                consequent,
-                alternate,
-            } => {
-                let consequent = self.fragment(consequent);
-                match kind {
-                    ConditionalKind::LogicalAnd => code!["(", test, ") && (", consequent, ")"],
-                    ConditionalKind::Ternary => {
-                        code![
-                            "(",
-                            test,
-                            ") ? (",
-                            consequent,
-                            ") : (",
-                            self.fragment(alternate),
-                            ")"
-                        ]
-                    }
+            Fragment::Branch { test, branches } => match branches {
+                ConditionalBranches::And { consequent } => {
+                    code!["(", test, ") && (", self.fragment(consequent), ")"]
                 }
-            }
+                ConditionalBranches::Ternary {
+                    consequent,
+                    alternate,
+                } => {
+                    code![
+                        "(",
+                        test,
+                        ") ? (",
+                        self.fragment(consequent),
+                        ") : (",
+                        self.fragment(alternate),
+                        ")"
+                    ]
+                }
+            },
             Fragment::FromProps(expression) => {
                 let helper = self.runtime.require(RuntimeHelper::ToFragment, self.span);
                 code![helper, "((", expression, "))"]
@@ -453,6 +450,9 @@ impl Renderer<'_, '_> {
     fn custom_value(&mut self, p: &Property) -> Code {
         if let Some(value) = &p.static_value {
             return js_string(value).into();
+        }
+        if let Some(value) = &p.computed_value {
+            return value.render(self.runtime);
         }
         let helper = self.runtime.require(RuntimeHelper::CssValue, p.span);
         code![helper, "(", Code::source(p.value.clone(), p.span), ")"]

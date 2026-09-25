@@ -6,14 +6,14 @@
 //! refs are reported as `SHTS001` instead of being guessed.
 //!
 //! Every use is also recorded with the JSX path it appeared on, which is what the
-//! ancestry validation later reads. A projection over several candidates becomes an
-//! explicitly dynamic projection instead of one candidate.
+//! ancestry validation later reads. A projection over any finite set other than one
+//! candidate, including an empty set, becomes a dynamic projection.
 
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ClassExpression, RefDefinition, RefProjection, StyleInput};
+use stillwind_ir::{RefDefinition, RefProjection, RuleExpression, StyleInput};
 use stillwind_source::Span;
 
 use crate::state::MacroExtractor;
@@ -102,17 +102,23 @@ impl<'a> MacroExtractor<'a> {
             );
         }
         if refs.len() == 1 {
-            Some(StyleInput::Class(ClassExpression::RefProjection {
-                definition: refs[0].clone(),
-                value: self.source_span(ref_expression.span()),
-                projection,
-            }))
+            Some(StyleInput::Class(
+                RuleExpression::RefProjection {
+                    definition: refs[0].clone(),
+                    value: self.source_span(ref_expression.span()),
+                    projection,
+                }
+                .into(),
+            ))
         } else {
-            Some(StyleInput::Class(ClassExpression::DynamicRefProjection {
-                value: self.source_span(ref_expression.span()),
-                refs,
-                projection,
-            }))
+            Some(StyleInput::Class(
+                RuleExpression::DynamicRefProjection {
+                    value: self.source_span(ref_expression.span()),
+                    refs,
+                    projection,
+                }
+                .into(),
+            ))
         }
     }
 

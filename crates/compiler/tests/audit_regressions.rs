@@ -6,7 +6,7 @@ use stillwind_compiler::{CompileResult, Compiler};
 use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
-use stillwind_ir::{ClassExpression, SourceAnalyzer, StyleInput};
+use stillwind_ir::{ClassExpression, RuleExpression, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse, parse_with_type_facts};
 use stillwind_semantic::{
     AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue, TypeFact,
@@ -350,6 +350,60 @@ fn static_ref_projection_reads_a_member_receiver() {
 }
 
 #[test]
+fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
+    let source = SourceFile::new(
+        FileId(1),
+        "consumer.tsx",
+        "import { style } from 'stillwind/react'; export const x = style(choice.anchor);",
+    )
+    .unwrap();
+    let receiver: u32 = source
+        .text()
+        .find("choice.anchor")
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let refs = ["first", "second"]
+        .into_iter()
+        .map(|name| {
+            RefAlternative::new(
+                IdentityId::new(AssetKind::Ref, "refs.tsx", 6, 13, name),
+                None,
+            )
+            .unwrap()
+        })
+        .collect();
+    let facts = [TypeFact {
+        start: receiver,
+        end: receiver + u32::try_from("choice".len()).unwrap(),
+        value: ExportedValue::Refs(refs),
+    }];
+    let theme = SourceFile::new(
+        FileId(2),
+        "theme.css",
+        "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
+    )
+    .unwrap();
+    let result = Compiler::compile_source_with_type_facts(
+        &OxcSourceAnalyzer,
+        &source,
+        &theme,
+        &facts,
+        &BTreeMap::new(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let code = result.apply_to_source(&source).unwrap();
+    assert!(code.contains("(choice).c"), "{code}");
+    assert!(!code.contains("})[(choice).c]"), "{code}");
+    assert_eq!(
+        result.css.matches(":where(.sw_").count(),
+        2,
+        "{}",
+        result.css
+    );
+}
+
+#[test]
 fn reset_tokens_are_absent_from_definition_fingerprints() {
     let source = SourceFile::new(
         FileId(1),
@@ -411,10 +465,11 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
             Ok::<_, SourceError>(span)
         })
         .unwrap();
-    let StyleInput::Class(ClassExpression::KeyframesUse { keyframes, .. }) =
-        &mapped.style_calls[0].inputs[0]
-    else {
+    let StyleInput::Class(ClassExpression::Rule(rule)) = &mapped.style_calls[0].inputs[0] else {
         panic!("expected static keyframes");
+    };
+    let RuleExpression::KeyframesUse { keyframes, .. } = rule.as_ref() else {
+        panic!("keyframes")
     };
     assert_eq!(keyframes.identity, identity);
     assert_eq!(source.slice(keyframes.span).unwrap(), "motion");
@@ -428,10 +483,11 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
         .module
         .try_map_spans(|span| Ok::<_, ()>(Span::new(span.file, span.start.0 + 20, span.end.0 + 20)))
         .unwrap();
-    let StyleInput::Class(ClassExpression::KeyframesUse { keyframes, .. }) =
-        &mapped.style_calls[0].inputs[0]
-    else {
+    let StyleInput::Class(ClassExpression::Rule(rule)) = &mapped.style_calls[0].inputs[0] else {
         panic!("expected keyframes");
+    };
+    let RuleExpression::KeyframesUse { keyframes, .. } = rule.as_ref() else {
+        panic!("keyframes")
     };
     assert_eq!(
         keyframes.identity.start,
@@ -441,10 +497,14 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
         keyframes.identity.end,
         parsed.module.keyframes_declarations[0].binding.span.end.0
     );
-    let StyleInput::Class(ClassExpression::KeyframesUse {
+    let StyleInput::Class(ClassExpression::Rule(rule)) = &parsed.module.style_calls[0].inputs[0]
+    else {
+        panic!("keyframes")
+    };
+    let RuleExpression::KeyframesUse {
         keyframes: original,
         ..
-    }) = &parsed.module.style_calls[0].inputs[0]
+    } = rule.as_ref()
     else {
         panic!("keyframes")
     };

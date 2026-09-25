@@ -466,14 +466,14 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
         .collect()
 }
 
-/// One ref declaration's runtime value: its canonical class token under `c`.
+/// One ref declaration's runtime value: `{ c: "marker-class" }`.
 ///
 /// A declaration is an identity, and every attachment reads that one key, so a ref
 /// needs no runtime helper and no projection helper functions. The key is a plain
 /// property read, which is what makes `style(ref)` and the projections static.
 ///
-/// `token` is the token written as a JavaScript string literal, because generated
-/// JavaScript reads the same token back as the projection table's key.
+/// `token` is the marker written as a JavaScript string literal. Attachments and
+/// projections read `c` directly as their class contribution.
 fn ref_value(token: &str) -> String {
     format!("{{{CLASS_KEY}:{token}}}")
 }

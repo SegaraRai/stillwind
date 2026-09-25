@@ -109,10 +109,10 @@ export const buttonProps = {
 引数は `()`、`("label")`、`(boundary)`、`(boundary, "label")`。boundary は静的に 1 つの
 ref identity へ解決できることが要件（`crates/js-oxc/src/refs/definitions.rs`）。
 
-| 状況                                                    | lower                                     |
-| ------------------------------------------------------- | ----------------------------------------- |
-| 値が実行時に必要（動的添付・射影の表引き・export など） | `const trigger = {c:"sw_trigger_3s561"};` |
-| 値が実行時に不要（静的添付と静的射影だけ）              | `const menu = undefined;`                 |
+| 状況                                            | lower                                     |
+| ----------------------------------------------- | ----------------------------------------- |
+| 値が実行時に必要（動的添付・射影・export など） | `const trigger = {c:"sw_trigger_3s561"};` |
+| 値が実行時に不要（静的添付だけ）                | `const menu = undefined;`                 |
 
 marker は `sw_[label_]<hash>` の class token で、規則を持たない。要素の class 値に載り、
 selector 側（ref variant・boundary の `@container`・`:has()`）から参照される。
@@ -289,7 +289,7 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 
 - `utility-props-matrix`: utility・配列・条件・属性・custom property・外部 class。
 - `bounded-ref-layout`: ref marker、boundary、anchor 射影、container、ref variant。
-- `typed-ref-graph`: import 越しの ref の添付と射影の表引き。
+- `typed-ref-graph`: import 越しの ref の添付と射影。
 - `keyframes-matrix`: 静的 / 動的 keyframes use と条件分岐。
 - `view-transition-matrix`: 静的 / 動的 identity、literal / 式 key、宣言箇所の `.for`、
   複数 transition の 1 call、ガード付き use。

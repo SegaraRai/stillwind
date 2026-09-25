@@ -7,11 +7,18 @@
 
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{
-    AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, StyleInput, StyleVariant,
+    AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, RuleExpression, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
 use stillwind_source::{FileId, SourceFile, Span};
+
+fn rule(expression: &ClassExpression) -> &RuleExpression {
+    let ClassExpression::Rule(rule) = expression else {
+        panic!("rule")
+    };
+    rule.as_ref()
+}
 
 #[test]
 fn parser_diagnostics_keep_external_detail_as_notes() {
@@ -266,10 +273,11 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
 
     assert!(parsed.diagnostics.is_empty());
     assert_eq!(parsed.module.style_calls.len(), 1);
-    let Some(StyleInput::Class(ClassExpression::Utilities(first))) =
-        parsed.module.style_calls[0].inputs.first()
-    else {
+    let Some(StyleInput::Class(expression)) = parsed.module.style_calls[0].inputs.first() else {
         panic!("the first input should be a static utility string");
+    };
+    let RuleExpression::Utilities(first) = rule(expression) else {
+        panic!("utility")
     };
     assert_eq!(first.value, "px-4 text-center");
     assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
@@ -528,7 +536,7 @@ const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" }
     else {
         panic!("the array should stay an array");
     };
-    assert!(matches!(elements[0], ClassExpression::Utilities(_)));
+    assert!(matches!(rule(&elements[0]), RuleExpression::Utilities(_)));
     assert!(matches!(elements[1], ClassExpression::Conditional { .. }));
     let Some(StyleInput::Class(ClassExpression::Group { entries, .. })) =
         parsed.module.style_calls[0].inputs.get(1)
@@ -538,15 +546,15 @@ const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" }
     let GroupEntry::Class(inner) = &entries[0] else {
         panic!("expected a variant wrapper");
     };
-    let ClassExpression::Variant {
+    let RuleExpression::Variant {
         variant: StyleVariant::Prefix(prefix),
         inputs,
-    } = inner.as_ref()
+    } = rule(inner)
     else {
         panic!("expected a variant wrapper");
     };
     assert_eq!(prefix.value, "hover:");
-    let ClassExpression::Utilities(value) = &inputs[0] else {
+    let RuleExpression::Utilities(value) = &inputs[0] else {
         panic!("expected utility")
     };
     assert_eq!(value.value, "bg-accent");
@@ -594,34 +602,34 @@ const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }
     let GroupEntry::Class(inner) = &entries[0] else {
         panic!("outer wrapper");
     };
-    let ClassExpression::Variant {
+    let RuleExpression::Variant {
         variant: StyleVariant::Prefix(outer),
         inputs: wrapped,
-    } = inner.as_ref()
+    } = rule(inner)
     else {
         panic!("outer wrapper")
     };
-    let [ClassExpression::Array(elements)] = wrapped.as_slice() else {
+    let [wrapped] = wrapped.as_slice() else {
+        panic!("one wrapped array")
+    };
+    let RuleExpression::Array(elements) = wrapped else {
         panic!("wrapper array")
     };
-    let ClassExpression::Group {
-        entries: inner_entries,
+    let RuleExpression::Group {
+        inputs: inner_entries,
         ..
     } = &elements[1]
     else {
         panic!("inner wrapper object")
     };
-    let GroupEntry::Class(inner_expression) = &inner_entries[0] else {
-        panic!("inner wrapper")
-    };
-    let ClassExpression::Variant {
+    let RuleExpression::Variant {
         variant: StyleVariant::Prefix(inner),
         inputs,
-    } = inner_expression.as_ref()
+    } = &inner_entries[0]
     else {
         panic!("inner wrapper")
     };
-    let ClassExpression::Utilities(value) = &inputs[0] else {
+    let RuleExpression::Utilities(value) = &inputs[0] else {
         panic!("utility")
     };
     assert_eq!(outer.value, "hover:");

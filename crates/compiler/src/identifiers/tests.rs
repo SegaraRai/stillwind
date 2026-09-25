@@ -309,16 +309,11 @@ fn the_hash_is_stable_for_equal_requests_and_specific_to_the_family() {
 }
 
 #[test]
-fn a_class_token_an_object_already_holds_gains_a_prefix_when_it_is_built() {
+fn a_ref_marker_uses_the_same_class_token_spelling_as_other_classes() {
     let marker = RefMarker::new("__proto__").unwrap();
-    assert_eq!(marker.as_str(), "___proto__");
-    assert_eq!(marker.selector(), ".___proto__");
-    assert_eq!(marker.javascript_string(), "\"___proto__\"");
-    // The prefix is applied once, however many times a name is rebuilt.
-    assert_eq!(
-        RefMarker::new(marker.as_str()).unwrap().as_str(),
-        "___proto__"
-    );
+    assert_eq!(marker.as_str(), "__proto__");
+    assert_eq!(marker.selector(), ".__proto__");
+    assert_eq!(marker.javascript_string(), "\"__proto__\"");
 }
 
 #[test]

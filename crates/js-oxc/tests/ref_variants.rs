@@ -4,9 +4,16 @@
 //! string, so the tests pin down which expressions count, which spans are recorded, and
 //! which near-misses are errors.
 
-use stillwind_ir::{ClassExpression, GroupEntry, StyleInput, StyleVariant};
+use stillwind_ir::{ClassExpression, GroupEntry, RuleExpression, StyleInput, StyleVariant};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile, Span};
+
+fn rule(expression: &ClassExpression) -> &RuleExpression {
+    let ClassExpression::Rule(rule) = expression else {
+        panic!("rule")
+    };
+    rule.as_ref()
+}
 
 /// `trigger()` keeps its identity in both the tag and object-key forms.
 #[test]
@@ -21,7 +28,7 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
         let parsed = parse(&source);
         assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
         let wrapper = match &parsed.module.style_calls[0].inputs[0] {
-            StyleInput::Class(expression @ ClassExpression::Variant { .. }) => expression,
+            StyleInput::Class(expression @ ClassExpression::Rule(_)) => expression,
             StyleInput::Class(ClassExpression::Group { entries, .. }) => {
                 let GroupEntry::Class(inner) = &entries[0] else {
                     panic!("wrapper object")
@@ -30,10 +37,10 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
             }
             _ => panic!("class expression"),
         };
-        let ClassExpression::Variant {
+        let RuleExpression::Variant {
             variant: StyleVariant::Ref { refs, prefix },
             ..
-        } = wrapper
+        } = rule(wrapper)
         else {
             panic!("ref variant")
         };
@@ -62,15 +69,18 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     let parsed = parse(&source);
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let inputs = &parsed.module.style_calls[0].inputs;
-    let StyleInput::Class(ClassExpression::Variant {
+    let StyleInput::Class(expression) = &inputs[0] else {
+        panic!("class")
+    };
+    let RuleExpression::Variant {
         variant: StyleVariant::Prefix(prefix),
         inputs: nested,
-    }) = &inputs[0]
+    } = rule(expression)
     else {
         panic!("ordinary variant")
     };
     assert_eq!(source.slice(prefix.span).unwrap(), "md:");
-    let ClassExpression::Variant {
+    let RuleExpression::Variant {
         variant: StyleVariant::Ref { refs, prefix },
         inputs: nested,
     } = &nested[0]
@@ -80,11 +90,14 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     assert_eq!(source.slice(prefix.span).unwrap(), "hover:");
     assert_eq!(refs.len(), 1);
     assert_eq!(refs[0].binding.value, "trigger");
-    let ClassExpression::Utilities(utility) = &nested[0] else {
+    let RuleExpression::Utilities(utility) = &nested[0] else {
         panic!("utility")
     };
     assert_eq!(source.slice(utility.span).unwrap(), "active:text-accent");
-    let StyleInput::Class(ClassExpression::Utilities(plain)) = &inputs[1] else {
+    let StyleInput::Class(expression) = &inputs[1] else {
+        panic!("class")
+    };
+    let RuleExpression::Utilities(plain) = rule(expression) else {
         panic!("plain utility")
     };
     assert_eq!(source.slice(plain.span).unwrap(), "p-4");
@@ -93,12 +106,13 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
         .module
         .try_map_spans::<()>(|span| Ok(Span::new(span.file, span.start.0 + 10, span.end.0 + 10)))
         .unwrap();
-    let StyleInput::Class(ClassExpression::Variant { inputs: nested, .. }) =
-        &shifted.style_calls[0].inputs[0]
-    else {
+    let StyleInput::Class(expression) = &shifted.style_calls[0].inputs[0] else {
+        panic!("class")
+    };
+    let RuleExpression::Variant { inputs: nested, .. } = rule(expression) else {
         panic!("wrapper")
     };
-    let ClassExpression::Variant {
+    let RuleExpression::Variant {
         variant:
             StyleVariant::Ref {
                 refs: moved,

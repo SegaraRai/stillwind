@@ -6,6 +6,9 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 stillwind-compiler = { path = "../compiler" }
 stillwind-css = { path = "../css" }
@@ -20,6 +23,3 @@ thiserror.workspace = true
 [dev-dependencies]
 stillwind-js-oxc = { path = "../js-oxc" }
 proptest.workspace = true
-
-[lints]
-workspace = true

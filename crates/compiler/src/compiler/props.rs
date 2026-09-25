@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-use stillwind_ir::ConditionalKind;
+use stillwind_ir::ConditionalBranches;
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property, ValueExpr};
@@ -45,12 +45,8 @@ pub(crate) enum StyleEmissionPart {
     Conditional {
         /// Original test code with occurrence mappings.
         test: Code,
-        /// Source operator.
-        kind: ConditionalKind,
-        /// Ordered contributions in the truthy branch.
-        consequent: Vec<Self>,
-        /// Ordered contributions in the falsy branch.
-        alternate: Vec<Self>,
+        /// Ordered contributions selected by the source operator.
+        branches: ConditionalBranches<Vec<Self>>,
         /// Original-source UTF-8 condition offset used for ordering.
         position: u32,
     },
