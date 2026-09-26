@@ -30,6 +30,7 @@ void test("host name generators decide the names the compiler writes", async () 
       read: async () => {
         throw new Error("unexpected read");
       },
+      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       watch: () => {},
       warn: () => {},
     },
@@ -64,6 +65,7 @@ void test("a generator that fails only warns while the session is in development
       read: async () => {
         throw new Error("unexpected read");
       },
+      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       watch: () => {},
       warn: (message) => warnings.push(message),
     },

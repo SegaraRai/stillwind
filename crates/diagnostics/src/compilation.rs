@@ -10,7 +10,28 @@ use stillwind_source::{
     BytePos, CoordinateError, FileId, Position, ProjectionError, SourceError, Span, Utf16Offset,
 };
 
-use crate::Label;
+/// The reason a style input cannot be transformed by a CSS variant.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+pub enum VariantInputErrorKind {
+    /// Element attribute supplied by an object entry.
+    #[error("element attribute")]
+    Attribute,
+    /// Inline custom property supplied by an object entry.
+    #[error("inline custom property")]
+    CustomProperty,
+    /// Runtime class value without a CSS rule.
+    #[error("external class value")]
+    ExternalClass,
+    /// A composed style value.
+    #[error("style composition")]
+    Composition,
+    /// A ref attachment.
+    #[error("ref attachment")]
+    RefAttachment,
+    /// A dynamic ref attachment.
+    #[error("dynamic ref attachment")]
+    DynamicRefAttachment,
+}
 
 /// Typed causes and display templates for fatal compilation errors.
 ///
@@ -57,10 +78,11 @@ pub enum CompileErrorKind {
     )]
     InvalidAttributeKey,
     /// A variant wrapper contains an unsupported input expression.
-    #[error(
-        "variant wrappers accept utility strings, keyframes, arrays, and nested variant wrappers"
-    )]
-    InvalidVariantInput,
+    #[error("CSS variant cannot transform {reason}")]
+    InvalidVariantInput {
+        /// First incompatible input in source order.
+        reason: VariantInputErrorKind,
+    },
     /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
     #[error("utility templates require direct ref variants in complete `variant:utility` segments")]
     InvalidUtilityTemplate,
@@ -233,6 +255,15 @@ pub enum CompileErrorKind {
         /// Zero-based UTF-8 byte offset within the offending generated CSS contribution.
         offset: usize,
     },
+    /// An internal buffer was given a source-map entry for an original document.
+    #[error("an internal source cannot have a source-map entry")]
+    SourceInternalMap {
+        /// Operation that attempted to register the buffer.
+        context: SourceFailureContext,
+    },
+    /// An import-edit source was given a source-map entry without a URI.
+    #[error("invalid macro import source: an internal source cannot have a source-map entry")]
+    ImportSourceInternalMap,
     /// A source operation exceeds the supported 32-bit coordinate space.
     #[error("source size or offset {value} exceeds the 32-bit source limit")]
     SourceTooLarge {
@@ -390,6 +421,14 @@ pub enum CompileErrorKind {
     /// An authored theme lookup has neither a resolved token nor a usable fallback.
     #[error("authored CSS contains an unresolved --theme() reference without a usable fallback")]
     UnresolvedThemeReference,
+    /// A `--theme()` call has invalid syntax at a byte offset within its value.
+    #[error("invalid --theme() reference at value byte {offset}: {detail}")]
+    InvalidThemeReference {
+        /// Zero-based UTF-8 byte offset within the containing value.
+        offset: usize,
+        /// Syntax error reported by the theme resolver.
+        detail: String,
+    },
     /// The output template has no destination for generated utility rules.
     #[error("generated utilities require an @stillwind-slot utilities; in the CSS entry graph")]
     MissingUtilitiesSlot,
@@ -402,6 +441,40 @@ pub enum CompileErrorKind {
     /// An authored registration requirement cannot be parsed.
     #[error("invalid Stillwind property requirement")]
     InvalidPropertyRequirement,
+    /// A requirement directive contains malformed names or syntax.
+    #[error("invalid Stillwind property requirement at byte {offset}")]
+    MalformedPropertyRequirement {
+        /// Byte offset of the directive within its CSS body.
+        offset: usize,
+    },
+    /// A matched utility definition contains a malformed requirement directive.
+    #[error("utility `{utility}` has an invalid property requirement at body byte {offset}")]
+    MalformedUtilityRequirement {
+        /// Registered utility name.
+        utility: String,
+        /// Byte offset within the definition body.
+        offset: usize,
+    },
+    /// A generated source transform contains invalid expression mapping metadata.
+    #[error("invalid expression mapping in source replacement at {span:?}")]
+    InvalidTransformExpressionMapping {
+        /// Original call span carrying the replacement.
+        span: Span,
+    },
+    /// Generated source replacements overlap.
+    #[error("overlapping source replacement {span:?}, previous start {previous_start}")]
+    InvalidTransformOverlap {
+        /// Later replacement that overlaps a preceding one.
+        span: Span,
+        /// Start offset of the preceding replacement.
+        previous_start: u32,
+    },
+    /// Rendered source exceeds the supported coordinate range.
+    #[error("rendered source exceeds the 32-bit coordinate limit")]
+    InvalidTransformSize,
+    /// A failed compilation was passed to source-transform rendering.
+    #[error("source replacement was requested for a failed compilation")]
+    InvalidTransformState,
     /// An experimental runtime condition cannot be lowered using the selected output strategy.
     #[error("invalid runtime conditional: {detail}")]
     InvalidRuntimeConditional {
@@ -441,9 +514,9 @@ pub enum CompileErrorKind {
         /// Request identifier that was unknown or already answered.
         id: u32,
     },
-    /// One host source identity was supplied with different contents.
-    #[error("conflicting content for {name}")]
-    ConflictingCssContent {
+    /// One host source name was supplied with differing document identity or contents.
+    #[error("conflicting CSS source for {name}")]
+    ConflictingCssSource {
         /// Opaque source name supplied by the host.
         name: String,
     },
@@ -610,7 +683,7 @@ impl CompileErrorKind {
             | Self::InvalidAttributeProperty
             | Self::InvalidComputedAttribute
             | Self::InvalidAttributeKey => "SHJS003",
-            Self::InvalidVariantInput => "SHJS004",
+            Self::InvalidVariantInput { .. } => "SHJS004",
             Self::InvalidUtilityTemplate => "SHJS005",
             Self::InvalidKeyframesOptions
             | Self::KeyframesUseNotAClassInput
@@ -656,9 +729,12 @@ impl CompileErrorKind {
             Self::JavaScriptParse => "SHJS001",
             Self::InvalidGeneratedCss { .. }
             | Self::UnresolvedThemeReference
+            | Self::InvalidThemeReference { .. }
             | Self::MissingUtilitiesSlot
             | Self::MissingPropertySlot { .. }
             | Self::InvalidPropertyRequirement
+            | Self::MalformedPropertyRequirement { .. }
+            | Self::MalformedUtilityRequirement { .. }
             | Self::InvalidRuntimeConditional { .. }
             | Self::PropertyUsage { .. }
             | Self::MissingRule
@@ -668,7 +744,7 @@ impl CompileErrorKind {
             | Self::CssLoadAlreadyComplete
             | Self::InvalidCssInitialBatch { .. }
             | Self::UnknownCssRequest { .. }
-            | Self::ConflictingCssContent { .. }
+            | Self::ConflictingCssSource { .. }
             | Self::CssImportCycle { .. }
             | Self::UnresolvedCssImports { .. }
             | Self::InvalidPropertyPrefix { .. }
@@ -689,12 +765,18 @@ impl CompileErrorKind {
             | Self::InvalidImportSpecifier { .. }
             | Self::InvalidImportModifiers { .. }
             | Self::InvalidImportModifierBlock { .. } => "SHCSS001",
+            Self::InvalidTransformExpressionMapping { .. }
+            | Self::InvalidTransformOverlap { .. }
+            | Self::InvalidTransformSize
+            | Self::InvalidTransformState => "SHSPAN004",
             Self::SourceTooLarge { context, .. }
+            | Self::SourceInternalMap { context }
             | Self::SourceInvalidRange { context, .. }
             | Self::SourceWrongFile { context, .. }
             | Self::SourceInvalidSpan { context, .. }
             | Self::SourceInvalidOffset { context, .. } => context.code(),
             Self::ImportSourceTooLarge { .. }
+            | Self::ImportSourceInternalMap
             | Self::ImportSourceInvalidRange { .. }
             | Self::ImportSourceWrongFile { .. }
             | Self::ImportSourceInvalidSpan { .. }
@@ -719,6 +801,7 @@ impl CompileErrorKind {
     /// The caller attaches a valid reporting span separately; rejected coordinates may be invalid.
     pub fn import_source_failure(error: &SourceError) -> Self {
         match *error {
+            SourceError::InternalSourceMap => Self::ImportSourceInternalMap,
             SourceError::TooLarge(value) => Self::ImportSourceTooLarge { value },
             SourceError::InvalidRange { start, end } => {
                 Self::ImportSourceInvalidRange { start, end }
@@ -735,6 +818,7 @@ impl CompileErrorKind {
     /// This does not validate coordinates or attach a primary reporting location.
     pub fn source_failure(error: &SourceError, context: SourceFailureContext) -> Self {
         match *error {
+            SourceError::InternalSourceMap => Self::SourceInternalMap { context },
             SourceError::TooLarge(value) => Self::SourceTooLarge { value, context },
             SourceError::InvalidRange { start, end } => Self::SourceInvalidRange {
                 start,
@@ -775,18 +859,14 @@ impl From<ProjectionError> for CompileErrorKind {
 /// [`Self::new`] attaches one primary label; callers may add highlights and notes.
 /// Display includes the optional source name and cause, while labels and notes are
 /// formatted separately by the host. Fatal errors do not participate in lint suppression.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
-#[error("{}{kind}", .source_name.as_ref().map_or_else(String::new, |name| format!("{name}: ")))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, thiserror::Error)]
+#[error("{kind}")]
 pub struct CompileError {
-    /// Optional opaque source name, displayed verbatim followed by `: ` before the cause.
-    pub source_name: Option<String>,
     /// Typed cause; owns the message template and reporting code.
     #[source]
     pub kind: CompileErrorKind,
-    /// Ordered source highlights; the first is the primary reporting location.
-    pub labels: Vec<Label>,
-    /// Ordered supplementary explanations, including external parser details; not part of Display.
-    pub notes: Vec<String>,
+    /// Mandatory primary location and shared diagnostic details.
+    pub info: Box<crate::DiagnosticInfo>,
 }
 
 impl CompileError {
@@ -794,27 +874,29 @@ impl CompileError {
     /// The caller supplies a valid reporting span; rejected coordinates remain in `kind`.
     pub fn new(kind: CompileErrorKind, span: Span) -> Self {
         Self {
-            source_name: None,
             kind,
-            labels: vec![Label {
-                span,
-                message: None,
-            }],
-            notes: Vec::new(),
+            info: Box::new(crate::DiagnosticInfo::new(span)),
         }
     }
 
-    /// Returns the error with `name` replacing any existing display source name.
-    /// Labels, notes, and the cause are retained; the name is displayed verbatim as a prefix.
-    #[must_use]
-    pub fn with_source_name(mut self, name: impl Into<String>) -> Self {
-        self.source_name = Some(name.into());
-        self
-    }
-
     /// Returns the cause's stable reporting code.
+    #[must_use]
     pub const fn code(&self) -> &'static str {
         self.kind.code()
+    }
+}
+
+impl std::ops::Deref for CompileError {
+    type Target = crate::DiagnosticInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
+impl std::ops::DerefMut for CompileError {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.info
     }
 }
 
@@ -827,6 +909,12 @@ pub enum SourceFailureContext {
     Projection,
     /// CSS source loading (`SHCSS001`).
     Stylesheet,
+    /// Style call emission (`SHSPAN002`).
+    Emission,
+    /// JavaScript source extraction (`SHSPAN003`).
+    Frontend,
+    /// Source-transform rendering (`SHSPAN004`).
+    Transform,
 }
 
 impl SourceFailureContext {
@@ -836,6 +924,9 @@ impl SourceFailureContext {
             Self::Utility => "SHSPAN001",
             Self::Projection => "SHPRJ001",
             Self::Stylesheet => "SHCSS001",
+            Self::Emission => "SHSPAN002",
+            Self::Frontend => "SHSPAN003",
+            Self::Transform => "SHSPAN004",
         }
     }
 }
@@ -869,7 +960,7 @@ mod tests {
     }
 
     #[test]
-    fn wrappers_roundtrip_owned_causes_labels_and_notes() {
+    fn wrappers_serialize_owned_causes_labels_and_notes() {
         let span = Span::new(FileId(7), 4, 12);
         let mut error = CompileError::new(
             CompileErrorKind::GeneratedIdentifierCollision {
@@ -885,13 +976,17 @@ mod tests {
             .notes
             .push("reported while publishing the module".into());
         let json = serde_json::to_string(&error).unwrap();
-        let restored: CompileError = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored, error);
-        assert_eq!(restored.code(), "SHSYMBOL001");
-        assert_eq!(restored.to_string(), "generated identifier collision: 衝突");
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 2);
         assert_eq!(
-            std::error::Error::source(&restored).unwrap().to_string(),
-            restored.to_string()
+            value["info"]["notes"][0],
+            "reported while publishing the module"
+        );
+        assert_eq!(error.code(), "SHSYMBOL001");
+        assert_eq!(error.to_string(), "generated identifier collision: 衝突");
+        assert_eq!(
+            std::error::Error::source(&error).unwrap().to_string(),
+            error.to_string()
         );
 
         let finding = LintFinding::new(
@@ -901,7 +996,8 @@ mod tests {
             span,
         );
         let json = serde_json::to_string(&finding).unwrap();
-        assert_eq!(serde_json::from_str::<LintFinding>(&json).unwrap(), finding);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
         assert_eq!(finding.code(), "require-anchor-provider");
         assert_eq!(
             finding.to_string(),
@@ -925,20 +1021,19 @@ mod tests {
             "identifier generation failed for keyframes: no name for this declaration"
         );
         let json = serde_json::to_string(&error).unwrap();
-        assert_eq!(serde_json::from_str::<CompileError>(&json).unwrap(), error);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
     }
 
     #[test]
-    fn source_name_is_wrapper_context_and_survives_serialization() {
+    fn internal_error_display_contains_only_the_typed_cause() {
         let error = CompileError::new(
             CompileErrorKind::UnterminatedCssBlock { offset: 8 },
             Span::new(FileId(77), 0, 9),
-        )
-        .with_source_name("theme.css");
-        assert_eq!(error.to_string(), format!("theme.css: {}", error.kind));
+        );
+        assert_eq!(error.to_string(), error.kind.to_string());
         assert_eq!(error.code(), error.kind.code());
-        let restored: CompileError =
-            serde_json::from_str(&serde_json::to_string(&error).unwrap()).unwrap();
-        assert_eq!(restored, error);
+        let value: serde_json::Value = serde_json::to_value(&error).unwrap();
+        assert!(value["info"].get("source_name").is_none());
     }
 }

@@ -24,7 +24,7 @@ pub use builtins::{
 };
 pub use utilities::{
     NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget, UtilityOrder,
-    UtilityPropertySort, resolve_animation_option, resolve_utility,
+    UtilityPropertySort, UtilityResolutionError, resolve_animation_option, resolve_utility,
 };
 pub use variants::{
     VariantApplication, VariantDeclaration, compare_variant_sequences, compatibility_marker_class,

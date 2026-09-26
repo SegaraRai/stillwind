@@ -232,7 +232,17 @@ mod render_step_tests {
     use stillwind_design_system::{UtilityOrder, VariantDeclaration};
 
     use super::*;
-    use crate::identifiers::IdentifierContext;
+    use crate::identifiers::{
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
+    };
+
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
+    }
 
     fn utility(selector: Option<&str>, declaration: &str) -> CompiledUtility {
         CompiledUtility {
@@ -252,7 +262,7 @@ mod render_step_tests {
     /// instantiated against it.
     #[test]
     fn render_utility_steps_uses_the_utility_selector_template() {
-        let identifiers = IdentifierContext::builtin();
+        let context = identifiers();
         assert_eq!(
             render_utility_steps(
                 ".sw_x",
@@ -260,7 +270,7 @@ mod render_step_tests {
                 "color:red;",
                 None,
                 &[],
-                &identifiers
+                &context
             )
             .unwrap(),
             ".sw_x{color:red;}"
@@ -272,7 +282,7 @@ mod render_step_tests {
                 "color:red;",
                 None,
                 &[],
-                &identifiers
+                &context
             )
             .unwrap(),
             ".sw_x:hover{color:red;}"
@@ -282,7 +292,7 @@ mod render_step_tests {
     /// Selector steps rewrite the selector in place.
     #[test]
     fn render_utility_steps_rewrites_the_selector_in_place() {
-        let identifiers = IdentifierContext::builtin();
+        let context = identifiers();
         let steps = [VariantStep::SelectorSuffix(":hover")];
         assert_eq!(
             render_utility_steps(
@@ -291,7 +301,7 @@ mod render_step_tests {
                 "color:red;",
                 None,
                 &steps,
-                &identifiers
+                &context
             )
             .unwrap(),
             ".sw_x:hover{color:red;}"
@@ -301,7 +311,7 @@ mod render_step_tests {
     /// Condition steps wrap the rule from the inside out.
     #[test]
     fn render_utility_steps_wraps_conditions_in_order() {
-        let identifiers = IdentifierContext::builtin();
+        let context = identifiers();
         let steps = [
             VariantStep::Media("(min-width: 40rem)"),
             VariantStep::Supports("display:grid"),
@@ -315,7 +325,7 @@ mod render_step_tests {
                 "color:red;",
                 None,
                 &steps,
-                &identifiers
+                &context
             )
             .unwrap(),
             "@starting-style{@container (width > 10px){@media (min-width: 40rem){@supports (display:grid){.sw_x{color:red;}}}}}"
@@ -326,7 +336,7 @@ mod render_step_tests {
     /// that property, and a nested rule wraps the whole result.
     #[test]
     fn render_utility_steps_prepends_missing_declarations_and_wraps_nested_rules() {
-        let identifiers = IdentifierContext::builtin();
+        let context = identifiers();
         let declarations = [VariantDeclaration {
             property: "color".to_owned(),
             value: "blue".to_owned(),
@@ -342,7 +352,7 @@ mod render_step_tests {
                 "color:red;",
                 None,
                 &steps,
-                &identifiers
+                &context
             )
             .unwrap(),
             ".sw_x:hover{color:red;}"
@@ -354,7 +364,7 @@ mod render_step_tests {
                 "padding:0;",
                 None,
                 &steps,
-                &identifiers
+                &context
             )
             .unwrap(),
             ".sw_x:hover{color:blue;padding:0;}"
@@ -373,7 +383,7 @@ mod render_step_tests {
                 "color:red;",
                 Some(&nested),
                 &[],
-                &identifiers
+                &context
             )
             .unwrap(),
             "@supports (display:grid){.sw_x{color:red;}}"

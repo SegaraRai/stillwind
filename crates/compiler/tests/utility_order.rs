@@ -1,9 +1,13 @@
 //! Differential ordering against the pinned Tailwind compiler's unoptimized AST.
 
-use stillwind_compiler::Compiler;
+#[path = "../../test-support/css.rs"]
+mod css_fixture;
+
+use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_design_system::{
     DesignSystemOptions, DesignSystemSnapshot, UtilityOrder, resolve_utility,
 };
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -15,7 +19,6 @@ fn tailwind_resolved_property_sort_matches_upstream() {
     .unwrap();
     let source = css_fixture::source(
         FileId(1),
-        "theme.css",
         format!(
             "{} @stillwind {{ utility-order: tailwind; }}",
             fixture["stillwindCss"].as_str().unwrap()
@@ -23,13 +26,14 @@ fn tailwind_resolved_property_sort_matches_upstream() {
     )
     .unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
+            .unwrap();
     let mut failures = Vec::new();
     let mut unresolved = Vec::new();
     let mut candidates = Vec::new();
     for expected in fixture["keys"].as_array().unwrap() {
         let candidate = expected["candidate"].as_str().unwrap();
-        let Some(resolved) = resolve_utility(candidate, snapshot.theme()) else {
+        let Some(resolved) = resolve_utility(candidate, snapshot.theme()).unwrap() else {
             unresolved.push(candidate);
             continue;
         };
@@ -89,7 +93,6 @@ fn tailwind_resolved_property_sort_matches_upstream() {
 fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
     let theme = css_fixture::source(
         FileId(1),
-        "theme.css",
         "
         @stillwind { utility-order: tailwind; }
         @utility a-single { color:red; }
@@ -109,11 +112,21 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
     ] {
         let source = SourceFile::new(
             FileId(2),
-            "entry.ts",
+            None,
+            None,
             format!("import {{style}} from 'stillwind/react'; const value=style('{utilities}');"),
         )
         .unwrap();
-        let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let output = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
         assert!(output.diagnostics.is_empty(), "{output:#?}");
         let position = |text| output.css.find(text).unwrap();
         assert!(position("display:grid") < position("z-index:7"));
@@ -123,6 +136,3 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
         assert!(!output.css.contains("--tw-sort:"));
     }
 }
-
-#[path = "../../test-support/css.rs"]
-mod css_fixture;

@@ -45,6 +45,7 @@ function harness(t: test.TestContext, files: Record<string, string>, entry: stri
           assert.notEqual(text, undefined, id);
           return text;
         },
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch: () => {},
         warn: () => {},
       },

@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
+use stillwind_semantic::ModuleId;
 use stillwind_source::{FileId, Fingerprint, ProjectionMap, SourceFile, Span};
 
 use crate::AdapterKind;
@@ -30,18 +31,22 @@ pub enum ScriptLanguage {
     Ts,
     /// TypeScript with JSX syntax.
     Tsx,
+    /// TypeScript declaration syntax.
+    Dts,
 }
 
-impl ScriptLanguage {
-    /// Extension-based detection used for hosts that do not pass a language.
-    pub fn from_path(path: &str) -> Self {
-        match path.rsplit('.').next() {
-            Some("ts" | "mts" | "cts") => Self::Ts,
-            Some("tsx") => Self::Tsx,
-            Some("jsx") => Self::Jsx,
-            _ => Self::Js,
-        }
-    }
+/// Module grammar used when parsing a JavaScript or TypeScript buffer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ScriptModuleKind {
+    /// Parse as an ECMAScript module.
+    Module,
+    /// Parse with `CommonJS` top-level semantics.
+    CommonJs,
+    /// Parse as a non-module script.
+    Script,
+    /// Select module or script grammar from the buffer's syntax.
+    Unambiguous,
 }
 
 /// Identifies the converter that produced a projection, for cache identity.
@@ -117,10 +122,14 @@ pub struct FrameworkProjection {
 /// One module as presented to the analyzer.
 #[derive(Clone, Debug)]
 pub struct SourceInput {
+    /// Compiler identity of the module represented by the input.
+    pub module_id: ModuleId,
     /// JavaScript/TypeScript presented to the parser, never raw SFC markup.
     pub code: Arc<SourceFile>,
     /// Dialect the parser must use for [`Self::code`].
     pub language: ScriptLanguage,
+    /// Module grammar supplied by the host for the parser.
+    pub module_kind: ScriptModuleKind,
     /// `None` for plain JavaScript/TypeScript without a framework adapter.
     pub framework: Option<AdapterKind>,
     /// Present when [`Self::code`] was derived from another file.
@@ -135,9 +144,16 @@ pub struct SourceInput {
 
 impl SourceInput {
     /// Input for a plain JavaScript/TypeScript module with no projection.
-    pub fn normal(code: Arc<SourceFile>) -> Self {
+    pub fn normal(
+        code: Arc<SourceFile>,
+        module_id: ModuleId,
+        language: ScriptLanguage,
+        module_kind: ScriptModuleKind,
+    ) -> Self {
         Self {
-            language: ScriptLanguage::from_path(code.path()),
+            module_id,
+            language,
+            module_kind,
             code,
             framework: None,
             projection: None,

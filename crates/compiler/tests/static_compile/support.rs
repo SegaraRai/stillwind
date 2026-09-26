@@ -4,8 +4,14 @@
 //! cases, and the CSS helpers extract, normalize, compare, and minify rules so an assertion can be
 //! about declarations rather than about whitespace.
 
-use stillwind_compiler::CompileResult;
+#[path = "../../../css/test-support/assertions.rs"]
+mod css_assertions;
+
+pub(super) use css_assertions::CssAssertions;
+
+use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_css::fold_calc_expressions;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -202,18 +208,19 @@ pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
         &OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(91),
-            "src/Property.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({utility:?});"
             ),
         )
         .unwrap(),
-        &crate::css_fixture::source(
-            FileId(92),
-            "stillwind.css",
-            "@theme { --spacing: 0.25rem; }",
-        )
-        .unwrap(),
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &crate::css_fixture::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
+        "stillwind.css",
+        &CompilerOptions::default(),
     )
 }
 
@@ -230,7 +237,7 @@ pub(super) fn tailwind_class_selector(candidate: &str) -> String {
 
 pub(super) fn minify_css(css: &str) -> String {
     // Value normalization belongs to the test oracle, never the production emitter.
-    let css = fold_calc_expressions(css);
+    let css = fold_calc_expressions(css, None);
     let sheet = StyleSheet::parse(&css, ParserOptions::default()).expect("CSS must parse");
     sheet
         .to_css(PrinterOptions {
@@ -240,7 +247,3 @@ pub(super) fn minify_css(css: &str) -> String {
         .expect("CSS must serialize")
         .code
 }
-
-#[path = "../../../css/test-support/assertions.rs"]
-mod css_assertions;
-pub(super) use css_assertions::CssAssertions;

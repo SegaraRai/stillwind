@@ -185,8 +185,8 @@ pub struct NativeStylesheetMap {
 /// One source referenced by a stylesheet map.
 #[napi(object, object_from_js = false)]
 pub struct NativeMapSource {
-    /// Module path of the source.
-    pub path: String,
+    /// Host-supplied source-map entry name for this source revision.
+    pub source_map_source: String,
     /// Full text, so a consumer can build a standard source map without reading the
     /// file again.
     pub content: String,
@@ -221,21 +221,22 @@ pub(crate) fn stylesheet_locations(
     let mut indices = BTreeMap::new();
     let mut entries = Vec::with_capacity(mappings.len());
     for mapping in mappings {
+        let source_map_source = mapping.source.source_map_source().ok_or_else(|| {
+            napi::Error::from_reason("Stylesheet source is missing source_map_source")
+        })?;
         let offset = |value| {
             u32::try_from(value)
                 .map_err(|_| napi::Error::from_reason("Stylesheet map offset exceeds 32 bits"))
         };
         let next = u32::try_from(sources.len())
             .map_err(|_| napi::Error::from_reason("Too many stylesheet sources"))?;
-        let index = *indices
-            .entry(mapping.source.path().to_owned())
-            .or_insert_with(|| {
-                sources.push(NativeMapSource {
-                    path: mapping.source.path().into(),
-                    content: mapping.source.text().into(),
-                });
-                next
+        let index = *indices.entry(mapping.source.id()).or_insert_with(|| {
+            sources.push(NativeMapSource {
+                source_map_source: source_map_source.into(),
+                content: mapping.source.text().into(),
             });
+            next
+        });
         entries.push(NativeMapEntry {
             source: index,
             generated_start: offset(mapping.generated.start)?,

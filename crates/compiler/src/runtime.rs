@@ -477,16 +477,25 @@ mod runtime_anchor_tests {
 
     use stillwind_ir::{
         ConverterIdentity, FrameworkProjection, ImportRealm, ModuleAnalysis, ProjectionRegion,
-        SourceAnalyzer,
+        ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
     };
     use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_semantic::ModuleId;
     use stillwind_source::{FileId, ProjectionMap, SourceFile};
 
     use super::*;
 
-    fn analysis(text: &str) -> stillwind_ir::ModuleAnalysis {
-        let source = SourceFile::new(FileId(1), "entry.ts", text).unwrap();
-        OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None)
+    fn analysis(text: &str) -> ModuleAnalysis {
+        let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+        OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                Arc::new(source),
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        )
     }
 
     /// A module without a projection anchors on its first macro import, and a module
@@ -512,12 +521,21 @@ mod runtime_anchor_tests {
         let source = Arc::new(
             SourceFile::new(
                 FileId(1),
-                "Card.vue",
+                None,
+                None,
                 "import { style } from 'stillwind/vue'; const x = style('flex');",
             )
             .unwrap(),
         );
-        let mut analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+        let mut analysis = OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source.clone(),
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        );
         analysis.input.projection = Some(FrameworkProjection {
             original: source.clone(),
             map: ProjectionMap::Volar { mappings: vec![] },

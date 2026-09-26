@@ -115,36 +115,46 @@ impl LiteralContribution {
             contribution.canonical.push_str(&canonical_candidate);
             contribution.canonical.push('\u{0}');
             let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
-            if let Some(mut resolved) = resolve_utility_targets(resolved_input, theme) {
-                *name_supplies += resolved
-                    .iter()
-                    .filter(|utility| utility.declaration.contains("view-transition-name"))
-                    .count();
-                if theme.config.lint_enabled("require-element-scope")
-                    && let Some(candidate) = parse_candidate(&utility.value.raw)
-                    && let Some(selector) = candidate
-                        .variants
+            match resolve_utility_targets(resolved_input, theme) {
+                Ok(Some(mut resolved)) => {
+                    *name_supplies += resolved
                         .iter()
-                        .find_map(|variant| document_scoped_selector(variant, theme))
-                {
+                        .filter(|utility| utility.declaration.contains("view-transition-name"))
+                        .count();
+                    if theme.config.lint_enabled("require-element-scope")
+                        && let Some(candidate) = parse_candidate(&utility.value.raw)
+                        && let Some(selector) = candidate
+                            .variants
+                            .iter()
+                            .find_map(|variant| document_scoped_selector(variant, theme))
+                    {
+                        lint_findings.push(LintFinding::new(
+                            LintKind::DocumentScopedSelector { selector },
+                            utility.span,
+                        ));
+                    }
+                    for resolved_utility in &mut resolved {
+                        plan.apply(resolved_utility, theme);
+                    }
+                    contribution.utilities.append(&mut resolved);
+                }
+                Ok(None) => {
                     lint_findings.push(LintFinding::new(
-                        LintKind::DocumentScopedSelector { selector },
+                        LintKind::UnresolvedUtility {
+                            utility: utility.value.raw.clone(),
+                            classification: unresolved_utility_kind(&utility.value.raw),
+                        },
                         utility.span,
                     ));
+                    contribution.external.push(utility.value.raw.clone());
                 }
-                for resolved_utility in &mut resolved {
-                    plan.apply(resolved_utility, theme);
-                }
-                contribution.utilities.append(&mut resolved);
-            } else {
-                lint_findings.push(LintFinding::new(
-                    LintKind::UnresolvedUtility {
-                        utility: utility.value.raw.clone(),
-                        classification: unresolved_utility_kind(&utility.value.raw),
+                Err(error) => diagnostics.push(CompileError::new(
+                    CompileErrorKind::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
                     },
                     utility.span,
-                ));
-                contribution.external.push(utility.value.raw.clone());
+                )),
             }
         }
         contribution

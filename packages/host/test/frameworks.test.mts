@@ -15,6 +15,13 @@ import type { ProjectCompilerOutput } from "../src/protocol.ts";
 import { moduleSourceMap } from "../src/source-map.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
+const cssInput = (content: string) => ({
+  content,
+  name: "root.css",
+  uri: "untitled:root.css",
+  source_map_source: "untitled:root.css",
+});
+
 const examples = {
   vue: `<script setup lang="ts">\nimport {style} from 'stillwind/vue';\nconst active = true, external = 'extra';\n</script>\n<template><div v-bind="style(active ? 'flex' : 'grid', {class: external})" /></template>`,
   svelte: `<script lang="ts">\nimport {style} from 'stillwind/svelte';\nconst active = true, external = 'extra';\n</script>\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
@@ -39,6 +46,7 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
     read: async () => {
       throw new Error("Unexpected read");
     },
+    documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
     watch: () => {},
     warn: () => {},
   };
@@ -67,12 +75,15 @@ void test("SFC output fails on residual macros or mismatched attribute context",
     (
       compileProject(
         [input],
-        "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+        cssInput(
+          "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+        ),
       ) as ProjectCompilerOutput
     ).modules[0]!;
   const input = await projectFrameworkSource({
     id: "/src/Bad.vue",
     path: "/src/Bad.vue",
+    uri: "untitled:Bad.vue",
     source: examples.vue,
   });
   const quoted = input.regions?.find((region) => region.attribute_quote === "double");
@@ -84,6 +95,7 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   const leaked = await projectFrameworkSource({
     id: "/src/Bad.vue",
     path: "/src/Bad.vue",
+    uri: "untitled:Bad.vue",
     source: examples.vue.replace("const active", "const leaked = style; const active"),
   });
   const leftover = compile(leaked);
@@ -92,6 +104,7 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   const missingTarget = await projectFrameworkSource({
     id: "/src/Bad.vue",
     path: "/src/Bad.vue",
+    uri: "untitled:Bad.vue",
     source: examples.vue.replace(
       "import {style}",
       "import css from 'stillwind/module-css'; import {style}",
@@ -182,7 +195,12 @@ for (const { extension, source, name, imports } of [
 ]) {
   void test(`${extension} ${name}: converter, native edits and framework compilation agree`, async () => {
     const filename = `/src/Component.${extension}`;
-    const projected = await projectFrameworkSource({ id: filename, path: filename, source });
+    const projected = await projectFrameworkSource({
+      id: filename,
+      path: filename,
+      uri: `untitled:${filename}`,
+      source,
+    });
     projected.stylesheet_imports = [
       "virtual:stillwind.css",
       "virtual:stillwind/carrier.css?revision=1",
@@ -193,7 +211,9 @@ for (const { extension, source, name, imports } of [
     assert.ok(projected.import_realms?.length);
     const output = compileProject(
       [projected],
-      "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+      cssInput(
+        "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+      ),
     ) as ProjectCompilerOutput;
     const module = output.modules[0]!;
     assert.deepEqual(module.diagnostics, []);

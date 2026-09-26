@@ -8,14 +8,41 @@
 //! invalid projection metadata fails the compile instead of producing partial code, and
 //! options are validated rather than defaulted silently.
 
+#[allow(dead_code)]
+#[path = "../../test-support/css.rs"]
+mod css_fixture;
+
 use std::error::Error;
 
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_napi::{
-    BindingApiError, BindingRejectedIdentifier, ProjectSource, compile_project_input,
-    compile_project_input_with_options, compile_source_input, generate_vocabulary_types,
-    render_stylesheet, summarize_source_input,
+    BindingApiError, BindingRejectedIdentifier, CompileCssInput, CompileSourceInput, ProjectSource,
+    compile_project_input, compile_source_input, generate_vocabulary_types, render_stylesheet,
+    summarize_source_input,
 };
+use stillwind_source::SourceUri;
+
+fn compile_input(source: &str, module_id: &str, theme: &str) -> CompileSourceInput {
+    CompileSourceInput {
+        source: source.into(),
+        module_id: module_id.into(),
+        uri: SourceUri::parse("stillwind-input:source").unwrap(),
+        source_map_source: Some(module_id.into()),
+        language: ScriptLanguage::Tsx,
+        module_kind: ScriptModuleKind::Unambiguous,
+        css: css_input(theme),
+    }
+}
+
+fn css_input(content: &str) -> CompileCssInput {
+    CompileCssInput {
+        content: content.into(),
+        name: "stillwind.css".into(),
+        uri: SourceUri::parse("stillwind-input:theme").unwrap(),
+        source_map_source: Some("stillwind.css".into()),
+    }
+}
 
 /// Malformed sources are reported through the same schema a host reads.
 #[test]
@@ -36,11 +63,11 @@ fn rejected_names_are_transported_beside_symbols() {
 #[test]
 fn lint_severities_keep_their_host_protocol_spellings() {
     for severity in ["warn", "deny", "off"] {
-        let output = compile_source_input(
+        let output = compile_source_input(&compile_input(
             "import {style} from 'stillwind/react'; const props = style('flex');",
             "entry.tsx",
             &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{custom: {severity};}}"),
-        ).unwrap();
+        ), &CompilerOptions::default()).unwrap();
         assert_eq!(output.lint_policy["custom"], severity);
         let json = serde_json::to_value(output).unwrap();
         assert_eq!(json["lint_policy"]["custom"], severity);
@@ -72,7 +99,8 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
         serde_json::to_value(
             compile_project_input(
                 &sources_from_value(serde_json::json!([input])),
-                "@utility flex {display:flex;} @stillwind-slot utilities;",
+                &css_input("@utility flex {display:flex;} @stillwind-slot utilities;"),
+                &CompilerOptions::default(),
             )
             .unwrap(),
         )
@@ -126,7 +154,8 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
     });
     let output = compile_project_input(
         &sources_from_value(serde_json::json!([source])),
-        "@utility flex {display:flex;} @stillwind-slot utilities;",
+        &css_input("@utility flex {display:flex;} @stillwind-slot utilities;"),
+        &CompilerOptions::default(),
     )
     .unwrap();
     let result: serde_json::Value = serde_json::to_value(&output).unwrap();
@@ -151,9 +180,12 @@ fn serializes_a_layered_compile_result_for_node_consumers() {
     let source = r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90");"#;
     let output = compile_source_input(
-        source,
-        "Button.tsx",
-        &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
+        &compile_input(
+            source,
+            "Button.tsx",
+            &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
+        ),
+        &CompilerOptions::default(),
     )
     .unwrap();
 
@@ -183,11 +215,14 @@ const props = style("bg-accent hover:bg-accent/90");"#;
 #[test]
 fn exposes_generated_symbols_for_build_wide_collision_checks() {
     let output = compile_source_input(
-        r#"import { style } from "stillwind/react";
+        &compile_input(
+            r#"import { style } from "stillwind/react";
 const menu = style.ref();
 const props = style(menu.anchor);"#,
-        "src/Menu.tsx",
-        &css_fixture::with_defaults("@theme {}"),
+            "src/Menu.tsx",
+            &css_fixture::with_defaults("@theme {}"),
+        ),
+        &CompilerOptions::default(),
     )
     .unwrap();
 
@@ -208,6 +243,8 @@ fn serializes_cross_module_ref_summaries() {
 export const menu = style.ref("menu");
 export const trigger = style.ref(menu, "trigger");"#,
         r"src\Parent.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
     )
     .unwrap();
 
@@ -248,7 +285,10 @@ export const child = style({ [menu`hover:`]: "text-white" });"#
     ]);
     let output = compile_project_input(
         &sources_from_value(sources),
-        &css_fixture::with_defaults("@theme { --color-white: white; }"),
+        &css_input(&css_fixture::with_defaults(
+            "@theme { --color-white: white; }",
+        )),
+        &CompilerOptions::default(),
     )
     .unwrap();
 
@@ -280,7 +320,12 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
         r#"@import "stillwind";
 @theme { --color-white: white; }"#,
     );
-    let output = compile_project_input(&sources_from_value(sources), &theme).unwrap();
+    let output = compile_project_input(
+        &sources_from_value(sources),
+        &css_input(&theme),
+        &CompilerOptions::default(),
+    )
+    .unwrap();
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     let fragments = value["modules"]
         .as_array()
@@ -316,16 +361,31 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
 #[test]
 fn serializes_editor_positions_for_diagnostics() {
     let output = compile_source_input(
-        "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
-        "Button.tsx",
-        &css_fixture::with_defaults("@theme { --color-accent: red; }"),
+        &compile_input(
+            "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
+            "Button.tsx",
+            &css_fixture::with_defaults("@theme { --color-accent: red; }"),
+        ),
+        &CompilerOptions::default(),
     )
     .unwrap();
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     let diagnostic = &value["lint_findings"][0];
-    assert_eq!(diagnostic["file"], "Button.tsx");
+    assert!(diagnostic.get("file").is_none());
     assert!(diagnostic["start"].as_u64().unwrap() > 0);
+    assert_eq!(diagnostic["uri"], "stillwind-input:source");
+    assert_eq!(diagnostic["start_line"], 1);
+    assert!(
+        diagnostic["end_column"].as_u64().unwrap() > diagnostic["start_column"].as_u64().unwrap()
+    );
+    let report = &value["reports"][0];
+    assert_eq!(report["primary"]["location"]["uri"], diagnostic["uri"]);
+    assert_eq!(
+        report["primary"]["location"]["revision"],
+        diagnostic["revision"]
+    );
+    assert!(report["actions"].is_array());
 }
 
 #[test]
@@ -345,17 +405,23 @@ fn project_api_preserves_configuration_errors() {
         prefix: "invalid".into(),
         ..CompilerOptions::default()
     };
-    let error = compile_project_input_with_options(&[], "", &options)
+    let error = compile_project_input(&[], &css_input(""), &options)
         .err()
         .unwrap();
     assert!(matches!(error, BindingApiError::Options(_)));
     assert!(error.source().is_some());
 }
 
-fn sources_from_value(value: serde_json::Value) -> Vec<ProjectSource> {
+fn sources_from_value(mut value: serde_json::Value) -> Vec<ProjectSource> {
+    for source in value.as_array_mut().unwrap() {
+        let path = source["path"].as_str().unwrap().to_owned();
+        let uri = format!("test:///{path}");
+        source["uri"] = serde_json::Value::String(uri.clone());
+        source["source_map_source"] = serde_json::Value::String(uri);
+        if source["language"].is_null() {
+            source["language"] = serde_json::Value::String("tsx".into());
+        }
+        source["module_kind"] = serde_json::Value::String("unambiguous".into());
+    }
     serde_json::from_value(value).unwrap()
 }
-
-#[allow(dead_code)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;

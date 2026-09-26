@@ -86,7 +86,7 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
         } else {
             parity_cases(&input)
         };
-        for (case_index, (input, candidates)) in cases.into_iter().enumerate() {
+        for (input, candidates) in cases {
             // `prefix(...)` import modifiers are explicitly unsupported, and the scope
             // directives select sources outside a resolved stylesheet.
             if ["@source", "@config", "@plugin", "@reference", "prefix("]
@@ -96,9 +96,7 @@ fn audits_builtin_registry_reachability_from_parity_fixtures() {
                 skipped_scope_candidates += candidates.len();
                 continue;
             }
-            let source =
-                SourceFile::new(FileId(1), format!("{}#{case_index}", path.display()), input)
-                    .unwrap();
+            let source = SourceFile::new(FileId(1), None, None, input).unwrap();
             let Ok(theme) = parse_fixture_theme(&source) else {
                 theme_parse_failures += 1;
                 continue;

@@ -1,6 +1,7 @@
 //! Experimental computed-value conditions through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -8,18 +9,22 @@ use super::*;
 fn compile(candidates: &str, native: bool) -> CompileResult {
     let component = SourceFile::new(
         FileId(1),
-        "if.tsx",
+        None,
+        None,
         format!(
             "import {{ style }} from 'stillwind/react'; export const x = style({candidates:?});"
         ),
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "stillwind.css", "@import 'stillwind';").unwrap();
-    Compiler::compile_source_with_options(
+    let theme = crate::css_fixture::source(FileId(2), "@import 'stillwind';").unwrap();
+    Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &theme,
+        "stillwind.css",
         &CompilerOptions {
             use_css_if: native,
             ..CompilerOptions::default()
@@ -31,16 +36,20 @@ fn compile(candidates: &str, native: bool) -> CompileResult {
 fn runtime_if_variant_name_is_owned_by_css_registration() {
     let compile_registered =
         |candidate: &str, definitions: &str| {
-            let component = SourceFile::new(FileId(1), "registration.tsx", format!(
+            let component = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; export const x = style({candidate:?});"
         )).unwrap();
-            let css = SourceFile::new(FileId(2), "registry.css", format!(
+            let css = SourceFile::new(FileId(2), None, None, format!(
             "@stillwind-slot utilities; @stillwind-utility flex {{display:flex;}} {definitions}"
         )).unwrap();
-            Compiler::compile_source_with_options(
+            Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &component,
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
                 &css,
+                "stillwind.css",
                 &CompilerOptions {
                     use_css_if: true,
                     ..CompilerOptions::default()
@@ -277,7 +286,6 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
 fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
     let source = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         r"
         @import 'stillwind';
         .sample { display:grid; @variant if(--enabled) { display:flex; } }
@@ -292,7 +300,7 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             prefix: "--test-".into(),
             ..CompilerOptions::default()
         };
-        let css = Compiler::render_stylesheet(&source, "", &options).unwrap();
+        let css = Compiler::render_stylesheet(&source, "stillwind.css", "", &options).unwrap();
         assert!(
             !css.contains("--if(") && !css.contains("@variant") && !css.contains("@apply"),
             "{css}"

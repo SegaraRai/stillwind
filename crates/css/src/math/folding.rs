@@ -103,18 +103,13 @@ pub(crate) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
 /// Parses and folds every valid `calc()` expression in a CSS fragment.
 ///
 /// Invalid or currently unsupported expressions are retained byte-for-byte.
-#[must_use]
-pub fn fold_calc_expressions(value: &str) -> String {
-    fold_calc_expressions_with_zero_unit(value, None)
-}
-
 /// Parses and folds `calc()` expressions, assigning a dimension to a folded zero when
 /// the surrounding declaration metadata requires one.
 ///
 /// The unit applies only to a value that really folded to the bare number zero,
 /// including `calc(0)`, but never to a bare `0` outside `calc()` or to an atom.
 #[must_use]
-pub fn fold_calc_expressions_with_zero_unit(value: &str, zero_unit: Option<&str>) -> String {
+pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> String {
     let mut output = String::with_capacity(value.len());
     let mut cursor = 0;
     for found in find_css_functions(value, &["calc"], 0) {
@@ -177,12 +172,12 @@ mod tests {
     fn folding_preserves_strings_comments_urls_and_identifier_suffixes() {
         let css = r#"content:"calc(1 + 1)";/* calc(2 + 2) */background:url('data:text/plain;calc(1 + 1)');x:mycalc(2 + 2);width:calc(1px + 2px);"#;
         assert_eq!(
-            fold_calc_expressions(css),
+            fold_calc_expressions(css, None),
             css.replace("width:calc(1px + 2px)", "width:3px")
         );
         let important = important_declarations(css);
         assert!(
-            fold_calc_expressions(&important).contains("data:text/plain;calc(1 + 1)"),
+            fold_calc_expressions(&important, None).contains("data:text/plain;calc(1 + 1)"),
             "{important}"
         );
     }
@@ -191,7 +186,8 @@ mod tests {
     fn folds_trailing_numeric_factors_without_string_rewrites() {
         assert_eq!(
             fold_calc_expressions(
-                "left:calc(var(--spacing) * 4 * -1);right:calc(var(--spacing) * -1 * 4);"
+                "left:calc(var(--spacing) * 4 * -1);right:calc(var(--spacing) * -1 * 4);",
+                None,
             ),
             "left:calc(var(--spacing) * -4);right:calc(var(--spacing) * -4);"
         );
@@ -201,7 +197,8 @@ mod tests {
     fn folds_calc_expressions_through_a_numeric_syntax_tree() {
         assert_eq!(
             fold_calc_expressions(
-                "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);"
+                "width:calc(2 * 1px);scale:calc(125 * 1%);left:calc(var(--spacing) * 4);right:calc((2px + 3px) * -1);",
+                None,
             ),
             "width:2px;scale:125%;left:calc(var(--spacing) * 4);right:-5px;"
         );
@@ -213,7 +210,7 @@ mod tests {
         let value = format!("{}1{}", "(".repeat(levels), ")".repeat(levels));
         assert_eq!(value_nesting_overflow(&value), Some(MAX_VALUE_NESTING));
         let css = format!("width:calc({value})");
-        assert_eq!(fold_calc_expressions(&css), css);
+        assert_eq!(fold_calc_expressions(&css, None), css);
     }
 
     #[test]
@@ -224,7 +221,7 @@ mod tests {
             value_nesting_overflow(&format!("content:\"{}\"", "(".repeat(100))),
             None
         );
-        assert_eq!(fold_calc_expressions(&siblings), "200");
+        assert_eq!(fold_calc_expressions(&siblings, None), "200");
     }
 }
 
@@ -234,8 +231,10 @@ mod boundary_tests {
 
     #[test]
     fn preserves_invalid_math_and_applies_zero_units_only_to_numeric_zero() {
-        assert_eq!(fold_calc_expressions("calc(1 +)"), "calc(1 +)");
-        assert_eq!(fold_calc_expressions("calc(1 + 2"), "calc(1 + 2");
+        assert_eq!(fold_calc_expressions("calc(1 +)", None), "calc(1 +)");
+        assert_eq!(fold_calc_expressions("calc(1 + 2", None), "calc(1 + 2");
+        assert_eq!(fold_calc_expressions("calc(2 - 2)", Some("px")), "0px");
+        assert_eq!(fold_calc_expressions("0", Some("px")), "0");
         assert_eq!(format_numeric_zero("calc(2 - 2)", "px"), "0px");
         assert_eq!(format_numeric_zero("red", "px"), "red");
         assert_eq!(format_numeric_zero("2", "px"), "2");
@@ -245,13 +244,13 @@ mod boundary_tests {
         #[test]
         fn integer_arithmetic_obeys_precedence(a in -1000i32..1000, b in -1000i32..1000,c in -20i32..20) {
             let source = format!("calc({a} + {b} * {c})");
-            proptest::prop_assert_eq!(fold_calc_expressions(&source), (a + b * c).to_string());
+            proptest::prop_assert_eq!(fold_calc_expressions(&source, None), (a + b * c).to_string());
         }
 
         #[test]
         fn folding_a_numeric_result_is_idempotent(a in -1000i32..1000, b in -1000i32..1000) {
-            let once = fold_calc_expressions(&format!("calc({a}px + {b}px)"));
-            proptest::prop_assert_eq!(fold_calc_expressions(&once), once);
+            let once = fold_calc_expressions(&format!("calc({a}px + {b}px)"), None);
+            proptest::prop_assert_eq!(fold_calc_expressions(&once, None), once);
         }
     }
 }

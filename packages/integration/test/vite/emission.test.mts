@@ -11,7 +11,7 @@ void test("partitions retain red-blue-red occurrences and shift UTF-8 source coo
     slot: 0,
     sequence: 0,
     sourceMap: {
-      sources: [{ path: "input.css", content: css }],
+      sources: [{ sourceMapSource: "input.css", content: css }],
       entries: [
         {
           source: 0,

@@ -11,6 +11,7 @@
 //! it covers. Every other lookup goes through it.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 
@@ -20,7 +21,7 @@ use super::namespace::ThemeNamespace;
 use super::references::resolve_theme_references;
 use crate::registry::utilities::CustomUtility;
 use crate::registry::variants::CustomVariant;
-use crate::{BuiltinDefinitions, ThemeTokenMode};
+use crate::{BuiltinDefinitions, ThemeReferenceError, ThemeTokenMode};
 
 /// Everything one parsed CSS buffer declared, before it is resolved into a snapshot.
 ///
@@ -36,7 +37,7 @@ pub struct ThemeIndex {
     /// Structured output positions from the authored entry CSS.
     pub output_template: CssOutputTemplate,
     /// Built-in definitions selected by this CSS; empty when it imports none.
-    pub registry: std::sync::Arc<BuiltinDefinitions>,
+    pub registry: Arc<BuiltinDefinitions>,
     /// Every token in authored order, including resets and superseded values.
     pub tokens: Vec<ThemeToken>,
     /// Authored CSS outside definition blocks, retained verbatim.
@@ -134,9 +135,15 @@ impl ThemeIndex {
     /// uses its authored fallback; `initial` is the sentinel Tailwind uses to omit the
     /// containing alias altogether.
     ///
-    /// `None` means the containing declaration must not be emitted at all.
-    #[must_use]
-    pub fn resolve_theme_references(&self, value: &str) -> Option<String> {
+    /// `Ok(None)` means the containing declaration must not be emitted at all.
+    ///
+    /// # Errors
+    ///
+    /// Returns malformed references with their byte offset within `value`.
+    pub fn resolve_theme_references(
+        &self,
+        value: &str,
+    ) -> Result<Option<String>, ThemeReferenceError> {
         resolve_theme_references(value, |name| self.custom_property(name).is_some())
     }
 
@@ -171,23 +178,14 @@ impl ThemeIndex {
         values.into_values().collect()
     }
 
-    /// Selects effective tokens by lexical custom-property references and follows
-    /// their dependencies transitively. Ordinary project and built-in tokens are
-    /// both omitted when unused; static mode requests retention.
-    ///
-    /// Static tokens seed the required set, inline tokens are never emitted, and the
-    /// dependency walk terminates on cyclic aliases.
-    #[must_use]
-    pub fn tokens_required_by(&self, css: &str, include_preflight: bool) -> Vec<&ThemeToken> {
-        self.tokens_required_by_with_omit_rules(css, include_preflight, &[])
-    }
-
-    /// Selects required tokens while applying registry-authored pruning rules.
+    /// Selects tokens referenced by CSS and their transitive dependencies, then applies
+    /// registry-authored pruning rules. Static tokens seed the selection, while inline
+    /// tokens are never emitted.
     ///
     /// Pruning runs after dependency closure, so a rule may drop an intermediate alias
     /// without changing which declarations were considered.
     #[must_use]
-    pub fn tokens_required_by_with_omit_rules(
+    pub fn tokens_required_by(
         &self,
         css: &str,
         include_preflight: bool,
@@ -265,7 +263,7 @@ impl ThemeIndex {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::FileId;
+    use stillwind_source::{FileId, SourceFile};
 
     use super::*;
     use crate::theme::declarations::extract_theme_declarations;
@@ -289,6 +287,7 @@ mod tests {
         assert_eq!(
             theme
                 .resolve_theme_references("--theme(--color-new)")
+                .unwrap()
                 .as_deref(),
             Some("var(--color-new)")
         );
@@ -319,17 +318,19 @@ mod tests {
     #[test]
     fn ordinary_project_tokens_are_pruned_but_static_tokens_are_retained() {
         let theme = crate::parse_theme(
-            &stillwind_source::SourceFile::new(
+            &SourceFile::new(
                 FileId(1),
-                "theme.css",
+                None,
+                None,
                 "@theme { --color-unused: red; } @theme static { --color-static: blue; }",
             )
             .unwrap(),
+            "test.css",
         )
         .unwrap();
         assert_eq!(
             theme
-                .tokens_required_by("", false)
+                .tokens_required_by("", false, &[])
                 .iter()
                 .map(|token| token.name.value.as_str())
                 .collect::<Vec<_>>(),
@@ -350,7 +351,7 @@ mod tests {
             ..ThemeIndex::default()
         };
         let names = theme
-            .tokens_required_by("color:var(--color-a)", false)
+            .tokens_required_by("color:var(--color-a)", false, &[])
             .iter()
             .map(|t| t.name.value.as_str())
             .collect::<Vec<_>>();

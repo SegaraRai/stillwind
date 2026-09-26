@@ -117,7 +117,7 @@ impl ModuleCompiler {
             &self.options,
             identifiers,
         );
-        self.capture_resources(&mut result, module.source.path());
+        self.capture_resources(&mut result, module.module_id.as_str());
         for support in &module.asset_support {
             let mut compiled = Compiler::compile_support_with_snapshot(
                 &support.source,
@@ -126,7 +126,7 @@ impl ModuleCompiler {
                 &self.options,
                 identifiers,
             );
-            self.capture_resources(&mut compiled, support.source.path());
+            self.capture_resources(&mut compiled, support.module_id.as_str());
             result.module_css.push_str(&compiled.module_css);
             result.contributions.extend(compiled.contributions);
             result.resources.extend(compiled.resources);
@@ -190,25 +190,13 @@ impl ModuleCompiler {
             .collect();
     }
 
-    /// Compiles one module into its artifact.
+    /// Compiles one module with explicit naming inputs.
     ///
     /// Integration diagnostics from the frontend are converted to source-spanning
     /// errors before any CSS is split, and the CSS artifact is empty as long as any
     /// diagnostic remains: a failed module must not hand half an artifact to the
     /// project layer.
-    /// Compiles one module with the built-in names.
-    ///
-    /// A host that supplies generators uses [`Self::compile_with`].
-    pub fn compile(&self, module: &ModuleAnalysis) -> CompiledModule {
-        self.compile_with(module, &Identifiers::builtin())
-    }
-
-    /// Compiles one module with explicit naming inputs.
-    pub fn compile_with(
-        &self,
-        module: &ModuleAnalysis,
-        identifiers: &Identifiers,
-    ) -> CompiledModule {
+    pub fn compile(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompiledModule {
         let identifiers = identifiers.context(self.options.hash_length);
         let result = self.compile_support_closure(module, &identifiers);
         let mut diagnostics = result.diagnostics;
@@ -237,7 +225,7 @@ impl ModuleCompiler {
             candidates: compilation_candidates(module),
             // Conservative definition dependencies are safe for full invalidation.
             theme_tokens: theme
-                .tokens_required_by(&result.module_css, false)
+                .tokens_required_by(&result.module_css, false, &[])
                 .iter()
                 .map(|token| token.name.value.clone())
                 .collect(),
@@ -405,7 +393,7 @@ mod tests {
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_diagnostics::CompileErrorKind;
-    use stillwind_ir::SourceAnalyzer;
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_semantic::{ModuleId, TypeFacts};
     use stillwind_source::{FileId, Fingerprint, SourceFile};
@@ -419,12 +407,18 @@ mod tests {
         let source = Arc::new(
             SourceFile::new(
                 FileId(1),
-                "entry.tsx",
+                None,
+                None,
                 "import { style } from 'stillwind/react'; export const x = style('flex');",
             )
             .unwrap(),
         );
-        let scan = OxcSourceAnalyzer.scan(source);
+        let scan = OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         let facts = TypeFacts {
             schema: TypeFacts::SCHEMA,
             module_id: ModuleId::from("entry.tsx"),
@@ -438,13 +432,14 @@ mod tests {
         assert_eq!(analysis.integration_diagnostics.len(), 1);
         let theme = crate::css_fixture::source(
             FileId(90),
-            "theme.css",
             "@utility flex { display:flex; } @stillwind-slot utilities;",
         )
         .unwrap();
         let design =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
-        let compiled = ModuleCompiler::new(design, CompilerOptions::default()).compile(&analysis);
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
+        let compiled = ModuleCompiler::new(design, CompilerOptions::default())
+            .compile(&analysis, &Identifiers::default());
         assert!(
             compiled
                 .diagnostics

@@ -122,7 +122,6 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
               cssWithSourceMap(
                 { css: plan.originalCss, sourceMap: plan.sourceMap },
                 replacements,
-                settings.projectRoot,
                 [...inputMap(name).values()].flatMap((input) =>
                   input.upstream ? [input.upstream] : [],
                 ),
@@ -154,7 +153,6 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
                   cssWithSourceMap(
                     part,
                     replacements,
-                    settings.projectRoot,
                     [...inputMap(name).values()].flatMap((input) =>
                       input.upstream ? [input.upstream] : [],
                     ),

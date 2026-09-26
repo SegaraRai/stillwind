@@ -36,8 +36,8 @@ fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
 /// original file id rather than reusing the generated one.
 #[test]
 fn exact_range_requires_two_anchors_and_preserves_file_identity() {
-    let original = SourceFile::new(FileId(1), "component", "<x>style('flex')</x>").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "style('flex');").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "<x>style('flex')</x>").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "style('flex');").unwrap();
     let span = Span::new(FileId(2), 0, 13);
     let map = point_map(
         &[(0, Some(3)), (12, Some(15)), (13, Some(0))],
@@ -63,8 +63,8 @@ fn exact_range_requires_two_anchors_and_preserves_file_identity() {
 /// construction error rather than a silently ignored field.
 #[test]
 fn refuses_unmapped_interior_conflicting_duplicates_and_wrong_contents() {
-    let original = SourceFile::new(FileId(1), "component", "abcdabcd").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "abcd").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "abcdabcd").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "abcd").unwrap();
     for points in [
         vec![(0, Some(0)), (1, None), (3, Some(3))],
         vec![(0, Some(0)), (0, Some(4)), (3, Some(3))],
@@ -88,8 +88,8 @@ fn refuses_unmapped_interior_conflicting_duplicates_and_wrong_contents() {
 /// construction.
 #[test]
 fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
-    let original = SourceFile::new(FileId(1), "component", "<x>日本😀</x>").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "日本😀").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "<x>日本😀</x>").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "日本😀").unwrap();
     let mapping = VolarMapping {
         source_offsets: vec![3],
         generated_offsets: vec![0],
@@ -125,8 +125,8 @@ fn volar_intervals_use_utf16_and_reject_ambiguous_or_malformed_ranges() {
 /// which must resolve to nothing instead of to a best guess.
 #[test]
 fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
-    let original = SourceFile::new(FileId(1), "component", "secondfirst").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "firstsecond").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "secondfirst").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "firstsecond").unwrap();
     let map = ProjectionMap::Volar {
         mappings: vec![VolarMapping {
             source_offsets: vec![0, 6, 0, 11],
@@ -172,8 +172,8 @@ fn adjacent_reordered_volar_ranges_keep_their_own_start_anchors() {
 /// malformed map.
 #[test]
 fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
-    let original = SourceFile::new(FileId(1), "component", "x😀y").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "😀").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "x😀y").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "😀").unwrap();
     let map = point_map(&[(0, Some(1)), (1, Some(2))], original.text());
     let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
     assert_eq!(
@@ -188,8 +188,8 @@ fn v3_surrogate_unit_tokens_are_not_edit_boundaries() {
 /// An empty span verifies only at a boundary both sides agree on.
 #[test]
 fn empty_spans_require_an_exact_mapped_boundary() {
-    let original = SourceFile::new(FileId(1), "component", "<x>''</x>").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "''").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "<x>''</x>").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "''").unwrap();
     let map = point_map(&[(1, Some(4))], original.text());
     let index = ProjectionIndex::new(&generated, &original, &map).unwrap();
     assert_eq!(
@@ -206,8 +206,8 @@ fn empty_spans_require_an_exact_mapped_boundary() {
 /// position resolves, and the whole span verifies.
 #[test]
 fn agreeing_overlapping_projection_ranges_are_accepted() {
-    let original = SourceFile::new(FileId(1), "original", "abcd").unwrap();
-    let generated = SourceFile::new(FileId(2), "generated", "abcd").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "abcd").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "abcd").unwrap();
     let map = ProjectionMap::Volar {
         mappings: vec![VolarMapping {
             source_offsets: vec![0, 1],
@@ -227,8 +227,8 @@ fn agreeing_overlapping_projection_ranges_are_accepted() {
 /// Fragments that are ordered, mapped, and text-identical verify as one provenance.
 #[test]
 fn fragment_verification_accepts_contiguous_fragments() {
-    let original = SourceFile::new(FileId(1), "component", "xbarx").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "foo(xbarx)").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "xbarx").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "foo(xbarx)").unwrap();
     let map = point_map(
         &[
             (4, Some(0)),
@@ -258,8 +258,8 @@ fn fragment_verification_accepts_contiguous_fragments() {
 /// text, and an unmapped boundary are all rejected.
 #[test]
 fn fragment_verification_rejects_unusable_fragments() {
-    let original = SourceFile::new(FileId(1), "component", "xbarx").unwrap();
-    let generated = SourceFile::new(FileId(2), "component.ts", "foo(xbarx)").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "xbarx").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "foo(xbarx)").unwrap();
     let map = point_map(
         &[
             (4, Some(0)),
@@ -294,7 +294,7 @@ fn fragment_verification_rejects_unusable_fragments() {
         index.verify_fragments(&[Span::new(FileId(2), 5, 9)]),
         Err(ProjectionError::Unmapped(_))
     ));
-    let wrong_text = SourceFile::new(FileId(2), "component.ts", "foo(xbaz)").unwrap();
+    let wrong_text = SourceFile::new(FileId(2), None, None, "foo(xbaz)").unwrap();
     let index = ProjectionIndex::new(&wrong_text, &original, &map).unwrap();
     assert!(matches!(
         index.verify_fragments(&[Span::new(FileId(2), 5, 9)]),

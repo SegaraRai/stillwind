@@ -43,8 +43,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let inputs: Vec<Input> = serde_json::from_str(&input)?;
     let mut results = Vec::new();
     for input in inputs {
-        let generated = SourceFile::new(FileId(2), "generated.tsx", input.generated)?;
-        let original = SourceFile::new(FileId(1), "original", input.original)?;
+        let generated = SourceFile::new(FileId(2), None, None, input.generated)?;
+        let original = SourceFile::new(FileId(1), None, None, input.original)?;
         let coordinates = CoordinateIndex::new(&generated);
         let original_coordinates = CoordinateIndex::new(&original);
         let index = match ProjectionIndex::new(&generated, &original, &input.map) {

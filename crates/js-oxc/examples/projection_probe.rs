@@ -17,10 +17,11 @@ use serde::Deserialize;
 use serde_json::json;
 
 use stillwind_ir::{
-    AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, SourceAnalyzer,
-    SourceInput,
+    AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, ScriptModuleKind,
+    SourceAnalyzer, SourceInput,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
+use stillwind_semantic::ModuleId;
 use stillwind_source::{FileId, ProjectionMap, SourceFile};
 
 /// One converter-output case as supplied by the test driver.
@@ -48,14 +49,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let inputs: Vec<Input> = serde_json::from_str(&input)?;
     let mut results = Vec::new();
     for input in inputs {
-        let generated = SourceFile::new(FileId(2), "generated.tsx", input.generated)?;
-        let original = SourceFile::new(FileId(1), "original", input.original)?;
+        let generated = SourceFile::new(FileId(2), None, None, input.generated)?;
+        let original = SourceFile::new(FileId(1), None, None, input.original)?;
         let normalized = match normalize_projection(
             &generated,
             &original,
             &input.map,
             input.framework,
             FileId(3),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
         ) {
             Ok(value) => value,
             Err(error) => {
@@ -63,10 +66,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
-        let parsed = parse(&normalized.source);
+        let parsed = parse(
+            &normalized.source,
+            "test.tsx",
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         let scan = OxcSourceAnalyzer.scan_input(SourceInput {
             code: Arc::new(generated.clone()),
+            module_id: ModuleId::from(input.name.as_str()),
             language: ScriptLanguage::Tsx,
+            module_kind: ScriptModuleKind::Unambiguous,
             framework: Some(input.framework),
             upstream_map: None,
             stylesheet_imports: Vec::new(),

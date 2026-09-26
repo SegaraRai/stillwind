@@ -4,7 +4,10 @@
 //! string, so the tests pin down which expressions count, which spans are recorded, and
 //! which near-misses are errors.
 
-use stillwind_ir::{ClassExpression, GroupEntry, RuleExpression, StyleInput, StyleVariant};
+use stillwind_ir::{
+    ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
+    StyleVariant,
+};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile, Span};
 
@@ -22,10 +25,17 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
         r"`${trigger()}:text-accent`",
         r#"{ [trigger()]: "text-accent" }"#,
     ] {
-        let source = SourceFile::new(FileId(1), "Presence.tsx", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const trigger = style.ref('trigger'); const props = style({expression});"
         )).unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
         let wrapper = match &parsed.module.style_calls[0].inputs[0] {
             StyleInput::Class(expression @ ClassExpression::Rule(_)) => expression,
@@ -59,14 +69,22 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
 fn template_interpolation_retains_ref_identity_and_original_utility_spans() {
     let source = SourceFile::new(
         FileId(1),
-        "Ref.tsx",
+        None,
+        None,
         r#"import {style} from "stillwind/react";
 // 日本語 🧭
 const trigger = style.ref("trigger");
 const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     )
     .unwrap();
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &std::collections::BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let inputs = &parsed.module.style_calls[0].inputs;
     let StyleInput::Class(expression) = &inputs[0] else {
@@ -147,10 +165,22 @@ fn utility_templates_require_direct_ref_variant_segments() {
         r#"`${trigger("hover", "focus")}:text-accent`"#,
         r#"`${trigger?.("hover")}:text-accent`"#,
     ] {
-        let source = SourceFile::new(FileId(1), "Invalid.tsx", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const trigger = style.ref(); const props = style({expression});"
         )).unwrap();
-        assert!(!parse(&source).diagnostics.is_empty(), "{expression}");
+        assert!(
+            !parse(
+                &source,
+                "test.tsx",
+                &[],
+                &std::collections::BTreeMap::default(),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous
+            )
+            .diagnostics
+            .is_empty(),
+            "{expression}"
+        );
     }
 }
 
@@ -159,14 +189,22 @@ fn utility_templates_require_direct_ref_variant_segments() {
 fn saved_interpolated_strings_are_not_followed() {
     let source = SourceFile::new(
         FileId(1),
-        "Saved.tsx",
+        None,
+        None,
         r#"import {style} from "stillwind/react";
 const trigger = style.ref();
 const classes = `${trigger`hover:`}:text-accent`;
 const props = style(classes);"#,
     )
     .unwrap();
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &std::collections::BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(!parsed.diagnostics.is_empty());
     assert!(parsed.module.style_calls[0].inputs.is_empty());
 }

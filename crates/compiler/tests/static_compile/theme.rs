@@ -1,13 +1,48 @@
 //! Theme emission and token gating.
 //!
-//! Pins Tailwind's reset semantics for effective custom properties, shadow-utility behavior across
-//! multiple `@theme` overrides and namespace removal, and that framework imports gate the baseline
-//! layers.
+//! Pins Tailwind's reset semantics for effective custom properties, shadow-utility
+//! behavior across multiple `@theme` overrides and namespace removal, and that
+//! framework imports gate the baseline layers.
 
-use stillwind_diagnostics::{LintKind, UtilityFailure};
+use stillwind_compiler::CompilerOptions;
+use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
+
+#[test]
+fn malformed_theme_reference_is_a_diagnostic_instead_of_an_omitted_token() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "import { style } from 'stillwind/react'; const props = style('bg-bad');",
+    )
+    .unwrap();
+    let theme = crate::css_fixture::source(
+        FileId(2),
+        "@import 'stillwind'; @theme { --color-bad: --theme(x); }",
+    )
+    .unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
+    assert!(
+        result.diagnostics.iter().any(|error| matches!(
+            error.kind,
+            CompileErrorKind::InvalidThemeReference { offset: 0, .. }
+        )),
+        "{result:#?}"
+    );
+}
 
 #[test]
 fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
@@ -19,19 +54,20 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     let input_css = fixture_code_block(section, "Input CSS", "css").unwrap();
     let component = SourceFile::new(
         FileId(1),
-        "src/Fixture.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; const props = style(\"bg-brand p-4\");",
     )
     .unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        &crate::css_fixture::source(
-            FileId(2),
-            "stillwind.css",
-            stillwind_fixture_css(&input_css),
-        )
-        .unwrap(),
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
+        "stillwind.css",
+        &CompilerOptions::default(),
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -61,8 +97,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         let expected_css = fixture_code_block(section, "Expected CSS", "css").unwrap();
         for candidate in candidates {
             let component = SourceFile::new(
-                FileId(1),
-                "src/Fixture.tsx",
+                FileId(1), None, None,
                 format!(
                     "import {{ style }} from \"stillwind/react\"; const props = style({candidate:?});"
                 ),
@@ -70,12 +105,12 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &component,
-                &crate::css_fixture::source(
-                    FileId(2),
-                    "stillwind.css",
-                    stillwind_fixture_css(&input_css),
-                )
-                .unwrap(),
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
+                "stillwind.css",
+                &CompilerOptions::default(),
             );
             assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
             let class_name = &result.classes[0].class_name;
@@ -97,18 +132,19 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         &OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(3),
-            "src/Fixture.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
             ),
         )
         .unwrap(),
-        &crate::css_fixture::source(
-            FileId(4),
-            "stillwind.css",
-            stillwind_fixture_css(&input_css),
-        )
-        .unwrap(),
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &crate::css_fixture::source(FileId(4), stillwind_fixture_css(&input_css)).unwrap(),
+        "stillwind.css",
+        &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.classes.is_empty(), "{}", result.css);
@@ -132,7 +168,8 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
 fn framework_imports_gate_baseline_layers() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Fixture.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; const props = style(\"p-4\");",
     )
     .unwrap();
@@ -140,7 +177,12 @@ fn framework_imports_gate_baseline_layers() {
         Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            &crate::css_fixture::source(FileId(2), "stillwind.css", css).unwrap(),
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &crate::css_fixture::source(FileId(2), css).unwrap(),
+            "stillwind.css",
+            &CompilerOptions::default(),
         )
     };
 
@@ -182,18 +224,23 @@ fn framework_imports_gate_baseline_layers() {
     assert!(tailwind_individual.diagnostics.is_empty());
     assert!(tailwind_individual.css.contains("@layer utilities{"));
 
-    let content = Compiler::compile_source(&OxcSourceAnalyzer,
+    let content = Compiler::compile_source(
+        &OxcSourceAnalyzer,
         &SourceFile::new(
             FileId(3),
-            "src/Content.tsx",
+            None,
+            None,
             "import { style } from \"stillwind/react\"; const props = style(\"bg-linear-to-r\");",
         ).unwrap(),
-        &crate::css_fixture::source(
+    "test.tsx",
+    ScriptLanguage::Tsx,
+    ScriptModuleKind::Unambiguous,
+    &crate::css_fixture::source(
             FileId(4),
-            "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap(),
-    );
+        "stillwind.css"
+    , &CompilerOptions::default());
     assert!(content.diagnostics.is_empty());
     assert!(!content.css.contains("@property --tw-gradient-position"));
 }

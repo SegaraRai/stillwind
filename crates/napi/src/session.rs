@@ -18,23 +18,25 @@ use napi::bindgen_prelude::Env;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers, StylesheetPlacement,
-    StylesheetRenderer,
+    CompileResult, CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers,
+    MappedStylesheet, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::{
-    CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
+    CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::CompileError;
+use stillwind_diagnostics::{CompileError, DiagnosticBatch, Reporter};
 use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
 use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
-use stillwind_source::{FileId, Fingerprint, SourceFile};
+use stillwind_source::{Fingerprint, SourceRegistry, SourceUri};
 
-use crate::api::binding_output;
+use crate::api::binding_output_with_batch;
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::{NativeCompilerOptions, compiler_options};
-use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
+use crate::output::{
+    BindingReport, NativeDiagnosticBatch, ProjectBindingOutput, ProjectModuleOutput,
+};
 use crate::source_input::{NativeProjectSource, ProjectSource};
 use crate::stylesheet::{
     NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
@@ -48,18 +50,21 @@ pub enum NativeSessionError {
     /// A snapshot was requested before the CSS load completed.
     #[error("CSS load is incomplete")]
     IncompleteCssLoad,
+    /// A loader created outside this session cannot issue collision-free source IDs.
+    #[error("CSS loader belongs to another source scope; create it with session.newLoader()")]
+    ForeignCssLoader,
     /// Recompiling retained modules against the new stylesheet failed. Watch sessions
     /// keep the previous revision active while reporting this error.
-    #[error("CSS reload compilation failed: {}", format_reload_diagnostics(.diagnostics))]
+    #[error("CSS reload compilation failed: {message}")]
     ReloadCompilation {
-        /// Failures per module, keyed by module path.
-        diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
+        /// Source-resolved failures for the attempted CSS revision.
+        message: String,
     },
     /// Reserving a producer's own stylesheet gave a generated name an authored meaning.
-    #[error("CSS a producer authors collides with generated names: {}", format_reload_diagnostics(.diagnostics))]
+    #[error("CSS a producer authors collides with generated names: {message}")]
     AuthoredCssCollision {
-        /// Failures per module, keyed by module path.
-        diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
+        /// Source-resolved name collisions.
+        message: String,
     },
 }
 
@@ -69,25 +74,30 @@ impl From<NativeSessionError> for Error {
     }
 }
 
-/// Joins failures in module-key order, preserving each module's diagnostic order.
+/// Resolves each module's failures and renders text for a throwing Node call.
 ///
-/// Each entry contains the module ID, reporting code, and display message. Notes follow
-/// on indented lines; labels are not serialized here. An empty map produces an empty string.
-fn format_reload_diagnostics(diagnostics: &BTreeMap<ModuleId, Vec<CompileError>>) -> String {
-    diagnostics
-        .iter()
-        .flat_map(|(module, errors)| {
-            errors.iter().map(|error| {
-                let mut message = format!("{}: {}: {error}", module.as_str(), error.code());
-                for note in &error.notes {
-                    message.push_str("\n  ");
-                    message.push_str(note);
-                }
-                message
-            })
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+/// # Errors
+///
+/// Returns an error if any span cannot be resolved through the project registry.
+fn resolve_error_map(
+    diagnostics: &BTreeMap<ModuleId, Vec<CompileError>>,
+    sources: &SourceRegistry,
+) -> napi::Result<(BTreeMap<ModuleId, DiagnosticBatch>, String)> {
+    let mut batches = BTreeMap::new();
+    let mut lines = Vec::new();
+    for (module, errors) in diagnostics {
+        let batch = Reporter::collect(errors, &[], sources, BTreeMap::new())
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        for diagnostic in &batch.diagnostics {
+            lines.push(format!(
+                "{}: {}",
+                module.as_str(),
+                diagnostic.display_text()
+            ));
+        }
+        batches.insert(module.clone(), batch);
+    }
+    Ok((batches, lines.join("\n")))
 }
 
 /// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`] call.
@@ -95,8 +105,12 @@ fn format_reload_diagnostics(diagnostics: &BTreeMap<ModuleId, Vec<CompileError>>
 pub struct NativeCssFileInput {
     /// Request id being answered; `0` is the root source.
     pub id: u32,
-    /// Opaque host-chosen source name. The loader never interprets it.
+    /// Opaque host-chosen CSS resolution name, compared verbatim by the loader.
     pub name: String,
+    /// Absolute document URI supplied by the host; absent means an internal buffer.
+    pub uri: Option<String>,
+    /// Exact source name to write into a generated source map.
+    pub source_map_source: Option<String>,
     /// Full text of the source.
     pub content: String,
 }
@@ -115,26 +129,42 @@ pub struct NativeDesignSystemLoader {
 
 #[napi]
 impl NativeDesignSystemLoader {
-    /// Creates a loader for the given compiler options.
-    #[napi(constructor, strict)]
-    pub fn new(options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
+    fn with_sources(
+        options: Option<NativeCompilerOptions>,
+        sources: SourceRegistry,
+    ) -> napi::Result<Self> {
         let options = compiler_options(options)?;
         Ok(Self {
-            loader: DesignSystemLoader::new(options.design_system()),
+            loader: DesignSystemLoader::new(options.design_system(), sources),
             options,
             snapshot: None,
         })
     }
 
+    /// Creates a loader for the given compiler options.
+    #[napi(constructor, strict)]
+    pub fn new(options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
+        Self::with_sources(options, SourceRegistry::default())
+    }
+
     /// Answers one outstanding request; equivalent to [`Self::provide_many`] with one file.
+    /// An absent URI marks the CSS as an internal buffer without a reportable location.
     #[napi]
     pub fn provide(
         &mut self,
         id: u32,
         name: String,
         content: String,
+        uri: Option<String>,
+        source_map_source: Option<String>,
     ) -> napi::Result<NativeCssLoadStep> {
-        self.provide_many(vec![NativeCssFileInput { id, name, content }])
+        self.provide_many(vec![NativeCssFileInput {
+            id,
+            name,
+            uri,
+            source_map_source,
+            content,
+        }])
     }
 
     /// Answers any subset of the outstanding requests, in any order.
@@ -147,13 +177,24 @@ impl NativeDesignSystemLoader {
         &mut self,
         files: Vec<NativeCssFileInput>,
     ) -> napi::Result<NativeCssLoadStep> {
-        match self
-            .loader
-            .provide_many(files.into_iter().map(|file| CssFileInput {
-                id: file.id,
-                name: file.name.as_str().into(),
-                content: file.content.into(),
-            })) {
+        let files = files
+            .into_iter()
+            .map(|file| {
+                let uri = file
+                    .uri
+                    .map(SourceUri::parse)
+                    .transpose()
+                    .map_err(|error| Error::from_reason(error.to_string()))?;
+                Ok(CssFileInput {
+                    id: file.id,
+                    name: file.name.as_str().into(),
+                    uri,
+                    source_map_source: file.source_map_source.map(Into::into),
+                    content: file.content.into(),
+                })
+            })
+            .collect::<napi::Result<Vec<_>>>()?;
+        match self.loader.provide_many(files) {
             DesignSystemLoadStep::NeedFile(requests) => Ok(NativeCssLoadStep::NeedFile {
                 requests: requests
                     .into_iter()
@@ -190,7 +231,29 @@ impl NativeDesignSystemLoader {
                 Ok(output)
             }
             DesignSystemLoadStep::Complete(Err(error)) => {
-                Err(Error::from_reason(error.to_string()))
+                if let Some(root) = self
+                    .loader
+                    .root_source()
+                    .filter(|source| source.uri().is_some())
+                {
+                    let compiled =
+                        DesignSystemError::Load(error.clone()).into_compile_error(root.full_span());
+                    let text = Reporter::collect(
+                        std::slice::from_ref(&compiled),
+                        &[],
+                        self.loader.sources(),
+                        BTreeMap::new(),
+                    )
+                    .map_err(|failure| Error::from_reason(failure.to_string()))?
+                    .diagnostics
+                    .into_iter()
+                    .map(|diagnostic| diagnostic.display_text())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                    Err(Error::from_reason(text))
+                } else {
+                    Err(Error::from_reason(error.to_string()))
+                }
             }
         }
     }
@@ -199,7 +262,7 @@ impl NativeDesignSystemLoader {
     #[napi]
     pub fn generate_vocabulary_types(&self) -> napi::Result<String> {
         Ok(
-            StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::builtin())
+            StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::default())
                 .generate_vocabulary_types(),
         )
     }
@@ -267,6 +330,24 @@ pub struct NativeProjectSession {
 
 #[napi]
 impl NativeProjectSession {
+    /// Returns the latest attempted diagnostics for every retained module.
+    #[napi]
+    pub fn diagnostic_batches(&self) -> Vec<NativeDiagnosticBatch> {
+        self.session
+            .diagnostic_batches()
+            .iter()
+            .map(|(module, batch)| NativeDiagnosticBatch {
+                module: module.as_str().to_owned(),
+                reports: batch
+                    .diagnostics
+                    .iter()
+                    .cloned()
+                    .map(BindingReport::from)
+                    .collect(),
+            })
+            .collect()
+    }
+
     /// Creates a session from a completed loader. `watch` selects whether a failed
     /// reload retains the last known good revision.
     ///
@@ -293,23 +374,34 @@ impl NativeProjectSession {
             _ => IdentifierMode::Release,
         };
         let naming = NativeNaming::from_js(naming)?;
-        let identifiers = match &naming {
-            Some(naming) => Identifiers::with(naming.clone() as Arc<dyn IdentifierGenerator>),
-            None => Identifiers::builtin(),
-        };
-        Ok(Self {
-            session: ProjectSession::new(
-                loader.completed()?,
-                if watch {
-                    SessionMode::Watch
-                } else {
-                    SessionMode::Build
-                },
-                loader.options.clone(),
-                identifiers.in_mode(identifier_mode),
-            ),
-            naming,
-        })
+        let identifiers = Identifiers::new(
+            naming
+                .as_ref()
+                .map(|naming| naming.clone() as Arc<dyn IdentifierGenerator>),
+            identifier_mode,
+        );
+        let snapshot = loader.completed()?;
+        let session = ProjectSession::new(
+            snapshot.clone(),
+            loader.loader.sources(),
+            if watch {
+                SessionMode::Watch
+            } else {
+                SessionMode::Build
+            },
+            loader.options.clone(),
+            identifiers,
+        );
+        Ok(Self { session, naming })
+    }
+
+    /// Creates a CSS loader in this session's source ID scope for a reload.
+    #[napi]
+    pub fn new_loader(
+        &self,
+        options: Option<NativeCompilerOptions>,
+    ) -> napi::Result<NativeDesignSystemLoader> {
+        NativeDesignSystemLoader::with_sources(options, self.session.sources().fork_empty())
     }
 
     /// Publishes a reloaded design system and reports what changed.
@@ -324,16 +416,35 @@ impl NativeProjectSession {
         loader: &NativeDesignSystemLoader,
     ) -> napi::Result<NativeReload> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
+        if !self
+            .session
+            .sources()
+            .shares_ids_with(loader.loader.sources())
+        {
+            return Err(NativeSessionError::ForeignCssLoader.into());
+        }
+        let snapshot = loader.completed()?;
         let update = self
             .session
-            .reload(Ok(loader.completed()?), loader.options.clone())
+            .reload(Ok(snapshot.clone()), loader.options.clone())
             .map_err(|error| Error::from_reason(error.to_string()))?;
         if !update.diagnostics.is_empty() {
-            return Err(NativeSessionError::ReloadCompilation {
-                diagnostics: update.diagnostics,
+            let sources = self
+                .session
+                .diagnostic_sources_for(&snapshot)
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            let (mut batches, message) = resolve_error_map(&update.diagnostics, &sources)?;
+            let modules = self.session.analyses().keys().cloned().collect::<Vec<_>>();
+            for module in modules {
+                let batch = batches.remove(&module).unwrap_or_default();
+                self.session.publish_diagnostic_batch(module, batch);
             }
-            .into());
+            self.session
+                .prune_sources()
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            return Err(NativeSessionError::ReloadCompilation { message }.into());
         }
+        Self::refresh_batches(&mut self.session)?;
         Ok(NativeReload {
             css_changed: update.css_changed,
             transformed_modules: update
@@ -435,7 +546,7 @@ impl NativeProjectSession {
             self.session.options(),
             self.session.identifiers(),
         )
-        .render_base_stylesheet()
+        .render_stylesheet("")
         .map_err(|error| Error::from_reason(error.to_string()))
     }
 
@@ -448,7 +559,7 @@ impl NativeProjectSession {
             self.session.options(),
             self.session.identifiers(),
         )
-        .render_base_stylesheet_with_map()
+        .render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
         .map_err(|error| Error::from_reason(error.to_string()))?;
         Ok(NativeStylesheetOutput {
             css: output.css,
@@ -476,8 +587,10 @@ impl NativeProjectSession {
     /// Removes a producer, returning whether it was registered.
     #[napi]
     #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-    pub fn remove(&mut self, module: String) -> bool {
-        self.session.remove_module(&module)
+    pub fn remove(&mut self, module: String) -> napi::Result<bool> {
+        let removed = self.session.remove_module(&module);
+        Self::refresh_batches(&mut self.session)?;
+        Ok(removed)
     }
 
     /// Reserves the names one producer's own stylesheet uses, or forgets it when `css` is absent.
@@ -497,12 +610,21 @@ impl NativeProjectSession {
             None => self.session.forget_authored_css(&module),
         };
         if reported.is_empty() {
+            Self::refresh_batches(&mut self.session)?;
             return Ok(());
         }
-        Err(NativeSessionError::AuthoredCssCollision {
-            diagnostics: reported,
+        let sources = self
+            .session
+            .diagnostic_sources()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let (batches, message) = resolve_error_map(&reported, &sources)?;
+        for (module, batch) in batches {
+            self.session.publish_diagnostic_batch(module, batch);
         }
-        .into())
+        self.session
+            .prune_sources()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        Err(NativeSessionError::AuthoredCssCollision { message }.into())
     }
 
     /// Scans, finalizes, and publishes the given modules.
@@ -529,14 +651,13 @@ impl NativeProjectSession {
                 "Unknown Stillwind producer: {producer}"
             )));
         }
+        let mut transaction = self.session.clone();
         let scans: Vec<_> = sources
             .iter()
             .map(|source| {
-                Ok::<_, Error>(OxcSourceAnalyzer.scan_input(source.input(
-                    FileId(1),
-                    FileId(3),
-                    FileId(4),
-                )?))
+                Ok::<_, Error>(
+                    OxcSourceAnalyzer.scan_input(source.input(transaction.sources_mut())?),
+                )
             })
             .collect::<Result<_, _>>()?;
         let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
@@ -547,38 +668,86 @@ impl NativeProjectSession {
             })
             .collect();
         let snapshot = self.session.snapshot();
-        let theme = SourceFile::new(FileId(2), "stillwind.css", "")
-            .map_err(|error| Error::from_reason(error.to_string()))?;
         let mut modules = Vec::new();
-        let mut transaction = self.session.clone();
         let mut attempted = Vec::new();
+        let diagnostic_sources = transaction
+            .diagnostic_sources()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
         for scan in scans {
             let mut module_analysis =
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
             module_analysis.attach_asset_support(&analyses);
             let update = transaction.update_module(module_analysis.clone());
             attempted.push(module_analysis);
-            let mut result = transaction
-                .artifacts()
-                .get(&scan.module_id)
-                .map(|artifact| artifact.to_module_output(&snapshot))
-                .unwrap_or_default();
-            if !update.diagnostics.is_empty() {
-                result.diagnostics = update.diagnostics;
-            }
-            modules.push(ProjectModuleOutput::new(
-                scan.module_id.0,
-                binding_output(result, &scan.source, &theme),
-            ));
+            let result = if update.diagnostics.is_empty() {
+                transaction
+                    .artifacts()
+                    .get(&scan.module_id)
+                    .map(|artifact| artifact.to_module_output(&snapshot))
+                    .unwrap_or_default()
+            } else {
+                CompileResult {
+                    diagnostics: update.diagnostics,
+                    lint_policy: snapshot.theme().config.lint_rules.clone(),
+                    ..CompileResult::default()
+                }
+            };
+            let (output, batch) =
+                binding_output_with_batch(result, &scan.source, &diagnostic_sources)?;
+            transaction.publish_diagnostic_batch(scan.module_id.clone(), batch);
+            modules.push(ProjectModuleOutput::new(scan.module_id.0, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
+            transaction
+                .prune_sources()
+                .map_err(|error| Error::from_reason(error.to_string()))?;
             self.session = transaction;
             if let Some(producer) = &producer {
                 modules.retain(|module| &module.path == producer);
             }
         } else {
             self.session.reject_updates(attempted);
+            self.session.retain_attempted_sources(&transaction);
+            self.session.retain_attempted_diagnostics(&transaction);
+            self.session
+                .prune_sources()
+                .map_err(|error| Error::from_reason(error.to_string()))?;
         }
         Ok(ProjectBindingOutput { modules })
+    }
+}
+
+impl NativeProjectSession {
+    /// Rebuilds reports for published artifacts after a graph or CSS state change.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a retained artifact has an unreportable source span.
+    fn refresh_batches(session: &mut ProjectSession) -> napi::Result<()> {
+        let snapshot = session.snapshot();
+        let refreshed = session
+            .analyses()
+            .iter()
+            .filter_map(|(module, analysis)| {
+                session.current_artifact(module).map(|artifact| {
+                    (
+                        module.clone(),
+                        analysis.source.clone(),
+                        artifact.to_module_output(&snapshot),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        let diagnostic_sources = session
+            .diagnostic_sources()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        for (module, source, result) in refreshed {
+            let (_, batch) = binding_output_with_batch(result, &source, &diagnostic_sources)?;
+            session.publish_diagnostic_batch(module, batch);
+        }
+        session
+            .prune_sources()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        Ok(())
     }
 }

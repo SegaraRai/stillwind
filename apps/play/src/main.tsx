@@ -262,7 +262,7 @@ function Play() {
         : null;
   const viewportLabel = { desktop: "Desktop", tablet: "Tablet", mobile: "Mobile" }[viewport];
   const navigateToDiagnostic = (diagnostic: Result["diagnostics"][number]) => {
-    setFileTab(diagnostic.file === "stillwind.css" ? "theme" : "component");
+    setFileTab(diagnostic.uri === "stillwind-input:theme" ? "theme" : "component");
     setSelection({ start: diagnostic.start_utf16, end: diagnostic.end_utf16 });
   };
   return (
@@ -422,7 +422,7 @@ function Play() {
                             onClick={() => navigateToDiagnostic(item)}
                           >
                             <code>
-                              {item.file}:{item.start_line + 1}:{item.start_column + 1}
+                              {item.uri}:{item.start_line + 1}:{item.start_column + 1}
                             </code>
                           </button>
                         </td>

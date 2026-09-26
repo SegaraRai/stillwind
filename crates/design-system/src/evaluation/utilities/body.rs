@@ -11,7 +11,7 @@
 //! emitted as authored, including support queries that the compatibility color path
 //! adds as a second branch of one declaration.
 
-use stillwind_css::take_property_requirements;
+use stillwind_css::{PropertyRequirementError, take_property_requirements};
 use stillwind_syntax::Value;
 
 use super::super::builtins::metadata::COMPAT_COLOR_SUPPORT;
@@ -22,6 +22,17 @@ use super::nested::{
 };
 use super::resolve::ResolvedUtilityTarget;
 use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
+
+/// A failed utility resolution caused by a malformed requirement in the matched definition.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("utility `{name}`: {source}")]
+pub struct UtilityResolutionError {
+    /// Registered utility definition containing the directive.
+    pub name: String,
+    /// Syntax failure and its offset within the definition body.
+    #[source]
+    pub source: PropertyRequirementError,
+}
 
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,18 +77,45 @@ impl UtilityResolution {
 /// Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
 /// the candidate carries a modifier no branch consumes, or when no declaration group
 /// matches.
+///
+/// # Errors
+///
+/// Returns a malformed property requirement with its definition name and byte offset.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn resolve_css_utility_body(
     utility: &CustomUtility,
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-) -> Option<UtilityResolution> {
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     if utility.body.contains("@slot") {
-        return None;
+        return Ok(None);
     }
-    let (body, required_properties) = take_property_requirements(&utility.body)?;
-    let (selector, body, parent_body) = split_utility_selector(&body)?;
+    let (body, required_properties) =
+        take_property_requirements(&utility.body).map_err(|source| UtilityResolutionError {
+            name: utility.name.clone(),
+            source,
+        })?;
+    Ok(resolve_valid_utility_body(
+        utility,
+        name,
+        modifier,
+        theme,
+        &body,
+        required_properties,
+    ))
+}
+
+#[allow(clippy::too_many_lines)] // One definition body resolves base, nested, and parent branches.
+fn resolve_valid_utility_body(
+    utility: &CustomUtility,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+    body: &str,
+    required_properties: Vec<String>,
+) -> Option<UtilityResolution> {
+    let (selector, body, parent_body) = split_utility_selector(body)?;
     let (body, nested) = split_nested_conditions(body)?;
     let resolve = |body: &str| {
         resolve_css_declarations(

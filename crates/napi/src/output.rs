@@ -1,10 +1,10 @@
 //! Serializable compiler output.
 //!
 //! [`BindingOutput`] carries module results from Rust services to JavaScript adapters.
-//! [`BindingDiagnostic`] publishes byte ranges and UTF-16 offsets with zero-based
-//! line/column coordinates. [`BindingLintFinding`] publishes byte ranges only; consumers
-//! needing editor coordinates must convert those ranges against the referenced source.
-//! Other records document their own coordinate units at the field level.
+//! [`BindingReport`] carries the common reporting layer's document identity, revision,
+//! complete editor range, related highlights, and fix actions. The compatibility
+//! diagnostic and lint records carry primary coordinates too. Other records document
+//! their own coordinate units at the field level.
 //!
 //! Generated code is absent when compiler diagnostics are present. These types describe
 //! one result; retaining an earlier successful result is the host session's responsibility.
@@ -17,6 +17,10 @@ use serde::Serialize;
 use stillwind_compiler::{
     ExpressionTransformMapping, GeneratedClass, GeneratedSymbol, GuardStep,
     ModuleResourceReference, RejectedIdentifier, TransformMapping,
+};
+use stillwind_diagnostics::{
+    DiagnosticSeverity, ResolvedAction, ResolvedDiagnostic, ResolvedEdit, ResolvedLabel,
+    ResolvedLocation,
 };
 use stillwind_ir::StyleDependency;
 use stillwind_source::Span;
@@ -43,6 +47,8 @@ pub struct BindingOutput {
     pub symbols: Vec<NativeGeneratedSymbol>,
     /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Source-resolved diagnostics, including related locations and fixes.
+    pub reports: Vec<BindingReport>,
     /// Names a host-generated identifier was rejected for, which the host may warn about.
     ///
     /// These are not lint findings: a rejected name comes from the generator rather than
@@ -59,6 +65,150 @@ pub struct BindingOutput {
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
     )]
     pub lint_policy: BTreeMap<String, String>,
+}
+
+/// One source-resolved diagnostic transferred from the common reporting layer.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingReport {
+    /// Stable compiler code or lint rule.
+    pub code: String,
+    /// Human-readable cause.
+    pub message: String,
+    /// Effective `error` or `warning` level after lint policy.
+    pub severity: String,
+    /// Main highlighted range.
+    pub primary: BindingLabel,
+    /// Further highlighted ranges in producer order.
+    pub related: Vec<BindingLabel>,
+    /// Supplementary explanations.
+    pub notes: Vec<String>,
+    /// Alternative revision-pinned fixes.
+    pub actions: Vec<BindingAction>,
+}
+
+impl From<ResolvedDiagnostic> for BindingReport {
+    fn from(value: ResolvedDiagnostic) -> Self {
+        Self {
+            code: value.code,
+            message: value.message,
+            severity: match value.severity {
+                DiagnosticSeverity::Error => "error",
+                DiagnosticSeverity::Warning => "warning",
+            }
+            .into(),
+            primary: value.primary.into(),
+            related: value.related.into_iter().map(Into::into).collect(),
+            notes: value.notes,
+            actions: value.actions.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+/// A highlight and its explanation.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingLabel {
+    /// Source revision and editor range.
+    pub location: BindingLocation,
+    /// Explanation for this range, when one was supplied.
+    pub message: Option<String>,
+}
+
+impl From<ResolvedLabel> for BindingLabel {
+    fn from(value: ResolvedLabel) -> Self {
+        Self {
+            location: value.location.into(),
+            message: value.message,
+        }
+    }
+}
+
+/// Document identity, revision, and complete half-open editor range.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingLocation {
+    /// Absolute document URI supplied by the host or formed for a virtual input.
+    pub uri: String,
+    /// Fingerprint of the exact source text used for these coordinates.
+    pub revision: String,
+    /// Inclusive UTF-8 byte offset.
+    pub start: u32,
+    /// Exclusive UTF-8 byte offset.
+    pub end: u32,
+    /// Zero-based UTF-16 offset from the document start.
+    #[napi(js_name = "start_utf16")]
+    pub start_utf16: u32,
+    /// Zero-based UTF-16 offset from the document start.
+    #[napi(js_name = "end_utf16")]
+    pub end_utf16: u32,
+    /// Zero-based start line.
+    #[napi(js_name = "start_line")]
+    pub start_line: u32,
+    /// Zero-based UTF-16 column on `start_line`.
+    #[napi(js_name = "start_column")]
+    pub start_column: u32,
+    /// Zero-based end line.
+    #[napi(js_name = "end_line")]
+    pub end_line: u32,
+    /// Zero-based UTF-16 column on `end_line`.
+    #[napi(js_name = "end_column")]
+    pub end_column: u32,
+}
+
+impl From<ResolvedLocation> for BindingLocation {
+    fn from(value: ResolvedLocation) -> Self {
+        Self {
+            uri: value.uri.as_str().into(),
+            revision: value.revision,
+            start: value.start,
+            end: value.end,
+            start_utf16: value.start_utf16,
+            end_utf16: value.end_utf16,
+            start_line: value.start_position.line,
+            start_column: value.start_position.utf16_column,
+            end_line: value.end_position.line,
+            end_column: value.end_position.utf16_column,
+        }
+    }
+}
+
+/// A revision-pinned replacement edit.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingEdit {
+    /// Range in the source revision to replace.
+    pub location: BindingLocation,
+    /// Text inserted at the range.
+    pub replacement: String,
+}
+
+impl From<ResolvedEdit> for BindingEdit {
+    fn from(value: ResolvedEdit) -> Self {
+        Self {
+            location: value.location.into(),
+            replacement: value.replacement,
+        }
+    }
+}
+
+/// One alternative fix offered for a diagnostic.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct BindingAction {
+    /// Title shown by an editor.
+    pub title: String,
+    /// Edits applied atomically after verifying every source revision.
+    pub edits: Vec<BindingEdit>,
+}
+
+impl From<ResolvedAction> for BindingAction {
+    fn from(value: ResolvedAction) -> Self {
+        Self {
+            title: value.title,
+            edits: value.edits.into_iter().map(Into::into).collect(),
+        }
+    }
 }
 
 /// One composition edge: [`Self::derived`] includes the payload of [`Self::base`].
@@ -88,8 +238,10 @@ pub struct BindingDiagnostic {
     pub code: String,
     /// Rendered message.
     pub message: String,
-    /// Path of the file the primary label points at.
-    pub file: String,
+    /// Exact source document identity.
+    pub uri: String,
+    /// Fingerprint of the source revision used for the range.
+    pub revision: String,
     /// Byte start of the primary label.
     pub start: u32,
     /// Byte end of the primary label.
@@ -124,12 +276,26 @@ pub struct BindingLintFinding {
     pub rule: String,
     /// Rendered message.
     pub message: String,
-    /// Path of the file the finding points at.
-    pub file: String,
+    /// Exact source document identity.
+    pub uri: String,
+    /// Fingerprint of the source revision used for the range.
+    pub revision: String,
     /// Byte start of the finding.
     pub start: u32,
     /// Byte end of the finding.
     pub end: u32,
+    /// Zero-based line of the primary range start.
+    #[napi(js_name = "start_line")]
+    pub start_line: u32,
+    /// Zero-based UTF-16 column of the primary range start.
+    #[napi(js_name = "start_column")]
+    pub start_column: u32,
+    /// Zero-based line of the primary range end.
+    #[napi(js_name = "end_line")]
+    pub end_line: u32,
+    /// Zero-based UTF-16 column of the primary range end.
+    #[napi(js_name = "end_column")]
+    pub end_column: u32,
     /// Additional explanation lines.
     pub notes: Vec<String>,
 }
@@ -232,7 +398,7 @@ impl From<ExpressionTransformMapping> for NativeExpressionMapping {
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeSpan {
-    /// File the span belongs to.
+    /// File ID within the session's source scope.
     pub file: u32,
     /// Byte start.
     pub start: u32,
@@ -360,6 +526,16 @@ pub struct ProjectBindingOutput {
     pub modules: Vec<ProjectModuleOutput>,
 }
 
+/// Latest source-resolved findings for one module's attempted revision.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+pub struct NativeDiagnosticBatch {
+    /// Project module identity for the attempted analysis.
+    pub module: String,
+    /// Diagnostics in report order.
+    pub reports: Vec<BindingReport>,
+}
+
 /// One module's result inside a whole-graph compile.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
@@ -382,6 +558,8 @@ pub struct ProjectModuleOutput {
     pub symbols: Vec<NativeGeneratedSymbol>,
     /// Errors. Non-empty means nothing was published for this module.
     pub diagnostics: Vec<BindingDiagnostic>,
+    /// Source-resolved diagnostics for this module.
+    pub reports: Vec<BindingReport>,
     /// Names a host-generated identifier was rejected for, which the host may warn about.
     #[napi(js_name = "rejected_names")]
     pub rejected_names: Vec<BindingRejectedIdentifier>,
@@ -407,6 +585,7 @@ impl ProjectModuleOutput {
             classes,
             symbols,
             diagnostics,
+            reports,
             rejected_names,
             lint_findings,
             lint_policy,
@@ -421,6 +600,7 @@ impl ProjectModuleOutput {
             classes,
             symbols,
             diagnostics,
+            reports,
             rejected_names,
             lint_findings,
             lint_policy,

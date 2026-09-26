@@ -96,10 +96,10 @@ do not change CSS, transforms or generated names.
 ## Rendering a pinned snapshot
 
 ```rust
-use stillwind_compiler::StylesheetRenderer;
+use stillwind_compiler::{Identifiers, StylesheetRenderer};
 
-let renderer = StylesheetRenderer::new(&snapshot, &options);
-let document_css = renderer.render_base_stylesheet()?;
+let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::default());
+let document_css = renderer.render_stylesheet("")?;
 let module_css = renderer.render_module_stylesheet(&compiled.css.to_css())?;
 let declarations = renderer.generate_vocabulary_types();
 ```

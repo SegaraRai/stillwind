@@ -46,6 +46,7 @@ export function developmentHooks(
             async (specifier, importer) =>
               resolvedFile(await host.resolve(specifier, importer), `CSS ${specifier}`),
             dependencies,
+            state.session,
           );
           if (revision !== state.loadRevision) {
             return [];

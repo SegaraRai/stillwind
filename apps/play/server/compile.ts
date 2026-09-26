@@ -32,6 +32,7 @@ export async function compilePlayground(
   const project = session.compile([
     {
       path: "Play.tsx",
+      uri: "untitled:Play.tsx",
       // Preserve byte length for the Play shorthand's source positions.
       source: source.replace(/\bexport App;/g, "export{App}"),
     },

@@ -35,6 +35,7 @@ impl<'a> MacroExtractor<'a> {
     /// by original UTF-8 span; passing empty maps is the normal no-checker path.
     pub(crate) fn new(
         source: &'a SourceFile,
+        module_id: &'a str,
         scoping: &'a Scoping,
         type_facts: &[TypeFact],
         imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
@@ -43,6 +44,7 @@ impl<'a> MacroExtractor<'a> {
     ) -> Self {
         Self {
             source,
+            module_id,
             original,
             coordinates,
             scoping,
@@ -91,7 +93,7 @@ impl<'a> MacroExtractor<'a> {
         let span = (self.coordinates)(name.span).unwrap_or(self.original.full_span());
         IdentityId::new(
             kind,
-            self.source.path(),
+            self.module_id,
             span.start.0,
             span.end.0,
             name.value.clone(),
@@ -106,7 +108,7 @@ impl<'a> MacroExtractor<'a> {
     /// conditionally is deliberately absent so the host checker can answer instead of
     /// this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
-        let mut summary = ModuleSummary::new(self.source.path());
+        let mut summary = ModuleSummary::new(self.module_id);
         summary.imports.clone_from(&self.imports);
         summary
             .module_specifiers
@@ -118,7 +120,7 @@ impl<'a> MacroExtractor<'a> {
             summary.assets.push(AssetRecord {
                 identity: IdentityId::new(
                     AssetKind::Style,
-                    self.source.path(),
+                    self.module_id,
                     span.start.0,
                     span.end.0,
                     "",
@@ -205,6 +207,8 @@ impl<'a> MacroExtractor<'a> {
 /// The fields are filled by the visitors in the sibling modules and consumed by
 /// [`MacroExtractor::module_summary`]; nothing here is serialized directly.
 pub(crate) struct MacroExtractor<'a> {
+    /// Identity used for declarations originating in this module.
+    pub(crate) module_id: &'a str,
     /// Adapter selected from a macro import, once one was seen.
     pub(crate) adapter: Option<AdapterKind>,
     /// Analysis buffer for Oxc spans; declaration identities use `original` coordinates.

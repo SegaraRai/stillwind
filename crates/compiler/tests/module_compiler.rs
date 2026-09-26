@@ -5,6 +5,9 @@
 //! transform output against a pinned snapshot, invalid IR and byte boundaries returning
 //! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
 
+#[path = "../../test-support/css.rs"]
+mod css_fixture;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -17,21 +20,27 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
-    ClassExpression, ConditionalBranches, RefDefinition, RuleExpression, SourceAnalyzer,
-    StyleInput, StyleVariant,
+    ClassExpression, ConditionalBranches, RefDefinition, RuleExpression, ScriptLanguage,
+    ScriptModuleKind, SourceAnalyzer, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::TypeFacts;
+use stillwind_semantic::{ModuleId, TypeFacts};
 use stillwind_source::{FileId, Fingerprint, SourceFile, Span, Spanned};
-
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
-    let source = SourceFile::new(FileId(1), "composition.ts", "import {style} from 'stillwind/react'; const a=style('m-10 hover:m-20'); const b=style(a,'m-4'); const c=style(b,'m-10'); const d=style(flag?a:c); const e=style(a,c);").unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-    let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const a=style('m-10 hover:m-20'); const b=style(a,'m-4'); const c=style(b,'m-10'); const d=style(flag?a:c); const e=style(a,c);").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+    let output = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert_eq!(output.classes.len(), 3);
     let names: BTreeSet<_> = output
@@ -59,7 +68,7 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
 
 #[test]
 fn composition_rejects_props_and_nested_calls() {
-    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
@@ -76,11 +85,21 @@ fn composition_rejects_props_and_nested_calls() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "composition.ts",
+            None,
+            None,
             format!("import {{style}} from 'stillwind/react'; {code}"),
         )
         .unwrap();
-        let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let output = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
         assert!(
             output
                 .diagnostics
@@ -94,10 +113,10 @@ fn composition_rejects_props_and_nested_calls() {
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
-    let theme =
-        crate::css_fixture::source(FileId(2), "theme", "@theme { --color-brand: red; }").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+            .unwrap();
     for candidates in [
         "flex p-4 hover:bg-brand",
         "before:content-['}']",
@@ -108,17 +127,35 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
         let source = Arc::new(
             SourceFile::new(
                 FileId(1),
-                "button.tsx",
+                None,
+                None,
                 format!(
                     "import {{ style }} from 'stillwind/react'; const x = style({candidates:?});"
                 ),
             )
             .unwrap(),
         );
-        let output = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
-        let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
-        let compiled =
-            ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&analysis);
+        let output = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
+        let analysis = OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source.clone(),
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        );
+        let compiled = ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
+            .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         assert_eq!(compiled.css.to_css(), output.module_css, "{candidates}");
         let fragment = compiled.to_module_output(&snapshot);
@@ -128,7 +165,7 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
             StylesheetRenderer::new(
                 &snapshot,
                 &CompilerOptions::default(),
-                &Identifiers::builtin()
+                &Identifiers::default()
             )
             .render_compilation(&compiled, source.full_span()),
             output,
@@ -146,12 +183,21 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import {style} from 'stillwind/react'; export const props=style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source.clone(),
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let options = CompilerOptions::default();
     for (css, expected) in [
         (
@@ -163,15 +209,17 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             CompileErrorKind::UnresolvedThemeReference,
         ),
     ] {
-        let theme = SourceFile::new(FileId(2), "root.css", css).unwrap();
-        let snapshot = DesignSystemSnapshot::from_source(&theme, options.design_system()).unwrap();
-        let compiled = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(&analysis);
+        let theme = SourceFile::new(FileId(2), None, None, css).unwrap();
+        let snapshot =
+            DesignSystemSnapshot::from_source(&theme, "test.css", options.design_system()).unwrap();
+        let compiled = ModuleCompiler::new(snapshot.clone(), options.clone())
+            .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         let fragment = compiled.to_module_output(&snapshot);
         assert!(fragment.diagnostics.is_empty());
         assert!(fragment.css.contains("display:flex"));
         assert!(fragment.apply_to_source(&source).is_ok());
-        let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::builtin());
+        let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::default());
         assert_eq!(
             renderer.render_stylesheet(&fragment.css).unwrap_err(),
             expected
@@ -187,7 +235,16 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         assert!(document.apply_to_source(&source).is_err());
         assert_eq!(
             document,
-            Compiler::compile_source_with_options(&OxcSourceAnalyzer, &source, &theme, &options)
+            Compiler::compile_source(
+                &OxcSourceAnalyzer,
+                &source,
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &theme,
+                "stillwind.css",
+                &options
+            )
         );
     }
 }
@@ -197,24 +254,34 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "a.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex unknown-example');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let compile = |policy: &str| {
         let theme = crate::css_fixture::source(
             FileId(2),
-            "theme",
             format!("@stillwind {{ unknown-utility: {policy}; }}"),
         )
         .unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
         let module = analysis.clone();
         std::thread::spawn(move || {
-            ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&module)
+            ModuleCompiler::new(snapshot, CompilerOptions::default())
+                .compile(&module, &Identifiers::default())
         })
     };
     let off = compile("off");
@@ -229,7 +296,7 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
 
 #[test]
 fn invalid_transform_byte_boundaries_return_errors() {
-    let source = SourceFile::new(FileId(1), "a.tsx", "日本語").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "日本語").unwrap();
     let result = CompileResult {
         transforms: vec![SourceTransform {
             call_span: Span::new(FileId(1), 1, 3),
@@ -243,18 +310,28 @@ fn invalid_transform_byte_boundaries_return_errors() {
 
 #[test]
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
-    let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+            .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "x.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source.clone(),
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let span = source.full_span();
     let definition = RefDefinition {
         module_path: "x.tsx".into(),
@@ -299,6 +376,10 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             ))
             .into(),
         ),
+        StyleInput::Class(ClassExpression::ClassValue {
+            span: Span::new(FileId(1), u32::MAX, u32::MAX),
+            arguments: vec![Span::new(FileId(1), u32::MAX, u32::MAX)],
+        }),
     ]
     .into_iter()
     .zip([
@@ -308,11 +389,15 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             span: Span::new(FileId(1), u32::MAX, u32::MAX),
             context: SourceFailureContext::Utility,
         },
+        CompileErrorKind::SourceInvalidSpan {
+            span: Span::new(FileId(1), u32::MAX, u32::MAX),
+            context: SourceFailureContext::Emission,
+        },
     ]) {
         let mut malformed = analysis.clone();
         malformed.ir.style_calls[0].inputs = vec![input];
-        let compiled =
-            ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&malformed);
+        let compiled = ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
+            .compile(&malformed, &Identifiers::default());
         assert!(!compiled.is_success());
         assert!(
             compiled
@@ -327,19 +412,31 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
 
 #[test]
 fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let compile = |namespace: &str| {
         ModuleCompiler::new(
             snapshot.clone(),
@@ -348,7 +445,7 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
                 ..CompilerOptions::default()
             },
         )
-        .compile(&analysis)
+        .compile(&analysis, &Identifiers::default())
     };
     let first = compile("first");
     let second = compile("second");
@@ -362,21 +459,33 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
 
 #[test]
 fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex');",
         )
         .unwrap(),
     );
-    let mut analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let mut analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let compiler = ModuleCompiler::new(snapshot, CompilerOptions::default());
-    let first = compiler.compile(&analysis);
+    let first = compiler.compile(&analysis, &Identifiers::default());
     let mut upstream_changed = analysis.clone();
     upstream_changed.input.upstream_map = Some("{\"version\":3,\"sources\":[\"upstream\"]}".into());
     let upstream_key = compiler.key_for(&upstream_changed);
@@ -390,7 +499,7 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
         panic!("utility")
     };
     value.value = "grid".into();
-    let second = compiler.compile(&analysis);
+    let second = compiler.compile(&analysis, &Identifiers::default());
     assert!(first.is_success() && second.is_success());
     assert_eq!(first.key.source_revision, second.key.source_revision);
     assert_eq!(first.key.semantic_revision, second.key.semantic_revision);
@@ -416,19 +525,26 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
         }
     }
 
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
-            FileId(1),
-            "menu.tsx",
+            FileId(1), None, None,
             "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
         )
         .unwrap(),
     );
-    let scan = OxcSourceAnalyzer.scan(Arc::clone(&source));
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::clone(&source),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let facts = TypeFacts {
         schema: TypeFacts::SCHEMA,
         module_id: scan.module_id.clone(),
@@ -438,9 +554,9 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
         assets: BTreeMap::new(),
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    let identifiers = Identifiers::with(Arc::new(PrototypeGenerator));
-    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
-        .compile_with(&analysis, &identifiers);
+    let identifiers = Identifiers::new(Some(Arc::new(PrototypeGenerator)), IdentifierMode::Release);
+    let compiled =
+        ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&analysis, &identifiers);
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
     let replacement = compiled
         .code_transforms
@@ -460,22 +576,34 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
 
 #[test]
 fn development_mode_imports_the_checked_helper_from_the_dev_module() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex', flag && 'grid');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let compile = |mode: IdentifierMode| {
         ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
-            .compile_with(&analysis, &Identifiers::builtin().in_mode(mode))
+            .compile(&analysis, &Identifiers::new(None, mode))
     };
     let development = compile(IdentifierMode::Development);
     assert!(development.is_success(), "{:?}", development.diagnostics);
@@ -518,23 +646,35 @@ impl IdentifierGenerator for FailingGenerator {
 
 #[test]
 fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let compile = |mode: IdentifierMode| {
-        let identifiers = Identifiers::with(Arc::new(FailingGenerator)).in_mode(mode);
+        let identifiers = Identifiers::new(Some(Arc::new(FailingGenerator)), mode);
         ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
-            .compile_with(&analysis, &identifiers)
+            .compile(&analysis, &identifiers)
     };
     let development = compile(IdentifierMode::Development);
     assert!(development.is_success(), "{:?}", development.diagnostics);
@@ -576,20 +716,27 @@ impl IdentifierGenerator for FixedGenerator {
 
 #[test]
 fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
-            FileId(1),
-            "menu.tsx",
+            FileId(1), None, None,
             "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor); const y = style('flex');",
         )
         .unwrap(),
     );
-    let identifiers = Identifiers::with(Arc::new(FixedGenerator));
-    let scan = OxcSourceAnalyzer.scan(Arc::clone(&source));
+    let identifiers = Identifiers::new(Some(Arc::new(FixedGenerator)), IdentifierMode::Release);
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::clone(&source),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let facts = TypeFacts {
         schema: TypeFacts::SCHEMA,
         module_id: scan.module_id.clone(),
@@ -599,8 +746,8 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         assets: BTreeMap::new(),
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default())
-        .compile_with(&analysis, &identifiers);
+    let compiled =
+        ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&analysis, &identifiers);
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
     let marker = compiled
         .symbols
@@ -646,21 +793,36 @@ impl IdentifierGenerator for PunctuationClassGenerator {
 
 #[test]
 fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('flex');",
         )
         .unwrap(),
     );
-    let identifiers = Identifiers::with(Arc::new(PunctuationClassGenerator));
-    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile_with(
-        &OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None),
+    let identifiers = Identifiers::new(
+        Some(Arc::new(PunctuationClassGenerator)),
+        IdentifierMode::Release,
+    );
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(
+        &OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source,
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        ),
         &identifiers,
     );
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
@@ -703,21 +865,34 @@ impl IdentifierGenerator for RoleSpellingHelperGenerator {
 
 #[test]
 fn a_host_names_every_conditional_helper_it_is_asked_for() {
-    let theme = css_fixture::source(FileId(2), "theme", "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, CompilerOptions::default().design_system())
-            .unwrap();
+    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css",
+        CompilerOptions::default().design_system(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
-            FileId(1),
-            "if.tsx",
+            FileId(1), None, None,
             "import { style } from 'stillwind/react'; export const x = style('w-[--if(!--c,20px,10px)]');",
         )
         .unwrap(),
     );
-    let identifiers = Identifiers::with(Arc::new(RoleSpellingHelperGenerator));
-    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile_with(
-        &OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None),
+    let identifiers = Identifiers::new(
+        Some(Arc::new(RoleSpellingHelperGenerator)),
+        IdentifierMode::Release,
+    );
+    let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(
+        &OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source,
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        ),
         &identifiers,
     );
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);

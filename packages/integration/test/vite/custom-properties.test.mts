@@ -11,12 +11,21 @@ import * as runtime from "stillwind/react/runtime";
 import { build } from "vite";
 
 void test("compiled custom properties preserve evaluation order and inactive branches", () => {
-  const result = compileSource(
-    `import {style} from "stillwind/react";
+  const result = compileSource({
+    source: `import {style} from "stillwind/react";
     const props = style({"--x": next("first")}, active && {"--x": next("second"), "data-x": next("third")}, {"--y": next("last")});`,
-    "src/custom.ts",
-    "@stillwind-slot utilities;",
-  );
+    module_id: "src/custom.ts",
+    uri: "untitled:src/custom.ts",
+    source_map_source: "untitled:src/custom.ts",
+    language: "ts",
+    module_kind: "unambiguous",
+    css: {
+      content: "@stillwind-slot utilities;",
+      name: "root.css",
+      uri: "untitled:root.css",
+      source_map_source: "untitled:root.css",
+    },
+  });
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(result.resources, []);
   assert.ok(result.code);

@@ -3,7 +3,7 @@
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ViewTransitionDefinition;
-use stillwind_source::{SourceFile, Spanned};
+use stillwind_source::Spanned;
 
 use super::super::CssContribution;
 use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_options};
@@ -21,7 +21,7 @@ use crate::identifiers::IdentifierContext;
 /// generated name, which is what pairs them at runtime.
 pub(in crate::compiler) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
-    source: &SourceFile,
+    module_id: &str,
     identifiers: &IdentifierContext,
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
@@ -29,7 +29,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
 ) {
     let output = &mut contribution.css;
     let class = match identifiers.view_transition_class(&named_declaration(
-        source.path(),
+        module_id,
         &transition.binding,
         transition.label.as_ref(),
     )) {
@@ -82,14 +82,27 @@ fn emit_view_transition_utilities(
     let mut plain = Vec::new();
     let mut conditional = String::new();
     for utility in lex_utilities(input, diagnostics) {
-        let Some(resolved) = resolve_utility(&utility.value.raw, theme) else {
-            diagnostics.push(CompileError::new(
-                CompileErrorKind::UnavailableUtility {
-                    utility: utility.value.raw.clone(),
-                },
-                utility.span,
-            ));
-            continue;
+        let resolved = match resolve_utility(&utility.value.raw, theme) {
+            Ok(Some(resolved)) => resolved,
+            Ok(None) => {
+                diagnostics.push(CompileError::new(
+                    CompileErrorKind::UnavailableUtility {
+                        utility: utility.value.raw.clone(),
+                    },
+                    utility.span,
+                ));
+                continue;
+            }
+            Err(error) => {
+                diagnostics.push(CompileError::new(
+                    CompileErrorKind::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    },
+                    utility.span,
+                ));
+                continue;
+            }
         };
         if resolved.variants.is_empty() {
             plain.push(resolved);
@@ -150,6 +163,7 @@ fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedOpti
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{FileId, SourceFile};
 
@@ -174,12 +188,22 @@ mod tests {
         ] {
             let source = SourceFile::new(
                 FileId(1),
-                "motion.tsx",
+                None,
+                None,
                 format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
             )
             .unwrap();
-            let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-            let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+            let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+            let result = Compiler::compile_source(
+                &OxcSourceAnalyzer,
+                &source,
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &theme,
+                "stillwind.css",
+                &crate::CompilerOptions::default(),
+            );
             let errors = result
                 .diagnostics
                 .iter()

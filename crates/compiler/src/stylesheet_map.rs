@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn text_preserves_exact_authored_bytes_and_source_identity() {
         let source = Arc::new(
-            SourceFile::new(FileId(7), "日本語.css", "/* 🧭 */  .日本 { color: red; }").unwrap(),
+            SourceFile::new(FileId(7), None, None, "/* 🧭 */  .日本 { color: red; }").unwrap(),
         );
         let start = source.text().find("  .").unwrap();
         let span = Span::new(
@@ -141,7 +141,8 @@ mod tests {
         let source = Arc::new(
             SourceFile::new(
                 FileId(7),
-                "theme.css",
+                None,
+                None,
                 "/* 🧭 */\u{3000}\n  --color-brand: red;",
             )
             .unwrap(),
@@ -166,7 +167,7 @@ mod tests {
 
     #[test]
     fn empty_and_invalid_origins_do_not_create_mappings_or_discard_text() {
-        let source = Arc::new(SourceFile::new(FileId(7), "input.css", "日本").unwrap());
+        let source = Arc::new(SourceFile::new(FileId(7), None, None, "日本").unwrap());
         let mut output = MappedStylesheet::default();
         output.text("", Some((source.clone(), Span::new(source.id(), 0, 6))));
         output.text("", Some((source.clone(), Span::new(source.id(), 0, 0))));
@@ -186,7 +187,7 @@ mod tests {
     #[test]
     fn append_offsets_all_generated_ranges_without_mutating_originals() {
         let source = Arc::new(
-            SourceFile::new(FileId(7), "日本語.css", "/* 🧭 */  .日本 { color: red; }").unwrap(),
+            SourceFile::new(FileId(7), None, None, "/* 🧭 */  .日本 { color: red; }").unwrap(),
         );
         let span = source.full_span();
         let mut first = MappedStylesheet::default();

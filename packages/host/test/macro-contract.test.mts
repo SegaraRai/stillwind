@@ -29,6 +29,7 @@ void test("contract defaults deny builds while warn and off remain configurable"
         read: async () => {
           throw new Error("unexpected read");
         },
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch: () => {},
         warn: (message) => warnings.push(message),
       },

@@ -11,10 +11,12 @@ use stillwind_compiler::{
     StylesheetRenderer,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintKind, filter_lint_findings};
+use stillwind_diagnostics::{
+    CompileError, CompileErrorKind, DiagnosticBatch, LintKind, filter_lint_findings,
+};
 use stillwind_ir::ModuleAnalysis;
 use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, Span};
+use stillwind_source::{FileId, SourceRegistry, SourceRegistryError, Span};
 
 use crate::ReservedNames;
 use crate::composition_lint::composition_lints;
@@ -82,6 +84,10 @@ pub struct SessionReload {
 /// handlers pin a clone obtained from `snapshot` before doing work.
 #[derive(Clone)]
 pub struct ProjectSession {
+    /// Script source revisions; CSS revisions live in the active design-system snapshot.
+    sources: SourceRegistry,
+    /// Latest attempted diagnostic batch for each module, independent of active output.
+    reported: BTreeMap<ModuleId, DiagnosticBatch>,
     /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
     /// Compiler configuration shared by all artifacts in this session.
@@ -107,8 +113,7 @@ pub struct ProjectSession {
 }
 
 impl ProjectSession {
-    /// Starts a session from a completed snapshot, its generation options, and its
-    /// naming inputs.
+    /// Starts a session in the source ID scope used to load its CSS snapshot.
     ///
     /// The naming inputs are fixed for the session's lifetime: a host that changes
     /// generators starts a new session and pairs the change with a new
@@ -116,10 +121,15 @@ impl ProjectSession {
     /// naming changes.
     pub fn new(
         snapshot: DesignSystemSnapshot,
+        sources: &SourceRegistry,
         mode: SessionMode,
         options: CompilerOptions,
         identifiers: Identifiers,
     ) -> Self {
+        for source in &snapshot.sources().sources {
+            sources.reserve_after(source.source.id());
+        }
+        let sources = sources.fork_empty();
         let mut reserved = ReservedNames::default();
         reserved.collect(&snapshot.theme().custom_css);
         for source in &snapshot.sources().sources {
@@ -135,6 +145,8 @@ impl ProjectSession {
                 .map(|token| token.name.value.clone()),
         );
         Self {
+            sources,
+            reported: BTreeMap::new(),
             current: snapshot,
             options,
             identifiers,
@@ -147,6 +159,80 @@ impl ProjectSession {
             dependencies: DependencyIndex::default(),
             load_error: None,
         }
+    }
+
+    /// Script source registry issuing the file IDs used by this session's analyses.
+    pub fn sources(&self) -> &SourceRegistry {
+        &self.sources
+    }
+
+    /// Registers input before analysis so spans and public document identity share one source.
+    pub fn sources_mut(&mut self) -> &mut SourceRegistry {
+        &mut self.sources
+    }
+
+    /// Builds the diagnostic lookup from script revisions and the active CSS snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source registry error if a CSS source conflicts with a retained script source.
+    pub fn diagnostic_sources(&self) -> Result<SourceRegistry, SourceRegistryError> {
+        self.diagnostic_sources_for(&self.current)
+    }
+
+    /// Builds the diagnostic lookup for a CSS reload attempt.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source registry error if a CSS source conflicts with a retained script source.
+    pub fn diagnostic_sources_for(
+        &self,
+        snapshot: &DesignSystemSnapshot,
+    ) -> Result<SourceRegistry, SourceRegistryError> {
+        let mut view = self.sources.clone();
+        for source in &snapshot.sources().sources {
+            if source.source.uri().is_some() {
+                view.retain(source.source.clone())?;
+            }
+        }
+        Ok(view)
+    }
+
+    /// Retains source revisions from a rejected attempt for its diagnostic batch.
+    pub fn retain_attempted_sources(&mut self, attempted: &Self) {
+        self.sources = attempted.sources.clone();
+    }
+
+    /// Publishes the latest attempted reports while retaining active watch artifacts.
+    pub fn retain_attempted_diagnostics(&mut self, attempted: &Self) {
+        self.reported = attempted.reported.clone();
+    }
+
+    /// Returns the last reported batch for each retained module.
+    pub fn diagnostic_batches(&self) -> &BTreeMap<ModuleId, DiagnosticBatch> {
+        &self.reported
+    }
+
+    /// Replaces one module's diagnostics for its latest attempted input revision.
+    pub fn publish_diagnostic_batch(&mut self, module: ModuleId, batch: DiagnosticBatch) {
+        self.reported.insert(module, batch);
+    }
+
+    /// Retains only script revisions needed for future compilation.
+    /// Completed diagnostic batches already contain resolved locations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if two retained source handles claim the same file ID.
+    pub fn prune_sources(&mut self) -> Result<(), SourceRegistryError> {
+        let mut retained = self.sources.fork_empty();
+        for analysis in self.analyses.values() {
+            if analysis.source.uri().is_some() {
+                retained.retain(analysis.source.clone())?;
+            }
+        }
+        self.sources = retained;
+        Ok(())
     }
 
     /// Generation options in effect for this revision.
@@ -213,6 +299,14 @@ impl ProjectSession {
     /// transforms, even if an analysis for it is retained.
     pub fn artifacts(&self) -> &BTreeMap<ModuleId, CompiledModule> {
         &self.artifacts
+    }
+
+    /// Returns a published artifact only when it matches the attempted analysis.
+    pub fn current_artifact(&self, module: &ModuleId) -> Option<&CompiledModule> {
+        let analysis = self.analyses.get(module)?;
+        let artifact = self.artifacts.get(module)?;
+        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
+        (artifact.key == backend.key_for(analysis)).then_some(artifact)
     }
 
     /// Analyses by module, including ones whose compilation failed.
@@ -284,7 +378,7 @@ impl ProjectSession {
             return ModuleUpdate::default();
         }
         let module_id = analysis.module_id.clone();
-        let mut compiled = backend.compile_with(&analysis, &self.identifiers);
+        let mut compiled = backend.compile(&analysis, &self.identifiers);
         let mut symbols = self.document_names(module_id.as_str());
         for symbol in &compiled.symbols {
             if let Some(collision) = insert_document_name(&mut symbols, symbol) {
@@ -338,6 +432,7 @@ impl ProjectSession {
     /// Removes one producer, returning whether it was registered.
     pub fn remove_module(&mut self, module: &str) -> bool {
         let removed = self.analyses.remove(module).is_some();
+        self.reported.remove(&ModuleId::from(module));
         let dependents = self.composition_dependents(&ModuleId::from(module));
         self.remove_artifact(module);
         self.refresh_composition_lints(dependents);
@@ -420,7 +515,15 @@ impl ProjectSession {
             }
         };
         let old_css = self.css();
-        let mut next = Self::new(snapshot, self.mode, options, self.identifiers.clone());
+        let mut next = Self::new(
+            snapshot,
+            &self.sources,
+            self.mode,
+            options,
+            self.identifiers.clone(),
+        );
+        next.sources = self.sources.clone();
+        next.reported = self.reported.clone();
         next.authored = self.authored.clone();
         if next.current.fingerprints().content == self.current.fingerprints().content
             && next.options == self.options

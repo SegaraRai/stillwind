@@ -18,7 +18,7 @@ use stillwind_syntax::Value;
 
 use super::super::builtins::registry::builtin_utilities;
 use super::super::values::arbitrary::decode_arbitrary;
-use super::body::{UtilityResolution, resolve_css_utility_body};
+use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
 use crate::{CustomUtility, ThemeIndex};
@@ -49,21 +49,21 @@ pub(crate) fn resolve_named_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
-) -> Option<UtilityResolution> {
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     // Application CSS is the authoritative registry layer. It must be able to replace
     // every built-in name.
-    if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme) {
-        return Some(declaration);
+    if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme)? {
+        return Ok(Some(declaration));
     }
-    if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme) {
-        return Some(declaration);
+    if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme)? {
+        return Ok(Some(declaration));
     }
     // A failed `@utility` branch is a type error, not an invitation to use a legacy
     // property-prefix fallback. Keeping that fallback here made `p-[color:red]` and
     // `border-[time:1ms]` appear valid after the typed registry correctly rejected
     // them. Arbitrary properties (`[x:y]`) are handled explicitly by the candidate
     // grammar above; named utilities are defined solely by CSS registry entries.
-    None
+    Ok(None)
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored built-ins.
@@ -73,7 +73,7 @@ pub(crate) fn resolve_user_css_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
-) -> Option<UtilityResolution> {
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
@@ -94,7 +94,7 @@ pub(crate) fn resolve_builtin_css_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
-) -> Option<UtilityResolution> {
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
@@ -126,20 +126,19 @@ pub(crate) fn resolve_css_utility_branches<'a>(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-) -> Option<UtilityResolution> {
-    let mut branches = utilities
-        .filter_map(|utility| {
-            resolve_css_utility_body(utility, name, modifier, theme).map(|resolution| {
-                (
-                    utility_branch_specificity(utility, name),
-                    utility.name == name,
-                    utility_value_types(utility),
-                    resolution,
-                    utility.builtin_order,
-                )
-            })
-        })
-        .collect::<Vec<_>>();
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
+    let mut branches = Vec::new();
+    for utility in utilities {
+        if let Some(resolution) = resolve_css_utility_body(utility, name, modifier, theme)? {
+            branches.push((
+                utility_branch_specificity(utility, name),
+                utility.name == name,
+                utility_value_types(utility),
+                resolution,
+                utility.builtin_order,
+            ));
+        }
+    }
     branches.sort_by_key(|(specificity, _, _, _, _)| std::cmp::Reverse(*specificity));
     let has_exact = branches.iter().any(|(_, exact, _, _, _)| *exact);
     if has_exact {
@@ -164,7 +163,9 @@ pub(crate) fn resolve_css_utility_branches<'a>(
             branches.retain(|(_, _, domains, _, _)| domains.contains(&selected));
         }
     }
-    let (_, _, _, mut resolution, _) = branches.first()?.clone();
+    let Some((_, _, _, mut resolution, _)) = branches.first().cloned() else {
+        return Ok(None);
+    };
     for (_, _, _, branch, _) in branches.into_iter().skip(1) {
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
@@ -189,7 +190,7 @@ pub(crate) fn resolve_css_utility_branches<'a>(
             resolution.additional.extend(branch.additional);
         }
     }
-    Some(resolution)
+    Ok(Some(resolution))
 }
 
 /// The value types a definition mentions in its `[type]` hints, in authored order and

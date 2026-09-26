@@ -10,12 +10,13 @@ use super::*;
 fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         "@theme { --color-accent: oklch(.6 .2 250); --spacing-4: 1rem; }",
     )
     .unwrap();
 
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
 
     assert_eq!(theme.tokens.len(), 2);
     assert_eq!(theme.tokens[0].name.value, "--color-accent");
@@ -27,12 +28,11 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
 #[test]
 fn matches_tailwind_theme_token_emission_modes() {
     let source = SourceFile::new(
-        FileId(7),
-        "stillwind.css",
+        FileId(7), None, None,
         "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
     ).unwrap();
-    let theme = parse_theme(&source).unwrap();
-    let required = theme.tokens_required_by("color:var(--color-used);", false);
+    let theme = parse_theme(&source, "test.css").unwrap();
+    let required = theme.tokens_required_by("color:var(--color-used);", false, &[]);
     assert!(
         required
             .iter()
@@ -60,18 +60,20 @@ fn matches_tailwind_theme_token_emission_modes() {
 fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         "@theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let required = theme.tokens_required_by(
         "@media (width >= 60rem) {} @media (width >= 70rem) {}",
         false,
+        &[],
     );
 
     assert!(required.is_empty());
-    let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false);
+    let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false, &[]);
     assert_eq!(referenced.len(), 1);
     assert_eq!(referenced[0].name.value, "--breakpoint-foo");
 }
@@ -80,13 +82,14 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
 fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         r#"@stillwind { prefix: "--app-"; lint { prefer-typed-relationships: warn; } }
 .card { color: red; }"#,
     )
     .unwrap();
 
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
 
     assert_eq!(theme.config.prefix.as_deref(), Some("--app-"));
     assert!(theme.config.lint_enabled("prefer-typed-relationships"));
@@ -98,7 +101,8 @@ fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
 fn applies_tailwind_defaults_and_namespace_resets() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         "@theme { --color-*: initial; --color-brand: oklch(.6 .2 250); }",
     )
     .unwrap();
@@ -120,7 +124,8 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     let individual = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
-            "stillwind.css",
+            None,
+            None,
             "@import \"stillwind/utilities.css\" layer(utilities);",
         )
         .unwrap(),
@@ -130,8 +135,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     assert!(individual.scale(ThemeNamespace::Spacing).is_none());
 
     let with_builtins = parse_fixture_theme(&SourceFile::new(
-            FileId(7),
-            "stillwind.css",
+            FileId(7), None, None,
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap())
         .unwrap();
@@ -145,7 +149,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     assert!(!with_builtins.custom_css().contains("@import"));
 
     let aggregate = parse_fixture_theme(
-        &SourceFile::new(FileId(7), "stillwind.css", "@import \"stillwind\";").unwrap(),
+        &SourceFile::new(FileId(7), None, None, "@import \"stillwind\";").unwrap(),
     )
     .unwrap();
     assert!(!aggregate.registry.utilities.is_empty());
@@ -156,10 +160,12 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     let external_import = parse_theme(
         &SourceFile::new(
             FileId(7),
-            "stillwind.css",
+            None,
+            None,
             "@import \"tailwindcss/utilities\" layer(utilities);",
         )
         .unwrap(),
+        "test.css",
     )
     .unwrap();
     assert!(
@@ -174,7 +180,8 @@ fn consumes_framework_imports_but_preserves_other_css_imports() {
     let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
-            "stillwind.css",
+            None,
+            None,
             "@import \"./fonts.css\"; @import \"stillwind/builtins.css\"; .card { color: red; }",
         )
         .unwrap(),
@@ -191,7 +198,8 @@ fn retains_default_tokens_after_nested_theme_keyframes() {
     let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
-            "stillwind.css",
+            None,
+            None,
             "@theme { --color-brand: rebeccapurple; }",
         )
         .unwrap(),
@@ -211,12 +219,13 @@ fn retains_default_tokens_after_nested_theme_keyframes() {
 fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         "@theme { --spacing: .25rem; --color-accent: oklch(.6 .2 250); --vendor-value: 1; }",
     )
     .unwrap();
 
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let color = theme.token_in(ThemeNamespace::Color, "accent").unwrap();
 
     assert_eq!(
@@ -239,26 +248,35 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
 fn resolves_theme_reference_fallbacks_generically() {
     let source = SourceFile::new(
         FileId(7),
-        "theme.css",
+        None,
+        None,
         r"@theme { --known: blue; --alias: --theme(--known, initial); }",
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
 
     assert_eq!(
-        theme.resolve_theme_references("--theme(--known, initial)"),
+        theme
+            .resolve_theme_references("--theme(--known, initial)")
+            .unwrap(),
         Some("var(--known)".to_owned())
     );
     assert_eq!(
-        theme.resolve_theme_references("calc(1px + --theme(--missing, 2px))"),
+        theme
+            .resolve_theme_references("calc(1px + --theme(--missing, 2px))")
+            .unwrap(),
         Some("calc(1px + 2px)".to_owned())
     );
     assert_eq!(
-        theme.resolve_theme_references("--theme(--missing, initial)"),
+        theme
+            .resolve_theme_references("--theme(--missing, initial)")
+            .unwrap(),
         None
     );
     assert_eq!(
-        theme.resolve_theme_references("\"--theme(--missing, initial)\""),
+        theme
+            .resolve_theme_references("\"--theme(--missing, initial)\"")
+            .unwrap(),
         Some("\"--theme(--missing, initial)\"".to_owned())
     );
 }
@@ -267,12 +285,13 @@ fn resolves_theme_reference_fallbacks_generically() {
 fn parses_block_variants_and_omits_them_from_authored_output() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         "@variant pressed { &:active { @slot; } }\n.card { color: red; }",
     )
     .unwrap();
 
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
 
     assert_eq!(
         theme.variant("pressed").unwrap().body,
@@ -286,7 +305,8 @@ fn parses_block_variants_and_omits_them_from_authored_output() {
 fn separates_compiler_property_definitions_from_authored_property_rules() {
     let source = SourceFile::new(
         FileId(7),
-        "stillwind.css",
+        None,
+        None,
         r#"
                 @stillwind-property --example-value {
                   syntax: "<number>";
@@ -303,7 +323,7 @@ fn separates_compiler_property_definitions_from_authored_property_rules() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
 
     assert_eq!(theme.properties.len(), 1);
     assert_eq!(theme.properties[0].name, "--example-value");
@@ -316,7 +336,8 @@ fn separates_compiler_property_definitions_from_authored_property_rules() {
 fn extracts_block_custom_variant() {
     let source = SourceFile::new(
         FileId(1),
-        "fixture.css",
+        None,
+        None,
         "@custom-variant theme-dark { &:where([data-theme=dark] *) { @slot; } }",
     )
     .unwrap();

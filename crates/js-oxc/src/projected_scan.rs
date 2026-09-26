@@ -39,11 +39,7 @@ pub(crate) fn parse_projected(
     {
         return Err(ProjectionError::Map("incomplete converter identity".into()));
     }
-    let generated = SourceFile::new(
-        input.code.id(),
-        projection.original.path(),
-        input.code.text(),
-    )?;
+    let generated = SourceFile::new(input.code.id(), None, None, input.code.text())?;
     let normalized = normalize_with_language(
         &generated,
         &projection.original,
@@ -51,6 +47,7 @@ pub(crate) fn parse_projected(
         framework,
         projection.analysis_id,
         input.language,
+        input.module_kind,
     )?;
     let coordinates = |span| {
         normalized
@@ -60,9 +57,11 @@ pub(crate) fn parse_projected(
     };
     let mut parsed = parse_with_coordinates(
         &normalized.source,
+        input.module_id.as_str(),
         facts,
         assets,
         input.language,
+        input.module_kind,
         &projection.original,
         &coordinates,
     );

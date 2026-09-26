@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -44,7 +45,7 @@ export class TypeFactsError extends Error {
   }
 
   /** Formats original UTF-8 bounds and original UTF-16 editor coordinates. */
-  diagnostic(source: string) {
+  diagnostic(source: string, uri: string) {
     const position = (offset: number) => {
       const utf16 = byteToUtf16(source, offset);
       const lines = source.slice(0, utf16).split("\n");
@@ -59,7 +60,8 @@ export class TypeFactsError extends Error {
     return {
       code: this.code,
       message: this.message,
-      file: this.path,
+      uri,
+      revision: createHash("sha256").update(source).digest("hex"),
       start: this.start,
       end: this.end,
       start_utf16: start.utf16,

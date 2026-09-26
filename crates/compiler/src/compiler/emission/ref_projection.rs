@@ -54,18 +54,14 @@ impl CallEmitter<'_> {
                 return None;
             }
         };
-        let (declaration, name_symbol) = match render_ref_projection(
-            self.identifiers,
-            definition,
-            projection,
-            self.source.path(),
-        ) {
-            Ok(rendered) => rendered,
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                return None;
-            }
-        };
+        let (declaration, name_symbol) =
+            match render_ref_projection(self.identifiers, definition, projection, self.module_id) {
+                Ok(rendered) => rendered,
+                Err(failure) => {
+                    self.reject_name(failure, self.call.span);
+                    return None;
+                }
+            };
         if let Some(symbol) = name_symbol {
             self.written_name_symbols.push(symbol);
         }
@@ -139,7 +135,7 @@ impl CallEmitter<'_> {
                 self.identifiers,
                 definition,
                 projection,
-                self.source.path(),
+                self.module_id,
             ) {
                 Ok(rendered) => rendered,
                 Err(failure) => {
@@ -253,7 +249,17 @@ mod tests {
 
     use super::*;
     use crate::compiler::symbols::{boundary_marker_name, ref_marker_name};
-    use crate::identifiers::{IdentifierContext, IdentifierPool};
+    use crate::identifiers::{
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, IdentifierPool,
+    };
+
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
+    }
 
     #[test]
     fn projections_share_identity_and_boundaries_name_their_own_declaration() {
@@ -265,10 +271,10 @@ mod tests {
             boundary: None,
             call_span: binding.span,
         };
-        let identifiers = IdentifierContext::builtin();
-        let marker = ref_marker_name(&identifiers, &definition).unwrap();
+        let context = identifiers();
+        let marker = ref_marker_name(&context, &definition).unwrap();
         let (anchor, anchor_symbol) =
-            render_ref_projection(&identifiers, &definition, &RefProjection::Anchor, "x").unwrap();
+            render_ref_projection(&context, &definition, &RefProjection::Anchor, "x").unwrap();
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
         let anchor_symbol = anchor_symbol.expect("anchor name symbol");
         assert_eq!(anchor_symbol.pool, IdentifierPool::AnchorName);
@@ -276,20 +282,15 @@ mod tests {
             anchor_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
         );
-        let (position, _) = render_ref_projection(
-            &identifiers,
-            &definition,
-            &RefProjection::PositionAnchor,
-            "x",
-        )
-        .unwrap();
+        let (position, _) =
+            render_ref_projection(&context, &definition, &RefProjection::PositionAnchor, "x")
+                .unwrap();
         assert_eq!(position, format!("position-anchor:{reference}"));
         let (scope_projection, _) =
-            render_ref_projection(&identifiers, &definition, &RefProjection::AnchorScope, "x")
-                .unwrap();
+            render_ref_projection(&context, &definition, &RefProjection::AnchorScope, "x").unwrap();
         assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
         let (container, container_symbol) = render_ref_projection(
-            &identifiers,
+            &context,
             &definition,
             &RefProjection::Container(Spanned::new("size".into(), binding.span)),
             "x",
@@ -315,13 +316,13 @@ mod tests {
             call_span: binding.span,
         });
         let boundary =
-            boundary_marker_name(&identifiers, definition.boundary.as_ref().unwrap()).unwrap();
+            boundary_marker_name(&context, definition.boundary.as_ref().unwrap()).unwrap();
         // A boundary is a ref declaration, so the element carrying it wears that
         // declaration's own marker class.
         assert_eq!(
             boundary.as_str(),
             ref_marker_name(
-                &identifiers,
+                &context,
                 &RefDefinition {
                     module_path: "x".into(),
                     binding: binding.clone(),
@@ -336,6 +337,6 @@ mod tests {
         definition.label = Some(binding);
         // A label is spelled into the name, so the same declaration wears a different
         // marker once it has one; the identity the name hashes does not move.
-        assert_ne!(ref_marker_name(&identifiers, &definition).unwrap(), marker);
+        assert_ne!(ref_marker_name(&context, &definition).unwrap(), marker);
     }
 }

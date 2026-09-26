@@ -3,7 +3,7 @@
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::Span;
 
 use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
@@ -18,7 +18,7 @@ use crate::identifiers::IdentifierContext;
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
 pub(in crate::compiler) fn emit_keyframes_definition(
     contribution: &mut CssContribution,
-    source: &SourceFile,
+    module_id: &str,
     identifiers: &IdentifierContext,
     keyframes: &KeyframesDefinition,
     theme: &ThemeIndex,
@@ -35,7 +35,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
     );
     definitions.sort_by(|(left, _, _), (right, _, _)| left.compare_order(right, theme));
     let name = match identifiers.keyframes_name(&named_declaration(
-        source.path(),
+        module_id,
         &keyframes.binding,
         keyframes.label.as_ref(),
     )) {
@@ -131,14 +131,21 @@ fn emit_frames(
         let mut utilities = Vec::new();
         for utility in lex_utilities(&frame.utilities, diagnostics) {
             match resolve_utility(&utility.value.raw, theme) {
-                Some(utility) if utility.variants.is_empty() => utilities.push(utility),
-                Some(_) => diagnostics.push(CompileError::new(
+                Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
+                Ok(Some(_)) => diagnostics.push(CompileError::new(
                     CompileErrorKind::KeyframesFrameVariants,
                     utility.span,
                 )),
-                None => diagnostics.push(CompileError::new(
+                Ok(None) => diagnostics.push(CompileError::new(
                     CompileErrorKind::UnavailableUtility {
                         utility: utility.value.raw.clone(),
+                    },
+                    utility.span,
+                )),
+                Err(error) => diagnostics.push(CompileError::new(
+                    CompileErrorKind::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
                     },
                     utility.span,
                 )),
@@ -161,8 +168,9 @@ fn emit_frames(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::FileId;
+    use stillwind_source::{FileId, SourceFile};
 
     use super::*;
     use crate::Compiler;
@@ -170,13 +178,21 @@ mod tests {
     #[test]
     fn reports_frame_variants_at_their_own_span() {
         let source = SourceFile::new(
-            FileId(1),
-            "motion.tsx",
+            FileId(1), None, None,
             "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'hover:opacity-0' });",
         )
         .unwrap();
-        let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &crate::CompilerOptions::default(),
+        );
         let errors = result
             .diagnostics
             .iter()

@@ -5,7 +5,9 @@
 //! the ref's target, that boundary refs get readable marker names, and that a selector
 //! which cannot hold the required ancestry is rejected.
 
+use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::LintKind;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -14,14 +16,24 @@ use super::*;
 fn ref_projection_inside_variant_keeps_the_selector_gate() {
     let component = SourceFile::new(
         FileId(1),
-        "src/ProjectionVariant.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
 export const item = style({ "hover:": trigger.positionAnchor });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
         result.css.contains("position-anchor:--sw-a-"),
@@ -35,14 +47,24 @@ export const item = style({ "hover:": trigger.positionAnchor });"#,
 fn conditional_region_collects_utilities_and_ref_projection_into_one_class() {
     let component = SourceFile::new(
         FileId(1),
-        "src/ConditionalProjection.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const anchor = style.ref();
 export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"]);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 1, "{:?}", result.classes);
     let class = &result.classes[0].class_name;
@@ -70,14 +92,24 @@ export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"])
 fn unconditional_projection_and_custom_property_materialize_direct_props() {
     let component = SourceFile::new(
         FileId(1),
-        "src/DirectProjection.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const anchor = style.ref();
 export const item = style("flex", anchor.positionAnchor, { "--x": size });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 1, "{:?}", result.classes);
     let output = result.transforms[0].replacement.as_str();
@@ -90,7 +122,8 @@ export const item = style("flex", anchor.positionAnchor, { "--x": size });"#,
 fn projects_one_ref_into_anchor_position_and_container_names() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Popover.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
 const root = style(popover.anchorScope, popover.container("inline-size"));
@@ -98,9 +131,18 @@ const trigger = style(popover.anchor, "relative");
 const panel = style(popover.positionAnchor, "absolute");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("anchor-name:--sw-a-"));
@@ -146,15 +188,25 @@ const panel = style(popover.positionAnchor, "absolute");"#,
 fn reports_a_position_anchor_use_without_an_anchor_provider() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Popover.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
 const panel = style(popover.positionAnchor);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(
         result
@@ -169,16 +221,26 @@ const panel = style(popover.positionAnchor);"#,
 fn emits_named_container_rules_from_ref_queries() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Card.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const card = style.ref();
 const root = style(card.container("inline-size"));
 const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     // The container projection writes the name and the query reads the same one back,
@@ -211,11 +273,20 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         "{[card.at`width >= 40rem`]: {'hover:': 'grid-cols-2'}}",
         "`${card.at('width >= 40rem')}:hover:grid-cols-2`",
     ] {
-        let source = SourceFile::new(FileId(1), "entry.tsx", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card.container('size')); const x = style({input});"
         )).unwrap();
-        let theme = crate::css_fixture::source(FileId(2), "theme.css", "@theme {}").unwrap();
-        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
         assert!(result.diagnostics.is_empty(), "{result:#?}");
         assert!(result.lint_findings.is_empty(), "{result:#?}");
         assert!(result.css.contains("@container sw-c-"), "{}", result.css);
@@ -227,21 +298,26 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
 fn uses_ref_tagged_selectors_as_automatically_named_parent_groups() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Menu.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
 const parent = style(trigger.anchor, "inline-flex");
 const child = style({ [trigger`hover:`]: "text-accent" });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    )
-    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let marker = "sw_";
@@ -253,21 +329,24 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
 #[test]
 fn boundaries_place_refs_across_siblings_and_use_readable_marker_names() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Menu.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></section>;"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    )
-    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
@@ -307,21 +386,24 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
 #[test]
 fn rejects_a_bounded_ref_selector_target_outside_its_boundary() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Menu.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    )
-    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(
         result
@@ -337,16 +419,26 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
 fn rejects_a_boundary_attached_outside_its_ref_ancestry() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Menu.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
 const trigger = style.ref(menu);
 export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(
         result
@@ -362,7 +454,8 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
 fn one_ref_is_both_a_selector_subject_and_a_boundary() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Menu.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
@@ -375,9 +468,18 @@ export const Menu = () => (
 );"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -400,7 +502,8 @@ export const Menu = () => (
 fn a_bounded_ref_can_bound_another_ref() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Nested.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const outer = style.ref("outer");
 const inner = style.ref(outer, "inner");
@@ -415,9 +518,18 @@ export const View = () => (
 );"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(

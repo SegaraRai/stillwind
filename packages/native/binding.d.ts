@@ -11,8 +11,11 @@
 export declare class NativeDesignSystemLoader {
   /** Creates a loader for the given compiler options. */
   constructor(options?: NativeCompilerOptions | undefined | null)
-  /** Answers one outstanding request; equivalent to [`Self::provide_many`] with one file. */
-  provide(id: number, name: string, content: string): NativeCssLoadStep
+  /**
+   * Answers one outstanding request; equivalent to [`Self::provide_many`] with one file.
+   * An absent URI marks the CSS as an internal buffer without a reportable location.
+   */
+  provide(id: number, name: string, content: string, uri?: string | undefined | null, sourceMapSource?: string | undefined | null): NativeCssLoadStep
   /**
    * Answers any subset of the outstanding requests, in any order.
    *
@@ -27,6 +30,8 @@ export declare class NativeDesignSystemLoader {
 
 /** Mutable project state for one Vite or CLI session. */
 export declare class NativeProjectSession {
+  /** Returns the latest attempted diagnostics for every retained module. */
+  diagnosticBatches(): Array<NativeDiagnosticBatch>
   /**
    * Creates a session from a completed loader. `watch` selects whether a failed
    * reload retains the last known good revision.
@@ -43,6 +48,8 @@ export declare class NativeProjectSession {
    * change to them.
    */
   constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null, naming?: NativeIdentifierNaming | undefined | null)
+  /** Creates a CSS loader in this session's source ID scope for a reload. */
+  newLoader(options?: NativeCompilerOptions | undefined | null): NativeDesignSystemLoader
   /**
    * Publishes a reloaded design system and reports what changed.
    *
@@ -80,14 +87,24 @@ export declare class NativeProjectSession {
   compile(sources: Array<NativeProjectSource>, producer?: string | undefined | null): ProjectBindingOutput
 }
 
+/** One alternative fix offered for a diagnostic. */
+export interface BindingAction {
+  /** Title shown by an editor. */
+  title: string
+  /** Edits applied atomically after verifying every source revision. */
+  edits: Array<BindingEdit>
+}
+
 /** One compiler error, in both byte and editor coordinates. */
 export interface BindingDiagnostic {
   /** Stable diagnostic code, such as `SH001`. */
   code: string
   /** Rendered message. */
   message: string
-  /** Path of the file the primary label points at. */
-  file: string
+  /** Exact source document identity. */
+  uri: string
+  /** Fingerprint of the source revision used for the range. */
+  revision: string
   /** Byte start of the primary label. */
   start: number
   /** Byte end of the primary label. */
@@ -108,20 +125,70 @@ export interface BindingDiagnostic {
   notes: Array<string>
 }
 
+/** A revision-pinned replacement edit. */
+export interface BindingEdit {
+  /** Range in the source revision to replace. */
+  location: BindingLocation
+  /** Text inserted at the range. */
+  replacement: string
+}
+
+/** A highlight and its explanation. */
+export interface BindingLabel {
+  /** Source revision and editor range. */
+  location: BindingLocation
+  /** Explanation for this range, when one was supplied. */
+  message?: string
+}
+
 /** One lint finding. */
 export interface BindingLintFinding {
   /** Rule name, as used by `swlint-disable` directives. */
   rule: string
   /** Rendered message. */
   message: string
-  /** Path of the file the finding points at. */
-  file: string
+  /** Exact source document identity. */
+  uri: string
+  /** Fingerprint of the source revision used for the range. */
+  revision: string
   /** Byte start of the finding. */
   start: number
   /** Byte end of the finding. */
   end: number
+  /** Zero-based line of the primary range start. */
+  start_line: number
+  /** Zero-based UTF-16 column of the primary range start. */
+  start_column: number
+  /** Zero-based line of the primary range end. */
+  end_line: number
+  /** Zero-based UTF-16 column of the primary range end. */
+  end_column: number
   /** Additional explanation lines. */
   notes: Array<string>
+}
+
+/** Document identity, revision, and complete half-open editor range. */
+export interface BindingLocation {
+  /** Absolute document URI supplied by the host or formed for a virtual input. */
+  uri: string
+  /** Fingerprint of the exact source text used for these coordinates. */
+  revision: string
+  /** Inclusive UTF-8 byte offset. */
+  start: number
+  /** Exclusive UTF-8 byte offset. */
+  end: number
+  /** Zero-based UTF-16 offset from the document start. */
+  start_utf16: number
+  /** Zero-based UTF-16 offset from the document start. */
+  end_utf16: number
+  /** Zero-based start line. */
+  start_line: number
+  /** Zero-based UTF-16 column on `start_line`. */
+  start_column: number
+  /** Zero-based end line. */
+  end_line: number
+  /** Zero-based UTF-16 column on `end_line`. */
+  end_column: number
 }
 
 /** Result of compiling one module. */
@@ -142,6 +209,8 @@ export interface BindingOutput {
   symbols: Array<NativeGeneratedSymbol>
   /** Errors. Non-empty means nothing was published for this module. */
   diagnostics: Array<BindingDiagnostic>
+  /** Source-resolved diagnostics, including related locations and fixes. */
+  reports: Array<BindingReport>
   /**
    * Names a host-generated identifier was rejected for, which the host may warn about.
    *
@@ -168,6 +237,24 @@ export interface BindingRejectedIdentifier {
   substituted: boolean
 }
 
+/** One source-resolved diagnostic transferred from the common reporting layer. */
+export interface BindingReport {
+  /** Stable compiler code or lint rule. */
+  code: string
+  /** Human-readable cause. */
+  message: string
+  /** Effective `error` or `warning` level after lint policy. */
+  severity: string
+  /** Main highlighted range. */
+  primary: BindingLabel
+  /** Further highlighted ranges in producer order. */
+  related: Array<BindingLabel>
+  /** Supplementary explanations. */
+  notes: Array<string>
+  /** Alternative revision-pinned fixes. */
+  actions: Array<BindingAction>
+}
+
 /**
  * Compiles a resolved module graph in one native invocation.
  *
@@ -175,18 +262,16 @@ export interface BindingRejectedIdentifier {
  *
  * Returns a JavaScript error for invalid input or an unresolved graph edge.
  */
-export declare function compileProject(sources: Array<NativeProjectSource>, theme: string, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
+export declare function compileProject(sources: Array<NativeProjectSource>, css: NativeCompileCssInput, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
 
 /**
- * Compiles one source module through the native Node entrypoint.
- *
- * napi-rs converts inputs and outputs directly to JavaScript values.
+ * Compiles one host-identified script and CSS source.
  *
  * # Errors
  *
- * Returns a JavaScript error for invalid source or options.
+ * Returns a JavaScript error for invalid URIs, sources, or options.
  */
-export declare function compileSource(source: string, sourcePath: string | undefined | null, theme: string, options?: NativeCompilerOptions | undefined | null): BindingOutput
+export declare function compileSource(input: NativeCompileSourceInput, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
 /**
  * Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
@@ -194,9 +279,15 @@ export declare function compileSource(source: string, sourcePath: string | undef
  * semantic normalization. Expressions that do not parse, or that nest values deeper
  * than the calculator accepts, are retained byte-for-byte.
  */
-export declare function foldCalcExpressions(css: string): string
+export declare function foldCalcExpressions(css: string, zeroUnit?: string | undefined | null): string
 
-/** Generates the TypeScript vocabulary augmentation for one CSS-first theme. */
+/**
+ * Generates the TypeScript vocabulary augmentation for one CSS-first theme.
+ *
+ * # Errors
+ *
+ * Returns a JavaScript error when the theme is invalid or vocabulary generation fails.
+ */
 export declare function generateVocabularyTypes(theme: string): string
 
 /** Source offsets in the host transport are UTF-16; native spans are bytes. */
@@ -277,6 +368,18 @@ export interface NativeClassContext {
   branch: string
 }
 
+/** Host metadata and CSS text for a compilation. */
+export interface NativeCompileCssInput {
+  /** CSS source text. */
+  content: string
+  /** Opaque identity used for CSS import and resource resolution. */
+  name: string
+  /** Absolute URI of the editable CSS document. */
+  uri: string
+  /** Exact source name for generated CSS maps. */
+  source_map_source?: string
+}
+
 /**
  * Optional host overrides for prefixes, lint policy, class identity, and conditional
  * CSS. Conversion validates prefixes; omitted fields retain [`CompilerOptions`]
@@ -307,6 +410,24 @@ export interface NativeCompilerOptions {
    * Defaults to 5. Values from 1 to 50 are accepted.
    */
   hashLength?: number
+}
+
+/** Host metadata and source texts for a standalone compilation. */
+export interface NativeCompileSourceInput {
+  /** Parser input text. */
+  source: string
+  /** Module identity used for generated names and semantic references. */
+  module_id: string
+  /** Absolute URI of the editable script document. */
+  uri: string
+  /** Exact source name for generated CSS maps. */
+  source_map_source?: string
+  /** Parser dialect chosen by the host. */
+  language: NativeScriptLanguage
+  /** Module grammar chosen by the host. */
+  module_kind: NativeScriptModuleKind
+  /** CSS source and its identities. */
+  css: NativeCompileCssInput
 }
 
 /** The fields of a conditional helper request. */
@@ -341,8 +462,12 @@ export type NativeCoverage =
 export interface NativeCssFileInput {
   /** Request id being answered; `0` is the root source. */
   id: number
-  /** Opaque host-chosen source name. The loader never interprets it. */
+  /** Opaque host-chosen CSS resolution name, compared verbatim by the loader. */
   name: string
+  /** Absolute document URI supplied by the host; absent means an internal buffer. */
+  uri?: string
+  /** Exact source name to write into a generated source map. */
+  sourceMapSource?: string
   /** Full text of the source. */
   content: string
 }
@@ -378,7 +503,7 @@ export interface NativeCssResource {
   placeholder: string
   /** Opaque name of the source that owns the reference. */
   owner: string
-  /** Authored url() specifier. */
+  /** Authored `url()` specifier. */
   specifier: string
   /** Byte start of the complete authored resource expression in the owning source. */
   start: number
@@ -398,6 +523,14 @@ export interface NativeDeclarationContext {
   binding: string
   /** Authored label, when the declaration has one. */
   label?: string
+}
+
+/** Latest source-resolved findings for one module's attempted revision. */
+export interface NativeDiagnosticBatch {
+  /** Project module identity for the attempted analysis. */
+  module: string
+  /** Diagnostics in report order. */
+  reports: Array<BindingReport>
 }
 
 /**
@@ -588,8 +721,8 @@ export interface NativeMapEntry {
 
 /** One source referenced by a stylesheet map. */
 export interface NativeMapSource {
-  /** Module path of the source. */
-  path: string
+  /** Host-supplied source-map entry name for this source revision. */
+  sourceMapSource: string
   /**
    * Full text, so a consumer can build a standard source map without reading the
    * file again.
@@ -597,7 +730,7 @@ export interface NativeMapSource {
   content: string
 }
 
-/** A url() reference the host must resolve. */
+/** A `url()` reference the host must resolve. */
 export interface NativeModuleResource {
   /** Placeholder left in the generated CSS. */
   placeholder: string
@@ -657,6 +790,8 @@ export type NativeProjectionMap =
 
 /** Plain JavaScript source input. Optional vectors default to empty in native code. */
 export interface NativeProjectSource {
+  /** Host-supplied absolute URI of the original editable document. */
+  uri: string
   /** Module path as the host knows it; used for identity, never for reading. */
   path: string
   /**
@@ -666,8 +801,12 @@ export interface NativeProjectSource {
   source: string
   /** Facts the host produced for this module, empty when it has none. */
   type_facts?: Array<NativeTypeFact>
-  /** Explicit dialect; defaults to the extension of [`Self::path`]. */
-  language?: NativeScriptLanguage
+  /** Parser dialect supplied by the host. */
+  language: NativeScriptLanguage
+  /** Module grammar, independent of the JavaScript or TypeScript dialect. */
+  module_kind: NativeScriptModuleKind
+  /** Exact source name for generated stylesheet maps. */
+  source_map_source?: string
   /** Adapter to use; absent for plain JavaScript/TypeScript. */
   framework?: NativeFramework
   /** Source map from `source` back to the file it was generated from. */
@@ -721,11 +860,14 @@ export interface NativeReload {
 }
 
 /** Script dialect requested by the host. */
-export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx'
+export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx' | 'dts'
+
+/** Module grammar supplied for the Oxc parser. */
+export type NativeScriptModuleKind = 'module' | 'commonJs' | 'script' | 'unambiguous'
 
 /** A byte span with an explicit file id. */
 export interface NativeSpan {
-  /** File the span belongs to. */
+  /** File ID within the session's source scope. */
   file: number
   /** Byte start. */
   start: number
@@ -907,6 +1049,8 @@ export interface ProjectModuleOutput {
   symbols: Array<NativeGeneratedSymbol>
   /** Errors. Non-empty means nothing was published for this module. */
   diagnostics: Array<BindingDiagnostic>
+  /** Source-resolved diagnostics for this module. */
+  reports: Array<BindingReport>
   /** Names a host-generated identifier was rejected for, which the host may warn about. */
   rejected_names: Array<BindingRejectedIdentifier>
   /** Non-fatal findings. */
@@ -940,4 +1084,4 @@ export declare function scanSource(source: NativeProjectSource): NativeModuleSum
  *
  * Returns a JavaScript error for invalid source coordinates.
  */
-export declare function summarizeSource(source: string, sourcePath?: string | undefined | null): NativeModuleSummary
+export declare function summarizeSource(source: string, moduleId: string, language: NativeScriptLanguage, moduleKind: NativeScriptModuleKind): NativeModuleSummary

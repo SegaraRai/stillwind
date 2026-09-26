@@ -37,6 +37,7 @@ async function compile(source: string, warnings: string[] = []) {
         read: async () => {
           throw new Error("unexpected dependency");
         },
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch: () => {},
         warn: (message) => warnings.push(message),
       },

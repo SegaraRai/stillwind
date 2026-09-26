@@ -108,6 +108,7 @@ export class EditorProject {
         id,
         this.root,
         {
+          documentUri: (dependency) => this.host.documentUri(dependency),
           resolve: async (...args) => {
             assertActive();
             const resolved = await this.host.resolve(...args);

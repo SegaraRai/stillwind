@@ -9,24 +9,31 @@ use std::sync::Arc;
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
 /// One analyzed module whose single call uses the given candidate.
 fn module(name: &str, candidate: &str) -> ModuleAnalysis {
     OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(Arc::new(
-            SourceFile::new(
-                FileId(1),
-                name,
-                format!(
-                    "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                ),
-            )
-            .unwrap(),
-        )),
+        OxcSourceAnalyzer.scan(
+            Arc::new(
+                SourceFile::new(
+                    FileId(1),
+                    None,
+                    None,
+                    format!(
+                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
+                    ),
+                )
+                .unwrap(),
+            ),
+            ModuleId::from(name),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
         None,
     )
 }
@@ -43,7 +50,8 @@ fn failing_module(name: &str) -> ModuleAnalysis {
 
 fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), "theme", css).unwrap(),
+        &crate::css_fixture::source(FileId(2), css).unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -51,20 +59,28 @@ fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
 
 fn reload_module() -> ModuleAnalysis {
     let source = SourceFile::new(
-        FileId(1),
-        "motion.tsx",
+        FileId(1), None, None,
         "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'brand' }); const x = style(motion('both')); ",
     ).unwrap();
-    OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(source)), None)
+    OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            Arc::new(source),
+            ModuleId::from("motion.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    )
 }
 
 #[test]
 fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     let mut session = ProjectSession::new(
         reload_snapshot("@utility brand { color:red; }"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     assert!(
         session
@@ -74,12 +90,20 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     );
     let other = SourceFile::new(
         FileId(3),
-        "other.tsx",
+        None,
+        None,
         "import { style } from 'stillwind/react'; const x = style('flex');",
     )
     .unwrap();
-    let analysis =
-        OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(std::sync::Arc::new(other)), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            Arc::new(other),
+            ModuleId::from("other.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     assert!(session.update_module(analysis).diagnostics.is_empty());
     let other_artifact = session.artifacts()["other.tsx"].css.to_css();
     let before_css = session.css().unwrap();
@@ -128,9 +152,10 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
 fn build_load_failure_clears_artifacts_and_dependency_indexes() {
     let mut session = ProjectSession::new(
         reload_snapshot("@utility brand { color:red; }"),
+        &SourceRegistry::default(),
         SessionMode::Build,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     assert!(
         session

@@ -24,17 +24,19 @@ fn main() {
         let pattern = if name == "plain" { "x" } else { "x-*" };
         let source = SourceFile::new(
             FileId(1),
-            "bench.css",
+            None,
+            None,
             format!("@utility {pattern} {{ {body} }}"),
         )
         .unwrap();
-        let theme = parse_theme(&source).unwrap();
-        assert!(resolve_utility(candidate, &theme).is_some());
+        let theme = parse_theme(&source, "test.css").unwrap();
+        assert!(resolve_utility(candidate, &theme).unwrap().is_some());
         let mut samples = Vec::new();
         for _ in 0..5 {
             let start = Instant::now();
             for _ in 0..2000 {
-                black_box(resolve_utility(black_box(candidate), black_box(&theme)));
+                let _ =
+                    black_box(resolve_utility(black_box(candidate), black_box(&theme)).unwrap());
             }
             samples.push(start.elapsed().as_nanos() / 2000);
         }

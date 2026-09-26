@@ -14,14 +14,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
-use stillwind_source::{Fingerprint, SourceFile, Span};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintSeverity, SourceFailureContext};
+use stillwind_source::{Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
 use super::{PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry};
 use crate::{
     BuiltinDefinitions, CssFileRequest, CssSourceGraph, CssSourceName, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, LintSeverity, ThemeIndex,
-    builtin_definitions, builtin_theme_order,
+    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_definitions,
+    builtin_theme_order,
 };
 
 /// Why a snapshot could not be produced from an already supplied buffer.
@@ -62,14 +62,18 @@ impl DesignSystemError {
                 DesignSystemLoadError::Compilation(error) => {
                     return error;
                 }
-                DesignSystemLoadError::InvalidGraph => CompileErrorKind::InvalidCssGraph,
+                DesignSystemLoadError::Registry(SourceRegistryError::FileIdExhausted) => {
+                    CompileErrorKind::CssSourceIdExhausted
+                }
+                DesignSystemLoadError::InvalidGraph | DesignSystemLoadError::Registry(_) => {
+                    CompileErrorKind::InvalidCssGraph
+                }
                 DesignSystemLoadError::Source(error) => {
                     CompileErrorKind::source_failure(&error, SourceFailureContext::Stylesheet)
                 }
                 DesignSystemLoadError::RequestIdExhausted => {
                     CompileErrorKind::CssRequestIdExhausted
                 }
-                DesignSystemLoadError::SourceIdExhausted => CompileErrorKind::CssSourceIdExhausted,
                 DesignSystemLoadError::AlreadyComplete => CompileErrorKind::CssLoadAlreadyComplete,
                 DesignSystemLoadError::InvalidInitialBatch { count } => {
                     CompileErrorKind::InvalidCssInitialBatch { count }
@@ -77,8 +81,8 @@ impl DesignSystemError {
                 DesignSystemLoadError::UnknownOrDuplicateRequest { id } => {
                     CompileErrorKind::UnknownCssRequest { id }
                 }
-                DesignSystemLoadError::ConflictingContent { name } => {
-                    CompileErrorKind::ConflictingCssContent {
+                DesignSystemLoadError::ConflictingSource { name } => {
+                    CompileErrorKind::ConflictingCssSource {
                         name: name.0.to_string(),
                     }
                 }
@@ -187,11 +191,14 @@ impl DesignSystemSnapshot {
     /// loader-local; this rebinding applies only to errors returned from this entry point.
     pub fn from_source(
         source: &SourceFile,
+        source_name: &str,
         options: DesignSystemOptions,
     ) -> Result<Self, DesignSystemError> {
-        match DesignSystemLoader::new(options).provide(
+        match DesignSystemLoader::new(options, SourceRegistry::default()).provide(
             0,
-            CssSourceName::from(source.path()),
+            CssSourceName::from(source_name),
+            source.uri().cloned(),
+            source.source_map_source().map(Into::into),
             source.text().into(),
         ) {
             DesignSystemLoadStep::Complete(result) => result.map_err(|mut error| {

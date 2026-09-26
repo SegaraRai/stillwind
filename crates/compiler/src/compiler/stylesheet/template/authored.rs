@@ -37,8 +37,11 @@ pub(super) fn render_authored(
     options: &CompilerOptions,
     identifiers: &IdentifierContext,
 ) -> Result<String, CompileErrorKind> {
-    let (css, requirements) =
-        take_property_requirements(css).ok_or(CompileErrorKind::InvalidPropertyRequirement)?;
+    let (css, requirements) = take_property_requirements(css).map_err(|error| {
+        CompileErrorKind::MalformedPropertyRequirement {
+            offset: error.offset,
+        }
+    })?;
     required_properties.extend(requirements);
     theme
         .resolve_theme_references(&expand_authored_directives(
@@ -47,6 +50,10 @@ pub(super) fn render_authored(
             required_properties,
             identifiers,
         )?)
+        .map_err(|error| CompileErrorKind::InvalidThemeReference {
+            offset: error.offset(),
+            detail: error.to_string(),
+        })?
         .ok_or(CompileErrorKind::UnresolvedThemeReference)
         .and_then(|css| lower(&css, options.use_css_if, identifiers))
         // The helper prefix is the built-in marker plus the role letter, so replacing the

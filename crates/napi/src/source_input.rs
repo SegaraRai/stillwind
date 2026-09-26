@@ -11,19 +11,18 @@
 //! projection metadata at all. This validation applies to transport conversion;
 //! domain records remain publicly constructible and need validation at use sites.
 
-use std::sync::Arc;
-
 use napi::Error;
 use napi_derive::napi;
 use serde::Deserialize;
 
 use stillwind_ir::{
     AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
-    ProjectionRegion, ScriptLanguage, SourceInput,
+    ProjectionRegion, ScriptLanguage, ScriptModuleKind, SourceInput,
 };
-use stillwind_semantic::TypeFact;
+use stillwind_semantic::{ModuleId, TypeFact};
 use stillwind_source::{
-    CoordinateIndex, FileId, ProjectionMap, SourceFile, Span, Utf16Offset, VolarMapping,
+    CoordinateIndex, FileId, ProjectionMap, SourceFile, SourceRegistry, SourceUri, Span,
+    Utf16Offset, VolarMapping,
 };
 
 use crate::semantic::NativeTypeFact;
@@ -39,6 +38,8 @@ pub enum NativeScriptLanguage {
     Ts,
     /// TypeScript with JSX syntax.
     Tsx,
+    /// TypeScript declaration syntax.
+    Dts,
 }
 impl From<NativeScriptLanguage> for ScriptLanguage {
     fn from(value: NativeScriptLanguage) -> Self {
@@ -47,6 +48,31 @@ impl From<NativeScriptLanguage> for ScriptLanguage {
             NativeScriptLanguage::Jsx => Self::Jsx,
             NativeScriptLanguage::Ts => Self::Ts,
             NativeScriptLanguage::Tsx => Self::Tsx,
+            NativeScriptLanguage::Dts => Self::Dts,
+        }
+    }
+}
+
+/// Module grammar supplied for the Oxc parser.
+#[napi(string_enum = "camelCase")]
+pub enum NativeScriptModuleKind {
+    /// ECMAScript module.
+    Module,
+    /// `CommonJS` module.
+    CommonJs,
+    /// Non-module script.
+    Script,
+    /// Grammar selected from the buffer's syntax.
+    Unambiguous,
+}
+
+impl From<NativeScriptModuleKind> for ScriptModuleKind {
+    fn from(value: NativeScriptModuleKind) -> Self {
+        match value {
+            NativeScriptModuleKind::Module => Self::Module,
+            NativeScriptModuleKind::CommonJs => Self::CommonJs,
+            NativeScriptModuleKind::Script => Self::Script,
+            NativeScriptModuleKind::Unambiguous => Self::Unambiguous,
         }
     }
 }
@@ -94,6 +120,8 @@ pub enum NativeAttributeQuote {
 /// Plain JavaScript source input. Optional vectors default to empty in native code.
 #[napi(object, object_to_js = false)]
 pub struct NativeProjectSource {
+    /// Host-supplied absolute URI of the original editable document.
+    pub uri: String,
     /// Module path as the host knows it; used for identity, never for reading.
     pub path: String,
     /// Text the parser sees, and the buffer edits are applied to when there is no
@@ -102,8 +130,14 @@ pub struct NativeProjectSource {
     /// Facts the host produced for this module, empty when it has none.
     #[napi(js_name = "type_facts")]
     pub type_facts: Option<Vec<NativeTypeFact>>,
-    /// Explicit dialect; defaults to the extension of [`Self::path`].
-    pub language: Option<NativeScriptLanguage>,
+    /// Parser dialect supplied by the host.
+    pub language: NativeScriptLanguage,
+    /// Module grammar, independent of the JavaScript or TypeScript dialect.
+    #[napi(js_name = "module_kind")]
+    pub module_kind: NativeScriptModuleKind,
+    /// Exact source name for generated stylesheet maps.
+    #[napi(js_name = "source_map_source")]
+    pub source_map_source: Option<String>,
     /// Adapter to use; absent for plain JavaScript/TypeScript.
     pub framework: Option<NativeFramework>,
     /// Source map from `source` back to the file it was generated from.
@@ -181,9 +215,12 @@ pub struct NativeConverterIdentity {
 impl TryFrom<NativeProjectSource> for ProjectSource {
     type Error = Error;
     fn try_from(value: NativeProjectSource) -> napi::Result<Self> {
-        let language = value.language.map(Into::into);
+        let language = value.language.into();
+        let module_kind = value.module_kind.into();
         let framework = value.framework.map(Into::into);
         Ok(Self {
+            uri: SourceUri::parse(value.uri)
+                .map_err(|error| Error::from_reason(error.to_string()))?,
             path: value.path,
             source: value.source,
             type_facts: value
@@ -193,6 +230,8 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
                 .map(TryInto::try_into)
                 .collect::<napi::Result<_>>()?,
             language,
+            module_kind,
+            source_map_source: value.source_map_source,
             framework,
             map: value.map,
             fw_code: value.fw_code,
@@ -227,6 +266,8 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
 /// Domain-side projection record deserialized from the host transport.
 #[derive(Deserialize)]
 pub struct ProjectSource {
+    /// Host-supplied identity of the original editable document.
+    pub uri: SourceUri,
     /// Module path as the host knows it.
     pub path: String,
     /// Text the parser sees.
@@ -234,8 +275,12 @@ pub struct ProjectSource {
     /// Facts the host produced for this module.
     #[serde(default)]
     pub type_facts: Vec<TypeFact>,
-    /// Explicit dialect, or `None` to derive it from [`Self::path`].
-    pub language: Option<ScriptLanguage>,
+    /// Parser dialect supplied by the host.
+    pub language: ScriptLanguage,
+    /// Module grammar supplied by the host.
+    pub module_kind: ScriptModuleKind,
+    /// Exact source name for generated stylesheet maps.
+    pub source_map_source: Option<String>,
     /// Adapter to use, or `None` for plain JavaScript/TypeScript.
     pub framework: Option<AdapterKind>,
     /// Source map from `source` to its upstream file.
@@ -295,41 +340,44 @@ impl ProjectSource {
     /// Builds the analyzer input, translating UTF-16 projection offsets into byte spans
     /// and validating that the projection metadata is complete.
     ///
-    /// `original_id` names the editable file, `generated_id` the buffer the parser
-    /// sees, and `analysis_id` the file id used for spans created while analyzing that
-    /// buffer.
+    /// The source registry issues IDs for the original, generated, and analysis buffers.
     ///
     /// # Errors
     ///
     /// Returns an error for invalid source coordinates or incomplete projection
     /// metadata.
-    pub fn input(
-        &self,
-        original_id: FileId,
-        generated_id: FileId,
-        analysis_id: FileId,
-    ) -> napi::Result<SourceInput> {
+    #[allow(clippy::too_many_lines)]
+    pub fn input(&self, sources: &mut SourceRegistry) -> napi::Result<SourceInput> {
         let original = self.fw_code.as_ref();
-        let language = self
-            .language
-            .unwrap_or_else(|| ScriptLanguage::from_path(&self.path));
-        let code = Arc::new(
-            SourceFile::new(
+        let language = self.language;
+        let module_kind = self.module_kind;
+        let code_uri = match original {
+            Some(_) => None,
+            None => Some(self.uri.clone()),
+        };
+        let code = sources
+            .register(
+                code_uri,
                 if original.is_some() {
-                    generated_id
+                    None
                 } else {
-                    original_id
+                    self.source_map_source.as_deref().map(Into::into)
                 },
-                self.path.as_str(),
                 self.source.as_str(),
             )
-            .map_err(|error| Error::from_reason(error.to_string()))?,
-        );
+            .map_err(|error| Error::from_reason(error.to_string()))?;
         let projection = if let Some(original) = original {
-            let original = Arc::new(
-                SourceFile::new(original_id, self.path.as_str(), original.as_str())
-                    .map_err(|error| Error::from_reason(error.to_string()))?,
-            );
+            let original = sources
+                .register(
+                    Some(self.uri.clone()),
+                    self.source_map_source.as_deref().map(Into::into),
+                    original.as_str(),
+                )
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            let original_id = original.id();
+            let analysis_id = sources
+                .reserve_generated_id()
+                .map_err(|error| Error::from_reason(error.to_string()))?;
             let map = self
                 .fw2js_map
                 .clone()
@@ -338,10 +386,8 @@ impl ProjectSource {
                 .converter
                 .clone()
                 .ok_or_else(|| Error::from_reason("fw_code requires converter identity"))?;
-            if self.language.is_none() || self.framework.is_none() {
-                return Err(Error::from_reason(
-                    "projected input requires language and framework",
-                ));
+            if self.framework.is_none() {
+                return Err(Error::from_reason("projected input requires framework"));
             }
             if self.map.is_some() {
                 return Err(Error::from_reason(
@@ -395,10 +441,12 @@ impl ProjectSource {
             None
         };
         Ok(SourceInput {
+            module_id: ModuleId::from(self.path.as_str()),
             stylesheet_imports: self.stylesheet_imports.clone(),
             module_css_import: self.module_css_import.clone(),
             code,
             language,
+            module_kind,
             framework: self.framework,
             upstream_map: if projection.is_some() {
                 self.fw_map.clone()

@@ -7,8 +7,8 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_design_system::LintSeverity;
-use stillwind_diagnostics::LintKind;
+use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -17,13 +17,23 @@ use super::*;
 fn unresolved_variant_utility_keeps_only_its_authored_class() {
     let component = SourceFile::new(
         FileId(1),
-        "src/UnknownVariant.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 export const item = style({ "hover:": "unknown-widget-class" });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(
@@ -40,17 +50,26 @@ export const item = style({ "hover:": "unknown-widget-class" });"#,
 fn compiles_tailwind_group_peer_and_container_compatibility() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Relationships.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 export const group = style("group/menu flex @container/sidebar");
 export const peer = style("peer/field");
 export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block @sm:grid");"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@import \"stillwind\";").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
@@ -73,19 +92,25 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
 #[test]
 fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Relationships.tsx",
+        FileId(1), None, None,
         "import { style } from \"stillwind/react\"; const child = style(\"group-hover:flex @sm:grid\");",
     ).unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@import \"stillwind\";").unwrap();
     let options = CompilerOptions {
         forbid_tailwind_relationships: true,
         ..CompilerOptions::default()
     };
 
-    let result =
-        Compiler::compile_source_with_options(&OxcSourceAnalyzer, &component, &theme, &options);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &options,
+    );
 
     assert_eq!(
         result
@@ -102,17 +127,26 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
 fn reports_variant_selectors_that_do_not_depend_on_the_styled_element() {
     let component = SourceFile::new(
         FileId(1),
-        "src/ShadowHost.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 export const host = style("[:host]:block");
 export const child = style("[&:where(.card)>*]:block", { "[:host-context(.dark)]:": "flex" });
 export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:flex");"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@import \"stillwind\";").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let selectors = result
@@ -139,18 +173,27 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
 fn a_theme_can_disable_the_element_scope_rule() {
     let component = SourceFile::new(
         FileId(1),
-        "src/ShadowHost.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; export const host = style(\"[:host]:block\");",
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@import \"stillwind\"; @stillwind { require-element-scope: off; }",
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(
         result.lint_findings.is_empty(),
@@ -169,7 +212,8 @@ fn a_theme_can_disable_the_element_scope_rule() {
 fn reports_missing_and_duplicated_view_transition_names() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Transitions.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const title = style.viewTransition({ old: "opacity-0" });
 export const unnamed = style("block", title);
@@ -178,10 +222,18 @@ export const optedOut = style("block", title, "[view-transition-name:none]");
 export const doubled = style("block", title.for("hero"), "[view-transition-name:other]");"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "stillwind.css", "@import \"stillwind\";").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@import \"stillwind\";").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let missing = result
@@ -213,18 +265,15 @@ export const doubled = style("block", title.for("hero"), "[view-transition-name:
 fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Fixture.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; const props = style(\"p-4 animate-spin\");",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer,
-        &component,
-        &crate::css_fixture::source(
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, "test.tsx", ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
             FileId(2),
-            "stillwind.css",
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
-        ).unwrap(),
-    );
+        ).unwrap(), "stillwind.css", &CompilerOptions::default());
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains_css("--spacing:0.25rem;"));
@@ -242,18 +291,15 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
 fn breakpoint_variants_inline_queries_without_emitting_lookup_tokens() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Fixture.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; const props = style(\"foo:grid 東京:flex\");",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer,
-        &component,
-        &crate::css_fixture::source(
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, "test.tsx", ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
             FileId(2),
-            "stillwind.css",
             "@import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\"; @theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
-        ).unwrap(),
-    );
+        ).unwrap(), "stillwind.css", &CompilerOptions::default());
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -270,21 +316,26 @@ fn breakpoint_variants_inline_queries_without_emitting_lookup_tokens() {
 fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Fixture.tsx",
+        None,
+        None,
         "import { style } from \"stillwind/react\"; const props = style(\"paint-card\");",
     )
     .unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &crate::css_fixture::source(
             FileId(2),
-            "stillwind.css",
             r#"@import "stillwind/utilities.css" layer(utilities);
 @utility paint-* { color: red; color: color(display-p3 1 0 0); }
 @utility paint-* { &::before { content: "fallback"; } }"#,
         )
         .unwrap(),
+        "stillwind.css",
+        &CompilerOptions::default(),
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -307,14 +358,24 @@ fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
 fn emits_nested_supports_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Gradient.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("bg-linear-to-r");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains_css("--tw-gradient-position:to right;"));
@@ -339,14 +400,24 @@ const props = style("bg-linear-to-r");"#,
 fn emits_nested_media_from_css_utility_definitions() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Outline.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("outline-hidden");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -363,14 +434,24 @@ const props = style("outline-hidden");"#,
 fn emits_selector_bearing_css_utilities_on_their_target_children() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Divider.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("divide-x-[2px]");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -387,19 +468,29 @@ const props = style("divide-x-[2px]");"#,
 fn emits_starting_style_variants_as_a_css_wrapper() {
     let component = SourceFile::new(
         FileId(1),
-        "src/EnteringPanel.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("starting:opacity-0");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@starting-style{.sw_"));
     assert!(
-        fold_calc_expressions(&result.css).contains("{opacity:0%;}"),
+        fold_calc_expressions(&result.css, None).contains("{opacity:0%;}"),
         "{}",
         result.css
     );
@@ -409,7 +500,6 @@ const props = style("starting:opacity-0");"#,
 fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         r#"@import "stillwind";
 @utility text-red { color: red; }
 @utility text-blue { color: blue; }
@@ -439,10 +529,19 @@ fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
         ),
     ] {
         let compile = |args: &str| {
-            let source = SourceFile::new(FileId(1), "src/Wrapper.tsx", format!(
+            let source = SourceFile::new(FileId(1), None, None, format!(
                 "import {{ style }} from \"stillwind/react\"; declare const active: boolean; const props = style({args});"
             )).unwrap();
-            let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+            let result = Compiler::compile_source(
+                &OxcSourceAnalyzer,
+                &source,
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &theme,
+                "stillwind.css",
+                &CompilerOptions::default(),
+            );
             assert!(
                 result.diagnostics.is_empty(),
                 "{args}: {:#?}",

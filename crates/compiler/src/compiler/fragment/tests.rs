@@ -6,9 +6,11 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use stillwind_ir::{
-    AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, SourceAnalyzer,
+    AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, ScriptLanguage,
+    ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_semantic::ModuleId;
 use stillwind_source::{FileId, SourceFile, Span};
 
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
@@ -150,12 +152,21 @@ fn folded_javascript_matches_runtime_materialization() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "fold.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let mut cases = Vec::new();
     // Exhaust all three-contribution channel combinations, including overwrites.
     for fw in FRAMEWORKS {
@@ -407,12 +418,21 @@ fn class_branches_and_single_style_payloads_materialize_without_merge() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "fold.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let class = |name: &str| StyleEmissionPart::Class {
         emitted: Emitted::Leaf {
             names: vec![name.into()],
@@ -482,12 +502,21 @@ fn style_fields_follow_framework_specification() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "fold.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; style('flex');",
         )
         .unwrap(),
     );
-    let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
     let original = AdapterKind::React.spec();
     let framework = FrameworkSpec {
         id: original.id,

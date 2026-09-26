@@ -7,10 +7,8 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
-
 use stillwind_css::{extract_named_blocks, strip_css_comments};
-use stillwind_diagnostics::LintKind;
+use stillwind_diagnostics::{LintKind, LintSeverity};
 
 /// Extracts the configuration from every `@stillwind` block, after comments are removed
 /// so a commented example cannot configure a project.
@@ -121,38 +119,6 @@ pub enum UtilityOrderMode {
     Authored,
     /// Tailwind property metadata and candidate comparison (`tailwind`).
     Tailwind,
-}
-
-/// Configured handling of a lint finding by the consuming host.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LintSeverity {
-    /// Reports a warning (`warn`).
-    Warn,
-    /// Reports an error (`deny`).
-    Deny,
-    /// Suppresses reporting (`off`).
-    Off,
-}
-
-impl LintSeverity {
-    /// The CSS configuration and host-protocol spelling.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Warn => "warn",
-            Self::Deny => "deny",
-            Self::Off => "off",
-        }
-    }
-
-    fn from_css(value: &str) -> Option<Self> {
-        match value {
-            "warn" => Some(Self::Warn),
-            "deny" => Some(Self::Deny),
-            "off" => Some(Self::Off),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]

@@ -15,8 +15,8 @@ use std::sync::Arc;
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::CompileError;
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
-use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_semantic::{AssetMetadata, IdentityId, ModuleId, TypeFact, TypeFacts};
 use stillwind_source::{Fingerprint, SourceFile};
 
 use super::vocabulary::render_vocabulary_types;
@@ -30,9 +30,9 @@ impl Compiler {
     ///
     /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
     /// Failures retain the supplied theme source identity and typed cause.
-    pub fn read_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
+    pub fn read_theme(source: &SourceFile, source_name: &str) -> Result<ThemeIndex, CompileError> {
         Ok(
-            DesignSystemSnapshot::from_source(source, DesignSystemOptions::default())
+            DesignSystemSnapshot::from_source(source, source_name, DesignSystemOptions::default())
                 .map_err(|error| error.into_compile_error(source.full_span()))?
                 .theme()
                 .clone(),
@@ -45,8 +45,14 @@ impl Compiler {
     ///
     /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
     /// Failures retain the supplied theme source identity and typed cause.
-    pub fn generate_vocabulary_types(source: &SourceFile) -> Result<String, CompileError> {
-        Ok(render_vocabulary_types(&Self::read_theme(source)?))
+    pub fn generate_vocabulary_types(
+        source: &SourceFile,
+        source_name: &str,
+    ) -> Result<String, CompileError> {
+        Ok(render_vocabulary_types(&Self::read_theme(
+            source,
+            source_name,
+        )?))
     }
 
     /// Renders a standalone stylesheet for a theme buffer and utility rules.
@@ -61,67 +67,62 @@ impl Compiler {
     /// and unresolved authored theme references.
     pub fn render_stylesheet(
         source: &SourceFile,
+        source_name: &str,
         module_css: &str,
         options: &CompilerOptions,
     ) -> Result<String, CompileError> {
-        let snapshot = DesignSystemSnapshot::from_source(source, options.design_system())
-            .map_err(|error| error.into_compile_error(source.full_span()))?;
-        StylesheetRenderer::new(&snapshot, options, &Identifiers::builtin())
+        let snapshot =
+            DesignSystemSnapshot::from_source(source, source_name, options.design_system())
+                .map_err(|error| error.into_compile_error(source.full_span()))?;
+        StylesheetRenderer::new(&snapshot, options, &Identifiers::default())
             .render_stylesheet(module_css)
             .map_err(|kind| CompileError::new(kind, source.full_span()))
     }
 
-    /// Scans, finalizes, and compiles one source with default options and no type facts.
+    /// Compiles one source against an explicit theme buffer and options.
+    #[allow(clippy::too_many_arguments)]
     pub fn compile_source(
         analyzer: &impl SourceAnalyzer,
         source: &SourceFile,
+        module_id: &str,
+        language: ScriptLanguage,
+        module_kind: ScriptModuleKind,
         theme: &SourceFile,
-    ) -> CompileResult {
-        Self::compile_source_with_options(analyzer, source, theme, &CompilerOptions::default())
-    }
-
-    /// Compiles one source against an explicit theme buffer and options.
-    pub fn compile_source_with_options(
-        analyzer: &impl SourceAnalyzer,
-        source: &SourceFile,
-        theme: &SourceFile,
+        theme_name: &str,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let scan = analyzer.scan(Arc::new(source.clone()));
-        Self::compile_analysis(&analyzer.finalize(scan, None), theme, options)
+        let scan = analyzer.scan(
+            Arc::new(source.clone()),
+            ModuleId::from(module_id),
+            language,
+            module_kind,
+        );
+        Self::compile_analysis(&analyzer.finalize(scan, None), theme, theme_name, options)
     }
 
-    /// Compiles one source with exported type facts and asset metadata.
+    /// Compiles one source with exported type facts, asset metadata, and explicit options.
     ///
     /// The facts are recorded together with the scan's module and source revisions, so a
     /// caller that replays the analysis cannot pair facts with the wrong revision.
+    #[allow(clippy::too_many_arguments)]
     pub fn compile_source_with_type_facts(
         analyzer: &impl SourceAnalyzer,
         source: &SourceFile,
+        module_id: &str,
+        language: ScriptLanguage,
+        module_kind: ScriptModuleKind,
         theme: &SourceFile,
-        facts: &[TypeFact],
-        assets: &BTreeMap<IdentityId, AssetMetadata>,
-    ) -> CompileResult {
-        Self::compile_source_with_type_facts_and_options(
-            analyzer,
-            source,
-            theme,
-            facts,
-            assets,
-            &CompilerOptions::default(),
-        )
-    }
-
-    /// The options-taking variant of [`Compiler::compile_source_with_type_facts`].
-    pub fn compile_source_with_type_facts_and_options(
-        analyzer: &impl SourceAnalyzer,
-        source: &SourceFile,
-        theme: &SourceFile,
+        theme_name: &str,
         facts: &[TypeFact],
         assets: &BTreeMap<IdentityId, AssetMetadata>,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let scan = analyzer.scan(Arc::new(source.clone()));
+        let scan = analyzer.scan(
+            Arc::new(source.clone()),
+            ModuleId::from(module_id),
+            language,
+            module_kind,
+        );
         let facts = TypeFacts {
             schema: TypeFacts::SCHEMA,
             module_id: scan.module_id.clone(),
@@ -130,7 +131,12 @@ impl Compiler {
             facts: facts.to_vec(),
             assets: assets.clone(),
         };
-        Self::compile_analysis(&analyzer.finalize(scan, Some(&facts)), theme, options)
+        Self::compile_analysis(
+            &analyzer.finalize(scan, Some(&facts)),
+            theme,
+            theme_name,
+            options,
+        )
     }
 
     /// Compiles an already finalized analysis against a theme buffer.
@@ -141,19 +147,22 @@ impl Compiler {
     pub fn compile_analysis(
         analysis: &ModuleAnalysis,
         theme: &SourceFile,
+        theme_name: &str,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let snapshot = match DesignSystemSnapshot::from_source(theme, options.design_system()) {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                return CompileResult {
-                    diagnostics: vec![error.into_compile_error(theme.full_span())],
-                    ..CompileResult::default()
-                };
-            }
-        };
-        let module = ModuleCompiler::new(snapshot.clone(), options.clone()).compile(analysis);
-        StylesheetRenderer::new(&snapshot, options, &Identifiers::builtin())
+        let snapshot =
+            match DesignSystemSnapshot::from_source(theme, theme_name, options.design_system()) {
+                Ok(snapshot) => snapshot,
+                Err(error) => {
+                    return CompileResult {
+                        diagnostics: vec![error.into_compile_error(theme.full_span())],
+                        ..CompileResult::default()
+                    };
+                }
+            };
+        let module = ModuleCompiler::new(snapshot.clone(), options.clone())
+            .compile(analysis, &Identifiers::default());
+        StylesheetRenderer::new(&snapshot, options, &Identifiers::default())
             .render_compilation(&module, analysis.source.full_span())
     }
 }

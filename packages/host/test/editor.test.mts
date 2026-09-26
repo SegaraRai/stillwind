@@ -27,6 +27,7 @@ function project(
         id: path.resolve(path.dirname(importer), `${specifier}.ts`),
       }),
       read,
+      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       watch: () => {},
       warn: () => {},
     },

@@ -203,7 +203,8 @@ fn map_input<E>(
             }
         }
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
-        StyleInput::RefAttachment(definition) => {
+        StyleInput::RefAttachment { definition, value } => {
+            *value = map(*value)?;
             map_ref(definition, map)?;
         }
         StyleInput::DynamicRefAttachment { value, refs } => {

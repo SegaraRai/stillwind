@@ -6,6 +6,8 @@
 //! fixtures whose candidates are spelled out of canonical order, so the check cannot
 //! pass by preserving the input order.
 
+use stillwind_compiler::CompilerOptions;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -27,15 +29,25 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     .join(" ");
     let component = SourceFile::new(
         FileId(1),
-        "src/FixtureCard.tsx",
+        None,
+        None,
         format!(
             "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidates}\");"
         ),
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -76,7 +88,8 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
             .expect("fixture must provide input CSS");
         let component = SourceFile::new(
             FileId(1),
-            "src/Fixture.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
             ),
@@ -85,12 +98,12 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            &crate::css_fixture::source(
-                FileId(2),
-                "stillwind.css",
-                stillwind_fixture_css(&input_css),
-            )
-            .unwrap(),
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
+            "stillwind.css",
+            &CompilerOptions::default(),
         );
         assert!(
             result.diagnostics.is_empty(),
@@ -159,7 +172,8 @@ fn matches_tailwind_fixture_rules_after_minification() {
             .expect("fixture must provide input CSS");
         let component = SourceFile::new(
             FileId(1),
-            "src/Fixture.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style(\"{candidate}\");"
             ),
@@ -168,12 +182,12 @@ fn matches_tailwind_fixture_rules_after_minification() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            &crate::css_fixture::source(
-                FileId(2),
-                "stillwind.css",
-                stillwind_fixture_css(&input_css),
-            )
-            .unwrap(),
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
+            "stillwind.css",
+            &CompilerOptions::default(),
         );
         assert!(
             result.diagnostics.is_empty(),
@@ -209,7 +223,8 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
             .expect("fixture must provide expected CSS");
         let component = SourceFile::new(
             FileId(1),
-            "src/VariantOrder.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({candidates:?});"
             ),
@@ -218,12 +233,12 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            &crate::css_fixture::source(
-                FileId(2),
-                "stillwind.css",
-                stillwind_fixture_css(&input_css),
-            )
-            .unwrap(),
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
+            "stillwind.css",
+            &CompilerOptions::default(),
         );
         assert!(
             result.diagnostics.is_empty(),

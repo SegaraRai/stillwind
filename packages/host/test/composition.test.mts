@@ -36,6 +36,7 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
           assert.notEqual(source, undefined);
           return source;
         },
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch: () => {},
         warn: () => {},
       },
@@ -237,6 +238,7 @@ void test("composition follows imported and re-exported style producers", async 
             id: path.resolve(path.dirname(importer), `${specifier}.ts`),
           }),
           read: async (id) => files.get(path.basename(id))!,
+          documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
           watch: () => {},
           warn: () => {},
         },

@@ -14,7 +14,7 @@ use serde::Serialize;
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{AssetReference, BoundaryRef, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
-use stillwind_source::{SourceFile, Span, Spanned, normalized_module_path};
+use stillwind_source::{Span, Spanned, normalized_module_path};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
@@ -169,14 +169,10 @@ pub(crate) fn ref_container_name(
 }
 
 /// Identity string for a declaration inside one source file.
-pub(super) fn symbol_identity(
-    source: &SourceFile,
-    kind: &str,
-    definition: &Spanned<String>,
-) -> String {
+pub(super) fn symbol_identity(module_id: &str, kind: &str, definition: &Spanned<String>) -> String {
     format!(
         "stillwind/v1\0{}\0{kind}\0{}:{}:{}",
-        normalized_module_path(source.path()),
+        normalized_module_path(module_id),
         definition.span.start.0,
         definition.span.end.0,
         definition.value,
@@ -309,7 +305,7 @@ fn locator(declaration: &DeclarationContext) -> LocatorContext {
 /// Returns the host generator's failure for the declaration's family.
 pub(super) fn generated_symbol(
     context: &IdentifierContext,
-    source: &SourceFile,
+    module_id: &str,
     kind: AssetKind,
     definition: &Spanned<String>,
     label: Option<&Spanned<String>>,
@@ -318,12 +314,12 @@ pub(super) fn generated_symbol(
         name: declared_name(
             context,
             kind,
-            &named_declaration(source.path(), definition, label),
+            &named_declaration(module_id, definition, label),
         )?,
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
-        identity: symbol_identity(source, kind_name(kind), definition),
-        source_path: normalized_module_path(source.path()),
+        identity: symbol_identity(module_id, kind_name(kind), definition),
+        source_path: normalized_module_path(module_id),
         start: Some(definition.span.start.0),
         end: Some(definition.span.end.0),
     })
@@ -377,7 +373,7 @@ pub(super) fn generated_ref_marker_symbol(
 /// generated the same class or detect that they generated different ones with equal
 /// names.
 pub(super) fn generated_class_symbol(
-    source: &SourceFile,
+    module_id: &str,
     name: &str,
     canonical_input: &str,
     span: Span,
@@ -387,7 +383,7 @@ pub(super) fn generated_class_symbol(
         kind: "class".to_owned(),
         pool: IdentifierPool::ClassToken,
         identity: format!("stillwind/v1\0class\0{canonical_input}"),
-        source_path: normalized_module_path(source.path()),
+        source_path: normalized_module_path(module_id),
         start: Some(span.start.0),
         end: Some(span.end.0),
     }
@@ -453,13 +449,13 @@ pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
 
 /// Identity of a named motion asset, spanning its name token.
 pub(super) fn named_identity(
-    source: &SourceFile,
+    module_id: &str,
     kind: AssetKind,
     name: &Spanned<String>,
 ) -> IdentityId {
     IdentityId::new(
         kind,
-        source.path(),
+        module_id,
         name.span.start.0,
         name.span.end.0,
         name.value.clone(),
@@ -495,11 +491,21 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
-    use crate::identifiers::{IdentifierContext, Label, RefMarker};
+    use crate::identifiers::{
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, Label, RefMarker,
+    };
+
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
+    }
 
     #[test]
     fn identities_normalize_paths_and_class_names_are_content_stable() {
-        let identifiers = IdentifierContext::builtin();
+        let identifiers = identifiers();
         let class = |branch: &str| ClassContext {
             module: "src/x.tsx".to_owned(),
             namespace: String::new(),
@@ -548,27 +554,26 @@ mod tests {
 
     #[test]
     fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
-        let identifiers = IdentifierContext::builtin();
-        let source = SourceFile::new(FileId(1), r"src\x.tsx", "ref").unwrap();
+        let identifiers = identifiers();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
             (AssetKind::Ref, "sw-a-"),
             (AssetKind::Keyframes, "sw-kf-"),
             (AssetKind::ViewTransition, "sw-vt-"),
         ] {
-            let symbol = generated_symbol(&identifiers, &source, kind, &name, None).unwrap();
+            let symbol = generated_symbol(&identifiers, "src/x.tsx", kind, &name, None).unwrap();
             assert!(symbol.name.starts_with(prefix));
             assert_eq!(symbol.source_path, "src/x.tsx");
             assert_eq!((symbol.start, symbol.end), (Some(0), Some(3)));
             assert_eq!(
                 symbol.identity,
-                asset_identity(source.path(), kind_name(kind), &name)
+                asset_identity("src/x.tsx", kind_name(kind), &name)
             );
             let shifted = Spanned::new("ref".into(), Span::new(FileId(1), 1, 3));
             let shifted_name = declared_name(
                 &identifiers,
                 kind,
-                &named_declaration(source.path(), &shifted, None),
+                &named_declaration("src/x.tsx", &shifted, None),
             )
             .unwrap();
             assert_ne!(symbol.name, shifted_name);

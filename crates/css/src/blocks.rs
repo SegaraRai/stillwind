@@ -13,25 +13,6 @@
 
 use cssparser::{ParseError, Parser, Token};
 
-/// Reason a byte-offset delimiter scan cannot return a closing offset.
-///
-/// The brace and delimiter scanners share it, so a caller can tell an unusable
-/// starting offset apart from input that does not close the delimiter.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum ScanError {
-    /// The requested offset is past the end of the input or inside a multi-byte scalar.
-    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
-    InvalidOffset {
-        /// Requested byte offset.
-        offset: usize,
-        /// Length in bytes of the scanned input.
-        length: usize,
-    },
-    /// The delimiter is never closed, or a closer appears before its opener.
-    #[error("delimiter has no matching closer")]
-    Unclosed,
-}
-
 /// Removes complete block comments and preserves an unterminated comment tail.
 pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
@@ -101,20 +82,41 @@ pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, Strin
         .collect()
 }
 
+/// A malformed property requirement and its byte offset in the supplied CSS body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[error("invalid property requirement at byte {offset}")]
+pub struct PropertyRequirementError {
+    /// Byte offset of the directive within the supplied CSS body.
+    pub offset: usize,
+}
+
+/// One registration requirement directive and its named properties.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PropertyRequirement {
+    /// Byte range of the full directive in its CSS body.
+    pub range: std::ops::Range<usize>,
+    /// Required custom-property names in authored order.
+    pub names: Vec<String>,
+}
+
 /// Reads semantic registration requirements from a utility definition or fragment.
 /// Quoted/comment text is ignored. Unknown property names are validated by the
 /// consumer against its registry; malformed directive arguments reject the input.
+///
+/// # Errors
+///
+/// Returns the byte offset of the first malformed directive.
 pub fn property_requirement_ranges(
     css: &str,
-) -> Option<Vec<(std::ops::Range<usize>, Vec<String>)>> {
+) -> Result<Vec<PropertyRequirement>, PropertyRequirementError> {
     if !css.contains("@stillwind-require-properties") {
-        return Some(Vec::new());
+        return Ok(Vec::new());
     }
     directive_rules(css, "stillwind-require-properties")
         .into_iter()
         .map(|rule| {
             if rule.body.is_some() {
-                return None;
+                return Err(PropertyRequirementError { offset: rule.start });
             }
             let names = rule
                 .header
@@ -130,27 +132,40 @@ pub fn property_requirement_ranges(
                             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
                 })
             {
-                return None;
+                return Err(PropertyRequirementError { offset: rule.start });
             }
-            let end = rule.start + css[rule.start..].find(';')? + 1;
-            Some((rule.start..end, names))
+            let end = rule.start
+                + css[rule.start..]
+                    .find(';')
+                    .ok_or(PropertyRequirementError { offset: rule.start })?
+                + 1;
+            Ok(PropertyRequirement {
+                range: rule.start..end,
+                names,
+            })
         })
         .collect()
 }
 
 /// Lowers registration requirements before declarations are serialized as CSS.
-pub fn take_property_requirements(css: &str) -> Option<(String, Vec<String>)> {
+///
+/// # Errors
+///
+/// Returns the byte offset of the first malformed directive.
+pub fn take_property_requirements(
+    css: &str,
+) -> Result<(String, Vec<String>), PropertyRequirementError> {
     let requests = property_requirement_ranges(css)?;
     let mut output = String::new();
     let mut properties = Vec::new();
     let mut cursor = 0;
-    for (range, names) in requests {
+    for PropertyRequirement { range, names } in requests {
         output.push_str(&css[cursor..range.start]);
         cursor = range.end;
         properties.extend(names);
     }
     output.push_str(&css[cursor..]);
-    Some((output, properties))
+    Ok((output, properties))
 }
 
 /// One directive occurrence found by [`scan_directives`].
@@ -317,6 +332,25 @@ pub fn find_block_open(value: &str) -> Option<usize> {
         offset += character.len_utf8();
     }
     None
+}
+
+/// Reason a byte-offset delimiter scan cannot return a closing offset.
+///
+/// The brace and delimiter scanners share it, so a caller can tell an unusable
+/// starting offset apart from input that does not close the delimiter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum ScanError {
+    /// The requested offset is past the end of the input or inside a multi-byte scalar.
+    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
+    InvalidOffset {
+        /// Requested byte offset.
+        offset: usize,
+        /// Length in bytes of the scanned input.
+        length: usize,
+    },
+    /// The delimiter is never closed, or a closer appears before its opener.
+    #[error("delimiter has no matching closer")]
+    Unclosed,
 }
 
 /// Returns the offset of the `}` matching the `{` at `open`.
@@ -530,7 +564,7 @@ mod tests {
         let (lowered, names) = take_property_requirements(css).unwrap();
         assert_eq!(names, ["--real"]);
         assert!(lowered.contains("'@stillwind-require-properties --fake;'"));
-        assert!(take_property_requirements("@stillwind-require-properties red;").is_none());
-        assert!(take_property_requirements("@stillwind-require-properties --x{}").is_none());
+        assert!(take_property_requirements("@stillwind-require-properties red;").is_err());
+        assert!(take_property_requirements("@stillwind-require-properties --x{}").is_err());
     }
 }

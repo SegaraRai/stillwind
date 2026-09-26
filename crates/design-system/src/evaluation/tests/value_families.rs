@@ -158,7 +158,8 @@ fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
     let custom_theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(2),
-            "theme.css",
+            None,
+            None,
             "@theme { --font-stretch-superbold: 150%; }",
         )
         .unwrap(),

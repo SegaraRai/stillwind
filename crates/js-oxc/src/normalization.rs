@@ -25,6 +25,7 @@ use oxc::span::GetSpan;
 
 use stillwind_ir::{
     AdapterKind, FrameworkSpec, ModuleIr, ProjectionDecision, ProjectionExpression, ScriptLanguage,
+    ScriptModuleKind,
 };
 use stillwind_source::{
     BytePos, FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance,
@@ -160,6 +161,8 @@ pub fn normalize_projection<'a>(
     map: &ProjectionMap,
     framework: AdapterKind,
     analysis_id: FileId,
+    language: ScriptLanguage,
+    module_kind: ScriptModuleKind,
 ) -> Result<NormalizedProjection<'a>, ProjectionError> {
     normalize_with_language(
         generated,
@@ -167,7 +170,8 @@ pub fn normalize_projection<'a>(
         map,
         framework,
         analysis_id,
-        ScriptLanguage::from_path(generated.path()),
+        language,
+        module_kind,
     )
 }
 
@@ -182,6 +186,7 @@ pub(crate) fn normalize_with_language<'a>(
     framework: AdapterKind,
     analysis_id: FileId,
     language: ScriptLanguage,
+    module_kind: ScriptModuleKind,
 ) -> Result<NormalizedProjection<'a>, ProjectionError> {
     if generated.id() == original.id()
         || analysis_id == generated.id()
@@ -196,7 +201,7 @@ pub(crate) fn normalize_with_language<'a>(
     let parsed = Parser::new(
         &allocator,
         generated.text(),
-        source_type(generated.path(), language),
+        source_type(language, module_kind),
     )
     .parse();
     if !parsed.diagnostics.is_empty() {
@@ -257,7 +262,7 @@ pub(crate) fn normalize_with_language<'a>(
         cursor = omission.end.0;
     }
     Ok(NormalizedProjection {
-        source: SourceFile::new(analysis_id, generated.path(), output)?,
+        source: SourceFile::new(analysis_id, None, None, output)?,
         index,
         segments,
         member_starts_by_property_start,

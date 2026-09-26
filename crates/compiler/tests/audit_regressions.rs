@@ -1,28 +1,33 @@
 //! Public compiler regressions for implementation defects found during the comment audit.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
-use stillwind_compiler::{CompileResult, Compiler};
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
-use stillwind_ir::{ClassExpression, RuleExpression, SourceAnalyzer, StyleInput};
-use stillwind_js_oxc::{OxcSourceAnalyzer, parse, parse_with_type_facts};
+use stillwind_ir::{
+    ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
+};
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
-    AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue, TypeFact,
+    AssetKind, ExportedValue, IdentityId, ModuleId, RefAlternative, SymbolicValue, TypeFact,
 };
 use stillwind_source::{FileId, SourceError, SourceFile, Span};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),
-        "entry.tsx",
+        None,
+        None,
         format!("import {{ style }} from 'stillwind/react'; {code}"),
     )
     .unwrap();
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         format!(
             "{css} @stillwind-slot utilities; {}",
             if css.contains("@stillwind-slot keyframes;") {
@@ -33,7 +38,16 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
         ),
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     (source, result)
 }
 
@@ -106,11 +120,25 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         }
         let source = SourceFile::new(
             FileId(3),
-            "generated.ts",
+            None,
+            None,
             format!("const value = {};", edit.replacement),
         )
         .unwrap();
-        assert!(parse(&source).diagnostics.is_empty(), "{}", source.text());
+        assert!(
+            parse(
+                &source,
+                "test.tsx",
+                &[],
+                &BTreeMap::default(),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous
+            )
+            .diagnostics
+            .is_empty(),
+            "{}",
+            source.text()
+        );
     }
     // The marker spells the normalized label, and the stylesheet escapes the punctuation
     // the label carries.
@@ -278,8 +306,7 @@ fn motion_css_is_retained_for_uses_and_exports_only() {
 #[test]
 fn static_ref_projection_reads_the_use_site_receiver() {
     let source = SourceFile::new(
-        FileId(1),
-        "consumer.tsx",
+        FileId(1), None, None,
         "import { style } from 'stillwind/react'; import { primary as p } from './refs'; export const x = style(p.anchor);",
     )
     .unwrap();
@@ -292,16 +319,22 @@ fn static_ref_projection_reads_the_use_site_receiver() {
     }];
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &theme,
+        "stillwind.css",
         &facts,
         &BTreeMap::new(),
+        &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
@@ -314,7 +347,8 @@ fn static_ref_projection_reads_the_use_site_receiver() {
 fn static_ref_projection_reads_a_member_receiver() {
     let source = SourceFile::new(
         FileId(1),
-        "consumer.tsx",
+        None,
+        None,
         "import { style } from 'stillwind/react'; export const x = style(holder.trigger.anchor);",
     )
     .unwrap();
@@ -332,16 +366,22 @@ fn static_ref_projection_reads_a_member_receiver() {
     }];
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &theme,
+        "stillwind.css",
         &facts,
         &BTreeMap::new(),
+        &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
@@ -353,7 +393,8 @@ fn static_ref_projection_reads_a_member_receiver() {
 fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
     let source = SourceFile::new(
         FileId(1),
-        "consumer.tsx",
+        None,
+        None,
         "import { style } from 'stillwind/react'; export const x = style(choice.anchor);",
     )
     .unwrap();
@@ -380,16 +421,22 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
     }];
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &theme,
+        "stillwind.css",
         &facts,
         &BTreeMap::new(),
+        &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
@@ -407,12 +454,14 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
 fn reset_tokens_are_absent_from_definition_fingerprints() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         "@theme { --color-red:red; } @theme { --color-*:initial; --color-blue:blue; }",
     )
     .unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
+            .unwrap();
     assert!(
         !snapshot
             .fingerprints()
@@ -448,7 +497,7 @@ fn escaped_utility_diagnostics_keep_the_literal_provenance() {
 
 #[test]
 fn external_motion_identity_does_not_become_a_local_source_span() {
-    let source = SourceFile::new(FileId(1), "consumer.tsx", "import { style } from 'stillwind/react'; import { motion } from './producer'; const x = style(motion(''));").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "import { style } from 'stillwind/react'; import { motion } from './producer'; const x = style(motion(''));").unwrap();
     let start = u32::try_from(source.text().rfind("motion(").unwrap()).unwrap();
     let identity = IdentityId::new(AssetKind::Keyframes, "producer.tsx", 4000, 4006, "motion");
     let facts = [TypeFact {
@@ -456,7 +505,14 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
         end: start + 6,
         value: ExportedValue::Keyframes(SymbolicValue::exact(identity.clone())),
     }];
-    let parsed = parse_with_type_facts(&source, &facts, &BTreeMap::new());
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &facts,
+        &BTreeMap::new(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     let mapped = parsed
         .module
@@ -477,8 +533,15 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
 
 #[test]
 fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
-    let source = SourceFile::new(FileId(1), "local.tsx", "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const x=style(a(''));").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const x=style(a(''));").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let mapped = parsed
         .module
         .try_map_spans(|span| Ok::<_, ()>(Span::new(span.file, span.start.0 + 20, span.end.0 + 20)))
@@ -513,8 +576,13 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
 
 #[test]
 fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
-    let source = SourceFile::new(FileId(1), "dynamic.tsx", "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const b=style.keyframes({to:'x'}); const selected=flag?a:b; const x=style(selected(''));").unwrap();
-    let scan = OxcSourceAnalyzer.scan(std::sync::Arc::new(source.clone()));
+    let source = SourceFile::new(FileId(1), None, None, "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const b=style.keyframes({to:'x'}); const selected=flag?a:b; const x=style(selected(''));").unwrap();
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::new(source.clone()),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let candidates = scan
         .summary
         .assets
@@ -532,16 +600,22 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     }];
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         "@utility x { opacity:0; } @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
         &theme,
+        "stillwind.css",
         &facts,
         &BTreeMap::new(),
+        &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert_eq!(result.css.matches("@keyframes").count(), 2);
@@ -552,9 +626,12 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     // that name off the value instead of calling a runtime helper.
     assert!(code.contains("const a={k:\"sw-kf-"), "{code}");
     assert!(code.contains("[(selected).k]"), "{code}");
-    let parsed = OxcSourceAnalyzer.scan(std::sync::Arc::new(
-        SourceFile::new(FileId(3), "generated.tsx", code).unwrap(),
-    ));
+    let parsed = OxcSourceAnalyzer.scan(
+        Arc::new(SourceFile::new(FileId(3), None, None, code).unwrap()),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
 }
 

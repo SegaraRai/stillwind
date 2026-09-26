@@ -8,7 +8,40 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_source::Span;
 
-use crate::Label;
+use crate::DiagnosticInfo;
+
+/// Configured reporting level of a lint finding.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LintSeverity {
+    /// Report a warning.
+    Warn,
+    /// Report an error without discarding suggested fixes.
+    Deny,
+    /// Omit the finding and its suggested fixes.
+    Off,
+}
+
+impl LintSeverity {
+    /// Returns the CSS configuration and host-protocol spelling.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Warn => "warn",
+            Self::Deny => "deny",
+            Self::Off => "off",
+        }
+    }
+
+    /// Parses a CSS lint level.
+    pub fn from_css(value: &str) -> Option<Self> {
+        match value {
+            "warn" => Some(Self::Warn),
+            "deny" => Some(Self::Deny),
+            "off" => Some(Self::Off),
+            _ => None,
+        }
+    }
+}
 
 /// Typed causes and display templates for advisory lint findings.
 ///
@@ -187,16 +220,14 @@ impl LintKind {
 /// [`Self::new`] attaches one primary location. Secondary labels and notes can be added
 /// without changing the cause. Suppression uses only the first label, or source offset
 /// zero when no labels remain; it does not inspect notes or secondary highlights.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, thiserror::Error)]
 #[error("{kind}")]
 pub struct LintFinding {
     /// Typed cause; owns the message template and reporting code.
     #[source]
     pub kind: LintKind,
-    /// Ordered source highlights. An empty list uses the whole source for suppression.
-    pub labels: Vec<Label>,
-    /// Ordered supplementary explanations, formatted separately from the primary message.
-    pub notes: Vec<String>,
+    /// Mandatory primary location and shared diagnostic details.
+    pub info: Box<DiagnosticInfo>,
 }
 
 impl LintFinding {
@@ -204,17 +235,27 @@ impl LintFinding {
     pub fn new(kind: LintKind, span: Span) -> Self {
         Self {
             kind,
-            labels: vec![Label {
-                span,
-                message: None,
-            }],
-            notes: Vec::new(),
+            info: Box::new(DiagnosticInfo::new(span)),
         }
     }
 
     /// Returns the cause's stable reporting code.
     pub const fn code(&self) -> &'static str {
         self.kind.code()
+    }
+}
+
+impl std::ops::Deref for LintFinding {
+    type Target = DiagnosticInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
+impl std::ops::DerefMut for LintFinding {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.info
     }
 }
 

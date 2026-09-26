@@ -337,10 +337,12 @@ pub enum StyleInput {
     ///
     /// The same attachment marks a boundary element: the class token is what bounded
     /// selectors read as the boundary of their `:has()` test.
-    RefAttachment(
+    RefAttachment {
         /// Ref whose marker and attachment props apply to this element.
-        RefDefinition,
-    ),
+        definition: RefDefinition,
+        /// Original expression selecting the ref at this use site.
+        value: Span,
+    },
     /// A ref value that is only known at runtime, with every statically reachable
     /// alternative listed for CSS planning.
     DynamicRefAttachment {
@@ -620,9 +622,9 @@ pub enum RuleExpression {
     },
 }
 
-/// A root class contribution that cannot be placed under a CSS variant.
+/// The reason a class expression cannot become a CSS rule expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum RuleExpressionError {
+pub enum RuleExpressionErrorKind {
     /// An object entry supplies an element attribute.
     #[error("an attribute cannot be placed under a CSS variant")]
     Attribute,
@@ -634,6 +636,16 @@ pub enum RuleExpressionError {
     ExternalClass,
 }
 
+/// A failed class-to-rule conversion with the first incompatible descendant's kind and span.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[error("{reason}")]
+pub struct RuleExpressionError {
+    /// Why this descendant cannot be used as a CSS rule.
+    pub reason: RuleExpressionErrorKind,
+    /// Original source range of the incompatible descendant.
+    pub span: Span,
+}
+
 impl TryFrom<ClassExpression> for RuleExpression {
     type Error = RuleExpressionError;
 
@@ -642,9 +654,7 @@ impl TryFrom<ClassExpression> for RuleExpression {
     ///
     /// # Errors
     ///
-    /// Returns [`RuleExpressionError::Attribute`],
-    /// [`RuleExpressionError::CustomProperty`], or
-    /// [`RuleExpressionError::ExternalClass`] for the first incompatible descendant.
+    /// Returns the reason and source range of the first incompatible descendant.
     fn try_from(expression: ClassExpression) -> Result<Self, Self::Error> {
         match expression {
             ClassExpression::Rule(rule) => Ok(*rule),
@@ -665,12 +675,21 @@ impl TryFrom<ClassExpression> for RuleExpression {
                     .into_iter()
                     .map(|entry| match entry {
                         GroupEntry::Class(expression) => Self::try_from(*expression),
-                        GroupEntry::Attribute(_) => Err(RuleExpressionError::Attribute),
-                        GroupEntry::CustomProperty(_) => Err(RuleExpressionError::CustomProperty),
+                        GroupEntry::Attribute(attribute) => Err(RuleExpressionError {
+                            reason: RuleExpressionErrorKind::Attribute,
+                            span: attribute.name.span,
+                        }),
+                        GroupEntry::CustomProperty(property) => Err(RuleExpressionError {
+                            reason: RuleExpressionErrorKind::CustomProperty,
+                            span: property.name.span,
+                        }),
                     })
                     .collect::<Result<_, _>>()?,
             }),
-            ClassExpression::ClassValue { .. } => Err(RuleExpressionError::ExternalClass),
+            ClassExpression::ClassValue { span, .. } => Err(RuleExpressionError {
+                reason: RuleExpressionErrorKind::ExternalClass,
+                span,
+            }),
         }
     }
 }

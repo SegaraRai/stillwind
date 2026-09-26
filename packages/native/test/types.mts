@@ -9,12 +9,42 @@ import type { NativeProjectSource, NativeStylesheetSelection } from "../dist/ind
 
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {
-  const sources: NativeProjectSource[] = [{ path: "x.ts", source: "export {};" }];
-  const output = compileSource("export {};", "x.ts", "", {});
+  const sources: NativeProjectSource[] = [
+    {
+      path: "x.ts",
+      uri: "untitled:x.ts",
+      source: "export {};",
+      language: "ts",
+      module_kind: "unambiguous",
+      source_map_source: "untitled:x.ts",
+    },
+  ];
+  const output = compileSource(
+    {
+      source: "export {};",
+      module_id: "x.ts",
+      uri: "untitled:x.ts",
+      source_map_source: "untitled:x.ts",
+      language: "ts",
+      module_kind: "unambiguous",
+      css: {
+        content: "",
+        name: "root.css",
+        uri: "untitled:root.css",
+        source_map_source: "untitled:root.css",
+      },
+    },
+    {},
+  );
   const code: string | null = output.code;
-  const project = compileProject(sources, "");
+  const project = compileProject(sources, {
+    content: "",
+    name: "root.css",
+    uri: "untitled:root.css",
+    source_map_source: "untitled:root.css",
+  });
   const modulePath: string = project.modules[0].path;
-  const summary = summarizeSource("export {};", "x.ts");
+  const summary = summarizeSource("export {};", "x.ts", "ts", "unambiguous");
   const loader = new NativeDesignSystemLoader({ prefix: "--custom-" });
   const step = loader.provide(0, "root.css", "");
   if (step.kind === "needFile") {

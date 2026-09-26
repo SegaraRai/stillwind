@@ -115,6 +115,7 @@ impl Compiler {
             ..CompileResult::default()
         };
         let theme = snapshot.theme();
+        let module_id = parsed.module_id.as_str();
         let options = compiler_options;
         result.lint_policy.clone_from(&theme.config.lint_rules);
         filter_lint_findings(source, &mut result.lint_findings);
@@ -157,7 +158,7 @@ impl Compiler {
                 .map(|definition| {
                     generated_symbol(
                         identifiers,
-                        source,
+                        module_id,
                         AssetKind::Keyframes,
                         &definition.binding,
                         definition.label.as_ref(),
@@ -172,7 +173,7 @@ impl Compiler {
                 .map(|definition| {
                     generated_symbol(
                         identifiers,
-                        source,
+                        module_id,
                         AssetKind::ViewTransition,
                         &definition.binding,
                         definition.label.as_ref(),
@@ -183,6 +184,7 @@ impl Compiler {
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
                 source,
+                module_id,
                 options,
                 theme,
                 call: &call,
@@ -217,14 +219,14 @@ impl Compiler {
             let mut contribution = CssContribution::default();
             emit_keyframes_definition(
                 &mut contribution,
-                source,
+                module_id,
                 identifiers,
                 animation,
                 theme,
                 &mut diagnostics,
             );
             if required_definitions.contains(&named_identity(
-                source,
+                module_id,
                 AssetKind::Keyframes,
                 &animation.binding,
             )) {
@@ -235,14 +237,14 @@ impl Compiler {
             let mut contribution = CssContribution::default();
             emit_view_transition_definition(
                 &mut contribution,
-                source,
+                module_id,
                 identifiers,
                 transition,
                 theme,
                 &mut diagnostics,
             );
             if required_definitions.contains(&named_identity(
-                source,
+                module_id,
                 AssetKind::ViewTransition,
                 &transition.binding,
             )) {
@@ -322,12 +324,12 @@ impl Compiler {
             result.transforms.push(SourceTransform {
                 call_span: animation.call_span,
                 replacement: if runtime_assets.contains(&named_identity(
-                    source,
+                    module_id,
                     AssetKind::Keyframes,
                     &animation.binding,
                 )) {
                     match identifiers.keyframes_name(&named_declaration(
-                        source.path(),
+                        module_id,
                         &animation.binding,
                         animation.label.as_ref(),
                     )) {
@@ -349,12 +351,12 @@ impl Compiler {
             result.transforms.push(SourceTransform {
                 call_span: transition.call_span,
                 replacement: if runtime_assets.contains(&named_identity(
-                    source,
+                    module_id,
                     AssetKind::ViewTransition,
                     &transition.binding,
                 )) {
                     match identifiers.view_transition_class(&named_declaration(
-                        source.path(),
+                        module_id,
                         &transition.binding,
                         transition.label.as_ref(),
                     )) {
@@ -424,7 +426,7 @@ impl Compiler {
                 identifiers
                     .drain_detached()
                     .iter()
-                    .map(|name| detached_symbol(name, source.path())),
+                    .map(|name| detached_symbol(name, module_id)),
             );
         }
         for transform in &mut result.transforms {
@@ -450,7 +452,7 @@ impl Compiler {
 /// allocated once per unit and keep their position; a repeated name symbol keeps its
 /// first occurrence, which is the source order of the projection that first used it.
 fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
-    let mut seen = std::collections::BTreeSet::new();
+    let mut seen = BTreeSet::new();
     symbols
         .into_iter()
         .filter(|symbol| {

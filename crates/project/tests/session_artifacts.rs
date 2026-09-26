@@ -8,20 +8,50 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetPlacement, StylesheetRenderer};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri};
+
+#[test]
+fn css_and_script_sources_share_ids_without_sharing_retention() {
+    let uri = SourceUri::parse("untitled:theme.css").unwrap();
+    let css = SourceFile::new(FileId(2), Some(uri), Some("theme.css".into()), "@theme {}").unwrap();
+    let snapshot =
+        DesignSystemSnapshot::from_source(&css, "theme.css", DesignSystemOptions::default())
+            .unwrap();
+    let css_id = snapshot.sources().sources[0].source.id();
+    let mut session = ProjectSession::new(
+        snapshot,
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    assert!(session.sources().source(css_id).is_err());
+    assert!(session.diagnostic_sources().unwrap().source(css_id).is_ok());
+    let script = session
+        .sources_mut()
+        .register(
+            Some(SourceUri::parse("untitled:module.tsx").unwrap()),
+            Some("module.tsx".into()),
+            "export {};",
+        )
+        .unwrap();
+    assert_ne!(script.id(), css_id);
+    assert!(session.sources().source(script.id()).is_ok());
+    let report_sources = session.diagnostic_sources().unwrap();
+    assert!(report_sources.source(css_id).is_ok());
+    assert!(report_sources.source(script.id()).is_ok());
+}
 
 /// One snapshot whose theme declares a single token.
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(
-            FileId(2),
-            "theme",
-            format!("@theme {{ --color-brand: {color}; }}"),
-        )
-        .unwrap(),
+        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
+            .unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -30,16 +60,22 @@ fn snapshot(color: &str) -> DesignSystemSnapshot {
 /// One analyzed module whose single call uses the given candidate.
 fn module(name: &str, candidate: &str) -> ModuleAnalysis {
     OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(Arc::new(
-            SourceFile::new(
-                FileId(1),
-                name,
-                format!(
-                    "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                ),
-            )
-            .unwrap(),
-        )),
+        OxcSourceAnalyzer.scan(
+            Arc::new(
+                SourceFile::new(
+                    FileId(1),
+                    None,
+                    None,
+                    format!(
+                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
+                    ),
+                )
+                .unwrap(),
+            ),
+            ModuleId::from(name),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
         None,
     )
 }
@@ -55,9 +91,10 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     };
     let mut session = ProjectSession::new(
         snapshot.clone(),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         options.clone(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     session.update_module(module("button.tsx", "flex"));
     let before = session.artifacts()["button.tsx"].clone();
@@ -86,33 +123,34 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
     let snapshot = DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(
             FileId(2),
-            "theme",
             "@theme { --color-brand: red; } .document-only{color:blue;}",
         )
         .unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     let base = StylesheetRenderer::new(
         &snapshot,
         &CompilerOptions::default(),
-        &Identifiers::builtin(),
+        &Identifiers::default(),
     )
-    .render_base_stylesheet()
+    .render_stylesheet("")
     .unwrap();
     assert!(base.starts_with("@layer properties, theme, base, components, utilities;"));
     let mut session = ProjectSession::new(
         snapshot.clone(),
+        &SourceRegistry::default(),
         SessionMode::Build,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
     let artifact = session.artifacts()["a.tsx"].clone();
     let css = StylesheetRenderer::new(
         &snapshot,
         &CompilerOptions::default(),
-        &Identifiers::builtin(),
+        &Identifiers::default(),
     )
     .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
     .map(|output| output.css)
@@ -129,9 +167,9 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
-        .render_base_stylesheet()
+        .render_stylesheet("")
         .unwrap(),
         base
     );
@@ -139,7 +177,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
         .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
         .map(|output| output.css)
@@ -154,9 +192,10 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
 fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     let pinned = session.snapshot();
     let base_css = session.css().unwrap();
@@ -213,9 +252,10 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
 fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     session.update_module(module("a.tsx", "bg-brand"));
     let rules = session.artifacts()["a.tsx"].css.rules.as_ptr();
@@ -239,15 +279,24 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     let snapshot = snapshot("red");
     let mut session = ProjectSession::new(
         snapshot.clone(),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     for name in ["a.tsx", "b.tsx"] {
-        let source = Arc::new(SourceFile::new(FileId(1), name,
+        let source = Arc::new(SourceFile::new(FileId(1), None, None,
             "import {style} from 'stillwind/react'; const handle=style.ref(); const props=style('hover:bg-brand ring-2');"
         ).unwrap());
-        let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None);
+        let analysis = OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source,
+                ModuleId::from(name),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        );
         assert!(session.update_module(analysis).diagnostics.is_empty());
     }
     assert_eq!(session.dependencies().assets.len(), 4);
@@ -276,9 +325,10 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     );
     let mut rebuilt = ProjectSession::new(
         snapshot,
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     );
     for analysis in session.analyses().values() {
         rebuilt.update_module(analysis.clone());

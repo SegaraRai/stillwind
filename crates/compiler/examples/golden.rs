@@ -5,14 +5,16 @@
 //! described in `docs/golden-case.md`. It is a manual inspection aid for reviewing
 //! output, not a test.
 
-use stillwind_compiler::Compiler;
+use stillwind_compiler::{Compiler, CompilerOptions};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceError, SourceFile};
 
 fn main() -> Result<(), SourceError> {
     let component = SourceFile::new(
         FileId(1),
-        "src/SaveButton.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 
 declare const loading: boolean;
@@ -27,7 +29,8 @@ export function SaveButton() {
     )?;
     let theme = SourceFile::new(
         FileId(2),
-        "src/styles/stillwind.css",
+        None,
+        None,
         r"@theme {
   --color-accent: oklch(.62 .19 255);
   --spacing-4: 1rem;
@@ -35,7 +38,16 @@ export function SaveButton() {
 }",
     )?;
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     println!("stillwind golden demo\n");
     println!("Props replacement:");

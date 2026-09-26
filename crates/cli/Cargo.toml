@@ -25,3 +25,4 @@ pathdiff = "0.2.3"
 serde_json.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+url = "2.5"

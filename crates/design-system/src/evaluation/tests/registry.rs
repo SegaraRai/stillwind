@@ -52,7 +52,8 @@ fn resolves_animation_options_from_css_registry_metadata() {
         parse_fixture_theme(
             &SourceFile::new(
                 FileId(2),
-                "motion-theme.css",
+                None,
+                None,
                 "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
             )
             .unwrap(),
@@ -87,7 +88,8 @@ fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
     let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(2),
-            "typography-theme.css",
+            None,
+            None,
             "@theme { --text-copy: 1rem; --text-copy--line-height: 1.5; }",
         )
         .unwrap(),

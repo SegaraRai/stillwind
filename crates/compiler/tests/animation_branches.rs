@@ -1,16 +1,26 @@
 //! Complete keyframes branch replacement and detached CSS conditions.
 
-use stillwind_compiler::{CompileResult, Compiler};
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_diagnostics::CompileErrorKind;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
 fn compile(body: &str) -> CompileResult {
-    let source = SourceFile::new(FileId(1), "entry.tsx", format!(
+    let source = SourceFile::new(FileId(1), None, None, format!(
         "import {{style}} from 'stillwind/react'; const fade = style.keyframes({{{body}}}); export const x = style(fade(''));"
     )).unwrap();
-    let css = SourceFile::new(FileId(2), "theme.css", "@utility a {opacity:0;} @utility b {opacity:1;} @utility c {opacity:.5;} @variant motion-reduce {@media (prefers-reduced-motion:reduce) {@slot;}} @variant hover {&:hover {@slot;}} @stillwind-slot utilities; @stillwind-slot keyframes;").unwrap();
-    Compiler::compile_source(&OxcSourceAnalyzer, &source, &css)
+    let css = SourceFile::new(FileId(2), None, None, "@utility a {opacity:0;} @utility b {opacity:1;} @utility c {opacity:.5;} @variant motion-reduce {@media (prefers-reduced-motion:reduce) {@slot;}} @variant hover {&:hover {@slot;}} @stillwind-slot utilities; @stillwind-slot keyframes;").unwrap();
+    Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &css,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    )
 }
 
 #[test]

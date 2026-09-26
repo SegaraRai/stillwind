@@ -8,7 +8,8 @@
 //!
 //! `compilation` defines fatal causes; `lint` defines advisory causes; `label`
 //! defines shared highlights. `suppression` parses and applies `swlint-*` directives
-//! only to lint findings. Source coordinates remain owned by `stillwind_source`.
+//! only to lint findings. `report` resolves source-bound public batches. Source
+//! coordinates remain owned by [`stillwind_source`].
 
 #![cfg_attr(
     not(test),
@@ -25,11 +26,19 @@
 mod compilation;
 mod label;
 mod lint;
+mod report;
 mod suppression;
 
-pub use compilation::{CompileError, CompileErrorKind, SourceFailureContext};
-pub use label::Label;
-pub use lint::{LintFinding, LintKind, UtilityFailure};
+pub use compilation::{
+    CompileError, CompileErrorKind, SourceFailureContext, VariantInputErrorKind,
+};
+pub use label::{DiagnosticInfo, FixAction, Label, Labels, SourceEdit, SourceRange};
+pub use lint::{LintFinding, LintKind, LintSeverity, UtilityFailure};
+pub use report::{
+    AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,
+    LocatedLabel, ReportError, Reporter, ResolvedAction, ResolvedDiagnostic, ResolvedEdit,
+    ResolvedLabel, ResolvedLocation,
+};
 pub use suppression::{
     LintDirective, LintDirectiveKind, collect_lint_directives, filter_lint_findings,
 };

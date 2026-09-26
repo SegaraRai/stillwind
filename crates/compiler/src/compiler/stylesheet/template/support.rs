@@ -102,11 +102,7 @@ impl<'a> SupportSelection<'a> {
         }) {
             return Err(CompileErrorKind::InvalidPropertyRequirement);
         }
-        let required = theme.tokens_required_by_with_omit_rules(
-            &used,
-            false,
-            builtin_omit_token_prefixes(theme),
-        );
+        let required = theme.tokens_required_by(&used, false, builtin_omit_token_prefixes(theme));
         let tokens = theme
             .tokens
             .iter()
@@ -139,14 +135,9 @@ impl<'a> SupportSelection<'a> {
         // their slots are conditional: placement does not remove their dependencies.
         let mut declarations = String::new();
         for token in &required {
-            let _ = write!(
-                declarations,
-                "{}:{};",
-                token.name.value,
-                theme
-                    .resolve_theme_references(&token.value.value)
-                    .unwrap_or_else(|| token.value.value.clone())
-            );
+            if let Some(value) = resolve_theme_value(theme, &token.value.value)? {
+                let _ = write!(declarations, "{}:{value};", token.name.value);
+            }
         }
         for definition in &definitions {
             if let CssOutputNode::Theme { keyframes, .. } = definition {
@@ -245,9 +236,10 @@ impl<'a> SupportSelection<'a> {
         let mut output = MappedStylesheet::default();
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
-            if let Some(token) = self.theme.tokens.get(*index)
-                && let Some(value) = self.theme.resolve_theme_references(&token.value.value)
-            {
+            if let Some(token) = self.theme.tokens.get(*index) {
+                let Some(value) = resolve_theme_value(self.theme, &token.value.value)? else {
+                    continue;
+                };
                 if value.contains("--if(") {
                     let declaration = format!("{}:{value};", token.name.value);
                     let lowered = lower(&declaration, self.options.use_css_if, self.identifiers)?;
@@ -281,6 +273,18 @@ impl<'a> SupportSelection<'a> {
         }
         Ok(output)
     }
+}
+
+fn resolve_theme_value(
+    theme: &ThemeIndex,
+    value: &str,
+) -> Result<Option<String>, CompileErrorKind> {
+    theme
+        .resolve_theme_references(value)
+        .map_err(|error| CompileErrorKind::InvalidThemeReference {
+            offset: error.offset(),
+            detail: error.to_string(),
+        })
 }
 
 /// Ready-to-insert support fragments; selectors and conditions belong to the template.

@@ -5,13 +5,13 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling
 //! files.
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
     AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
     GroupEntry, StyleInput,
 };
 use stillwind_semantic::AssetKind;
-use stillwind_source::Span;
+use stillwind_source::{SourceError, Span};
 
 use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
@@ -35,6 +35,7 @@ impl<'a> CallEmitter<'a> {
     pub(in crate::compiler) fn run(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
         let emitter = Self {
             source: inputs.source,
+            module_id: inputs.module_id,
             options: inputs.options,
             identifiers: inputs.identifiers,
             theme: inputs.theme,
@@ -46,7 +47,7 @@ impl<'a> CallEmitter<'a> {
             parts: Vec::new(),
             pending_region: None,
             units: ClassUnits::new(
-                inputs.source,
+                inputs.module_id,
                 inputs.options,
                 inputs.identifiers,
                 inputs.theme,
@@ -132,8 +133,9 @@ impl<'a> CallEmitter<'a> {
                 if in_region {
                     self.begin_region();
                 }
+                let condition = self.source_expression(*test)?;
                 self.parts.push(StyleEmissionPart::Conditional {
-                    test: self.source_expression(*test)?,
+                    test: condition,
                     branches,
                     position: test.start.0,
                 });
@@ -173,7 +175,7 @@ impl<'a> CallEmitter<'a> {
                     position: value.start.0,
                 });
             }
-            StyleInput::RefAttachment(definition) => {
+            StyleInput::RefAttachment { definition, value } => {
                 let marker = match ref_marker_name(self.identifiers, definition) {
                     Ok(marker) => marker,
                     Err(failure) => {
@@ -187,7 +189,7 @@ impl<'a> CallEmitter<'a> {
                         emitted: Emitted::Leaf {
                             names: vec![marker],
                         },
-                        position: definition.call_span.start.0,
+                        position: value.start.0,
                     });
                     return Some(());
                 }
@@ -294,7 +296,7 @@ impl<'a> CallEmitter<'a> {
     /// `None` if the source value cannot be sliced. CSS-value conversion and JavaScript
     /// quoting are deferred until a representation has been selected.
     pub(super) fn render_custom_property(
-        &self,
+        &mut self,
         property: &CustomPropertyEntry,
     ) -> Option<Property> {
         Some(Property {
@@ -308,8 +310,8 @@ impl<'a> CallEmitter<'a> {
 
     /// Captures an ordinary property and its original value occurrence without
     /// conversion. An authored `style` stays an ordinary property. Returns `None` for
-    /// an unreadable value span, without appending a diagnostic here.
-    pub(super) fn render_attribute(&self, attribute: &AttributeEntry) -> Option<Property> {
+    /// an unreadable value span.
+    pub(super) fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<Property> {
         Some(Property {
             static_value: None,
             computed_value: None,
@@ -319,16 +321,41 @@ impl<'a> CallEmitter<'a> {
         })
     }
 
-    /// Copies one original expression with an exact occurrence mapping. Returns `None`
-    /// if the span has a foreign file, invalid bounds, or UTF-8 boundaries.
-    pub(super) fn source_expression(&self, span: Span) -> Option<Code> {
-        Some(Code::source(self.slice(span)?, span))
+    /// Copies one original expression with an exact occurrence mapping. Invalid spans
+    /// produce a fatal diagnostic at the containing call.
+    pub(super) fn source_expression(&mut self, span: Span) -> Option<Code> {
+        match self.source_expression_result(span) {
+            Ok(code) => Some(code),
+            Err(error) => {
+                self.report_source_error(&error);
+                None
+            }
+        }
+    }
+
+    /// Copies a source expression while retaining the slicing cause for callers that
+    /// distinguish an optional expression from an unreadable one.
+    pub(super) fn source_expression_result(&self, span: Span) -> Result<Code, SourceError> {
+        Ok(Code::source(self.source.slice(span)?.to_owned(), span))
+    }
+
+    pub(super) fn report_source_error(&mut self, error: &SourceError) {
+        self.diagnostics.push(CompileError::new(
+            CompileErrorKind::source_failure(error, SourceFailureContext::Emission),
+            self.call.span,
+        ));
     }
 
     /// Copies a valid source slice verbatim, retaining authored whitespace. Returns
-    /// `None` on a slicing error; this helper does not emit diagnostics.
-    fn slice(&self, span: Span) -> Option<String> {
-        self.source.slice(span).ok().map(str::to_owned)
+    /// `None` on a slicing error after recording its typed cause at the call site.
+    fn slice(&mut self, span: Span) -> Option<String> {
+        match self.source.slice(span) {
+            Ok(value) => Some(value.to_owned()),
+            Err(error) => {
+                self.report_source_error(&error);
+                None
+            }
+        }
     }
 }
 

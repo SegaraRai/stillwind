@@ -6,7 +6,9 @@
 //! that an unusable ref variant reports a diagnostic instead of emitting an unscoped
 //! selector.
 
+use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::LintKind;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -24,12 +26,11 @@ fn compile(args: &str, bounded: bool) -> (String, String) {
     } else {
         format!("const props = style({args});")
     };
-    let source = SourceFile::new(FileId(1), "src/RefVariant.tsx", format!(
+    let source = SourceFile::new(FileId(1), None, None, format!(
         "import {{ style }} from \"stillwind/react\"; {ref_definition} const other = style.ref(\"other\"); declare const active: boolean; {use_site}"
     )).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "style.css",
         r#"
 @import "stillwind";
 @theme { --color-accent: red; }
@@ -37,7 +38,16 @@ fn compile(args: &str, bounded: bool) -> (String, String) {
 "#,
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(
         result.diagnostics.is_empty(),
         "{args}: {:#?}",
@@ -178,13 +188,21 @@ fn invalid_ref_variants_report_diagnostics_without_unscoped_output() {
         r#"`${trigger("not-a-variant")}:text-accent`"#,
         r#"`[&:${trigger("hover")}:text-accent]`"#,
     ] {
-        let source = SourceFile::new(FileId(1), "src/Invalid.tsx", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{ style }} from \"stillwind/react\"; const trigger = style.ref(); const props = style({args});"
         )).unwrap();
         let theme =
-            crate::css_fixture::source(FileId(2), "style.css", "@theme { --color-accent:red; }")
-                .unwrap();
-        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+            crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
         assert!(!result.diagnostics.is_empty(), "{args}");
         assert!(result.transforms.is_empty(), "{args}");
     }
@@ -194,16 +212,24 @@ fn invalid_ref_variants_report_diagnostics_without_unscoped_output() {
 fn a_guard_for_multiple_template_utilities_is_evaluated_once() {
     let source = SourceFile::new(
         FileId(1),
-        "src/Guard.tsx",
+        None,
+        None,
         r#"import {style} from "stillwind/react";
 const trigger = style.ref();
 const props = style(check() && `${trigger`hover`}:text-accent ${trigger`focus`}:opacity-50`);"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "style.css", "@theme { --color-accent:red; }")
-            .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = result.apply_to_source(&source).unwrap();
     assert_eq!(output.matches("check()").count(), 1, "{output}");
@@ -215,15 +241,25 @@ const props = style(check() && `${trigger`hover`}:text-accent ${trigger`focus`}:
 fn ref_wrappers_apply_to_keyframes_and_preserve_media_conditions() {
     let source = SourceFile::new(
         FileId(1),
-        "src/Motion.tsx",
+        None,
+        None,
         r#"import {style} from "stillwind/react";
 const trigger = style.ref();
 const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "style.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(
         result.css.contains("@media (hover: hover)"),
@@ -245,14 +281,21 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
 
 #[test]
 fn an_inline_bounded_ref_keeps_the_ancestry_check() {
-    let source = SourceFile::new(FileId(1), "src/Scope.tsx", r#"import {style} from "stillwind/react";
+    let source = SourceFile::new(FileId(1), None, None, r#"import {style} from "stillwind/react";
 const menu = style.ref("menu");
 const trigger = style.ref(menu, "trigger");
 export const View = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style(`${trigger`hover`}:text-accent`)} /></>;"#).unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "style.css", "@theme { --color-accent:red; }")
-            .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(
         result
             .lint_findings

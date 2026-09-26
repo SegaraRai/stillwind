@@ -50,6 +50,7 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
           assert.ok(files.has(id));
           return files.get(id)!;
         },
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch: () => {},
         warn: () => {},
       });
@@ -80,7 +81,12 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
   const tokenSource =
     "import {style} from 'stillwind/react';export const token=style.ref('token');";
   const source = (name: string, text: string) => {
-    const summary = summarizeSource(text, name);
+    const summary = summarizeSource(
+      text,
+      name,
+      name.endsWith(".tsx") ? "tsx" : "ts",
+      "unambiguous",
+    );
     writeFileSync(path.join(root, name), text);
     return {
       id: path.join(root, name),
@@ -144,6 +150,7 @@ void test("external package runtime exports do not replace declaration resolutio
         resolve: async () => ({ id: path.join(packageRoot, "index.js") }),
         read: async () =>
           assert.fail("external runtime implementation must not enter semantic inputs"),
+        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
         watch() {},
         warn() {},
       },

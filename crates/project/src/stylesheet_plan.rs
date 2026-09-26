@@ -19,7 +19,7 @@ use stillwind_compiler::{
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_semantic::ModuleId;
-use stillwind_source::{Fingerprint, Span};
+use stillwind_source::{FileId, Fingerprint, Span};
 
 use crate::{ProjectSession, ProjectStylesheet};
 
@@ -207,7 +207,7 @@ impl ProjectSession {
             let (start, end) = symbol.start.zip(symbol.end)?;
             let source = std::iter::once(analysis)
                 .chain(analysis.asset_support.iter())
-                .find(|input| input.source.path() == symbol.source_path)?
+                .find(|input| input.module_id.as_str() == symbol.source_path)?
                 .source
                 .clone();
             let span = Span::new(source.id(), start, end);
@@ -221,7 +221,13 @@ impl ProjectSession {
         } else {
             reference.clone()
         };
-        let parts = stylesheet_parts(&reference, &producers)?;
+        let source_modules: BTreeMap<FileId, ModuleId> = self
+            .analyses()
+            .values()
+            .flat_map(|analysis| std::iter::once(analysis).chain(analysis.asset_support.iter()))
+            .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
+            .collect();
+        let parts = stylesheet_parts(&reference, &producers, &source_modules)?;
         // The selected producers were checked when they were published; the names this render
         // generated belong to no declaration, so they are checked against the document here.
         self.check_document_names(&renderer.take_detached_symbols())?;
@@ -310,6 +316,7 @@ fn optimize_stylesheet(
 fn stylesheet_parts(
     reference: &MappedStylesheet,
     producers: &BTreeMap<ModuleId, ModuleArtifactKey>,
+    source_modules: &BTreeMap<FileId, ModuleId>,
 ) -> Result<Vec<StylesheetPart>, StylesheetPlanError> {
     let mut sequences = BTreeMap::new();
     let parts = stylesheet_fragments(&reference.css)
@@ -324,7 +331,7 @@ fn stylesheet_parts(
                 .filter(|mapping| {
                     mapping.generated.start < range.end && mapping.generated.end > range.start
                 })
-                .map(|mapping| ModuleId::from(mapping.source.path()))
+                .filter_map(|mapping| source_modules.get(&mapping.source.id()).cloned())
                 .filter(|id| producers.contains_key(id))
                 .collect();
             let slot = reference
@@ -407,9 +414,9 @@ mod tests {
 
     use stillwind_compiler::{CompilerOptions, Identifiers};
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-    use stillwind_ir::SourceAnalyzer;
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
     use crate::SessionMode;
 
@@ -420,28 +427,39 @@ mod tests {
         let snapshot = DesignSystemSnapshot::from_source(
             &SourceFile::new(
                 FileId(0),
-                "design.css",
+                None,
+                None,
                 "@utility red{color:red}@stillwind-slot utilities;",
             )
             .unwrap(),
+            "test.css",
             DesignSystemOptions::default(),
         )
         .unwrap();
         let mut session = ProjectSession::new(
             snapshot,
+            &SourceRegistry::default(),
             SessionMode::Watch,
             CompilerOptions::default(),
-            Identifiers::builtin(),
+            Identifiers::default(),
         );
         for utility in ["'red'", "unknown"] {
             let source = SourceFile::new(
                 FileId(1),
-                "entry.ts",
+                None,
+                None,
                 format!("import {{style}} from 'stillwind/react'; const x=style({utility});"),
             )
             .unwrap();
-            let analysis =
-                OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None);
+            let analysis = OxcSourceAnalyzer.finalize(
+                OxcSourceAnalyzer.scan(
+                    Arc::new(source),
+                    ModuleId::from("test.tsx"),
+                    ScriptLanguage::Tsx,
+                    ScriptModuleKind::Unambiguous,
+                ),
+                None,
+            );
             session.update_module(analysis);
         }
         assert!(session.css().unwrap().contains("color:red"));
@@ -454,24 +472,33 @@ mod tests {
     #[test]
     fn explicit_selection_excludes_observed_but_unselected_producers() {
         let snapshot = DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(0), "design.css", "body{margin:0}@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;").unwrap(),
+            &SourceFile::new(FileId(0), None, None, "body{margin:0}@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;").unwrap(), "test.css",
             DesignSystemOptions::default(),
         ).unwrap();
         let mut session = ProjectSession::new(
             snapshot,
+            &SourceRegistry::default(),
             SessionMode::Build,
             CompilerOptions::default(),
-            Identifiers::builtin(),
+            Identifiers::default(),
         );
         for (index, name) in ["red", "blue"].iter().enumerate() {
             let source = SourceFile::new(
                 FileId(u32::try_from(index).unwrap() + 1),
-                format!("{name}.tsx"),
+                None,
+                None,
                 format!("import {{style}} from 'stillwind/react'; export const x=style('{name}');"),
             )
             .unwrap();
-            let analysis =
-                OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(Arc::new(source)), None);
+            let analysis = OxcSourceAnalyzer.finalize(
+                OxcSourceAnalyzer.scan(
+                    Arc::new(source),
+                    ModuleId::from(format!("{name}.tsx").as_str()),
+                    ScriptLanguage::Tsx,
+                    ScriptModuleKind::Unambiguous,
+                ),
+                None,
+            );
             assert!(session.update_module(analysis).diagnostics.is_empty());
         }
         let observed = session

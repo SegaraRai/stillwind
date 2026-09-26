@@ -13,7 +13,7 @@ use stillwind_syntax::{Candidate, Utility, parse_candidate};
 use super::super::builtins::registry::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
 };
-use super::body::UtilityResolution;
+use super::body::{UtilityResolution, UtilityResolutionError};
 use super::formatting::finalize_declaration;
 use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_named_utility};
 use super::nested::NestedUtilityRule;
@@ -64,10 +64,18 @@ pub struct ResolvedUtilityTarget {
 /// registry and then the selected built-ins. Importance is applied to every emitted
 /// declaration, including conditional and additional targets, so the flag cannot be
 /// lost by a branch that emits several rules.
-#[must_use]
+///
+/// # Errors
+///
+/// Returns a malformed requirement from a matching utility definition.
 #[allow(clippy::too_many_lines)]
-pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
-    let candidate = parse_candidate(raw)?;
+pub fn resolve_utility(
+    raw: &str,
+    theme: &ThemeIndex,
+) -> Result<Option<ResolvedUtility>, UtilityResolutionError> {
+    let Some(candidate) = parse_candidate(raw) else {
+        return Ok(None);
+    };
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
@@ -75,7 +83,12 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
             resolution
         }
         Utility::Named { name, modifier } => {
-            resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
+            let Some(resolution) =
+                resolve_named_utility(name, modifier.as_ref(), candidate.negative, theme)?
+            else {
+                return Ok(None);
+            };
+            resolution
         }
     };
     let order = match theme.config.utility_order {
@@ -131,7 +144,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         })
         .collect();
     let selector = resolution.selector;
-    Some(ResolvedUtility {
+    Ok(Some(ResolvedUtility {
         order,
         required_properties: resolution.required_properties,
         candidate,
@@ -140,7 +153,7 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
         selector,
         nested,
         additional,
-    })
+    }))
 }
 
 /// Resolves one animation option from the CSS-authored option registry. As a
@@ -151,11 +164,19 @@ pub fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility>
 /// value, not a qualified utility. A plain declaration list is accepted; selectors,
 /// conditionals and additional targets are rejected. The declaration list can contain
 /// several properties.
-#[must_use]
-pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
-    let candidate = parse_candidate(raw)?;
+///
+/// # Errors
+///
+/// Returns a malformed requirement from a matching option or utility definition.
+pub fn resolve_animation_option(
+    raw: &str,
+    theme: &ThemeIndex,
+) -> Result<Option<String>, UtilityResolutionError> {
+    let Some(candidate) = parse_candidate(raw) else {
+        return Ok(None);
+    };
     if candidate.important || candidate.negative || !candidate.variants.is_empty() {
-        return None;
+        return Ok(None);
     }
     let Utility::Named { name, modifier } = &candidate.utility else {
         return project_animation_option_utility(raw, theme);
@@ -165,11 +186,11 @@ pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String>
         name,
         modifier.as_ref(),
         theme,
-    ) {
-        return (resolution.selector.is_none()
+    )? {
+        return Ok((resolution.selector.is_none()
             && resolution.nested.is_empty()
             && resolution.additional.is_empty())
-        .then(|| finalize_declaration(resolution.declaration, false, theme));
+        .then(|| finalize_declaration(resolution.declaration, false, theme)));
     }
     project_animation_option_utility(raw, theme)
 }
@@ -179,14 +200,19 @@ pub fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String>
 ///
 /// Properties without a mapping are dropped, and a utility that produced selectors,
 /// conditionals, or extra targets is rejected rather than projected partially.
-pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
-    let utility = resolve_utility(raw, theme)?;
+pub(crate) fn project_animation_option_utility(
+    raw: &str,
+    theme: &ThemeIndex,
+) -> Result<Option<String>, UtilityResolutionError> {
+    let Some(utility) = resolve_utility(raw, theme)? else {
+        return Ok(None);
+    };
     if !utility.candidate.variants.is_empty()
         || utility.selector.is_some()
         || !utility.nested.is_empty()
         || !utility.additional.is_empty()
     {
-        return None;
+        return Ok(None);
     }
     let mappings = animation_option_property_mappings(theme);
     let mut projected = String::new();
@@ -195,21 +221,37 @@ pub(crate) fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) ->
         .split(';')
         .filter(|part| !part.is_empty())
     {
-        let (property, value) = declaration.split_once(':')?;
+        let Some((property, value)) = declaration.split_once(':') else {
+            return Ok(None);
+        };
         let Some(target) = mappings.get(property) else {
             continue;
         };
-        write!(&mut projected, "{target}:{value};").ok()?;
+        let _ = write!(&mut projected, "{target}:{value};");
     }
-    (!projected.is_empty()).then_some(projected)
+    Ok((!projected.is_empty()).then_some(projected))
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use stillwind_source::{FileId, SourceFile};
+
     use super::*;
     use crate::BuiltinDefinitions;
+
+    fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
+        super::resolve_utility(raw, theme).unwrap()
+    }
+
+    fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
+        super::resolve_animation_option(raw, theme).unwrap()
+    }
+
+    fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
+        super::project_animation_option_utility(raw, theme).unwrap()
+    }
 
     #[test]
     fn css_registries_are_isolated_without_process_defaults() {
@@ -276,12 +318,11 @@ mod tests {
     #[test]
     fn failed_user_branch_can_resolve_through_the_builtin_registry() {
         let theme = crate::parse_theme(
-            &stillwind_source::SourceFile::new(
-                stillwind_source::FileId(1),
-                "theme.css",
+            &SourceFile::new(
+                FileId(1), None, None,
                 "@stillwind-utility x-* { color: --value([color]); } @utility x-* { width: --value([length]); }",
             )
-            .unwrap(),
+            .unwrap(), "test.css",
         )
         .unwrap();
         let resolved = resolve_utility("x-[red]", &theme).unwrap();

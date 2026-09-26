@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
 use stillwind_semantic::AssetKind;
-use stillwind_source::Span;
+use stillwind_source::{SourceError, Span};
 
 use super::super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -89,21 +89,22 @@ impl CallEmitter<'_> {
                 return None;
             }
         };
-        let name_value = self.view_transition_name_value(name, Some(&token), transition.span);
+        let name_value =
+            self.checked_view_transition_name_value(name, Some(&token), transition.span)?;
         let static_name = static_view_transition_name(name, &token);
         let name_property = if wrappers.is_empty() || name_value.is_none() {
             None
         } else {
-            Some(self.transition_name_property(transition.span.start.0)?)
+            Some(self.view_transition_name_property(transition.span.start.0)?)
         };
-        let class = self.transition_class(
+        let class = self.view_transition_class(
             &token,
             static_name.as_deref(),
             name_property.as_deref(),
             guard,
             wrappers,
         )?;
-        Some(Self::transition_emitted(
+        Some(Self::view_transition_emitted(
             Emitted::Leaf { names: vec![class] },
             name_value,
             name_property,
@@ -126,11 +127,11 @@ impl CallEmitter<'_> {
         if !matches!(name, ViewTransitionName::None) {
             self.view_transition_name_paths.insert(guard, 1);
         }
-        let name_value = self.view_transition_name_value(name, None, *value);
+        let name_value = self.checked_view_transition_name_value(name, None, *value)?;
         let name_property = if wrappers.is_empty() || name_value.is_none() {
             None
         } else {
-            Some(self.transition_name_property(value.start.0)?)
+            Some(self.view_transition_name_property(value.start.0)?)
         };
         let mut table = Vec::new();
         for transition in transitions {
@@ -145,7 +146,7 @@ impl CallEmitter<'_> {
                 }
             };
             let static_name = static_view_transition_name(name, &token);
-            let class = self.transition_class(
+            let class = self.view_transition_class(
                 &token,
                 static_name.as_deref(),
                 name_property.as_deref(),
@@ -159,7 +160,7 @@ impl CallEmitter<'_> {
             key: VIEW_TRANSITION_CLASS_KEY.to_owned(),
             table: format!("{{{}}}", table.join(",")).into(),
         });
-        Some(Self::transition_emitted(
+        Some(Self::view_transition_emitted(
             class,
             name_value,
             name_property,
@@ -169,7 +170,7 @@ impl CallEmitter<'_> {
 
     /// Returns the class name for one transition token under the active CSS wrappers.
     /// Reports name allocation failures and returns `None` on failure.
-    fn transition_class(
+    fn view_transition_class(
         &mut self,
         token: &str,
         static_name: Option<&str>,
@@ -207,7 +208,7 @@ impl CallEmitter<'_> {
     /// Returns the custom-property name for a dynamic transition name at an original
     /// UTF-8 source offset. Reports allocation failure and returns `None` when the name
     /// cannot be generated.
-    fn transition_name_property(&mut self, source_offset: u32) -> Option<String> {
+    fn view_transition_name_property(&mut self, source_offset: u32) -> Option<String> {
         match self.units.view_transition_dynamic_name_slot(source_offset) {
             Ok(name) => Some(name),
             Err(failure) => {
@@ -220,7 +221,7 @@ impl CallEmitter<'_> {
     /// Returns the class alone when no dynamic name is needed. Otherwise it returns a
     /// grouped class and name value; a CSS variant writes the value through
     /// `name_property`, while an unwrapped use writes inline style.
-    fn transition_emitted(
+    fn view_transition_emitted(
         class: Emitted,
         name_value: Option<ValueExpr>,
         name_property: Option<String>,
@@ -247,36 +248,58 @@ impl CallEmitter<'_> {
     }
 
     /// Returns the deferred runtime name expression for a dynamic key or a keyed
-    /// transition value. Returns `None` for no name, a literal name, or an unreadable
-    /// source expression.
+    /// transition value. `Ok(None)` means no runtime name is required.
+    ///
+    /// # Errors
+    ///
+    /// Returns the source cause when a receiver or dynamic key is unreadable.
     fn view_transition_name_value(
         &self,
         name: &ViewTransitionName,
         token: Option<&str>,
         value: Span,
-    ) -> Option<ValueExpr> {
+    ) -> Result<Option<ValueExpr>, SourceError> {
         let key = match name {
             ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => Some(*key),
             ViewTransitionName::Value => None,
             ViewTransitionName::None | ViewTransitionName::Key(ViewTransitionKey::Literal(_)) => {
-                return None;
+                return Ok(None);
             }
         };
         let receiver = match token {
             Some(token) if !matches!(name, ViewTransitionName::Value) => {
                 format!("\"{token}\"").into()
             }
-            _ => self.source_expression(value)?,
+            _ => self.source_expression_result(value)?,
         };
         let mut arguments = vec![receiver];
         if let Some(key) = key {
-            arguments.push(self.source_expression(key)?);
+            arguments.push(self.source_expression_result(key)?);
         }
-        Some(ValueExpr::Call {
+        Ok(Some(ValueExpr::Call {
             helper: RuntimeHelper::ViewTransitionName,
             arguments,
             span: value,
-        })
+        }))
+    }
+
+    #[expect(
+        clippy::option_option,
+        reason = "outer None records a fatal source error; inner None means no runtime name"
+    )]
+    fn checked_view_transition_name_value(
+        &mut self,
+        name: &ViewTransitionName,
+        token: Option<&str>,
+        value: Span,
+    ) -> Option<Option<ValueExpr>> {
+        match self.view_transition_name_value(name, token, value) {
+            Ok(name_value) => Some(name_value),
+            Err(error) => {
+                self.report_source_error(&error);
+                None
+            }
+        }
     }
 
     /// Lowers one view-transition use whose transition is known at compile time.
@@ -333,7 +356,7 @@ impl CallEmitter<'_> {
                 position: transition.span.start.0,
             });
         }
-        self.emit_view_transition_name(name, Some(&token), transition.span);
+        self.emit_view_transition_name(name, Some(&token), transition.span)?;
         Some(())
     }
 
@@ -389,7 +412,7 @@ impl CallEmitter<'_> {
             emitted: Emitted::Expression(expression),
             position: value.start.0,
         });
-        self.emit_view_transition_name(name, None, *value);
+        self.emit_view_transition_name(name, None, *value)?;
         Some(())
     }
 
@@ -424,9 +447,9 @@ impl CallEmitter<'_> {
         name: &ViewTransitionName,
         token: Option<&str>,
         value: Span,
-    ) {
-        let Some(name_value) = self.view_transition_name_value(name, token, value) else {
-            return;
+    ) -> Option<()> {
+        let Some(name_value) = self.checked_view_transition_name_value(name, token, value)? else {
+            return Some(());
         };
         self.parts.push(StyleEmissionPart::Style {
             expression: ValueExpr::Entry {
@@ -435,6 +458,7 @@ impl CallEmitter<'_> {
             },
             position: value.start.0,
         });
+        Some(())
     }
 }
 

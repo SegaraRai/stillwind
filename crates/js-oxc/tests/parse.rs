@@ -5,9 +5,12 @@
 //! the outside: which framework was selected, which spans are recorded, which
 //! exports denote assets, and which shapes are rejected.
 
+use std::collections::BTreeMap;
+
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{
-    AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, RuleExpression, StyleInput, StyleVariant,
+    AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, RuleExpression, ScriptLanguage,
+    ScriptModuleKind, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::parse;
 use stillwind_semantic::ExportedValue;
@@ -22,8 +25,15 @@ fn rule(expression: &ClassExpression) -> &RuleExpression {
 
 #[test]
 fn parser_diagnostics_keep_external_detail_as_notes() {
-    let source = SourceFile::new(FileId(1), "entry.ts", "const = ;").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "const = ;").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let error = parsed
         .diagnostics
         .iter()
@@ -42,8 +52,15 @@ fn parser_diagnostics_keep_external_detail_as_notes() {
 /// retry with another map without repairing state.
 #[test]
 fn ir_span_mapping_relocates_nested_expressions_transactionally() {
-    let source = SourceFile::new(FileId(1), "entry.tsx", "import {style} from 'stillwind/react'; const ref = style.ref('target'); const props = style(ref, active ? 'flex' : 'grid', {class: external, 'aria-label': label});").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref('target'); const props = style(ref, active ? 'flex' : 'grid', {class: external, 'aria-label': label});").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty());
     let before = parsed.module.clone();
     let mut visited = 0;
@@ -80,14 +97,20 @@ fn ir_span_mapping_relocates_nested_expressions_transactionally() {
 fn framework_registry_preserves_import_aliases_and_shadowing() {
     for spec in FRAMEWORKS {
         let source = SourceFile::new(
-            FileId(1),
-            "entry.tsx",
+            FileId(1), None, None,
             format!(
                 "import {{style as s}} from '{}'; const a = s('flex'); function f(s: Function) {{ return s('grid'); }}",
                 spec.macro_import,
             ),
         ).unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         assert_eq!(parsed.module.adapter, spec.id);
         assert_eq!(parsed.module.style_calls.len(), 1);
@@ -103,24 +126,40 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "entry.tsx",
+            None,
+            None,
             format!("{declaration} const a = s('grid');"),
         )
         .unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty());
         assert_eq!(parsed.framework, None);
         assert!(parsed.module.style_calls.is_empty());
 
         let mixed = SourceFile::new(
             FileId(2),
-            "entry.tsx",
+            None,
+            None,
             format!(
                 "{declaration} import {{style}} from 'stillwind/solid'; const b = style('flex');"
             ),
         )
         .unwrap();
-        let parsed = parse(&mixed);
+        let parsed = parse(
+            &mixed,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty());
         assert_eq!(parsed.framework, Some(AdapterKind::Solid));
         assert_eq!(parsed.module.style_calls.len(), 1);
@@ -133,8 +172,15 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
 /// can remove the import without touching unrelated code.
 #[test]
 fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
-    let source = SourceFile::new(FileId(1), "entry.tsx", "import fallback, {style as s, type StyleArgument, other} from 'stillwind/react'; const a = s('flex'); const retained = s; function f(s: Function, stillwindRef: string) { return s('grid') + stillwindClsx; }").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "import fallback, {style as s, type StyleArgument, other} from 'stillwind/react'; const a = s('flex'); const retained = s; function f(s: Function, stillwindRef: string) { return s('grid') + stillwindClsx; }").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty());
     let imports = &parsed.module.imports;
     assert_eq!(imports.macros.len(), 1);
@@ -168,11 +214,20 @@ fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
 fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.ts",
+        None,
+        None,
         "// 日本語 🧭\nimport {x} from '@a'; export {x as y} from \"@b\"; export * from '@c';",
     )
     .unwrap();
-    let summary = parse(&source).summary;
+    let summary = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    )
+    .summary;
     assert_eq!(summary.module_specifiers.len(), 3);
     for (specifier, literal) in summary
         .module_specifiers
@@ -189,16 +244,30 @@ fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
 /// Only the imported macro selects the framework; two frontends are an error.
 #[test]
 fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
-    let source = SourceFile::new(FileId(1), "solid.tsx", "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert_eq!(parsed.module.adapter, AdapterKind::Solid);
     assert!(parsed.diagnostics.is_empty());
-    let mixed = SourceFile::new(FileId(2), "mixed.tsx", "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
+    let mixed = SourceFile::new(FileId(2), None, None, "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
     assert!(
-        parse(&mixed)
-            .diagnostics
-            .iter()
-            .any(|error| error.kind == CompileErrorKind::MixedFrameworks)
+        parse(
+            &mixed,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        )
+        .diagnostics
+        .iter()
+        .any(|error| error.kind == CompileErrorKind::MixedFrameworks)
     );
 }
 
@@ -210,7 +279,8 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
 fn semantic_reads_follow_local_aliases_without_unrelated_imports() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.tsx",
+        None,
+        None,
         r"
 import { style } from 'stillwind/react';
 import { first } from './first';
@@ -224,7 +294,14 @@ export const attached = style(alias);
 ",
     )
     .unwrap();
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert_eq!(
         parsed
             .summary
@@ -242,7 +319,8 @@ export const attached = style(alias);
 fn semantic_reads_preserve_binding_shadowing() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.tsx",
+        None,
+        None,
         r"
 import { style } from 'stillwind/react';
 import { handle } from './unrelated';
@@ -250,7 +328,19 @@ export function attach(handle: unknown) { return style(handle); }
 ",
     )
     .unwrap();
-    assert!(parse(&source).summary.probe_imports.is_empty());
+    assert!(
+        parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        )
+        .summary
+        .probe_imports
+        .is_empty()
+    );
 }
 
 /// Only the macro-bound callee is a style call, and literal utilities cost no probe.
@@ -258,14 +348,22 @@ export function attach(handle: unknown) { return style(handle); }
 fn extracts_only_an_import_bound_style_call_with_literal_spans() {
     let source = SourceFile::new(
         FileId(1),
-        "Button.tsx",
+        None,
+        None,
         r#"import { style as s } from "stillwind/react";
 const props = s("px-4 text-center", "hover:bg-accent");
 function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(
         parsed.type_probes.is_empty(),
         "literal utilities need no checker queries"
@@ -288,7 +386,8 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
 fn parses_named_and_bounded_ref_declarations() {
     let source = SourceFile::new(
         FileId(1),
-        "Menu.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const anonymousBoundary = style.ref();
 const menu = style.ref("menu");
@@ -300,7 +399,14 @@ export const Menu = () => <div {...style(menu)}><button {...style(bounded)} /></
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
 
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     assert_eq!(parsed.module.ref_definitions.len(), 6);
@@ -349,7 +455,8 @@ export const Menu = () => <div {...style(menu)}><button {...style(bounded)} /></
 fn summarizes_exported_assets_and_module_edges() {
     let source = SourceFile::new(
         FileId(1),
-        r"src\Parent.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 import { external as importedExternal } from "./external";
 export const menu = style.ref("menu");
@@ -360,7 +467,14 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "src/Parent.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
 
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     assert_eq!(parsed.summary.module_path, "src/Parent.tsx");
@@ -385,7 +499,8 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
 fn leaves_conditional_handle_propagation_to_typescript() {
     let source = SourceFile::new(
         FileId(1),
-        "src/choices.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const first = style.ref("first");
 const second = style.ref("second");
@@ -394,7 +509,14 @@ export const selected = enabled ? alias : second;"#,
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(!parsed.summary.exports.contains_key("selected"));
 }
 
@@ -441,11 +563,19 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "spread.tsx",
+            None,
+            None,
             format!("import {{ style }} from 'stillwind/react'; {body}"),
         )
         .unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         let diagnostic = parsed
             .diagnostics
             .iter()
@@ -464,10 +594,17 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
 #[test]
 fn ref_definition_requires_one_boundary_identity() {
     for (choice, valid) in [("first", true), ("enabled ? first : second", false)] {
-        let source = SourceFile::new(FileId(1), "entry.ts", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const first=style.ref(); const second=style.ref(); const ref=style.ref({choice}, 'item');"
         )).unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         if valid {
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         } else {
@@ -488,13 +625,21 @@ fn ref_definition_requires_one_boundary_identity() {
 fn extracts_aria_and_data_attributes_with_value_expression_spans() {
     let source = SourceFile::new(
         FileId(1),
-        "Button.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style({ "aria-busy": loading, "data-state": state });"#,
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
 
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let Some(StyleInput::Class(ClassExpression::Group { entries, .. })) =
@@ -521,14 +666,22 @@ const props = style({ "aria-busy": loading, "data-state": state });"#,
 fn flattens_arrays_and_retains_variant_prefixes() {
     let source = SourceFile::new(
         FileId(1),
-        "Button.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" });"#,
     )
     .unwrap();
 
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
 
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let StyleInput::Class(ClassExpression::Array(elements)) =
@@ -571,13 +724,21 @@ fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "Invalid.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; const props = style({argument});"
             ),
         )
         .unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(!parsed.diagnostics.is_empty(), "{argument}");
     }
 }
@@ -587,12 +748,20 @@ fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
 fn nested_variant_wrappers_preserve_utility_source_spans() {
     let source = SourceFile::new(
         FileId(1),
-        "Nested.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }] });"#,
     )
     .unwrap();
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
     let StyleInput::Class(ClassExpression::Group { entries, .. }) =
         &parsed.module.style_calls[0].inputs[0]
@@ -647,11 +816,19 @@ fn unclaimed_keyframes_uses_report_diagnostics() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "entry.ts",
+            None,
+            None,
             format!("import {{style}} from 'stillwind/react'; {body}"),
         )
         .unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(
             parsed
                 .diagnostics
@@ -668,7 +845,8 @@ fn unclaimed_keyframes_uses_report_diagnostics() {
 fn claimed_keyframes_uses_stay_diagnostic_free() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const a = style.keyframes({ from: "opacity-0" });
 const b = style.keyframes({ to: "opacity-0" });
@@ -677,14 +855,28 @@ export const props = style("flex", enabled ? a("") : b(""), ["p-4", a("duration-
 });"#,
     )
     .unwrap();
-    let parsed = parse(&source);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
 }
 
 #[test]
 fn external_class_arrays_keep_leaf_occurrences_and_spread_boundaries() {
-    let source = SourceFile::new(FileId(1), "classes.tsx", "import {style} from 'stillwind/react'; const props = style({class: [first, [,, second, []], flag ? [third] : [], [...values], (fourth, fifth)]});").unwrap();
-    let parsed = parse(&source);
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const props = style({class: [first, [,, second, []], flag ? [third] : [], [...values], (fourth, fifth)]});").unwrap();
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     let StyleInput::Class(ClassExpression::Group { entries, .. }) =
         &parsed.module.style_calls[0].inputs[0]

@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn roundtrips_unicode_crlf_and_eof_without_accepting_scalar_interiors() {
-        let source = SourceFile::new(FileId(1), "x", "a😀\r\n日本語\n").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "a😀\r\n日本語\n").unwrap();
         let index = CoordinateIndex::new(&source);
         for byte in (0..=source.text().len()).map(|byte| BytePos(u32::try_from(byte).unwrap())) {
             if source.text().is_char_boundary(byte.0 as usize) {
@@ -185,7 +185,7 @@ mod tests {
     /// end of the buffer, while interior offsets and out-of-range lines are not.
     #[test]
     fn line_terminators_and_eof_are_addressable_scalar_boundaries() {
-        let source = SourceFile::new(FileId(1), "x", "😀\r\n").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "😀\r\n").unwrap();
         let index = CoordinateIndex::new(&source);
         for (line, utf16_column, expected) in [(0, 2, 4), (0, 3, 5), (1, 0, 6)] {
             assert_eq!(

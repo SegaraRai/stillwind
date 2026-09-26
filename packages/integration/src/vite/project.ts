@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import {
   cssWithSourceMap,
@@ -79,16 +80,22 @@ export function createViteProject(options: StillwindOptions) {
   const loadDesignSystem = async (
     resolveImport: (specifier: string, importer: string) => Promise<string>,
     dependencies: Set<string>,
+    session?: NativeProjectSession,
   ) => {
     const root = realpathSync(resolve(settings.projectRoot, cssEntrypoint(options)));
+    const nativeOptions = compilerOptions(options);
     const { loader, resources: resourceReferences } = await loadCssGraph(
       root,
-      compilerOptions(options),
+      nativeOptions,
       {
         resolve: async (specifier, importer) => realpath(await resolveImport(specifier, importer)),
         read: (name) => readFile(name, "utf8"),
+        documentUri: (name) => pathToFileURL(name).href,
+        sourceMapSource: (name) => pathToFileURL(name).href,
         watch: (name) => dependencies.add(name),
       },
+      undefined,
+      session?.newLoader(nativeOptions),
     );
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
@@ -235,7 +242,6 @@ export function createViteProject(options: StillwindOptions) {
                 cssWithSourceMap(
                   part,
                   resources,
-                  settings.projectRoot,
                   [...inputMap(name).values()].flatMap((input) =>
                     input.upstream ? [input.upstream] : [],
                   ),
@@ -304,6 +310,12 @@ export function createViteProject(options: StillwindOptions) {
     try {
       await ensureSession(state, context);
       const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+      const documentUri = (id: string) => {
+        const clean = cleanModuleId(id);
+        return clean.startsWith("\0")
+          ? `stillwind-virtual:${encodeURIComponent(clean)}`
+          : pathToFileURL(clean).href;
+      };
       const output = await state.compiler!.compile(
         code,
         id,
@@ -311,6 +323,7 @@ export function createViteProject(options: StillwindOptions) {
           resolve: (specifier, importer) =>
             context.resolve(specifier, importer, { skipSelf: true }),
           read: (id) => readFile(id, "utf8"),
+          documentUri,
           watch: (id) => context.addWatchFile(id),
           warn: (message) => context.warn(message),
         },
@@ -336,6 +349,7 @@ export function createViteProject(options: StillwindOptions) {
         upstream: context.getCombinedSourcemap
           ? {
               id: cleanModuleId(id),
+              sourceMapSource: documentUri(id),
               map: JSON.stringify(context.getCombinedSourcemap()),
             }
           : inputMap(name).get(cleanModuleId(id))?.upstream,

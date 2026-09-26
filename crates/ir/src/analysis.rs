@@ -18,7 +18,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{Fingerprint, SourceFile, SourceProvenance, Span};
 
-use crate::{ModuleIr, SourceInput, validate_composition};
+use crate::{ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, validate_composition};
 
 /// An expression whose TypeScript type the host must report back.
 #[derive(Clone, Debug)]
@@ -70,8 +70,19 @@ pub trait TypeScriptFactsProvider {
 /// Frontend entry point used by every host.
 pub trait SourceAnalyzer {
     /// Scans a plain source buffer with no projection.
-    fn scan(&self, source: Arc<SourceFile>) -> ModuleScan {
-        self.scan_input(SourceInput::normal(source))
+    fn scan(
+        &self,
+        source: Arc<SourceFile>,
+        module_id: ModuleId,
+        language: ScriptLanguage,
+        module_kind: ScriptModuleKind,
+    ) -> ModuleScan {
+        self.scan_input(SourceInput::normal(
+            source,
+            module_id,
+            language,
+            module_kind,
+        ))
     }
 
     /// Scans one host-provided input, projection included.

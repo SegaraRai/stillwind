@@ -382,10 +382,15 @@ fn map_declarations<E>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::identifiers::{DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierMode};
 
     /// One test's names, which the built-in generator always produces.
     fn identifiers() -> IdentifierContext {
-        IdentifierContext::builtin()
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
     }
 
     /// Lowers with the compiler's own helper names.

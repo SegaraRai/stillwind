@@ -18,12 +18,12 @@ use std::sync::Arc;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, collect_lint_directives};
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{
-    ExportedValue, IntegrationDiagnostic, ModuleSummary, SymbolicValue, TypeFacts,
+    ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, SymbolicValue, TypeFacts,
 };
 use stillwind_source::Fingerprint;
 
 use crate::projected_scan::parse_projected;
-use crate::{ParsedJavaScript, parse_with_language};
+use crate::{ParsedJavaScript, parse};
 
 /// Oxc-backed analyser. Holds no state, because Oxc arenas are request-local.
 ///
@@ -40,7 +40,7 @@ impl OxcSourceAnalyzer {
     ///
     /// This is an associated function rather than a method: it reads facts alone, and
     /// finalization is the only caller.
-    fn external_assets(facts: Option<&TypeFacts>) -> BTreeSet<stillwind_semantic::IdentityId> {
+    fn external_assets(facts: Option<&TypeFacts>) -> BTreeSet<IdentityId> {
         let Some(facts) = facts else {
             return BTreeSet::new();
         };
@@ -86,10 +86,10 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                 Ok(value) => value,
                 Err(error) => {
                     return ModuleScan {
-                        module_id: source.path().into(),
+                        module_id: input.module_id.clone(),
                         source_revision: Fingerprint::of(source.text()),
                         local_ir: ModuleIr::react(),
-                        summary: ModuleSummary::new(source.path()),
+                        summary: ModuleSummary::new(input.module_id.as_str()),
                         type_probes: Vec::new(),
                         lint_directives: collect_lint_directives(source.text()),
                         diagnostics: vec![CompileError::new(error.into(), source.full_span())],
@@ -102,15 +102,23 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             }
         } else {
             (
-                parse_with_language(&source, &[], &BTreeMap::new(), input.language),
+                parse(
+                    &source,
+                    input.module_id.as_str(),
+                    &[],
+                    &BTreeMap::new(),
+                    input.language,
+                    input.module_kind,
+                ),
                 Vec::new(),
             )
         };
         select_framework(&mut parsed, &input);
+        let module_id = input.module_id.clone();
         ModuleScan {
             input,
             provenance,
-            module_id: source.path().into(),
+            module_id,
             source_revision: Fingerprint::of(source.text()),
             type_probes: parsed
                 .type_probes
@@ -177,18 +185,20 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                             )],
                             lint_findings: Vec::new(),
                             module: ModuleIr::react(),
-                            summary: ModuleSummary::new(scan.source.path()),
+                            summary: ModuleSummary::new(scan.module_id.as_str()),
                         };
                         select_framework(&mut parsed, &scan.input);
                         return parsed;
                     }
                 }
             } else {
-                parse_with_language(
+                parse(
                     &scan.source,
+                    scan.module_id.as_str(),
                     &facts.facts,
                     &facts.assets,
                     scan.input.language,
+                    scan.input.module_kind,
                 )
             };
             select_framework(&mut parsed, &scan.input);

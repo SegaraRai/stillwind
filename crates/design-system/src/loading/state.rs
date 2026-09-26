@@ -8,7 +8,7 @@
 //! preserved regardless of the order in which reads finished.
 //!
 //! A source name is the loader's unit of identity and cycle detection. Supplying a
-//! known name again is allowed only with byte-identical content. Failures the loader
+//! known name again is allowed only with the same URI and byte-identical content. Failures the loader
 //! can decide from responses (unknown IDs, invalid CSS or imports, cycles, conflicting
 //! content, exhausted IDs) become
 //! [`Complete(Err(..))`](DesignSystemLoadStep::Complete); a host that cannot read a
@@ -19,7 +19,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_source::{FileId, SourceError, SourceFile};
+use stillwind_source::{
+    FileId, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
+};
 
 use super::expansion::ExpandedSource;
 use super::imports::{Import, imports};
@@ -47,12 +49,12 @@ pub enum DesignSystemLoadError {
         #[from]
         SourceError,
     ),
+    /// Registration of a host-addressable CSS document failed.
+    #[error("{0}")]
+    Registry(#[from] SourceRegistryError),
     /// The monotonic request counter reached `u32::MAX`.
     #[error("CSS request IDs exhausted")]
     RequestIdExhausted,
-    /// The graph holds more sources than a 32-bit file ID can address.
-    #[error("too many CSS sources")]
-    SourceIdExhausted,
     /// A response arrived after the load had already completed.
     #[error("provide called after completion")]
     AlreadyComplete,
@@ -68,9 +70,9 @@ pub enum DesignSystemLoadError {
         /// The offending response ID.
         id: u32,
     },
-    /// A known name was supplied again with different content.
-    #[error("conflicting content for {}", .name.0)]
-    ConflictingContent {
+    /// A known name was supplied again with different document identity or content.
+    #[error("conflicting source for {}", .name.0)]
+    ConflictingSource {
         /// Name that was supplied twice.
         name: CssSourceName,
     },
@@ -114,6 +116,8 @@ struct Node {
 /// The loader performs no I/O and holds no host resources, so a host that
 /// abandons a load may simply drop it from any incomplete state.
 pub struct DesignSystemLoader {
+    /// Issued identities for host-addressable CSS source revisions.
+    registry: SourceRegistry,
     /// Requested prefix configuration validated when loading completes.
     options: DesignSystemOptions,
     /// Sources and import edges retained for the current load.
@@ -132,9 +136,24 @@ pub struct DesignSystemLoader {
 }
 
 impl DesignSystemLoader {
-    /// Creates a loader that has not yet received its root source.
-    pub fn new(options: DesignSystemOptions) -> Self {
+    /// Returns source revisions accepted so far, including after a failed load.
+    pub fn sources(&self) -> &SourceRegistry {
+        &self.registry
+    }
+
+    /// Returns the first accepted source used for load-wide errors.
+    pub fn root_source(&self) -> Option<&Arc<SourceFile>> {
+        self.graph
+            .sources
+            .first()
+            .map(|source| &source.source)
+            .or_else(|| self.registry.first())
+    }
+
+    /// Creates a loader whose CSS revisions share file IDs with a project session.
+    pub fn new(options: DesignSystemOptions, registry: SourceRegistry) -> Self {
         Self {
+            registry,
             options,
             graph: CssSourceGraph::default(),
             known: BTreeMap::new(),
@@ -148,13 +167,22 @@ impl DesignSystemLoader {
     /// Answers one request; equivalent to a one-element [`Self::provide_many`].
     ///
     /// The first call must carry exactly one file and becomes the root source.
+    /// `None` for `uri` identifies an internal buffer without a reportable document.
     pub fn provide(
         &mut self,
         id: u32,
         name: CssSourceName,
+        uri: Option<SourceUri>,
+        source_map_source: Option<Arc<str>>,
         content: Arc<str>,
     ) -> DesignSystemLoadStep {
-        self.provide_many([CssFileInput { id, name, content }])
+        self.provide_many([CssFileInput {
+            id,
+            name,
+            uri,
+            source_map_source,
+            content,
+        }])
     }
 
     /// Answers any subset of the outstanding requests in one step.
@@ -209,7 +237,12 @@ impl DesignSystemLoader {
             } else {
                 self.pending.remove(&file.id)
             };
-            let index = self.accept_source(file.name.clone(), file.content)?;
+            let index = self.accept_source(
+                file.name.clone(),
+                file.uri,
+                file.source_map_source,
+                file.content,
+            )?;
             if let Some((source, import)) = parent {
                 *self
                     .nodes
@@ -253,8 +286,8 @@ impl DesignSystemLoader {
         // `u32::MAX` marks the synthetic expanded buffer: it is not a source the
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
-        let source = SourceFile::new(FileId(u32::MAX), name.0.clone(), output.text.as_str())?;
-        let mut theme = parse_theme(&source).map_err(|mut error| {
+        let source = SourceFile::new(FileId(u32::MAX), None, None, output.text.as_str())?;
+        let mut theme = parse_theme(&source, name.0.as_ref()).map_err(|mut error| {
             // Whole-expansion failures use the root when no contiguous original span exists.
             for label in &mut error.labels {
                 label.span = output
@@ -300,29 +333,30 @@ impl DesignSystemLoader {
     fn accept_source(
         &mut self,
         name: CssSourceName,
+        uri: Option<SourceUri>,
+        source_map_source: Option<Arc<str>>,
         content: Arc<str>,
     ) -> Result<usize, DesignSystemLoadError> {
         if let Some(&index) = self.known.get(&name) {
-            if self
+            let previous = &self
                 .graph
                 .sources
                 .get(index)
                 .ok_or(DesignSystemLoadError::InvalidGraph)?
-                .source
-                .text()
-                != content.as_ref()
+                .source;
+            if previous.text() != content.as_ref()
+                || previous.uri() != uri.as_ref()
+                || previous.source_map_source() != source_map_source.as_deref()
             {
-                return Err(DesignSystemLoadError::ConflictingContent { name: name.clone() });
+                return Err(DesignSystemLoadError::ConflictingSource { name: name.clone() });
             }
             return Ok(index);
         }
         let index = self.nodes.len();
-        let id = u32::try_from(index + 1).map_err(|_| DesignSystemLoadError::SourceIdExhausted)?;
-        let source = Arc::new(SourceFile::new(FileId(id), name.0.clone(), content)?);
-        let imports = imports(source.text()).map_err(|kind| {
-            CompileError::new(kind, source.full_span()).with_source_name(source.path())
-        })?;
-        parse_theme(&source)?;
+        let source = self.registry.register(uri, source_map_source, content)?;
+        let imports =
+            imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
+        parse_theme(&source, name.0.as_ref())?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;
@@ -423,7 +457,11 @@ impl DesignSystemLoader {
             let mut output = ExpandedSource::default();
             let mut cursor = 0;
             for (import, target) in node.imports.iter().zip(&node.targets) {
-                output.append_source(source, cursor..import.start)?;
+                output.append_source(
+                    source,
+                    &self.graph.sources[index].name,
+                    cursor..import.start,
+                )?;
                 let target = target.ok_or(DesignSystemLoadError::InvalidGraph)?;
                 let imported = cache
                     .get(&target)
@@ -431,7 +469,11 @@ impl DesignSystemLoader {
                 output.append_import(imported, &import.wrappers)?;
                 cursor = import.end;
             }
-            output.append_source(source, cursor..source.text().len())?;
+            output.append_source(
+                source,
+                &self.graph.sources[index].name,
+                cursor..source.text().len(),
+            )?;
             cache.insert(index, output);
         }
         cache.remove(&0).ok_or(DesignSystemLoadError::InvalidGraph)
@@ -443,7 +485,8 @@ mod tests {
     use super::*;
 
     fn chain_loader(depth: usize) -> DesignSystemLoader {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         for index in 0..depth {
             let text = if index + 1 < depth {
                 "@import 'next';"
@@ -451,7 +494,7 @@ mod tests {
                 ".x{color:red;}"
             };
             let source = Arc::new(
-                SourceFile::new(FileId(u32::try_from(index + 1).unwrap()), "node.css", text)
+                SourceFile::new(FileId(u32::try_from(index + 1).unwrap()), None, None, text)
                     .unwrap(),
             );
             let imports = imports(text).unwrap();
@@ -500,16 +543,23 @@ mod tests {
 
     #[test]
     fn request_id_exhaustion_is_terminal_and_never_emits_max_or_wraps() {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         loader.next_id = u32::MAX - 1;
         let DesignSystemLoadStep::NeedFile(requests) =
-            loader.provide(0, "root".into(), "@import 'last';".into())
+            loader.provide(0, "root".into(), None, None, "@import 'last';".into())
         else {
             panic!("expected last usable request ID");
         };
         assert_eq!(requests[0].id, u32::MAX - 1);
         assert!(matches!(
-            loader.provide(u32::MAX - 1, "last".into(), "@import 'overflow';".into()),
+            loader.provide(
+                u32::MAX - 1,
+                "last".into(),
+                None,
+                None,
+                "@import 'overflow';".into()
+            ),
             DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))
         ));
         assert_eq!(loader.next_id, u32::MAX);
@@ -521,12 +571,15 @@ mod tests {
 
     #[test]
     fn exhausted_batch_finishes_with_error_instead_of_returning_partial_requests() {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         loader.next_id = u32::MAX - 1;
         assert!(matches!(
             loader.provide(
                 0,
                 "root".into(),
+                None,
+                None,
                 "@import 'last'; @import 'overflow';".into()
             ),
             DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::RequestIdExhausted))

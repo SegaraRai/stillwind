@@ -6,16 +6,13 @@
 //! guesses at unknown functions: an unparsable or unsupported expression is left
 //! byte-for-byte as authored.
 //!
-//! Only [`fold_calc_expressions`], [`fold_calc_expressions_with_zero_unit`],
-//! [`format_numeric_zero`], [`value_nesting_overflow`], and [`MAX_VALUE_NESTING`] are
+//! Only [`fold_calc_expressions`], [`format_numeric_zero`],
+//! [`value_nesting_overflow`], and [`MAX_VALUE_NESTING`] are
 //! re-exported; the tree and the parser itself stay crate-internal.
 
 pub(super) mod expression;
 pub(super) mod folding;
 pub(super) mod parser;
 
-pub use folding::{
-    fold_calc_expressions, fold_calc_expressions_with_zero_unit, format_numeric_zero,
-    value_nesting_overflow,
-};
+pub use folding::{fold_calc_expressions, format_numeric_zero, value_nesting_overflow};
 pub use parser::MAX_VALUE_NESTING;

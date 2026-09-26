@@ -82,7 +82,8 @@ fn resolves_filter_and_perspective_keywords() {
 fn lets_user_css_override_compatibility_fallback_utility_names() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         "@utility size-* { inline-size: --value(--spacing-*); block-size: --value(--spacing-*); }",
     )
     .unwrap();

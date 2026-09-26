@@ -6,8 +6,8 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_design_system::LintSeverity;
-use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_diagnostics::{CompileErrorKind, LintKind, LintSeverity};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -15,8 +15,7 @@ use super::*;
 #[test]
 fn compiles_local_utility_animations_and_selector_uses() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Dialog.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const enter = style.keyframes({ from: "opacity-0 translate-y-2 scale-98", to: "opacity-100 translate-y-0 scale-100" });
 const exit = style.keyframes({ from: "opacity-100", to: "opacity-0 scale-98" });
@@ -24,17 +23,25 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@theme { --radius-md: .375rem; --spacing-2: .5rem; --ease-standard: ease-out; }",
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@keyframes sw-kf-"));
     assert!(
-        fold_calc_expressions(&result.css)
+        fold_calc_expressions(&result.css, None)
             .contains("from{opacity:0%;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}"),
         "{}",
         result.css
@@ -57,16 +64,26 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
 fn spells_declaration_labels_into_the_generated_names() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Labelled.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const enter = style.keyframes({ label: "fade", from: "opacity-0", to: "opacity-100" });
 const panel = style.viewTransition({ label: "panel", old: "opacity-0" });
 export const item = style(panel, enter("duration-180"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -98,8 +115,7 @@ export const item = style(panel, enter("duration-180"));"#,
 #[test]
 fn compiles_view_transition_assets_and_keyed_instances() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/ProductCard.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 declare const product: { id: string };
 const title = style.viewTransition({ group: "duration-180 ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
@@ -111,11 +127,19 @@ const detail = style(title);"#,
     ).unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
     ).unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("::view-transition-group(.sw-vt-"));
@@ -156,16 +180,24 @@ const detail = style(title);"#,
 #[test]
 fn compiles_view_transition_conditions_and_image_pair_phases() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Gallery.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const item = style.viewTransition({ old: "opacity-0 motion-reduce:opacity-100", new: "opacity-100", imagePair: "isolation-auto" });
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -195,16 +227,24 @@ export const photo = style(item);"#,
 #[test]
 fn conditions_group_options_on_their_own_rules() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Reduced.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const item = style.viewTransition({ group: "duration-180 ease-linear both motion-reduce:duration-0", old: "opacity-0", new: "opacity-100" });
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -245,16 +285,24 @@ export const photo = style(item);"#,
 #[test]
 fn conditions_projected_group_options() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/Projected.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const item = style.viewTransition({ group: "motion-reduce:[transition-duration:75ms]", old: "opacity-0" });
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -278,7 +326,8 @@ export const photo = style(item);"#,
 fn warns_when_a_composed_base_declares_other_transition_classes() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Composed.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const base = style.viewTransition({ old: "opacity-0" });
 const other = style.viewTransition({ new: "opacity-100" });
@@ -287,9 +336,18 @@ export const replaced = style(block, other.for("hero"));
 export const kept = style(block, base.for("hero"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let findings = result
@@ -314,7 +372,8 @@ export const kept = style(block, base.for("hero"));"#,
 fn rejects_composing_a_base_with_a_runtime_transition_name() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Runtime.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const key: string;
 const transition = style.viewTransition({ old: "opacity-0" });
@@ -322,9 +381,18 @@ const named = style(transition.for(key));
 export const props = style(named, "flex");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(
         result
@@ -340,26 +408,30 @@ export const props = style(named, "flex");"#,
 fn configures_stillwind_and_tailwind_compatibility_prefixes_independently() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Prefix.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const card = style.viewTransition({ old: "opacity-0" });
 export const item = style("translate-x-1", card);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --spacing-1: .25rem; }",
-    )
-    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --spacing-1: .25rem; }").unwrap();
     let options = CompilerOptions {
         prefix: "--app-".to_owned(),
         tailwind_prefix: "--compat-".to_owned(),
         ..CompilerOptions::default()
     };
 
-    let result =
-        Compiler::compile_source_with_options(&OxcSourceAnalyzer, &component, &theme, &options);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &options,
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     // The class token is not a custom property, so the custom-property prefix does not
@@ -380,7 +452,8 @@ export const item = style("translate-x-1", card);"#,
 fn compiles_guarded_view_transitions_through_class_slots() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Guarded.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const compact: boolean;
 const main = style.viewTransition({ old: "opacity-0" });
@@ -388,9 +461,18 @@ const sub = style.viewTransition({ new: "opacity-100" });
 export const item = style("rounded", compact && sub, main.for("hero"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(
@@ -420,7 +502,8 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
 fn variant_transition_dynamic_name_stays_in_the_source_condition() {
     let component = SourceFile::new(
         FileId(1),
-        "src/VariantTransition.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const enabled: boolean;
 declare const id: string;
@@ -428,8 +511,17 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains(":hover"), "{}", result.css);
     assert!(
@@ -453,7 +545,8 @@ export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
 fn conditional_transition_dynamic_name_uses_inline_style() {
     let component = SourceFile::new(
         FileId(1),
-        "src/ConditionalTransition.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const enabled: boolean;
 declare const id: string;
@@ -461,8 +554,17 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", enabled && motion.for(id));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("(enabled) &&"), "{transformed}");
@@ -481,15 +583,25 @@ export const item = style("block", enabled && motion.for(id));"#,
 fn variant_transition_literal_name_needs_no_inline_style() {
     let component = SourceFile::new(
         FileId(1),
-        "src/StaticVariantTransition.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const enabled: boolean;
 const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", { "hover:": enabled && motion.for("hero") });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains(":hover"), "{}", result.css);
     assert!(
@@ -506,7 +618,8 @@ export const item = style("block", { "hover:": enabled && motion.for("hero") });
 fn dynamic_names_in_distinct_variants_have_distinct_slots() {
     let component = SourceFile::new(
         FileId(1),
-        "src/DistinctVariantNames.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const first: string;
 declare const second: string;
@@ -514,8 +627,17 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style({ "hover:": motion.for(first), "focus:": motion.for(second) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let names = result
         .css
@@ -534,15 +656,25 @@ export const item = style({ "hover:": motion.for(first), "focus:": motion.for(se
 fn variant_transition_name_supports_string_style_adapters() {
     let component = SourceFile::new(
         FileId(1),
-        "src/StringStyleTransition.ts",
+        None,
+        None,
         r#"import { style } from "stillwind/svelte";
 declare const id: string;
 const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style({ "hover:": motion.for(id) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
         result.css.contains("view-transition-name:var(--sw-vtc-"),
@@ -560,8 +692,7 @@ export const item = style({ "hover:": motion.for(id) });"#,
 #[test]
 fn mixed_array_keeps_props_inputs_and_conditional_transition() {
     let component = SourceFile::new(
-        FileId(1),
-        "src/MixedArray.tsx",
+        FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 declare const enabled: boolean;
 declare const id: string;
@@ -569,8 +700,17 @@ const anchor = style.ref();
 const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "external" }, enabled && motion.for(id)]);"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("aria-busy"), "{transformed}");
@@ -589,7 +729,8 @@ export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "
 fn unions_guarded_view_transitions_through_class_slots() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Union.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const first: boolean;
 declare const second: boolean;
@@ -598,9 +739,18 @@ const two = style.viewTransition({ new: "opacity-100" });
 export const item = style("block", first && one, second && two);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(
@@ -627,7 +777,8 @@ export const item = style("block", first && one, second && two);"#,
 fn lowers_view_transition_key_applications_outside_calls() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Keyed.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const product: { id: string };
 const card = style.viewTransition({ old: "opacity-0" });
@@ -636,9 +787,18 @@ export const dynamic = card.for(product.id);
 export const useLiteral = style("block", literal);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
@@ -661,16 +821,26 @@ export const useLiteral = style("block", literal);"#,
 fn unions_view_transition_classes_in_one_call() {
     let component = SourceFile::new(
         FileId(1),
-        "src/MultipleTransitions.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const card = style.viewTransition({ old: "opacity-0" });
 const image = style.viewTransition({ new: "opacity-100" });
 export const item = style(card, image);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(

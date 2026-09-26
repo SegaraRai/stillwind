@@ -229,7 +229,8 @@ mod tests {
     fn disable_next_line_does_not_suppress_other_rules_or_later_lines() {
         let source = SourceFile::new(
             FileId(1),
-            "x",
+            None,
+            None,
             "// swlint-disable-next-line require-anchor-provider\nx\ny",
         )
         .unwrap();
@@ -279,7 +280,7 @@ mod tests {
                 ],
             ),
         ] {
-            let source = SourceFile::new(FileId(1), "x", text).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, text).unwrap();
             let mut findings = ['x', 'y']
                 .into_iter()
                 .flat_map(|c| {
@@ -311,7 +312,8 @@ mod tests {
     fn suppression_uses_primary_label_and_typed_rule_only() {
         let source = SourceFile::new(
             FileId(1),
-            "entry.ts",
+            None,
+            None,
             "// swlint-disable-next-line require-anchor-provider\nx\ny",
         )
         .unwrap();

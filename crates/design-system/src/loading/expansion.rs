@@ -16,7 +16,7 @@
 use stillwind_css::relative_css_urls;
 use stillwind_source::{Fingerprint, SourceError, SourceFile, Span};
 
-use super::protocol::{CssResourceReference, CssSourceMapping};
+use super::protocol::{CssResourceReference, CssSourceMapping, CssSourceName};
 
 /// One source's inlined text plus the mapping and resources it produced.
 #[derive(Clone, Debug, Default)]
@@ -74,6 +74,7 @@ impl ExpandedSource {
     pub(super) fn append_source(
         &mut self,
         source: &SourceFile,
+        name: &CssSourceName,
         range: std::ops::Range<usize>,
     ) -> Result<(), SourceError> {
         let text = source
@@ -88,12 +89,7 @@ impl ExpandedSource {
             let start = range.start + resource.range.start;
             let end = range.start + resource.range.end;
             self.append_original(source, cursor..start)?;
-            let identity = format!(
-                "{}:{}{}",
-                source.path().len(),
-                source.path(),
-                resource.specifier
-            );
+            let identity = format!("{}:{}{}", name.0.len(), name.0, resource.specifier);
             let placeholder = format!("__stillwind_resource_{}__", Fingerprint::of(identity).0);
             let replacement = if resource.string {
                 format!("\"{placeholder}\"")
@@ -110,7 +106,7 @@ impl ExpandedSource {
             });
             self.resources.push(CssResourceReference {
                 placeholder,
-                owner: source.path().into(),
+                owner: name.0.to_string(),
                 specifier: resource.specifier,
                 span: Span::new(
                     source.id(),
@@ -237,9 +233,15 @@ mod tests {
     #[test]
     fn resource_substitution_preserves_spans_across_length_changes() {
         let text = "--image:linear-gradient(red,blue),url('é.png');--color:red;";
-        let source = SourceFile::new(FileId(9), "nested/design.css", text).unwrap();
+        let source = SourceFile::new(FileId(9), None, None, text).unwrap();
         let mut output = ExpandedSource::default();
-        output.append_source(&source, 0..text.len()).unwrap();
+        output
+            .append_source(
+                &source,
+                &CssSourceName::from("nested/design.css"),
+                0..text.len(),
+            )
+            .unwrap();
         assert_eq!(output.resources.len(), 1);
         assert_eq!(output.resources[0].owner, "nested/design.css");
         assert_eq!(output.resources[0].specifier, "é.png");
@@ -273,11 +275,17 @@ mod tests {
 
     #[test]
     fn rejects_invalid_source_ranges_and_unrepresentable_mappings() {
-        let source = SourceFile::new(FileId(1), "x", "é").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "é").unwrap();
         let mut output = ExpandedSource::default();
-        assert!(output.append_source(&source, 0..1).is_err());
+        assert!(
+            output
+                .append_source(&source, &CssSourceName::from("test.css"), 0..1)
+                .is_err()
+        );
         assert!(output.text.is_empty());
-        output.append_source(&source, 0..2).unwrap();
+        output
+            .append_source(&source, &CssSourceName::from("test.css"), 0..2)
+            .unwrap();
         assert!(output.original_span(Span::new(FileId(1), 2, 1)).is_none());
         output.mappings[0].source_start = usize::MAX;
         assert!(output.original_span(Span::new(FileId(1), 1, 2)).is_none());
@@ -285,9 +293,11 @@ mod tests {
 
     #[test]
     fn imported_wrappers_shift_mappings_without_mapping_synthetic_text() {
-        let source = SourceFile::new(FileId(7), "a.css", "color:red;").unwrap();
+        let source = SourceFile::new(FileId(7), None, None, "color:red;").unwrap();
         let mut fragment = ExpandedSource::default();
-        fragment.append_source(&source, 0..10).unwrap();
+        fragment
+            .append_source(&source, &CssSourceName::from("test.css"), 0..10)
+            .unwrap();
         let mut expanded = ExpandedSource::default();
         expanded
             .append_import(&fragment, &["@layer a".into()])

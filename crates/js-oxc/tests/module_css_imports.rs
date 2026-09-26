@@ -4,6 +4,7 @@
 //! while a mixed clause with at least one value specifier must. Spans must cover
 //! the literal including its quotes, because the host rewrites that exact range.
 
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile};
 
@@ -27,8 +28,15 @@ fn explicit_module_css_tracks_value_import_literals_only() {
         ("const text = 'stillwind/module-css';", 0),
         ("import css from 'stillwind/module\\u002dcss';", 1),
     ] {
-        let source = SourceFile::new(FileId(1), "module.ts", text).unwrap();
-        let parsed = parse(&source);
+        let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty(), "{text}");
         assert_eq!(parsed.module.imports.module_css.len(), expected, "{text}");
         for span in parsed.module.imports.module_css {

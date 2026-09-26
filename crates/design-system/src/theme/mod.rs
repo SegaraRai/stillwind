@@ -16,8 +16,9 @@ pub(super) mod namespace;
 pub(super) mod parser;
 pub(super) mod references;
 
-pub use config::{LintSeverity, StillwindConfig, UtilityOrderMode};
+pub use config::{StillwindConfig, UtilityOrderMode};
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode};
 pub use index::ThemeIndex;
 pub use namespace::{ThemeNamespace, parse_theme_namespace_types};
 pub use parser::parse_theme;
+pub use references::ThemeReferenceError;

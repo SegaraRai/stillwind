@@ -11,7 +11,8 @@ use crate::evaluation::builtins::metadata::COMPAT_COLOR_SUPPORT;
 fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         "@variant pressed { &:active { @slot; } }\n@variant narrow { @media (width < 40rem) { @slot; } }\n@variant decorated { &::before { content: var(--content); @slot; } }",
     ).unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
@@ -46,7 +47,8 @@ fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
 fn resolves_wildcard_selector_variants_from_application_css() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         "@variant state-* { &[data-state=--value()] { @slot; } }",
     )
     .unwrap();
@@ -75,8 +77,7 @@ fn resolves_wildcard_selector_variants_from_application_css() {
 #[test]
 fn resolves_compat_color_value_function() {
     let source = SourceFile::new(
-        FileId(1),
-        "theme.css",
+        FileId(1), None, None,
         "@theme { --color-brand: red; --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility tone-* { color: --compat-color(--value(--color-*), --alpha(--modifier())); }",
     ).unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
@@ -97,7 +98,8 @@ fn resolves_compat_color_value_function() {
 
     let plain_source = SourceFile::new(
         FileId(2),
-        "plain.css",
+        None,
+        None,
         "@utility plain-tone { color: --compat-color(red, 50%); }",
     )
     .unwrap();
@@ -110,8 +112,7 @@ fn resolves_compat_color_value_function() {
     );
 
     let nested_source = SourceFile::new(
-        FileId(3),
-        "nested.css",
+        FileId(3), None, None,
         "@utility nested-tone-* { @media (width >= 1px) { color: --compat-color(red, --alpha(--modifier())); } }",
     ).unwrap();
     let nested_theme = parse_fixture_theme(&nested_source).unwrap();
@@ -125,8 +126,7 @@ fn resolves_compat_color_value_function() {
 #[test]
 fn expands_theme_wildcards_in_nested_utility_rules() {
     let source = SourceFile::new(
-        FileId(1),
-        "theme.css",
+        FileId(1), None, None,
         "@theme { --breakpoint-narrow: 37rem; --breakpoint-wide: 80rem; }\n@utility container { width: 100%; @media (width >= --value(--breakpoint-*)) { max-width: --value(--breakpoint-*); } }",
     ).unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
@@ -143,7 +143,7 @@ fn expands_theme_wildcards_in_nested_utility_rules() {
 #[test]
 fn resolves_container_at_variants_from_css_registry() {
     let source =
-        SourceFile::new(FileId(1), "theme.css", "@theme { --container-md: 40rem; }").unwrap();
+        SourceFile::new(FileId(1), None, None, "@theme { --container-md: 40rem; }").unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
     let candidate = parse_candidate("@min-md:flex").unwrap();
     assert_eq!(
@@ -167,7 +167,8 @@ fn resolves_container_at_variants_from_css_registry() {
 fn resolves_formal_variant_modifier_placeholder() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         "@variant rel-* { :where(.peer/{modifier}) ~ & { @slot; } }",
     )
     .unwrap();
@@ -186,8 +187,7 @@ fn resolves_formal_variant_modifier_placeholder() {
 #[test]
 fn resolves_wildcard_conditional_variants_from_css() {
     let source = SourceFile::new(
-        FileId(1),
-        "theme.css",
+        FileId(1), None, None,
         "@theme { --breakpoint-narrow: 40rem; }\n@variant narrow-* { @media (width < --value(--breakpoint-*)) { @slot; } }",
     ).unwrap();
     let theme = parse_fixture_theme(&source).unwrap();

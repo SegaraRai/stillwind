@@ -5,6 +5,8 @@
 //! CSS-defined utilities and variants, arbitrary custom properties, and negative and themed
 //! transition utilities.
 
+use stillwind_compiler::CompilerOptions;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -13,14 +15,14 @@ use super::*;
 fn emits_tailwind_shaped_layers_theme_variables_and_variants() {
     let component = SourceFile::new(
         FileId(1),
-        "src/SaveButton.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opacity-60");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "src/styles/stillwind.css",
         r"@theme {
   --color-accent: oklch(.6 .2 250);
   --spacing-4: 1rem;
@@ -29,7 +31,16 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -56,21 +67,30 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
 fn retains_authored_custom_properties_and_theme_selectors() {
     let component = SourceFile::new(
         FileId(1),
-        "src/App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("bg-accent");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "src/styles/stillwind.css",
         r#"@theme inline { --color-accent: var(--app-accent); }
 :root { --app-accent: oklch(.6 .2 250); }
 [data-theme="dark"] { --app-accent: oklch(.3 .1 250); }"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(!result.css.contains_css("--color-accent:var(--app-accent);"));
@@ -90,15 +110,24 @@ const props = style("bg-accent");"#,
 fn resolves_v4_default_spacing_and_arbitrary_custom_properties() {
     let component = SourceFile::new(
         FileId(1),
-        "src/App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)*2)]");"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -124,15 +153,24 @@ const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)
 fn resolves_v4_default_animations_and_emits_their_keyframes() {
     let component = SourceFile::new(
         FileId(1),
-        "src/App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("animate-spin");"#,
     )
     .unwrap();
-    let theme =
-        crate::css_fixture::source(FileId(2), "src/styles/stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains_css("animation:var(--animate-spin);"));
@@ -143,21 +181,30 @@ const props = style("animate-spin");"#,
 fn resolves_css_defined_custom_utilities_and_variants() {
     let component = SourceFile::new(
         FileId(1),
-        "src/App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("content-auto data-checked:content-auto tab-8");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "src/styles/stillwind.css",
         r#"@utility content-auto { content-visibility: auto; }
 @utility tab-* { tab-size: --value(integer); }
 @custom-variant data-checked (&[data-ui~="checked"]);"#,
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains_css("content-visibility: auto;"));
@@ -169,20 +216,25 @@ const props = style("content-auto data-checked:content-auto tab-8");"#,
 fn applies_a_transform_plan_without_touching_surrounding_source() {
     let component = SourceFile::new(
         FileId(1),
-        "src/SaveButton.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("bg-accent");
 export { props };"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
-        FileId(2),
-        "stillwind.css",
-        "@theme { --color-accent: red; }",
-    )
-    .unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     let transformed = result.apply_to_source(&component).unwrap();
 
     assert!(transformed.starts_with("\nconst props = {className:\"sw_"));
@@ -193,7 +245,8 @@ export { props };"#,
 fn compiles_nested_arrays_attributes_and_element_local_selectors() {
     let component = SourceFile::new(
         FileId(1),
-        "src/SaveButton.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
 const props = style(
@@ -204,12 +257,20 @@ const props = style(
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "src/styles/stillwind.css",
         "@theme { --color-accent: red; --spacing-4: 1rem; }",
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 2);
@@ -232,19 +293,28 @@ const props = style(
 fn resolves_negative_and_transition_utilities_from_declared_theme_tokens() {
     let component = SourceFile::new(
         FileId(1),
-        "src/Card.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const props = style("-mt-4 duration-120 ease-standard");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "src/styles/stillwind.css",
         "@theme { --spacing-4: 1rem; --ease-standard: ease-out; }",
     )
     .unwrap();
 
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(

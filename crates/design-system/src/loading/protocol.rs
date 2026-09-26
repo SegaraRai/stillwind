@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use stillwind_source::{FileId, SourceFile, Span};
+use stillwind_source::{FileId, SourceFile, SourceUri, Span};
 
 use super::state::DesignSystemLoadError;
 use crate::DesignSystemSnapshot;
@@ -143,6 +143,11 @@ pub struct CssFileInput {
     /// Name the host assigns to this source; repeated names must carry identical
     /// content.
     pub name: CssSourceName,
+    /// Host-supplied document identity. `None` means this is an internal CSS
+    /// buffer without a reportable document location.
+    pub uri: Option<SourceUri>,
+    /// Exact source name to write into a generated source map.
+    pub source_map_source: Option<Arc<str>>,
     /// Full text of the source.
     pub content: Arc<str>,
 }

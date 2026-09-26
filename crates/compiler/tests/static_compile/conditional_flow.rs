@@ -5,8 +5,9 @@
 //! (attribute values included), that base rules precede conditional rules in the
 //! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
 
-use stillwind_compiler::CompileResult;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_compiler::{CompileResult, CompilerOptions};
+use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 
 use super::*;
@@ -15,7 +16,8 @@ use super::*;
 fn variant_rejects_ref_attachment_and_composition() {
     let component = SourceFile::new(
         FileId(1),
-        "src/InvalidVariantLeaf.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react";
 const ref = style.ref();
 const base = style("flex");
@@ -23,24 +25,52 @@ export const one = style({ "hover:": ref });
 export const two = style({ "hover:": base });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert_eq!(
         result
             .diagnostics
             .iter()
-            .filter(|error| error.kind == CompileErrorKind::InvalidVariantInput)
+            .filter(|error| matches!(error.kind, CompileErrorKind::InvalidVariantInput { .. }))
             .count(),
         2,
         "{:#?}",
         result.diagnostics
+    );
+    let failures = result
+        .diagnostics
+        .iter()
+        .filter_map(|error| match error.kind {
+            CompileErrorKind::InvalidVariantInput { reason } => Some((
+                reason,
+                component.slice(error.labels[0].span).unwrap().to_owned(),
+            )),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        failures,
+        [
+            (VariantInputErrorKind::RefAttachment, "ref".to_owned()),
+            (VariantInputErrorKind::Composition, "base".to_owned()),
+        ]
     );
 }
 
 fn compile(body: &str) -> CompileResult {
     let component = SourceFile::new(
         FileId(1),
-        "src/Flow.tsx",
+        None,
+        None,
         format!(
             "import {{ style }} from \"stillwind/react\";\n\
              declare const a: boolean;\n\
@@ -52,13 +82,21 @@ fn compile(body: &str) -> CompileResult {
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@theme { --color-accent: red; --color-muted: gray; } @utility p-4 { padding: 1rem; } \
          @utility p-2 { padding: 0.5rem; } @utility m-2 { margin: 0.5rem; } \
          @utility m-4 { margin: 1rem; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     result
 }
@@ -201,19 +239,31 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
         ),
         (
             "const props = style(\"p-4\", { \"hover:\": { \"aria-busy\": true } });",
-            CompileErrorKind::InvalidVariantInput,
+            CompileErrorKind::InvalidVariantInput {
+                reason: VariantInputErrorKind::Attribute,
+            },
         ),
     ] {
         let component = SourceFile::new(
             FileId(1),
-            "src/Invalid.tsx",
+            None,
+            None,
             format!(
                 "import {{ style }} from \"stillwind/react\"; declare const a: boolean; {body}"
             ),
         )
         .unwrap();
-        let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
-        let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &theme);
+        let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &component,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &CompilerOptions::default(),
+        );
         assert!(
             result.diagnostics.iter().any(|error| error.kind == kind),
             "{body}: {:#?}",

@@ -71,7 +71,6 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
           cssWithSourceMap(
             { css: plan.originalCss, sourceMap: plan.sourceMap },
             plan.resourceReplacements,
-            settings.projectRoot,
             [...inputMap(name).values()].flatMap((input) =>
               input.upstream ? [input.upstream] : [],
             ),

@@ -52,6 +52,7 @@ impl<'a> MacroExtractor<'a> {
             macros: &macros,
             scoping: self.scoping,
             source: self.source,
+            module_id: self.module_id,
             coordinates: self.coordinates,
             values: HashMap::new(),
             writes: HashSet::new(),
@@ -67,6 +68,8 @@ impl<'a> MacroExtractor<'a> {
 
 /// Visitor state for one seeding pass.
 struct Bindings<'s> {
+    /// Module identity used for style declarations.
+    module_id: &'s str,
     /// Symbols bound to the imported `style` macro.
     macros: &'s HashSet<SymbolId>,
     /// Scoping table used to resolve callee references.
@@ -100,7 +103,7 @@ impl<'a> Visit<'a> for Bindings<'_> {
                 binding,
                 ExportedValue::Styles(SymbolicValue::exact(IdentityId::new(
                     AssetKind::Style,
-                    self.source.path(),
+                    self.module_id,
                     span.start.0,
                     span.end.0,
                     "",

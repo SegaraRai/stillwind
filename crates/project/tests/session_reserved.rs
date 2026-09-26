@@ -7,25 +7,23 @@ mod css_fixture;
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    AnchorName, DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash,
-    Identifiers, LocatorContext, RefMarker,
+    AnchorName, CompilerOptions, DeclarationContext, GeneratedName, IdentifierGenerator,
+    IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::SourceAnalyzer;
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
 /// One snapshot whose theme declares a single token.
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(
-            FileId(2),
-            "theme",
-            format!("@theme {{ --color-brand: {color}; }}"),
-        )
-        .unwrap(),
+        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
+            .unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -58,27 +56,32 @@ impl IdentifierGenerator for FixedBodyGenerator {
 }
 
 /// One module that declares a ref and uses its anchor.
-fn ref_module() -> stillwind_ir::ModuleAnalysis {
+fn ref_module() -> ModuleAnalysis {
     OxcSourceAnalyzer.finalize(
-            OxcSourceAnalyzer.scan(Arc::new(
+        OxcSourceAnalyzer.scan(
+            Arc::new(
                 SourceFile::new(
-                    FileId(1),
-                    "panel.tsx",
+                    FileId(1), None, None,
                     "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
                 )
                 .unwrap(),
-            )),
-            None,
-        )
+            ),
+            ModuleId::from("panel.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        ),
+        None,
+    )
 }
 
 #[test]
 fn distinct_pools_may_publish_the_same_spelling() {
-    let generators = Identifiers::with(Arc::new(FixedBodyGenerator));
+    let generators = Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release);
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
+        CompilerOptions::default(),
         generators,
     );
     let update = session.update_module(ref_module());
@@ -103,9 +106,10 @@ fn distinct_pools_may_publish_the_same_spelling() {
 fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedBodyGenerator)),
+        CompilerOptions::default(),
+        Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release),
     );
     assert!(session.update_module(ref_module()).diagnostics.is_empty());
     // The producer's own stylesheet names its anchor `shared`, which the generator also returned.
@@ -125,17 +129,18 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
 fn a_generated_anchor_name_is_checked_against_the_authored_document() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "theme",
         ":root{anchor-name:shared;} @stillwind-slot utilities;",
     )
     .unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+            .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedBodyGenerator)),
+        CompilerOptions::default(),
+        Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release),
     );
     let update = session.update_module(ref_module());
     // The generator names the anchor `shared`, which the authored declaration already owns.

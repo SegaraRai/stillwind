@@ -64,6 +64,8 @@ pub(super) const VIEW_TRANSITION_KEY: &str = "w";
 pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
+    /// Module identity used for generated names.
+    module_id: &'a str,
     /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
@@ -112,6 +114,8 @@ struct PendingRegion {
 pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
+    /// Compiler identity of the source module.
+    pub module_id: &'a str,
     /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.

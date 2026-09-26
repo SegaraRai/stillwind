@@ -92,19 +92,28 @@ fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
 fn a_host_name_is_written_without_the_builtin_prefix() {
     let context = IdentifierContext::new(
         GeneratorSet::new(Arc::new(RecordingGenerator::default())),
+        IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );
     let name = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(name.as_str(), "fixed-class");
-    let builtin = IdentifierContext::builtin()
-        .class_name(&class_context("0:flex"))
-        .unwrap();
+    let builtin = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    )
+    .class_name(&class_context("0:flex"))
+    .unwrap();
     assert!(builtin.as_str().starts_with("sw_"), "{builtin:?}");
 }
 
 #[test]
 fn every_builtin_family_keeps_its_own_prefix() {
-    let context = IdentifierContext::builtin();
+    let context = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
     let declaration = declaration_context(Some("primary"));
     assert!(
         context
@@ -154,7 +163,11 @@ fn every_builtin_family_keeps_its_own_prefix() {
 
 #[test]
 fn a_label_is_spelled_between_the_prefix_and_the_digest() {
-    let context = IdentifierContext::builtin();
+    let context = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
     let labelled = declaration_context(Some("primary"));
     assert!(
         context
@@ -218,20 +231,28 @@ fn a_digest_is_spelled_in_base_36_and_the_length_extends_its_suffix() {
 #[test]
 fn the_compilation_hash_length_decides_the_builtin_spelling() {
     let declaration = declaration_context(None);
-    let long = IdentifierContext::new(GeneratorSet::builtin(), 12)
+    let long = IdentifierContext::new(GeneratorSet::default(), IdentifierMode::Release, 12)
         .keyframes_name(&declaration)
         .unwrap();
     assert_eq!(long.as_str().len(), "sw-kf-".len() + 12, "{long}");
-    let short = IdentifierContext::builtin()
-        .keyframes_name(&declaration)
-        .unwrap();
+    let short = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    )
+    .keyframes_name(&declaration)
+    .unwrap();
     assert_eq!(short.as_str().len(), "sw-kf-".len() + 5, "{short}");
     assert!(long.as_str().ends_with(&short.as_str()["sw-kf-".len()..]));
 }
 
 #[test]
 fn a_labelled_request_is_not_answered_from_the_unlabelled_memo() {
-    let context = IdentifierContext::builtin();
+    let context = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
     let unlabelled = context.ref_marker_name(&declaration_context(None)).unwrap();
     let labelled = context
         .ref_marker_name(&declaration_context(Some("primary")))
@@ -247,7 +268,11 @@ fn a_labelled_request_is_not_answered_from_the_unlabelled_memo() {
 #[test]
 fn repeated_requests_use_one_generator_call() {
     let generator = Arc::new(RecordingGenerator::default());
-    let context = IdentifierContext::new(GeneratorSet::new(generator.clone()), DEFAULT_HASH_LENGTH);
+    let context = IdentifierContext::new(
+        GeneratorSet::new(generator.clone()),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
     let first = context.class_name(&class_context("0:flex")).unwrap();
     let second = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(first, second);
@@ -256,7 +281,7 @@ fn repeated_requests_use_one_generator_call() {
 
 #[test]
 fn development_mode_substitutes_and_records_a_rejected_name() {
-    let context = IdentifierContext::in_mode(
+    let context = IdentifierContext::new(
         GeneratorSet::new(Arc::new(FailingGenerator)),
         IdentifierMode::Development,
         DEFAULT_HASH_LENGTH,
@@ -276,6 +301,7 @@ fn development_mode_substitutes_and_records_a_rejected_name() {
 fn release_mode_fails_on_a_rejected_name() {
     let context = IdentifierContext::new(
         GeneratorSet::new(Arc::new(FailingGenerator)),
+        IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );
     let failure = context.class_name(&class_context("0:flex")).unwrap_err();
@@ -424,6 +450,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
 fn a_generator_receives_the_whole_digest() {
     let host = IdentifierContext::new(
         GeneratorSet::new(Arc::new(DigestGenerator)),
+        IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );
     let name = host.class_name(&class_context("0:flex")).unwrap();

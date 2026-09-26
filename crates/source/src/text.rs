@@ -12,14 +12,19 @@
 //! local `Path` handling, so one module keeps one name on Windows and POSIX. Nothing
 //! in this module performs I/O.
 
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use serde::{Deserialize, Serialize};
 
 /// Failure to build a source, or to relate a span or offset to one.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum SourceError {
+    /// An internal buffer cannot be named as an original source-map document.
+    #[error("an internal source cannot have a source-map entry")]
+    InternalSourceMap,
     /// A length or offset does not fit the 32-bit coordinate space.
     #[error("source size or offset {0} exceeds the 32-bit source limit")]
     TooLarge(
@@ -56,6 +61,72 @@ pub enum SourceError {
     ),
 }
 
+/// An invalid source-document identifier supplied by a host.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("invalid source URI: {0}")]
+pub struct SourceUriError(pub String);
+
+/// Host-supplied identity of an editable or virtual source document.
+///
+/// The spelling is preserved because a host or editor may distinguish valid URI
+/// spellings that a generic normalizer would consider equivalent.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct SourceUri(String);
+
+impl SourceUri {
+    /// Validates an absolute URI without changing its spelling.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a missing scheme or malformed URI characters.
+    pub fn parse(value: impl Into<String>) -> Result<Self, SourceUriError> {
+        let value = value.into();
+        let Some((scheme, rest)) = value.split_once(':') else {
+            return Err(SourceUriError(value.clone()));
+        };
+        let valid_scheme = !scheme.is_empty()
+            && scheme.bytes().enumerate().all(|(index, byte)| {
+                if index == 0 {
+                    byte.is_ascii_alphabetic()
+                } else {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.')
+                }
+            });
+        let bytes = rest.as_bytes();
+        let mut index = 0;
+        let mut valid_rest = !rest.is_empty();
+        while index < bytes.len() {
+            let byte = bytes[index];
+            if byte == b'%' {
+                valid_rest &= bytes.get(index + 1).is_some_and(u8::is_ascii_hexdigit)
+                    && bytes.get(index + 2).is_some_and(u8::is_ascii_hexdigit);
+                index += 3;
+            } else {
+                valid_rest &=
+                    byte.is_ascii_alphanumeric() || b"-._~:/?#[]@!$&'()*+,;=".contains(&byte);
+                index += 1;
+            }
+        }
+        if !valid_scheme || !valid_rest {
+            return Err(SourceUriError(value.clone()));
+        }
+        Ok(Self(value))
+    }
+
+    /// Returns the exact identifier supplied by the host.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for SourceUri {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::parse(value).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Canonical project-relative module path used by generated identities and caches.
 ///
 /// Backslashes become `/` and leading `./` segments are stripped; nothing else changes,
@@ -86,15 +157,13 @@ pub fn range_of(span: Span) -> Range<usize> {
     span.start.0 as usize..span.end.0 as usize
 }
 
-/// Process-local identifier of a source buffer.
+/// Identifier of a source buffer within one project source scope.
 ///
-/// Ids are assigned per run and are not stable across processes, so they must never
-/// be used alone as durable identity. In-process artifact keys may include them to
-/// distinguish source buffers; persisted records need a durable source name. Anything
-/// that needs a durable name should use [`normalized_module_path`].
+/// IDs may repeat in independent scopes and are not stable across processes.
+/// Persisted records need a durable document or module identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct FileId(
-    /// Process-local numeric buffer identity; not a persistent file identifier.
+    /// Buffer sequence within its source scope; not a persistent file identifier.
     pub u32,
 );
 
@@ -181,11 +250,12 @@ pub struct Position {
 /// Cloning shares the source storage and its coordinate index.
 #[derive(Clone, Debug)]
 pub struct SourceFile {
-    /// Process-local buffer identity carried by spans.
+    /// Buffer identity carried by spans within its source scope.
     id: FileId,
-    /// Host-supplied path stored verbatim for display and module identity derivation;
-    /// never opened here.
-    path: Arc<str>,
+    /// Host-supplied document identity, present for user-facing source reports.
+    uri: Option<SourceUri>,
+    /// Exact source entry the host selected for generated CSS maps.
+    source_map_source: Option<Arc<str>>,
     /// Immutable UTF-8 source buffer whose byte length fits u32.
     text: Arc<str>,
     /// Ascending UTF-8 byte offsets starting with zero, followed by the position after
@@ -198,17 +268,20 @@ pub struct SourceFile {
 impl SourceFile {
     /// Builds a buffer and its line table in one pass over the text.
     ///
-    /// The path is stored verbatim and only used for display and for deriving
-    /// [`normalized_module_path`]; it is never opened.
+    /// A missing URI identifies an internal buffer that cannot be reported directly.
     ///
     /// # Errors
     ///
     /// Returns an error if the text exceeds the 32-bit source coordinate limit.
     pub fn new(
         id: FileId,
-        path: impl Into<Arc<str>>,
+        uri: Option<SourceUri>,
+        source_map_source: Option<Arc<str>>,
         text: impl Into<Arc<str>>,
     ) -> Result<Self, SourceError> {
+        if uri.is_none() && source_map_source.is_some() {
+            return Err(SourceError::InternalSourceMap);
+        }
         let text = text.into();
         let len = offset(text.len())?;
         let mut line_starts = vec![0];
@@ -220,22 +293,28 @@ impl SourceFile {
 
         Ok(Self {
             id,
-            path: path.into(),
+            uri,
+            source_map_source,
             text,
             line_starts: line_starts.into(),
             len,
         })
     }
 
+    /// Returns the document identity, when the host supplied one.
+    pub fn uri(&self) -> Option<&SourceUri> {
+        self.uri.as_ref()
+    }
+
+    /// Returns the host's source-map entry for this original buffer.
+    pub fn source_map_source(&self) -> Option<&str> {
+        self.source_map_source.as_deref()
+    }
+
     /// The identity this buffer was registered under. Spans created from this file
     /// carry the same id.
     pub const fn id(&self) -> FileId {
         self.id
-    }
-
-    /// Host-supplied display path, unchanged by this crate.
-    pub fn path(&self) -> &str {
-        &self.path
     }
 
     /// The complete text. Prefer `slice` when a span is involved, so the range is
@@ -319,9 +398,186 @@ impl SourceFile {
     }
 }
 
+/// Failure to register or resolve a project source buffer.
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum SourceRegistryError {
+    /// No further IDs can be issued in this source scope.
+    #[error("source identifier space is exhausted")]
+    FileIdExhausted,
+    /// A span names a buffer absent from this registry.
+    #[error("unknown source file {0:?}")]
+    UnknownFile(FileId),
+    /// An ID already belongs to a different immutable source revision.
+    #[error("source file ID {0:?} belongs to another revision")]
+    ConflictingFile(FileId),
+    /// A generated buffer has no original document to report.
+    #[error("source file {0:?} has no reportable document URI")]
+    UnreportableSource(FileId),
+    /// The registered text or requested range is invalid.
+    #[error("{0}")]
+    Source(#[from] SourceError),
+}
+
+/// Source buffers and the ID allocator shared by one project session and its loaders.
+#[derive(Clone, Debug)]
+pub struct SourceRegistry {
+    files: BTreeMap<FileId, Arc<SourceFile>>,
+    next_id: Arc<AtomicU32>,
+}
+
+impl Default for SourceRegistry {
+    fn default() -> Self {
+        Self {
+            files: BTreeMap::new(),
+            next_id: Arc::new(AtomicU32::new(1 << 31)),
+        }
+    }
+}
+
+impl SourceRegistry {
+    fn next_id(&self) -> Result<FileId, SourceRegistryError> {
+        let id = self
+            .next_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+                next.checked_add(1).filter(|id| *id < u32::MAX)
+            })
+            .map_err(|_| SourceRegistryError::FileIdExhausted)?;
+        Ok(FileId(id))
+    }
+
+    /// Registers one immutable source revision and issues its compilation file ID.
+    ///
+    /// `None` for `uri` identifies an internal buffer whose positions cannot be
+    /// published without projection to an original document.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the source is too large or the ID space is exhausted.
+    pub fn register(
+        &mut self,
+        uri: Option<SourceUri>,
+        source_map_source: Option<Arc<str>>,
+        text: impl Into<Arc<str>>,
+    ) -> Result<Arc<SourceFile>, SourceRegistryError> {
+        let id = self.next_id()?;
+        let source = Arc::new(SourceFile::new(id, uri, source_map_source, text)?);
+        self.files.insert(source.id(), source.clone());
+        Ok(source)
+    }
+
+    /// Issues an ID for a generated analysis buffer that will be built after projection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the ID space is exhausted.
+    pub fn reserve_generated_id(&mut self) -> Result<FileId, SourceRegistryError> {
+        self.next_id()
+    }
+
+    /// Starts an empty registry that issues IDs from this registry's project scope.
+    #[must_use]
+    pub fn fork_empty(&self) -> Self {
+        Self {
+            files: BTreeMap::new(),
+            next_id: self.next_id.clone(),
+        }
+    }
+
+    /// Whether two registries issue IDs from the same project scope.
+    pub fn shares_ids_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.next_id, &other.next_id)
+    }
+
+    /// Keeps later allocations above an already issued source ID in this scope.
+    pub fn reserve_after(&self, id: FileId) {
+        self.next_id
+            .fetch_max(id.0.saturating_add(1), Ordering::Relaxed);
+    }
+
+    /// Finds the registered source that issued a span's file ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the ID was not issued by this registry.
+    pub fn source(&self, id: FileId) -> Result<&Arc<SourceFile>, SourceRegistryError> {
+        self.files
+            .get(&id)
+            .ok_or(SourceRegistryError::UnknownFile(id))
+    }
+
+    /// Returns the source with the smallest issued ID, if one exists.
+    pub fn first(&self) -> Option<&Arc<SourceFile>> {
+        self.files.values().next()
+    }
+
+    /// Retains an already registered source revision from another project component.
+    ///
+    /// The source carries its ID, URI, text, and coordinate table together; a
+    /// conflicting ID is rejected instead of replacing an existing revision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the ID already belongs to a different revision.
+    pub fn retain(&mut self, source: Arc<SourceFile>) -> Result<(), SourceRegistryError> {
+        if let Some(existing) = self.files.get(&source.id())
+            && !Arc::ptr_eq(existing, &source)
+        {
+            return Err(SourceRegistryError::ConflictingFile(source.id()));
+        }
+        self.files.insert(source.id(), source);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_ids_are_shared_only_with_explicitly_forked_registries() {
+        let mut first = SourceRegistry::default();
+        let mut reload = first.fork_empty();
+        let original = first
+            .register(Some(SourceUri::parse("untitled:one").unwrap()), None, "a")
+            .unwrap();
+        let revised = reload
+            .register(Some(SourceUri::parse("untitled:one").unwrap()), None, "b")
+            .unwrap();
+        assert_ne!(original.id(), revised.id());
+        assert!(first.shares_ids_with(&reload));
+        let mut separate = SourceRegistry::default();
+        assert!(!first.shares_ids_with(&separate));
+        let foreign = separate
+            .register(Some(SourceUri::parse("untitled:other").unwrap()), None, "c")
+            .unwrap();
+        assert_eq!(original.id(), foreign.id());
+        assert_eq!(revised.uri().unwrap().as_str(), "untitled:one");
+        assert_eq!(revised.text(), "b");
+    }
+
+    #[test]
+    fn source_uris_preserve_host_spelling_and_reject_paths() {
+        for value in [
+            "file:///F:/Project/a%20b.tsx",
+            "untitled:1",
+            "https://example.test/app.tsx",
+        ] {
+            let uri = SourceUri::parse(value).unwrap();
+            assert_eq!(uri.as_str(), value);
+            let restored: SourceUri =
+                serde_json::from_str(&serde_json::to_string(&uri).unwrap()).unwrap();
+            assert_eq!(restored, uri);
+        }
+        for value in [
+            r"F:\Project\App.tsx",
+            "src/App.tsx",
+            ":bad",
+            "file:///bad%2",
+            "file:///has space",
+        ] {
+            assert!(SourceUri::parse(value).is_err(), "{value}");
+        }
+    }
 
     /// A spanned value compares its range as well as its value.
     #[test]
@@ -346,7 +602,7 @@ mod tests {
 
     #[test]
     fn maps_byte_offsets_to_utf16_positions() {
-        let source = SourceFile::new(FileId(1), "Button.tsx", "a😀\nβ").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "a😀\nβ").unwrap();
 
         assert_eq!(
             source.position(BytePos(0)).unwrap(),
@@ -391,7 +647,7 @@ mod boundary_tests {
 
     #[test]
     fn invalid_byte_boundaries_and_wrong_files_are_rejected() {
-        let source = SourceFile::new(FileId(1), "x", "a😀\r\nz").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "a😀\r\nz").unwrap();
         assert!(matches!(
             source.slice(Span::new(FileId(2), 0, 1)),
             Err(SourceError::WrongFile { .. })
@@ -413,7 +669,7 @@ mod boundary_tests {
         #[test]
         fn utf16_offsets_agree_with_character_boundaries(chars in proptest::collection::vec(proptest::char::any(), 0..60)) {
             let text: String = chars.into_iter().collect();
-            let source = SourceFile::new(FileId(1), "x", text.clone()).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, text.clone()).unwrap();
             for offset in text.char_indices().map(|(i, _)| i).chain(std::iter::once(text.len())) {
                 proptest::prop_assert_eq!(
                     source.utf16_offset(BytePos(u32::try_from(offset).unwrap())).unwrap(),

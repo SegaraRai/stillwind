@@ -312,11 +312,12 @@ mod tests {
     fn recursive_variant_theme_values_are_rejected() {
         let source = SourceFile::new(
             FileId(1),
-            "theme.css",
+            None,
+            None,
             "@theme { --breakpoint-loop: --value(--breakpoint-*); }",
         )
         .unwrap();
-        let theme = parse_theme(&source).unwrap();
+        let theme = parse_theme(&source, "test.css").unwrap();
         assert!(
             resolve_variant_css_placeholders(
                 "@media (width >= --value(--breakpoint-*)) { @slot; }",

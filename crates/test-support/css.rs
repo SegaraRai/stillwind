@@ -20,8 +20,8 @@ use stillwind_source::{FileId, SourceError, SourceFile};
 ///
 /// CSS that imports `stillwind` itself is expanded instead, so a fixture can choose
 /// between the defaults and an explicit import list.
-pub fn source(id: FileId, path: &str, css: impl AsRef<str>) -> Result<SourceFile, SourceError> {
-    SourceFile::new(id, path, with_defaults(css.as_ref()))
+pub fn source(id: FileId, css: impl AsRef<str>) -> Result<SourceFile, SourceError> {
+    SourceFile::new(id, None, None, with_defaults(css.as_ref()))
 }
 
 /// Root of the standard CSS package, resolved from the crate the test builds.

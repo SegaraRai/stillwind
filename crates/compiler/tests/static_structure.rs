@@ -1,20 +1,23 @@
 //! Literal structure normalization through the public compiler.
 
-use stillwind_compiler::{CompileResult, Compiler};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
+use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),
-        "entry.tsx",
+        None,
+        None,
         format!("import {{ style }} from 'stillwind/react'; {code}"),
     )
     .unwrap();
     let theme = SourceFile::new(
         FileId(2),
-        "theme.css",
+        None,
+        None,
         format!(
             "{css} @stillwind-slot utilities; {}",
             if css.contains("@stillwind-slot keyframes;") {
@@ -25,7 +28,16 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
         ),
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     (source, result)
 }
 
@@ -66,10 +78,10 @@ fn inline_custom_properties_combine_with_variant_utilities() {
             css,
         );
         assert!(
-            result
-                .diagnostics
-                .iter()
-                .any(|error| error.kind == CompileErrorKind::InvalidVariantInput),
+            result.diagnostics.iter().any(|error| error.kind
+                == CompileErrorKind::InvalidVariantInput {
+                    reason: VariantInputErrorKind::CustomProperty,
+                }),
             "{result:#?}"
         );
         assert!(result.transforms.is_empty());
@@ -82,6 +94,47 @@ fn inline_custom_properties_combine_with_variant_utilities() {
     assert!(result.css.contains("--x:var(--y)"), "{}", result.css);
     assert!(!result.css.contains("dynamicValue"));
     assert!(result.transforms[0].replacement.contains("dynamicValue"));
+}
+
+#[test]
+fn malformed_utility_requirement_keeps_its_definition_cause() {
+    let (_, result) = compile(
+        "const x = style('faulty');",
+        "@utility faulty { @stillwind-require-properties red; color:red; }",
+    );
+    assert!(
+        result.diagnostics.iter().any(|error| matches!(
+            &error.kind,
+            CompileErrorKind::MalformedUtilityRequirement { utility, offset: 0 }
+                if utility == "faulty"
+        )),
+        "{result:#?}"
+    );
+    assert!(result.transforms.is_empty());
+}
+
+#[test]
+fn nested_variant_failure_labels_the_first_incompatible_leaf() {
+    for (input, reason, label) in [
+        (
+            "const x = style({'hover:': [flag && {'aria-busy': true}]});",
+            VariantInputErrorKind::Attribute,
+            "aria-busy",
+        ),
+        (
+            "const x = style({'hover:': [{class: external}]});",
+            VariantInputErrorKind::ExternalClass,
+            "external",
+        ),
+    ] {
+        let (source, result) = compile(input, "@variant hover { &:hover { @slot; } }");
+        let failure = result
+            .diagnostics
+            .iter()
+            .find(|error| error.kind == CompileErrorKind::InvalidVariantInput { reason })
+            .unwrap();
+        assert_eq!(source.slice(failure.labels[0].span).unwrap(), label);
+    }
 }
 
 #[test]

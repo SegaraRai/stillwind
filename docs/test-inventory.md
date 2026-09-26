@@ -272,16 +272,15 @@ src のファイル内に書くテストは、大掛かりなセットアップ�
 | v3_surrogate_unit_tokens_are_not_edit_boundaries                    | B    | source/src/projection/v3.rs    |
 | empty_spans_require_an_exact_mapped_boundary                        | B    | source/src/projection/index.rs |
 
-### 5.3 crates/diagnostics/tests/contracts.rs（6 件、全て B）
+### 5.3 crates/diagnostics/tests/contracts.rs（5 件、全て B）
 
-| ケース                                                    | 判定 | 移設先                                            |
-| --------------------------------------------------------- | ---- | ------------------------------------------------- |
-| distinct_causes_share_codes_without_sharing_messages      | B    | diagnostics/src/compilation.rs                    |
-| one_message_template_can_report_multiple_codes            | B    | diagnostics/src/lint.rs                           |
-| wrappers_roundtrip_owned_causes_labels_and_notes          | B    | diagnostics/src/compilation.rs                    |
-| generator_failures_report_their_family_and_message        | B    | diagnostics/src/compilation.rs                    |
-| suppression_uses_primary_label_and_typed_rule_only        | B/D  | diagnostics/src/suppression.rs（既存 3 件と統合） |
-| source_name_is_wrapper_context_and_survives_serialization | B    | diagnostics/src/compilation.rs                    |
+| ケース                                               | 判定 | 移設先                                            |
+| ---------------------------------------------------- | ---- | ------------------------------------------------- |
+| distinct_causes_share_codes_without_sharing_messages | B    | diagnostics/src/compilation.rs                    |
+| one_message_template_can_report_multiple_codes       | B    | diagnostics/src/lint.rs                           |
+| wrappers_roundtrip_owned_causes_labels_and_notes     | B    | diagnostics/src/compilation.rs                    |
+| generator_failures_report_their_family_and_message   | B    | diagnostics/src/compilation.rs                    |
+| suppression_uses_primary_label_and_typed_rule_only   | B/D  | diagnostics/src/suppression.rs（既存 3 件と統合） |
 
 ### 5.4 crates/cli/tests/e2e.rs（4 件、全て A）
 

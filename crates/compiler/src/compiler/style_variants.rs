@@ -501,8 +501,17 @@ mod add_ref_tests {
 
     use super::*;
     use crate::identifiers::{
-        DeclarationContext, GeneratedName, GeneratorSet, IdentifierGenerator, IdentifierHash,
+        DEFAULT_HASH_LENGTH, DeclarationContext, GeneratedName, GeneratorSet, IdentifierGenerator,
+        IdentifierHash, IdentifierMode,
     };
+
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
+    }
 
     fn plan() -> StyleVariantPlan {
         StyleVariantPlan {
@@ -550,7 +559,7 @@ mod add_ref_tests {
     /// canonical spelling records the identities and the authored prefix.
     #[test]
     fn add_ref_expands_one_alternative_per_ref() {
-        let context = IdentifierContext::builtin();
+        let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
         let mut plan = plan();
@@ -591,7 +600,7 @@ mod add_ref_tests {
     /// an unbounded selector.
     #[test]
     fn add_ref_rejects_a_missing_ref_identity() {
-        let context = IdentifierContext::builtin();
+        let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
         let mut plan = plan();
@@ -609,7 +618,7 @@ mod add_ref_tests {
     /// A prefix that is not a complete name list is rejected before any ref work.
     #[test]
     fn add_ref_rejects_an_incomplete_prefix() {
-        let context = IdentifierContext::builtin();
+        let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
         let mut plan = plan();
@@ -631,7 +640,11 @@ mod add_ref_tests {
     /// A generator that rejects the marker family reports the ref that failed.
     #[test]
     fn add_ref_reports_a_rejected_marker() {
-        let context = IdentifierContext::new(GeneratorSet::new(Arc::new(RejectingGenerator)), 5);
+        let context = IdentifierContext::new(
+            GeneratorSet::new(Arc::new(RejectingGenerator)),
+            IdentifierMode::Release,
+            5,
+        );
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
         let mut plan = plan();

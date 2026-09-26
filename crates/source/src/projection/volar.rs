@@ -3,7 +3,7 @@
 //! Equal-text intervals support interior lookup; nonlinear intervals supply only
 //! boundary anchors. A right-hand interval owns its start ahead of a previous end.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -122,11 +122,7 @@ pub(super) fn load<'a>(
     result.ranges.sort_by_key(|range| range.generated.start.0);
     // A right-hand interval owns its first character. The previous
     // interval's exclusive end is only a fallback at an uncovered boundary.
-    let starts = result
-        .points
-        .keys()
-        .copied()
-        .collect::<std::collections::BTreeSet<_>>();
+    let starts = result.points.keys().copied().collect::<BTreeSet<_>>();
     for (generated_end, original_end) in exclusive_ends {
         if starts.contains(&generated_end)
             || result.ranges.iter().any(|range| {

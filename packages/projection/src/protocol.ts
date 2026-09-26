@@ -10,10 +10,15 @@
 export interface ProjectSource {
   /** Host identifier used for resolution and reading. */
   id: string;
+  /** Absolute URI of the original editable document, supplied by its host. */
+  uri: string;
   /** Native module identity, conventionally root-relative with forward slashes. */
   path: string;
   source: string;
-  language?: "js" | "jsx" | "ts" | "tsx";
+  language: "js" | "jsx" | "ts" | "tsx" | "dts";
+  module_kind: "module" | "commonJs" | "script" | "unambiguous";
+  /** Exact source name written to generated stylesheet maps. */
+  source_map_source?: string;
   framework?: "React" | "Preact" | "Solid" | "Vue" | "Svelte" | "Astro";
   /** Source-to-upstream map for a normal input; it does not change the edit target. */
   map?: string;

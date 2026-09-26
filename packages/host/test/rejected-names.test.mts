@@ -44,6 +44,7 @@ void test("a rejected generator name is reported through the host warnings", asy
       read: async () => {
         throw new Error("unexpected read");
       },
+      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       watch: () => {},
       warn: (message) => warnings.push(message),
     },

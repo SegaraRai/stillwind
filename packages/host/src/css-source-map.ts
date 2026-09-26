@@ -6,6 +6,7 @@ import remapping from "@jridgewell/remapping";
 
 export interface CssUpstreamMap {
   id: string;
+  sourceMapSource: string;
   map: string;
 }
 
@@ -31,12 +32,12 @@ function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUps
   original.sources = original.sources.map((source: string) => sourceUrl(source, base));
   delete original.sourceRoot;
   return remapping(JSON.stringify(map), (source, context) =>
-    context.depth === 1 && source === resource ? original : null,
+    context.depth === 1 && source === upstream.sourceMapSource ? original : null,
   );
 }
 
 export interface CssLocations {
-  sources: Array<{ path: string; content: string }>;
+  sources: Array<{ sourceMapSource: string; content: string }>;
   entries: Array<{
     source: number;
     generatedStart: number;
@@ -51,7 +52,6 @@ export interface CssLocations {
 export function cssWithSourceMap(
   output: { css: string; sourceMap: CssLocations },
   replacements: ReadonlyMap<string, string>,
-  root: string,
   upstream?: CssUpstreamMap | readonly CssUpstreamMap[],
   includeSourcesContent = true,
 ) {
@@ -77,7 +77,7 @@ export function cssWithSourceMap(
     result.set(byte, [line, column]);
     return result;
   });
-  const names = sourceMap.sources.map(({ path }) => pathToFileURL(resolve(root, path)).href);
+  const names = sourceMap.sources.map(({ sourceMapSource }) => sourceMapSource);
   const map = new GenMapping();
   names.forEach((name, index) => setSourceContent(map, name, sourceMap.sources[index].content));
   let result = "",

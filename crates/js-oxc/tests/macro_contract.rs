@@ -1,6 +1,9 @@
 //! Public diagnostics for the macro value-expression contract.
 
+use std::collections::BTreeMap;
+
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, SourceFile};
 
@@ -26,10 +29,17 @@ fn calls_constructors_and_local_computation_need_no_pure_annotation() {
         "class { static { run(); } }",
         "<Widget />",
     ] {
-        let source = SourceFile::new(FileId(1), "contract.tsx", format!(
+        let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const props = style({{ class: {value} }});"
         )).unwrap();
-        let parsed = parse(&source);
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.lint_findings.is_empty(), "{value}: {parsed:#?}");
         assert!(
             parsed.diagnostics.is_empty(),
@@ -59,11 +69,19 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
         ] {
             let source = SourceFile::new(
                 FileId(1),
-                "contract.tsx",
+                None,
+                None,
                 format!("import {{style}} from 'stillwind/react'; const props = {body};"),
             )
             .unwrap();
-            let parsed = parse(&source);
+            let parsed = parse(
+                &source,
+                "test.tsx",
+                &[],
+                &BTreeMap::default(),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            );
             let errors = parsed
                 .lint_findings
                 .iter()
@@ -84,8 +102,15 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
 #[test]
 fn execution_boundaries_must_be_evaluated_outside_macros() {
     for value in ["await read()", "yield read()", "import('module')"] {
-        let source = SourceFile::new(FileId(1), "contract.tsx", format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ 'data-value': {value} }}); }}")).unwrap();
-        let parsed = parse(&source);
+        let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ 'data-value': {value} }}); }}")).unwrap();
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         let errors = parsed
             .lint_findings
             .iter()
@@ -95,8 +120,19 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
         assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), value);
         assert_eq!(errors[0].code(), "macro-execution-boundary");
     }
-    let source = SourceFile::new(FileId(1), "contract.tsx", "import {style} from 'stillwind/react'; async function render() { const theme = useTheme(); const value = await read(); state++; return style({ '--x': value, class: theme }); }").unwrap();
-    assert!(parse(&source).diagnostics.is_empty());
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; async function render() { const theme = useTheme(); const value = await read(); state++; return style({ '--x': value, class: theme }); }").unwrap();
+    assert!(
+        parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        )
+        .diagnostics
+        .is_empty()
+    );
 }
 
 #[test]
@@ -107,26 +143,41 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
     ] {
         let source = SourceFile::new(
             FileId(1),
-            "contract.tsx",
+            None,
+            None,
             format!("import {{style}} from 'stillwind/react'; {body}"),
         )
         .unwrap();
         assert!(
-            parse(&source)
-                .lint_findings
-                .iter()
-                .any(|error| error.kind == LintKind::MacroArgumentMutation)
+            parse(
+                &source,
+                "test.tsx",
+                &[],
+                &BTreeMap::default(),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous
+            )
+            .lint_findings
+            .iter()
+            .any(|error| error.kind == LintKind::MacroArgumentMutation)
         );
     }
 }
 
 #[test]
 fn container_projection_rejects_extra_arguments() {
-    let source = SourceFile::new(FileId(1), "contract.tsx", "import {style} from 'stillwind/react'; const ref = style.ref(); const props = style(ref.container('size', ignored()));").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref(); const props = style(ref.container('size', ignored()));").unwrap();
     assert!(
-        parse(&source)
-            .diagnostics
-            .iter()
-            .any(|error| error.kind == CompileErrorKind::InvalidContainerType)
+        parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        )
+        .diagnostics
+        .iter()
+        .any(|error| error.kind == CompileErrorKind::InvalidContainerType)
     );
 }

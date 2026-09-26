@@ -73,12 +73,24 @@ pub(super) fn resolve_options(
             diagnostics.push(unknown());
             continue;
         }
-        let Some(declaration) =
-            resolve_animation_option(strip_variants(&raw, &candidate.variants), theme)
-        else {
-            diagnostics.push(unknown());
-            continue;
-        };
+        let declaration =
+            match resolve_animation_option(strip_variants(&raw, &candidate.variants), theme) {
+                Ok(Some(declaration)) => declaration,
+                Ok(None) => {
+                    diagnostics.push(unknown());
+                    continue;
+                }
+                Err(error) => {
+                    diagnostics.push(CompileError::new(
+                        CompileErrorKind::MalformedUtilityRequirement {
+                            utility: error.name,
+                            offset: error.source.offset,
+                        },
+                        option.span,
+                    ));
+                    continue;
+                }
+            };
         if candidate.variants.is_empty() {
             resolved.declaration.push_str(&declaration);
             continue;
@@ -112,6 +124,7 @@ fn strip_variants<'a>(raw: &'a str, variants: &[Variant]) -> &'a str {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{FileId, SourceFile, Span};
 
@@ -121,13 +134,9 @@ mod tests {
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
-        let theme: SourceFile = crate::css_fixture::source(
-            FileId(1),
-            "stillwind.css",
-            "@theme { --duration-normal: 180ms; }",
-        )
-        .unwrap();
-        let theme = Compiler::read_theme(&theme).unwrap();
+        let theme: SourceFile =
+            crate::css_fixture::source(FileId(1), "@theme { --duration-normal: 180ms; }").unwrap();
+        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
         let options = Spanned::new(
             "duration-normal both".to_owned(),
             Span::new(FileId(2), 0, 20),
@@ -144,8 +153,8 @@ mod tests {
 
     #[test]
     fn splits_a_conditioned_option_from_the_unconditional_ones() {
-        let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-        let theme = Compiler::read_theme(&theme).unwrap();
+        let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
         let options = Spanned::new(
             "duration-180 motion-reduce:duration-0".to_owned(),
             Span::new(FileId(2), 0, 34),
@@ -177,8 +186,8 @@ mod tests {
 
     #[test]
     fn rejects_a_variant_on_an_animation_option() {
-        let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-        let theme = Compiler::read_theme(&theme).unwrap();
+        let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
         let options = Spanned::new(
             "motion-reduce:duration-0".to_owned(),
             Span::new(FileId(2), 0, 24),
@@ -218,13 +227,21 @@ mod tests {
     #[test]
     fn reports_an_unknown_option_at_its_own_span() {
         let source = SourceFile::new(
-            FileId(1),
-            "motion.tsx",
+            FileId(1), None, None,
             "import { style } from 'stillwind/react'; const motion = style.viewTransition({ group: 'motion-reduce:nope-0' });",
         )
         .unwrap();
-        let theme = crate::css_fixture::source(FileId(2), "theme", "").unwrap();
-        let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+        let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &source,
+            "test.tsx",
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            "stillwind.css",
+            &crate::CompilerOptions::default(),
+        );
         let errors = result
             .diagnostics
             .iter()

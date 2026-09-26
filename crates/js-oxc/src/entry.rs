@@ -1,17 +1,16 @@
 //! One parse of a module into IR, diagnostics and a module summary.
 //!
-//! [`parse_with_language`] is the single entry point: it runs Oxc, builds the semantic
-//! scoping table, seeds direct producer bindings, visits the program with
-//! [`MacroExtractor`], then adds demand-driven import slices and macro argument validation. Checker facts are
-//! optional inputs that let expressions imported from other modules resolve without a
-//! type checker in this crate.
+//! [`parse`] runs Oxc, builds the semantic scoping table, seeds direct producer
+//! bindings, visits the program with [`MacroExtractor`], then adds demand-driven import
+//! slices and macro argument validation. Checker facts are optional inputs that let
+//! expressions imported from other modules resolve without a type checker in this
+//! crate.
 //!
 //! Extraction records fatal errors and advisory lint findings separately. Only
 //! [`LintFinding`]s participate in `swlint-*` suppression; reporting codes do not
 //! determine whether compilation may proceed.
 
 use std::collections::BTreeMap;
-use std::path::Path;
 
 use oxc::allocator::Allocator;
 use oxc::ast_visit::Visit;
@@ -20,7 +19,7 @@ use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
-use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage};
+use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{SourceFile, Span};
 
@@ -52,29 +51,6 @@ pub struct ParsedJavaScript {
     pub summary: ModuleSummary,
 }
 
-/// Parses a module with optional checker facts and extension-based language detection.
-pub fn parse(source: &SourceFile) -> ParsedJavaScript {
-    parse_with_type_facts(source, &[], &BTreeMap::new())
-}
-
-/// Parses a module using expression facts produced by the TypeScript checker.
-///
-/// Facts are matched by expression span and are only as trustworthy as their enclosing
-/// `TypeFacts` revisions; [`OxcSourceAnalyzer::finalize`] validates those before
-/// calling here.
-pub fn parse_with_type_facts(
-    source: &SourceFile,
-    type_facts: &[TypeFact],
-    assets: &BTreeMap<IdentityId, AssetMetadata>,
-) -> ParsedJavaScript {
-    parse_with_language(
-        source,
-        type_facts,
-        assets,
-        ScriptLanguage::from_path(source.path()),
-    )
-}
-
 /// Parses a module with an explicit language and checker facts.
 ///
 /// The language decides the Oxc source type, so a shadow module for a `.vue` or
@@ -83,26 +59,40 @@ pub fn parse_with_type_facts(
 /// editable framework file is a separate step. Macro contracts are checked
 /// for extracted expression spans, and parse/extraction failures are returned as
 /// diagnostics rather than as a `Result` error.
-pub fn parse_with_language(
+pub fn parse(
     source: &SourceFile,
+    module_id: &str,
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
     language: ScriptLanguage,
+    module_kind: ScriptModuleKind,
 ) -> ParsedJavaScript {
-    parse_with_coordinates(source, type_facts, assets, language, source, &Some)
+    parse_with_coordinates(
+        source,
+        module_id,
+        type_facts,
+        assets,
+        language,
+        module_kind,
+        source,
+        &Some,
+    )
 }
 
 /// Extracts an analysis buffer with original UTF-8 identity and checker coordinates.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn parse_with_coordinates(
     source: &SourceFile,
+    module_id: &str,
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
     language: ScriptLanguage,
+    module_kind: ScriptModuleKind,
     original: &SourceFile,
     coordinates: &dyn Fn(Span) -> Option<Span>,
 ) -> ParsedJavaScript {
     let allocator = Allocator::default();
-    let source_type = source_type(source.path(), language);
+    let source_type = source_type(language, module_kind);
     let result = Parser::new(&allocator, source.text(), source_type).parse();
 
     let mut diagnostics: Vec<_> = result
@@ -128,6 +118,7 @@ pub(crate) fn parse_with_coordinates(
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
     let mut extractor = MacroExtractor::new(
         source,
+        module_id,
         semantic.scoping(),
         type_facts,
         assets,
@@ -178,15 +169,24 @@ pub(crate) fn parse_with_coordinates(
 /// The language wins over the extension, because a projection or an opaque host name
 /// may not carry a usable suffix; an unknown extension falls back to the Oxc default
 /// rather than failing.
-pub(crate) fn source_type(path: &str, language: ScriptLanguage) -> SourceType {
-    let typescript = matches!(language, ScriptLanguage::Ts | ScriptLanguage::Tsx);
+pub(crate) fn source_type(language: ScriptLanguage, module_kind: ScriptModuleKind) -> SourceType {
+    let typescript = matches!(
+        language,
+        ScriptLanguage::Ts | ScriptLanguage::Tsx | ScriptLanguage::Dts
+    );
     let jsx = matches!(language, ScriptLanguage::Jsx | ScriptLanguage::Tsx);
-    SourceType::from_path(Path::new(path))
-        .unwrap_or_default()
+    let source_type = SourceType::default()
         .with_javascript(!typescript)
         .with_typescript(typescript)
         .with_jsx(jsx)
         .with_standard(!jsx)
+        .with_typescript_definition(matches!(language, ScriptLanguage::Dts));
+    match module_kind {
+        ScriptModuleKind::Module => source_type.with_module(true),
+        ScriptModuleKind::CommonJs => source_type.with_commonjs(true),
+        ScriptModuleKind::Script => source_type.with_script(true),
+        ScriptModuleKind::Unambiguous => source_type.with_unambiguous(true),
+    }
 }
 
 #[cfg(test)]
@@ -199,12 +199,24 @@ mod tests {
     fn accepts_typescript_jsx() {
         let source = SourceFile::new(
             FileId(1),
-            "Button.tsx",
+            None,
+            None,
             "const Button = ({ loading }: { loading: boolean }) => <button>{loading}</button>;",
         )
         .unwrap();
 
-        assert!(parse(&source).diagnostics.is_empty());
+        assert!(
+            parse(
+                &source,
+                "test.tsx",
+                &[],
+                &BTreeMap::default(),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous
+            )
+            .diagnostics
+            .is_empty()
+        );
     }
 
     /// The coordinate entry produces the same analysis as the plain entry when there
@@ -213,20 +225,30 @@ mod tests {
     fn coordinate_entry_matches_the_plain_entry_without_facts() {
         let source = SourceFile::new(
             FileId(1),
-            "Button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; export const x = style('flex');",
         )
         .unwrap();
-        let plain = parse(&source);
+        let plain = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(plain.diagnostics.is_empty());
         assert_eq!(plain.module.adapter, AdapterKind::React);
         assert_eq!(plain.module.style_calls.len(), 1);
         assert_eq!(plain.framework, Some(AdapterKind::React));
         let located = parse_with_coordinates(
             &source,
+            "test.tsx",
             &[],
             &BTreeMap::new(),
             ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
             &source,
             &|_| None,
         );
@@ -234,8 +256,15 @@ mod tests {
         assert_eq!(located.module.style_calls.len(), 1);
         assert_eq!(located.module.adapter, AdapterKind::React);
         assert_eq!(plain.summary.module_path, located.summary.module_path);
-        let empty = SourceFile::new(FileId(2), "Empty.tsx", "").unwrap();
-        let parsed = parse(&empty);
+        let empty = SourceFile::new(FileId(2), None, None, "").unwrap();
+        let parsed = parse(
+            &empty,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty());
         assert!(parsed.module.style_calls.is_empty());
         assert_eq!(parsed.framework, None);
@@ -245,8 +274,15 @@ mod tests {
     /// as a note and points at the whole buffer.
     #[test]
     fn syntax_errors_keep_the_parser_detail_as_a_note() {
-        let source = SourceFile::new(FileId(1), "Broken.tsx", "const = ;").unwrap();
-        let parsed = parse(&source);
+        let source = SourceFile::new(FileId(1), None, None, "const = ;").unwrap();
+        let parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert_eq!(parsed.diagnostics.len(), 1);
         let diagnostic = &parsed.diagnostics[0];
         assert_eq!(diagnostic.kind, CompileErrorKind::JavaScriptParse);

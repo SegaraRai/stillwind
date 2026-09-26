@@ -4,22 +4,24 @@
 //! `composition_lint`; a frontend-only analysis cannot supply facts for a base that
 //! lives in another module, so this stays an integration target.
 
+#[path = "../../test-support/css.rs"]
+mod css_fixture;
+
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_source::{FileId, SourceFile};
-
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
 fn snapshot() -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), "theme", "@theme { --color-brand: red; }").unwrap(),
+        &crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -27,7 +29,12 @@ fn snapshot() -> DesignSystemSnapshot {
 
 fn analysis(name: &str, source: &str) -> ModuleAnalysis {
     OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(Arc::new(SourceFile::new(FileId(1), name, source).unwrap())),
+        OxcSourceAnalyzer.scan(
+            Arc::new(SourceFile::new(FileId(1), None, None, source).unwrap()),
+            ModuleId::from(name),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
         None,
     )
 }
@@ -35,9 +42,10 @@ fn analysis(name: &str, source: &str) -> ModuleAnalysis {
 fn session() -> ProjectSession {
     ProjectSession::new(
         snapshot(),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::builtin(),
+        Identifiers::default(),
     )
 }
 

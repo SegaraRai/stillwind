@@ -10,8 +10,8 @@
 //! property/count keys and authored precedence. [`tailwind_property_order`] supplies
 //! its generated property indices.
 //!
-//! Every failure is a non-match: an overload that cannot express this candidate
-//! is skipped so a later branch or an arbitrary property can still apply.
+//! Value-domain mismatches are non-matches, allowing another overload to apply.
+//! Malformed matched definitions return a typed error.
 
 pub(super) mod body;
 pub(super) mod declarations;
@@ -22,6 +22,7 @@ pub(super) mod order;
 pub(super) mod resolve;
 mod tailwind_property_order;
 
+pub use body::UtilityResolutionError;
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{

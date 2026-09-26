@@ -26,7 +26,7 @@ pub(crate) fn css_tokens(value: &str) -> Vec<String> {
             }
         }
     }
-    let value = fold_calc_expressions(value);
+    let value = fold_calc_expressions(value, None);
     let mut output = Vec::new();
     collect(&mut Parser::new(&value), &mut output);
     output

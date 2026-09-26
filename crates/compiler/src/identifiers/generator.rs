@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileErrorKind;
 
-use super::kind::{DEFAULT_HASH_LENGTH, IdentifierKind, IdentifierMode};
+use super::kind::{IdentifierKind, IdentifierMode};
 use super::name::{
     AnchorName, ConditionHelperName, ContainerName, KeyframesName, Label, LayerName, RefMarker,
     Token, UtilityClass, ViewTransitionClass, ViewTransitionSlotName,
@@ -47,29 +47,18 @@ pub struct Identifiers {
 }
 
 impl Identifiers {
-    /// The built-in names, in release mode.
-    pub fn builtin() -> Self {
-        Self::default()
-    }
-
-    /// A set that asks `generator` first and falls back per family.
-    pub fn with(generator: Arc<dyn IdentifierGenerator>) -> Self {
-        Self {
-            generators: GeneratorSet::new(generator),
-            mode: IdentifierMode::Release,
-        }
-    }
-
-    /// Returns the same inputs in `mode`.
+    /// Creates naming inputs from an optional host generator and compilation mode.
     ///
     /// A development compilation keeps producing usable names when a generator is
     /// rejected and reports the rejection in the result; a release compilation fails
     /// instead. The mode is a compilation input, so a host that caches artifacts must
     /// keep the two modes apart.
     #[must_use]
-    pub fn in_mode(mut self, mode: IdentifierMode) -> Self {
-        self.mode = mode;
-        self
+    pub fn new(generator: Option<Arc<dyn IdentifierGenerator>>, mode: IdentifierMode) -> Self {
+        Self {
+            generators: GeneratorSet { generator },
+            mode,
+        }
     }
 
     /// One compilation's memoized name allocation for these inputs.
@@ -77,7 +66,7 @@ impl Identifiers {
     /// `hash_length` is the number of base-36 digits the compilation's built-in names
     /// keep, which comes from [`crate::CompilerOptions::hash_length`].
     pub(crate) fn context(&self, hash_length: usize) -> IdentifierContext {
-        IdentifierContext::in_mode(self.generators.clone(), self.mode, hash_length)
+        IdentifierContext::new(self.generators.clone(), self.mode, hash_length)
     }
 }
 
@@ -245,11 +234,6 @@ pub struct GeneratorSet {
 }
 
 impl GeneratorSet {
-    /// A set that generates every name with the built-in generator.
-    pub fn builtin() -> Self {
-        Self::default()
-    }
-
     /// A set that asks `generator` first and falls back per family.
     pub fn new(generator: Arc<dyn IdentifierGenerator>) -> Self {
         Self {
@@ -390,34 +374,20 @@ pub struct IdentifierContext {
 type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
 
 impl IdentifierContext {
-    /// Starts a context for `generators` in release mode.
+    /// Starts a context with the requested generators, mode, and hash length.
     ///
     /// `hash_length` is the number of base-36 digits a built-in name keeps. It is the
     /// compilation's own spelling choice and never reaches a host generator, which is
     /// given the whole digest.
-    pub fn new(generators: GeneratorSet, hash_length: usize) -> Self {
+    pub fn new(generators: GeneratorSet, mode: IdentifierMode, hash_length: usize) -> Self {
         Self {
             generators,
-            mode: IdentifierMode::Release,
+            mode,
             hash_length,
             memo: RefCell::new(BTreeMap::new()),
             rejected: RefCell::new(RejectedNames::default()),
             detached: RefCell::new(Vec::new()),
         }
-    }
-
-    /// Starts a context that substitutes the built-in name when a generator is rejected.
-    pub fn in_mode(generators: GeneratorSet, mode: IdentifierMode, hash_length: usize) -> Self {
-        Self {
-            mode,
-            ..Self::new(generators, hash_length)
-        }
-    }
-
-    /// Starts a context that uses the built-in generator for every family and the
-    /// default hash length.
-    pub fn builtin() -> Self {
-        Self::new(GeneratorSet::builtin(), DEFAULT_HASH_LENGTH)
     }
 
     /// The mode this context was built for.

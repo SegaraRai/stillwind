@@ -14,14 +14,18 @@ use stillwind_css::CssOutputTemplate;
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
 
 use crate::identifiers::{
-    DEFAULT_HASH_LENGTH, GeneratedName, IdentifierContext, IdentifierGenerator, IdentifierHash,
-    Identifiers, LayerContext, LayerName,
+    DEFAULT_HASH_LENGTH, GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator,
+    IdentifierHash, Identifiers, LayerContext, LayerName,
 };
-use crate::{CompilerOptions, MappedStylesheet};
+use crate::{CompilerOptions, IdentifierMode, MappedStylesheet};
 
 /// One test's generated names, which the built-in generator always produces.
 fn identifiers() -> IdentifierContext {
-    IdentifierContext::builtin()
+    IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    )
 }
 
 /// The name one anonymous layer of `template` carries, without its traversal index.
@@ -93,12 +97,15 @@ impl IdentifierGenerator for FixedLayerGenerator {
 fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
     let source = SourceFile::new(
         FileId(1),
-        "styles/entry.css",
+        None,
+        None,
         "@layer { .base{color:red} } @layer { @layer { @stillwind-slot utilities; } }",
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
-    let identifiers = Identifiers::with(Arc::new(FixedLayerGenerator)).context(DEFAULT_HASH_LENGTH);
+    let theme = parse_theme(&source, "test.css").unwrap();
+    let identifiers =
+        Identifiers::new(Some(Arc::new(FixedLayerGenerator)), IdentifierMode::Release)
+            .context(crate::identifiers::DEFAULT_HASH_LENGTH);
     let css = super::render(
         &theme.output_template,
         &theme,
@@ -119,7 +126,8 @@ fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
 fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         r#"
         @theme { --brand: red; }
         @stillwind-property --n { syntax: "<number>"; inherits: false; initial-value: 0; }
@@ -132,7 +140,7 @@ fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
     "#,
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let css = render(
         &theme.output_template,
         &theme,
@@ -155,10 +163,10 @@ fn declaration_slots_keep_css_owned_selectors_conditions_and_order() {
 
 #[test]
 fn generated_keyframes_keep_mapping_while_raw_css_keeps_its_placement() {
-    let source = SourceFile::new(FileId(1), "entry.css", "@layer animations { @stillwind-slot keyframes; } @layer utilities { @stillwind-slot utilities; }").unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "@layer animations { @stillwind-slot keyframes; } @layer utilities { @stillwind-slot utilities; }").unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let original =
-        Arc::new(SourceFile::new(FileId(9), "日本.tsx", "日本 animation source").unwrap());
+        Arc::new(SourceFile::new(FileId(9), None, None, "日本 animation source").unwrap());
     let mut frames = MappedStylesheet::default();
     frames.text(
         "@keyframes generated{to{opacity:0}}",
@@ -201,8 +209,8 @@ fn generated_keyframes_keep_mapping_while_raw_css_keeps_its_placement() {
 
 #[test]
 fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
-    let source = SourceFile::new(FileId(1), "styles/entry.css", "@layer { .base{color:red} } @layer /* anonymous */ { @layer { @stillwind-slot utilities; } } @layer named { .end{color:blue} }").unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "@layer { .base{color:red} } @layer /* anonymous */ { @layer { @stillwind-slot utilities; } } @layer named { .end{color:blue} }").unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let template = &theme.output_template;
     let options = CompilerOptions::default();
     let prefix = layer_name(template, &options);
@@ -225,8 +233,8 @@ fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
         ..options
     };
     assert_ne!(prefix, layer_name(template, &isolated));
-    let other_source = SourceFile::new(FileId(2), "other/entry.css", source.text()).unwrap();
-    let other_theme = parse_theme(&other_source).unwrap();
+    let other_source = SourceFile::new(FileId(2), None, None, source.text()).unwrap();
+    let other_theme = parse_theme(&other_source, "other.css").unwrap();
     assert_ne!(
         prefix,
         layer_name(&other_theme.output_template, &CompilerOptions::default())
@@ -235,8 +243,8 @@ fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
 
 #[test]
 fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs() {
-    let source = SourceFile::new(FileId(1), "entry.css", "@layer theme, utilities; @layer theme { :root,:host { @stillwind-slot theme; } @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "@layer theme, utilities; @layer theme { :root,:host { @stillwind-slot theme; } @theme { --color-brand: red; --unused:blue; } } .before{display:block;} @layer utilities { @supports (display:grid) { @media print { @stillwind-slot utilities; } } } .after{color:blue;}").unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let template = &theme.output_template;
     let utility = ".x{color:var(--color-brand);}";
     let css = render(template, &theme, utility, &CompilerOptions::default(), true).unwrap();
@@ -265,7 +273,8 @@ fn slots_and_support_preserve_authored_conditions_in_document_and_module_outputs
 fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         r#"
         @layer theme, utilities;
         @layer theme { :root,:host { @stillwind-slot theme; } }
@@ -280,7 +289,7 @@ fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
     "#,
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let css = render(
         &theme.output_template,
         &theme,
@@ -306,7 +315,8 @@ fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
 fn theme_declarations_activate_registrations_in_document_and_carrier_outputs() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         r#"
         @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
         @theme { --spacing-brand: var(--length); --spacing-unused: var(--unused); }
@@ -317,7 +327,7 @@ fn theme_declarations_activate_registrations_in_document_and_carrier_outputs() {
     "#,
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     for document in [true, false] {
         let css = render(
             &theme.output_template,
@@ -340,14 +350,15 @@ fn theme_declarations_activate_registrations_in_document_and_carrier_outputs() {
 fn registrations_require_a_destination_instead_of_implicit_tail_output() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         r#"
         @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
         @stillwind-slot utilities;
     "#,
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     assert!(matches!(
         render(
             &theme.output_template,
@@ -362,8 +373,8 @@ fn registrations_require_a_destination_instead_of_implicit_tail_output() {
 
 #[test]
 fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
-    let source = SourceFile::new(FileId(1), "entry.css", ".a{color:red;}").unwrap();
-    let theme = parse_theme(&source).unwrap();
+    let source = SourceFile::new(FileId(1), None, None, ".a{color:red;}").unwrap();
+    let theme = parse_theme(&source, "test.css").unwrap();
     let template = &theme.output_template;
     assert_eq!(
         render(template, &theme, "", &CompilerOptions::default(), true).unwrap(),
@@ -387,12 +398,13 @@ fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
 fn repeated_keyframe_slots_preserve_each_mapping_and_wrapper() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         "@media print { @stillwind-slot keyframes; } @layer motion { @stillwind-slot keyframes; }",
     )
     .unwrap();
-    let theme = parse_theme(&source).unwrap();
-    let original = Arc::new(SourceFile::new(FileId(2), "motion.ts", "animation").unwrap());
+    let theme = parse_theme(&source, "test.css").unwrap();
+    let original = Arc::new(SourceFile::new(FileId(2), None, None, "animation").unwrap());
     let mut frames = MappedStylesheet::default();
     let css = "@keyframes generated{to{opacity:0}}";
     frames.text(css, Some((original.clone(), original.full_span())));
@@ -427,7 +439,8 @@ fn repeated_keyframe_slots_preserve_each_mapping_and_wrapper() {
 fn registration_destinations_are_checked_before_theme_lowering() {
     let source = SourceFile::new(
         FileId(1),
-        "entry.css",
+        None,
+        None,
         r#"
         @stillwind-property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
         @theme { --brand: --if(invalid); }
@@ -436,7 +449,7 @@ fn registration_destinations_are_checked_before_theme_lowering() {
     "#,
     )
     .unwrap();
-    let mut theme = parse_theme(&source).unwrap();
+    let mut theme = parse_theme(&source, "test.css").unwrap();
     let utility = ".x{color:var(--brand);width:var(--length)}";
     assert!(matches!(render(&theme.output_template, &theme, utility,
         &CompilerOptions::default(), false),

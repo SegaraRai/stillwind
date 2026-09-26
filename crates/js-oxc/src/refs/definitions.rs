@@ -75,7 +75,7 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         Some(RefDefinition {
-            module_path: normalized_module_path(self.source.path()),
+            module_path: normalized_module_path(self.module_id),
             binding,
             label,
             boundary,
@@ -184,7 +184,10 @@ impl<'a> MacroExtractor<'a> {
                 self.record_ref_use(definition, "ref", self.source_span(expression.span()));
             }
             if refs.len() == 1 {
-                inputs.push(StyleInput::RefAttachment(refs[0].clone()));
+                inputs.push(StyleInput::RefAttachment {
+                    definition: refs[0].clone(),
+                    value: self.source_span(expression.span()),
+                });
             } else {
                 inputs.push(StyleInput::DynamicRefAttachment {
                     value: self.source_span(expression.span()),

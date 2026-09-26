@@ -21,7 +21,7 @@ proptest! {
         let padding = format!("padding:calc(var(--spacing)*{n});");
         let border = format!("border-width:{n}px;");
         let z_index = format!("z-index:{n};");
-        let css = normalize_css(&fold_calc_expressions(&result.css));
+        let css = normalize_css(&fold_calc_expressions(&result.css, None));
         prop_assert!(
             css.contains(&padding) || (n == 1 && css.contains("padding:var(--spacing);")),
             "{}",
@@ -36,7 +36,7 @@ proptest! {
         let result = compile_one_utility(&format!("-z-{n}"));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let z_index = format!("z-index:-{n};");
-        prop_assert!(normalize_css(&fold_calc_expressions(&result.css)).contains(&z_index), "{}", result.css);
+        prop_assert!(normalize_css(&fold_calc_expressions(&result.css, None)).contains(&z_index), "{}", result.css);
     }
 
     #[test]
@@ -45,7 +45,7 @@ proptest! {
             "p-[length:{n}px] p-[percentage:{n}%] border-[length:{n}px] z-[integer:{n}]"
         ));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-        let css = normalize_css(&fold_calc_expressions(&result.css));
+        let css = normalize_css(&fold_calc_expressions(&result.css, None));
         prop_assert!(css.contains(&format!("padding:{n}px;")), "{}", result.css);
         prop_assert!(css.contains(&format!("padding:{n}%;")), "{}", result.css);
         prop_assert!(css.contains(&format!("border-width:{n}px;")), "{}", result.css);
@@ -71,7 +71,7 @@ proptest! {
             "p-[length-percentage:calc({n}px_+_50%)] border-[line-width:thin] z-[z-index:auto]"
         ));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-        let css = normalize_css(&fold_calc_expressions(&result.css));
+        let css = normalize_css(&fold_calc_expressions(&result.css, None));
         prop_assert!(css.contains(&format!("padding:calc({n}px+50%);")), "{}", result.css);
         prop_assert!(css.contains("border-width:thin;"), "{}", result.css);
         prop_assert!(css.contains("z-index:auto;"), "{}", result.css);

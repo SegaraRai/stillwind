@@ -398,7 +398,7 @@ mod tests {
     /// Exercises prefix expansion, unchanged authored prefixes, surrogate pairs, and encoded quotes.
     #[test]
     fn encoded_characters_and_synthetic_rewrites_keep_expression_origins() {
-        let source = SourceFile::new(FileId(1), "x", "\"😀--sw-user\"").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "\"😀--sw-user\"").unwrap();
         let mut edit = SourceTransform {
             call_span: source.full_span(),
             replacement: format!("--sw-generated({})", source.text()),
@@ -436,7 +436,7 @@ mod tests {
     /// Rejects duplicate, reversed, out-of-bounds, and falsely exact expression intervals.
     #[test]
     fn invalid_expression_ranges_are_rejected() {
-        let source = SourceFile::new(FileId(1), "x", "abc").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "abc").unwrap();
         let mapping = ExpressionMapping {
             start: 0,
             end: 3,
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn transform_errors_preserve_wrong_file_and_utf8_causes() {
-        let source = SourceFile::new(FileId(1), "source", "éabc").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "éabc").unwrap();
         let error =
             apply_transforms(&source, &replacements(&[Span::new(FileId(2), 0, 2)])).unwrap_err();
         assert!(matches!(
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn overlaps_are_distinguished_from_valid_adjacent_replacements() {
-        let source = SourceFile::new(FileId(1), "source", "abcd").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "abcd").unwrap();
         let overlap = Span::new(FileId(1), 0, 3);
         assert!(
             matches!(apply_transforms(&source, &replacements(&[overlap, Span::new(FileId(1), 2, 4)])), Err(TransformError::Overlap { span, previous_start: 2 }) if span == overlap)
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn linear_render_preserves_unicode_gaps_and_rejects_same_anchor_collisions() {
-        let source = SourceFile::new(FileId(1), "x", "🧭abc日本def\r\n").unwrap();
+        let source = SourceFile::new(FileId(1), None, None, "🧭abc日本def\r\n").unwrap();
         let transforms = vec![
             SourceTransform {
                 call_span: Span::new(FileId(1), 13, 16),
@@ -557,7 +557,7 @@ mod tests {
             first in ".{0,20}", second in ".{0,20}"
         ) {
             let text = format!("{prefix}日本{middle}😀{suffix}");
-            let source = SourceFile::new(FileId(1), "component.svelte", &*text).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, &*text).unwrap();
             let first_start = prefix.len();
             let first_end = first_start + "日本".len();
             let second_start = first_end + middle.len();
@@ -589,7 +589,7 @@ mod tests {
 
         #[test]
         fn replacing_one_span_preserves_both_sides(prefix in "[a-z]{0,12}", suffix in "[a-z]{0,12}", replacement in "[A-Z]{0,12}") {
-            let source = SourceFile::new(FileId(1), "x", format!("{prefix}é{suffix}")).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, format!("{prefix}é{suffix}")).unwrap();
             let start = u32::try_from(prefix.len()).unwrap();
             let transform = SourceTransform {
                 call_span: Span::new(FileId(1), start, start + 2),

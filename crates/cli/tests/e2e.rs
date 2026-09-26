@@ -108,6 +108,25 @@ fn cli_reports_typed_argument_and_option_failures() {
     }
 }
 
+/// CSS parsing failures retain the text input's virtual document and editor range.
+#[test]
+fn cli_reports_css_failure_with_source_range() {
+    let output = Command::new(env!("CARGO_BIN_EXE_stillwind"))
+        .args([
+            "compile",
+            "--source-text",
+            "export const x = 1;",
+            "--theme-text",
+            "@theme {",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("stillwind-cli:theme:1:1-1:9: SHCSS001")
+    );
+}
+
 /// A CSS package export with a `style` condition resolves through it.
 ///
 /// The fixture package also exports a `default` condition pointing at a JavaScript

@@ -14,8 +14,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use stillwind_design_system::LintSeverity;
-use stillwind_diagnostics::{CompileError, LintFinding};
+use stillwind_diagnostics::{CompileError, LintFinding, LintSeverity};
 use stillwind_ir::StyleDependency;
 use stillwind_source::SourceFile;
 

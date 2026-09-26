@@ -20,21 +20,30 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
   const root =
     "@import 'child.css';\n@theme static { --color-brand: red; } :root,:host { @stillwind-slot theme; }\n@utility red {color:red;}\n@stillwind-slot utilities;";
   const child = "/* 日本語 🧭 */\n.authored { color: blue; }";
-  const step = loader.provide(0, "design.css", root);
-  loader.provide(step.requests[0].id, "child.css", child);
+  const designUri = pathToFileURL(path.resolve("design.css")).href;
+  const childUri = pathToFileURL(path.resolve("child.css")).href;
+  const step = loader.provide(0, "design.css", root, designUri, designUri);
+  loader.provide(step.requests[0].id, "child.css", child, childUri, childUri);
   const session = new NativeProjectSession(loader, false);
   const source =
     "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props = style('red');";
-  session.compile([{ path: "entry.tsx", source }]);
+  session.compile([
+    {
+      path: "entry.tsx",
+      uri: "untitled:entry.tsx",
+      source,
+      language: "tsx",
+      module_kind: "unambiguous",
+      source_map_source: pathToFileURL(path.resolve("entry.tsx")).href,
+    },
+  ]);
   const output = session.planStylesheet({
     modules: ["entry.tsx"],
     coverage: { kind: "observed" },
     placement: "document",
   });
-  const decoded = decodeCssSourceMap(cssWithSourceMap(output, new Map(), process.cwd()));
-  const projected = decodeCssSourceMap(
-    cssWithSourceMap(output, new Map(), process.cwd(), undefined, false),
-  );
+  const decoded = decodeCssSourceMap(cssWithSourceMap(output, new Map()));
+  const projected = decodeCssSourceMap(cssWithSourceMap(output, new Map(), undefined, false));
   assert.equal(projected.map.sourcesContent, undefined);
   assert.equal(projected.code, decoded.code);
   assert.deepEqual(projected.map.sources, decoded.map.sources);
@@ -60,7 +69,7 @@ void test("resource URL length edits preserve following non-ASCII CSS columns", 
   const output = {
     css,
     sourceMap: {
-      sources: [{ path: "asset.css", content: css }],
+      sources: [{ sourceMapSource: "asset.css", content: css }],
       entries: [
         {
           source: 0,
@@ -74,7 +83,7 @@ void test("resource URL length edits preserve following non-ASCII CSS columns", 
     },
   };
   const decoded = decodeCssSourceMap(
-    cssWithSourceMap(output, new Map([["PLACEHOLDER", "./much/longer/image.svg"]]), process.cwd()),
+    cssWithSourceMap(output, new Map([["PLACEHOLDER", "./much/longer/image.svg"]])),
   );
   const actual = originalPositionFor(
     new TraceMap(decoded.map),
@@ -94,7 +103,7 @@ void test("CSS origins compose through framework preprocessing to original sourc
   const output = {
     css,
     sourceMap: {
-      sources: [{ path: id, content: processed }],
+      sources: [{ sourceMapSource: pathToFileURL(id).href, content: processed }],
       entries: [
         {
           source: 0,
@@ -108,8 +117,9 @@ void test("CSS origins compose through framework preprocessing to original sourc
     },
   };
   const result = decodeCssSourceMap(
-    cssWithSourceMap(output, new Map(), process.cwd(), {
+    cssWithSourceMap(output, new Map(), {
       id,
+      sourceMapSource: pathToFileURL(id).href,
       map: JSON.stringify(toEncodedMap(previous)),
     }),
   );

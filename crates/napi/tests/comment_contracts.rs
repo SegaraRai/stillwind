@@ -1,14 +1,29 @@
 //! Verifies the actual coordinate units crossing the binding output boundary.
 
-use stillwind_napi::compile_source_input;
+use stillwind_compiler::CompilerOptions;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+use stillwind_napi::{CompileCssInput, CompileSourceInput, compile_source_input};
+use stillwind_source::SourceUri;
 
 #[test]
 fn transform_mappings_use_utf16_even_with_multibyte_source_and_replacements() {
     let source = "const emoji = '😀'; import { style } from 'stillwind/react'; export const x = style('flex');";
     let output = compile_source_input(
-        source,
-        "entry.tsx",
-        "@utility flex { display:flex; } @stillwind-slot utilities;",
+        &CompileSourceInput {
+            source: source.into(),
+            module_id: "entry.tsx".into(),
+            uri: SourceUri::parse("untitled:entry.tsx").unwrap(),
+            source_map_source: Some("entry.tsx".into()),
+            language: ScriptLanguage::Tsx,
+            module_kind: ScriptModuleKind::Unambiguous,
+            css: CompileCssInput {
+                content: "@utility flex { display:flex; } @stillwind-slot utilities;".into(),
+                name: "theme.css".into(),
+                uri: SourceUri::parse("untitled:theme.css").unwrap(),
+                source_map_source: Some("theme.css".into()),
+            },
+        },
+        &CompilerOptions::default(),
     )
     .unwrap();
     assert!(output.diagnostics.is_empty());

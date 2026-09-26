@@ -5,22 +5,24 @@
 //! belong to the original file, and how converter configuration participates in
 //! the revision.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
-    RuleExpression, ScriptLanguage, SourceAnalyzer, SourceInput, StyleInput, StyleVariant,
+    RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceInput, StyleInput,
+    StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
-use stillwind_semantic::AssetKind;
-use stillwind_source::{FileId, ProjectionMap, SourceFile, Span, VolarMapping};
+use stillwind_semantic::{AssetKind, ExportedValue, ModuleId, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_source::{FileId, Fingerprint, ProjectionMap, SourceFile, Span, VolarMapping};
 
 #[test]
 fn checker_spans_restore_each_generated_receiver_for_properties_and_calls() {
-    let original = SourceFile::new(FileId(1), "Component.vue", "foo(); bar;").unwrap();
+    let original = SourceFile::new(FileId(1), None, None, "foo(); bar;").unwrap();
     let generated =
-        SourceFile::new(FileId(2), "Component.ts", "__VLS_ctx.foo(); __VLS_ctx.bar;").unwrap();
+        SourceFile::new(FileId(2), None, None, "__VLS_ctx.foo(); __VLS_ctx.bar;").unwrap();
     let map = ProjectionMap::Volar {
         mappings: vec![VolarMapping {
             source_offsets: vec![0, 7],
@@ -29,8 +31,16 @@ fn checker_spans_restore_each_generated_receiver_for_properties_and_calls() {
             generated_lengths: None,
         }],
     };
-    let normalized =
-        normalize_projection(&generated, &original, &map, AdapterKind::Vue, FileId(3)).unwrap();
+    let normalized = normalize_projection(
+        &generated,
+        &original,
+        &map,
+        AdapterKind::Vue,
+        FileId(3),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    )
+    .unwrap();
     assert_eq!(normalized.source.text(), original.text());
     for (start, end, expected) in [
         (0, 3, "__VLS_ctx.foo"),
@@ -59,14 +69,17 @@ fn projected_script(script: &str) -> SourceInput {
     let original = Arc::new(
         SourceFile::new(
             FileId(1),
-            "Component.svelte",
+            None,
+            None,
             format!("<script>{script}</script><div />"),
         )
         .unwrap(),
     );
     SourceInput {
-        code: Arc::new(SourceFile::new(FileId(2), "Component.svelte", script).unwrap()),
+        code: Arc::new(SourceFile::new(FileId(2), None, None, script).unwrap()),
+        module_id: ModuleId::from("Component.svelte"),
         language: ScriptLanguage::Ts,
+        module_kind: ScriptModuleKind::Unambiguous,
         framework: Some(AdapterKind::Svelte),
         upstream_map: None,
         stylesheet_imports: Vec::new(),
@@ -194,12 +207,12 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
         };
         let original = SourceFile::new(
             FileId(1),
-            "Component.vue",
+            None,
+            None,
             format!("<script setup>{original_text}</script>"),
         )
         .unwrap();
-        let generated =
-            SourceFile::new(FileId(2), "Component.ts", generated_text.as_str()).unwrap();
+        let generated = SourceFile::new(FileId(2), None, None, generated_text.as_str()).unwrap();
         let map = ProjectionMap::Volar {
             mappings: vec![VolarMapping {
                 source_offsets: vec![14],
@@ -208,9 +221,24 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
                 generated_lengths: None,
             }],
         };
-        let normalized =
-            normalize_projection(&generated, &original, &map, AdapterKind::Vue, FileId(3)).unwrap();
-        let parsed = parse(&normalized.source);
+        let normalized = normalize_projection(
+            &generated,
+            &original,
+            &map,
+            AdapterKind::Vue,
+            FileId(3),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        )
+        .unwrap();
+        let parsed = parse(
+            &normalized.source,
+            "test.tsx",
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty());
         let (ir, _) = normalized.original_ir(&parsed.module).unwrap();
         let binding = &ir.imports.macros[0].specifiers[0];
@@ -231,7 +259,8 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
     input.code = Arc::new(
         SourceFile::new(
             input.code.id(),
-            input.code.path(),
+            None,
+            None,
             format!("{}\ntype Exposed = typeof style;", input.code.text()),
         )
         .unwrap(),
@@ -347,12 +376,18 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "opaque.extension",
+            None,
+            None,
             "import {style} from 'stillwind/react'; const props: object = style('flex');",
         )
         .unwrap(),
     );
-    let mut input = SourceInput::normal(Arc::clone(&source));
+    let mut input = SourceInput::normal(
+        Arc::clone(&source),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    );
     input.language = ScriptLanguage::Ts;
     input.upstream_map = Some("{\"version\":3}".into());
     let scan = OxcSourceAnalyzer.scan_input(input);
@@ -363,9 +398,6 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
 
 #[test]
 fn projected_facts_resolve_composition_at_original_unicode_offsets() {
-    use std::collections::BTreeMap;
-    use stillwind_semantic::{ExportedValue, SymbolicValue, TypeFact, TypeFacts};
-    use stillwind_source::Fingerprint;
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const 前置='🧭'; const base=style('flex'); const chosen=base; const props=style(chosen);",
     );

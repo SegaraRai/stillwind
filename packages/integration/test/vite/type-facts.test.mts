@@ -20,6 +20,12 @@ import { finalizeModule } from "../../src/vite/finalize.ts";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures/type-facts");
+const cssInput = (content: string) => ({
+  content,
+  name: "root.css",
+  uri: "untitled:root.css",
+  source_map_source: "untitled:root.css",
+});
 
 void test("Vite aliases select the same asset in the host and checker", async () => {
   const root = mkdtempSync(path.join(path.dirname(fixtureRoot), "../.session-test-"));
@@ -63,24 +69,36 @@ const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   .map((name) => ({
     id: path.join(fixtureRoot, name),
     path: `src/${name}`,
+    uri: `untitled:src/${name}`,
     source: readFileSync(path.join(fixtureRoot, name), "utf8"),
+    language: "ts" as const,
+    module_kind: "unambiguous" as const,
+    source_map_source: `untitled:src/${name}`,
   }))
   .map((source) => ({
     ...source,
-    probes: (summarizeSource(source.source, source.path) as ModuleSummary).type_probes,
+    probes: (summarizeSource(source.source, source.path, "tsx", "unambiguous") as ModuleSummary)
+      .type_probes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.path,
-    summarizeSource(source.source, source.path) as ModuleSummary,
+    summarizeSource(source.source, source.path, "tsx", "unambiguous") as ModuleSummary,
   ]),
 );
 
 void test("TypeScript is required for cross-module conditional ref propagation", () => {
   const withoutFacts = compileProject(
-    sources.map(({ path: sourcePath, source }) => ({ path: sourcePath, source })),
-    resolveFixtureCss('@import "stillwind";'),
+    sources.map(({ path: sourcePath, source }) => ({
+      path: sourcePath,
+      uri: `untitled:${sourcePath}`,
+      source,
+      language: "ts",
+      module_kind: "unambiguous",
+      source_map_source: `untitled:${sourcePath}`,
+    })),
+    cssInput(resolveFixtureCss('@import "stillwind";')),
   ) as { modules: Array<{ path: string; diagnostics: Array<{ code: string }> }> };
   assert(
     withoutFacts.modules.find((module) => module.path === "src/consumer.ts")?.diagnostics.length,
@@ -111,10 +129,14 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   const withFacts = compileProject(
     sources.map(({ path: sourcePath, source }) => ({
       path: sourcePath,
+      uri: `untitled:${sourcePath}`,
       source,
+      language: "ts",
+      module_kind: "unambiguous",
+      source_map_source: `untitled:${sourcePath}`,
       type_facts: facts.get(sourcePath) ?? [],
     })),
-    resolveFixtureCss('@import "stillwind";'),
+    cssInput(resolveFixtureCss('@import "stillwind";')),
   ) as {
     modules: Array<{
       path: string;
@@ -129,7 +151,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
   // A projection reads the use-site ref value, never the member expression it was written on.
   // The lowered ref value is a record under c, so `selected.anchor` must compile to `selected.c`.
-  assert.match(consumer.code, /\[\(selected\)\.c\]/);
+  assert.match(consumer.code, /attached = \{className:\(\(selected\)\.c\)\}/);
   // A dynamic animation selects its prebuilt class by the keyframes name the value carries.
   assert.match(consumer.code, /\[\(selectedKeyframes\)\.k\]/);
   // A transition the value selects at runtime carries one class per token, chosen by v.
@@ -145,7 +167,13 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.equal(consumer.css.match(/animation-name:sw-kf-/g)?.length, 2);
   assert.match(consumer.css, /view-transition-class:sw-vt-/);
   const loader = new NativeDesignSystemLoader();
-  loader.provide(0, "fixture.css", resolveFixtureCss('@import "stillwind";'));
+  loader.provide(
+    0,
+    "fixture.css",
+    resolveFixtureCss('@import "stillwind";'),
+    "untitled:fixture.css",
+    "untitled:fixture.css",
+  );
   const session = new NativeProjectSession(loader, true);
   const selected = session.compile(
     sources.map((source) => ({
@@ -211,14 +239,11 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   const changedPlan = session.planStylesheet(selection) as typeof plan;
   assert.notEqual(changedPlan.producers[0].semanticRevision, plan.producers[0].semanticRevision);
   // CSS values may retain calc() until the bundler's optimization stage.
-  assert.match(foldCalcExpressions(changedPlan.css), /opacity:5%/);
+  assert.match(foldCalcExpressions(changedPlan.css, undefined), /opacity:5%/);
 
   const runnable = finalizeModule(consumer.code, false);
   assert.doesNotMatch(runnable, /from "stillwind\/react"/);
-  assert.match(
-    runnable,
-    /^import \{ stillwindViewTransitionName, stillwindViewTransitionKey \} from "stillwind\/react\/runtime";/,
-  );
+  assert.match(runnable, /^import \{[^}]+\} from "stillwind\/react\/runtime";/);
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     assert.match(runnable, new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));
   }

@@ -51,7 +51,7 @@ pub fn composition_dependencies(module: &ModuleAnalysis) -> Vec<StyleDependency>
 fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
     IdentityId::new(
         AssetKind::Style,
-        module.source.path(),
+        module.module_id.as_str(),
         call.span.start.0,
         call.span.end.0,
         "",

@@ -9,47 +9,49 @@ use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
     DesignSystemSnapshot,
 };
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
 #[test]
 fn renders_repeated_imports_in_authored_order() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let root = "not/a\\path:ROOT";
     let step = loader.provide(
         0,
         root.into(),
+        None,
+        None,
         "@import 'one'; @import 'alias'; @theme { --color-brand: red; }".into(),
     );
     let DesignSystemLoadStep::NeedFile(_) = step else {
         panic!("expected request")
     };
     let child = "@theme { --color-brand: blue; }";
-    let step = loader.provide(1, "Opaque CHILD".into(), child.into());
+    let step = loader.provide(1, "Opaque CHILD".into(), None, None, child.into());
     let DesignSystemLoadStep::NeedFile(_) = step else {
         panic!("expected alias request")
     };
     let DesignSystemLoadStep::Complete(Ok(snapshot)) =
-        loader.provide(2, "Opaque CHILD".into(), child.into())
+        loader.provide(2, "Opaque CHILD".into(), None, None, child.into())
     else {
         panic!("expected snapshot")
     };
     let flat = DesignSystemSnapshot::from_source(
         &SourceFile::new(
-            FileId(1),
-            "flat",
+            FileId(1), None, None,
             "@theme { --color-brand: blue; } @theme { --color-brand: blue; } @theme { --color-brand: red; }"
-        ).unwrap(),
+        ).unwrap(), "test.css",
         DesignSystemOptions::default()
     ).unwrap();
     assert_eq!(
         StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
         .render_stylesheet("")
         .unwrap(),
-        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::builtin())
+        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
     );
@@ -57,24 +59,33 @@ fn renders_repeated_imports_in_authored_order() {
 
 #[test]
 fn imported_styles_retain_layer_supports_and_media_conditions() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     assert!(matches!(
         loader.provide(
             0,
             "root".into(),
+            None,
+            None,
             "@import 'child' layer(components) supports(display: grid) screen and (width > 40rem);"
                 .into()
         ),
         DesignSystemLoadStep::NeedFile(_)
     ));
-    let step = loader.provide(1, "child".into(), ".card { display: grid; }".into());
+    let step = loader.provide(
+        1,
+        "child".into(),
+        None,
+        None,
+        ".card { display: grid; }".into(),
+    );
     let DesignSystemLoadStep::Complete(Ok(snapshot)) = step else {
         panic!("{step:?}")
     };
     let css = StylesheetRenderer::new(
         &snapshot,
         &CompilerOptions::default(),
-        &Identifiers::builtin(),
+        &Identifiers::default(),
     )
     .render_stylesheet("")
     .unwrap();
@@ -92,10 +103,13 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
             .join("../../packages/core/index.css")
             .canonicalize()
             .unwrap();
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         let mut step = loader.provide(
             0,
             entry.to_string_lossy().as_ref().into(),
+            None,
+            None,
             std::fs::read_to_string(&entry).unwrap().into(),
         );
         loop {
@@ -123,24 +137,25 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
 
     let first = load();
     assert!(
-        StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::builtin())
-            .render_base_stylesheet()
+        StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::default())
+            .render_stylesheet("")
             .unwrap()
             .contains("box-sizing")
     );
     assert!(
-        !StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::builtin())
-            .render_base_stylesheet()
+        !StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::default())
+            .render_stylesheet("")
             .unwrap()
             .contains("--theme(")
     );
     let bare = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "empty", "").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     assert!(
-        !StylesheetRenderer::new(&bare, &CompilerOptions::default(), &Identifiers::builtin())
+        !StylesheetRenderer::new(&bare, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
             .contains("box-sizing")
@@ -153,26 +168,28 @@ fn rendering_is_independent_of_import_response_order() {
     let a = "@theme { --color-brand: red; } .a { color: red; }";
     let b = "@import 'c'; @theme { --color-brand: blue; } .b { color: blue; }";
     let c = "@theme { --color-child: green; } .c { color: green; }";
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    loader.provide(0, "root".into(), root.into());
-    loader.provide(2, "b".into(), b.into());
-    loader.provide(3, "c".into(), c.into());
-    let snapshot = complete(loader.provide(1, "a".into(), a.into()));
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    loader.provide(0, "root".into(), None, None, root.into());
+    loader.provide(2, "b".into(), None, None, b.into());
+    loader.provide(3, "c".into(), None, None, c.into());
+    let snapshot = complete(loader.provide(1, "a".into(), None, None, a.into()));
 
-    let mut batched = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut batched =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     batched.provide_many([input(0, "root", root)]);
     batched.provide_many([input(2, "b", b), input(1, "a", a)]);
     let batch_snapshot = complete(batched.provide_many([input(3, "c", c)]));
-    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), "flat", format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")).unwrap(), DesignSystemOptions::default()).unwrap();
+    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), None, None, format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")).unwrap(), "test.css", DesignSystemOptions::default()).unwrap();
     assert_eq!(
         StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
         .render_stylesheet("")
         .unwrap(),
-        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::builtin())
+        StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
     );
@@ -180,14 +197,14 @@ fn rendering_is_independent_of_import_response_order() {
         StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
         .render_stylesheet("")
         .unwrap(),
         StylesheetRenderer::new(
             &batch_snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin()
+            &Identifiers::default()
         )
         .render_stylesheet("")
         .unwrap()
@@ -196,17 +213,30 @@ fn rendering_is_independent_of_import_response_order() {
 
 #[test]
 fn renders_each_diamond_import_occurrence() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    loader.provide(0, "root".into(), "@import 'a'; @import 'alias';".into());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    loader.provide(
+        0,
+        "root".into(),
+        None,
+        None,
+        "@import 'a'; @import 'alias';".into(),
+    );
     loader.provide_many([
         input(2, "shared", "@import 'leaf'; .shared { color: red; }"),
         input(1, "shared", "@import 'leaf'; .shared { color: red; }"),
     ]);
-    let snapshot = complete(loader.provide(3, "leaf".into(), ".leaf { color: blue; }".into()));
+    let snapshot = complete(loader.provide(
+        3,
+        "leaf".into(),
+        None,
+        None,
+        ".leaf { color: blue; }".into(),
+    ));
     let css = StylesheetRenderer::new(
         &snapshot,
         &CompilerOptions::default(),
-        &Identifiers::builtin(),
+        &Identifiers::default(),
     )
     .render_stylesheet("")
     .unwrap();
@@ -217,17 +247,18 @@ fn renders_each_diamond_import_occurrence() {
 #[test]
 fn cloned_snapshots_render_identically() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "root", "@theme { --color-brand: red; }").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "@theme { --color-brand: red; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     let pinned = snapshot.clone();
     let options = CompilerOptions::default();
     assert_eq!(
-        StylesheetRenderer::new(&snapshot, &options, &Identifiers::builtin())
+        StylesheetRenderer::new(&snapshot, &options, &Identifiers::default())
             .render_stylesheet("")
             .unwrap(),
-        StylesheetRenderer::new(&pinned, &options, &Identifiers::builtin())
+        StylesheetRenderer::new(&pinned, &options, &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
     );
@@ -237,6 +268,8 @@ fn input(id: u32, name: &str, content: &str) -> CssFileInput {
     CssFileInput {
         id,
         name: name.into(),
+        uri: None,
+        source_map_source: None,
         content: content.into(),
     }
 }

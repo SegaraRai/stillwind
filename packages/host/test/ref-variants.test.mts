@@ -8,6 +8,13 @@ import { compileProject, summarizeSource } from "@stillwind/native";
 import type { ModuleSummary } from "../src/protocol.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
+const cssInput = (content: string) => ({
+  content,
+  name: "root.css",
+  uri: "untitled:root.css",
+  source_map_source: "untitled:root.css",
+});
+
 void test("direct ref variants preserve imported conditional ref/boundary pairs", () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const producer = `import {style} from 'stillwind/react';
@@ -30,12 +37,15 @@ declare const enabled: boolean;
 const selected = enabled ? a : b;
 export const props = style(${expression});`;
       const sources = [
-        { path: "ref-producer.ts", source: producer },
-        { path: "ref-consumer.ts", source: consumer },
+        { path: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
+        { path: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
       ].map((source) => ({
         ...source,
+        language: "ts" as const,
+        module_kind: "unambiguous" as const,
+        source_map_source: source.uri,
         id: path.join(root, source.path),
-        summary: summarizeSource(source.source, source.path) as ModuleSummary,
+        summary: summarizeSource(source.source, source.path, "tsx", "unambiguous") as ModuleSummary,
       }));
       const facts = service.collect(
         sources.map((source) => ({ ...source, probes: source.summary.type_probes })),
@@ -43,10 +53,10 @@ export const props = style(${expression});`;
       );
       const result = compileProject(
         sources.map((source) => ({ ...source, type_facts: facts.get(source.path) ?? [] })),
-        `@variant hover { @media (hover:hover) { &:hover { @slot; } } }
+        cssInput(`@variant hover { @media (hover:hover) { &:hover { @slot; } } }
 @variant active { &:active { @slot; } }
 @utility accent { color:red; }
-@stillwind-slot utilities;`,
+@stillwind-slot utilities;`),
       ) as {
         modules: Array<{ path: string; code: string; css: string; diagnostics: unknown[] }>;
       };

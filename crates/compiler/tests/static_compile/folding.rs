@@ -3,9 +3,9 @@
 //! Cases compile authored calls through the frontend, then inspect output, helper
 //! bindings, typed findings, and independently converted source coordinates.
 
-use stillwind_compiler::{CompileResult, render_transforms};
-use stillwind_design_system::LintSeverity;
-use stillwind_diagnostics::LintKind;
+use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
+use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -19,12 +19,22 @@ use super::Compiler;
 fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),
-        "src/Folding.tsx",
+        None,
+        None,
         format!("import {{ style }} from 'stillwind/{framework}';\n{body}"),
     )
     .unwrap();
-    let css = crate::css_fixture::source(FileId(2), "style.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &css);
+    let css = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &css,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     (source, result)
 }
@@ -485,12 +495,22 @@ fn multiple_clsx_calls_merge_without_losing_source_occurrences() {
 fn macro_contract_findings_retain_output_even_for_empty_conditions() {
     let source = SourceFile::new(
         FileId(1),
-        "contract.tsx",
+        None,
+        None,
         "import {style} from 'stillwind/react'; const props = style(index++ ? [] : []);",
     )
     .unwrap();
-    let css = crate::css_fixture::source(FileId(2), "style.css", "@theme {}").unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &css);
+    let css = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &css,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(
         result
             .lint_findings

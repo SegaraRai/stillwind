@@ -18,7 +18,12 @@ const unrelated = tuple(123);
 const token = style.keyframes({from: 'opacity-0', to: 'opacity-100'});
 const selected = token;
 export const props = style(selected('infinite'));`;
-  const summary = summarizeSource(source, "probe-document.ts") as ModuleSummary;
+  const summary = summarizeSource(
+    source,
+    "probe-document.ts",
+    "ts",
+    "unambiguous",
+  ) as ModuleSummary;
   const service = new TypeScriptFactsService(root);
   try {
     const facts = service

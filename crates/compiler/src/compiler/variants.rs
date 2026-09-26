@@ -251,11 +251,21 @@ mod tests {
     use super::super::utilities::render::render_utility_rule_path;
     use super::super::utilities::resolve::CompiledUtility;
     use super::*;
-    use crate::identifiers::IdentifierContext;
+    use crate::identifiers::{
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
+    };
+
+    fn identifiers() -> IdentifierContext {
+        IdentifierContext::new(
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            DEFAULT_HASH_LENGTH,
+        )
+    }
 
     /// Renders one authored variant path with the compiler's own helper names.
     fn render_variant_path(body: &str, applications: &[VariantApplication]) -> String {
-        render_authored_variant_path(body, applications, &IdentifierContext::builtin())
+        render_authored_variant_path(body, applications, &identifiers())
             .expect("the built-in generator cannot reject a name")
     }
 
@@ -310,7 +320,7 @@ mod tests {
                 "color:red;",
                 None,
                 &applications,
-                &IdentifierContext::builtin(),
+                &identifiers(),
             )
             .expect("the built-in generator cannot reject a name"),
             "@media print{.x:hover{color:red;}}@media print{.x:focus{color:red;}}"

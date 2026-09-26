@@ -8,15 +8,20 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::SourceAnalyzer;
-use stillwind_js_oxc::{OxcSourceAnalyzer, parse_with_type_facts};
-use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
+use stillwind_semantic::{AssetKind, ExportedValue, ModuleId, SymbolicValue, TypeFact, TypeFacts};
 use stillwind_source::{FileId, Fingerprint, SourceFile};
 
 #[test]
 fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
-    let source = Arc::new(SourceFile::new(FileId(1), "entry.tsx", "const x = 1;").unwrap());
-    let scan = OxcSourceAnalyzer.scan(source.clone());
+    let source = Arc::new(SourceFile::new(FileId(1), None, None, "const x = 1;").unwrap());
+    let scan = OxcSourceAnalyzer.scan(
+        source.clone(),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     let facts = TypeFacts {
         schema: TypeFacts::SCHEMA,
         module_id: scan.module_id.clone(),
@@ -32,7 +37,14 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
     assert!(analysis.semantic_revision.is_none());
     assert_eq!(analysis.integration_diagnostics.len(), 1);
-    let parsed = parse_with_type_facts(&source, &facts.facts, &facts.assets);
+    let parsed = parse(
+        &source,
+        "test.tsx",
+        &facts.facts,
+        &facts.assets,
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(
         parsed
             .diagnostics
@@ -50,12 +62,18 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
-            "Button.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; export const x = style('flex');",
         )
         .unwrap(),
     );
-    let scan = OxcSourceAnalyzer.scan(source);
+    let scan = OxcSourceAnalyzer.scan(
+        source,
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert_eq!(scan.local_ir.style_calls.len(), 1);
     let local = OxcSourceAnalyzer.finalize(scan.clone(), None);
     let facts = TypeFacts {
@@ -87,11 +105,15 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
 #[test]
 fn scan_reports_expression_probes_for_non_local_asset_values() {
     let source = Arc::new(SourceFile::new(
-        FileId(1),
-        "consumer.tsx",
+        FileId(1), None, None,
         "import { style } from 'stillwind/react'; import { target } from './producer'; const x = style(target);",
     ).unwrap());
-    let scan = OxcSourceAnalyzer.scan(source.clone());
+    let scan = OxcSourceAnalyzer.scan(
+        source.clone(),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
     assert!(
         scan.type_probes
             .iter()

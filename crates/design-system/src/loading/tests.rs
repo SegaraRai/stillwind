@@ -3,11 +3,11 @@
 //! Pins that response order and batch shape never change the resulting snapshot, that
 //! opaque names identify sources, that cycles and conflicting content are reported with
 //! the offending chain, and that token spans keep pointing into the buffer the host
-//! supplied. A package import stays a host request, and parse failures keep the opaque
-//! source name and a typed `#[source]` cause.
+//! supplied. A package import stays a host request, and parse failures keep a typed
+//! `#[source]` cause and a span in the supplied buffer.
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri};
 use stillwind_syntax::parse_candidate;
 
 use super::*;
@@ -15,10 +15,15 @@ use crate::{DesignSystemOptions, DesignSystemSnapshot, resolve_variant};
 
 #[test]
 fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    let DesignSystemLoadStep::NeedFile(requests) =
-        loader.provide(0, "root.css".into(), "@import 'tailwindcss';".into())
-    else {
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let DesignSystemLoadStep::NeedFile(requests) = loader.provide(
+        0,
+        "root.css".into(),
+        None,
+        None,
+        "@import 'tailwindcss';".into(),
+    ) else {
         panic!("expected a real import request")
     };
     assert_eq!(requests.len(), 1);
@@ -26,24 +31,22 @@ fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
 }
 
 #[test]
-fn parse_failures_keep_source_identity_and_typed_cause() {
+fn parse_failures_keep_source_span_and_typed_cause() {
     use std::error::Error;
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let DesignSystemLoadStep::Complete(Err(error)) =
-        loader.provide(0, "opaque".into(), "@import 123;".into())
+        loader.provide(0, "opaque".into(), None, None, "@import 123;".into())
     else {
         panic!("expected import error")
     };
-    assert!(
-        matches!(&error, DesignSystemLoadError::Compilation(CompileError {
-            source_name: Some(name),
-            kind: CompileErrorKind::InvalidImportSpecifier {
-                offset: 0,
-                ..
-            },
+    assert!(matches!(
+        &error,
+        DesignSystemLoadError::Compilation(CompileError {
+            kind: CompileErrorKind::InvalidImportSpecifier { offset: 0, .. },
             ..
-        }) if name == "opaque")
-    );
+        })
+    ));
     assert!(
         error
             .source()
@@ -51,18 +54,17 @@ fn parse_failures_keep_source_identity_and_typed_cause() {
             .downcast_ref::<CompileErrorKind>()
             .is_some()
     );
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let DesignSystemLoadStep::Complete(Err(error)) =
-        loader.provide(0, "opaque".into(), "@theme {".into())
+        loader.provide(0, "opaque".into(), None, None, "@theme {".into())
     else {
         panic!("expected theme error")
     };
-    assert!(
-        matches!(&error, DesignSystemLoadError::Compilation(CompileError {
-            source_name: Some(name),
-            ..
-        }) if name == "opaque")
-    );
+    assert!(matches!(
+        &error,
+        DesignSystemLoadError::Compilation(CompileError { .. })
+    ));
     assert!(
         error
             .source()
@@ -71,36 +73,35 @@ fn parse_failures_keep_source_identity_and_typed_cause() {
             .is_some()
     );
     // The single-buffer entry reports the same identity for the same failure.
-    let source = SourceFile::new(FileId(77), "theme.css", "@theme {").unwrap();
-    let error = DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default())
-        .unwrap_err()
-        .into_compile_error(source.full_span());
+    let source = SourceFile::new(FileId(77), None, None, "@theme {").unwrap();
+    let error =
+        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
+            .unwrap_err()
+            .into_compile_error(source.full_span());
     assert_eq!(error.labels[0].span, source.full_span());
-    assert_eq!(error.source_name.as_deref(), Some("theme.css"));
     assert!(matches!(
         error.kind,
         CompileErrorKind::UnterminatedCssBlock { .. }
     ));
-    assert!(error.to_string().starts_with("theme.css: "));
-    assert!(!error.kind.to_string().starts_with("theme.css:"));
 }
 
 #[test]
 fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening() {
     use crate::DesignSystemError;
-    let source = SourceFile::new(FileId(1), "root", "@import 'child';").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "@import 'child';").unwrap();
     let error =
-        DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap_err();
+        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
+            .unwrap_err();
     assert!(
         matches!(error, DesignSystemError::UnresolvedImports { requests } if requests.len() == 1 && requests[0].id == 1 && requests[0].specifier == "child")
     );
-    let source = SourceFile::new(FileId(1), "root", "").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "").unwrap();
     let options = DesignSystemOptions {
         prefix: "bad".into(),
         ..DesignSystemOptions::default()
     };
     assert!(matches!(
-        DesignSystemSnapshot::from_source(&source, options),
+        DesignSystemSnapshot::from_source(&source, "test.css", options),
         Err(DesignSystemError::Load(
             DesignSystemLoadError::InvalidOptions(CompileErrorKind::InvalidPropertyPrefix {
                 option,
@@ -112,16 +113,21 @@ fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening()
 
 #[test]
 fn imported_variant_blocks_obey_later_shorthand_overrides() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let step = loader.provide(
         0,
         "root.css".into(),
+        None,
+        None,
         "@import 'child.css'; @custom-variant state (&:focus);".into(),
     );
     assert!(matches!(step, DesignSystemLoadStep::NeedFile(_)));
     let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
         1,
         "child.css".into(),
+        None,
+        None,
         "@variant state { &:hover { @slot; } }".into(),
     ) else {
         panic!("expected loaded snapshot");
@@ -136,27 +142,69 @@ fn imported_variant_blocks_obey_later_shorthand_overrides() {
 /// protocol errors rather than one generic failure.
 #[test]
 fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
-    let mut cycle = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut cycle =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let css = "@import 'self';";
     assert!(matches!(
-        cycle.provide(0, "root".into(), css.into()),
+        cycle.provide(0, "root".into(), None, None, css.into()),
         DesignSystemLoadStep::NeedFile(_)
     ));
     let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Cycle { chain })) =
-        cycle.provide(1, "root".into(), css.into())
+        cycle.provide(1, "root".into(), None, None, css.into())
     else {
         panic!("expected cycle")
     };
     assert_eq!(chain[0].specifier, "self");
-    let mut conflict = DesignSystemLoader::new(DesignSystemOptions::default());
-    conflict.provide(0, "root".into(), css.into());
+    let mut conflict =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    conflict.provide(0, "root".into(), None, None, css.into());
     assert!(matches!(
-        conflict.provide(1, "root".into(), "".into()),
-        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::ConflictingContent { .. }))
+        conflict.provide(1, "root".into(), None, None, "".into()),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::ConflictingSource { .. }))
     ));
-    let mut invalid = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut changed_uri =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    changed_uri.provide(
+        0,
+        "root".into(),
+        Some(SourceUri::parse("untitled:first").unwrap()),
+        None,
+        css.into(),
+    );
     assert!(matches!(
-        invalid.provide(0, "broken".into(), "@theme {".into()),
+        changed_uri.provide(
+            1,
+            "root".into(),
+            Some(SourceUri::parse("untitled:second").unwrap()),
+            None,
+            css.into()
+        ),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::ConflictingSource { .. }))
+    ));
+    let mut changed_map_source =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let uri = SourceUri::parse("untitled:root").unwrap();
+    changed_map_source.provide(
+        0,
+        "root".into(),
+        Some(uri.clone()),
+        Some("first.css".into()),
+        css.into(),
+    );
+    assert!(matches!(
+        changed_map_source.provide(
+            1,
+            "root".into(),
+            Some(uri),
+            Some("second.css".into()),
+            css.into()
+        ),
+        DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::ConflictingSource { .. }))
+    ));
+    let mut invalid =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    assert!(matches!(
+        invalid.provide(0, "broken".into(), None, None, "@theme {".into()),
         DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(_)))
     ));
 }
@@ -169,7 +217,8 @@ fn snapshot_validates_css_resolved_configuration() {
     };
     assert!(
         DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(0), "root", "").unwrap(),
+            &SourceFile::new(FileId(0), None, None, "").unwrap(),
+            "test.css",
             options
         )
         .is_err()
@@ -181,11 +230,10 @@ fn snapshot_validates_css_resolved_configuration() {
 fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     let snapshot = DesignSystemSnapshot::from_source(
         &SourceFile::new(
-            FileId(1),
-            "root",
+            FileId(1), None, None,
             "@stillwind-utility flex { display: flex; } @utility custom { color: red; } @utility custom { background: blue; }",
         )
-        .unwrap(),
+        .unwrap(), "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
@@ -194,7 +242,8 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(snapshot.fingerprints().utilities.contains_key("flex"));
     assert!(snapshot.builtins().is_some());
     let unselected = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "root", "@theme { --color-brand:red; }").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "@theme { --color-brand:red; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
@@ -206,15 +255,20 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
 /// concatenated or re-generated copy.
 #[test]
 fn imported_token_spans_refer_to_the_original_supplied_buffer() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     loader.provide(
         0,
         "root".into(),
+        None,
+        None,
         "@import 'child'; @theme { --color-root: red; }".into(),
     );
     let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
         1,
         "child id".into(),
+        None,
+        None,
         "/* 日本語 */ @theme { --color-child: blue; }".into(),
     ) else {
         panic!("expected snapshot")
@@ -238,11 +292,18 @@ fn imported_token_spans_refer_to_the_original_supplied_buffer() {
 /// are still outstanding.
 #[test]
 fn cycles_are_reported_while_other_files_are_outstanding() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    loader.provide(0, "root".into(), "@import 'a'; @import 'slow';".into());
-    loader.provide(1, "a".into(), "@import 'b';".into());
-    loader.provide(3, "b".into(), "@import 'a';".into());
-    let step = loader.provide(4, "a".into(), "@import 'b';".into());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    loader.provide(
+        0,
+        "root".into(),
+        None,
+        None,
+        "@import 'a'; @import 'slow';".into(),
+    );
+    loader.provide(1, "a".into(), None, None, "@import 'b';".into());
+    loader.provide(3, "b".into(), None, None, "@import 'a';".into());
+    let step = loader.provide(4, "a".into(), None, None, "@import 'b';".into());
     let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Cycle { chain })) = step else {
         panic!("expected cycle");
     };
@@ -256,7 +317,8 @@ fn cycles_are_reported_while_other_files_are_outstanding() {
 #[test]
 fn loader_validates_batches_against_previously_issued_ids() {
     for files in [vec![], vec![input(0, "a", ""), input(1, "b", "")]] {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         assert!(matches!(
             loader.provide_many(files),
             DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::InvalidInitialBatch { .. }))
@@ -269,23 +331,37 @@ fn loader_validates_batches_against_previously_issued_ids() {
         vec![input(1, "a", "@import 'new';"), input(3, "new", "")],
         vec![input(1, "same", ".a{}"), input(2, "same", ".b{}")],
     ] {
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-        loader.provide(0, "root".into(), "@import 'a'; @import 'b';".into());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+        loader.provide(
+            0,
+            "root".into(),
+            None,
+            None,
+            "@import 'a'; @import 'b';".into(),
+        );
         assert!(matches!(
             loader.provide_many(files),
             DesignSystemLoadStep::Complete(Err(
                 DesignSystemLoadError::UnknownOrDuplicateRequest { .. }
-                    | DesignSystemLoadError::ConflictingContent { .. }
+                    | DesignSystemLoadError::ConflictingSource { .. }
             ))
         ));
     }
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     // Root ID 0 is conventional, not mandatory.
-    loader.provide(42, "root".into(), "@import 'a'; @import 'b';".into());
+    loader.provide(
+        42,
+        "root".into(),
+        None,
+        None,
+        "@import 'a'; @import 'b';".into(),
+    );
     assert_eq!(requests(loader.provide_many([])).len(), 2);
-    loader.provide(1, "a".into(), "".into());
+    loader.provide(1, "a".into(), None, None, "".into());
     assert!(matches!(
-        loader.provide(1, "a".into(), "".into()),
+        loader.provide(1, "a".into(), None, None, "".into()),
         DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::UnknownOrDuplicateRequest {
             id: 1
         }))
@@ -297,23 +373,20 @@ fn loader_validates_batches_against_previously_issued_ids() {
 #[test]
 fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
     let first = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: red; }").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "@theme { --color-brand: red; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     let identical = DesignSystemSnapshot::from_source(
-        &SourceFile::new(
-            FileId(87),
-            // Entry identity now namespaces anonymous output layers; only file IDs/spans vary.
-            "opaque:first",
-            "@theme { --color-brand: red; }",
-        )
-        .unwrap(),
+        &SourceFile::new(FileId(87), None, None, "@theme { --color-brand: red; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     let next = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "opaque:first", "@theme { --color-brand: blue; }").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "@theme { --color-brand: blue; }").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
@@ -329,11 +402,14 @@ fn snapshots_pin_revisions_and_fingerprint_content_without_source_spans() {
 /// name with the same content reuses the loaded source.
 #[test]
 fn loader_traverses_opaque_names_in_authored_order_and_reuses_sources() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let root = r"not/a\path:ROOT";
     let step = loader.provide(
         0,
         root.into(),
+        None,
+        None,
         "@import 'one'; @import 'alias'; @theme { --color-brand: red; }".into(),
     );
     let DesignSystemLoadStep::NeedFile(request) = step else {
@@ -342,20 +418,20 @@ fn loader_traverses_opaque_names_in_authored_order_and_reuses_sources() {
     assert_eq!(request[0].importer.0.as_ref(), root);
     assert_eq!(request[0].specifier, "one");
     let child = "@theme { --color-brand: blue; }";
-    let step = loader.provide(1, "Opaque CHILD".into(), child.into());
+    let step = loader.provide(1, "Opaque CHILD".into(), None, None, child.into());
     let DesignSystemLoadStep::NeedFile(request) = step else {
         panic!("expected alias request")
     };
     assert_eq!(request[0].specifier, "alias");
     let DesignSystemLoadStep::Complete(Ok(snapshot)) =
-        loader.provide(2, "Opaque CHILD".into(), child.into())
+        loader.provide(2, "Opaque CHILD".into(), None, None, child.into())
     else {
         panic!("expected snapshot")
     };
     assert_eq!(snapshot.sources().sources.len(), 2);
     assert_eq!(snapshot.sources().edges.len(), 2);
     assert!(matches!(
-        loader.provide(0, "extra".into(), "".into()),
+        loader.provide(0, "extra".into(), None, None, "".into()),
         DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::AlreadyComplete))
     ));
 }
@@ -368,8 +444,9 @@ fn partial_out_of_order_responses_preserve_fingerprints_and_spans() {
     let a = "@theme { --color-brand: red; } .a { color: red; }";
     let b = "@import 'c'; @theme { --color-brand: blue; } .b { color: blue; }";
     let c = "@theme { --color-child: green; } .c { color: green; }";
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    let initial = requests(loader.provide(0, "root".into(), root.into()));
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let initial = requests(loader.provide(0, "root".into(), None, None, root.into()));
     assert_eq!(
         initial
             .iter()
@@ -377,14 +454,18 @@ fn partial_out_of_order_responses_preserve_fingerprints_and_spans() {
             .collect::<Vec<_>>(),
         [(1, "a"), (2, "b")]
     );
-    let pending = requests(loader.provide(2, "b".into(), b.into()));
+    let pending = requests(loader.provide(2, "b".into(), None, None, b.into()));
     assert_eq!(pending.iter().map(|r| r.id).collect::<Vec<_>>(), [1, 3]);
     assert_eq!(pending[1].importer.0.as_ref(), "b");
     assert_eq!(pending[1].specifier, "c");
-    assert_eq!(requests(loader.provide(3, "c".into(), c.into()))[0].id, 1);
-    let snapshot = complete(loader.provide(1, "a".into(), a.into()));
+    assert_eq!(
+        requests(loader.provide(3, "c".into(), None, None, c.into()))[0].id,
+        1
+    );
+    let snapshot = complete(loader.provide(1, "a".into(), None, None, a.into()));
 
-    let mut batched = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut batched =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     batched.provide_many([input(0, "root", root)]);
     assert_eq!(
         requests(batched.provide_many([input(2, "b", b), input(1, "a", a)]))[0].id,
@@ -405,15 +486,28 @@ fn partial_out_of_order_responses_preserve_fingerprints_and_spans() {
 /// Two importers naming the same pending file share one request, and both edges stay.
 #[test]
 fn diamond_sources_share_pending_requests_and_preserve_graph_edges() {
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
-    loader.provide(0, "root".into(), "@import 'a'; @import 'alias';".into());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    loader.provide(
+        0,
+        "root".into(),
+        None,
+        None,
+        "@import 'a'; @import 'alias';".into(),
+    );
     let pending = requests(loader.provide_many([
         input(2, "shared", "@import 'leaf'; .shared { color: red; }"),
         input(1, "shared", "@import 'leaf'; .shared { color: red; }"),
     ]));
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id, 3);
-    let snapshot = complete(loader.provide(3, "leaf".into(), ".leaf { color: blue; }".into()));
+    let snapshot = complete(loader.provide(
+        3,
+        "leaf".into(),
+        None,
+        None,
+        ".leaf { color: blue; }".into(),
+    ));
     assert_eq!(snapshot.sources().sources.len(), 3);
     assert_eq!(snapshot.sources().edges.len(), 3);
 }
@@ -424,6 +518,8 @@ fn input(id: u32, name: &str, content: &str) -> CssFileInput {
     CssFileInput {
         id,
         name: name.into(),
+        uri: None,
+        source_map_source: None,
         content: content.into(),
     }
 }
@@ -455,10 +551,13 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
             .join("../../packages/core/index.css")
             .canonicalize()
             .unwrap();
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         let mut step = loader.provide(
             0,
             entry.to_string_lossy().as_ref().into(),
+            None,
+            None,
             std::fs::read_to_string(&entry).unwrap().into(),
         );
         loop {
@@ -505,16 +604,20 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
     );
     assert_ne!(first.fingerprints().content, changed.fingerprints().content);
     let bare = DesignSystemSnapshot::from_source(
-        &SourceFile::new(FileId(1), "empty", "").unwrap(),
+        &SourceFile::new(FileId(1), None, None, "").unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();
     assert!(bare.utilities().get("flex").is_none());
     assert!(bare.tokens().get("--spacing").is_none());
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let DesignSystemLoadStep::NeedFile(requests) = loader.provide(
         0,
         "entry".into(),
+        None,
+        None,
         "@import 'stillwind' layer(app) supports(display:grid) print;".into(),
     ) else {
         panic!("package must be resolved by the host")
@@ -527,13 +630,20 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
 #[test]
 fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
     let root = "@import 'child.css' screen;";
-    let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     assert!(matches!(
-        loader.provide(0, "root.css".into(), root.into()),
+        loader.provide(0, "root.css".into(), None, None, root.into()),
         DesignSystemLoadStep::NeedFile(_)
     ));
-    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(error))) =
-        loader.provide(1, "child.css".into(), "@theme { --color-red: red; }".into())
+    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(error))) = loader
+        .provide(
+            1,
+            "child.css".into(),
+            None,
+            None,
+            "@theme { --color-red: red; }".into(),
+        )
     else {
         panic!("expected conditional definition failure")
     };
@@ -543,9 +653,7 @@ fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
     ));
     assert_eq!(
         error.labels[0].span,
-        SourceFile::new(FileId(1), "root.css", root)
-            .unwrap()
-            .full_span()
+        loader.root_source().unwrap().full_span()
     );
 }
 
@@ -555,11 +663,10 @@ fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
 fn repeated_resource_specifiers_share_one_placeholder() {
     let snapshot = DesignSystemSnapshot::from_source(
         &SourceFile::new(
-            FileId(1),
-            "theme.css",
+            FileId(1), None, None,
             "@utility image { background-image:url('./same.svg'); mask-image:url('./same.svg'); } @stillwind-slot utilities;",
         )
-        .unwrap(),
+        .unwrap(), "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap();

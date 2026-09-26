@@ -12,8 +12,8 @@ use std::collections::BTreeSet;
 
 use stillwind_design_system::{
     DesignSystemRevision, DesignSystemSnapshot, ThemeNamespace, ThemeTokenKind,
-    builtin_property_definitions, builtin_utility_token_prefixes, compare_variant_sequences,
-    resolve_variant,
+    UtilityResolutionError, builtin_property_definitions, builtin_utility_token_prefixes,
+    compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_source::{FileId, Span};
@@ -91,20 +91,32 @@ impl DesignSystemQuery {
     /// Returns `None` if either utility or any of its variants cannot be resolved.
     /// Callers decide how to preserve unresolved text and expression boundaries;
     /// this comparison does not rewrite source or normalize candidate spelling.
-    pub fn compare_candidates(&self, left: &str, right: &str) -> Option<Ordering> {
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn compare_candidates(
+        &self,
+        left: &str,
+        right: &str,
+    ) -> Result<Option<Ordering>, UtilityResolutionError> {
         let theme = self.design_system.theme();
         let resolve = |raw| {
-            CandidateResolver::resolve(raw, theme).filter(|resolved| {
+            Ok(CandidateResolver::resolve(raw, theme)?.filter(|resolved| {
                 resolved
                     .candidate
                     .variants
                     .iter()
                     .all(|variant| resolve_variant(variant, theme).is_some())
-            })
+            }))
         };
-        let left_resolved = resolve(left)?;
-        let right_resolved = resolve(right)?;
-        Some(
+        let Some(left_resolved) = resolve(left)? else {
+            return Ok(None);
+        };
+        let Some(right_resolved) = resolve(right)? else {
+            return Ok(None);
+        };
+        Ok(Some(
             compare_variant_sequences(
                 &left_resolved.candidate.variants,
                 &right_resolved.candidate.variants,
@@ -115,7 +127,7 @@ impl DesignSystemQuery {
                     .order
                     .compare(left, &right_resolved.order, right)
             }),
-        )
+        ))
     }
 
     /// Creates a query pinned to `design_system`.
@@ -138,7 +150,14 @@ impl DesignSystemQuery {
     /// variants do not all resolve is reported as unresolved rather than previewed
     /// partially. Failures are typed lint findings over synthetic file 0; hosts must map
     /// their labels to the editor buffer before reporting or applying source suppression.
-    pub fn resolve_candidate(&self, candidate: &str) -> CandidateResolution {
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn resolve_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<CandidateResolution, UtilityResolutionError> {
         let span = Span::new(
             FileId(0),
             0,
@@ -146,18 +165,22 @@ impl DesignSystemQuery {
         );
         // The built-in generator cannot reject an input, so the fallback selector is
         // unreachable; previews keep the empty string rather than panicking a host.
-        let selector = IdentifierContext::builtin()
-            .class_name(&ClassContext {
-                module: String::new(),
-                namespace: String::new(),
-                call: 0,
-                branch: format!("{candidate}\0"),
-            })
-            .map(|name| name.selector())
-            .unwrap_or_default();
+        let selector = IdentifierContext::new(
+            crate::GeneratorSet::default(),
+            crate::IdentifierMode::Release,
+            crate::identifiers::DEFAULT_HASH_LENGTH,
+        )
+        .class_name(&ClassContext {
+            module: String::new(),
+            namespace: String::new(),
+            call: 0,
+            branch: format!("{candidate}\0"),
+        })
+        .map(|name| name.selector())
+        .unwrap_or_default();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
-        let targets = resolve_utility_targets(candidate, theme).filter(|_| {
+        let targets = resolve_utility_targets(candidate, theme)?.filter(|_| {
             parsed.as_ref().is_some_and(|parsed| {
                 parsed
                     .variants
@@ -169,7 +192,11 @@ impl DesignSystemQuery {
         let mut diagnostics = if let Some(targets) = targets {
             // The preview names its class with the built-in generator, so a rejected name is
             // unreachable and a helper that cannot be named contributes nothing.
-            let identifiers = IdentifierContext::builtin();
+            let identifiers = IdentifierContext::new(
+                crate::GeneratorSet::default(),
+                crate::IdentifierMode::Release,
+                crate::identifiers::DEFAULT_HASH_LENGTH,
+            );
             let _ =
                 emit_utility_rules(&mut contributions, &selector, &targets, theme, &identifiers);
             Vec::new()
@@ -184,7 +211,7 @@ impl DesignSystemQuery {
         };
         let css: String = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = theme
-            .tokens_required_by(&css, false)
+            .tokens_required_by(&css, false, &[])
             .iter()
             .map(|token| token.name.value.clone())
             .collect();
@@ -220,14 +247,14 @@ impl DesignSystemQuery {
                 Vec::new()
             }
         };
-        CandidateResolution {
+        Ok(CandidateResolution {
             revision: self.design_system.revision(),
             parsed,
             generated_rules,
             required_properties,
             referenced_tokens,
             diagnostics,
-        }
+        })
     }
 
     /// Offers labels that continue `input.prefix`.
@@ -237,7 +264,14 @@ impl DesignSystemQuery {
     /// names. A label is only returned when it resolves, so the editor never suggests
     /// text that would be reported as unknown. The variant prefix the user already
     /// typed is kept and the remainder is completed after it.
-    pub fn complete_candidate(&self, input: CompletionInput) -> Vec<CompletionItem> {
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn complete_candidate(
+        &self,
+        input: CompletionInput,
+    ) -> Result<Vec<CompletionItem>, UtilityResolutionError> {
         let prefix = input.prefix;
         let theme = self.design_system.theme();
         let mut vocabulary: BTreeSet<_> = self
@@ -262,12 +296,16 @@ impl DesignSystemQuery {
             .map_or((String::new(), prefix.as_str()), |(variants, partial)| {
                 (format!("{variants}:"), partial)
             });
-        let mut completions: BTreeSet<String> = vocabulary
+        let mut completions: BTreeSet<String> = BTreeSet::new();
+        for label in vocabulary
             .into_iter()
             .filter(|label| label.starts_with(partial))
-            .map(|label| format!("{variants}{label}"))
-            .filter(|label| self.resolve_candidate(label).diagnostics.is_empty())
-            .collect();
+        {
+            let label = format!("{variants}{label}");
+            if self.resolve_candidate(&label)?.diagnostics.is_empty() {
+                completions.insert(label);
+            }
+        }
         let mut variant_names: BTreeSet<_> = self
             .design_system
             .variants()
@@ -291,22 +329,29 @@ impl DesignSystemQuery {
                 completions.insert(format!("{variants}{variant}:"));
             }
         }
-        completions
+        Ok(completions
             .into_iter()
             .map(|label| CompletionItem {
                 label,
                 revision: self.design_system.revision(),
             })
-            .collect()
+            .collect())
     }
 
     /// CSS for a candidate that resolves, `None` otherwise.
     ///
     /// Diagnostics are deliberately not part of a hover result: an unresolved candidate
     /// has no CSS to show.
-    pub fn hover_candidate(&self, candidate: &str) -> Option<CandidateHover> {
-        let result = self.resolve_candidate(candidate);
-        result.diagnostics.is_empty().then(|| CandidateHover {
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn hover_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<Option<CandidateHover>, UtilityResolutionError> {
+        let result = self.resolve_candidate(candidate)?;
+        Ok(result.diagnostics.is_empty().then(|| CandidateHover {
             candidate: candidate.into(),
             css: result
                 .generated_rules
@@ -314,15 +359,22 @@ impl DesignSystemQuery {
                 .map(GeneratedRule::to_css)
                 .collect(),
             revision: result.revision,
-        })
+        }))
     }
 
     /// Returns the resolution and generated-CSS findings from [`Self::resolve_candidate`].
     ///
     /// The finding carries a synthetic span over the candidate text, because a query
     /// has no source buffer to point into. A successful preview returns an empty list.
-    pub fn diagnose_candidate(&self, candidate: &str) -> Vec<LintFinding> {
-        self.resolve_candidate(candidate).diagnostics
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn diagnose_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<Vec<LintFinding>, UtilityResolutionError> {
+        Ok(self.resolve_candidate(candidate)?.diagnostics)
     }
 }
 
@@ -332,8 +384,9 @@ mod tests {
 
     use stillwind_design_system::DesignSystemOptions;
     use stillwind_diagnostics::{LintKind, UtilityFailure};
-    use stillwind_ir::SourceAnalyzer;
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
+    use stillwind_semantic::ModuleId;
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
@@ -343,12 +396,12 @@ mod tests {
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
         let theme = crate::css_fixture::source(
             FileId(1),
-            "theme",
             "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
         )
         .unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         for (prefix, expected) in [
             ("bg-br", "bg-brand"),
@@ -357,9 +410,11 @@ mod tests {
             ("hover:bg-br", "hover:bg-brand"),
             ("hover:tab", "hover:tablet:"),
         ] {
-            let items = query.complete_candidate(CompletionInput {
-                prefix: prefix.into(),
-            });
+            let items = query
+                .complete_candidate(CompletionInput {
+                    prefix: prefix.into(),
+                })
+                .unwrap();
             assert!(
                 items.iter().any(|item| item.label == expected),
                 "{prefix}: {items:?}"
@@ -377,6 +432,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: "missing:bg-br".into()
                 })
+                .unwrap()
                 .is_empty()
         );
     }
@@ -406,34 +462,50 @@ mod tests {
             };
             let source = SourceFile::new(
                 FileId(1),
-                "theme.css",
+                None,
+                None,
                 format!("{css} {config} @stillwind-slot utilities;"),
             )
             .unwrap();
-            let snapshot =
-                DesignSystemSnapshot::from_source(&source, DesignSystemOptions::default()).unwrap();
+            let snapshot = DesignSystemSnapshot::from_source(
+                &source,
+                "test.css",
+                DesignSystemOptions::default(),
+            )
+            .unwrap();
             ordering_fingerprints.push(snapshot.fingerprints().ordering.clone());
             let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
             let mut utilities = ["late", "builtin", "early"];
-            utilities.sort_by(|a, b| query.compare_candidates(a, b).unwrap());
+            utilities.sort_by(|a, b| query.compare_candidates(a, b).unwrap().unwrap());
             assert_eq!(utilities, expected);
             let mut variants = ["after:early", "middle:early", "before:early"];
-            variants.sort_by(|a, b| query.compare_candidates(a, b).unwrap());
+            variants.sort_by(|a, b| query.compare_candidates(a, b).unwrap().unwrap());
             assert_eq!(variants, ["before:early", "middle:early", "after:early"]);
             assert!(
                 query
                     .hover_candidate("middle:early")
+                    .unwrap()
                     .unwrap()
                     .css
                     .contains(":focus")
             );
             let input = SourceFile::new(
                 FileId(2),
-                "entry.ts",
+                None,
+                None,
                 "import {style} from 'stillwind/react'; const value=style('late builtin early');",
             )
             .unwrap();
-            let compiled = Compiler::compile_source(&OxcSourceAnalyzer, &input, &source);
+            let compiled = Compiler::compile_source(
+                &OxcSourceAnalyzer,
+                &input,
+                "test.tsx",
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &source,
+                "stillwind.css",
+                &CompilerOptions::default(),
+            );
             assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
             let blue = compiled.css.find("color:blue").unwrap();
             let purple = compiled.css.find("color:purple").unwrap();
@@ -449,22 +521,25 @@ mod tests {
     fn editor_order_uses_custom_utility_and_variant_precedence() {
         let theme = crate::css_fixture::source(
             FileId(1),
-            "theme",
             "@utility a { color:red; } @utility b { color:blue; }",
         )
         .unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let mut candidates = ["hover:b", "b", "hover:a", "a", "flex"];
-        candidates.sort_by(|left, right| query.compare_candidates(left, right).unwrap());
+        candidates.sort_by(|left, right| query.compare_candidates(left, right).unwrap().unwrap());
         assert_eq!(candidates, ["flex", "a", "b", "hover:a", "hover:b"]);
         assert_eq!(
-            query.compare_candidates("a", "a"),
+            query.compare_candidates("a", "a").unwrap(),
             Some(std::cmp::Ordering::Equal)
         );
-        assert_eq!(query.compare_candidates("unknown:a", "a"), None);
-        assert_eq!(query.compare_candidates("a", "unknown-utility"), None);
+        assert_eq!(query.compare_candidates("unknown:a", "a").unwrap(), None);
+        assert_eq!(
+            query.compare_candidates("a", "unknown-utility").unwrap(),
+            None
+        );
     }
 
     /// A query resolves the same declarations a real compilation emits for the same
@@ -472,27 +547,34 @@ mod tests {
     #[test]
     fn queries_share_resolved_custom_definitions_and_pin_revisions() {
         let theme =
-            crate::css_fixture::source(FileId(1), "theme", "@utility brand { color: red; }")
-                .unwrap();
+            crate::css_fixture::source(FileId(1), "@utility brand { color: red; }").unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
-        let resolved = query.resolve_candidate("hover:brand");
+        let resolved = query.resolve_candidate("hover:brand").unwrap();
         assert!(resolved.diagnostics.is_empty());
         assert_eq!(resolved.revision, snapshot.revision());
         let source = SourceFile::new(
             FileId(2),
-            "a.tsx",
+            None,
+            None,
             "import { style } from 'stillwind/react'; const x = style('hover:brand');",
         )
         .unwrap();
         let analysis = SourceAnalyzer::finalize(
             &OxcSourceAnalyzer,
-            SourceAnalyzer::scan(&OxcSourceAnalyzer, Arc::new(source)),
+            SourceAnalyzer::scan(
+                &OxcSourceAnalyzer,
+                Arc::new(source),
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
             None,
         );
-        let compiled =
-            ModuleCompiler::new(snapshot.clone(), CompilerOptions::default()).compile(&analysis);
+        let compiled = ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
+            .compile(&analysis, &crate::Identifiers::default());
         // Queries use their own synthetic producer. Compare declarations, not identities.
         assert_eq!(resolved.generated_rules.len(), compiled.css.rules.len());
         for (queried, generated) in resolved.generated_rules.iter().zip(&compiled.css.rules) {
@@ -509,18 +591,27 @@ mod tests {
             query
                 .hover_candidate("brand")
                 .unwrap()
+                .unwrap()
                 .css
                 .replace(' ', "")
                 .contains("color:red")
         );
-        assert!(query.hover_candidate("missing:brand").is_none());
-        assert!(!query.diagnose_candidate("this-does-not-exist").is_empty());
+        assert!(query.hover_candidate("missing:brand").unwrap().is_none());
+        assert!(
+            !query
+                .diagnose_candidate("this-does-not-exist")
+                .unwrap()
+                .is_empty()
+        );
         for (candidate, classification) in [
             ("hover:[", UtilityFailure::Invalid),
             ("不存在", UtilityFailure::Unknown),
         ] {
-            let findings = query.diagnose_candidate(candidate);
-            assert_eq!(findings, query.resolve_candidate(candidate).diagnostics);
+            let findings = query.diagnose_candidate(candidate).unwrap();
+            assert_eq!(
+                findings,
+                query.resolve_candidate(candidate).unwrap().diagnostics
+            );
             assert_eq!(
                 findings[0].kind,
                 LintKind::UnresolvedCandidate {
@@ -541,6 +632,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: "br".into()
                 })
+                .unwrap()
                 .iter()
                 .any(|item| item.label == "brand")
         );
@@ -550,11 +642,12 @@ mod tests {
     /// empty rule.
     #[test]
     fn an_empty_utility_is_unresolved_and_produces_no_rules() {
-        let theme = crate::css_fixture::source(FileId(1), "theme", "@utility empty {}").unwrap();
+        let theme = crate::css_fixture::source(FileId(1), "@utility empty {}").unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+                .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
-        let result = query.resolve_candidate("empty");
+        let result = query.resolve_candidate("empty").unwrap();
         assert!(!result.diagnostics.is_empty());
         assert!(result.generated_rules.is_empty());
     }

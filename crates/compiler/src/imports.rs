@@ -222,6 +222,7 @@ fn callee_prefix(mut prefix: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::parse;
     use stillwind_source::FileId;
 
@@ -231,8 +232,15 @@ mod tests {
     /// Rewrites a module the way a compilation pass would: lower the recorded calls,
     /// then plan the import removal against those replacements.
     fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<String, CompileError> {
-        let source = SourceFile::new(FileId(1), "entry.ts", text).unwrap();
-        let mut parsed = parse(&source);
+        let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+        let mut parsed = parse(
+            &source,
+            "test.tsx",
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         let lowered = if lower {
             parsed
@@ -254,7 +262,14 @@ mod tests {
         let mut edits = plan_macro_import_removals(&source, &parsed.module.imports, &lowered)?;
         edits.extend(lowered);
         let code = render_transforms(&source, &edits).unwrap().code;
-        let reparsed = parse(&SourceFile::new(FileId(2), "output.ts", code.as_str()).unwrap());
+        let reparsed = parse(
+            &SourceFile::new(FileId(2), None, None, code.as_str()).unwrap(),
+            "test.tsx",
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
         assert!(
             reparsed.diagnostics.is_empty(),
             "{code}: {:?}",

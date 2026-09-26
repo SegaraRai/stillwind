@@ -11,6 +11,8 @@ import { TypeFactsError, type TypeScriptFactsService, type TypeFact } from "./ty
  * and reporting lint warnings. Resolution may exclude external modules or return null.
  */
 export interface CompilerHost {
+  /** Canonical URI of an editable document; the host owns its path and virtual ID rules. */
+  documentUri(id: string): string;
   resolve(
     specifier: string,
     importer: string,
@@ -89,6 +91,7 @@ export async function compileModule(
   const entryId = cleanModuleId(id);
   const entrySource = await projectFrameworkSource({
     id: entryId,
+    uri: host.documentUri(entryId),
     path: compilerModulePath(projectRoot, entryId),
     source: code,
   });
@@ -150,6 +153,7 @@ export async function compileModule(
       if (!dependencySource) {
         dependencySource = await projectFrameworkSource({
           id: dependencyId,
+          uri: host.documentUri(dependencyId),
           path: compilerModulePath(projectRoot, dependencyId),
           source: await host.read(dependencyId),
         });
@@ -196,10 +200,11 @@ export async function compileModule(
       mappings: [],
       classes: [],
       symbols: [],
-      diagnostics: [error.diagnostic(source.fw_code ?? source.source)],
+      diagnostics: [error.diagnostic(source.fw_code ?? source.source, source.uri)],
+      reports: [],
       rejected_names: [],
       lint_findings: [],
-      lint_policy: {},
+      lint_policy: {} as Record<string, "off" | "warn" | "deny">,
       composition: [],
       hasModuleCssImport,
       compositionModules: [],
@@ -220,7 +225,7 @@ export async function compileModule(
     }
     if (output.diagnostics.length > 0 && options.diagnostics !== "collect") {
       const diagnostic = output.diagnostics[0];
-      fail(`${diagnostic.code}: ${diagnostic.message} (${diagnostic.file}:${diagnostic.start})`);
+      fail(`${diagnostic.code}: ${diagnostic.message} (${diagnostic.uri}:${diagnostic.start})`);
     }
     const deniedFindings: string[] = [];
     for (const finding of output.lint_findings ?? []) {
@@ -229,10 +234,10 @@ export async function compileModule(
         continue;
       }
       if (level !== "deny") {
-        host.warn(`${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`);
+        host.warn(`${finding.rule}: ${finding.message} (${finding.uri}:${finding.start})`);
       } else {
         deniedFindings.push(
-          `${finding.rule}: ${finding.message} (${finding.file}:${finding.start})`,
+          `${finding.rule}: ${finding.message} (${finding.uri}:${finding.start})`,
         );
       }
     }

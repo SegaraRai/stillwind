@@ -8,25 +8,23 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassContext, CompilerOptions, ConditionContext, ConditionHelperName, DeclarationContext,
-    GeneratedName, IdentifierGenerator, IdentifierHash, Identifiers, KeyframesName, LayerContext,
-    LayerName, UtilityClass,
+    GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierMode, Identifiers, KeyframesName,
+    LayerContext, LayerName, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
+use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_semantic::ModuleId;
+use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
 /// One snapshot whose theme declares a single token.
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(
-            FileId(2),
-            "theme",
-            format!("@theme {{ --color-brand: {color}; }}"),
-        )
-        .unwrap(),
+        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
+            .unwrap(),
+        "test.css",
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -35,16 +33,22 @@ fn snapshot(color: &str) -> DesignSystemSnapshot {
 /// One analyzed module whose single call uses the given candidate.
 fn module(name: &str, candidate: &str) -> ModuleAnalysis {
     OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(Arc::new(
-            SourceFile::new(
-                FileId(1),
-                name,
-                format!(
-                    "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                ),
-            )
-            .unwrap(),
-        )),
+        OxcSourceAnalyzer.scan(
+            Arc::new(
+                SourceFile::new(
+                    FileId(1),
+                    None,
+                    None,
+                    format!(
+                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
+                    ),
+                )
+                .unwrap(),
+            ),
+            ModuleId::from(name),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
         None,
     )
 }
@@ -70,9 +74,10 @@ impl IdentifierGenerator for FixedClassGenerator {
 fn session_generators_name_generated_classes() {
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedClassGenerator)),
+        Identifiers::new(Some(Arc::new(FixedClassGenerator)), IdentifierMode::Release),
     );
     assert!(
         session
@@ -111,32 +116,40 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
 fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "theme",
         // The host body carries no built-in prefix, so the authored name it collides
         // with is the bare one.
         "@theme {} @keyframes authored { to { opacity: 0; } }",
     )
     .unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+            .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedKeyframesGenerator)),
+        CompilerOptions::default(),
+        Identifiers::new(
+            Some(Arc::new(FixedKeyframesGenerator)),
+            IdentifierMode::Release,
+        ),
     );
     assert!(session.reserved_names().keyframes.contains("authored"));
     let module = OxcSourceAnalyzer.finalize(
-            OxcSourceAnalyzer.scan(Arc::new(
+        OxcSourceAnalyzer.scan(
+            Arc::new(
                 SourceFile::new(
-                    FileId(1),
-                    "dialog.tsx",
+                    FileId(1), None, None,
                     "import { style } from 'stillwind/react'; export const dialog = style.keyframes({ to: 'opacity-0' }); const x = style(dialog('both'));",
                 )
                 .unwrap(),
-            )),
-            None,
-        );
+            ),
+            ModuleId::from("dialog.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous
+        ),
+        None,
+    );
     let update = session.update_module(module);
     assert!(
         update.diagnostics.iter().any(|error| matches!(
@@ -170,20 +183,30 @@ impl IdentifierGenerator for FixedHelperGenerator {
 fn a_helper_name_is_checked_in_the_custom_property_pool() {
     let mut session = ProjectSession::new(
         snapshot("red"),
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedHelperGenerator)),
+        CompilerOptions::default(),
+        Identifiers::new(
+            Some(Arc::new(FixedHelperGenerator)),
+            IdentifierMode::Release,
+        ),
     );
     let source = Arc::new(
             SourceFile::new(
-                FileId(1),
-                "if.tsx",
+                FileId(1), None, None,
                 "import { style } from 'stillwind/react'; export const x = style('w-[--if(!--c,20px,10px)]', 'h-[--if(!--d,1px,2px)]');",
             )
             .unwrap(),
         );
-    let update =
-        session.update_module(OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source), None));
+    let update = session.update_module(OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    ));
     // Two helpers for different CSS may not share the one name the generator returned.
     assert!(
         update.diagnostics.iter().any(|error| matches!(
@@ -215,17 +238,18 @@ impl IdentifierGenerator for FixedLayerGenerator {
 fn a_layer_name_is_checked_against_the_authored_document() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "theme",
         "@layer app-layer-0; @layer { @stillwind-slot utilities; }",
     )
     .unwrap();
     let snapshot =
-        DesignSystemSnapshot::from_source(&theme, DesignSystemOptions::default()).unwrap();
+        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
+            .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
+        &SourceRegistry::default(),
         SessionMode::Watch,
-        stillwind_compiler::CompilerOptions::default(),
-        Identifiers::with(Arc::new(FixedLayerGenerator)),
+        CompilerOptions::default(),
+        Identifiers::new(Some(Arc::new(FixedLayerGenerator)), IdentifierMode::Release),
     );
     assert!(
         session

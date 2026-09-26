@@ -8,6 +8,8 @@ import type { NativeCompilerOptions, NativeCssLoadStep } from "@stillwind/native
 export interface CssHost {
   resolve(specifier: string, importer: string): Promise<string>;
   read(id: string): Promise<string>;
+  documentUri(id: string): string;
+  sourceMapSource(id: string): string;
   watch(id: string): void;
 }
 
@@ -25,12 +27,19 @@ export async function loadCssGraph(
   options: NativeCompilerOptions,
   host: CssHost,
   rootContent?: string,
+  suppliedLoader?: NativeDesignSystemLoader,
 ) {
-  const loader = new NativeDesignSystemLoader(options);
+  const loader = suppliedLoader ?? new NativeDesignSystemLoader(options);
   host.watch(root);
   type LoadStep = NativeCssLoadStep;
   let resourceReferences: Extract<LoadStep, { kind: "complete" }>["resources"] = [];
-  const initial = loader.provide(0, root, rootContent ?? (await host.read(root)));
+  const initial = loader.provide(
+    0,
+    root,
+    rootContent ?? (await host.read(root)),
+    host.documentUri(root),
+    host.sourceMapSource(root),
+  );
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
@@ -62,7 +71,15 @@ export async function loadCssGraph(
             return;
           }
           // JS callbacks serialize provide/step processing; I/O remains concurrent.
-          advance(loader.provide(request.id, name, content));
+          advance(
+            loader.provide(
+              request.id,
+              name,
+              content,
+              host.documentUri(name),
+              host.sourceMapSource(name),
+            ),
+          );
         };
         // Handle every rejection, including reads finishing after another read failed.
         void read().catch(fail);

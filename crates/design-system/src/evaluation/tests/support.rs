@@ -123,7 +123,8 @@ pub(super) fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) ->
 pub(super) fn theme() -> ThemeIndex {
     parse_fixture_theme(&SourceFile::new(
             FileId(1),
-            "theme.css",
+            None,
+            None,
             "@stillwind-marker group; @stillwind-marker peer; @theme { --color-brand: red; --breakpoint-sm: 40rem; --breakpoint-md: 48rem; --breakpoint-lg: 64rem; --breakpoint-xl: 80rem; --breakpoint-2xl: 96rem; }",
         ).unwrap())
         .unwrap()
@@ -375,12 +376,8 @@ pub(super) fn resolve_registry_variant_branches(
 /// Parses a fixture buffer wrapped in the standard package CSS.
 pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     parse_theme(
-        &crate::css_fixture::source(
-            source.id(),
-            source.path(),
-            stillwind_fixture_css(source.text()),
-        )
-        .unwrap(),
+        &crate::css_fixture::source(source.id(), stillwind_fixture_css(source.text())).unwrap(),
+        "test.css",
     )
 }
 

@@ -32,7 +32,7 @@ export function emitStylesheet(
         }
         replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
       }
-      const output = decodeCssSourceMap(cssWithSourceMap(plan, replacements, project.options.root));
+      const output = decodeCssSourceMap(cssWithSourceMap(plan, replacements));
       if (output.map) {
         output.map.sources = output.map.sources.map((source: string) =>
           source.startsWith("file:") ? fileURLToPath(source).replaceAll("\\", "/") : source,

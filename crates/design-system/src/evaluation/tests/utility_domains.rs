@@ -130,7 +130,8 @@ fn respects_tailwind_theme_namespace_resets_when_resolving_utilities() {
     let reset_theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(1),
-            "theme.css",
+            None,
+            None,
             "@theme { --color-*: initial; --color-brand: rebeccapurple; }",
         )
         .unwrap(),
@@ -281,7 +282,8 @@ fn ambiguous_background_type_is_independent_of_emission_order() {
 fn prunes_only_incompatible_declarations_from_a_typed_utility_body() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         r"@utility token-* {
   color: --value([color]);
   width: --value([length]);
@@ -328,7 +330,8 @@ fn rejects_untyped_or_invalid_modifiers_instead_of_ignoring_them() {
 fn resolves_typed_modifier_domains_without_accepting_other_types() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         r"@utility prose-* {
   font-size: --value(--text-*);
   line-height: --modifier(--leading-*, --spacing(), [length]);

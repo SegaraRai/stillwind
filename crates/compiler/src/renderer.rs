@@ -142,18 +142,6 @@ impl<'a> StylesheetRenderer<'a> {
         )
     }
 
-    /// Document CSS with the layer reservations authored by the entry stylesheet.
-    ///
-    /// The default package reserves support order before any late producer; a custom
-    /// entry owns its own layer order. Rendering never adds an implicit reservation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the authored CSS cannot be analyzed.
-    pub fn render_base_stylesheet(&self) -> Result<String, CompileErrorKind> {
-        self.render_stylesheet("")
-    }
-
     /// Renders one producer's CSS and required tokens, keyframes and properties.
     /// The output is a carrier fragment: authored document rules and Preflight are
     /// omitted. Use [`Self::render_mapped_stylesheet`] when the caller needs to select
@@ -194,35 +182,27 @@ impl<'a> StylesheetRenderer<'a> {
             &self.identifiers,
         )
     }
-
-    /// Document CSS with source provenance and CSS-authored layer reservations.
-    ///
-    /// This is the mapped counterpart of [`Self::render_base_stylesheet`] and keeps the
-    /// same source order as the entry template.
-    ///
-    /// # Errors
-    ///
-    /// Returns invalid authored CSS.
-    pub fn render_base_stylesheet_with_map(&self) -> Result<MappedStylesheet, CompileErrorKind> {
-        self.render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use stillwind_design_system::DesignSystemOptions;
-    use stillwind_ir::SourceAnalyzer;
+    use stillwind_design_system::{
+        CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
+    };
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_semantic::ModuleId;
+    use stillwind_source::{FileId, SourceFile, SourceRegistry};
 
     use super::*;
-    use crate::{CompilerOptions, Identifiers, ModuleCompiler};
+    use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 
     fn snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
-            &crate::css_fixture::source(FileId(90), "theme.css", css).unwrap(),
+            &crate::css_fixture::source(FileId(90), css).unwrap(),
+            "test.css",
             DesignSystemOptions::default(),
         )
         .unwrap()
@@ -235,43 +215,55 @@ mod tests {
         let source = Arc::new(
             SourceFile::new(
                 FileId(1),
-                "entry.tsx",
+                None,
+                None,
                 "import { style } from 'stillwind/react'; export const x = style('flex');",
             )
             .unwrap(),
         );
-        let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan(source.clone()), None);
+        let analysis = OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source.clone(),
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        );
         let options = CompilerOptions::default();
-        let compiled = ModuleCompiler::new(design.clone(), options.clone()).compile(&analysis);
+        let compiled = ModuleCompiler::new(design.clone(), options.clone())
+            .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success());
-        let output = StylesheetRenderer::new(&design, &options, &Identifiers::builtin())
+        let output = StylesheetRenderer::new(&design, &options, &Identifiers::default())
             .render_compilation(&compiled, source.full_span());
         assert!(output.diagnostics.is_empty());
         assert!(!output.module_css.is_empty());
         assert_eq!(output.module_css, compiled.css.to_css());
     }
+
     /// Authored CSS reached through an import keeps the physical file and byte range it
     /// came from, and the same stylesheet renders identically with and without mappings.
     #[test]
     fn imported_authored_css_and_theme_tokens_keep_their_physical_sources() {
-        use stillwind_design_system::{
-            CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
-        };
-
-        use crate::{CompilerOptions, Identifiers, StylesheetRenderer};
-
-        let mut loader = DesignSystemLoader::new(DesignSystemOptions::default());
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
         let entry = "@import 'child.css' layer(parts) supports(display:grid) screen;\n\
                      @theme { --color-brand: red; } :root,:host { @stillwind-slot theme; }";
-        let DesignSystemLoadStep::NeedFile(requests) =
-            loader.provide(0, CssSourceName::from("entry.css"), entry.into())
-        else {
+        let DesignSystemLoadStep::NeedFile(requests) = loader.provide(
+            0,
+            CssSourceName::from("entry.css"),
+            None,
+            None,
+            entry.into(),
+        ) else {
             panic!("import")
         };
         let child = "/* 日本語 🧭 */\n.imported { color:var(--color-brand); }";
         let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
             requests[0].id,
             CssSourceName::from("child.css"),
+            None,
+            None,
             child.into(),
         ) else {
             panic!("complete")
@@ -279,24 +271,24 @@ mod tests {
         let output = StylesheetRenderer::new(
             &snapshot,
             &CompilerOptions::default(),
-            &Identifiers::builtin(),
+            &Identifiers::default(),
         )
-        .render_base_stylesheet_with_map()
+        .render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
         .unwrap();
         assert_eq!(
             output.css,
             StylesheetRenderer::new(
                 &snapshot,
                 &CompilerOptions::default(),
-                &Identifiers::builtin()
+                &Identifiers::default()
             )
-            .render_base_stylesheet()
+            .render_stylesheet("")
             .unwrap()
         );
         let authored = output
             .mappings
             .iter()
-            .find(|mapping| mapping.source.path() == "child.css")
+            .find(|mapping| mapping.source.text() == child)
             .unwrap();
         assert!(authored.exact);
         assert_eq!(
@@ -307,7 +299,7 @@ mod tests {
             output
                 .mappings
                 .iter()
-                .any(|mapping| mapping.source.path() == "entry.css"
+                .any(|mapping| mapping.source.text() == entry
                     && output.css[mapping.generated.clone()].contains("--color-brand"))
         );
         assert!(output.css.contains("@supports (display:grid)"));

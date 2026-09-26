@@ -1,5 +1,6 @@
 //! Integration of frontend/theme loading, registries and final compiler output.
 
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, SourceFile};
 
@@ -10,7 +11,6 @@ use crate::CompilerOptions;
 fn resolves_default_theme_aliases_without_font_name_special_cases() {
     let source = crate::css_fixture::source(
         FileId(1),
-        "stillwind.css",
         r#"
                 @import "stillwind/theme.css" layer(theme);
                 @import "stillwind/preflight.css" layer(base);
@@ -18,7 +18,9 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
             "#,
     )
     .unwrap();
-    let css = Compiler::render_stylesheet(&source, "", &CompilerOptions::default()).unwrap();
+    let css =
+        Compiler::render_stylesheet(&source, "stillwind.css", "", &CompilerOptions::default())
+            .unwrap();
 
     assert!(
         css.contains("--default-font-feature-settings:var(--font-sans--font-feature-settings);")
@@ -27,15 +29,19 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 
     let without_feature = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         r#"
                 @import "stillwind/theme.css" layer(theme);
                 @import "stillwind/preflight.css" layer(base);
             "#,
     )
     .unwrap();
-    let css =
-        Compiler::render_stylesheet(&without_feature, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(
+        &without_feature,
+        "stillwind.css",
+        "",
+        &CompilerOptions::default(),
+    )
+    .unwrap();
     assert!(!css.contains("--default-font-feature-settings:"));
 }
 
@@ -43,17 +49,22 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
 fn compiles_theme_backed_styles_through_the_source_analyzer() {
     let js = SourceFile::new(
         FileId(1),
-        "App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react"; export const props = style("bg-accent");"#,
     )
     .unwrap();
-    let css = crate::css_fixture::source(
-        FileId(2),
+    let css = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &js,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &css,
         "stillwind.css",
-        "@theme { --color-accent: red; }",
-    )
-    .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &js, &css);
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{result:?}");
     assert!(result.css.contains("--color-accent:red;"), "{}", result.css);
     assert!(
@@ -78,7 +89,6 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
 fn emits_only_used_compiler_owned_property_registrations() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         r#"
                 @stillwind-property --example-used {
                   syntax: "<number>";
@@ -95,7 +105,8 @@ fn emits_only_used_compiler_owned_property_registrations() {
     )
     .unwrap();
 
-    let css = Compiler::render_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(&theme, "stillwind.css", "", &CompilerOptions::default())
+        .unwrap();
     assert!(css.contains("@property --example-used"));
     assert!(!css.contains("--example-unused"));
     assert!(!css.contains("@stillwind-property"));
@@ -105,7 +116,6 @@ fn emits_only_used_compiler_owned_property_registrations() {
 fn preserves_authored_property_rules_over_compiler_defaults() {
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         r#"
                 @property --tw-shadow {
                   syntax: "<color>";
@@ -117,7 +127,8 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
     )
     .unwrap();
 
-    let css = Compiler::render_stylesheet(&theme, "", &CompilerOptions::default()).unwrap();
+    let css = Compiler::render_stylesheet(&theme, "stillwind.css", "", &CompilerOptions::default())
+        .unwrap();
     assert_eq!(css.matches("@property --tw-shadow").count(), 1);
     assert!(css.contains("inherits: true"));
     assert!(!css.contains("initial-value: 0 0 #0000"));
@@ -125,7 +136,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 
 #[test]
 fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
-    let theme = crate::css_fixture::source(FileId(2), "stillwind.css", "@theme {}").unwrap();
+    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
     let options = CompilerOptions {
         tailwind_prefix: "--internal-".to_owned(),
         ..CompilerOptions::default()
@@ -133,6 +144,7 @@ fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
 
     let css = Compiler::render_stylesheet(
         &theme,
+        "stillwind.css",
         ".example{--internal-translate-x:0;translate:var(--internal-translate-x);}",
         &options,
     )
@@ -148,17 +160,26 @@ fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
 fn makes_margin_utility_order_independent() {
     let source = SourceFile::new(
         FileId(1),
-        "App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react"; export const props = style("ml-2 mx-3 m-4");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let margin = result.css.find("margin:").expect("margin shorthand");
     let inline = result.css.find("margin-inline:").expect("margin axis");
@@ -170,17 +191,26 @@ fn makes_margin_utility_order_independent() {
 fn orders_whole_builtin_utilities_instead_of_individual_properties() {
     let source = SourceFile::new(
         FileId(1),
-        "App.tsx",
+        None,
+        None,
         r#"import { style } from "stillwind/react"; export const props = style("h-2 w-3 size-4");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(
         FileId(2),
-        "stillwind.css",
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &source, &theme);
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &source,
+        "test.tsx",
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        "stillwind.css",
+        &CompilerOptions::default(),
+    );
     assert!(result.diagnostics.is_empty(), "{result:?}");
     let size_width = result
         .css

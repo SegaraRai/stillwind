@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   compilerOptions,
@@ -86,6 +86,8 @@ function registerEmission(context: any, input?: ProducerInput) {
         {
           read,
           resolve: resolveCss,
+          documentUri: (id) => pathToFileURL(id).href,
+          sourceMapSource: (id) => pathToFileURL(id).href,
           watch: (id) => compilation.fileDependencies.add(id),
         },
       );
@@ -109,6 +111,7 @@ function registerEmission(context: any, input?: ProducerInput) {
             input.source,
             input.id,
             {
+              documentUri: (id) => pathToFileURL(id).href,
               resolve: async (specifier, importer) => ({
                 id: await resolveJs(specifier, importer),
               }),
@@ -145,7 +148,7 @@ function registerEmission(context: any, input?: ProducerInput) {
           }
           replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
         }
-        compilation.__stillwindCss = host.cssWithSourceMap(plan, replacements, root);
+        compilation.__stillwindCss = host.cssWithSourceMap(plan, replacements);
         for (const carrier of carriers) {
           await new Promise<void>((resolve, reject) =>
             compilation.rebuildModule(carrier, (error: Error | null) =>

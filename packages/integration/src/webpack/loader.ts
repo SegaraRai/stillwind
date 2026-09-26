@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { isBuiltin } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { LoaderContext } from "webpack";
 
@@ -108,6 +108,8 @@ export default function (
     const loaded = await host.loadCssGraph(css, compilerOptions(options), {
       resolve: resolveCss,
       read,
+      documentUri: (id) => pathToFileURL(id).href,
+      sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
     });
     writeVocabulary(loaded.loader, root, options);
@@ -123,6 +125,7 @@ export default function (
       projection || cssValue ? await read(this.resourcePath) : text,
       this.resourcePath,
       {
+        documentUri: (id) => pathToFileURL(id).href,
         resolve: async (specifier, importer) => {
           if (specifier.startsWith("node:") && isBuiltin(specifier)) {
             return { id: specifier, external: true };

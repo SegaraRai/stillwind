@@ -73,11 +73,10 @@ mod tests {
     fn generates_types_from_the_css_theme_vocabulary() {
         let css = crate::css_fixture::source(
             FileId(2),
-            "stillwind.css",
             "@theme { --color-accent: red; --spacing-4: 1rem; }",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&css).unwrap();
+        let theme = Compiler::read_theme(&css, "stillwind.css").unwrap();
         let types = render_vocabulary_types(&theme);
 
         assert!(types.contains("declare module \"stillwind/macro\""));
@@ -90,11 +89,12 @@ mod tests {
     fn generates_custom_vocabulary_without_implicit_builtins() {
         let source = SourceFile::new(
             FileId(0),
-            "custom.css",
+            None,
+            None,
             "@utility brand {color:red}\n@custom-variant active (&.active);",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source).unwrap();
+        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
         let types = render_vocabulary_types(&theme);
         assert!(types.contains("\"brand\": true"));
         assert!(types.contains("\"active\": true"));

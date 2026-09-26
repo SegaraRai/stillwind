@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { isBuiltin } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { cleanModuleId, compilerModulePath, loadCssGraph } from "@stillwind/host";
 import { nativeBindingPath, scanSource } from "@stillwind/native";
@@ -64,6 +64,8 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
     compilerOptions(options.compiler),
     {
       read,
+      documentUri: (id) => pathToFileURL(id).href,
+      sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
       resolve: resolver({
         conditionNames: ["style", "import", "default"],
@@ -81,6 +83,7 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
     options.mode,
   );
   const host = {
+    documentUri: (id: string) => pathToFileURL(id).href,
     read,
     watch,
     resolve: async (specifier: string, importer: string) =>
@@ -111,7 +114,22 @@ export async function compileGraph(
     host.watch(id);
     const source = await host.read(id);
     revision.update(id).update("\0").update(source).update("\0");
-    const summary = scanSource({ path: compilerModulePath(options.root, id), source });
+    const summary = scanSource({
+      path: compilerModulePath(options.root, id),
+      uri: pathToFileURL(id).href,
+      source,
+      language: /\.tsx(?:[?#]|$)/i.test(id)
+        ? "tsx"
+        : /\.jsx(?:[?#]|$)/i.test(id)
+          ? "jsx"
+          : /\.d\.[cm]?ts(?:[?#]|$)/i.test(id)
+            ? "dts"
+            : /\.[cm]?ts(?:[?#]|$)/i.test(id)
+              ? "ts"
+              : "js",
+      module_kind: "unambiguous",
+      source_map_source: pathToFileURL(id).href,
+    });
     for (const { source: specifier } of summary.module_specifiers) {
       if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {
         continue;

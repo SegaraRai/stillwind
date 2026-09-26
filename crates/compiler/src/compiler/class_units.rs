@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::{SourceFile, Span, normalized_module_path};
+use stillwind_source::{Span, normalized_module_path};
 
 use super::fragment::Emitted;
 use super::literal::LiteralContribution;
@@ -136,8 +136,8 @@ pub(super) struct BaseUnit {
 
 /// Per-call class allocation and deferred stylesheet output.
 pub(super) struct ClassUnits<'a> {
-    /// Source identity included in class hashes and symbol provenance.
-    source: &'a SourceFile,
+    /// Compiler identity included in class hashes and symbol provenance.
+    module_id: &'a str,
     /// Generation settings for canonical class inputs.
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
@@ -174,7 +174,7 @@ impl<'a> ClassUnits<'a> {
     /// Starts one call without publishing any CSS or allocating a class identity.
     #[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
     pub(super) fn new(
-        source: &'a SourceFile,
+        module_id: &'a str,
         options: &'a CompilerOptions,
         identifiers: &'a IdentifierContext,
         theme: &'a ThemeIndex,
@@ -184,7 +184,7 @@ impl<'a> ClassUnits<'a> {
         emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     ) -> Self {
         Self {
-            source,
+            module_id,
             options,
             identifiers,
             theme,
@@ -257,7 +257,7 @@ impl<'a> ClassUnits<'a> {
             let branch = format!("{}:{}", order, contribution.canonical);
             let canonical =
                 self.options
-                    .style_class_input(self.source.path(), self.call_span.start.0, &branch);
+                    .style_class_input(self.module_id, self.call_span.start.0, &branch);
             let (name, rules) = self.name_unit(
                 self.call_span.start.0,
                 &branch,
@@ -322,7 +322,7 @@ impl<'a> ClassUnits<'a> {
             let branch = format!("0:{}", self.base.canonical);
             let canonical =
                 self.options
-                    .style_class_input(self.source.path(), self.call_span.start.0, &branch);
+                    .style_class_input(self.module_id, self.call_span.start.0, &branch);
             let definitions = std::mem::take(&mut self.base.utilities);
             let (name, rules) =
                 self.name_unit(self.call_span.start.0, &branch, &canonical, &definitions)?;
@@ -393,7 +393,7 @@ impl<'a> ClassUnits<'a> {
         definitions: &[CompiledUtility],
     ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
         let context = ClassContext {
-            module: normalized_module_path(self.source.path()),
+            module: normalized_module_path(self.module_id),
             namespace: self.options.class_namespace.clone(),
             call,
             branch: branch.to_owned(),
@@ -412,7 +412,7 @@ impl<'a> ClassUnits<'a> {
                 self.identifiers,
             )?;
             self.symbols.push(generated_class_symbol(
-                self.source,
+                self.module_id,
                 name.as_str(),
                 identity,
                 self.call_span,
@@ -479,7 +479,7 @@ impl<'a> ClassUnits<'a> {
         let branch = format!("{}:{}view-transition:{token}", order, plan.canonical);
         let canonical =
             self.options
-                .style_class_input(self.source.path(), self.call_span.start.0, &branch);
+                .style_class_input(self.module_id, self.call_span.start.0, &branch);
         let property = self.view_transition_slot(&branch)?;
         let mut declaration = format!("{property}:{};", escaped_identifier(token));
         if let Some(name) = name {
@@ -549,7 +549,7 @@ impl<'a> ClassUnits<'a> {
     /// Returns the host generator failure in release mode.
     fn view_transition_slot(&self, branch: &str) -> Result<String, CompileErrorKind> {
         let context = ClassContext {
-            module: normalized_module_path(self.source.path()),
+            module: normalized_module_path(self.module_id),
             namespace: self.options.class_namespace.clone(),
             call: self.call_span.start.0,
             branch: branch.to_owned(),

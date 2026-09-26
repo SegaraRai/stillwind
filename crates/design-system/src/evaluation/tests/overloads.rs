@@ -10,7 +10,8 @@ use super::*;
 fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         r"@theme { --color-brand: red; }
 @utility tone-* { color: --value(--color-*); }
 @utility rail-* { inline-size: --value(--spacing()); }
@@ -62,7 +63,8 @@ fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
 fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         r"@utility token-* { width: --value([length]); }
 @utility token-* { color: --value([color]); }",
     )
@@ -87,7 +89,8 @@ fn tries_overloaded_css_utility_definitions_in_reverse_source_order() {
 fn preserves_css_fallbacks_and_multiple_selector_targets() {
     let source = SourceFile::new(
         FileId(1),
-        "theme.css",
+        None,
+        None,
         r#"@utility paint-* { color: red; color: color(display-p3 1 0 0); }
 @utility paint-* { &::before { content: "fallback"; } }"#,
     )

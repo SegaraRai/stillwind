@@ -43,9 +43,19 @@ pub(in crate::compiler) fn expand_authored_directives(
         };
         let end = start + end_rel;
         let candidates = output[start + 7..end].split_whitespace();
-        let utilities = candidates
-            .filter_map(|candidate| resolve_utility(candidate, theme))
-            .collect::<Vec<_>>();
+        let mut utilities = Vec::new();
+        for candidate in candidates {
+            match resolve_utility(candidate, theme) {
+                Ok(Some(utility)) => utilities.push(utility),
+                Ok(None) => {}
+                Err(error) => {
+                    return Err(CompileErrorKind::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    });
+                }
+            }
+        }
         let mut ordered = order_utilities(utilities.iter().collect());
         ordered.sort_by_key(|utility| {
             utility.variants.iter().any(|variant| {
@@ -266,6 +276,9 @@ mod tests {
 
     use super::*;
     use crate::Compiler;
+    use crate::identifiers::{
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
+    };
 
     /// Expands with the compiler's own helper names.
     fn expand(
@@ -273,14 +286,22 @@ mod tests {
         theme: &ThemeIndex,
         required: &mut Vec<String>,
     ) -> Result<String, CompileErrorKind> {
-        expand_authored_directives(css, theme, required, &IdentifierContext::builtin())
+        expand_authored_directives(
+            css,
+            theme,
+            required,
+            &IdentifierContext::new(
+                GeneratorSet::default(),
+                IdentifierMode::Release,
+                DEFAULT_HASH_LENGTH,
+            ),
+        )
     }
 
     #[test]
     fn expands_authored_variants_through_the_shared_registry() {
         let source = crate::css_fixture::source(
             FileId(1),
-            "stillwind.css",
             r#"
                 @import "stillwind/theme.css" layer(theme);
                 @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
@@ -292,7 +313,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source).unwrap();
+        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
         let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
@@ -311,7 +332,6 @@ mod tests {
     fn expands_authored_apply_in_tailwind_property_order() {
         let source = crate::css_fixture::source(
             FileId(1),
-            "stillwind.css",
             r#"
                 @stillwind { utility-order: tailwind; }
                 @import "stillwind/theme.css" layer(theme);
@@ -320,7 +340,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source).unwrap();
+        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
         let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()

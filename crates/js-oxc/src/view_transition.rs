@@ -13,7 +13,7 @@
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
     AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey,
     ViewTransitionKeyApplication, ViewTransitionName,
@@ -202,7 +202,19 @@ impl<'a> MacroExtractor<'a> {
                 Some(ViewTransitionKey::Literal(self.string_literal(value).value))
             }
             Expression::NumericLiteral(value) => {
-                let raw = self.source.slice(self.source_span(value.span())).ok()?;
+                let raw = match self.source.slice(self.source_span(value.span())) {
+                    Ok(raw) => raw,
+                    Err(error) => {
+                        self.diagnostics.push(CompileError::new(
+                            CompileErrorKind::source_failure(
+                                &error,
+                                SourceFailureContext::Frontend,
+                            ),
+                            self.source_span(call.span),
+                        ));
+                        return None;
+                    }
+                };
                 Some(ViewTransitionKey::Literal(raw.to_owned()))
             }
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {

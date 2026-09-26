@@ -13,5 +13,8 @@ mod theme;
 
 /// Parses a fixture buffer after substituting its real source identity.
 fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
-    parse_theme(&crate::css_fixture::source(source.id(), source.path(), source.text()).unwrap())
+    parse_theme(
+        &crate::css_fixture::source(source.id(), source.text()).unwrap(),
+        "test.css",
+    )
 }
