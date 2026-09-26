@@ -23,7 +23,9 @@ export default defineConfig({
     format: ["esm"],
     fixedExtension: false,
     dts: true,
-    deps: { neverBundle: ["webpack"] },
+    deps: {
+      neverBundle: ["webpack"],
+    },
     sourcemap: true,
     copy: [
       { from: "src/turbopack/stillwind-turbopack.css", to: "dist/turbopack" },

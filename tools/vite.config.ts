@@ -45,7 +45,9 @@ export default defineConfig({
       },
       "tailwind:utility-order": {
         command: "cargo test -p stillwind-compiler --test utility_order",
-        env: ["CARGO_INCREMENTAL"],
+        cache: {
+          env: ["CARGO_INCREMENTAL"],
+        },
         dependsOn: ["tailwind:utility-order-fixture"],
       },
       "tailwind:inventory": {
