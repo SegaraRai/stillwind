@@ -201,7 +201,7 @@ impl<'a> CallEmitter<'a> {
                     .base
                     .canonical
                     .push_str(&definition.binding.value);
-                self.units.base.canonical.push('\u{0}');
+                self.units.base.canonical.push('\0');
             }
             StyleInput::DynamicRefAttachment { value, refs } => {
                 self.runtime_assets.extend(refs.iter().map(ref_identity));

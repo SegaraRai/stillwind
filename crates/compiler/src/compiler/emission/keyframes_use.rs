@@ -45,8 +45,8 @@ impl CallEmitter<'_> {
         );
         plan.apply_rule(&mut utility);
         let canonical = format!(
-            "{}{}:{}:{}\u{0}",
-            plan.canonical, "keyframes:", keyframes.identity.binding_name, options.value
+            "{}\0keyframes\0{}\0{}\0",
+            plan.canonical, keyframes.identity.binding_name, options.value
         );
         let contribution = LiteralContribution {
             canonical,
@@ -95,14 +95,10 @@ impl CallEmitter<'_> {
                 self.diagnostics,
             );
             plan.apply_rule(&mut utility);
-            let canonical = if plan.canonical.is_empty() {
-                format!("dynamic-keyframes:{identity}:{}", options.value)
-            } else {
-                format!(
-                    "{}\u{0}dynamic-keyframes:{identity}:{}",
-                    plan.canonical, options.value
-                )
-            };
+            let canonical = format!(
+                "{}\0dynamic-keyframes\0{identity}\0{}\0",
+                plan.canonical, options.value
+            );
             let contribution = LiteralContribution {
                 canonical,
                 utilities: vec![utility],

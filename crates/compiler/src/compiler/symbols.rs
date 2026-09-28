@@ -1,11 +1,8 @@
 //! Deterministic generated identifiers.
 //!
-//! Every name is spelled from a hash over an identity string of the form
-//! `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`. Class names additionally mix
-//! in the callsite offset and a per-call branch index, which is what keeps two
-//! callsites with identical utility sets in different class units. The truncation makes
-//! a collision conceivable, so [`GeneratedSymbol`] reports the full identity next to
-//! the name and a consumer that must be certain compares identities instead of names.
+//! Generated names use hashes of requests. [`GeneratedSymbol`] carries a separate owner
+//! identity alongside each written name so document-wide collision checks can
+//! distinguish name reuse from a collision.
 
 use serde::Serialize;
 
@@ -16,10 +13,10 @@ use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
-    IdentifierPool, Label, LocatorContext, RefMarker,
+    IdentifierPool, Label, LocatorContext, RefMarker, declaration_fields,
 };
 
-/// A generated CSS identifier with the canonical identity used to allocate it.
+/// A generated CSS identifier with the identity of its owner.
 ///
 /// Names are deterministic but use truncated hashes and can collide. Consumers that
 /// need to distinguish declarations across producers compare `identity`, not only
@@ -37,7 +34,7 @@ pub struct GeneratedSymbol {
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
     pub pool: IdentifierPool,
-    /// Canonical identity the name hashes.
+    /// Owner identity used to distinguish name reuse from a collision in the same pool.
     pub identity: String,
     /// Source that owns the declaration or detached name.
     pub origin: SymbolOrigin,
@@ -185,30 +182,17 @@ pub(crate) fn ref_container_name(
     context.container_name(&ref_context(definition, Some("container")))
 }
 
-/// Identity string for a declaration inside one source file.
-pub(super) fn symbol_identity(
+/// Owner identity for a named declaration.
+fn owner_declaration_identity(
     module_id: &ModuleId,
     kind: &str,
-    definition: &Spanned<String>,
+    start: u32,
+    end: u32,
+    binding: &str,
 ) -> String {
     format!(
-        "stillwind/v1\0{module_id}\0{kind}\0{}:{}:{}",
-        definition.span.start.0, definition.span.end.0, definition.value,
-    )
-}
-
-/// Identity string for a declaration addressed by module identity.
-///
-/// Used where the source buffer is not available, for example when a use site refers to
-/// an asset declared in another module.
-pub(super) fn asset_identity(
-    module_id: &ModuleId,
-    kind: &str,
-    definition: &Spanned<String>,
-) -> String {
-    format!(
-        "stillwind/v1\0{module_id}\0{kind}\0{}:{}:{}",
-        definition.span.start.0, definition.span.end.0, definition.value,
+        "stillwind-identity/v1\0{}",
+        declaration_fields(module_id, kind, start, end, binding),
     )
 }
 
@@ -333,7 +317,13 @@ pub(super) fn generated_symbol(
         )?,
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
-        identity: symbol_identity(module_id, kind_name(kind), definition),
+        identity: owner_declaration_identity(
+            module_id,
+            kind_name(kind),
+            definition.span.start.0,
+            definition.span.end.0,
+            &definition.value,
+        ),
         origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(definition.span.start.0),
         end: Some(definition.span.end.0),
@@ -374,7 +364,13 @@ pub(super) fn generated_ref_marker_symbol(
         name: ref_marker_name(context, definition)?.as_str().to_owned(),
         kind: "ref-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: asset_identity(&definition.module_id, "ref-marker", &definition.binding),
+        identity: format!(
+            "stillwind-identity/v1\0ref-marker\0{}\0{}:{}\0{}\0",
+            definition.module_id,
+            definition.binding.span.start.0,
+            definition.binding.span.end.0,
+            definition.binding.value,
+        ),
         origin: SymbolOrigin::Module(definition.module_id.clone()),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),
@@ -397,7 +393,7 @@ pub(super) fn generated_class_symbol(
         name: name.to_owned(),
         kind: "class".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: format!("stillwind/v1\0class\0{canonical_input}"),
+        identity: format!("stillwind-identity/v1\0class\0{canonical_input}"),
         origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(span.start.0),
         end: Some(span.end.0),
@@ -429,26 +425,28 @@ pub(super) fn definition_name_symbol(
     })
 }
 
-/// Canonical identity input for a declaration's generated names.
+/// Owner identity of a declaration referenced through its semantic identity.
 pub(super) fn identity_input(identity: &IdentityId) -> String {
-    format!(
-        "stillwind/v1\0{}\0{}\0{}:{}:{}",
-        identity.module_id,
+    owner_declaration_identity(
+        &identity.module_id,
         kind_name(identity.kind),
         identity.start,
         identity.end,
-        identity.binding_name
+        &identity.binding_name,
     )
 }
 
-/// Canonical identity text for one declaration's fields, in the versioned spelling.
+/// Owner identity of a ref declaration referenced through a locator.
 ///
 /// The identity is what a symbol report compares, so it must not depend on the family
 /// it was written for.
 pub(super) fn identity_input_parts(context: &LocatorContext) -> String {
-    format!(
-        "stillwind/v1\0{}\0ref\0{}:{}:{}",
-        context.module, context.start, context.end, context.binding,
+    owner_declaration_identity(
+        &context.module,
+        "ref",
+        context.start,
+        context.end,
+        &context.binding,
     )
 }
 
@@ -507,7 +505,8 @@ mod tests {
 
     use super::*;
     use crate::identifiers::{
-        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, Label, RefMarker,
+        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, KeyframesNameRequest,
+        Label, NameRequest, RefMarker,
     };
 
     fn identifiers() -> IdentifierContext {
@@ -529,12 +528,12 @@ mod tests {
         };
         let name = Spanned::new("ref".to_owned(), Span::new(FileId(1), 2, 5));
         assert_ne!(
-            asset_identity(&ModuleId::from(r"src\x.tsx"), "ref", &name),
-            asset_identity(&ModuleId::from("src/x.tsx"), "ref", &name)
+            owner_declaration_identity(&ModuleId::from(r"src\x.tsx"), "ref", 2, 5, &name.value),
+            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", 2, 5, &name.value)
         );
         assert_ne!(
-            asset_identity(&ModuleId::from("src/x.tsx"), "ref", &name),
-            asset_identity(&ModuleId::from("src/y.tsx"), "ref", &name)
+            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", 2, 5, &name.value),
+            owner_declaration_identity(&ModuleId::from("src/y.tsx"), "ref", 2, 5, &name.value)
         );
         assert_eq!(
             identifiers.class_name(&class("flex")),
@@ -568,6 +567,38 @@ mod tests {
     }
 
     #[test]
+    fn owner_identities_share_one_declaration_spelling() {
+        let module = ModuleId::from("src/x.tsx");
+        let name = Spanned::new("item".to_owned(), Span::new(FileId(1), 2, 6));
+        let identity = IdentityId::new(AssetKind::Ref, module.clone(), 2, 6, "item");
+        let context = LocatorContext {
+            module: module.clone(),
+            start: 2,
+            end: 6,
+            binding: "item".to_owned(),
+            label: None,
+            projection: Some("container".to_owned()),
+        };
+        let expected = "stillwind-identity/v1\0src/x.tsx\0ref\x002:6\0item\0";
+        assert_eq!(
+            owner_declaration_identity(&module, "ref", 2, 6, &name.value),
+            expected
+        );
+        assert_eq!(identity_input(&identity), expected);
+        assert_eq!(identity_input_parts(&context), expected);
+        let keyframes = IdentityId::new(AssetKind::Keyframes, module.clone(), 2, 6, "item");
+        let request = KeyframesNameRequest(named_declaration(&module, &name, None));
+        assert_eq!(
+            request.identity().strip_prefix("stillwind/v1\0"),
+            identity_input(&keyframes).strip_prefix("stillwind-identity/v1\0"),
+        );
+        assert_eq!(
+            generated_class_symbol(&module, "sw_class", "class-input", name.span).identity,
+            "stillwind-identity/v1\0class\0class-input"
+        );
+    }
+
+    #[test]
     fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
         let identifiers = identifiers();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
@@ -592,7 +623,13 @@ mod tests {
             assert_eq!((symbol.start, symbol.end), (Some(0), Some(3)));
             assert_eq!(
                 symbol.identity,
-                asset_identity(&ModuleId::from("src/x.tsx"), kind_name(kind), &name)
+                owner_declaration_identity(
+                    &ModuleId::from("src/x.tsx"),
+                    kind_name(kind),
+                    0,
+                    3,
+                    &name.value
+                )
             );
             let shifted = Spanned::new("ref".into(), Span::new(FileId(1), 1, 3));
             let shifted_name = declared_name(

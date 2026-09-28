@@ -161,9 +161,7 @@ impl ModuleCompiler {
                 let placeholder = format!(
                     "__stillwind_js_resource_{}__",
                     Fingerprint::of(format!(
-                        "{}:{owner}{}:{}",
-                        owner.as_str().len(),
-                        reference.specifier.len(),
+                        "stillwind/resource/module/v1\0{owner}\0{}\0",
                         reference.specifier
                     ))
                     .0

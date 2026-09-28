@@ -90,8 +90,7 @@ impl ExpandedSource {
             let end = range.start + resource.range.end;
             self.append_original(source, cursor..start)?;
             let identity = format!(
-                "{}:{}{}",
-                name.as_str().len(),
+                "stillwind/resource/css/v1\0{}\0{}\0",
                 name.as_str(),
                 resource.specifier
             );

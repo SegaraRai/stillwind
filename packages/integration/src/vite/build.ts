@@ -110,8 +110,11 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
       const href = (reference: string) => settings.publicBase + this.getFileName(reference);
       const revision = createHash("sha256")
         .update(plan.designSystem)
+        .update("\0")
         .update(plan.originalCss)
+        .update("\0")
         .update(JSON.stringify(plan.producers))
+        .update("\0")
         .digest("hex");
       if (options.emission !== "split") {
         const replacements = new Map(

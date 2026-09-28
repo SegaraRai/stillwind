@@ -331,7 +331,7 @@ impl CallEmitter<'_> {
         let static_name = static_view_transition_name(name, &token);
         if guard.is_empty() {
             self.units.fold(LiteralContribution {
-                canonical: format!("view-transition:{token}\u{0}"),
+                canonical: format!("view-transition:{token}\0"),
                 utilities: Vec::new(),
                 markers: Vec::new(),
                 external: Vec::new(),

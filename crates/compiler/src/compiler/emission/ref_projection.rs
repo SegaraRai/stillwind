@@ -78,7 +78,11 @@ impl CallEmitter<'_> {
         };
         plan.apply_rule(&mut utility);
         let contribution = LiteralContribution {
-            canonical: format!("{}ref:{}:{name}\u{0}", plan.canonical, anchor.as_str()),
+            canonical: format!(
+                "{}\0ref-projection\0{}\0{name}\0",
+                plan.canonical,
+                anchor.as_str()
+            ),
             utilities: vec![utility],
             markers: Vec::new(),
             external: Vec::new(),
@@ -126,7 +130,7 @@ impl CallEmitter<'_> {
                 }
             };
             let canonical = format!(
-                "{}dynamic-ref:{}:{}",
+                "{}\0dynamic-ref-projection\0{}\0{}\0",
                 plan.canonical,
                 anchor.as_str(),
                 ref_projection_name(projection)

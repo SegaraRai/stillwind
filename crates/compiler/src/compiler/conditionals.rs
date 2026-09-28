@@ -213,7 +213,7 @@ pub(super) fn guard(
             let name = helper(
                 identifiers,
                 ConditionRole::Gate,
-                &format!("{condition}\u{0}{inner}"),
+                &format!("{condition}\0{inner}"),
             )?;
             let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
             let right = gate_condition(inner, &mut gate, identifiers, &mut gates)?;

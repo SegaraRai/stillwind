@@ -183,11 +183,13 @@ pub trait NameRequest<T: Token> {
     /// The family this request belongs to.
     fn kind(&self) -> IdentifierKind;
 
-    /// The canonical identity text this request is hashed from.
-    ///
-    /// A report carries the text rather than the digest, so two requests that name the
-    /// same construct compare equal even when their truncated spellings collide.
+    /// The canonical input this request is hashed from.
     fn identity(&self) -> String;
+
+    /// Owner identity for a name recorded without a declaration position.
+    fn detached_owner_identity(&self) -> Option<String> {
+        None
+    }
 
     /// Canonical hash of this request's fields, which is what one compilation memoizes
     /// by together with the label the request spells.
@@ -286,12 +288,26 @@ macro_rules! name_requests {
 /// Canonical identity of a named declaration, in the versioned identity spelling.
 fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> String {
     format!(
-        "stillwind/v1\0{}\0{kind}\0{}:{}:{}",
-        context.module(),
-        context.start(),
-        context.end(),
-        context.binding(),
+        "stillwind/v1\0{}",
+        declaration_fields(
+            context.module(),
+            kind,
+            context.start(),
+            context.end(),
+            context.binding()
+        )
     )
+}
+
+/// Fields shared by the hash request and owner identity of a named declaration.
+pub(crate) fn declaration_fields(
+    module: &ModuleId,
+    kind: &str,
+    start: u32,
+    end: u32,
+    binding: &str,
+) -> String {
+    format!("{module}\0{kind}\0{start}:{end}\0{binding}\0")
 }
 
 /// The declaration fields one identity is computed from.
@@ -367,10 +383,18 @@ impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
 
     fn identity(&self) -> String {
         format!(
-            "stillwind/condition/v1\0{}\0{}",
+            "stillwind/condition/v1\0{}\0{}\0",
             self.0.role.as_str(),
             self.0.text,
         )
+    }
+
+    fn detached_owner_identity(&self) -> Option<String> {
+        Some(format!(
+            "stillwind-identity/v1\0condition-helper\0{}\0{}\0",
+            self.0.role.as_str(),
+            self.0.text,
+        ))
     }
 
     fn name(
@@ -408,15 +432,19 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
     fn identity(&self) -> String {
         format!(
-            "stillwind/view-transition-slot/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",
-            module = self.0.module,
-            module_len = self.0.module.as_str().len(),
-            namespace_len = self.0.namespace.len(),
+            "stillwind/view-transition-slot/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
             namespace = self.0.namespace,
-            branch_len = self.0.branch.len(),
-            branch = self.0.branch,
+            module = self.0.module,
             call = self.0.call,
+            branch = self.0.branch,
         )
+    }
+
+    fn detached_owner_identity(&self) -> Option<String> {
+        Some(format!(
+            "stillwind-identity/v1\0slot\0{}\0{}\0{}\0{}\0",
+            self.0.module, self.0.namespace, self.0.call, self.0.branch,
+        ))
     }
 
     fn name(
@@ -430,14 +458,11 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
 name_requests! {
     ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format!(
-        "stillwind/style/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",
-        module = context.module,
-        module_len = context.module.as_str().len(),
-        namespace_len = context.namespace.len(),
+        "stillwind/style/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
         namespace = context.namespace,
-        branch_len = context.branch.len(),
-        branch = context.branch,
+        module = context.module,
         call = context.call,
+        branch = context.branch,
     ), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name), labels(label);
@@ -445,8 +470,7 @@ name_requests! {
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "keyframes"), asks(keyframes_name), labels(label);
     ViewTransitionClassRequest(DeclarationContext): ViewTransitionClass as ViewTransitionClass = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_class), labels(label);
     LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format!(
-        "stillwind/layer/v1:{namespace_len}:{namespace}{template}",
-        namespace_len = context.namespace.len(),
+        "stillwind/layer/v1\0{namespace}\0{template}\0",
         namespace = context.namespace,
         template = context.template,
     ), asks(layer_name);

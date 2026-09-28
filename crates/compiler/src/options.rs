@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::ModuleId;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -72,24 +71,6 @@ impl Default for CompilerOptions {
 }
 
 impl CompilerOptions {
-    /// Identity input for one generated class unit: a utility class belongs to one
-    /// call and one branch, never to shared content.
-    ///
-    /// `call` is the call-site byte offset. `branch` contains the caller's base/leaf
-    /// discriminator and canonical candidate/asset spelling, not the resolved CSS
-    /// declaration bytes. The same utilities written
-    /// in two branches still hash to different names. Length prefixes keep the
-    /// variable-length namespace and module boundaries unambiguous, and the whole
-    /// string is stable across recompiles of unchanged source.
-    pub(crate) fn style_class_input(&self, module: &ModuleId, call: u32, branch: &str) -> String {
-        format!(
-            "stillwind/style/v1:{}:{}{}:{module}:{call}:{branch}",
-            self.class_namespace.len(),
-            self.class_namespace,
-            module.as_str().len(),
-        )
-    }
-
     /// The design-system configuration these options imply, for snapshot construction.
     pub fn design_system(&self) -> DesignSystemOptions {
         DesignSystemOptions {

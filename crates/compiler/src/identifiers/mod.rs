@@ -33,6 +33,7 @@ pub use request::{
 
 pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, builtin_prefix};
 pub(crate) use name::{escaped_identifier, view_transition_name};
+pub(crate) use request::declaration_fields;
 
 #[cfg(test)]
 mod tests;

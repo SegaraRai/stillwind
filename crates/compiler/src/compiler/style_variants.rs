@@ -180,14 +180,7 @@ impl StyleVariantPlan {
                 alternatives.push(reference_path(&marker, boundary.as_deref(), path));
             }
         }
-        // Names and boundaries are generated identifiers; prefix length makes
-        // the variable-length authored portion unambiguous.
-        let _ = write!(
-            self.canonical,
-            "ref({identities:?};{}:{}):",
-            prefix.value.len(),
-            prefix.value
-        );
+        let _ = write!(self.canonical, "ref({identities:?})\0{}\0", prefix.value);
         self.paths = self
             .paths
             .iter()
@@ -582,7 +575,7 @@ mod add_ref_tests {
             first_marker.as_str(),
             second_marker.as_str()
         );
-        assert_eq!(plan.canonical, format!("ref({identities};0:):"));
+        assert_eq!(plan.canonical, format!("ref({identities})\0\0"));
         let expected = vec![
             vec![VariantApplication::SelectorTemplate(format!(
                 "{} &",

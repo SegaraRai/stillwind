@@ -319,30 +319,18 @@ impl RejectedNames {
 
 /// One generated name that is not tied to a declaration in the source.
 ///
-/// A conditional helper is named for the CSS it serves and an anonymous layer for its template, so
-/// neither has a source position of its own. A document-wide pool check still has to see their
-/// names, so one compilation collects them beside the names each declaration reports.
+/// A conditional helper is named for the CSS it serves and an anonymous layer for its
+/// template, so neither has a source position of its own. A document-wide pool check
+/// still has to see their names, so one compilation collects them beside the names each
+/// declaration reports.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DetachedName {
     /// Family the name belongs to.
     pub kind: IdentifierKind,
     /// Canonical spelling of the name.
     pub name: String,
-    /// Canonical identity the name was allocated from.
+    /// Owner identity used by document-wide name collision checks.
     pub identity: String,
-}
-
-/// Whether a family's names are collected as detached names rather than reported per
-/// declaration.
-///
-/// The helper and slot families are collected here, because neither is written for a
-/// declaration. An anonymous layer is not: its spelling carries a traversal index the
-/// writer appends, so the writer records that spelling itself.
-fn is_detached(kind: IdentifierKind) -> bool {
-    matches!(
-        kind,
-        IdentifierKind::ConditionHelper | IdentifierKind::ViewTransitionSlot
-    )
 }
 
 /// One compilation's name allocation: host generator first, built-in fallback,
@@ -368,9 +356,9 @@ pub struct IdentifierContext {
 
 /// Memo key: the family, the canonical hash of the request, and the label it spells.
 ///
-/// The label is not part of the hash, because the identity of a declaration does not depend on
-/// it, but it does decide the name, so two requests for one identity that differ in their label
-/// are two spellings and must not share a memo entry.
+/// The label is not part of the hash, because the identity of a declaration does not
+/// depend on it, but it does decide the name, so two requests for one identity that
+/// differ in their label are two spellings and must not share a memo entry.
 type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
 
 impl IdentifierContext {
@@ -405,23 +393,28 @@ impl IdentifierContext {
         std::mem::take(&mut self.rejected.borrow_mut())
     }
 
-    /// Drains the names collected so far for families that carry no declaration position.
+    /// Drains the names collected so far for families that carry no declaration
+    /// position.
     ///
-    /// A memoized request is collected once, so a document-wide pool check sees each spelling once
-    /// however many rules use it.
+    /// A memoized request is collected once, so a document-wide pool check sees each
+    /// spelling once however many rules use it.
     pub(crate) fn drain_detached(&self) -> Vec<DetachedName> {
         std::mem::take(&mut self.detached.borrow_mut())
     }
 
     /// Records one anonymous layer spelling, whose traversal index the writer appended.
     ///
-    /// `context` must be the context the layer name was requested with, so the record carries the
-    /// identity the name was allocated from and the layer pool sees the spelling the document uses.
+    /// `context` must be the context the layer name was requested with, so the record
+    /// identifies the same owner and the layer pool sees the spelling the document
+    /// uses.
     pub(crate) fn record_layer(&self, context: &LayerContext, written: &str) {
         self.detached.borrow_mut().push(DetachedName {
             kind: IdentifierKind::LayerName,
             name: written.to_owned(),
-            identity: LayerNameRequest(context.clone()).identity(),
+            identity: format!(
+                "stillwind-identity/v1\0anonymous-layer\0{}\0{}\0",
+                context.template, context.namespace,
+            ),
         });
     }
 
@@ -553,13 +546,11 @@ impl IdentifierContext {
         let generated = self.generate(request, &hash);
         self.memo.borrow_mut().insert(key, generated.clone());
         let settled = self.settle(request, &hash, generated);
-        if is_detached(kind)
-            && let Ok(name) = &settled
-        {
+        if let (Some(identity), Ok(name)) = (request.detached_owner_identity(), &settled) {
             self.detached.borrow_mut().push(DetachedName {
                 kind,
                 name: name.as_str().to_owned(),
-                identity: request.identity(),
+                identity,
             });
         }
         settled
@@ -590,8 +581,8 @@ impl IdentifierContext {
         generated: Result<String, String>,
     ) -> Result<T, CompileErrorKind> {
         match generated {
-            // A host name arrives as a name its own family already built, so cleaning it again only
-            // proves the family's rule is idempotent.
+            // A host name arrives as a name its own family already built, so cleaning
+            // it again only proves the family's rule is idempotent.
             Ok(name) => T::new(&name).map_err(|error| {
                 CompileErrorKind::IdentifierGenerationFailed(
                     request.kind().as_str().into(),
@@ -602,10 +593,11 @@ impl IdentifierContext {
         }
     }
 
-    /// Fails the compilation, or substitutes the compiler's own name in development mode.
+    /// Fails the compilation, or substitutes the compiler's own name in development
+    /// mode.
     ///
-    /// A substitution is recorded once per family and identity, so a host can warn about its own
-    /// generator without the same request being reported again and again.
+    /// A substitution is recorded once per family and identity, so a host can warn
+    /// about its own generator without the same request being reported again and again.
     fn reject<T: Token, R: NameRequest<T>>(
         &self,
         request: &R,

@@ -34,7 +34,7 @@ impl GeneratedRule {
             return RuleKey(Fingerprint::of(self.to_css()));
         }
         RuleKey(Fingerprint::of(format!(
-            "{:?}:{}:{}",
+            "{:?}\0{}\0{}\0",
             self.required_properties,
             self.keyframes,
             self.to_css()

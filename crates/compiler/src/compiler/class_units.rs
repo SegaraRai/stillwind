@@ -19,7 +19,9 @@ use super::style_variants::StyleVariantPlan;
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
-use crate::identifiers::{ClassContext, IdentifierContext, escaped_identifier};
+use crate::identifiers::{
+    ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
+};
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
 /// View-transition data one class unit declares.
@@ -126,7 +128,7 @@ impl ViewTransitionClassUnit {
 /// Unconditional class contributions, accumulated in source order before publication.
 #[derive(Default)]
 pub(super) struct BaseUnit {
-    /// Exact canonical spelling used as input to the base class hash.
+    /// Hash fragments for rule-bearing base contributions in source order.
     pub(super) canonical: String,
     /// Resolved utilities, in their encountered order.
     pub(super) utilities: Vec<CompiledUtility>,
@@ -255,15 +257,8 @@ impl<'a> ClassUnits<'a> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() || contribution.view_transition_token.is_some() {
             let branch = format!("{}:{}", order, contribution.canonical);
-            let canonical =
-                self.options
-                    .style_class_input(self.module_id, self.call_span.start.0, &branch);
-            let (name, rules) = self.name_unit(
-                self.call_span.start.0,
-                &branch,
-                &canonical,
-                &contribution.utilities,
-            )?;
+            let (name, rules) =
+                self.name_unit(self.call_span.start.0, &branch, &contribution.utilities)?;
             names.push(name.clone());
             self.class_selectors.push(format!(".{name}"));
             let mut unit = ViewTransitionClassUnit::default();
@@ -320,12 +315,8 @@ impl<'a> ClassUnits<'a> {
                 .any(|unit| unit.slot.is_some());
         if !self.base.utilities.is_empty() || base_declares {
             let branch = format!("0:{}", self.base.canonical);
-            let canonical =
-                self.options
-                    .style_class_input(self.module_id, self.call_span.start.0, &branch);
             let definitions = std::mem::take(&mut self.base.utilities);
-            let (name, rules) =
-                self.name_unit(self.call_span.start.0, &branch, &canonical, &definitions)?;
+            let (name, rules) = self.name_unit(self.call_span.start.0, &branch, &definitions)?;
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             self.class_selectors[0] = format!(".{name}");
@@ -378,9 +369,8 @@ impl<'a> ClassUnits<'a> {
     /// Generates one class unit and returns `(class name, CSS contributions)` without
     /// publishing the contributions.
     ///
-    /// `canonical` is the full identity input the name is generated from. Only the
-    /// first caller for a name records its symbol, so an identical call that reuses a
-    /// name from an earlier call carries no rules of its own.
+    /// Only the first caller for a name records its symbol, so an identical call that
+    /// reuses a name from an earlier call carries no rules of its own.
     ///
     /// # Errors
     ///
@@ -389,7 +379,6 @@ impl<'a> ClassUnits<'a> {
         &mut self,
         call: u32,
         branch: &str,
-        identity: &str,
         definitions: &[CompiledUtility],
     ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
         let context = ClassContext {
@@ -398,11 +387,12 @@ impl<'a> ClassUnits<'a> {
             call,
             branch: branch.to_owned(),
         };
+        let identity = ClassName(context.clone()).identity();
         let name = self.identifiers.class_name(&context)?;
         let mut contributions = Vec::new();
         if self
             .emitted_utility_classes
-            .insert((name.as_str().to_owned(), identity.to_owned()))
+            .insert((name.as_str().to_owned(), identity.clone()))
         {
             emit_utility_rules(
                 &mut contributions,
@@ -414,7 +404,7 @@ impl<'a> ClassUnits<'a> {
             self.symbols.push(generated_class_symbol(
                 self.module_id,
                 name.as_str(),
-                identity,
+                &identity,
                 self.call_span,
             ));
         }
@@ -447,7 +437,7 @@ impl<'a> ClassUnits<'a> {
         guard: &[GuardStep],
     ) -> Result<String, CompileErrorKind> {
         let contribution = LiteralContribution {
-            canonical: format!("view-transition:{token}\u{0}"),
+            canonical: format!("view-transition:{token}\0"),
             utilities: Vec::new(),
             markers: Vec::new(),
             external: Vec::new(),
@@ -476,10 +466,7 @@ impl<'a> ClassUnits<'a> {
         plan: &StyleVariantPlan,
     ) -> Result<String, CompileErrorKind> {
         let order = self.reserve_branch();
-        let branch = format!("{}:{}view-transition:{token}", order, plan.canonical);
-        let canonical =
-            self.options
-                .style_class_input(self.module_id, self.call_span.start.0, &branch);
+        let branch = format!("{}:{}\0view-transition\0{token}\0", order, plan.canonical);
         let property = self.view_transition_slot(&branch)?;
         let mut declaration = format!("{property}:{};", escaped_identifier(token));
         if let Some(name) = name {
@@ -500,8 +487,7 @@ impl<'a> ClassUnits<'a> {
             candidate: String::new(),
         };
         plan.apply_rule(&mut utility);
-        let (name, rules) =
-            self.name_unit(self.call_span.start.0, &branch, &canonical, &[utility])?;
+        let (name, rules) = self.name_unit(self.call_span.start.0, &branch, &[utility])?;
         self.class_selectors.push(format!(".{name}"));
         let mut unit = ViewTransitionClassUnit::default();
         unit.attach_slot(property, token, None);

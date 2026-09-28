@@ -324,7 +324,7 @@ impl DesignSystemSnapshot {
                 (
                     token.name.value.clone(),
                     Fingerprint::of(format!(
-                        "{:?}:{:?}:{}",
+                        "{:?}\0{:?}\0{}\0",
                         token.kind, token.mode, token.value.value
                     )),
                 )
@@ -337,7 +337,7 @@ impl DesignSystemSnapshot {
             .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode))
             .collect();
         let content = Fingerprint::of(format!(
-            "{}|{config:?}|{tokens:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}|{}",
+            "{}\0{config:?}\0{tokens:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
             env!("CARGO_PKG_VERSION"),
             theme.utilities,
             theme.variants,
@@ -351,7 +351,7 @@ impl DesignSystemSnapshot {
             theme.custom_css
         ));
         let content = Fingerprint::of(format!(
-            "{}|{}|{:?}",
+            "{}\0{}\0{:?}\0",
             content.0,
             builtins
                 .as_ref()

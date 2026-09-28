@@ -22,15 +22,15 @@ use crate::CompilerOptions;
 /// The pieces one utility literal contributes before it becomes a leaf or a base-unit
 /// entry.
 ///
-/// [`Self::canonical`] is the text appended to the class-hash input. Keeping markers,
-/// external names, and resolved utilities in separate lists is what lets an unresolved
-/// candidate still reach the output as a class name while contributing no rule.
-/// A view transition contributes one class token and at most one static name, and they
-/// travel beside the utilities because a class unit declares them rather than a
-/// utility.
+/// [`Self::canonical`] is a fragment of the class-hash input assembled by `ClassUnits`.
+/// Keeping markers, external names, and resolved utilities in separate lists is what
+/// lets an unresolved candidate still reach the output as a class name while
+/// contributing no rule. A view transition contributes one class token and at most one
+/// static name, and they travel beside the utilities because a class unit declares them
+/// rather than a utility.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
-    /// Canonical candidate and wrapper spelling of the literal, in source order.
+    /// Hash fragment for rule-bearing candidates and their wrappers, in source order.
     pub(super) canonical: String,
     /// Utilities to emit as this leaf's rule.
     pub(super) utilities: Vec<CompiledUtility>,
@@ -113,7 +113,7 @@ impl LiteralContribution {
                 continue;
             }
             contribution.canonical.push_str(&canonical_candidate);
-            contribution.canonical.push('\u{0}');
+            contribution.canonical.push('\0');
             let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
             match resolve_utility_targets(resolved_input, theme) {
                 Ok(Some(mut resolved)) => {

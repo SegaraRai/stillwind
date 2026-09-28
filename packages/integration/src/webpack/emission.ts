@@ -128,7 +128,7 @@ function registerEmission(context: any, input?: ProducerInput) {
           }
         }
         const revision = createHash("sha256")
-          .update(producers.map((module) => module.buildInfo.stillwind.source).join("\0"))
+          .update(producers.map((module) => `${module.buildInfo.stillwind.source}\0`).join(""))
           .digest("hex");
         const plan = session.planStylesheet({
           modules: selection,

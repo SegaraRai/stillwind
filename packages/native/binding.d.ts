@@ -605,7 +605,7 @@ export interface NativeGeneratedSymbol {
   name: string
   /** Kind of declaration that produced it. */
   kind: string
-  /** Stable identity of the declaration site. */
+  /** Owner identity used to distinguish name reuse from a collision. */
   identity: string
   /** Domain of the source that owns this name: `module` or `stylesheet`. */
   source_kind: string

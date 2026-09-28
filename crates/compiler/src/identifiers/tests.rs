@@ -335,6 +335,80 @@ fn the_hash_is_stable_for_equal_requests_and_specific_to_the_family() {
 }
 
 #[test]
+fn identity_fields_use_nul_boundaries() {
+    let class = ClassName(ClassContext {
+        module: ModuleId::from("src/a:1.tsx"),
+        namespace: "app:one".to_owned(),
+        call: 12,
+        branch: "0:flex:wide".to_owned(),
+    });
+    assert_eq!(
+        class.identity(),
+        "stillwind/style/v1\0app:one\0src/a:1.tsx\x0012\x000:flex:wide\0"
+    );
+    assert_eq!(
+        LayerNameRequest(LayerContext {
+            template: CssSourceName::from("a:b.css"),
+            namespace: "app:one".to_owned(),
+        })
+        .identity(),
+        "stillwind/layer/v1\0app:one\0a:b.css\0"
+    );
+    assert_eq!(
+        RefMarkerName(DeclarationContext {
+            module: ModuleId::from("src/a:1.tsx"),
+            start: 2,
+            end: 5,
+            binding: "a:b".to_owned(),
+            label: None,
+        })
+        .identity(),
+        "stillwind/v1\0src/a:1.tsx\0ref\x002:5\0a:b\0"
+    );
+}
+
+#[test]
+fn detached_owner_identities_do_not_reuse_hash_inputs() {
+    let context = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
+    let helper = ConditionHelperRequest(ConditionContext {
+        role: ConditionRole::Gate,
+        text: "--a:1".to_owned(),
+    });
+    context.condition_helper(&helper.0).unwrap();
+    let name = context.drain_detached().pop().unwrap();
+    assert_eq!(
+        name.identity,
+        "stillwind-identity/v1\0condition-helper\0gate\0--a:1\0"
+    );
+    assert_ne!(name.identity, helper.identity());
+
+    let slot = ViewTransitionSlotRequest(class_context("view-transition"));
+    context.view_transition_slot(&slot.0).unwrap();
+    let name = context.drain_detached().pop().unwrap();
+    assert_eq!(
+        name.identity,
+        "stillwind-identity/v1\0slot\0src/a.tsx\0\x0012\0view-transition\0"
+    );
+    assert_ne!(name.identity, slot.identity());
+
+    let layer = LayerContext {
+        template: CssSourceName::from("theme.css"),
+        namespace: "app".to_owned(),
+    };
+    context.record_layer(&layer, "sw-anon-0");
+    let name = context.drain_detached().pop().unwrap();
+    assert_eq!(
+        name.identity,
+        "stillwind-identity/v1\0anonymous-layer\0theme.css\0app\0"
+    );
+    assert_ne!(name.identity, LayerNameRequest(layer).identity());
+}
+
+#[test]
 fn a_ref_marker_uses_the_same_class_token_spelling_as_other_classes() {
     let marker = RefMarker::new("__proto__").unwrap();
     assert_eq!(marker.as_str(), "__proto__");

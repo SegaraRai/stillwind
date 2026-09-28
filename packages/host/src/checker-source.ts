@@ -38,7 +38,7 @@ interface ShadowEdit {
 
 /** Stable encoding of a declaration's original-coordinate identity. */
 export function identityKey(identity: NativeAssetRecord["identity"]): string {
-  return `stillwind/v1:${Buffer.from(JSON.stringify(identity)).toString("base64url")}`;
+  return `stillwind-identity/v1:${Buffer.from(JSON.stringify(identity)).toString("base64url")}`;
 }
 
 /** Converts a validated original UTF-8 byte boundary to a UTF-16 offset. */

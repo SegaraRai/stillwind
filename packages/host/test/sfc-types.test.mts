@@ -5,10 +5,19 @@ import { fileURLToPath } from "node:url";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
+import { identityKey } from "../src/checker-source.ts";
 import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
+
+test("checker declaration identity has its own namespace", () => {
+  assert.match(
+    identityKey({ kind: "ref", module_id: "src/a.tsx", start: 2, end: 6, binding_name: "item" }),
+    /^stillwind-identity\/v1:/,
+  );
+});
+
 function wrap(ext: string, script: string, template = "", module = false) {
   if (ext === "astro") {
     return `---\n${script}\n---\n${template}`;
@@ -85,7 +94,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
       "style('red')",
     );
     assert.match(session.moduleCss(entry), /color:\s*blue/);
-    assert.doesNotMatch(first.code, /stillwind\/v1:|__stillwindDeclarationIdentity/);
+    assert.doesNotMatch(first.code, /stillwind-identity\/v1:|__stillwindDeclarationIdentity/);
     files[producer] = files[producer].replace("'red'", "'green'");
     const second = await compile();
     assert.ok(second?.code);

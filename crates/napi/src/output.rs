@@ -470,7 +470,7 @@ pub struct NativeGeneratedSymbol {
     pub name: String,
     /// Kind of declaration that produced it.
     pub kind: String,
-    /// Stable identity of the declaration site.
+    /// Owner identity used to distinguish name reuse from a collision.
     pub identity: String,
     /// Domain of the source that owns this name: `module` or `stylesheet`.
     #[napi(js_name = "source_kind")]
