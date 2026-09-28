@@ -334,18 +334,15 @@ pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
 
 /// Builds the selector and conditions that make the utility apply under a ref variant.
 ///
-/// The reference element's own variants are folded into one `:where()`-guarded
-/// reference, and the target keeps the combinator relative to it. Wrapping in
-/// `:where()` keeps the specificity of the target's own selector, so a ref variant does
-/// not outrank an ordinary variant by accident. A bounded ref requires the boundary to
-/// contain the reference, which is how an unrelated element with a matching marker
-/// outside the boundary is excluded.
+/// The ref and boundary markers contribute no specificity. The ref's variants retain
+/// their specificity, while a bounded ref requires the boundary to contain the
+/// reference and the target.
 fn reference_path(
     marker: &RefMarker,
     boundary: Option<&str>,
     path: &[VariantStep<'_>],
 ) -> Vec<VariantApplication> {
-    let mut reference = "&".to_owned();
+    let mut reference = format!(":where({})", marker.selector());
     let mut conditions = Vec::new();
     let mut declarations = Vec::new();
     for step in path {
@@ -396,22 +393,15 @@ fn reference_path(
             }
         }
     }
-    let reference = match reference.strip_prefix('&') {
-        Some("") => marker.selector(),
-        Some(suffix)
-            if suffix.starts_with([':', '['])
-                && !suffix.contains(['&', ' ', '>', '+', '~', ',']) =>
-        {
-            format!("{}:where({suffix})", marker.selector())
-        }
-        _ => format!(
-            ":where({})",
-            instantiate_selector(&reference, &marker.selector())
-        ),
+    // A selector list must remain one condition before the descendant relation is added.
+    let reference = if reference.contains(',') {
+        format!(":is({reference})")
+    } else {
+        reference
     };
     let selector = match boundary {
-        Some(boundary) => format!("{boundary}:has({reference}) &"),
-        None => format!("{reference} &"),
+        Some(boundary) => format!("&:is(:where({boundary}):has({reference}) *)"),
+        None => format!("&:is({reference} *)"),
     };
     conditions.push(if declarations.is_empty() {
         VariantApplication::SelectorTemplate(selector)
@@ -447,30 +437,30 @@ mod reference_path_tests {
         assert!(matches!(applications[3], VariantApplication::StartingStyle));
         assert_eq!(
             applications[4],
-            VariantApplication::SelectorTemplate(".menu &".to_owned())
+            VariantApplication::SelectorTemplate("&:is(:where(.menu) *)".to_owned())
         );
     }
 
-    /// The reference element keeps its specificity: a trailing pseudo-class suffix
-    /// stays inside `:where()`, any other selector folds the whole reference, and a
-    /// boundary has to contain the reference.
+    /// Ref and boundary markers are zero-specificity while ref variants retain theirs.
     #[test]
     fn reference_path_builds_the_marker_selector_and_boundary() {
         let marker = RefMarker::new("menu").unwrap();
         assert_eq!(
             reference_path(&marker, None, &[]),
-            [VariantApplication::SelectorTemplate(".menu &".to_owned())]
+            [VariantApplication::SelectorTemplate(
+                "&:is(:where(.menu) *)".to_owned()
+            )]
         );
         assert_eq!(
             reference_path(&marker, None, &[VariantStep::SelectorSuffix(":hover")]),
             [VariantApplication::SelectorTemplate(
-                ".menu:where(:hover) &".to_owned()
+                "&:is(:where(.menu):hover *)".to_owned()
             )]
         );
         assert_eq!(
             reference_path(&marker, None, &[VariantStep::SelectorSuffix(" > *")]),
             [VariantApplication::SelectorTemplate(
-                ":where(.menu > *) &".to_owned()
+                "&:is(:where(.menu) > * *)".to_owned()
             )]
         );
         assert_eq!(
@@ -480,7 +470,17 @@ mod reference_path_tests {
                 &[VariantStep::SelectorSuffix(":hover")]
             ),
             [VariantApplication::SelectorTemplate(
-                ".b:has(.menu:where(:hover)) &".to_owned()
+                "&:is(:where(.b):has(:where(.menu):hover) *)".to_owned()
+            )]
+        );
+        assert_eq!(
+            reference_path(
+                &marker,
+                Some(".b"),
+                &[VariantStep::SelectorTemplate(".a &, .b &")]
+            ),
+            [VariantApplication::SelectorTemplate(
+                "&:is(:where(.b):has(:is(.a :where(.menu), .b :where(.menu))) *)".to_owned()
             )]
         );
     }
@@ -578,11 +578,11 @@ mod add_ref_tests {
         assert_eq!(plan.canonical, format!("ref({identities})\0\0"));
         let expected = vec![
             vec![VariantApplication::SelectorTemplate(format!(
-                "{} &",
+                "&:is(:where({}) *)",
                 first_marker.selector()
             ))],
             vec![VariantApplication::SelectorTemplate(format!(
-                "{} &",
+                "&:is(:where({}) *)",
                 second_marker.selector()
             ))],
         ];

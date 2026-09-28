@@ -21,7 +21,7 @@
   }
 }
 @media (hover: hover) {
-  .sw_menu_fwm3k:has(.sw_trigger_3s561:where(:hover)) .sw_fh7co {
+  .sw_fh7co:is(:where(.sw_menu_fwm3k):has(:where(.sw_trigger_3s561):hover) *) {
     color: var(--color-accent);
   }
 }

@@ -324,7 +324,7 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
     let marker = "sw_";
     assert!(result.transforms[0].replacement.contains(marker));
     assert!(result.css.contains(&format!(".{marker}")));
-    assert!(result.css.contains(":where(:hover) .sw_"));
+    assert!(result.css.contains(":hover *)"));
 }
 
 #[test]
@@ -373,15 +373,11 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
         result.css
     );
     assert!(
-        result.css.contains(&format!(":has(.{trigger}")),
+        result.css.contains(&format!(":has(:where(.{trigger}")),
         "{}",
         result.css
     );
-    assert!(
-        result.css.contains(":where(:hover)) .sw_"),
-        "{}",
-        result.css
-    );
+    assert!(result.css.contains(":hover) *)"), "{}", result.css);
 }
 
 #[test]
@@ -490,13 +486,13 @@ export const Menu = () => (
     );
     // The boundary element keeps the unbounded relation for its own ref: a target inside
     // the boundary element matches by ancestry.
+    assert!(result.css.contains(":focus-within *)"), "{}", result.css);
+    // The bounded ref reads the boundary instead, so its target may be a sibling.
     assert!(
-        result.css.contains(":where(:focus-within) .sw_"),
+        result.css.contains(":has(:where(.sw_trigger_"),
         "{}",
         result.css
     );
-    // The bounded ref reads the boundary instead, so its target may be a sibling.
-    assert!(result.css.contains(":has(.sw_trigger_"), "{}", result.css);
 }
 
 #[test]
@@ -541,5 +537,9 @@ export const View = () => (
     // The leaf is bounded by the inner ref, so its selector reads the inner marker as the
     // boundary even though that marker is itself bounded by the outer ref.
     assert!(result.css.contains(".sw_inner_"), "{}", result.css);
-    assert!(result.css.contains(":has(.sw_leaf_"), "{}", result.css);
+    assert!(
+        result.css.contains(":has(:where(.sw_leaf_"),
+        "{}",
+        result.css
+    );
 }

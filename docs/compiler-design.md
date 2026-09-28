@@ -400,7 +400,7 @@ pub enum ProjectionKind {
 
 The ref graph is semantic data, not a naming convention. A boundary must be
 attached to a strict ancestor of every bounded ref. An unbounded ref targets its
-own descendants; a bounded ref generates `boundary:has(ref:where(selector))` and
+own descendants; a bounded ref generates `&:is(:where(boundary):has(:where(ref)<variant>) *)` and
 may target any descendant of that boundary.
 
 ## Utility and selector grammar

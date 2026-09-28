@@ -235,13 +235,14 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 補間を含む tag は `NonStaticRefVariant` で拒否する。
 
 - prefix は `prefix:` に正規化され、variant object のキーや utility 文字列の補間として使える。
-- selector は reference 側を `:where()` で包み、boundary 付きは `<boundary>:has(<ref> …) &` の形で
-  boundary の内側だけに限定する。specificity は対象側の selector が保つ。
+- selector は ref と boundary の marker を `:where()` で包み、boundary 付きは
+  `&:is(:where(<boundary>):has(:where(<ref>)<variant>) *)` の形で boundary の内側だけに限定する。
+  specificity には対象側の selector と ref に適用した variant が寄与する。
 - container query は `@container <container name> (query)` を生成する。
 
 ```css
 @media (hover: hover) {
-  .sw_menu_fwm3k:has(.sw_trigger_3s561:where(:hover)) .sw_fh7co {
+  .sw_fh7co:is(:where(.sw_menu_fwm3k):has(:where(.sw_trigger_3s561):hover) *) {
     color: var(--color-accent);
   }
 }

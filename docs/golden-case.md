@@ -214,8 +214,8 @@ style(`${trigger()}:text-accent`);
 ```
 
 For a bounded ref, this requires a matching element within the boundary
-(`.boundary:has(.bounded) .target`). For an unbounded ref, the matching element
-must be an ancestor (`.ref .target`).
+(`.target:is(:where(.boundary):has(:where(.bounded)) *)`). For an unbounded ref,
+the matching element must be an ancestor (`.target:is(:where(.ref) *)`).
 
 The variants inside `trigger(...)` test the referenced element. Variants outside
 it apply to the styled target. Both forms below test a hovered trigger and an
@@ -266,7 +266,7 @@ JSX is visible in one file the linter verifies that invariant. The generated sel
 for the sibling example has the form:
 
 ```css
-.sw_menu_<hash>:has(.sw_trigger_<hash>:where(:hover)) .sw_<target-hash> { ... }
+.sw_<target-hash>:is(:where(.sw_menu_<hash>):has(:where(.sw_trigger_<hash>):hover) *) { ... }
 ```
 
 Labels are optional. `style.ref()` emits `.sw_<hash>`; `style.ref("menu")` and
