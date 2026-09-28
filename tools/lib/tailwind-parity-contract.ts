@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
-  compileSource,
   foldCalcExpressions,
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "@stillwind/native";
 import { fork, generate, parse, walk, type CssNode } from "css-tree";
 import { transform } from "lightningcss";
+
+import {
+  comparableFixtureClasses,
+  compileFixtureSource,
+  fixtureProjectSource,
+} from "./native-fixture-input.ts";
 
 // These are explicit harness contracts, not general CSS equivalences. See
 // docs/tailwind-comparison-contract.md. Never discard arbitrary layers, property
@@ -230,12 +235,15 @@ export function compileParity(source: string, css: string) {
     entry = { session: new NativeProjectSession(loader, false), uses: 0 };
     sessions.set(css, entry);
   }
-  const module = entry.session.compile([{ path: "src/Parity.tsx", source }]).modules[0];
+  const module = entry.session.compile([fixtureProjectSource(source, "src/Parity.tsx")]).modules[0];
   const output = { ...module, css: entry.session.css() };
   if (entry.uses++ % 250 === 0) {
-    const direct = compileSource(source, "src/Parity.tsx", css);
+    const direct = compileFixtureSource(source, "src/Parity.tsx", css);
     assert.equal(output.css, direct.css);
-    assert.deepEqual(output.classes, direct.classes);
+    assert.deepEqual(
+      comparableFixtureClasses(output.classes),
+      comparableFixtureClasses(direct.classes),
+    );
     assert.deepEqual(output.diagnostics, direct.diagnostics);
   }
   // Native resource placeholders belong to the host. This harness supplies one

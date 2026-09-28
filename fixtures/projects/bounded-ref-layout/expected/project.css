@@ -426,35 +426,35 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_j56sq {
-    anchor-scope: --sw-a-trigger-3s561;
+  .sw_b0to5:where(.sw_trigger_fnrq8) {
+    anchor-scope: --sw-a-trigger-fnrq8;
   }
-  .sw_bn36f {
-    container-name: sw-c-trigger-3s561;
+  .sw_b0to5:where(.sw_trigger_fnrq8) {
+    container-name: sw-c-trigger-fnrq8;
     container-type: inline-size;
   }
-  .sw_na86c {
+  .sw_bm2ay {
     position: relative;
     display: inline-flex;
   }
-  .sw_a26st {
-    anchor-name: --sw-a-trigger-3s561;
+  .sw_bm2ay:where(.sw_trigger_fnrq8) {
+    anchor-name: --sw-a-trigger-fnrq8;
   }
-  .sw_fh7co {
+  .sw_vr124 {
     position: absolute;
   }
-  @container sw-c-trigger-3s561 (width >= 40rem) {
-    .sw_fh7co {
+  .sw_vr124:where(.sw_trigger_fnrq8) {
+    position-anchor: --sw-a-trigger-fnrq8;
+  }
+  @container sw-c-trigger-fnrq8 (width >= 40rem) {
+    .sw_vr124 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .sw_fh7co:is(:where(.sw_menu_fwm3k):has(:where(.sw_trigger_3s561):hover) *) {
+    .sw_vr124:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_fnrq8):hover) *) {
       color: var(--color-accent);
     }
-  }
-  .sw_0beuo {
-    position-anchor: --sw-a-trigger-3s561;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

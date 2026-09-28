@@ -1,4 +1,4 @@
-.sw_oqsqz {
+.sw_hpdco {
   display: inline-flex;
   padding-inline: var(--spacing-4);
   align-items: center;
@@ -7,19 +7,19 @@
   --authored-progress: 1;
 }
 @media (hover: hover) {
-  .sw_oqsqz:hover {
+  .sw_hpdco:hover {
     background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);
     }
   }
 }
-.sw_tk9jb {
+.sw_hmw23 {
   opacity: calc(60 * 1%);
 }
-.sw_zw6ja {
+.sw_96vzq {
   background-color: var(--color-accent);
 }
-.sw_26ya8 {
+.sw_ke6ey {
   background-color: var(--color-muted);
 }

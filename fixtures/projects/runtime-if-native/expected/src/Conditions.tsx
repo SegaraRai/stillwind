@@ -3,11 +3,11 @@ import { stillwindCssValue } from "stillwind/react/runtime";
 export function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {
   return (
     <section
-      {...{className:"sw_j49u5",style:{"--enabled":stillwindCssValue(enabled),"--second":stillwindCssValue(second)}}}
+      {...{className:"sw_wmvay",style:{"--enabled":stillwindCssValue(enabled),"--second":stillwindCssValue(second)}}}
     >
-      <div {...{className:"sw_b4phk"}} />
+      <div {...{className:"sw_b4p9x"}} />
       <div
-        {...{className:"sw_80mrb",style:{"--mode":"compact"}}}
+        {...{className:"sw_93e4i",style:{"--mode":"compact"}}}
       />
     </section>
   );

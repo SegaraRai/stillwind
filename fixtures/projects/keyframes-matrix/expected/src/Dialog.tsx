@@ -2,7 +2,7 @@ import { stillwindClsx } from "stillwind/react/runtime";
 
 import { exit, selectedAnimation } from "./keyframes";
 
-export const panelProps = {className:stillwindClsx("sw_t9sxx",({"sw-kf-enter-7nc28":"sw_s674c","sw-kf-tym79":"sw_35jbw"})[(selectedAnimation).k])};
+export const panelProps = {className:stillwindClsx("sw_rdg4x",({"sw-kf-enter-cxv19":"sw_oyibx","sw-kf-12rqq":"sw_0xhzs"})[(selectedAnimation).k])};
 
 export function DialogPanel() {
   return <div {...panelProps} data-state="open" />;

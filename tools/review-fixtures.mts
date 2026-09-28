@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   compileProject as compileNativeProject,
   renderStylesheet,
   summarizeSource,
   type NativeCompilerOptions,
+  type NativeProjectSource,
 } from "@stillwind/native";
 import { format } from "prettier";
 
@@ -86,14 +87,30 @@ function compileProject(root: string, manifest: Manifest) {
       sourcePath,
     );
     mkdirSync(path.dirname(id), { recursive: true });
+    const language: NativeProjectSource["language"] = sourcePath.endsWith(".tsx")
+      ? "tsx"
+      : sourcePath.endsWith(".jsx")
+        ? "jsx"
+        : sourcePath.endsWith(".ts")
+          ? "ts"
+          : "js";
     return {
-      id,
+      resolver_id: id,
+      checker_file_name: id,
+      projection_file_name: sourcePath,
+      uri: pathToFileURL(path.join(root, "input", sourcePath)).href,
+      module_id: sourcePath,
+      language,
+      module_kind: "unambiguous" as const,
       path: sourcePath,
       source: normalize(readFileSync(path.join(root, "input", sourcePath), "utf8")),
     };
   });
   const summaries = new Map(
-    sources.map((source) => [source.path, summarizeSource(source.source, source.path)]),
+    sources.map((source) => [
+      source.path,
+      summarizeSource(source.source, source.module_id, source.language, source.module_kind),
+    ]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
   const assets = new Map(
@@ -110,16 +127,25 @@ function compileProject(root: string, manifest: Manifest) {
   const facts = service.collect(probeSources, assets);
   service.close();
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
+  const cssUri = pathToFileURL(path.join(root, manifest.theme)).href;
   const output = compileNativeProject(
-    sources.map(({ path: sourcePath, source }) => ({
-      path: sourcePath,
+    sources.map(({ module_id, uri, source, language, module_kind }): NativeProjectSource => ({
+      module_id,
+      uri,
       source,
-      type_facts: facts.get(sourcePath) ?? [],
+      language,
+      module_kind,
+      source_map_source: uri,
+      type_facts: facts.get(module_id) ?? [],
     })),
-    theme,
+    { content: theme, name: manifest.theme, uri: cssUri, source_map_source: cssUri },
     manifest.compilerOptions,
-  ) as { modules: ModuleOutput[] };
-  const diagnostics = output.modules.flatMap((module) =>
+  );
+  const modules: ModuleOutput[] = output.modules.map((module) => ({
+    ...module,
+    path: module.module_id,
+  }));
+  const diagnostics = modules.flatMap((module) =>
     module.diagnostics.map(
       (diagnostic) => `${module.path}: ${diagnostic.code} ${diagnostic.message}`,
     ),
@@ -130,9 +156,9 @@ function compileProject(root: string, manifest: Manifest) {
     `${manifest.id}: compilation diagnostics\n${diagnostics.join("\n")}`,
   );
   return {
-    modules: output.modules,
+    modules,
     projectCss: renderStylesheet(
-      output.modules.map((module) => module.css).join("\n"),
+      modules.map((module) => module.css).join("\n"),
       theme,
       manifest.compilerOptions,
     ),

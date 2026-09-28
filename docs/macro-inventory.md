@@ -111,7 +111,7 @@ ref identity へ解決できることが要件（`crates/js-oxc/src/refs/definit
 
 | 状況                                            | lower                                     |
 | ----------------------------------------------- | ----------------------------------------- |
-| 値が実行時に必要（動的添付・射影・export など） | `const trigger = {c:"sw_trigger_3s561"};` |
+| 値が実行時に必要（動的添付・射影・export など） | `const trigger = {c:"sw_trigger_fnrq8"};` |
 | 値が実行時に不要（静的添付だけ）                | `const menu = undefined;`                 |
 
 marker は `sw_[label_]<hash>` の class token で、規則を持たない。要素の class 値に載り、
@@ -204,7 +204,8 @@ use の lower は identity が静的か動的かでも分かれる。動的候�
 ## 5. ref 射影
 
 `.anchor` / `.positionAnchor` / `.anchorScope` は member 形、`.container("size" | "inline-size")` は
-literal 引数の call 形。JS は marker を key にした表引きで、値は「射影 class + marker」。
+literal 引数の call 形。射影の CSS は対象の class と ref marker の組み合わせを選択する。
+JS は射影 class と ref marker をそれぞれ class 値に載せる。
 
 | 射影                 | class unit が宣言する CSS                    |
 | -------------------- | -------------------------------------------- |
@@ -218,10 +219,7 @@ literal 引数の call 形。JS は marker を key にした表引きで、値�
 ```tsx
 <button
   {...{
-    className: stillwindClsx(
-      "sw_na86c sw_trigger_3s561",
-      { sw_trigger_3s561: "sw_a26st sw_trigger_3s561" }[trigger.c],
-    ),
+    className: stillwindClsx("sw_bm2ay sw_trigger_fnrq8", trigger.c),
   }}
 >
   Open
@@ -242,12 +240,12 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 
 ```css
 @media (hover: hover) {
-  .sw_fh7co:is(:where(.sw_menu_fwm3k):has(:where(.sw_trigger_3s561):hover) *) {
+  .sw_vr124:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_fnrq8):hover) *) {
     color: var(--color-accent);
   }
 }
-@container sw-c-trigger-3s561 (width >= 40rem) {
-  .sw_fh7co {
+@container sw-c-trigger-fnrq8 (width >= 40rem) {
+  .sw_vr124 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

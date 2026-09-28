@@ -7,7 +7,6 @@ import { setImmediate } from "node:timers/promises";
 import { createGzip } from "node:zlib";
 
 import {
-  compileSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
   type ProjectModuleOutput,
@@ -15,6 +14,11 @@ import {
 import { generate, parse, walk, type CssNode } from "css-tree";
 
 import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
+import {
+  comparableFixtureClasses,
+  compileFixtureSource,
+  fixtureProjectSource,
+} from "./lib/native-fixture-input.ts";
 import { hasEquivalentDeclarationOrder } from "./lib/property-order-parity.ts";
 import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
 import { compileTailwindCss } from "./lib/tailwind-compiler.ts";
@@ -243,13 +247,16 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
       let resources: unknown[] = [];
       try {
         const native: ProjectModuleOutput = loaded.session.compile([
-          { path: "src/Parity.tsx", source },
+          fixtureProjectSource(source, "src/Parity.tsx"),
         ]).modules[0];
         actual = loaded.session.css();
         if (loaded.uses++ % 250 === 0) {
-          const direct = compileSource(source, "src/Parity.tsx", loaded.css);
+          const direct = compileFixtureSource(source, "src/Parity.tsx", loaded.css);
           assert.equal(actual, direct.css, `session differs: ${file} ${candidate}`);
-          assert.deepEqual(native.classes, direct.classes);
+          assert.deepEqual(
+            comparableFixtureClasses(native.classes),
+            comparableFixtureClasses(direct.classes),
+          );
           assert.deepEqual(native.diagnostics, direct.diagnostics);
           directChecks++;
         }

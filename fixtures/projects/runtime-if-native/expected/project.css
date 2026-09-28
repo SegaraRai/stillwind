@@ -10,38 +10,38 @@ reach descendants. Keep this declaration slot inside the selector rule.
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }
-.sw_j49u5 {
+.sw_wmvay {
   display: grid;
   height: if(style(--enabled): if(style(--second): 30px;else: 20px) ;else: 10px);
   width: if(style(--enabled): 120px;else: 60px);
   opacity: calc(100 * 1%);
 }
-@supports (color: revert-rule) and (--sw-ifr-cb7fn: 0) {
-  .sw_j49u5 {
+@supports (color: revert-rule) and (--sw-ifr-w6cyo: 0) {
+  .sw_wmvay {
     display: if(style(--enabled): flex;else: revert-rule);
   }
 }
-@supports (color: revert-rule) and (--sw-ifr-7lwrw: 0) {
-  .sw_j49u5 {
+@supports (color: revert-rule) and (--sw-ifr-i9rwc: 0) {
+  .sw_wmvay {
     --sw-ifg-qhl3x: var(--second) var(--enabled);
     opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%) ;else: revert-rule) !important;
   }
 }
-.sw_b4phk {
+.sw_b4p9x {
   display: grid;
   width: if(style(--enabled): 80px;else: 40px);
 }
-@supports (color: revert-rule) and (--sw-ifr-m9y9i: 0) {
-  .sw_b4phk {
+@supports (color: revert-rule) and (--sw-ifr-vq8km: 0) {
+  .sw_b4p9x {
     display: if(style(--enabled): revert-rule;else: flex);
   }
 }
-.sw_80mrb {
+.sw_93e4i {
   display: grid;
   width: if(style(--mode: compact): 40px;else: 80px);
 }
-@supports (color: revert-rule) and (--sw-ifr-j9jyf: 0) {
-  .sw_80mrb {
+@supports (color: revert-rule) and (--sw-ifr-usw93: 0) {
+  .sw_93e4i {
     display: if(style(--mode: compact): flex;else: revert-rule);
   }
 }

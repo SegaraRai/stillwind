@@ -1,6 +1,6 @@
-.sw_l3dxv {
-  anchor-name: --sw-a-primary-bphz3;
+.sw_nw6lm:where(.sw_secondary_63olu) {
+  anchor-name: --sw-a-secondary-63olu;
 }
-.sw_aqvyw {
-  anchor-name: --sw-a-secondary-fmhru;
+.sw_nw6lm:where(.sw_primary_z410i) {
+  anchor-name: --sw-a-primary-z410i;
 }
