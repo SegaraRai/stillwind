@@ -18,8 +18,10 @@
   conditions above; otherwise omit the comment.
 - Crate and module doc comments explain their purpose, responsibilities, non-goals, and main entry points with usage guidance. In `lib.rs` / `mod.rs`, also
   describe each module's role. Omit entry-point guidance when there are no main entry points.
-- Function doc comments explain purpose and input/output contracts. Document necessary state preconditions and postconditions for state changes, error
-  conditions when returning `Result`, and panic conditions when applicable.
+- Function doc comments explain purpose and the contract between caller and function: what the caller must guarantee about parameters and prior state,
+  and what the function guarantees about its return value and resulting state. Describe what each parameter accepts when present, what the function returns
+  when it has a return value, and what it changes when it has side effects, including changes to internal state or passed-in values. Document error
+  conditions when returning `Result` and panic conditions when applicable.
 - Struct and enum doc comments explain the represented concept and its purpose. Describe usage domains or potential misuse only when useful. Field comments
   document formats, units, ranges, whitespace, ordering, and other constraints that the code relies on. Prefer expressing invalid combinations through types.
 - When an enum variant or field merely maps to a serialized form, state that mapping briefly, while retaining range, whitespace, and other contracts. Include
