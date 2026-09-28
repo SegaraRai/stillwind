@@ -117,7 +117,7 @@
 
 @stillwind-utility bg-linear-to-b {
   --tw-gradient-position: to bottom;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to bottom in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -125,7 +125,7 @@
 
 @stillwind-utility bg-linear-to-bl {
   --tw-gradient-position: to bottom left;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to bottom left in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -133,7 +133,7 @@
 
 @stillwind-utility bg-linear-to-br {
   --tw-gradient-position: to bottom right;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to bottom right in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -141,7 +141,7 @@
 
 @stillwind-utility bg-linear-to-l {
   --tw-gradient-position: to left;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to left in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -149,7 +149,7 @@
 
 @stillwind-utility bg-linear-to-r {
   --tw-gradient-position: to right;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to right in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -157,7 +157,7 @@
 
 @stillwind-utility bg-linear-to-t {
   --tw-gradient-position: to top;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to top in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -165,7 +165,7 @@
 
 @stillwind-utility bg-linear-to-tl {
   --tw-gradient-position: to top left;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to top left in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -173,7 +173,7 @@
 
 @stillwind-utility bg-linear-to-tr {
   --tw-gradient-position: to top right;
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: to top right in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -190,7 +190,7 @@
     l: to left,
     tl: to top left
   );
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: --value-map(
         t: to top,
         tr: to top right,
@@ -217,7 +217,7 @@
 
 @stillwind-utility bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg);
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: calc(--value(integer) * 1deg) in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -225,7 +225,7 @@
 
 @stillwind-utility bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg);
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: calc(--value(integer) * 1deg)
       --modifier-map(
         oklab: in oklab,
@@ -243,7 +243,7 @@
 
 @stillwind-utility -bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg * -1);
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: calc(--value(integer) * 1deg * -1) in oklab;
   }
   background-image: linear-gradient(var(--tw-gradient-stops));
@@ -251,7 +251,7 @@
 
 @stillwind-utility -bg-linear-* {
   --tw-gradient-position: calc(--value(integer) * 1deg * -1);
-  @supports (background-image: linear-gradient(in lab, red, red)) {
+  @supports (background: linear-gradient(in lab, red, red)) {
     --tw-gradient-position: calc(--value(integer) * 1deg * -1)
       --modifier-map(
         oklab: in oklab,

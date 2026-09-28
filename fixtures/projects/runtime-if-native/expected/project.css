@@ -16,12 +16,12 @@ reach descendants. Keep this declaration slot inside the selector rule.
   width: if(style(--enabled): 120px;else: 60px);
   opacity: calc(100 * 1%);
 }
-@supports (x: revert-rule) and (--w78xn: 0) {
+@supports (x: revert-rule) and (--w78xn: ) {
   .sw_wmvay {
     display: if(style(--enabled): flex;else: revert-rule);
   }
 }
-@supports (x: revert-rule) and (--w78xn: 0) {
+@supports (x: revert-rule) and (--w78xn: ) {
   .sw_wmvay {
     --sw-ifg-qhl3x: var(--second) var(--enabled);
     opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%) ;else: revert-rule) !important;
@@ -31,7 +31,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
   display: grid;
   width: if(style(--enabled): 80px;else: 40px);
 }
-@supports (x: revert-rule) and (--hxnpo: 0) {
+@supports (x: revert-rule) and (--hxnpo: ) {
   .sw_b4p9x {
     display: if(style(--enabled): revert-rule;else: flex);
   }
@@ -40,7 +40,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
   display: grid;
   width: if(style(--mode: compact): 40px;else: 80px);
 }
-@supports (x: revert-rule) and (--nenqb: 0) {
+@supports (x: revert-rule) and (--nenqb: ) {
   .sw_93e4i {
     display: if(style(--mode: compact): flex;else: revert-rule);
   }
@@ -48,7 +48,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 
 .authored {
   display: grid;
-  @supports (x: revert-rule) and (--t0yb4: 0) {
+  @supports (x: revert-rule) and (--t0yb4: ) {
     & {
       display: if(style(--enabled): flex;else: revert-rule);
     }
@@ -58,7 +58,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 
 .negated {
   display: grid;
-  @supports (x: revert-rule) and (--d9qip: 0) {
+  @supports (x: revert-rule) and (--d9qip: ) {
     & {
       display: if(style(--enabled): revert-rule;else: flex);
     }
@@ -67,7 +67,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 
 .compared {
   display: grid;
-  @supports (x: revert-rule) and (--w1yws: 0) {
+  @supports (x: revert-rule) and (--w1yws: ) {
     & {
       display: if(style(--mode: compact): flex;else: revert-rule);
     }

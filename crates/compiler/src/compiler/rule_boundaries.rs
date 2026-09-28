@@ -184,7 +184,7 @@ impl<'a> RuleBoundaries<'a> {
         // The custom-property condition only distinguishes queries to prevent minifiers
         // from merging conflicting rules. It never declares a property on an element.
         Ok(format!(
-            "@supports (x:revert-rule) and ({}:0){{",
+            "@supports (x:revert-rule) and ({}:){{",
             name.property()
         ))
     }

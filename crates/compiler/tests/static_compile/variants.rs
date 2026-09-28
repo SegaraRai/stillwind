@@ -383,7 +383,7 @@ const props = style("bg-linear-to-r");"#,
     assert!(
         result
             .css
-            .contains("@supports (background-image: linear-gradient")
+            .contains("@supports (background: linear-gradient")
     );
     assert!(
         result

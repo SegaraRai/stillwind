@@ -94,7 +94,7 @@ experimental and is not supported by every browser. The compiler adds a
 that feature retain the unconditional styling.
 
 Conditional rules share a support-query name within each nonconflicting interval
-of their owner's emission order: `@supports (x:revert-rule) and (--<hash>:0)`.
+of their owner's emission order: `@supports (x:revert-rule) and (--<hash>:)`.
 A property conflict starts a new interval, including shorthand/longhand and
 logical/physical overlap. Each `style()` call owns its intervals; authored CSS
 uses the outer rule, sharing state across expanded `@apply`, `@variant`, and nested
