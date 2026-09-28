@@ -3,9 +3,10 @@
 //! Helpers are declared beside their consumers, so inherited computed helper values
 //! cannot freeze a child's condition. Variant callers keep guarded declarations in
 //! separate rules: `revert-rule` removes the whole current rule for that property.
-//! Use [`guard`] while constructing variant rules, [`isolate_rule`] to preserve their
-//! boundaries, and [`lower`] after ordering declarations. This module emits canonical
-//! helper names; prefix rewriting and source-map attribution belong to its callers.
+//! Use [`guard`] while constructing variant rules and [`lower`] after ordering
+//! declarations. Rule boundaries are finalized by the owner before publication. This
+//! module emits canonical helper names; prefix rewriting and source-map attribution
+//! belong to its callers.
 
 use std::fmt::Write as _;
 use std::ops::Range;
@@ -33,24 +34,6 @@ fn helper(
             text: text.to_owned(),
         })?
         .property())
-}
-
-/// Wraps a complete rule in a support group keyed by a hash of its CSS text.
-/// The group also requires `revert-rule` support. Merging a base rule with a guarded
-/// rule of the same selector would erase the declarations the false branch should use;
-/// the content-dependent group keeps those rules separate during minification.
-///
-/// # Errors
-///
-/// Returns the host generator's failure for the helper's name.
-pub(super) fn isolate_rule(
-    rule: &str,
-    identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
-    let name = helper(identifiers, ConditionRole::Rule, rule)?;
-    Ok(format!(
-        "@supports (color:revert-rule) and ({name}:0){{{rule}}}"
-    ))
 }
 
 /// Lowers `--if(C,Y,N)` in declaration bodies; one leading `!` swaps the branches.
@@ -281,7 +264,7 @@ fn is_block(token: &Token<'_>) -> bool {
 /// Consumes the block opened by the parser's last token and returns its content-end
 /// byte offset relative to the parser input. The last token must satisfy [`is_block`].
 /// Nested parse errors are ignored; the parser advances past the block when available.
-fn consume(parser: &mut Parser<'_>) -> usize {
+pub(super) fn consume(parser: &mut Parser<'_>) -> usize {
     let mut end = parser.position().byte_index();
     let _ = parser.parse_nested_block(|nested| {
         while nested.next_including_whitespace_and_comments().is_ok() {}
@@ -295,7 +278,7 @@ fn consume(parser: &mut Parser<'_>) -> usize {
 /// Custom-property brace values are opaque, as are all function and URL contents.
 /// Returns nonoverlapping property/value byte ranges into `css`, sorted by source
 /// position. Semicolons are excluded; surrounding declaration whitespace is retained.
-fn declaration_values(css: &str) -> Vec<(Range<usize>, Range<usize>)> {
+pub(super) fn declaration_values(css: &str) -> Vec<(Range<usize>, Range<usize>)> {
     let mut pending = Vec::new();
     pending.push(0..css.len());
     let mut values = Vec::new();

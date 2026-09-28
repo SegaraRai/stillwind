@@ -255,7 +255,7 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 
 - `if(--flag):utility` variant と `--if(--flag,a,b)` 値は class を変えず、computed-value time の
   条件へ lower する。fallback では helper custom property（`--sw-if-…`）と
-  `@supports (color: revert-rule) and (--sw-ifr-…: 0)` gate、`useCssIf: true` では native
+  `@supports (x: revert-rule) and (--<hash>: 0)` gate、`useCssIf: true` では native
   `if(style(--flag): …; else: …)` を生成する（[runtime-if.md](runtime-if.md)）。
 - custom property の値は object 系 framework で `style:{"--x":stillwindCssValue(v)}`、
   Svelte / Astro で `style:"--x:"+stillwindCssValue(v)` の連結になる。

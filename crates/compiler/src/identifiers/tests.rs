@@ -456,9 +456,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
         text: ".a{color:red}".to_owned(),
     });
     let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
-    let suffix = name
-        .strip_prefix("sw-ifr-")
-        .unwrap_or_else(|| panic!("{name}"));
+    let suffix = name.as_str();
     assert_eq!(suffix.len(), DEFAULT_HASH_LENGTH, "{name}");
     assert_eq!(
         name,
@@ -474,7 +472,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
     // Every role letter is its own spelling of one text hash.
     for (role, expected) in [
         (ConditionRole::Fallback, "sw-if-"),
-        (ConditionRole::Rule, "sw-ifr-"),
+        (ConditionRole::Rule, ""),
         (ConditionRole::Gate, "sw-ifg-"),
         (ConditionRole::GateValue, "sw-ifv-"),
         (ConditionRole::GateNot, "sw-ifn-"),
@@ -562,6 +560,7 @@ fn report_spellings_are_distinct_per_family() {
         IdentifierKind::KeyframesName,
         IdentifierKind::ViewTransitionClass,
         IdentifierKind::ConditionHelper,
+        IdentifierKind::RuleBoundary,
         IdentifierKind::ViewTransitionSlot,
         IdentifierKind::LayerName,
     ];

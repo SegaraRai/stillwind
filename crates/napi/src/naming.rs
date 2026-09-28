@@ -81,10 +81,10 @@ pub struct NativeLayerContext {
 /// The fields of a conditional helper request.
 #[napi(object)]
 pub struct NativeConditionContext {
-    /// Which helper the name is written for: `rule`, `fallback`, `gate`, `gate-value`, or
-    /// `gate-not`.
+    /// Which helper the name is written for: `rule`, `fallback`, `gate`, `gate-value`,
+    /// or `gate-not`.
     pub role: String,
-    /// The CSS the helper serves.
+    /// Canonical owner and interval identity for `rule`; otherwise the conditional CSS.
     pub text: String,
 }
 

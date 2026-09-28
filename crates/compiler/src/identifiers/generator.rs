@@ -179,11 +179,13 @@ pub trait IdentifierGenerator: fmt::Debug {
         Ok(GeneratedName::Builtin)
     }
 
-    /// A conditional helper custom property, without its leading double hyphen.
+    /// A conditional helper or rule-boundary query name, without its leading double
+    /// hyphen.
     ///
-    /// `hash` covers the helper's role together with the text it serves, and `text_hash` covers
-    /// the text alone. Naming helpers by `hash` distinguishes every role, while naming them by
-    /// `text_hash` and spelling the role in the name lets two roles share one suffix.
+    /// `hash` covers the role and canonical context text, and `text_hash` covers the
+    /// context text alone. Naming helpers by `hash` distinguishes every role, while
+    /// naming them by `text_hash` and spelling the role in the name lets two roles
+    /// share one suffix.
     ///
     /// # Errors
     ///
@@ -262,9 +264,9 @@ impl Eq for GeneratorSet {}
 /// One name a generator rejected, kept so a host can warn about its own generator.
 ///
 /// A rejected name has no source location: it comes from the generator, not from the
-/// source. That is why it is not a lint finding, which always describes authored code, and
-/// why its audience is the bundler plugin, which receives the compilation result and can
-/// warn with its own position.
+/// source. That is why it is not a lint finding, which always describes authored code,
+/// and why its audience is the bundler plugin, which receives the compilation result
+/// and can warn with its own position.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RejectedIdentifier {
     /// Family the generator was asked for.
@@ -490,7 +492,8 @@ impl IdentifierContext {
         self.resolve_name(&ViewTransitionClassRequest(context.clone()))
     }
 
-    /// A conditional helper custom property, without its leading double hyphen.
+    /// A conditional helper or rule-boundary query name, without its leading double
+    /// hyphen.
     ///
     /// # Errors
     ///
@@ -531,8 +534,8 @@ impl IdentifierContext {
     ///
     /// # Errors
     ///
-    /// Returns [`CompileErrorKind::IdentifierGenerationFailed`] for a rejected request in
-    /// release mode.
+    /// Returns [`CompileErrorKind::IdentifierGenerationFailed`] for a rejected request
+    /// in release mode.
     pub(crate) fn resolve_name<T: Token, R: NameRequest<T>>(
         &self,
         request: &R,

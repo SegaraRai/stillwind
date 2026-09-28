@@ -2,20 +2,21 @@
 //!
 //! [`api`] holds the stateless entry points, [`pipeline`] orders the passes, and
 //! [`emission`] lowers style inputs, [`props`] carries call metadata, and
-//! [`style_variants`] and [`variants`] resolve variant wrappers.
-//! [`animation_options`] resolves option lists for animation uses and group options.
-//! [`fragment`] folds ordered contributions and materializes framework props.
-//! [`conditionals`] lowers runtime value tests after rule construction.
-//! [`literal`] resolves utility text; [`class_units`] allocates classes and orders CSS.
-//! [`expression_render`] serializes lowered class trees in class-value context.
-//! [`symbols`], [`definitions`], and [`lexer`] allocate names and emit asset
-//! definitions, while [`utilities`] and [`stylesheet`] render CSS and [`vocabulary`]
-//! renders shared macro type declarations. [`output`] defines compilation results and
-//! structured CSS contributions.
+//! [`style_variants`] and [`variants`] resolve variant wrappers. [`animation_options`]
+//! resolves option lists for animation uses and group options. [`fragment`] folds
+//! ordered contributions and materializes framework props. [`conditionals`] lowers
+//! runtime value tests after rule construction. [`rule_boundaries`] assigns merge
+//! barriers in final rule order. [`literal`] resolves utility text; [`class_units`]
+//! allocates classes and orders CSS. [`expression_render`] serializes lowered class
+//! trees in class-value context. [`symbols`], [`definitions`], and [`lexer`] allocate
+//! names and emit asset definitions, while [`utilities`] and [`stylesheet`] render CSS
+//! and [`vocabulary`] renders shared macro type declarations. [`output`] defines
+//! compilation results and structured CSS contributions.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
-//! Callers with reusable snapshots and module artifacts use the crate's `ModuleCompiler`
-//! and `StylesheetRenderer` interfaces; this module supplies their lowering passes.
+//! Callers with reusable snapshots and module artifacts use the crate's
+//! `ModuleCompiler` and `StylesheetRenderer` interfaces; this module supplies their
+//! lowering passes.
 
 mod animation_options;
 mod api;
@@ -27,6 +28,7 @@ mod expression_render;
 mod fragment;
 mod lexer;
 mod literal;
+mod rule_boundaries;
 
 mod output;
 mod pipeline;
@@ -49,6 +51,7 @@ pub use output::CssContribution;
 pub use props::{GeneratedClass, GuardStep};
 pub use symbols::{GeneratedSymbol, SymbolOrigin};
 
+pub(crate) use rule_boundaries::RuleBoundaries;
 pub(crate) use stylesheet::render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use stylesheet::template::render_mapped;
 pub(crate) use symbols::detached_symbol;

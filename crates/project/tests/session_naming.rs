@@ -220,6 +220,64 @@ fn a_helper_name_is_checked_in_the_custom_property_pool() {
     );
 }
 
+#[test]
+fn merge_barriers_have_an_independent_collision_pool() {
+    for (candidates, native, collision) in [
+        ("if(--a):flex", false, false),
+        ("if(--a):flex if(--b):w-4", true, false),
+        ("if(--a):flex if(--b):grid", true, true),
+    ] {
+        let mut session = ProjectSession::new(
+            snapshot("red"),
+            &SourceRegistry::default(),
+            SessionMode::Watch,
+            CompilerOptions {
+                use_css_if: native,
+                ..CompilerOptions::default()
+            },
+            Identifiers::new(
+                Some(Arc::new(FixedHelperGenerator)),
+                IdentifierMode::Release,
+            ),
+        );
+        let source = Arc::new(SourceFile::new(FileId(1), None, None,
+            format!("import {{ style }} from 'stillwind/react'; export const x = style({candidates:?});")).unwrap());
+        let update = session.update_module(OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan(
+                source,
+                ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+            ),
+            None,
+        ));
+        assert_eq!(
+            update.diagnostics.iter().any(|error| matches!(
+                error.kind,
+                CompileErrorKind::GeneratedIdentifierCollision { .. }
+            )),
+            collision,
+            "{candidates}: {:?}",
+            update.diagnostics
+        );
+        if !collision {
+            assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+        }
+        if collision {
+            continue;
+        }
+        let artifact = &session.artifacts()[&ModuleId::from("test.tsx")];
+        assert!(
+            artifact
+                .symbols
+                .iter()
+                .any(|symbol| symbol.pool == stillwind_compiler::IdentifierPool::RuleBoundary),
+            "{:?}",
+            artifact.symbols
+        );
+    }
+}
+
 /// Names every anonymous layer with one fixed body, so an authored layer can collide with it.
 #[derive(Debug)]
 struct FixedLayerGenerator;

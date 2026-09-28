@@ -16,7 +16,30 @@ const dir = await fs.mkdtemp(path.join(output, "runtime-if-"));
 const core = path
   .relative(dir, path.resolve(root, "../../packages/core/index.css"))
   .replaceAll("\\", "/");
-await fs.writeFile(path.join(dir, "root.css"), `@import ${JSON.stringify(core)};`);
+await fs.writeFile(
+  path.join(dir, "root.css"),
+  `@import ${JSON.stringify(core)};
+.authored {
+  color: black; width: 10px;
+  @apply if(--enabled):[color:red];
+  @variant if(--second) { width: 30px; }
+  @variant if(--enabled) { @variant if(--second) { color: blue; } }
+}
+.authored-nested {
+  color: black; width: 10px;
+  @variant if(--enabled) {
+    color: red;
+    @media (min-width: 0px) {
+      width: 30px;
+      @variant if(--second) { color: blue; }
+    }
+  }
+}
+@stillwind-utility guarded-pseudo {
+  content: "yes";
+  @media (min-width: 0px) { color: red; }
+}`,
+);
 await fs.writeFile(path.join(dir, "index.html"), '<script type="module" src="/main.ts"></script>');
 await fs.writeFile(
   path.join(dir, "main.ts"),
@@ -37,6 +60,13 @@ const compared = style('__COMPARISON_UTILITIES__');
 const comparison = document.createElement('div'); comparison.id = 'comparison'; comparison.className = compared.className;
 element.append(comparison);
 for (const item of [child, inverse, comparison]) item.style.flexShrink = '0';
+for (const name of ['authored', 'authored-nested']) {
+  const item = document.createElement('div'); item.id = name; item.className = name;
+  item.style.flexShrink = '0'; element.append(item);
+}
+const pseudo = style('before:if(--enabled):guarded-pseudo');
+const pseudoElement = document.createElement('div'); pseudoElement.id = 'nested-pseudo';
+pseudoElement.className = pseudo.className; element.append(pseudoElement);
 `,
 );
 const originalSource = await fs.readFile(path.join(dir, "main.ts"), "utf8");
@@ -108,6 +138,16 @@ try {
               comparisonWidth: getComputedStyle(document.querySelector("#comparison")).width,
               comparisonDisplay: getComputedStyle(document.querySelector("#comparison")).display,
               comparisonOpacity: getComputedStyle(document.querySelector("#comparison")).opacity,
+              authoredColor: getComputedStyle(document.querySelector("#authored")).color,
+              authoredWidth: getComputedStyle(document.querySelector("#authored")).width,
+              nestedColor: getComputedStyle(document.querySelector("#authored-nested")).color,
+              nestedWidth: getComputedStyle(document.querySelector("#authored-nested")).width,
+              nestedPseudo: getComputedStyle(document.querySelector("#nested-pseudo"), "::before")
+                .content,
+              nestedPseudoColor: getComputedStyle(
+                document.querySelector("#nested-pseudo"),
+                "::before",
+              ).color,
             };
           },
           { enabled, second },
@@ -127,6 +167,16 @@ try {
             comparisonWidth: useCssIf && enabled ? "40px" : "80px",
             comparisonDisplay: useCssIf && enabled ? "flex" : "grid",
             comparisonOpacity: useCssIf && enabled && second ? "0.5" : "1",
+            authoredColor: enabled
+              ? second
+                ? "rgb(0, 0, 255)"
+                : "rgb(255, 0, 0)"
+              : "rgb(0, 0, 0)",
+            authoredWidth: second ? "30px" : "10px",
+            nestedColor: enabled ? (second ? "rgb(0, 0, 255)" : "rgb(255, 0, 0)") : "rgb(0, 0, 0)",
+            nestedWidth: enabled ? "30px" : "10px",
+            nestedPseudo: enabled ? '"yes"' : "none",
+            nestedPseudoColor: enabled ? "rgb(255, 0, 0)" : "rgb(0, 0, 0)",
           },
           JSON.stringify({ useCssIf, enabled, second }),
         );

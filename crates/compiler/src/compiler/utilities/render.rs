@@ -13,7 +13,8 @@ use stillwind_design_system::{
 };
 use stillwind_diagnostics::CompileErrorKind;
 
-use super::super::conditionals::{guard, isolate_rule};
+use super::super::conditionals::guard;
+use super::super::rule_boundaries::protect;
 use super::super::variants::{VariantStep, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
@@ -21,13 +22,13 @@ use crate::identifiers::IdentifierContext;
 
 /// Renders one utility as one or more complete rules.
 ///
-/// A utility that carries pre-resolved applications is rendered from those, without re-resolving
-/// its variants; otherwise each variant is resolved and every alternative it expands to produces a
-/// separate rule. A variant that no longer resolves is skipped rather than failing the rule, which
-/// keeps one stale variant from hiding a whole unit. Runtime conditions guard the
-/// final declarations, including variant additions, with unresolved `--if` expressions.
-/// Their rules receive distinct support groups; callers must subsequently run the
-/// conditional-lowering pass with compiler options before publishing CSS.
+/// A utility that carries pre-resolved applications is rendered from those, without
+/// re-resolving its variants; otherwise each variant is resolved and every alternative
+/// it expands to produces a separate rule. A variant that no longer resolves is skipped
+/// rather than failing the rule, which keeps one stale variant from hiding a whole
+/// unit. Runtime conditions guard the final declarations, including variant additions,
+/// with unresolved `--if` expressions. Callers must finalize rule boundaries in
+/// emission order and lower conditionals with compiler options before publishing CSS.
 pub(in crate::compiler) fn render_utility_rule(
     class_selector: &str,
     utility: &CompiledUtility,
@@ -89,7 +90,7 @@ pub(in crate::compiler) fn render_utility_rule(
 
 /// Renders all alternatives of an already-resolved variant path.
 ///
-/// Runtime guards remain unresolved and use separate support groups, as in
+/// Runtime guards and their rule boundaries remain unresolved, as in
 /// [`render_utility_rule`]; no registry lookup or output-strategy choice occurs here.
 pub(in crate::compiler) fn render_utility_rule_path(
     class_selector: &str,
@@ -221,7 +222,7 @@ fn render_utility_steps(
         rule = format!("@container {container}{{{rule}}}");
     }
     if conditional {
-        isolate_rule(&rule, identifiers)
+        Ok(protect(&rule))
     } else {
         Ok(rule)
     }

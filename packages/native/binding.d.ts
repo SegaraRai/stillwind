@@ -433,11 +433,11 @@ export interface NativeCompileSourceInput {
 /** The fields of a conditional helper request. */
 export interface NativeConditionContext {
   /**
-   * Which helper the name is written for: `rule`, `fallback`, `gate`, `gate-value`, or
-   * `gate-not`.
+   * Which helper the name is written for: `rule`, `fallback`, `gate`, `gate-value`,
+   * or `gate-not`.
    */
   role: string
-  /** The CSS the helper serves. */
+  /** Canonical owner and interval identity for `rule`; otherwise the conditional CSS. */
   text: string
 }
 

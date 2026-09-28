@@ -29,7 +29,8 @@ pub struct StylesheetMapping {
 /// Generated CSS plus the mappings that explain where each part came from.
 #[derive(Clone, Debug, Default)]
 pub struct MappedStylesheet {
-    /// Template node identity for each emitted range, stable across producer selections.
+    /// Template node identity for each emitted range, stable across producer
+    /// selections.
     pub segments: Vec<(Range<usize>, usize)>,
     /// Generated keyframe contributions in emission order. Each entry's mappings
     /// address that entry's own `css`, not the parent's rule text. Producers use leaf
@@ -46,6 +47,109 @@ pub struct MappedStylesheet {
 }
 
 impl MappedStylesheet {
+    /// Applies edits to the current CSS and rebases its source mappings and template
+    /// segments.
+    ///
+    /// Each `(range, replacement)` addresses the original `self.css` in UTF-8 bytes.
+    /// Ranges must be valid, ordered, and nonoverlapping. Empty ranges insert text, and
+    /// multiple insertions at one offset retain their supplied order. An insertion at
+    /// the start of a replacement must precede that replacement in `edits`.
+    ///
+    /// Retained text keeps clipped mappings. Replacement text receives an inexact
+    /// mapping and segment identity only where an original range contains the edit's
+    /// start. An exact source mapping anchors replacement text at the corresponding
+    /// source byte. Insertion at EOF inherits no origin. Keyframes and requirements are
+    /// unchanged. Input mappings must satisfy their range and exactness invariants.
+    ///
+    /// # Panics
+    ///
+    /// Invalid edit ordering or UTF-8 bounds can panic during slicing. Invalid mapping
+    /// coordinates can panic during offset arithmetic. `self` is replaced only after
+    /// the complete edited result has been assembled.
+    pub(crate) fn replace_ranges(&mut self, edits: &[(Range<usize>, String)]) {
+        if edits.is_empty() {
+            return;
+        }
+        let mut result = Self::default();
+        let mut cursor = 0;
+        for (range, replacement) in edits {
+            self.copy_range(&mut result, cursor..range.start);
+            let start = result.css.len();
+            result.css.push_str(replacement);
+            if !replacement.is_empty() {
+                if let Some(mapping) = self
+                    .mappings
+                    .iter()
+                    .find(|mapping| mapping.generated.contains(&range.start))
+                {
+                    let mut mapping = mapping.clone();
+                    if mapping.exact {
+                        mapping.original.start += range.start - mapping.generated.start;
+                    }
+                    mapping.generated = start..result.css.len();
+                    mapping.exact = false;
+                    result.mappings.push(mapping);
+                }
+                if let Some((_, position)) = self
+                    .segments
+                    .iter()
+                    .find(|(span, _)| span.contains(&range.start))
+                {
+                    result.segments.push((start..result.css.len(), *position));
+                }
+            }
+            cursor = range.end;
+        }
+        self.copy_range(&mut result, cursor..self.css.len());
+        self.css = result.css;
+        self.mappings = result.mappings;
+        self.segments = result.segments;
+    }
+
+    /// Appends a retained slice of `self.css` and its intersecting mappings to
+    /// `output`.
+    ///
+    /// `range` must be a valid half-open UTF-8 byte range in `self.css`. Both
+    /// stylesheets must have valid generated ranges, and exact mappings must cover
+    /// equal-length source and generated slices. Existing output mappings must end
+    /// within its CSS. Generated ranges are clipped to the slice and shifted by the
+    /// previous output length. Exact mappings also clip their source ranges, while
+    /// inexact mappings retain their original source attribution. Segment identities
+    /// follow retained text. Keyframes and requirements are not copied.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `range` is invalid for slicing. Invalid mapping coordinates can panic
+    /// during offset arithmetic after text has already been appended to `output`.
+    fn copy_range(&self, output: &mut Self, range: Range<usize>) {
+        let offset = output.css.len();
+        output.css.push_str(&self.css[range.clone()]);
+        for mapping in &self.mappings {
+            let start = mapping.generated.start.max(range.start);
+            let end = mapping.generated.end.min(range.end);
+            if start >= end {
+                continue;
+            }
+            let mut clipped = mapping.clone();
+            if clipped.exact {
+                clipped.original = mapping.original.start + start - mapping.generated.start
+                    ..mapping.original.start + end - mapping.generated.start;
+            }
+            clipped.generated = offset + start - range.start..offset + end - range.start;
+            output.mappings.push(clipped);
+        }
+        for (segment, position) in &self.segments {
+            let start = segment.start.max(range.start);
+            let end = segment.end.min(range.end);
+            if start < end {
+                output.segments.push((
+                    offset + start - range.start..offset + end - range.start,
+                    *position,
+                ));
+            }
+        }
+    }
+
     /// Appends another stylesheet's text, mappings, and pending contributions.
     ///
     /// Rule mappings shift by the previous UTF-8 byte length of `self.css`. Keyframe
@@ -74,10 +178,10 @@ impl MappedStylesheet {
     /// Appends `text`, recording a mapping when `origin` names a sliceable source range.
     ///
     /// Always extends `self.css`; empty text or an unusable origin adds no mapping.
-    /// When `text` equals the source slice, the mapping is exact. Otherwise it attributes
-    /// the generated text to the source span after its leading whitespace, preserving
-    /// the declaration or rule's origin rather than claiming byte-for-byte alignment.
-    /// Pending keyframes and dependency names are unaffected.
+    /// When `text` equals the source slice, the mapping is exact. Otherwise it
+    /// attributes the generated text to the source span after its leading whitespace,
+    /// preserving the declaration or rule's origin rather than claiming byte-for-byte
+    /// alignment. Pending keyframes and dependency names are unaffected.
     pub fn text(&mut self, text: &str, origin: Option<(Arc<SourceFile>, Span)>) {
         let start = self.css.len();
         self.css.push_str(text);
@@ -108,6 +212,35 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
+
+    #[test]
+    fn edits_preserve_utf8_origins_and_template_segments() {
+        let source = Arc::new(SourceFile::new(FileId(7), None, None, ".日本{color:red}").unwrap());
+        let mut css = MappedStylesheet::default();
+        css.text(source.text(), Some((source.clone(), source.full_span())));
+        css.segments.push((0..css.css.len(), 4));
+        let color = css.css.find("red").unwrap();
+        css.replace_ranges(&[
+            (0..0, "@supports (--123:0){".into()),
+            (color..color + 3, "blue".into()),
+            (css.css.len()..css.css.len(), "}".into()),
+        ]);
+        assert_eq!(css.css, "@supports (--123:0){.日本{color:blue}}");
+        assert!(css.segments.iter().all(|(_, position)| *position == 4));
+        let mut end = 0;
+        for mapping in &css.mappings {
+            assert!(mapping.generated.start >= end);
+            end = mapping.generated.end;
+            assert!(end <= css.css.len());
+            if mapping.exact {
+                assert_eq!(
+                    &css.css[mapping.generated.clone()],
+                    &source.text()[mapping.original.clone()]
+                );
+            }
+        }
+        assert!(css.mappings.iter().any(|mapping| mapping.exact && css.css[mapping.generated.clone()].contains("日本")));
+    }
 
     #[test]
     fn text_preserves_exact_authored_bytes_and_source_identity() {

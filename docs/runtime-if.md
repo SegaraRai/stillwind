@@ -90,13 +90,22 @@ for native `if()`'s branch evaluation semantics.
 Conditional **variants require `revert-rule` in both strategies**. Native mode
 additionally requires CSS `if()` and its style conditions. This feature is
 experimental and is not supported by every browser. The compiler adds a
-`@supports (color:revert-rule)` gate around conditional rules; browsers without
+`@supports (x:revert-rule)` gate around conditional rules; browsers without
 that feature retain the unconditional styling.
 
-Each conditional rule has a distinct support-group marker. This preserves the
-rule boundary through Vite's CSS minification: merging it with a base rule would
-make `revert-rule` discard that base declaration too. Custom minifier pipelines
-must retain these boundaries. Value conditionals alone do not need `revert-rule`
+Conditional rules share a support-query name within each nonconflicting interval
+of their owner's emission order: `@supports (x:revert-rule) and (--<hash>:0)`.
+A property conflict starts a new interval, including shorthand/longhand and
+logical/physical overlap. Each `style()` call owns its intervals; authored CSS
+uses the outer rule, sharing state across expanded `@apply`, `@variant`, and nested
+rules. The default name hashes the owner and interval without a prefix. These
+names use a separate `rule-boundary` collision pool and may share spelling with
+actual custom properties.
+
+`revert-rule` discards the current rule's declarations for the affected property.
+Merging conflicting rules would also discard a declaration the false branch
+should fall back to. Custom minifier pipelines must preserve distinct support
+queries. Value conditionals alone do not need `revert-rule`
 unless a branch explicitly requests it.
 
 Run `vp run --filter stillwind-module-graph-experiment verify:runtime-if` from the repository

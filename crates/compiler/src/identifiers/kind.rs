@@ -6,9 +6,10 @@
 //! generators reuse a single string per declaration.
 //!
 //! [`IdentifierPool`] groups the families whose names must stay unique among
-//! themselves, because CSS resolves them in one namespace. Validation compares a name
-//! to the identity that produced it, so one declaration that appears in two pools is
-//! not a conflict and only distinct identities sharing a spelling are reported.
+//! themselves, including the independent pool for minification barriers. Validation
+//! compares a name to the identity that produced it, so one declaration that appears in
+//! two pools is not a conflict and only distinct identities sharing a spelling are
+//! reported.
 //!
 //! A prefix (the class, marker, and custom-property prefixes below) marks a name as
 //! compiler-owned and is added by the built-in generator only. A host body is written
@@ -105,6 +106,8 @@ pub enum IdentifierKind {
     ViewTransitionClass,
     /// A conditional helper custom property, without its leading `--`.
     ConditionHelper,
+    /// A support-query name preserving conditional rule boundaries during minification.
+    RuleBoundary,
     /// The custom property one guarded view-transition use writes its class token into,
     /// without its leading `--`.
     ViewTransitionSlot,
@@ -123,6 +126,7 @@ impl IdentifierKind {
             Self::KeyframesName => "keyframes",
             Self::ViewTransitionClass => "view-transition-class",
             Self::ConditionHelper => "condition-helper",
+            Self::RuleBoundary => "rule-boundary",
             Self::ViewTransitionSlot => "view-transition-slot",
             Self::LayerName => "layer",
         }
@@ -137,12 +141,13 @@ impl IdentifierKind {
             Self::KeyframesName => IdentifierPool::KeyframesName,
             Self::ViewTransitionClass => IdentifierPool::ViewTransitionClass,
             Self::ConditionHelper | Self::ViewTransitionSlot => IdentifierPool::CustomProperty,
+            Self::RuleBoundary => IdentifierPool::RuleBoundary,
             Self::LayerName => IdentifierPool::LayerName,
         }
     }
 }
 
-/// One CSS namespace whose names must be distinct across the document.
+/// One collision domain whose names must be distinct across the document.
 ///
 /// Names in different pools do not interact, so the same spelling may appear in both;
 /// within one pool a spelling may only belong to one identity.
@@ -164,6 +169,8 @@ pub enum IdentifierPool {
     ViewTransitionClass,
     /// Everything in the custom-property namespace.
     CustomProperty,
+    /// Support-query identities that keep conditional rules from merging.
+    RuleBoundary,
     /// `@layer` names in the document and in CSS carried by modules.
     LayerName,
 }
@@ -178,6 +185,7 @@ impl IdentifierPool {
             Self::KeyframesName => "keyframes",
             Self::ViewTransitionClass => "view-transition-class",
             Self::CustomProperty => "custom-property",
+            Self::RuleBoundary => "rule-boundary",
             Self::LayerName => "layer",
         }
     }
@@ -196,6 +204,7 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
         IdentifierKind::KeyframesName => DEFAULT_KEYFRAMES_PREFIX,
         IdentifierKind::ViewTransitionClass => DEFAULT_VIEW_TRANSITION_CLASS_PREFIX,
         IdentifierKind::ConditionHelper => DEFAULT_CONDITION_PREFIX,
+        IdentifierKind::RuleBoundary => "",
         IdentifierKind::ViewTransitionSlot => DEFAULT_VIEW_TRANSITION_SLOT_PREFIX,
         IdentifierKind::LayerName => DEFAULT_LAYER_PREFIX,
     }
@@ -243,6 +252,10 @@ mod tests {
             IdentifierKind::ViewTransitionSlot.pool(),
             IdentifierPool::CustomProperty
         );
+        assert_eq!(
+            IdentifierKind::RuleBoundary.pool(),
+            IdentifierPool::RuleBoundary
+        );
     }
 
     #[test]
@@ -255,6 +268,7 @@ mod tests {
             IdentifierKind::KeyframesName,
             IdentifierKind::ViewTransitionClass,
             IdentifierKind::ConditionHelper,
+            IdentifierKind::RuleBoundary,
             IdentifierKind::ViewTransitionSlot,
             IdentifierKind::LayerName,
         ];
@@ -266,6 +280,7 @@ mod tests {
 
     #[test]
     fn only_families_the_builtin_generator_owns_carry_a_prefix() {
+        assert!(builtin_prefix(IdentifierKind::RuleBoundary).is_empty());
         for kind in [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,

@@ -19,6 +19,7 @@ use super::style_variants::StyleVariantPlan;
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
 use super::utilities::resolve::CompiledUtility;
+use crate::compiler::RuleBoundaries;
 use crate::identifiers::{
     ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
 };
@@ -357,6 +358,14 @@ impl<'a> ClassUnits<'a> {
                     });
                 }
             }
+        }
+        let owner = format!(
+            "style\0{}\0{}\0{}",
+            self.module_id, self.options.class_namespace, self.call_span.start.0
+        );
+        let mut boundaries = RuleBoundaries::new(owner, self.identifiers);
+        for contribution in &mut deferred {
+            contribution.css = boundaries.render(&contribution.css)?;
         }
         self.utility_css.append(&mut deferred);
         self.classes.sort_by_key(|(order, _)| *order);

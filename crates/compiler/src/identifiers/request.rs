@@ -130,7 +130,7 @@ pub struct LayerContext {
 /// What one generated conditional helper is written for.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ConditionRole {
-    /// A rule-isolation guard: the support group around one finished rule.
+    /// A support group shared by one owner's nonconflicting rule interval.
     Rule,
     /// A declaration fallback: the helper a lowered conditional reads.
     Fallback,
@@ -160,8 +160,7 @@ impl ConditionRole {
     /// directly.
     const fn builtin_letter(self) -> &'static str {
         match self {
-            Self::Rule => "r",
-            Self::Fallback => "",
+            Self::Rule | Self::Fallback => "",
             Self::Gate => "g",
             Self::GateValue => "v",
             Self::GateNot => "n",
@@ -174,7 +173,7 @@ impl ConditionRole {
 pub struct ConditionContext {
     /// Which helper the name is written for.
     pub role: ConditionRole,
-    /// The CSS the helper serves: a rule, a lowered conditional, or a condition.
+    /// Canonical owner and interval identity for `Rule`; otherwise the conditional CSS.
     pub text: String,
 }
 
@@ -367,10 +366,7 @@ impl DeclarationIdentity for LocatorContext {
 pub struct ConditionHelperRequest(pub ConditionContext);
 
 impl ConditionHelperRequest {
-    /// Hash of the CSS the helper serves, without the role.
-    ///
-    /// The text is hashed as it stands: a helper is a helper for exactly this CSS, so its identity
-    /// is the text itself rather than a spelling the compiler invented.
+    /// Hash of the canonical context text, without the role.
     pub(crate) fn text_hash(&self) -> IdentifierHash {
         hashed(&self.0.text)
     }
@@ -378,7 +374,11 @@ impl ConditionHelperRequest {
 
 impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
     fn kind(&self) -> IdentifierKind {
-        IdentifierKind::ConditionHelper
+        if self.0.role == ConditionRole::Rule {
+            IdentifierKind::RuleBoundary
+        } else {
+            IdentifierKind::ConditionHelper
+        }
     }
 
     fn identity(&self) -> String {
@@ -406,6 +406,9 @@ impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
     }
 
     fn builtin(&self, _hash: &IdentifierHash, hash_length: usize) -> String {
+        if self.0.role == ConditionRole::Rule {
+            return self.text_hash().short_base36(hash_length);
+        }
         // The role is a letter of the prefix rather than part of the digest, so the
         // name is the helper's text hash under the spelling of its own role.
         format!(

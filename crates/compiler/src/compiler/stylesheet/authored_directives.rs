@@ -13,7 +13,8 @@ use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_syntax::parse_candidate;
 
-use super::super::conditionals::{guard, isolate_rule};
+use super::super::conditionals::guard;
+use super::super::rule_boundaries::protect;
 use super::super::utilities::declaration_order::{order_utilities, prepend_missing_declarations};
 use super::super::utilities::resolve::resolve_utility;
 use super::super::variants::{VariantStep, variant_paths};
@@ -24,12 +25,12 @@ use crate::identifiers::IdentifierContext;
 ///
 /// Returns a new string; `css` and `theme` are not modified. Resolved applications
 /// append registration names to `required_properties` in utility emission order,
-/// retaining existing entries and duplicates. Applications are expanded before variants.
-/// Within an application, unconditional declarations precede runtime-guarded rules; builtin
-/// ordering is retained within each group. Runtime guards remain unresolved `--if`
-/// expressions for the later options-aware lowering pass.
-/// A directive that cannot be expanded remains in the returned text, so this function
-/// is not a CSS validator.
+/// retaining existing entries and duplicates. Applications are expanded before
+/// variants. Within an application, unconditional declarations precede runtime-guarded
+/// rules; builtin ordering is retained within each group. Runtime guards remain
+/// unresolved `--if` expressions for the later options-aware lowering pass. A directive
+/// that cannot be expanded remains in the returned text, so this function is not a CSS
+/// validator.
 pub(in crate::compiler) fn expand_authored_directives(
     css: &str,
     theme: &ThemeIndex,
@@ -103,9 +104,10 @@ pub(in crate::compiler) fn expand_authored_directives(
 
 /// Expands one `@variant <prelude> { body }` block.
 ///
-/// The prelude is a comma-separated list of variant sequences, and each sequence expands to its
-/// own copy of the body. Returns `None` when a sequence is empty or an unknown variant appears, so
-/// the caller can leave the block unexpanded instead of emitting partial rules.
+/// The prelude is a comma-separated list of variant sequences, and each sequence
+/// expands to its own copy of the body. Returns `None` when a sequence is empty or an
+/// unknown variant appears, so the caller can leave the block unexpanded instead of
+/// emitting partial rules.
 ///
 /// # Errors
 ///
@@ -157,8 +159,8 @@ pub(in crate::compiler) fn expand_authored_variant(
 
 /// Splits `value` on `separator` at the top level only.
 ///
-/// Separators inside quotes, parentheses, brackets, or braces stay part of the item they belong
-/// to, which is what allows a variant prelude to contain `:is(a, b)`.
+/// Separators inside quotes, parentheses, brackets, or braces stay part of the item
+/// they belong to, which is what allows a variant prelude to contain `:is(a, b)`.
 pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
@@ -195,16 +197,17 @@ pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> 
 
 /// Wraps `body` in every application of one variant path.
 ///
-/// The innermost step is applied first, so the outermost at-rule of the path ends up containing
-/// the whole rule. Declarations a variant contributes are prepended only when the body does not
-/// already set that property, which keeps an explicit authored value authoritative.
-/// Runtime conditions guard declarations recursively and add distinct support groups
-/// to preserve `revert-rule` boundaries during minification. The result still contains
-/// `--if` expressions; callers must lower it using the selected compiler strategy.
+/// The innermost step is applied first, so the outermost at-rule of the path ends up
+/// containing the whole rule. Declarations a variant contributes are prepended only
+/// when the body does not already set that property, which keeps an explicit authored
+/// value authoritative. Runtime conditions guard declarations recursively. Callers must
+/// finalize the retained rule boundaries after all directives are expanded and lower
+/// `--if` expressions using the selected compiler strategy.
 ///
-/// One path's conditional steps share one list of gate names, so a later step leaves the gate
-/// declarations an earlier one wrote alone. Those declarations are already part of the returned
-/// text, and no caller guards that text again, so the list ends with the path.
+/// One path's conditional steps share one list of gate names, so a later step leaves
+/// the gate declarations an earlier one wrote alone. Those declarations are already
+/// part of the returned text, and no caller guards that text again, so the list ends
+/// with the path.
 pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
@@ -257,7 +260,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
                             let guarded = guard(&body, condition, identifiers, &gates)?;
                             gates.extend(guarded.gates);
                             let rule = format!("&{{{}}}", guarded.css);
-                            Ok((isolate_rule(&rule, identifiers)?, gates))
+                            Ok((protect(&rule), gates))
                         }
                         VariantStep::StartingStyle => {
                             Ok((format!("@starting-style{{{body}}}"), gates))

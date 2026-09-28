@@ -20,9 +20,11 @@ use stillwind_source::{FileId, ModuleId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::candidate::CandidateResolver;
-use crate::compiler::{emit_utility_rules, resolve_utility_targets, unresolved_utility_kind};
-use crate::identifiers::{ClassContext, IdentifierContext};
-use crate::{CompilerOptions, GeneratedRule, ModuleCssArtifact};
+use crate::compiler::{
+    RuleBoundaries, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
+};
+use crate::identifiers::{self, ClassContext, IdentifierContext};
+use crate::{CompilerOptions, GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
 
 /// Everything one candidate produces for an editor.
 ///
@@ -166,9 +168,9 @@ impl DesignSystemQuery {
         // The built-in generator cannot reject an input, so the fallback selector is
         // unreachable; previews keep the empty string rather than panicking a host.
         let selector = IdentifierContext::new(
-            crate::GeneratorSet::default(),
-            crate::IdentifierMode::Release,
-            crate::identifiers::DEFAULT_HASH_LENGTH,
+            GeneratorSet::default(),
+            IdentifierMode::Release,
+            identifiers::DEFAULT_HASH_LENGTH,
         )
         .class_name(&ClassContext {
             module: ModuleId::from(""),
@@ -193,12 +195,16 @@ impl DesignSystemQuery {
             // The preview names its class with the built-in generator, so a rejected name is
             // unreachable and a helper that cannot be named contributes nothing.
             let identifiers = IdentifierContext::new(
-                crate::GeneratorSet::default(),
-                crate::IdentifierMode::Release,
-                crate::identifiers::DEFAULT_HASH_LENGTH,
+                GeneratorSet::default(),
+                IdentifierMode::Release,
+                identifiers::DEFAULT_HASH_LENGTH,
             );
             let _ =
                 emit_utility_rules(&mut contributions, &selector, &targets, theme, &identifiers);
+            let mut boundaries = RuleBoundaries::new(format!("preview\0{candidate}"), &identifiers);
+            for contribution in &mut contributions {
+                contribution.css = boundaries.render(&contribution.css).unwrap_or_default();
+            }
             Vec::new()
         } else {
             vec![LintFinding::new(

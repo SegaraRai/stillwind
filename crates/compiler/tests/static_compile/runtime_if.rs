@@ -8,13 +8,15 @@ use stillwind_source::{CssSourceName, ModuleId};
 use super::*;
 
 fn compile(candidates: &str, native: bool) -> CompileResult {
+    compile_arguments(&format!("{candidates:?}"), native)
+}
+
+fn compile_arguments(arguments: &str, native: bool) -> CompileResult {
     let component = SourceFile::new(
         FileId(1),
         None,
         None,
-        format!(
-            "import {{ style }} from 'stillwind/react'; export const x = style({candidates:?});"
-        ),
+        format!("import {{ style }} from 'stillwind/react'; export const x = style({arguments});"),
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@import 'stillwind';").unwrap();
@@ -31,6 +33,97 @@ fn compile(candidates: &str, native: bool) -> CompileResult {
             ..CompilerOptions::default()
         },
     )
+}
+
+#[test]
+fn runtime_if_intervals_follow_base_before_branch_publication() {
+    let result = compile_arguments(
+        r#"enabled && "if(--b):[height:2px]", "if(--a):[color:red]", other && "if(--c):[color:blue]""#,
+        true,
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let names = boundary_names(&result.module_css);
+    assert_eq!(names.len(), 3, "{}", result.module_css);
+    assert_eq!(names[0], names[1]);
+    assert_ne!(names[1], names[2]);
+}
+
+fn boundary_names(css: &str) -> Vec<&str> {
+    css.split("and (--")
+        .skip(1)
+        .map(|tail| tail.split(':').next().unwrap())
+        .collect()
+}
+
+#[test]
+fn runtime_if_independent_rules_share_barriers_but_conflicts_do_not() {
+    for native in [false, true] {
+        let result = compile(
+            "if(--a):[color:red] if(--b):[width:1px] if(--c):[color:blue] if(--d):[height:2px]",
+            native,
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let names = boundary_names(&result.module_css);
+        assert_eq!(names.len(), 4, "{}", result.module_css);
+        assert_eq!(names[0], names[1]);
+        assert_ne!(names[1], names[2]);
+        assert_eq!(names[2], names[3]);
+        assert!(!result.module_css.contains("-stillwind-rule-boundary"));
+        let mut sheet = StyleSheet::parse(&result.module_css, ParserOptions::default()).unwrap();
+        sheet
+            .minify(lightningcss::stylesheet::MinifyOptions::default())
+            .unwrap();
+        let minified = sheet
+            .to_css(PrinterOptions {
+                minify: true,
+                ..PrinterOptions::default()
+            })
+            .unwrap()
+            .code;
+        let groups = boundary_names(&minified);
+        assert!(
+            groups.contains(&names[0]) && groups.contains(&names[2]),
+            "{minified}"
+        );
+        assert!(groups.len() < names.len(), "{minified}");
+    }
+}
+
+#[test]
+fn runtime_if_authored_apply_and_variant_share_owner_and_expand_nested_rules() {
+    let source = crate::css_fixture::source(
+        FileId(2),
+        r"
+        @import 'stillwind';
+        .sample {
+            @apply if(--a):[color:red];
+            @variant if(--b) { width: 1px; }
+            @variant if(--c) { @apply [color:blue]; @media print { height: 2px; } }
+        }
+        .sample { @variant if(--a) { color: red; } }
+    ",
+    )
+    .unwrap();
+    for native in [false, true] {
+        let css = Compiler::render_stylesheet(
+            &source,
+            &CssSourceName::from("test.css"),
+            "",
+            &CompilerOptions {
+                use_css_if: native,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap();
+        let names = boundary_names(&css);
+        assert_eq!(names.len(), 5, "{css}");
+        assert_eq!(names[0], names[1], "{css}");
+        assert_ne!(names[1], names[2], "{css}");
+        assert_eq!(names[2], names[3], "{css}");
+        assert_ne!(names[0], names[4], "{css}");
+        assert!(!css.contains("-stillwind-rule-boundary"), "{css}");
+        StyleSheet::parse(&css, ParserOptions::default()).unwrap();
+    }
 }
 
 #[test]
@@ -312,7 +405,8 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             !css.contains("--if(") && !css.contains("@variant") && !css.contains("@apply"),
             "{css}"
         );
-        assert!(css.contains("--test-ifr-"), "{css}");
+        assert!(css.contains("@supports (x:revert-rule) and (--"), "{css}");
+        assert!(!css.contains("ifr-"), "{css}");
         assert!(!css.contains("--sw-if"), "{css}");
         assert!(
             css.contains("--sw-user:1") && css.contains("var(--sw-user)"),

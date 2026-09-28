@@ -17,10 +17,12 @@ use stillwind_source::{SourceFile, Span};
 
 use super::authored::render_authored;
 use super::support::SupportOutput;
+use crate::compiler::RuleBoundaries;
 use crate::identifiers::{IdentifierContext, LayerContext};
 use crate::{CompilerOptions, MappedStylesheet};
 
-/// Walks the template and returns mapped CSS with the number of utilities slots visited.
+/// Walks the template and returns mapped CSS with the number of utilities slots
+/// visited.
 ///
 /// `template`, `theme`, `options`, and `support` must describe the same selection.
 /// `utility_css.css` is inserted at every utilities slot; its separate keyframes must
@@ -56,6 +58,7 @@ pub(super) fn emit(
         support,
         identifiers,
         slots: 0,
+        style_depth: 0,
         position: 0,
         layer_identity: LayerContext {
             template: template.source_identity.clone(),
@@ -72,13 +75,15 @@ pub(super) fn emit(
 /// Recursive walks share this state so filtering carrier output cannot renumber
 /// anonymous layers or lose nested utilities-slot counts.
 struct Context<'a> {
+    style_depth: usize,
     /// Depth-first template node ordinal, including omitted and empty nodes.
     position: usize,
     /// Theme used to resolve authored nodes; must match the prepared support.
     theme: &'a ThemeIndex,
     /// Mapped utility contribution inserted at utilities slots.
     utility_css: &'a MappedStylesheet,
-    /// Generated-name configuration and runtime-conditional strategy for template expansion.
+    /// Generated-name configuration and runtime-conditional strategy for template
+    /// expansion.
     options: &'a CompilerOptions,
     /// Whether authored document rules are included rather than only carrier support.
     document: bool,
@@ -89,7 +94,8 @@ struct Context<'a> {
     /// Name allocation shared with the rest of this compilation.
     identifiers: &'a IdentifierContext,
     /// Context one anonymous layer name is generated from; shared by walks of the same
-    /// template and class namespace, so a document and its carriers agree on layer names.
+    /// template and class namespace, so a document and its carriers agree on layer
+    /// names.
     layer_identity: LayerContext,
     /// Next zero-based anonymous-layer index in depth-first template order.
     /// Advances even for groups whose body a carrier omits.
@@ -99,11 +105,19 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
+    fn boundary_owner(&self, position: usize) -> String {
+        format!(
+            "authored\0{}\0{}\0{position}",
+            self.layer_identity.template, self.options.class_namespace
+        )
+    }
+
     /// Renders `nodes` in rule context using the current traversal counters.
     ///
     /// Delegates to [`Self::nodes_in_context`] with authored declarations excluded from
-    /// carrier rule context. Existing counter values are retained and advanced, so recursive
-    /// calls continue the same anonymous-layer numbering and utilities-slot count.
+    /// carrier rule context. Existing counter values are retained and advanced, so
+    /// recursive calls continue the same anonymous-layer numbering and utilities-slot
+    /// count.
     ///
     /// # Errors
     ///
@@ -115,10 +129,10 @@ impl Context<'_> {
 
     /// Renders nodes in source order, advancing the shared layer and slot counters.
     ///
-    /// `declarations` retains authored nodes inside style rules even for carriers, because
-    /// omitting surrounding declarations changes the generated rule. Style children use
-    /// declaration context; at-rule children use rule context. Every visited slot receives
-    /// its contribution, including repeated slots.
+    /// `declarations` retains authored nodes inside style rules even for carriers,
+    /// because omitting surrounding declarations changes the generated rule. Style
+    /// children use declaration context; at-rule children use rule context. Every
+    /// visited slot receives its contribution, including repeated slots.
     ///
     /// Anonymous layers are numbered before filtering their bodies. Carriers retain an
     /// empty layer as a statement to preserve the document's layer order; other empty
@@ -146,16 +160,22 @@ impl Context<'_> {
                     output.text(css, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { css, origin } if self.document || declarations => {
-                    // The selection pass already read the explicit requirements of these nodes:
-                    // `custom_css()` is exactly the template's authored text. A carrier keeps
-                    // style-node text without scanning it, so only the rendered text is used here.
-                    let authored = render_authored(
+                    // The selection pass already read the explicit requirements of
+                    // these nodes: `custom_css()` is exactly the template's authored
+                    // text. A carrier keeps style-node text without scanning it, so
+                    // only the rendered text is used here.
+                    let mut authored = render_authored(
                         css,
                         self.theme,
                         &mut Vec::new(),
                         self.options,
                         self.identifiers,
                     )?;
+                    if self.style_depth == 0 {
+                        authored =
+                            RuleBoundaries::new(self.boundary_owner(position), self.identifiers)
+                                .render(&authored)?;
+                    }
                     output.text(&authored, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
@@ -176,7 +196,13 @@ impl Context<'_> {
                     children,
                     origin,
                 } => {
-                    let body = self.nodes_in_context(children, true)?;
+                    self.style_depth += 1;
+                    let mut body = self.nodes_in_context(children, true)?;
+                    self.style_depth -= 1;
+                    if self.style_depth == 0 {
+                        RuleBoundaries::new(self.boundary_owner(position), self.identifiers)
+                            .render_mapped(&mut body)?;
+                    }
                     if !body.css.is_empty() {
                         output.text(header, resolve_origin(self.sources, *origin));
                         output.text("{", None);

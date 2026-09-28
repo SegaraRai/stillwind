@@ -112,7 +112,7 @@ brand! {
     KeyframesName, custom_ident;
     /// A `view-transition-class` custom-ident, which is also the transition's identity.
     ViewTransitionClass, custom_ident;
-    /// A conditional helper custom property name, without its leading double hyphen.
+    /// A conditional helper or support-query name, without its leading double hyphen.
     ConditionHelperName, custom_ident;
     /// The custom property name one guarded view-transition use writes its class token
     /// into, without its leading double hyphen.
@@ -310,7 +310,7 @@ fn class_selector(name: &str) -> String {
 /// A custom property name and a `<dashed-ident>` value share this spelling: the two
 /// hyphens belong to the property or value grammar, not to the name.
 fn dashed_ident(name: &str) -> String {
-    format!("--{}", escaped_identifier(name))
+    escaped_identifier(&format!("--{name}"))
 }
 
 /// Escapes one canonical name as a CSS identifier.
@@ -333,6 +333,18 @@ pub(crate) fn view_transition_name(token: &str, key: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::view_transition_name;
+
+    #[test]
+    fn dashed_names_can_start_with_digits_without_escape_overhead() {
+        assert_eq!(
+            super::ConditionHelperName::new("123ab").unwrap().property(),
+            "--123ab"
+        );
+        assert_eq!(
+            super::ConditionHelperName::new("a:b").unwrap().property(),
+            "--a\\:b"
+        );
+    }
 
     /// The runtime composes the dynamic half of these names, so both sides read one table.
     #[test]
