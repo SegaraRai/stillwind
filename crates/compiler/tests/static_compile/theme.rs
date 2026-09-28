@@ -8,6 +8,7 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -28,11 +29,11 @@ fn malformed_theme_reference_is_a_diagnostic_instead_of_an_omitted_token() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(
@@ -62,11 +63,11 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -105,11 +106,11 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &component,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
             assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
@@ -139,11 +140,11 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             ),
         )
         .unwrap(),
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &crate::css_fixture::source(FileId(4), stillwind_fixture_css(&input_css)).unwrap(),
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -177,11 +178,11 @@ fn framework_imports_gate_baseline_layers() {
         Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &crate::css_fixture::source(FileId(2), css).unwrap(),
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         )
     };
@@ -232,14 +233,14 @@ fn framework_imports_gate_baseline_layers() {
             None,
             "import { style } from \"stillwind/react\"; const props = style(\"bg-linear-to-r\");",
         ).unwrap(),
-    "test.tsx",
+    &ModuleId::from("test.tsx"),
     ScriptLanguage::Tsx,
     ScriptModuleKind::Unambiguous,
     &crate::css_fixture::source(
             FileId(4),
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap(),
-        "stillwind.css"
+        &CssSourceName::from("stillwind.css")
     , &CompilerOptions::default());
     assert!(content.diagnostics.is_empty());
     assert!(!content.css.contains("@property --tw-gradient-position"));

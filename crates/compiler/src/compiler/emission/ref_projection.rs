@@ -3,7 +3,7 @@
 use stillwind_design_system::UtilityOrder;
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{RefDefinition, RefProjection, StyleVariant};
-use stillwind_source::Span;
+use stillwind_source::{ModuleId, Span};
 
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -199,7 +199,7 @@ fn render_ref_projection(
     context: &IdentifierContext,
     definition: &RefDefinition,
     projection: &RefProjection,
-    source_path: &str,
+    module_id: &ModuleId,
 ) -> Result<(String, Option<GeneratedSymbol>), CompileErrorKind> {
     let name = anchor_name(context, definition, Some(ref_projection_name(projection)))?;
     let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
@@ -208,7 +208,7 @@ fn render_ref_projection(
             identity_input_parts(&ref_context(definition, None)),
             pool,
             kind,
-            source_path,
+            module_id,
             definition.call_span,
         ))
     };
@@ -234,7 +234,7 @@ fn render_ref_projection(
                     identity_input_parts(&ref_context(definition, None)),
                     IdentifierPool::ContainerName,
                     "container",
-                    source_path,
+                    module_id,
                     definition.call_span,
                 )),
             )
@@ -263,9 +263,9 @@ mod tests {
 
     #[test]
     fn projections_share_identity_and_boundaries_name_their_own_declaration() {
-        let binding = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
+        let binding = Spanned::new("ref".to_owned(), Span::new(FileId(1), 0, 3));
         let mut definition = RefDefinition {
-            module_path: "x".into(),
+            module_id: ModuleId::from("x"),
             binding: binding.clone(),
             label: None,
             boundary: None,
@@ -273,8 +273,13 @@ mod tests {
         };
         let context = identifiers();
         let marker = ref_marker_name(&context, &definition).unwrap();
-        let (anchor, anchor_symbol) =
-            render_ref_projection(&context, &definition, &RefProjection::Anchor, "x").unwrap();
+        let (anchor, anchor_symbol) = render_ref_projection(
+            &context,
+            &definition,
+            &RefProjection::Anchor,
+            &ModuleId::from("x"),
+        )
+        .unwrap();
         let reference = anchor.strip_prefix("anchor-name:").unwrap();
         let anchor_symbol = anchor_symbol.expect("anchor name symbol");
         assert_eq!(anchor_symbol.pool, IdentifierPool::AnchorName);
@@ -282,18 +287,27 @@ mod tests {
             anchor_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
         );
-        let (position, _) =
-            render_ref_projection(&context, &definition, &RefProjection::PositionAnchor, "x")
-                .unwrap();
+        let (position, _) = render_ref_projection(
+            &context,
+            &definition,
+            &RefProjection::PositionAnchor,
+            &ModuleId::from("x"),
+        )
+        .unwrap();
         assert_eq!(position, format!("position-anchor:{reference}"));
-        let (scope_projection, _) =
-            render_ref_projection(&context, &definition, &RefProjection::AnchorScope, "x").unwrap();
+        let (scope_projection, _) = render_ref_projection(
+            &context,
+            &definition,
+            &RefProjection::AnchorScope,
+            &ModuleId::from("x"),
+        )
+        .unwrap();
         assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
         let (container, container_symbol) = render_ref_projection(
             &context,
             &definition,
-            &RefProjection::Container(Spanned::new("size".into(), binding.span)),
-            "x",
+            &RefProjection::Container(Spanned::new("size".to_owned(), binding.span)),
+            &ModuleId::from("x"),
         )
         .unwrap();
         // A container name is its own family, so it is not the anchor's spelling.
@@ -310,7 +324,7 @@ mod tests {
             identity_input_parts(&ref_context(&definition, None))
         );
         definition.boundary = Some(BoundaryRef {
-            module_path: "x".into(),
+            module_id: ModuleId::from("x"),
             binding: binding.clone(),
             label: Some(binding.clone()),
             call_span: binding.span,
@@ -324,7 +338,7 @@ mod tests {
             ref_marker_name(
                 &context,
                 &RefDefinition {
-                    module_path: "x".into(),
+                    module_id: ModuleId::from("x"),
                     binding: binding.clone(),
                     label: Some(binding.clone()),
                     boundary: None,

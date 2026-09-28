@@ -9,25 +9,10 @@
 
 use std::sync::Arc;
 
-use stillwind_source::{FileId, SourceFile, SourceUri, Span};
+use stillwind_source::{CssSourceName, FileId, SourceFile, SourceUri, Span};
 
 use super::state::DesignSystemLoadError;
 use crate::DesignSystemSnapshot;
-
-/// Opaque identity of one supplied CSS buffer.
-///
-/// The host is responsible for choosing names consistently, for example by
-/// canonicalizing the entry and each resolved import in the same way. Two responses
-/// that carry the same name are the same source: identical content reuses the parsed
-/// buffer, different content is a protocol error.
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct CssSourceName(pub Arc<str>);
-
-impl From<&str> for CssSourceName {
-    fn from(value: &str) -> Self {
-        Self(value.into())
-    }
-}
 
 /// Why the loader needs a source.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -89,14 +74,14 @@ pub struct CssSourceGraph {
     pub resources: Vec<CssResourceReference>,
 }
 
-/// A resource placeholder in generated CSS. Hosts resolve specifiers relative to
-/// `owner`, then replace the placeholder before their CSS asset pipeline.
+/// A resource placeholder in generated CSS. Hosts resolve specifiers from
+/// `source_name`, then replace the placeholder before their CSS asset pipeline.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssResourceReference {
     /// Unique marker emitted instead of the authored resource reference.
     pub placeholder: String,
-    /// Name of the source that authored the reference.
-    pub owner: String,
+    /// Source that authored the reference.
+    pub source_name: CssSourceName,
     /// Decoded resource specifier the host must resolve.
     pub specifier: String,
     /// Span of the authored reference in its own source buffer.

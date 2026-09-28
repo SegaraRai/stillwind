@@ -23,8 +23,8 @@ use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
 use stillwind_source::{
-    CoordinateIndex, FileId, Fingerprint, SourceError, SourceFile, SourceRegistry,
-    SourceRegistryError, SourceUri,
+    CoordinateIndex, CssSourceName, FileId, Fingerprint, ModuleId, SourceError, SourceFile,
+    SourceRegistry, SourceRegistryError, SourceUri,
 };
 
 use crate::options::{NativeCompilerOptions, compiler_options};
@@ -70,7 +70,7 @@ pub struct CompileCssInput {
     /// Resolved CSS text supplied to the parser.
     pub content: String,
     /// Opaque identity used to resolve CSS imports and resources.
-    pub name: String,
+    pub name: CssSourceName,
     /// URI of the editable CSS document for diagnostics.
     pub uri: SourceUri,
     /// Exact source name written into generated CSS maps.
@@ -82,7 +82,7 @@ pub struct CompileSourceInput {
     /// Script text supplied to the parser.
     pub source: String,
     /// Opaque module identity used for references and generated names.
-    pub module_id: String,
+    pub module_id: ModuleId,
     /// URI of the editable script document for diagnostics.
     pub uri: SourceUri,
     /// Exact source name written into generated script maps.
@@ -323,8 +323,9 @@ pub fn compile_project_input(
         .flat_map(|scan| scan.summary.assets.iter().cloned())
         .map(|asset| (asset.identity, asset.metadata))
         .collect::<BTreeMap<IdentityId, AssetMetadata>>();
-    let snapshot = DesignSystemSnapshot::from_source(&theme, &css.name, options.design_system())
-        .map_err(BindingApiError::DesignSystem)?;
+    let snapshot =
+        DesignSystemSnapshot::from_source(&theme, css.name.clone(), options.design_system())
+            .map_err(BindingApiError::DesignSystem)?;
     let compiler = ModuleCompiler::new(snapshot.clone(), options.clone());
     let mut results = scans
         .iter()
@@ -358,7 +359,7 @@ pub fn compile_project_input(
         .map(|(scan, result)| {
             let result = result.to_module_output(&snapshot);
             Ok(ProjectModuleOutput::new(
-                scan.module_id.as_str().to_owned(),
+                scan.module_id.clone(),
                 binding_output(result, &scan.source, &registry)?,
             ))
         })
@@ -441,7 +442,7 @@ pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSumm
 /// Returns invalid source coordinates.
 pub fn summarize_source_input(
     source: &str,
-    module_id: &str,
+    module_id: &ModuleId,
     language: ScriptLanguage,
     module_kind: ScriptModuleKind,
 ) -> Result<NativeModuleSummary, BindingApiError> {
@@ -492,7 +493,7 @@ impl TryFrom<NativeCompileCssInput> for CompileCssInput {
     fn try_from(input: NativeCompileCssInput) -> Result<Self, Self::Error> {
         Ok(Self {
             content: input.content,
-            name: input.name,
+            name: input.name.into(),
             uri: SourceUri::parse(input.uri)
                 .map_err(|error| Error::from_reason(error.to_string()))?,
             source_map_source: input.source_map_source,
@@ -536,7 +537,7 @@ pub fn compile_source(
     let options = compiler_options(options)?;
     let input = CompileSourceInput {
         source: input.source,
-        module_id: input.module_id,
+        module_id: input.module_id.into(),
         uri: SourceUri::parse(input.uri).map_err(|error| Error::from_reason(error.to_string()))?,
         source_map_source: input.source_map_source,
         language: input.language.into(),
@@ -581,8 +582,13 @@ pub fn render_stylesheet(
 ) -> napi::Result<String> {
     let options = compiler_options(options)?;
     let theme = SourceFile::new(FileId(1), None, None, theme).map_err(BindingApiError::from)?;
-    Compiler::render_stylesheet(&theme, "stillwind.css", &module_css, &options)
-        .map_err(|error| Error::from_reason(error.to_string()))
+    Compiler::render_stylesheet(
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &module_css,
+        &options,
+    )
+    .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Returns the versioned Stillwind module summary used for cross-module values.
@@ -598,8 +604,13 @@ pub fn summarize_source(
     language: NativeScriptLanguage,
     module_kind: NativeScriptModuleKind,
 ) -> napi::Result<NativeModuleSummary> {
-    summarize_source_input(&source, &module_id, language.into(), module_kind.into())
-        .map_err(|error| Error::from_reason(error.to_string()))
+    summarize_source_input(
+        &source,
+        &ModuleId::from(module_id),
+        language.into(),
+        module_kind.into(),
+    )
+    .map_err(|error| Error::from_reason(error.to_string()))
 }
 
 /// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
@@ -610,7 +621,7 @@ pub fn summarize_source(
 #[napi(js_name = "generateVocabularyTypes")]
 pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
     let source = SourceFile::new(FileId(2), None, None, theme).map_err(BindingApiError::from)?;
-    Compiler::generate_vocabulary_types(&source, "stillwind.css")
+    Compiler::generate_vocabulary_types(&source, &CssSourceName::from("stillwind.css"))
         .map_err(|error| Error::from_reason(error.to_string()))
 }
 
@@ -627,7 +638,6 @@ pub fn fold_calc_expressions(css: String, zero_unit: Option<String>) -> String {
 #[cfg(test)]
 mod tests {
     use stillwind_compiler::SourceTransform;
-    use stillwind_semantic::ModuleId;
     use stillwind_source::Span;
 
     use super::*;
@@ -674,7 +684,7 @@ mod tests {
         let theme = SourceFile::new(FileId(2), None, None, "@theme {}").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &theme,
-            "test.css",
+            "test.css".into(),
             CompilerOptions::default().design_system(),
         )
         .unwrap();

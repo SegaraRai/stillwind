@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { cleanModuleId, compilerModulePath } from "@stillwind/host";
+import { cleanModuleId, compilerModuleId } from "@stillwind/host";
 import type { Plugin } from "vite";
 
 import { buildHooks } from "./build.ts";
@@ -58,7 +58,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       if (!state.session || !inputMap(name).delete(cleanModuleId(id))) {
         return;
       }
-      state.session.remove(compilerModulePath(settings.projectRoot, cleanModuleId(id)));
+      state.session.remove(compilerModuleId(settings.projectRoot, cleanModuleId(id)));
       await publish(name, this);
     },
     transform: {
@@ -69,7 +69,7 @@ export function stillwind(options: StillwindOptions): Plugin {
           const state = environmentState(name);
           await ensureSession(state, this);
           state.session!.reserveAuthoredCss(
-            compilerModulePath(settings.projectRoot, cleanModuleId(id)),
+            compilerModuleId(settings.projectRoot, cleanModuleId(id)),
             code,
           );
           return;
@@ -85,7 +85,7 @@ export function stillwind(options: StillwindOptions): Plugin {
         if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
           if (inputMap(name).delete(cleanModuleId(id))) {
             environmentState(name).session?.remove(
-              compilerModulePath(settings.projectRoot, cleanModuleId(id)),
+              compilerModuleId(settings.projectRoot, cleanModuleId(id)),
             );
             await publish(name, this);
           }

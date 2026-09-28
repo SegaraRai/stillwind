@@ -32,13 +32,13 @@ export type { TypeFactSource } from "./checker-source.ts";
 
 /** A failed checker contract, reported at original UTF-8 coordinates. */
 export class TypeFactsError extends Error {
-  readonly path: string;
+  readonly module_id: string;
   readonly start: number;
   readonly end: number;
   readonly code: string;
-  constructor(path: string, start: number, end: number, code: string, message: string) {
-    super(`${code}: ${message} (${path}:${start})`);
-    this.path = path;
+  constructor(moduleId: string, start: number, end: number, code: string, message: string) {
+    super(`${code}: ${message} (${moduleId}:${start})`);
+    this.module_id = moduleId;
     this.start = start;
     this.end = end;
     this.code = code;
@@ -236,13 +236,13 @@ export interface TypeScriptFactsStats {
 
 function prepareProject(
   sources: readonly TypeFactSource[],
-  assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
+  assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
   configFile: string,
 ): PreparedProject {
   const virtualFiles = new Map<string, string>();
   const mappings: CheckerSource[] = [];
   const allIdentities = new Map<string, IdentityId>();
-  const ids = new Map(sources.map((source) => [source.id, checkerId(source)]));
+  const ids = new Map(sources.map((source) => [source.resolver_id, checkerId(source)]));
   for (const source of sources) {
     const buffers = source.checker_buffers ?? [
       {
@@ -258,7 +258,7 @@ function prepareProject(
         source,
         buffer,
         index,
-        assetsByPath.get(source.path) ?? [],
+        assetsByModuleId.get(source.module_id) ?? [],
         ids,
       );
       virtualFiles.set(normalize(shadow.id), shadow.text);
@@ -278,7 +278,7 @@ function prepareProject(
         )
       ) {
         throw new TypeFactsError(
-          source.path,
+          source.module_id,
           probe.start,
           probe.end,
           "SHTS003",
@@ -338,12 +338,12 @@ export class TypeScriptFactsService {
 
   collect(
     sources: readonly TypeFactSource[],
-    assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
+    assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
   ): Map<string, TypeFact[]> {
     if (this.#closed) {
       throw new Error("TypeScript facts service is closed");
     }
-    const prepared = prepareProject(sources, assetsByPath, this.#configFile);
+    const prepared = prepareProject(sources, assetsByModuleId, this.#configFile);
     try {
       return this.#collectPrepared(prepared);
     } catch (firstError) {
@@ -459,7 +459,7 @@ export class TypeScriptFactsService {
             "declaration identity",
           );
           throw new TypeFactsError(
-            mapping.source.path,
+            mapping.source.module_id,
             start,
             end,
             "SHTS002",
@@ -467,14 +467,14 @@ export class TypeScriptFactsService {
           );
         }
         const facts = factsForSource(project.checker, sourceFile, mapping, prepared.identities);
-        const previous = result.get(mapping.source.path) ?? [];
+        const previous = result.get(mapping.source.module_id) ?? [];
         for (const fact of facts) {
           const existing = previous.find(
             (value) => value.start === fact.start && value.end === fact.end,
           );
           if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value)) {
             throw new TypeFactsError(
-              mapping.source.path,
+              mapping.source.module_id,
               fact.start,
               fact.end,
               "SHTS003",
@@ -485,7 +485,7 @@ export class TypeScriptFactsService {
             previous.push(fact);
           }
         }
-        result.set(mapping.source.path, previous);
+        result.set(mapping.source.module_id, previous);
       }
       return result;
     } finally {
@@ -498,12 +498,12 @@ export class TypeScriptFactsService {
 /** One-shot convenience API for tests and non-Vite callers. */
 export function collectTypeScriptFacts(
   sources: readonly TypeFactSource[],
-  assetsByPath: ReadonlyMap<string, readonly AssetRecord[]>,
+  assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
   projectRoot: string,
 ): Map<string, TypeFact[]> {
   const service = new TypeScriptFactsService(projectRoot);
   try {
-    return service.collect(sources, assetsByPath);
+    return service.collect(sources, assetsByModuleId);
   } finally {
     service.close();
   }
@@ -535,7 +535,7 @@ function factsForSource(
   for (const [key, probe] of mapping.probes) {
     if (!matched.has(key)) {
       throw new TypeFactsError(
-        mapping.source.path,
+        mapping.source.module_id,
         probe.start,
         probe.end,
         "SHTS003",
@@ -569,7 +569,7 @@ function factsForSource(
             ))
       ) {
         throw new TypeFactsError(
-          mapping.source.path,
+          mapping.source.module_id,
           probe.start,
           probe.end,
           "SHTS003",

@@ -303,7 +303,7 @@ pub(crate) fn resolve_variant_value_domains(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::parse_theme;
@@ -317,7 +317,7 @@ mod tests {
             "@theme { --breakpoint-loop: --value(--breakpoint-*); }",
         )
         .unwrap();
-        let theme = parse_theme(&source, "test.css").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert!(
             resolve_variant_css_placeholders(
                 "@media (width >= --value(--breakpoint-*)) { @slot; }",

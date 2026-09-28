@@ -16,15 +16,14 @@ use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, SourceRegistry};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
 
 /// One snapshot whose theme declares a single token.
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
             .unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -85,7 +84,7 @@ fn session_generators_name_generated_classes() {
             .diagnostics
             .is_empty()
     );
-    let artifact = &session.artifacts()["button.tsx"];
+    let artifact = &session.artifacts()[&ModuleId::from("button.tsx")];
     let class = artifact
         .symbols
         .iter()
@@ -121,9 +120,12 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
         "@theme {} @keyframes authored { to { opacity: 0; } }",
     )
     .unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
         &SourceRegistry::default(),
@@ -158,7 +160,7 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
         )),
         "{:?} {:?}",
         update.diagnostics,
-        session.artifacts()["dialog.tsx"].symbols
+        session.artifacts()[&ModuleId::from("dialog.tsx")].symbols
     );
 }
 
@@ -241,9 +243,12 @@ fn a_layer_name_is_checked_against_the_authored_document() {
         "@layer app-layer-0; @layer { @stillwind-slot utilities; }",
     )
     .unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
         &SourceRegistry::default(),

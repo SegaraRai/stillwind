@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_source::Span;
+use stillwind_source::{ModuleId, Span};
 
 use crate::DiagnosticInfo;
 
@@ -149,8 +149,8 @@ pub enum LintKind {
     /// A base owned by another module declares a property this call also declares.
     #[error("the base in `{module}` overlaps these declarations: `{properties}`")]
     ImportedBaseInterference {
-        /// Normalized project-relative path of the module owning the base.
-        module: String,
+        /// Host identity of the module owning the base.
+        module: ModuleId,
         /// The competing declarations, as `property` or `property and property`.
         properties: String,
     },

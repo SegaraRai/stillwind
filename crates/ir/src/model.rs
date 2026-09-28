@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_semantic::IdentityId;
-use stillwind_source::{Span, Spanned};
+use stillwind_source::{ModuleId, Span, Spanned};
 
 use crate::AdapterKind;
 
@@ -142,8 +142,8 @@ pub struct AttributeEntry {
 /// the boundary that other refs may be bounded by.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RefDefinition {
-    /// Normalized module path of the declaring module.
-    pub module_path: String,
+    /// Module identity of the declaring module.
+    pub module_id: ModuleId,
     /// Lexical binding of the ref; its span seeds the declaration identity.
     pub binding: Spanned<String>,
     /// Optional user label that participates in the declaration's generated names.
@@ -163,8 +163,8 @@ pub struct RefDefinition {
 /// more than these fields.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BoundaryRef {
-    /// Normalized module path of the declaring module.
-    pub module_path: String,
+    /// Module identity of the declaring module.
+    pub module_id: ModuleId,
     /// Lexical binding of the boundary ref; its span seeds the declaration identity.
     pub binding: Spanned<String>,
     /// Optional user label that participates in the declaration's generated names.

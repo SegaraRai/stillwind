@@ -10,8 +10,7 @@ use stillwind_compiler::{
     GeneratedRule, MappedStylesheet, ModuleCssArtifact, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_semantic::ModuleId;
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::{ModuleId, SourceFile, Span};
 
 /// Published rule occurrences ordered by the supplied producer list.
 /// Producers absent from that list follow in module-identity order.
@@ -28,9 +27,9 @@ impl ProjectStylesheet {
     }
 
     /// Retracts one producer without changing any other producer's occurrences.
-    pub fn remove(&mut self, module: &str) {
+    pub fn remove(&mut self, module: &ModuleId) {
         self.contributions.remove(module);
-        self.order.retain(|id| id.as_str() != module);
+        self.order.retain(|id| id != module);
     }
 
     /// Sets the dependency order computed by the linker.
@@ -122,17 +121,17 @@ mod tests {
     #[test]
     fn identical_content_retains_each_cascade_occurrence_and_owner() {
         let mut sheet = ProjectStylesheet::default();
-        sheet.replace("a".into(), &artifact(".x{color:red}"));
-        sheet.replace("b".into(), &artifact(".x{color:blue}"));
-        sheet.replace("c".into(), &artifact(".x{color:red}"));
+        sheet.replace(ModuleId::from("a"), &artifact(".x{color:red}"));
+        sheet.replace(ModuleId::from("b"), &artifact(".x{color:blue}"));
+        sheet.replace(ModuleId::from("c"), &artifact(".x{color:red}"));
         assert_eq!(sheet.rule_count(), 2);
         assert_eq!(
             sheet.module_css().unwrap(),
             ".x{color:red}.x{color:blue}.x{color:red}"
         );
-        sheet.remove("c");
+        sheet.remove(&ModuleId::from("c"));
         assert_eq!(sheet.module_css().unwrap(), ".x{color:red}.x{color:blue}");
-        sheet.set_order(vec!["b".into(), "a".into()]);
+        sheet.set_order(vec![ModuleId::from("b"), ModuleId::from("a")]);
         assert_eq!(sheet.module_css().unwrap(), ".x{color:blue}.x{color:red}");
     }
 
@@ -154,13 +153,13 @@ mod tests {
             }],
         };
         let mut sheet = ProjectStylesheet::default();
-        sheet.replace("a".into(), &artifact);
+        sheet.replace(ModuleId::from("a"), &artifact);
         artifact.rules[0].syntax.body = Some("color:blue;".into());
-        sheet.replace("b".into(), &artifact);
+        sheet.replace(ModuleId::from("b"), &artifact);
         assert_eq!(sheet.rule_count(), 2);
         assert!(sheet.module_css().unwrap().contains("color:red;"));
         assert!(sheet.module_css().unwrap().contains("color:blue;"));
-        sheet.remove("a");
+        sheet.remove(&ModuleId::from("a"));
         assert_eq!(sheet.rule_count(), 1);
         assert!(!sheet.module_css().unwrap().contains("color:red;"));
     }

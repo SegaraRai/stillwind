@@ -9,7 +9,7 @@ import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/nativ
 
 import * as runtime from "../../core/src/runtime/react.ts";
 import * as svelteRuntime from "../../core/src/runtime/svelte.ts";
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { moduleSourceMap } from "../src/source-map.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
@@ -37,7 +37,10 @@ async function compile(source: string, warnings: string[] = []) {
         read: async () => {
           throw new Error("unexpected dependency");
         },
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch: () => {},
         warn: (message) => warnings.push(message),
       },

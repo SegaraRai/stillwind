@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import type { TypeScriptFactsService } from "../src/type-facts.ts";
 
 void test("host name generators decide the names the compiler writes", async () => {
@@ -30,7 +30,10 @@ void test("host name generators decide the names the compiler writes", async () 
       read: async () => {
         throw new Error("unexpected read");
       },
-      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+      describe: (id) => ({
+        ...fileModuleDescriptor(process.cwd(), id),
+        uri: `untitled:${encodeURIComponent(id)}`,
+      }),
       watch: () => {},
       warn: () => {},
     },
@@ -65,7 +68,10 @@ void test("a generator that fails only warns while the session is in development
       read: async () => {
         throw new Error("unexpected read");
       },
-      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+      describe: (id) => ({
+        ...fileModuleDescriptor(process.cwd(), id),
+        uri: `untitled:${encodeURIComponent(id)}`,
+      }),
       watch: () => {},
       warn: (message) => warnings.push(message),
     },

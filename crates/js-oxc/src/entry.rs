@@ -21,7 +21,7 @@ use oxc::span::SourceType;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
 use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::{ModuleId, SourceFile, Span};
 
 use crate::contract::validate;
 use crate::state::MacroExtractor;
@@ -61,7 +61,7 @@ pub struct ParsedJavaScript {
 /// diagnostics rather than as a `Result` error.
 pub fn parse(
     source: &SourceFile,
-    module_id: &str,
+    module_id: &ModuleId,
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
     language: ScriptLanguage,
@@ -83,7 +83,7 @@ pub fn parse(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn parse_with_coordinates(
     source: &SourceFile,
-    module_id: &str,
+    module_id: &ModuleId,
     type_facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
     language: ScriptLanguage,
@@ -164,11 +164,7 @@ pub(crate) fn parse_with_coordinates(
     }
 }
 
-/// Chooses the Oxc source type for a path and an explicit language.
-///
-/// The language wins over the extension, because a projection or an opaque host name
-/// may not carry a usable suffix; an unknown extension falls back to the Oxc default
-/// rather than failing.
+/// Chooses the Oxc source type from host-supplied language and module metadata.
 pub(crate) fn source_type(language: ScriptLanguage, module_kind: ScriptModuleKind) -> SourceType {
     let typescript = matches!(
         language,
@@ -208,7 +204,7 @@ mod tests {
         assert!(
             parse(
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 &[],
                 &BTreeMap::default(),
                 ScriptLanguage::Tsx,
@@ -232,7 +228,7 @@ mod tests {
         .unwrap();
         let plain = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -244,7 +240,7 @@ mod tests {
         assert_eq!(plain.framework, Some(AdapterKind::React));
         let located = parse_with_coordinates(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::new(),
             ScriptLanguage::Tsx,
@@ -255,11 +251,11 @@ mod tests {
         assert!(located.diagnostics.is_empty());
         assert_eq!(located.module.style_calls.len(), 1);
         assert_eq!(located.module.adapter, AdapterKind::React);
-        assert_eq!(plain.summary.module_path, located.summary.module_path);
+        assert_eq!(plain.summary.module_id, located.summary.module_id);
         let empty = SourceFile::new(FileId(2), None, None, "").unwrap();
         let parsed = parse(
             &empty,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -277,7 +273,7 @@ mod tests {
         let source = SourceFile::new(FileId(1), None, None, "const = ;").unwrap();
         let parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,

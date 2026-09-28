@@ -6,11 +6,6 @@
 //! Byte offsets are the internal currency; [`SourceFile::position`] and
 //! [`SourceFile::utf16_offset`] exist only to talk to editors, which count UTF-16 code
 //! units.
-//!
-//! [`normalized_module_path`] is the canonical spelling used in generated identities
-//! and cache keys. Identity-producing passes must normalize through it rather than
-//! local `Path` handling, so one module keeps one name on Windows and POSIX. Nothing
-//! in this module performs I/O.
 
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -125,20 +120,6 @@ impl<'de> Deserialize<'de> for SourceUri {
         let value = String::deserialize(deserializer)?;
         Self::parse(value).map_err(serde::de::Error::custom)
     }
-}
-
-/// Canonical project-relative module path used by generated identities and caches.
-///
-/// Backslashes become `/` and leading `./` segments are stripped; nothing else changes,
-/// so no segment is resolved, collapsed or re-cased. The function is idempotent, which
-/// lets any pass normalize a path it received without disturbing one that was already
-/// normalized.
-///
-/// The input must be project-relative. The result is not a real path: `..` segments and
-/// absolute prefixes survive verbatim, so this must not be used to compare two
-/// spellings of the same file.
-pub fn normalized_module_path(path: &str) -> String {
-    path.replace('\\', "/").trim_start_matches("./").to_owned()
 }
 
 /// Narrows a [`usize`] length or index into the crate's 32-bit coordinate space.
@@ -627,18 +608,6 @@ mod tests {
         );
         assert_eq!(source.utf16_offset(BytePos(6)).unwrap(), 4);
     }
-
-    #[test]
-    fn normalizes_module_paths_across_platforms() {
-        assert_eq!(
-            normalized_module_path(r".\src\components\Menu.tsx"),
-            "src/components/Menu.tsx"
-        );
-        assert_eq!(
-            normalized_module_path("./src/components/Menu.tsx"),
-            "src/components/Menu.tsx"
-        );
-    }
 }
 
 #[cfg(test)]
@@ -676,12 +645,6 @@ mod boundary_tests {
                     u32::try_from(text[..offset].encode_utf16().count()).unwrap()
                 );
             }
-        }
-
-        #[test]
-        fn path_normalization_is_idempotent(path in "[a-zA-Z0-9./\\\\_-]{0,60}") {
-            let normalized = normalized_module_path(&path);
-            proptest::prop_assert_eq!(normalized_module_path(&normalized), normalized);
         }
 
         #[test]

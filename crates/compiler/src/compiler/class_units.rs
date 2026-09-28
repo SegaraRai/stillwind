@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::{Span, normalized_module_path};
+use stillwind_source::{ModuleId, Span};
 
 use super::fragment::Emitted;
 use super::literal::LiteralContribution;
@@ -137,7 +137,7 @@ pub(super) struct BaseUnit {
 /// Per-call class allocation and deferred stylesheet output.
 pub(super) struct ClassUnits<'a> {
     /// Compiler identity included in class hashes and symbol provenance.
-    module_id: &'a str,
+    module_id: &'a ModuleId,
     /// Generation settings for canonical class inputs.
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
@@ -174,7 +174,7 @@ impl<'a> ClassUnits<'a> {
     /// Starts one call without publishing any CSS or allocating a class identity.
     #[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
     pub(super) fn new(
-        module_id: &'a str,
+        module_id: &'a ModuleId,
         options: &'a CompilerOptions,
         identifiers: &'a IdentifierContext,
         theme: &'a ThemeIndex,
@@ -393,7 +393,7 @@ impl<'a> ClassUnits<'a> {
         definitions: &[CompiledUtility],
     ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
         let context = ClassContext {
-            module: normalized_module_path(self.module_id),
+            module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
             call,
             branch: branch.to_owned(),
@@ -549,7 +549,7 @@ impl<'a> ClassUnits<'a> {
     /// Returns the host generator failure in release mode.
     fn view_transition_slot(&self, branch: &str) -> Result<String, CompileErrorKind> {
         let context = ClassContext {
-            module: normalized_module_path(self.module_id),
+            module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
             call: self.call_span.start.0,
             branch: branch.to_owned(),

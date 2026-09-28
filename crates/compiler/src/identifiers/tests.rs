@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use stillwind_diagnostics::CompileErrorKind;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -60,7 +60,7 @@ impl IdentifierGenerator for FailingGenerator {
 
 fn class_context(branch: &str) -> ClassContext {
     ClassContext {
-        module: "src/a.tsx".to_owned(),
+        module: ModuleId::from("src/a.tsx"),
         namespace: String::new(),
         call: 12,
         branch: branch.to_owned(),
@@ -69,7 +69,7 @@ fn class_context(branch: &str) -> ClassContext {
 
 fn declaration_context(label: Option<&str>) -> DeclarationContext {
     DeclarationContext {
-        module: "src/a.tsx".to_owned(),
+        module: ModuleId::from("src/a.tsx"),
         start: 20,
         end: 24,
         binding: "menu".to_owned(),
@@ -418,7 +418,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
 #[test]
 fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
     let request = LayerNameRequest(LayerContext {
-        template: "entry".to_owned(),
+        template: CssSourceName::from("entry"),
         namespace: String::new(),
     });
     let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
@@ -431,7 +431,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
     assert_ne!(
         request.hash(),
         LayerNameRequest(LayerContext {
-            template: "entry".to_owned(),
+            template: CssSourceName::from("entry"),
             namespace: "other-app".to_owned(),
         })
         .hash()
@@ -439,7 +439,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
     assert_ne!(
         request.hash(),
         LayerNameRequest(LayerContext {
-            template: "other".to_owned(),
+            template: CssSourceName::from("other"),
             namespace: String::new(),
         })
         .hash()

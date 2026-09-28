@@ -55,8 +55,12 @@ export function byteToUtf16(text: string, offset: number): number {
 }
 
 /** Checker file identity; the original module id remains unchanged outside the checker. */
-export function checkerId(source: Pick<ProjectSource, "id" | "language" | "fw_code">): string {
-  return source.fw_code === undefined ? source.id : `${source.id}.${source.language}`;
+export function checkerId(
+  source: Pick<ProjectSource, "checker_file_name" | "language" | "fw_code">,
+): string {
+  return source.fw_code === undefined
+    ? source.checker_file_name
+    : `${source.checker_file_name}.${source.language}`;
 }
 
 /** Owns shadow edits and translates checker UTF-16 positions back to original bytes. */
@@ -81,7 +85,9 @@ export class CheckerSource {
   ) {
     this.source = source;
     this.buffer = buffer;
-    this.id = buffer.region ? `${source.id}.stillwind-client-${index}.ts` : checkerId(source);
+    this.id = buffer.region
+      ? `${source.checker_file_name}.stillwind-client-${index}.ts`
+      : checkerId(source);
     this.#original = source.fw_code ?? source.source;
     this.#points = projectionPoints(source);
     for (const asset of assets) {
@@ -91,7 +97,7 @@ export class CheckerSource {
       for (const [start, end] of targets) {
         const call = buffer.source.slice(start, end);
         if (!call.endsWith(")")) {
-          throw new Error(`Cannot locate producer in ${source.path}`);
+          throw new Error(`Cannot locate producer in ${source.module_id}`);
         }
         const separator = [...call.matchAll(/[,(]/g)].some(
           (match) => skipTrivia(call, match.index + 1) === call.length - 1,
@@ -100,8 +106,7 @@ export class CheckerSource {
           : ",";
         const identity = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
         const javascript =
-          source.fw_code === undefined &&
-          (/\.[cm]?jsx?$/.test(source.id) || source.language === "js" || source.language === "jsx");
+          (source.fw_code === undefined && source.language === "js") || source.language === "jsx";
         const argument = javascript
           ? `/** @type {${identity}} */ (/** @type {unknown} */ (undefined))`
           : `undefined as unknown as ${identity}`;
@@ -131,7 +136,7 @@ export class CheckerSource {
         this.#edits[i].at < this.#edits[i - 1].end ||
         this.#edits[i].at === this.#edits[i - 1].at
       ) {
-        throw new Error(`Overlapping checker edits in ${source.path}`);
+        throw new Error(`Overlapping checker edits in ${source.module_id}`);
       }
     }
     for (const probe of source.probes) {

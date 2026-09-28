@@ -23,7 +23,9 @@ export function emitStylesheet(
       for (const resource of [...project.loaded.resources, ...plan.resources]) {
         const file = await project.resolveAsset(
           resource.specifier,
-          path.resolve(project.options.root, resource.owner),
+          "module_id" in resource
+            ? project.compiler.resolverId(resource.module_id)
+            : resource.source_name,
         );
         project.host.watch(file);
         let request = path.relative(path.dirname(context.resourcePath), file).replaceAll("\\", "/");

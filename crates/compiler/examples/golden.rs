@@ -8,7 +8,7 @@
 use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceError, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceError, SourceFile};
 
 fn main() -> Result<(), SourceError> {
     let component = SourceFile::new(
@@ -41,11 +41,11 @@ export function SaveButton() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 

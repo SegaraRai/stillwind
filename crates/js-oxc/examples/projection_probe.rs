@@ -10,6 +10,7 @@
 //! the two code paths against each other rather than only reporting what each one
 //! produced.
 
+use std::collections::BTreeMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 
@@ -21,8 +22,7 @@ use stillwind_ir::{
     SourceAnalyzer, SourceInput,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, ProjectionMap, SourceFile};
+use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile};
 
 /// One converter-output case as supplied by the test driver.
 #[derive(Deserialize)]
@@ -68,9 +68,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let parsed = parse(
             &normalized.source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
-            &std::collections::BTreeMap::default(),
+            &BTreeMap::default(),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );

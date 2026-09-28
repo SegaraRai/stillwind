@@ -1,7 +1,7 @@
 //! Declaration-site asset identity.
 //!
 //! An [`IdentityId`] names one asset by where it was declared, never by where it is
-//! used: the kind, the normalized module path, the declaration span and the local
+//! used: the kind, the module identity, the declaration span and the local
 //! binding name. Importing, re-exporting or aliasing the value therefore keeps the same
 //! identity, which is what lets the compiler emit one stable CSS name per declaration.
 //!
@@ -11,7 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_source::normalized_module_path;
+use stillwind_source::ModuleId;
 
 /// Which kind of Stillwind asset an identity denotes.
 ///
@@ -33,15 +33,15 @@ pub enum AssetKind {
 /// Full declaration-site identity. The generated 32-bit name is derived later;
 /// retaining this key lets the build adapter detect hash collisions.
 ///
-/// Fields are compared exactly, and the derived order (kind, module path, span, binding
+/// Fields are compared exactly, and the derived order (kind, module identity, span, binding
 /// name) is used to sort and deduplicate candidate sets. It is not source order, so
 /// consumers must not present it as such.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct IdentityId {
     /// Asset kind, which also separates namespaces of derived names.
     pub kind: AssetKind,
-    /// Normalized project-relative path of the declaring module.
-    pub module_path: String,
+    /// Host module identity of the declaring module.
+    pub module_id: ModuleId,
     /// UTF-8 byte offset where the declaration starts in the original source.
     pub start: u32,
     /// UTF-8 byte offset where the declaration ends, exclusive.
@@ -52,21 +52,21 @@ pub struct IdentityId {
 }
 
 impl IdentityId {
-    /// Builds an identity, normalizing `module_path` with [`normalized_module_path`].
+    /// Builds an identity, preserving the supplied module identity.
     ///
     /// Callers must pass the declaration's own span and binding. Deriving an identity
     /// from a use site would make the asset change meaning as soon as it is imported
     /// under another name.
     pub fn new(
         kind: AssetKind,
-        module_path: &str,
+        module_id: ModuleId,
         start: u32,
         end: u32,
         binding_name: impl Into<String>,
     ) -> Self {
         Self {
             kind,
-            module_path: normalized_module_path(module_path),
+            module_id,
             start,
             end,
             binding_name: binding_name.into(),
@@ -79,10 +79,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn identities_are_path_stable_across_operating_systems() {
-        assert_eq!(
-            IdentityId::new(AssetKind::Ref, r"src\Menu.tsx", 4, 8, "menu"),
-            IdentityId::new(AssetKind::Ref, "src/Menu.tsx", 4, 8, "menu")
+    fn identities_preserve_host_module_ids() {
+        assert_ne!(
+            IdentityId::new(
+                AssetKind::Ref,
+                ModuleId::from(r"src\PopoverMenu.tsx"),
+                4,
+                8,
+                "menu"
+            ),
+            IdentityId::new(
+                AssetKind::Ref,
+                ModuleId::from("src/PopoverMenu.tsx"),
+                4,
+                8,
+                "menu"
+            )
         );
     }
 }

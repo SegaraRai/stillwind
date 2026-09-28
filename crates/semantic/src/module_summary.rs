@@ -7,7 +7,7 @@
 //! not want to parse again.
 //!
 //! Spans in a summary belong to the module's original (editable) source, never to a
-//! projected shadow, and [`ModuleSummary::module_path`] is stored normalized. The
+//! projected shadow, and [`ModuleSummary::module_id`] is stored verbatim. The
 //! [`ModuleSummary::schema`] field versions this payload for hosts; adding fields is a
 //! schema change.
 
@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_source::normalized_module_path;
+use stillwind_source::ModuleId;
 
 use super::assets::AssetRecord;
 use super::identity::IdentityId;
@@ -71,8 +71,8 @@ pub struct ModuleSummary {
     pub module_specifiers: Vec<ModuleSpecifier>,
     /// Schema tag; see `SCHEMA`.
     pub schema: u32,
-    /// Normalized project-relative path of this module.
-    pub module_path: String,
+    /// Host module identity of this module.
+    pub module_id: ModuleId,
     /// Names bound by `import` declarations.
     pub imports: Vec<ImportBinding>,
     /// Names re-exported from other modules.
@@ -91,15 +91,15 @@ pub struct ModuleSummary {
 
 impl ModuleSummary {
     /// Schema version hosts must understand before reading a summary.
-    pub const SCHEMA: u32 = 1;
+    pub const SCHEMA: u32 = 2;
 
-    /// Creates an empty summary for [`Self::module_path`], normalizing the path and
+    /// Creates an empty summary for [`Self::module_id`], preserving the identity and
     /// stamping the current schema.
-    pub fn new(module_path: &str) -> Self {
+    pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_specifiers: Vec::new(),
             schema: Self::SCHEMA,
-            module_path: normalized_module_path(module_path),
+            module_id,
             imports: Vec::new(),
             re_exports: Vec::new(),
             assets: Vec::new(),
@@ -157,8 +157,8 @@ mod tests {
 
     #[test]
     fn exported_universe_retains_owned_assets_of_its_kind() {
-        let mut summary = ModuleSummary::new("x");
-        let animation = IdentityId::new(AssetKind::Keyframes, "x", 0, 1, "a");
+        let mut summary = ModuleSummary::new("x".into());
+        let animation = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "a");
         summary.assets.push(AssetRecord {
             identity: animation.clone(),
             metadata: AssetMetadata { label: None },

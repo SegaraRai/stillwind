@@ -9,11 +9,15 @@
  */
 export interface ProjectSource {
   /** Host identifier used for resolution and reading. */
-  id: string;
+  resolver_id: string;
+  /** Absolute or virtual filesystem name used only by the TypeScript checker. */
+  checker_file_name: string;
+  /** Filename supplied to framework projection libraries and their source maps. */
+  projection_file_name: string;
   /** Absolute URI of the original editable document, supplied by its host. */
   uri: string;
-  /** Native module identity, conventionally root-relative with forward slashes. */
-  path: string;
+  /** Stable module identity used by the compiler and project session. */
+  module_id: string;
   source: string;
   language: "js" | "jsx" | "ts" | "tsx" | "dts";
   module_kind: "module" | "commonJs" | "script" | "unambiguous";

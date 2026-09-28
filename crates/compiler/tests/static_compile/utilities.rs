@@ -8,6 +8,7 @@
 use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -34,11 +35,11 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -84,11 +85,11 @@ const props = style("bg-accent");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -121,11 +122,11 @@ const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -164,11 +165,11 @@ const props = style("animate-spin");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -198,11 +199,11 @@ const props = style("content-auto data-checked:content-auto tab-8");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -228,11 +229,11 @@ export { props };"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     let transformed = result.apply_to_source(&component).unwrap();
@@ -264,11 +265,11 @@ const props = style(
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -308,11 +309,11 @@ const props = style("-mt-4 duration-120 ease-standard");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 

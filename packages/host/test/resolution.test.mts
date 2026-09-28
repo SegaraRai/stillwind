@@ -6,8 +6,42 @@ import { fileURLToPath } from "node:url";
 
 import { summarizeSource, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { compileModule } from "../src/compiler.ts";
+import { cleanModuleId, compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
+
+void test("distinct resolver identities cannot share a module identity", async () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const entry = path.join(root, "collision-entry.ts");
+  const dependency = path.join(root, "collision-dependency.ts");
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "design.css", "@utility red {color:red} @stillwind-slot utilities;");
+  const session = new NativeProjectSession(loader, false);
+  await assert.rejects(
+    compileModule(
+      session,
+      () => {
+        throw new Error("type facts must not be requested after an identity collision");
+      },
+      "import {style} from 'stillwind/react'; import {token} from './token'; export const x=style(token);",
+      entry,
+      root,
+      {
+        describe: (id) => ({ ...fileModuleDescriptor(root, id), module_id: "shared.ts" }),
+        resolve: async () => ({ id: dependency }),
+        read: async () => "export const token = 'red';",
+        watch: () => {},
+        warn: () => {},
+      },
+    ),
+    /Module identity shared\.ts is shared/,
+  );
+});
+
+void test("virtual resolver sub-identities survive request cleaning", () => {
+  assert.equal(cleanModuleId("\0virtual:component?region=2"), "\0virtual:component?region=2");
+  assert.equal(cleanModuleId("virtual:component?region=2"), "virtual:component?region=2");
+  assert.equal(cleanModuleId("component.ts?t=123"), "component.ts");
+});
 
 void test("checker follows per-importer host aliases and barrel resolutions", async () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
@@ -50,7 +84,10 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
           assert.ok(files.has(id));
           return files.get(id)!;
         },
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch: () => {},
         warn: () => {},
       });
@@ -59,13 +96,22 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
     assert.match(output.css, /@keyframes/);
     assert.match(output.css, /color:red/);
     assert.deepEqual(reads, [barrel, token]);
-    assert.ok(output.symbols.some((symbol) => symbol.source_path === "aliased/actual-token.ts"));
+    assert.ok(
+      output.symbols.some(
+        (symbol) =>
+          symbol.source_kind === "module" && symbol.source_id === "aliased/actual-token.ts",
+      ),
+    );
     selected = changedToken;
     const updated = await compile();
     assert.ok(updated);
     assert.match(updated.css, /color:blue/);
     assert.doesNotMatch(updated.css, /color:red/);
-    assert.ok(updated.symbols.some((symbol) => symbol.source_path === "changed.ts"));
+    assert.ok(
+      updated.symbols.some(
+        (symbol) => symbol.source_kind === "module" && symbol.source_id === "changed.ts",
+      ),
+    );
     assert.equal(facts.stats.incrementalSnapshots, 1);
   } finally {
     facts.close();
@@ -89,8 +135,9 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
     );
     writeFileSync(path.join(root, name), text);
     return {
-      id: path.join(root, name),
-      path: name,
+      resolver_id: path.join(root, name),
+      checker_file_name: path.join(root, name),
+      module_id: name,
       source: text,
       probes: summary.type_probes,
       assets: summary.assets,
@@ -103,7 +150,7 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
     const collect = (includeToken: boolean) => {
       const sources = includeToken ? [entry, token] : [entry];
       return service
-        .collect(sources, new Map(sources.map((source) => [source.path, source.assets])))
+        .collect(sources, new Map(sources.map((source) => [source.module_id, source.assets])))
         .get("entry.ts")!;
     };
     assert.throws(() => collect(false), /SHTS003/);
@@ -150,7 +197,10 @@ void test("external package runtime exports do not replace declaration resolutio
         resolve: async () => ({ id: path.join(packageRoot, "index.js") }),
         read: async () =>
           assert.fail("external runtime implementation must not enter semantic inputs"),
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch() {},
         warn() {},
       },

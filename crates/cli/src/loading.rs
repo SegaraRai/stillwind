@@ -51,7 +51,7 @@ pub(super) enum FileLoadError {
         source: std::io::Error,
     },
     /// A CSS specifier could not be resolved from its importer.
-    #[error("cannot resolve {} imported by {}: {source}", .request.specifier, .request.importer.0)]
+    #[error("cannot resolve {} imported by {}: {source}", .request.specifier, .request.importer.as_str())]
     Resolve {
         request: CssFileRequest,
         #[source]
@@ -150,7 +150,7 @@ pub(super) fn load_design_system(
             }
             DesignSystemLoadStep::NeedFile(requests) => {
                 let request = &requests[0];
-                let directory = Path::new(request.importer.0.as_ref())
+                let directory = Path::new(request.importer.as_str())
                     .parent()
                     .unwrap_or_else(|| Path::new("."));
                 let path = resolver

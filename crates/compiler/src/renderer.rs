@@ -18,7 +18,9 @@ use crate::compiler::{
     render_vocabulary_types,
 };
 use crate::identifiers::{IdentifierContext, Identifiers};
-use crate::{CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet};
+use crate::{
+    CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet, SymbolOrigin,
+};
 
 /// Where a rendered stylesheet is going to be used.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -121,7 +123,7 @@ impl<'a> StylesheetRenderer<'a> {
         self.identifiers
             .drain_detached()
             .iter()
-            .map(|name| detached_symbol(name, &stylesheet))
+            .map(|name| detached_symbol(name, SymbolOrigin::Stylesheet(stylesheet.clone())))
             .collect()
     }
 
@@ -188,13 +190,10 @@ impl<'a> StylesheetRenderer<'a> {
 mod tests {
     use std::sync::Arc;
 
-    use stillwind_design_system::{
-        CssSourceName, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
-    };
+    use stillwind_design_system::{DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_semantic::ModuleId;
-    use stillwind_source::{FileId, SourceFile, SourceRegistry};
+    use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
 
     use super::*;
     use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
@@ -202,7 +201,7 @@ mod tests {
     fn snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
             &crate::css_fixture::source(FileId(90), css).unwrap(),
-            "test.css",
+            CssSourceName::from("test.css"),
             DesignSystemOptions::default(),
         )
         .unwrap()

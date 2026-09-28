@@ -1,4 +1,5 @@
 import { relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
@@ -11,14 +12,27 @@ import { TypeFactsError, type TypeScriptFactsService, type TypeFact } from "./ty
  * and reporting lint warnings. Resolution may exclude external modules or return null.
  */
 export interface CompilerHost {
-  /** Canonical URI of an editable document; the host owns its path and virtual ID rules. */
-  documentUri(id: string): string;
+  /** Describes one resolved source before it is scanned or compiled. */
+  describe(
+    id: string,
+  ): Pick<
+    ProjectSource,
+    | "module_id"
+    | "uri"
+    | "checker_file_name"
+    | "projection_file_name"
+    | "language"
+    | "module_kind"
+    | "framework"
+  >;
   resolve(
     specifier: string,
     importer: string,
     options?: { skipSelf: boolean },
   ): Promise<{ id: string; external?: boolean | string } | null>;
   read(id: string): Promise<string>;
+  /** Records the identity selected for each source in this compilation. */
+  onModule?(moduleId: string, resolverId: string): void;
   watch(id: string): void;
   warn(message: string): void;
 }
@@ -31,14 +45,56 @@ function fail(message: string): never {
  * Returns the root-relative module identity with forward slashes. Paths outside
  * root retain `..` segments; this does not validate filesystem containment.
  */
-export function compilerModulePath(root: string, id: string): string {
+export function compilerModuleId(root: string, id: string): string {
   return relative(root, id).replaceAll("\\", "/");
+}
+
+/** Selects parser and framework metadata from a filesystem module name. */
+export function fileSourceKind(
+  id: string,
+): Pick<ProjectSource, "language" | "module_kind" | "framework"> {
+  const name = cleanModuleId(id).toLowerCase();
+  const framework: ProjectSource["framework"] = name.endsWith(".astro")
+    ? "Astro"
+    : name.endsWith(".svelte")
+      ? "Svelte"
+      : name.endsWith(".vue")
+        ? "Vue"
+        : undefined;
+  const language: ProjectSource["language"] = /\.d\.[cm]?ts$/.test(name)
+    ? "dts"
+    : name.endsWith(".tsx")
+      ? "tsx"
+      : /\.[cm]?ts$/.test(name)
+        ? "ts"
+        : name.endsWith(".jsx")
+          ? "jsx"
+          : "js";
+  return { language, module_kind: "unambiguous", framework };
+}
+
+/** Describes a filesystem module for the project compiler. */
+export function fileModuleDescriptor(
+  root: string,
+  id: string,
+): ReturnType<CompilerHost["describe"]> {
+  const file = cleanModuleId(id);
+  return {
+    module_id: compilerModuleId(root, file),
+    uri: pathToFileURL(file).href,
+    checker_file_name: file,
+    projection_file_name: compilerModuleId(root, file),
+    ...fileSourceKind(file),
+  };
 }
 
 /**
  * Removes the query or fragment suffix from a host module identifier.
  */
 export function cleanModuleId(id: string): string {
+  if (id.startsWith("\0") || id.startsWith("virtual:")) {
+    return id;
+  }
   return id.replace(/[?#].*$/, "");
 }
 
@@ -65,7 +121,7 @@ function semanticDependencies(summary: ModuleSummary, requested: string | null) 
 
 /**
  * Compiles an entry buffer and its demanded semantic dependencies into a project session.
- * The entry id is cleaned before projection; native module paths are relative to projectRoot.
+ * The host descriptor supplies the module identity and parser metadata for each source.
  * Type facts are requested lazily for original-coordinate probes in JS/TS or SFC inputs.
  *
  * Returns the entry output with composition metadata, or undefined when normal mode
@@ -88,11 +144,10 @@ export async function compileModule(
     moduleCssImport?: string;
   } = {},
 ) {
-  const entryId = cleanModuleId(id);
+  const entryId = id;
   const entrySource = await projectFrameworkSource({
-    id: entryId,
-    uri: host.documentUri(entryId),
-    path: compilerModulePath(projectRoot, entryId),
+    resolver_id: entryId,
+    ...host.describe(entryId),
     source: code,
   });
   const entrySummary = scanSource(entrySource);
@@ -105,7 +160,24 @@ export async function compileModule(
   }
   const needsTypeFacts = entrySummary.type_probes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
-  const sourcesById = new Map<string, ProjectSource>();
+  const sourcesByResolverId = new Map<string, ProjectSource>();
+  const resolverIdsByModuleId = new Map<string, string>();
+  const registerSource = (source: ProjectSource) => {
+    const previous = resolverIdsByModuleId.get(source.module_id);
+    if (previous !== undefined && previous !== source.resolver_id) {
+      fail(
+        `Module identity ${source.module_id} is shared by ${previous} and ${source.resolver_id}`,
+      );
+    }
+    const existing = sourcesByResolverId.get(source.resolver_id);
+    if (existing !== undefined && existing.module_id !== source.module_id) {
+      fail(`Resolver identity ${source.resolver_id} changed module identity`);
+    }
+    resolverIdsByModuleId.set(source.module_id, source.resolver_id);
+    sourcesByResolverId.set(source.resolver_id, source);
+    host.onModule?.(source.module_id, source.resolver_id);
+  };
+  registerSource(entrySource);
   const resolutions = new Map<string, Map<string, string>>();
   const visited = new Map<string, Set<string | null>>();
   const pending: Array<{ source: ProjectSource; requested: string | null }> = [
@@ -116,48 +188,53 @@ export async function compileModule(
   ];
   while (pending.length > 0) {
     const { source, requested } = pending.pop()!;
-    const demands = visited.get(source.id) ?? new Set<string | null>();
+    const demands = visited.get(source.resolver_id) ?? new Set<string | null>();
     if (demands.has(requested)) {
       continue;
     }
     demands.add(requested);
-    visited.set(source.id, demands);
-    sourcesById.set(source.id, source);
+    visited.set(source.resolver_id, demands);
     const summary =
-      summaries.get(source.path) ?? (source.id === entryId ? entrySummary : scanSource(source));
-    summaries.set(source.path, summary);
+      summaries.get(source.module_id) ??
+      (source.resolver_id === entryId ? entrySummary : scanSource(source));
+    if (summary.module_id !== source.module_id) {
+      fail(`Scanner changed module identity for ${source.resolver_id}`);
+    }
+    summaries.set(source.module_id, summary);
     if (!needsTypeFacts) {
       continue;
     }
     for (const dependency of semanticDependencies(summary, requested)) {
-      const resolved = await host.resolve(dependency.source, source.id, { skipSelf: true });
+      const resolved = await host.resolve(dependency.source, source.resolver_id, {
+        skipSelf: true,
+      });
       if (!resolved || resolved.external) {
         continue;
       }
-      const dependencyId = cleanModuleId(resolved.id);
+      const dependencyId = resolved.id;
+      const dependencyName = cleanModuleId(dependencyId);
       // Package runtime exports do not identify their declaration files. Leave
       // external package type resolution (for example React) to TypeScript.
-      if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyId)) {
+      if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyName)) {
         continue;
       }
-      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyId)) {
+      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyName)) {
         continue;
       }
-      let sourceResolutions = resolutions.get(source.id);
+      let sourceResolutions = resolutions.get(source.resolver_id);
       if (!sourceResolutions) {
-        resolutions.set(source.id, (sourceResolutions = new Map()));
+        resolutions.set(source.resolver_id, (sourceResolutions = new Map()));
       }
       sourceResolutions.set(dependency.source, dependencyId);
       host.watch(dependencyId);
-      let dependencySource = sourcesById.get(dependencyId);
+      let dependencySource = sourcesByResolverId.get(dependencyId);
       if (!dependencySource) {
         dependencySource = await projectFrameworkSource({
-          id: dependencyId,
-          uri: host.documentUri(dependencyId),
-          path: compilerModulePath(projectRoot, dependencyId),
+          resolver_id: dependencyId,
+          ...host.describe(dependencyId),
           source: await host.read(dependencyId),
         });
-        sourcesById.set(dependencyId, dependencySource);
+        registerSource(dependencySource);
       }
       pending.push({
         source: dependencySource,
@@ -166,20 +243,20 @@ export async function compileModule(
     }
   }
 
-  const sources = [...sourcesById.values()];
+  const sources = [...sourcesByResolverId.values()];
   let typeFacts: Map<string, TypeFact[]>;
   try {
     typeFacts = needsTypeFacts
       ? factsService().collect(
           sources.map((source) => {
-            const summary = summaries.get(source.path)!;
+            const summary = summaries.get(source.module_id)!;
             return {
               ...source,
               ...checkerEnvironment(source),
               checker_spans: summary.checkerSpans,
               probes: summary.type_probes,
               resolutions: summary.module_specifiers.flatMap((specifier) => {
-                const id = resolutions.get(source.id)?.get(specifier.source);
+                const id = resolutions.get(source.resolver_id)?.get(specifier.source);
                 return id ? [{ start: specifier.start, end: specifier.end, id }] : [];
               }),
             };
@@ -191,9 +268,9 @@ export async function compileModule(
     if (!(error instanceof TypeFactsError) || options.diagnostics !== "collect") {
       throw error;
     }
-    const source = sources.find((source) => source.path === error.path)!;
+    const source = sources.find((source) => source.module_id === error.module_id)!;
     return {
-      path: entrySource.path,
+      module_id: entrySource.module_id,
       code: null,
       css: "",
       resources: [],
@@ -213,15 +290,15 @@ export async function compileModule(
   }
   const typedSources = sources.map((source) => ({
     ...source,
-    module_css_import: source.id === entryId ? source.module_css_import : "stillwind/module-css",
-    type_facts: typeFacts.get(source.path) ?? [],
+    module_css_import:
+      source.resolver_id === entryId ? source.module_css_import : "stillwind/module-css",
+    type_facts: typeFacts.get(source.module_id) ?? [],
   }));
-  const projectOutput = session.compile(typedSources, compilerModulePath(projectRoot, entryId));
-  const idsByPath = new Map(sources.map((source) => [source.path, source.id]));
+  const projectOutput = session.compile(typedSources, entrySource.module_id);
   for (const output of projectOutput.modules) {
-    const moduleId = idsByPath.get(output.path);
-    if (!moduleId) {
-      fail(`Stillwind returned an unknown module: ${output.path}`);
+    const resolverId = resolverIdsByModuleId.get(output.module_id);
+    if (resolverId === undefined) {
+      fail(`Stillwind returned an unknown module: ${output.module_id}`);
     }
     if (output.diagnostics.length > 0 && options.diagnostics !== "collect") {
       const diagnostic = output.diagnostics[0];
@@ -254,17 +331,17 @@ export async function compileModule(
     }
   }
   const output = projectOutput.modules.find(
-    (candidate) => candidate.path === compilerModulePath(projectRoot, entryId),
+    (candidate) => candidate.module_id === entrySource.module_id,
   );
   const composition = output?.composition ?? [];
-  const compositionModules = [...new Set(composition.map(({ base }) => base.module_path))].filter(
-    (module) => module !== entrySource.path,
+  const compositionModules = [...new Set(composition.map(({ base }) => base.module_id))].filter(
+    (module) => module !== entrySource.module_id,
   );
   const compositionTopology = JSON.stringify(
     composition
       .map(({ derived, base }) => [
-        `${derived.module_path}:${derived.start}`,
-        `${base.module_path}:${base.start}`,
+        `${derived.module_id}:${derived.start}`,
+        `${base.module_id}:${base.start}`,
       ])
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1])),
   );

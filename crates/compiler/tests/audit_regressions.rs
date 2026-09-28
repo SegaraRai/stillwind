@@ -12,9 +12,9 @@ use stillwind_ir::{
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
-    AssetKind, ExportedValue, IdentityId, ModuleId, RefAlternative, SymbolicValue, TypeFact,
+    AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue, TypeFact,
 };
-use stillwind_source::{FileId, SourceError, SourceFile, Span};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceError, SourceFile, Span};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
@@ -41,11 +41,11 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     (source, result)
@@ -128,7 +128,7 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         assert!(
             parse(
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 &[],
                 &BTreeMap::default(),
                 ScriptLanguage::Tsx,
@@ -311,7 +311,7 @@ fn static_ref_projection_reads_the_use_site_receiver() {
     )
     .unwrap();
     let receiver: u32 = source.text().rfind("p.anchor").unwrap().try_into().unwrap();
-    let reference = IdentityId::new(AssetKind::Ref, "refs.tsx", 6, 13, "primary");
+    let reference = IdentityId::new(AssetKind::Ref, ModuleId::from("refs.tsx"), 6, 13, "primary");
     let facts = [TypeFact {
         start: receiver,
         end: receiver + 1,
@@ -327,11 +327,11 @@ fn static_ref_projection_reads_the_use_site_receiver() {
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &facts,
         &BTreeMap::new(),
         &CompilerOptions::default(),
@@ -358,7 +358,13 @@ fn static_ref_projection_reads_a_member_receiver() {
         .unwrap()
         .try_into()
         .unwrap();
-    let reference = IdentityId::new(AssetKind::Ref, "holder.tsx", 6, 13, "trigger");
+    let reference = IdentityId::new(
+        AssetKind::Ref,
+        ModuleId::from("holder.tsx"),
+        6,
+        13,
+        "trigger",
+    );
     let facts = [TypeFact {
         start: receiver,
         end: receiver + u32::try_from("holder.trigger".len()).unwrap(),
@@ -374,11 +380,11 @@ fn static_ref_projection_reads_a_member_receiver() {
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &facts,
         &BTreeMap::new(),
         &CompilerOptions::default(),
@@ -408,7 +414,7 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
         .into_iter()
         .map(|name| {
             RefAlternative::new(
-                IdentityId::new(AssetKind::Ref, "refs.tsx", 6, 13, name),
+                IdentityId::new(AssetKind::Ref, ModuleId::from("refs.tsx"), 6, 13, name),
                 None,
             )
             .unwrap()
@@ -429,11 +435,11 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &facts,
         &BTreeMap::new(),
         &CompilerOptions::default(),
@@ -459,9 +465,12 @@ fn reset_tokens_are_absent_from_definition_fingerprints() {
         "@theme { --color-red:red; } @theme { --color-*:initial; --color-blue:blue; }",
     )
     .unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &source,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     assert!(
         !snapshot
             .fingerprints()
@@ -499,7 +508,13 @@ fn escaped_utility_diagnostics_keep_the_literal_provenance() {
 fn external_motion_identity_does_not_become_a_local_source_span() {
     let source = SourceFile::new(FileId(1), None, None, "import { style } from 'stillwind/react'; import { motion } from './producer'; const x = style(motion(''));").unwrap();
     let start = u32::try_from(source.text().rfind("motion(").unwrap()).unwrap();
-    let identity = IdentityId::new(AssetKind::Keyframes, "producer.tsx", 4000, 4006, "motion");
+    let identity = IdentityId::new(
+        AssetKind::Keyframes,
+        ModuleId::from("producer.tsx"),
+        4000,
+        4006,
+        "motion",
+    );
     let facts = [TypeFact {
         start,
         end: start + 6,
@@ -507,7 +522,7 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
     }];
     let parsed = parse(
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         &facts,
         &BTreeMap::new(),
         ScriptLanguage::Tsx,
@@ -536,7 +551,7 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
     let source = SourceFile::new(FileId(1), None, None, "import { style } from 'stillwind/react'; const a=style.keyframes({from:'x'}); const x=style(a(''));").unwrap();
     let parsed = parse(
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         &[],
         &BTreeMap::default(),
         ScriptLanguage::Tsx,
@@ -608,11 +623,11 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
     let result = Compiler::compile_source_with_type_facts(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &facts,
         &BTreeMap::new(),
         &CompilerOptions::default(),

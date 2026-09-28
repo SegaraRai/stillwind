@@ -9,6 +9,7 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::LintKind;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -27,11 +28,11 @@ export const item = style({ "hover:": trigger.positionAnchor });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -58,11 +59,11 @@ export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"])
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -103,11 +104,11 @@ export const item = style("flex", anchor.positionAnchor, { "--x": size });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -136,11 +137,11 @@ const panel = style(popover.positionAnchor, "absolute");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -200,11 +201,11 @@ const panel = style(popover.positionAnchor);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -234,11 +235,11 @@ const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -280,11 +281,11 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -311,11 +312,11 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -340,11 +341,11 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -397,11 +398,11 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -432,11 +433,11 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -473,11 +474,11 @@ export const Menu = () => (
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -523,11 +524,11 @@ export const View = () => (
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 

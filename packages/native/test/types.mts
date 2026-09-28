@@ -11,7 +11,7 @@ import type { NativeProjectSource, NativeStylesheetSelection } from "../dist/ind
 export function verifyNativeTypes() {
   const sources: NativeProjectSource[] = [
     {
-      path: "x.ts",
+      module_id: "x.ts",
       uri: "untitled:x.ts",
       source: "export {};",
       language: "ts",
@@ -43,7 +43,7 @@ export function verifyNativeTypes() {
     uri: "untitled:root.css",
     source_map_source: "untitled:root.css",
   });
-  const modulePath: string = project.modules[0].path;
+  const moduleId: string = project.modules[0].module_id;
   const summary = summarizeSource("export {};", "x.ts", "ts", "unambiguous");
   const loader = new NativeDesignSystemLoader({ prefix: "--custom-" });
   const step = loader.provide(0, "root.css", "");
@@ -66,5 +66,5 @@ export function verifyNativeTypes() {
   new NativeDesignSystemLoader("{}");
   // @ts-expect-error The generated string enum rejects unknown placements.
   session.planStylesheet({ ...selection, placement: "unknown" });
-  return { code, modulePath, summary };
+  return { code, moduleId, summary };
 }

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
 use stillwind_semantic::{AssetKind, IdentityId};
-use stillwind_source::Span;
+use stillwind_source::{ModuleId, Span};
 
 use crate::{ClassExpression, GroupEntry, RuleExpression, ViewTransitionKey, ViewTransitionName};
 use crate::{ModuleAnalysis, StyleCall, StyleInput};
@@ -51,7 +51,7 @@ pub fn composition_dependencies(module: &ModuleAnalysis) -> Vec<StyleDependency>
 fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
     IdentityId::new(
         AssetKind::Style,
-        module.module_id.as_str(),
+        module.module_id.clone(),
         call.span.start.0,
         call.span.end.0,
         "",
@@ -75,7 +75,7 @@ pub fn validate_composition(
     let mut edges = BTreeMap::new();
     let mut props = BTreeSet::new();
     let mut class_properties = BTreeMap::new();
-    let mut module_edges: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    let mut module_edges: BTreeMap<ModuleId, BTreeSet<ModuleId>> = BTreeMap::new();
     for module in modules {
         for call in &module.ir.style_calls {
             let key = identity(module, call);
@@ -85,13 +85,13 @@ pub fn validate_composition(
                 props.insert(key.clone());
             }
             for dependency in &dependencies {
-                if dependency.module_path != key.module_path {
+                if dependency.module_id != key.module_id {
                     module_edges
-                        .entry(key.module_path.clone())
+                        .entry(key.module_id.clone())
                         .or_default()
-                        .insert(dependency.module_path.clone());
+                        .insert(dependency.module_id.clone());
                     module_edges
-                        .entry(dependency.module_path.clone())
+                        .entry(dependency.module_id.clone())
                         .or_default();
                 }
             }

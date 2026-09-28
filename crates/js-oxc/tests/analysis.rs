@@ -10,8 +10,8 @@ use std::sync::Arc;
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
-use stillwind_semantic::{AssetKind, ExportedValue, ModuleId, SymbolicValue, TypeFact, TypeFacts};
-use stillwind_source::{FileId, Fingerprint, SourceFile};
+use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile};
 
 #[test]
 fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
@@ -39,7 +39,7 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
     assert_eq!(analysis.integration_diagnostics.len(), 1);
     let parsed = parse(
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         &facts.facts,
         &facts.assets,
         ScriptLanguage::Tsx,

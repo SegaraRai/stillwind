@@ -20,7 +20,7 @@ use stillwind_css::{
     extract_property_definitions, unterminated_block, value_nesting_overflow,
 };
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_source::{FileId, SourceFile, Span, normalized_module_path};
+use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
 use super::config::{StillwindConfig, extract_stillwind_config};
 use super::declarations::{ThemeTokenMode, extract_theme_declarations};
@@ -46,7 +46,10 @@ use crate::registry::variants::extract_custom_variants;
 /// definitions, or positions outside the source-coordinate limit. The error retains the
 /// cause and uses `source.full_span()` as its primary label. Cause offsets refer to
 /// this buffer.
-pub fn parse_theme(source: &SourceFile, source_identity: &str) -> Result<ThemeIndex, CompileError> {
+pub fn parse_theme(
+    source: &SourceFile,
+    source_identity: &CssSourceName,
+) -> Result<ThemeIndex, CompileError> {
     parse_theme_contents(source, source_identity)
         .map_err(|kind| CompileError::new(kind, source.full_span()))
 }
@@ -58,7 +61,7 @@ pub fn parse_theme(source: &SourceFile, source_identity: &str) -> Result<ThemeIn
 /// Returns the parser and output-template failures documented by [`parse_theme`].
 fn parse_theme_contents(
     source: &SourceFile,
-    source_identity: &str,
+    source_identity: &CssSourceName,
 ) -> Result<ThemeIndex, CompileErrorKind> {
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileErrorKind::UnterminatedCssBlock { offset });
@@ -72,7 +75,7 @@ fn parse_theme_contents(
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     let mut template = parse_output_template(source.text(), &theme.tokens)?;
     template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
-    template.source_identity = normalized_module_path(source_identity);
+    template.source_identity = source_identity.clone();
     theme.custom_css = template.authored_css();
     StyleSheet::parse(&theme.custom_css, ParserOptions::default()).map_err(|error| {
         CompileErrorKind::CssParse {
@@ -197,7 +200,7 @@ mod tests {
     #[test]
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
         let source = SourceFile::new(FileId(1), None, None, format!("{}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;", crate::test_defaults::BUILTIN_REGISTRY_CSS)).unwrap();
-        let theme = parse_theme(&source, "test.css").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert_eq!(theme.tokens.len(), 1);
         assert_eq!(theme.tokens[0].name.value, "--color-local");
         assert!(theme.registry.builtin_exact.contains_key("flex"));
@@ -230,8 +233,8 @@ mod panic_regressions {
                 let css = format!("{directive} {{{body}");
                 let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();
                 for result in [
-                    parse_theme(&source, "test.css"),
-                    parse_theme(&source, "test.css"),
+                    parse_theme(&source, &CssSourceName::from("test.css")),
+                    parse_theme(&source, &CssSourceName::from("test.css")),
                 ] {
                     assert!(
                         matches!(result, Err(CompileError { kind: CompileErrorKind::UnterminatedCssBlock { offset }, .. })
@@ -252,8 +255,8 @@ mod panic_regressions {
             r#"/* { */ .x { content: "{"; /* } */ &:hover { content: "}"; } }"#,
         )
         .unwrap();
-        assert!(parse_theme(&source, "test.css").is_ok());
-        assert!(parse_theme(&source, "test.css").is_ok());
+        assert!(parse_theme(&source, &CssSourceName::from("test.css")).is_ok());
+        assert!(parse_theme(&source, &CssSourceName::from("test.css")).is_ok());
         let source = SourceFile::new(
             FileId(1),
             None,
@@ -261,7 +264,13 @@ mod panic_regressions {
             "@utility x { color:red; &:hover { color:blue; } }",
         )
         .unwrap();
-        assert_eq!(parse_theme(&source, "test.css").unwrap().utilities.len(), 1);
+        assert_eq!(
+            parse_theme(&source, &CssSourceName::from("test.css"))
+                .unwrap()
+                .utilities
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -275,7 +284,7 @@ mod panic_regressions {
         let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();
         assert!(
             matches!(
-                parse_theme(&source, "test.css"),
+                parse_theme(&source, &CssSourceName::from("test.css")),
                 Err(CompileError {
                     kind: CompileErrorKind::CssNestingTooDeep { .. },
                     ..
@@ -291,7 +300,7 @@ mod panic_regressions {
         let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();
         assert!(
             matches!(
-                parse_theme(&source, "test.css"),
+                parse_theme(&source, &CssSourceName::from("test.css")),
                 Err(CompileError {
                     kind: CompileErrorKind::CssNestingTooDeep { .. },
                     ..

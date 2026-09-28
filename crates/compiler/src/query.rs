@@ -16,7 +16,7 @@ use stillwind_design_system::{
     compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{LintFinding, LintKind};
-use stillwind_source::{FileId, Span};
+use stillwind_source::{FileId, ModuleId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use crate::candidate::CandidateResolver;
@@ -171,7 +171,7 @@ impl DesignSystemQuery {
             crate::identifiers::DEFAULT_HASH_LENGTH,
         )
         .class_name(&ClassContext {
-            module: String::new(),
+            module: ModuleId::from(""),
             namespace: String::new(),
             call: 0,
             branch: format!("{candidate}\0"),
@@ -386,8 +386,7 @@ mod tests {
     use stillwind_diagnostics::{LintKind, UtilityFailure};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_semantic::ModuleId;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
     use super::*;
     use crate::{Compiler, CompilerOptions, ModuleCompiler};
@@ -399,9 +398,12 @@ mod tests {
             "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
         )
         .unwrap();
-        let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         for (prefix, expected) in [
             ("bg-br", "bg-brand"),
@@ -469,7 +471,7 @@ mod tests {
             .unwrap();
             let snapshot = DesignSystemSnapshot::from_source(
                 &source,
-                "test.css",
+                CssSourceName::from("test.css"),
                 DesignSystemOptions::default(),
             )
             .unwrap();
@@ -499,11 +501,11 @@ mod tests {
             let compiled = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &input,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &source,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
             assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
@@ -524,9 +526,12 @@ mod tests {
             "@utility a { color:red; } @utility b { color:blue; }",
         )
         .unwrap();
-        let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let mut candidates = ["hover:b", "b", "hover:a", "a", "flex"];
         candidates.sort_by(|left, right| query.compare_candidates(left, right).unwrap().unwrap());
@@ -548,9 +553,12 @@ mod tests {
     fn queries_share_resolved_custom_definitions_and_pin_revisions() {
         let theme =
             crate::css_fixture::source(FileId(1), "@utility brand { color: red; }").unwrap();
-        let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         let resolved = query.resolve_candidate("hover:brand").unwrap();
         assert!(resolved.diagnostics.is_empty());
@@ -643,9 +651,12 @@ mod tests {
     #[test]
     fn an_empty_utility_is_unresolved_and_produces_no_rules() {
         let theme = crate::css_fixture::source(FileId(1), "@utility empty {}").unwrap();
-        let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let result = query.resolve_candidate("empty").unwrap();
         assert!(!result.diagnostics.is_empty());

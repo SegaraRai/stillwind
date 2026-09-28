@@ -256,7 +256,7 @@ facts deliberately remains limited to direct local declarations.
 
 Producers are declaration-site assets, not local compiler variables.
 The extractor assigns each producer a globally stable `IdentityId` from the
-normalized module path, callsite span, kind, and compiler namespace. The same
+host-supplied module identity, callsite span, kind, and compiler namespace. The same
 identity is denoted if a producer call is evaluated repeatedly; this keeps the
 CSS identity universe finite without restricting the resulting JavaScript value
 from flowing normally.
@@ -561,7 +561,7 @@ ordering contract; it is not a v1 requirement.
 Names are deterministic and private:
 
 - class names derive from canonical rule content and the callsite identity;
-- ref names derive from normalized module identity plus lexical binding
+- ref names derive from host-supplied module identity plus lexical binding
   identity;
 - keyframe names derive from canonical keyframe content and lexical identity;
 - view-transition class tokens derive from their declaration identity, and a name composes

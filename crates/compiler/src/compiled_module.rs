@@ -11,8 +11,8 @@ use serde::Serialize;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::StyleDependency;
-use stillwind_semantic::{IdentityId, ModuleId};
-use stillwind_source::{Fingerprint, SourceFile};
+use stillwind_semantic::IdentityId;
+use stillwind_source::{Fingerprint, ModuleId, SourceFile};
 
 use crate::transforms::apply_transforms;
 use crate::{
@@ -91,8 +91,8 @@ pub struct CompilationDependencies {
 pub struct ModuleResourceReference {
     /// Token standing in for the URL in the emitted CSS, quoted or inside `url(...)`.
     pub placeholder: String,
-    /// Source path of the module whose CSS contained the reference.
-    pub owner: String,
+    /// Module whose CSS contained the reference.
+    pub owner: ModuleId,
     /// Decoded URL specifier, without the surrounding CSS syntax.
     pub specifier: String,
 }

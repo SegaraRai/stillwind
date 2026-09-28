@@ -9,6 +9,7 @@ use stillwind_css::fold_calc_expressions;
 use stillwind_diagnostics::{CompileErrorKind, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -30,11 +31,11 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -77,11 +78,11 @@ export const item = style(panel, enter("duration-180"));"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -133,11 +134,11 @@ const detail = style(title);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -191,11 +192,11 @@ export const photo = style(item);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -238,11 +239,11 @@ export const photo = style(item);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -296,11 +297,11 @@ export const photo = style(item);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -341,11 +342,11 @@ export const kept = style(block, base.for("hero"));"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -386,11 +387,11 @@ export const props = style(named, "flex");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -425,11 +426,11 @@ export const item = style("translate-x-1", card);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &options,
     );
 
@@ -466,11 +467,11 @@ export const item = style("rounded", compact && sub, main.for("hero"));"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -515,11 +516,11 @@ export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -558,11 +559,11 @@ export const item = style("block", enabled && motion.for(id));"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -595,11 +596,11 @@ export const item = style("block", { "hover:": enabled && motion.for("hero") });
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -631,11 +632,11 @@ export const item = style({ "hover:": motion.for(first), "focus:": motion.for(se
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -668,11 +669,11 @@ export const item = style({ "hover:": motion.for(id) });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -704,11 +705,11 @@ export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -744,11 +745,11 @@ export const item = style("block", first && one, second && two);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -792,11 +793,11 @@ export const useLiteral = style("block", literal);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -834,11 +835,11 @@ export const item = style(card, image);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 

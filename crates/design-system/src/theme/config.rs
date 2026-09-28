@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 use stillwind_css::{extract_named_blocks, strip_css_comments};
 use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_source::ModuleId;
 
 /// Extracts the configuration from every `@stillwind` block, after comments are removed
 /// so a commented example cannot configure a project.
@@ -87,7 +88,7 @@ impl Default for StillwindConfig {
                 ),
                 (
                     LintKind::ImportedBaseInterference {
-                        module: String::new(),
+                        module: ModuleId::from(""),
                         properties: String::new(),
                     },
                     LintSeverity::Warn,

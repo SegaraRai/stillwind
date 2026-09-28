@@ -9,6 +9,7 @@ use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -29,11 +30,11 @@ export const two = style({ "hover:": base });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -90,11 +91,11 @@ fn compile(body: &str) -> CompileResult {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -257,11 +258,11 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(

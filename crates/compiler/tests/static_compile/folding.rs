@@ -7,7 +7,7 @@ use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
 use stillwind_diagnostics::{LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 use super::Compiler;
 
@@ -28,11 +28,11 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &css,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -504,11 +504,11 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &css,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(

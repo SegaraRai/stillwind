@@ -10,7 +10,7 @@ import { projectFrameworkSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor, fileSourceKind } from "../src/compiler.ts";
 import type { ProjectCompilerOutput } from "../src/protocol.ts";
 import { moduleSourceMap } from "../src/source-map.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
@@ -46,7 +46,10 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
     read: async () => {
       throw new Error("Unexpected read");
     },
-    documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+    describe: (id) => ({
+      ...fileModuleDescriptor(root, id),
+      uri: `untitled:${encodeURIComponent(id)}`,
+    }),
     watch: () => {},
     warn: () => {},
   };
@@ -55,7 +58,7 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
     const output = await compileModule(session, () => facts, source, id, root, host);
     assert.ok(output?.code?.includes(`<${extension === "astro" ? "div" : "script"}`));
     assert.deepEqual(output.diagnostics, []);
-    assert.match(session.moduleCss(output.path), /display:\s*flex/);
+    assert.match(session.moduleCss(output.module_id), /display:\s*flex/);
     const edited = await compileModule(
       session,
       () => facts,
@@ -65,8 +68,8 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
       host,
     );
     assert.ok(edited?.code);
-    assert.doesNotMatch(session.moduleCss(output.path), /display:\s*flex/);
-    assert.match(session.moduleCss(output.path), /display:\s*grid/);
+    assert.doesNotMatch(session.moduleCss(output.module_id), /display:\s*flex/);
+    assert.match(session.moduleCss(output.module_id), /display:\s*grid/);
   }
 });
 
@@ -81,8 +84,11 @@ void test("SFC output fails on residual macros or mismatched attribute context",
       ) as ProjectCompilerOutput
     ).modules[0]!;
   const input = await projectFrameworkSource({
-    id: "/src/Bad.vue",
-    path: "/src/Bad.vue",
+    resolver_id: "/src/Bad.vue",
+    checker_file_name: "/src/Bad.vue",
+    projection_file_name: "/src/Bad.vue",
+    module_id: "/src/Bad.vue",
+    ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue,
   });
@@ -93,8 +99,11 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   assert.equal(wrongQuote.code, null);
   assert.equal(wrongQuote.diagnostics[0]?.code, "SHIMPORT001");
   const leaked = await projectFrameworkSource({
-    id: "/src/Bad.vue",
-    path: "/src/Bad.vue",
+    resolver_id: "/src/Bad.vue",
+    checker_file_name: "/src/Bad.vue",
+    projection_file_name: "/src/Bad.vue",
+    module_id: "/src/Bad.vue",
+    ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue.replace("const active", "const leaked = style; const active"),
   });
@@ -102,8 +111,11 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   assert.equal(leftover.code, null);
   assert.equal(leftover.diagnostics[0]?.code, "SHIMPORT001");
   const missingTarget = await projectFrameworkSource({
-    id: "/src/Bad.vue",
-    path: "/src/Bad.vue",
+    resolver_id: "/src/Bad.vue",
+    checker_file_name: "/src/Bad.vue",
+    projection_file_name: "/src/Bad.vue",
+    module_id: "/src/Bad.vue",
+    ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue.replace(
       "import {style}",
@@ -196,8 +208,11 @@ for (const { extension, source, name, imports } of [
   void test(`${extension} ${name}: converter, native edits and framework compilation agree`, async () => {
     const filename = `/src/Component.${extension}`;
     const projected = await projectFrameworkSource({
-      id: filename,
-      path: filename,
+      resolver_id: filename,
+      checker_file_name: filename,
+      projection_file_name: filename,
+      module_id: filename,
+      ...fileSourceKind(filename),
       uri: `untitled:${filename}`,
       source,
     });

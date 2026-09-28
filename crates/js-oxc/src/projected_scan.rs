@@ -57,7 +57,7 @@ pub(crate) fn parse_projected(
     };
     let mut parsed = parse_with_coordinates(
         &normalized.source,
-        input.module_id.as_str(),
+        &input.module_id,
         facts,
         assets,
         input.language,

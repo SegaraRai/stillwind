@@ -10,8 +10,7 @@ use stillwind_ir::{
     ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, Span};
+use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
 use super::fold::{Demand, fold, record_fields};

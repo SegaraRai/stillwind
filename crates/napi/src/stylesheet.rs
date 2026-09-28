@@ -57,7 +57,8 @@ pub struct NativeCssResource {
     /// Placeholder left in the CSS that the host must substitute.
     pub placeholder: String,
     /// Opaque name of the source that owns the reference.
-    pub owner: String,
+    #[napi(js_name = "source_name")]
+    pub source_name: String,
     /// Authored `url()` specifier.
     pub specifier: String,
     /// Byte start of the complete authored resource expression in the owning source.

@@ -4,6 +4,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { fileModuleDescriptor } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
 import {
@@ -125,7 +126,7 @@ export default function (
       projection || cssValue ? await read(this.resourcePath) : text,
       this.resourcePath,
       {
-        documentUri: (id) => pathToFileURL(id).href,
+        describe: (id) => fileModuleDescriptor(root, id),
         resolve: async (specifier, importer) => {
           if (specifier.startsWith("node:") && isBuiltin(specifier)) {
             return { id: specifier, external: true };
@@ -156,18 +157,18 @@ export default function (
       return callback(null, projection ? "" : source, projection ? null : inputMap);
     }
     const plan = session.planStylesheet({
-      modules: [output.path],
+      modules: [output.module_id],
       coverage: { kind: "observed" },
       placement: "document",
     });
 
     const valueResources: { placeholder: string; id: string; request: string }[] = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
-      const resolved = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
+      const owner =
+        "module_id" in resource ? compiler.resolverId(resource.module_id) : resource.source_name;
+      const resolved = await resolveAsset(resource.specifier, owner);
       if (!resolved) {
-        throw new Error(
-          `Cannot resolve Stillwind resource ${resource.specifier} from ${resource.owner}`,
-        );
+        throw new Error(`Cannot resolve Stillwind resource ${resource.specifier} from ${owner}`);
       }
       watch(host.cleanModuleId(resolved));
       if (plan.css.includes(resource.placeholder)) {

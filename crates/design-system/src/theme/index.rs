@@ -263,7 +263,7 @@ impl ThemeIndex {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::theme::declarations::extract_theme_declarations;
@@ -325,7 +325,7 @@ mod tests {
                 "@theme { --color-unused: red; } @theme static { --color-static: blue; }",
             )
             .unwrap(),
-            "test.css",
+            &CssSourceName::from("test.css"),
         )
         .unwrap();
         assert_eq!(

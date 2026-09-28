@@ -12,8 +12,7 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, SourceRegistry};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
 
 /// One analyzed module whose single call uses the given candidate.
 fn module(name: &str, candidate: &str) -> ModuleAnalysis {
@@ -51,7 +50,7 @@ fn failing_module(name: &str) -> ModuleAnalysis {
 fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(2), css).unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -105,15 +104,19 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
         None,
     );
     assert!(session.update_module(analysis).diagnostics.is_empty());
-    let other_artifact = session.artifacts()["other.tsx"].css.to_css();
+    let other_artifact = session.artifacts()[&ModuleId::from("other.tsx")]
+        .css
+        .to_css();
     let before_css = session.css().unwrap();
     let revision = session.snapshot().revision();
-    let before_artifact = session.artifacts()["motion.tsx"].css.to_css();
+    let before_artifact = session.artifacts()[&ModuleId::from("motion.tsx")]
+        .css
+        .to_css();
     let update = session
         .reload(Ok(reload_snapshot("")), session.options().clone())
         .unwrap();
     assert!(
-        update.diagnostics["motion.tsx"]
+        update.diagnostics[&ModuleId::from("motion.tsx")]
             .iter()
             .any(|error| matches!(error.kind, CompileErrorKind::UnavailableUtility { .. }))
     );
@@ -122,12 +125,16 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     assert_eq!(session.snapshot().revision(), revision);
     assert_eq!(session.css().unwrap(), before_css);
     assert_eq!(
-        session.artifacts()["motion.tsx"].css.to_css(),
+        session.artifacts()[&ModuleId::from("motion.tsx")]
+            .css
+            .to_css(),
         before_artifact
     );
     assert_eq!(session.artifacts().len(), 2);
     assert_eq!(
-        session.artifacts()["other.tsx"].css.to_css(),
+        session.artifacts()[&ModuleId::from("other.tsx")]
+            .css
+            .to_css(),
         other_artifact
     );
     assert!(session.dependencies().utilities.contains_key("brand"));
@@ -144,7 +151,11 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     let dependencies = session.dependencies().clone();
     let update = session.update_module(failing_module("motion.tsx"));
     assert!(!update.diagnostics.is_empty());
-    assert!(session.artifacts().contains_key("motion.tsx"));
+    assert!(
+        session
+            .artifacts()
+            .contains_key(&ModuleId::from("motion.tsx"))
+    );
     assert_eq!(session.dependencies(), &dependencies);
 }
 
@@ -199,10 +210,18 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
             .is_empty()
     );
     assert!(session.load_error().is_none());
-    assert!(session.artifacts().contains_key("motion.tsx"));
+    assert!(
+        session
+            .artifacts()
+            .contains_key(&ModuleId::from("motion.tsx"))
+    );
     // A failed module update in build mode drops the artifact and its memberships.
     let update = session.update_module(failing_module("motion.tsx"));
     assert!(!update.diagnostics.is_empty());
-    assert!(!session.artifacts().contains_key("motion.tsx"));
+    assert!(
+        !session
+            .artifacts()
+            .contains_key(&ModuleId::from("motion.tsx"))
+    );
     assert_eq!(session.dependencies(), &DependencyIndex::default());
 }

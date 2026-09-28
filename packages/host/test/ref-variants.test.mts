@@ -37,30 +37,36 @@ declare const enabled: boolean;
 const selected = enabled ? a : b;
 export const props = style(${expression});`;
       const sources = [
-        { path: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
-        { path: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
+        { module_id: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
+        { module_id: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
       ].map((source) => ({
         ...source,
         language: "ts" as const,
         module_kind: "unambiguous" as const,
         source_map_source: source.uri,
-        id: path.join(root, source.path),
-        summary: summarizeSource(source.source, source.path, "tsx", "unambiguous") as ModuleSummary,
+        resolver_id: path.join(root, source.module_id),
+        checker_file_name: path.join(root, source.module_id),
+        summary: summarizeSource(
+          source.source,
+          source.module_id,
+          "tsx",
+          "unambiguous",
+        ) as ModuleSummary,
       }));
       const facts = service.collect(
         sources.map((source) => ({ ...source, probes: source.summary.type_probes })),
-        new Map(sources.map((source) => [source.path, source.summary.assets])),
+        new Map(sources.map((source) => [source.module_id, source.summary.assets])),
       );
       const result = compileProject(
-        sources.map((source) => ({ ...source, type_facts: facts.get(source.path) ?? [] })),
+        sources.map((source) => ({ ...source, type_facts: facts.get(source.module_id) ?? [] })),
         cssInput(`@variant hover { @media (hover:hover) { &:hover { @slot; } } }
 @variant active { &:active { @slot; } }
 @utility accent { color:red; }
 @stillwind-slot utilities;`),
       ) as {
-        modules: Array<{ path: string; code: string; css: string; diagnostics: unknown[] }>;
+        modules: Array<{ module_id: string; code: string; css: string; diagnostics: unknown[] }>;
       };
-      const output = result.modules.find((module) => module.path === "ref-consumer.ts");
+      const output = result.modules.find((module) => module.module_id === "ref-consumer.ts");
       assert.ok(output);
       assert.deepEqual(output.diagnostics, []);
       if (expression.includes(".at")) {

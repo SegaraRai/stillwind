@@ -272,7 +272,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::FileId;
+    use stillwind_source::{CssSourceName, FileId};
 
     use super::*;
     use crate::Compiler;
@@ -313,7 +313,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
         let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
@@ -340,7 +340,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
         let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()

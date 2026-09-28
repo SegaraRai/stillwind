@@ -47,7 +47,7 @@ pub struct Compiler;
 pub use output::CompileResult;
 pub use output::CssContribution;
 pub use props::{GeneratedClass, GuardStep};
-pub use symbols::GeneratedSymbol;
+pub use symbols::{GeneratedSymbol, SymbolOrigin};
 
 pub(crate) use stylesheet::render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use stylesheet::template::render_mapped;

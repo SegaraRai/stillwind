@@ -480,8 +480,7 @@ mod runtime_anchor_tests {
         ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
     };
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_semantic::ModuleId;
-    use stillwind_source::{FileId, ProjectionMap, SourceFile};
+    use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile};
 
     use super::*;
 

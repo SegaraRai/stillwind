@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::normalized_module_path;
+use stillwind_source::ModuleId;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -81,13 +81,12 @@ impl CompilerOptions {
     /// in two branches still hash to different names. Length prefixes keep the
     /// variable-length namespace and module boundaries unambiguous, and the whole
     /// string is stable across recompiles of unchanged source.
-    pub(crate) fn style_class_input(&self, module: &str, call: u32, branch: &str) -> String {
-        let module = normalized_module_path(module);
+    pub(crate) fn style_class_input(&self, module: &ModuleId, call: u32, branch: &str) -> String {
         format!(
             "stillwind/style/v1:{}:{}{}:{module}:{call}:{branch}",
             self.class_namespace.len(),
             self.class_namespace,
-            module.len(),
+            module.as_str().len(),
         )
     }
 

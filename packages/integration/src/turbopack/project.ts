@@ -3,7 +3,12 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { cleanModuleId, compilerModulePath, loadCssGraph } from "@stillwind/host";
+import {
+  cleanModuleId,
+  compilerModuleId,
+  fileModuleDescriptor,
+  loadCssGraph,
+} from "@stillwind/host";
 import { nativeBindingPath, scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
@@ -83,7 +88,7 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
     options.mode,
   );
   const host = {
-    documentUri: (id: string) => pathToFileURL(id).href,
+    describe: (id: string) => fileModuleDescriptor(options.root, id),
     read,
     watch,
     resolve: async (specifier: string, importer: string) =>
@@ -115,7 +120,7 @@ export async function compileGraph(
     const source = await host.read(id);
     revision.update(id).update("\0").update(source).update("\0");
     const summary = scanSource({
-      path: compilerModulePath(options.root, id),
+      module_id: compilerModuleId(options.root, id),
       uri: pathToFileURL(id).href,
       source,
       language: /\.tsx(?:[?#]|$)/i.test(id)
@@ -151,7 +156,7 @@ export async function compileGraph(
       moduleCssImport: "stillwind/module-css",
     });
     if (output && !output.hasModuleCssImport) {
-      selection.push(output.path);
+      selection.push(output.module_id);
     }
   }
   return compiler.native.planStylesheet({

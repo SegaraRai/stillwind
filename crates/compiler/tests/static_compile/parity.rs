@@ -9,6 +9,7 @@
 use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -41,11 +42,11 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -98,11 +99,11 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(
@@ -182,11 +183,11 @@ fn matches_tailwind_fixture_rules_after_minification() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(
@@ -233,11 +234,11 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &crate::css_fixture::source(FileId(2), stillwind_fixture_css(&input_css)).unwrap(),
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(

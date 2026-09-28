@@ -15,8 +15,7 @@ use stillwind_diagnostics::{
     CompileError, CompileErrorKind, DiagnosticBatch, LintKind, filter_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceRegistry, SourceRegistryError, Span};
+use stillwind_source::{FileId, ModuleId, SourceRegistry, SourceRegistryError, Span};
 
 use crate::ReservedNames;
 use crate::composition_lint::composition_lints;
@@ -266,12 +265,12 @@ impl ProjectSession {
     /// recompilation would report; an empty result means every published artifact is still valid.
     pub fn reserve_authored_css(
         &mut self,
-        module: &str,
+        module: &ModuleId,
         css: &str,
     ) -> BTreeMap<ModuleId, Vec<CompileError>> {
         let mut names = ReservedNames::default();
         names.collect(css);
-        self.authored.insert(module.into(), names);
+        self.authored.insert(module.clone(), names);
         self.recheck_artifacts()
     }
 
@@ -279,7 +278,10 @@ impl ProjectSession {
     ///
     /// Returns the modules whose published artifacts now collide, like
     /// [`Self::reserve_authored_css`] does.
-    pub fn forget_authored_css(&mut self, module: &str) -> BTreeMap<ModuleId, Vec<CompileError>> {
+    pub fn forget_authored_css(
+        &mut self,
+        module: &ModuleId,
+    ) -> BTreeMap<ModuleId, Vec<CompileError>> {
         self.authored.remove(module);
         self.recheck_artifacts()
     }
@@ -379,7 +381,7 @@ impl ProjectSession {
         }
         let module_id = analysis.module_id.clone();
         let mut compiled = backend.compile(&analysis, &self.identifiers);
-        let mut symbols = self.document_names(module_id.as_str());
+        let mut symbols = self.document_names(Some(&module_id));
         for symbol in &compiled.symbols {
             if let Some(collision) = insert_document_name(&mut symbols, symbol) {
                 compiled
@@ -411,7 +413,7 @@ impl ProjectSession {
         } else {
             update.diagnostics = compiled.diagnostics;
             if self.mode == SessionMode::Build {
-                self.remove_artifact(module_id.as_str());
+                self.remove_artifact(&module_id);
             }
         }
         update
@@ -423,17 +425,17 @@ impl ProjectSession {
     pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
         for analysis in analyses {
             if self.mode == SessionMode::Build {
-                self.remove_artifact(analysis.module_id.as_str());
+                self.remove_artifact(&analysis.module_id);
             }
             self.analyses.insert(analysis.module_id.clone(), analysis);
         }
     }
 
     /// Removes one producer, returning whether it was registered.
-    pub fn remove_module(&mut self, module: &str) -> bool {
+    pub fn remove_module(&mut self, module: &ModuleId) -> bool {
         let removed = self.analyses.remove(module).is_some();
-        self.reported.remove(&ModuleId::from(module));
-        let dependents = self.composition_dependents(&ModuleId::from(module));
+        self.reported.remove(module);
+        let dependents = self.composition_dependents(module);
         self.remove_artifact(module);
         self.refresh_composition_lints(dependents);
         removed
@@ -470,17 +472,17 @@ impl ProjectSession {
         self.artifacts
             .iter()
             .filter(|(id, artifact)| {
-                id.as_str() != module.as_str()
+                *id != module
                     && artifact
                         .composition
                         .iter()
-                        .any(|edge| edge.base.module_path == module.as_str())
+                        .any(|edge| edge.base.module_id == *module)
             })
             .map(|(id, _)| id.clone())
             .collect()
     }
 
-    fn remove_artifact(&mut self, module: &str) {
+    fn remove_artifact(&mut self, module: &ModuleId) {
         if let Some((id, artifact)) = self.artifacts.remove_entry(module) {
             self.stylesheet.remove(module);
             self.dependencies.remove(&id, &artifact.dependencies);
@@ -561,11 +563,11 @@ impl ProjectSession {
     /// `except` names one module whose symbols are left out, so it can be checked against the rest
     /// of the document. An authored name already owns its namespace, so a generated name equal to
     /// one is reported even when no producer generated it.
-    fn document_names(&self, except: &str) -> BTreeMap<(IdentifierPool, &str), &str> {
+    fn document_names(&self, except: Option<&ModuleId>) -> BTreeMap<(IdentifierPool, &str), &str> {
         let mut names: BTreeMap<_, _> = self
             .artifacts
             .iter()
-            .filter(|(id, _)| id.as_str() != except)
+            .filter(|(id, _)| except != Some(id))
             .flat_map(|(_, artifact)| artifact.symbols.iter())
             .map(|symbol| {
                 (
@@ -583,7 +585,7 @@ impl ProjectSession {
 
     /// Checks every published artifact against the document's names, in module order.
     fn recheck_artifacts(&self) -> BTreeMap<ModuleId, Vec<CompileError>> {
-        let mut names = self.document_names("");
+        let mut names = self.document_names(None);
         let mut reported = BTreeMap::new();
         for (id, artifact) in &self.artifacts {
             let mut diagnostics = Vec::new();
@@ -615,7 +617,7 @@ impl ProjectSession {
         &self,
         symbols: &[GeneratedSymbol],
     ) -> Result<(), CompileErrorKind> {
-        let mut names = self.document_names("");
+        let mut names = self.document_names(None);
         for symbol in symbols {
             if let Some(collision) = insert_document_name(&mut names, symbol) {
                 return Err(collision);

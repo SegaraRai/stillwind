@@ -28,7 +28,15 @@ export const props = style(selected('infinite'));`;
   try {
     const facts = service
       .collect(
-        [{ id, path: "probe-document.ts", source, probes: summary.type_probes }],
+        [
+          {
+            resolver_id: id,
+            checker_file_name: id,
+            module_id: "probe-document.ts",
+            source,
+            probes: summary.type_probes,
+          },
+        ],
         new Map([["probe-document.ts", summary.assets]]),
       )
       .get("probe-document.ts")!;
@@ -40,7 +48,15 @@ export const props = style(selected('infinite'));`;
     }
     assert.equal(service.stats.restarts, 0);
     const noProbes = service.collect(
-      [{ id, path: "probe-document.ts", source, probes: [] }],
+      [
+        {
+          resolver_id: id,
+          checker_file_name: id,
+          module_id: "probe-document.ts",
+          source,
+          probes: [],
+        },
+      ],
       new Map([["probe-document.ts", summary.assets]]),
     );
     assert.deepEqual(noProbes.get("probe-document.ts"), []);

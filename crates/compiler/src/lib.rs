@@ -52,6 +52,7 @@ pub use compiled_module::{
 };
 pub use compiler::{
     CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
+    SymbolOrigin,
 };
 pub use identifiers::{
     AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,

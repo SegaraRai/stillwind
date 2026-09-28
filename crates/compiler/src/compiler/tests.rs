@@ -2,7 +2,7 @@
 
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 use super::Compiler;
 use crate::CompilerOptions;
@@ -18,9 +18,13 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
             "#,
     )
     .unwrap();
-    let css =
-        Compiler::render_stylesheet(&source, "stillwind.css", "", &CompilerOptions::default())
-            .unwrap();
+    let css = Compiler::render_stylesheet(
+        &source,
+        &CssSourceName::from("stillwind.css"),
+        "",
+        &CompilerOptions::default(),
+    )
+    .unwrap();
 
     assert!(
         css.contains("--default-font-feature-settings:var(--font-sans--font-feature-settings);")
@@ -37,7 +41,7 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
     .unwrap();
     let css = Compiler::render_stylesheet(
         &without_feature,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         "",
         &CompilerOptions::default(),
     )
@@ -58,11 +62,11 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &js,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &css,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{result:?}");
@@ -105,8 +109,13 @@ fn emits_only_used_compiler_owned_property_registrations() {
     )
     .unwrap();
 
-    let css = Compiler::render_stylesheet(&theme, "stillwind.css", "", &CompilerOptions::default())
-        .unwrap();
+    let css = Compiler::render_stylesheet(
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        "",
+        &CompilerOptions::default(),
+    )
+    .unwrap();
     assert!(css.contains("@property --example-used"));
     assert!(!css.contains("--example-unused"));
     assert!(!css.contains("@stillwind-property"));
@@ -127,8 +136,13 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
     )
     .unwrap();
 
-    let css = Compiler::render_stylesheet(&theme, "stillwind.css", "", &CompilerOptions::default())
-        .unwrap();
+    let css = Compiler::render_stylesheet(
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        "",
+        &CompilerOptions::default(),
+    )
+    .unwrap();
     assert_eq!(css.matches("@property --tw-shadow").count(), 1);
     assert!(css.contains("inherits: true"));
     assert!(!css.contains("initial-value: 0 0 #0000"));
@@ -144,7 +158,7 @@ fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
 
     let css = Compiler::render_stylesheet(
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         ".example{--internal-translate-x:0;translate:var(--internal-translate-x);}",
         &options,
     )
@@ -173,11 +187,11 @@ fn makes_margin_utility_order_independent() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{result:?}");
@@ -204,11 +218,11 @@ fn orders_whole_builtin_utilities_instead_of_individual_properties() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{result:?}");

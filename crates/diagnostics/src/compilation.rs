@@ -7,7 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::{
-    BytePos, CoordinateError, FileId, Position, ProjectionError, SourceError, Span, Utf16Offset,
+    BytePos, CoordinateError, CssSourceName, FileId, Position, ProjectionError, SourceError, Span,
+    Utf16Offset,
 };
 
 /// The reason a style input cannot be transformed by a CSS variant.
@@ -518,7 +519,7 @@ pub enum CompileErrorKind {
     #[error("conflicting CSS source for {name}")]
     ConflictingCssSource {
         /// Opaque source name supplied by the host.
-        name: String,
+        name: CssSourceName,
     },
     /// Resolved imports contain a dependency cycle.
     #[error("CSS import cycle: {requests}")]

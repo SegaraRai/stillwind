@@ -24,8 +24,8 @@ use stillwind_ir::{
     ScriptModuleKind, SourceAnalyzer, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::{ModuleId, TypeFacts};
-use stillwind_source::{FileId, Fingerprint, SourceFile, Span, Spanned};
+use stillwind_semantic::TypeFacts;
+use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile, Span, Spanned};
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
@@ -34,11 +34,11 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
     let output = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
@@ -93,11 +93,11 @@ fn composition_rejects_props_and_nested_calls() {
         let output = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(
@@ -114,9 +114,12 @@ fn composition_rejects_props_and_nested_calls() {
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
     let theme = crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css".into(),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     for candidates in [
         "flex p-4 hover:bg-brand",
         "before:content-['}']",
@@ -138,11 +141,11 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
         let output = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         let analysis = OxcSourceAnalyzer.finalize(
@@ -211,7 +214,8 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
     ] {
         let theme = SourceFile::new(FileId(2), None, None, css).unwrap();
         let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", options.design_system()).unwrap();
+            DesignSystemSnapshot::from_source(&theme, "test.css".into(), options.design_system())
+                .unwrap();
         let compiled = ModuleCompiler::new(snapshot.clone(), options.clone())
             .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
@@ -238,11 +242,11 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &theme,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &options
             )
         );
@@ -275,9 +279,12 @@ fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe
             format!("@stillwind {{ unknown-utility: {policy}; }}"),
         )
         .unwrap();
-        let snapshot =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            "test.css".into(),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let module = analysis.clone();
         std::thread::spawn(move || {
             ModuleCompiler::new(snapshot, CompilerOptions::default())
@@ -311,9 +318,12 @@ fn invalid_transform_byte_boundaries_return_errors() {
 #[test]
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     let theme = crate::css_fixture::source(FileId(2), "").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        "test.css".into(),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
@@ -333,8 +343,9 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         None,
     );
     let span = source.full_span();
+    let invalid = Span::new(FileId(1), u32::MAX, u32::MAX);
     let definition = RefDefinition {
-        module_path: "x.tsx".into(),
+        module_id: "x.tsx".into(),
         binding: Spanned::new("r".into(), span),
         label: None,
         boundary: None,
@@ -369,16 +380,10 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             }
             .into(),
         ),
-        StyleInput::Class(
-            RuleExpression::Utilities(Spanned::new(
-                "x".into(),
-                Span::new(FileId(1), u32::MAX, u32::MAX),
-            ))
-            .into(),
-        ),
+        StyleInput::Class(RuleExpression::Utilities(Spanned::new("x".into(), invalid)).into()),
         StyleInput::Class(ClassExpression::ClassValue {
-            span: Span::new(FileId(1), u32::MAX, u32::MAX),
-            arguments: vec![Span::new(FileId(1), u32::MAX, u32::MAX)],
+            span: invalid,
+            arguments: vec![invalid],
         }),
     ]
     .into_iter()
@@ -386,11 +391,11 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         CompileErrorKind::InvalidVariantPrefix,
         CompileErrorKind::InvalidVariantPrefix,
         CompileErrorKind::SourceInvalidSpan {
-            span: Span::new(FileId(1), u32::MAX, u32::MAX),
+            span: invalid,
             context: SourceFailureContext::Utility,
         },
         CompileErrorKind::SourceInvalidSpan {
-            span: Span::new(FileId(1), u32::MAX, u32::MAX),
+            span: invalid,
             context: SourceFailureContext::Emission,
         },
     ]) {
@@ -415,7 +420,7 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -462,7 +467,7 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -528,7 +533,7 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -579,7 +584,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -649,7 +654,7 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -719,7 +724,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -796,7 +801,7 @@ fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
@@ -868,7 +873,7 @@ fn a_host_names_every_conditional_helper_it_is_asked_for() {
     let theme = css_fixture::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
-        "test.css",
+        "test.css".into(),
         CompilerOptions::default().design_system(),
     )
     .unwrap();

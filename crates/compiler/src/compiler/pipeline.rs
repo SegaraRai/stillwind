@@ -41,7 +41,7 @@ use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
-use crate::{CompilerOptions, GeneratedSymbol};
+use crate::{CompilerOptions, GeneratedSymbol, SymbolOrigin};
 
 impl Compiler {
     /// Compiles a module that owns source edits, including its runtime imports.
@@ -115,7 +115,7 @@ impl Compiler {
             ..CompileResult::default()
         };
         let theme = snapshot.theme();
-        let module_id = parsed.module_id.as_str();
+        let module_id = &parsed.module_id;
         let options = compiler_options;
         result.lint_policy.clone_from(&theme.config.lint_rules);
         filter_lint_findings(source, &mut result.lint_findings);
@@ -426,7 +426,7 @@ impl Compiler {
                 identifiers
                     .drain_detached()
                     .iter()
-                    .map(|name| detached_symbol(name, module_id)),
+                    .map(|name| detached_symbol(name, SymbolOrigin::Module(module_id.clone()))),
             );
         }
         for transform in &mut result.transforms {

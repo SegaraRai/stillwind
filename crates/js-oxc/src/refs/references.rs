@@ -101,7 +101,7 @@ impl<'a> MacroExtractor<'a> {
     /// projection-free declaration fields are all a bounded ref keeps.
     fn boundary_of(definition: &RefDefinition) -> BoundaryRef {
         BoundaryRef {
-            module_path: definition.module_path.clone(),
+            module_id: definition.module_id.clone(),
             binding: definition.binding.clone(),
             label: definition.label.clone(),
             call_span: definition.call_span,
@@ -124,7 +124,7 @@ impl<'a> MacroExtractor<'a> {
         let span = Span::new(self.original.id(), identity.start, identity.end);
         let metadata = self.imported_assets.get(identity);
         BoundaryRef {
-            module_path: identity.module_path.clone(),
+            module_id: identity.module_id.clone(),
             binding: Spanned::new(identity.binding_name.clone(), span),
             label: metadata
                 .and_then(|metadata| metadata.label.clone())
@@ -162,7 +162,7 @@ impl<'a> MacroExtractor<'a> {
             })
             .cloned()
             .unwrap_or_else(|| RefDefinition {
-                module_path: alternative.reference.module_path.clone(),
+                module_id: alternative.reference.module_id.clone(),
                 binding: Spanned::new(alternative.reference.binding_name.clone(), span),
                 label: metadata
                     .and_then(|metadata| metadata.label.clone())

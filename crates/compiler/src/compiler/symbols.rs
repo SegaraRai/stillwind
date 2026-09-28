@@ -1,20 +1,18 @@
 //! Deterministic generated identifiers.
 //!
 //! Every name is spelled from a hash over an identity string of the form
-//! `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`, with normalized module paths
-//! so the same declaration yields the same name on Windows and on POSIX. Class names
-//! additionally mix in the callsite offset and a per-call branch index, which is what
-//! keeps two callsites with identical utility sets in different class units. The
-//! truncation makes a collision conceivable, so [`GeneratedSymbol`] reports the full
-//! identity next to the name and a consumer that must be certain compares identities
-//! instead of names.
+//! `stillwind/v1\0<module>\0<kind>\0<start>:<end>:<text>`. Class names additionally mix
+//! in the callsite offset and a per-call branch index, which is what keeps two
+//! callsites with identical utility sets in different class units. The truncation makes
+//! a collision conceivable, so [`GeneratedSymbol`] reports the full identity next to
+//! the name and a consumer that must be certain compares identities instead of names.
 
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{AssetReference, BoundaryRef, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
-use stillwind_source::{Span, Spanned, normalized_module_path};
+use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
@@ -41,23 +39,42 @@ pub struct GeneratedSymbol {
     pub pool: IdentifierPool,
     /// Canonical identity the name hashes.
     pub identity: String,
-    /// Normalized source path of the module that declared the symbol, or of the stylesheet
-    /// that named it when the name has no declaration.
-    pub source_path: String,
+    /// Source that owns the declaration or detached name.
+    pub origin: SymbolOrigin,
     /// Byte offset of the declaration's first character, when it has one.
     pub start: Option<u32>,
     /// Byte offset just past the declaration, when it has one.
     pub end: Option<u32>,
 }
 
+/// Source identity used to attribute a generated name.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", content = "id", rename_all = "kebab-case")]
+pub enum SymbolOrigin {
+    /// A script module.
+    Module(ModuleId),
+    /// A stylesheet that named a detached helper or layer.
+    Stylesheet(CssSourceName),
+}
+
+impl SymbolOrigin {
+    /// Returns the declaring module when the name comes from a script.
+    pub fn module_id(&self) -> Option<&ModuleId> {
+        match self {
+            Self::Module(id) => Some(id),
+            Self::Stylesheet(_) => None,
+        }
+    }
+}
+
 /// Builds the report record for one name that has no declaration position.
-pub(crate) fn detached_symbol(name: &DetachedName, source_path: &str) -> GeneratedSymbol {
+pub(crate) fn detached_symbol(name: &DetachedName, origin: SymbolOrigin) -> GeneratedSymbol {
     GeneratedSymbol {
         name: name.name.clone(),
         kind: name.kind.as_str().to_owned(),
         pool: name.kind.pool(),
         identity: name.identity.clone(),
-        source_path: normalized_module_path(source_path),
+        origin,
         start: None,
         end: None,
     }
@@ -76,7 +93,7 @@ pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
 /// The declaration fields a ref's generated names are built from.
 pub(super) fn ref_context(definition: &RefDefinition, projection: Option<&str>) -> LocatorContext {
     LocatorContext {
-        module: normalized_module_path(&definition.module_path),
+        module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
         binding: definition.binding.value.clone(),
@@ -88,7 +105,7 @@ pub(super) fn ref_context(definition: &RefDefinition, projection: Option<&str>) 
 /// The declaration fields a ref marker is built from, including its label.
 pub(super) fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(&definition.module_path),
+        module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
         binding: definition.binding.value.clone(),
@@ -99,7 +116,7 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
 /// The declaration fields a boundary ref's marker is built from, including its label.
 pub(super) fn boundary_declaration_context(boundary: &BoundaryRef) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(&boundary.module_path),
+        module: boundary.module_id.clone(),
         start: boundary.binding.span.start.0,
         end: boundary.binding.span.end.0,
         binding: boundary.binding.value.clone(),
@@ -169,31 +186,29 @@ pub(crate) fn ref_container_name(
 }
 
 /// Identity string for a declaration inside one source file.
-pub(super) fn symbol_identity(module_id: &str, kind: &str, definition: &Spanned<String>) -> String {
-    format!(
-        "stillwind/v1\0{}\0{kind}\0{}:{}:{}",
-        normalized_module_path(module_id),
-        definition.span.start.0,
-        definition.span.end.0,
-        definition.value,
-    )
-}
-
-/// Identity string for a declaration addressed by module path.
-///
-/// Used where the source buffer is not available, for example when a use site refers to
-/// an asset declared in another module.
-pub(super) fn asset_identity(
-    module_path: &str,
+pub(super) fn symbol_identity(
+    module_id: &ModuleId,
     kind: &str,
     definition: &Spanned<String>,
 ) -> String {
     format!(
-        "stillwind/v1\0{}\0{kind}\0{}:{}:{}",
-        normalized_module_path(module_path),
-        definition.span.start.0,
-        definition.span.end.0,
-        definition.value,
+        "stillwind/v1\0{module_id}\0{kind}\0{}:{}:{}",
+        definition.span.start.0, definition.span.end.0, definition.value,
+    )
+}
+
+/// Identity string for a declaration addressed by module identity.
+///
+/// Used where the source buffer is not available, for example when a use site refers to
+/// an asset declared in another module.
+pub(super) fn asset_identity(
+    module_id: &ModuleId,
+    kind: &str,
+    definition: &Spanned<String>,
+) -> String {
+    format!(
+        "stillwind/v1\0{module_id}\0{kind}\0{}:{}:{}",
+        definition.span.start.0, definition.span.end.0, definition.value,
     )
 }
 
@@ -222,12 +237,12 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
 /// `label` is the declaration's authored label, which the built-in generator spells
 /// into the name.
 pub(super) fn named_declaration(
-    module_path: &str,
+    module_id: &ModuleId,
     definition: &Spanned<String>,
     label: Option<&Spanned<String>>,
 ) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(module_path),
+        module: module_id.clone(),
         start: definition.span.start.0,
         end: definition.span.end.0,
         binding: definition.value.clone(),
@@ -242,7 +257,7 @@ pub(super) fn named_declaration(
 /// carries.
 pub(super) fn identity_declaration(reference: &AssetReference) -> DeclarationContext {
     DeclarationContext {
-        module: normalized_module_path(&reference.identity.module_path),
+        module: reference.identity.module_id.clone(),
         start: reference.identity.start,
         end: reference.identity.end,
         binding: reference.identity.binding_name.clone(),
@@ -305,7 +320,7 @@ fn locator(declaration: &DeclarationContext) -> LocatorContext {
 /// Returns the host generator's failure for the declaration's family.
 pub(super) fn generated_symbol(
     context: &IdentifierContext,
-    module_id: &str,
+    module_id: &ModuleId,
     kind: AssetKind,
     definition: &Spanned<String>,
     label: Option<&Spanned<String>>,
@@ -319,7 +334,7 @@ pub(super) fn generated_symbol(
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
         identity: symbol_identity(module_id, kind_name(kind), definition),
-        source_path: normalized_module_path(module_id),
+        origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(definition.span.start.0),
         end: Some(definition.span.end.0),
     })
@@ -340,7 +355,7 @@ pub(super) fn generated_ref_symbol(
         kind: "ref".to_owned(),
         pool: IdentifierPool::AnchorName,
         identity,
-        source_path: definition.module_path.clone(),
+        origin: SymbolOrigin::Module(definition.module_id.clone()),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),
     })
@@ -359,8 +374,8 @@ pub(super) fn generated_ref_marker_symbol(
         name: ref_marker_name(context, definition)?.as_str().to_owned(),
         kind: "ref-marker".to_owned(),
         pool: IdentifierPool::ClassToken,
-        identity: asset_identity(&definition.module_path, "ref-marker", &definition.binding),
-        source_path: definition.module_path.clone(),
+        identity: asset_identity(&definition.module_id, "ref-marker", &definition.binding),
+        origin: SymbolOrigin::Module(definition.module_id.clone()),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),
     })
@@ -373,7 +388,7 @@ pub(super) fn generated_ref_marker_symbol(
 /// generated the same class or detect that they generated different ones with equal
 /// names.
 pub(super) fn generated_class_symbol(
-    module_id: &str,
+    module_id: &ModuleId,
     name: &str,
     canonical_input: &str,
     span: Span,
@@ -383,7 +398,7 @@ pub(super) fn generated_class_symbol(
         kind: "class".to_owned(),
         pool: IdentifierPool::ClassToken,
         identity: format!("stillwind/v1\0class\0{canonical_input}"),
-        source_path: normalized_module_path(module_id),
+        origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(span.start.0),
         end: Some(span.end.0),
     }
@@ -408,7 +423,7 @@ pub(super) fn definition_name_symbol(
         kind: kind_name(kind).to_owned(),
         pool: kind_pool(kind),
         identity: identity_input(&reference.identity),
-        source_path: normalized_module_path(&reference.identity.module_path),
+        origin: SymbolOrigin::Module(reference.identity.module_id.clone()),
         start: Some(reference.identity.start),
         end: Some(reference.identity.end),
     })
@@ -418,7 +433,7 @@ pub(super) fn definition_name_symbol(
 pub(super) fn identity_input(identity: &IdentityId) -> String {
     format!(
         "stillwind/v1\0{}\0{}\0{}:{}:{}",
-        normalized_module_path(&identity.module_path),
+        identity.module_id,
         kind_name(identity.kind),
         identity.start,
         identity.end,
@@ -440,7 +455,7 @@ pub(super) fn identity_input_parts(context: &LocatorContext) -> String {
 pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
     IdentityId::new(
         AssetKind::Ref,
-        &definition.module_path,
+        definition.module_id.clone(),
         definition.binding.span.start.0,
         definition.binding.span.end.0,
         definition.binding.value.clone(),
@@ -449,13 +464,13 @@ pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
 
 /// Identity of a named motion asset, spanning its name token.
 pub(super) fn named_identity(
-    module_id: &str,
+    module_id: &ModuleId,
     kind: AssetKind,
     name: &Spanned<String>,
 ) -> IdentityId {
     IdentityId::new(
         kind,
-        module_id,
+        module_id.clone(),
         name.span.start.0,
         name.span.end.0,
         name.value.clone(),
@@ -473,7 +488,7 @@ pub(crate) fn projection_symbol(
     identity: String,
     pool: IdentifierPool,
     kind: &str,
-    source_path: &str,
+    module_id: &ModuleId,
     span: Span,
 ) -> GeneratedSymbol {
     GeneratedSymbol {
@@ -481,7 +496,7 @@ pub(crate) fn projection_symbol(
         kind: kind.to_owned(),
         pool,
         identity,
-        source_path: normalized_module_path(source_path),
+        origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(span.start.0),
         end: Some(span.end.0),
     }
@@ -504,22 +519,22 @@ mod tests {
     }
 
     #[test]
-    fn identities_normalize_paths_and_class_names_are_content_stable() {
+    fn identities_preserve_module_ids_and_class_names_are_content_stable() {
         let identifiers = identifiers();
         let class = |branch: &str| ClassContext {
-            module: "src/x.tsx".to_owned(),
+            module: ModuleId::from("src/x.tsx"),
             namespace: String::new(),
             call: 0,
             branch: branch.to_owned(),
         };
-        let name = Spanned::new("ref".into(), Span::new(FileId(1), 2, 5));
-        assert_eq!(
-            asset_identity(r"src\x.tsx", "ref", &name),
-            asset_identity("src/x.tsx", "ref", &name)
+        let name = Spanned::new("ref".to_owned(), Span::new(FileId(1), 2, 5));
+        assert_ne!(
+            asset_identity(&ModuleId::from(r"src\x.tsx"), "ref", &name),
+            asset_identity(&ModuleId::from("src/x.tsx"), "ref", &name)
         );
         assert_ne!(
-            asset_identity("src/x.tsx", "ref", &name),
-            asset_identity("src/y.tsx", "ref", &name)
+            asset_identity(&ModuleId::from("src/x.tsx"), "ref", &name),
+            asset_identity(&ModuleId::from("src/y.tsx"), "ref", &name)
         );
         assert_eq!(
             identifiers.class_name(&class("flex")),
@@ -537,7 +552,7 @@ mod tests {
                 .starts_with("sw_")
         );
         let namespaced = |namespace: &str| ClassContext {
-            module: "src/x.tsx".to_owned(),
+            module: ModuleId::from("src/x.tsx"),
             namespace: namespace.to_owned(),
             call: 0,
             branch: "flex".to_owned(),
@@ -561,19 +576,29 @@ mod tests {
             (AssetKind::Keyframes, "sw-kf-"),
             (AssetKind::ViewTransition, "sw-vt-"),
         ] {
-            let symbol = generated_symbol(&identifiers, "src/x.tsx", kind, &name, None).unwrap();
+            let symbol = generated_symbol(
+                &identifiers,
+                &ModuleId::from("src/x.tsx"),
+                kind,
+                &name,
+                None,
+            )
+            .unwrap();
             assert!(symbol.name.starts_with(prefix));
-            assert_eq!(symbol.source_path, "src/x.tsx");
+            assert_eq!(
+                symbol.origin,
+                SymbolOrigin::Module(ModuleId::from("src/x.tsx"))
+            );
             assert_eq!((symbol.start, symbol.end), (Some(0), Some(3)));
             assert_eq!(
                 symbol.identity,
-                asset_identity("src/x.tsx", kind_name(kind), &name)
+                asset_identity(&ModuleId::from("src/x.tsx"), kind_name(kind), &name)
             );
             let shifted = Spanned::new("ref".into(), Span::new(FileId(1), 1, 3));
             let shifted_name = declared_name(
                 &identifiers,
                 kind,
-                &named_declaration("src/x.tsx", &shifted, None),
+                &named_declaration(&ModuleId::from("src/x.tsx"), &shifted, None),
             )
             .unwrap();
             assert_ne!(symbol.name, shifted_name);

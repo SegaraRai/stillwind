@@ -4,6 +4,7 @@ use napi_derive::napi;
 use serde::Serialize;
 
 use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_source::ModuleId;
 
 /// Asset kinds as the host names them.
 #[napi(string_enum = "kebab-case")]
@@ -48,9 +49,9 @@ impl From<AssetKind> for NativeAssetKind {
 pub struct NativeIdentity {
     /// Kind of declaration this identity names.
     pub kind: NativeAssetKind,
-    /// Normalized module path of the declaring module.
-    #[napi(js_name = "module_path")]
-    pub module_path: String,
+    /// Module identity of the declaring module.
+    #[napi(js_name = "module_id")]
+    pub module_id: String,
     /// Byte start of the declaration identity: binding-name span for named assets,
     /// call span for styles.
     pub start: u32,
@@ -65,7 +66,7 @@ impl From<NativeIdentity> for IdentityId {
     fn from(value: NativeIdentity) -> Self {
         Self::new(
             value.kind.into(),
-            &value.module_path,
+            ModuleId::from(value.module_id),
             value.start,
             value.end,
             value.binding_name,
@@ -77,7 +78,7 @@ impl From<IdentityId> for NativeIdentity {
     fn from(value: IdentityId) -> Self {
         Self {
             kind: value.kind.into(),
-            module_path: value.module_path,
+            module_id: value.module_id.into_string(),
             start: value.start,
             end: value.end,
             binding_name: value.binding_name,

@@ -28,7 +28,7 @@ use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::StyleCall;
 use stillwind_semantic::IdentityId;
-use stillwind_source::SourceFile;
+use stillwind_source::{ModuleId, SourceFile};
 
 use super::CssContribution;
 use super::class_units::ClassUnits;
@@ -65,7 +65,7 @@ pub(super) struct CallEmitter<'a> {
     /// The buffer the module's original text is sliced from.
     source: &'a SourceFile,
     /// Module identity used for generated names.
-    module_id: &'a str,
+    module_id: &'a ModuleId,
     /// Compiler configuration for generated identities and output.
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
@@ -115,7 +115,7 @@ pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
     pub source: &'a SourceFile,
     /// Compiler identity of the source module.
-    pub module_id: &'a str,
+    pub module_id: &'a ModuleId,
     /// Compiler configuration for this call.
     pub options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.

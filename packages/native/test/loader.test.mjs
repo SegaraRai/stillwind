@@ -36,7 +36,7 @@ void test("failed compile transactions retain watch CSS but reject current plans
     sourceUri("root.css"),
   );
   const source = (path, utility) => ({
-    path,
+    module_id: path,
     uri: sourceUri(path),
     language: "tsx",
     module_kind: "unambiguous",
@@ -98,7 +98,7 @@ void test("native object transport returns typed values and rejects the former J
   assert.equal(typeof output.mappings[0].original_start, "number");
   const sources = [
     {
-      path: "🧭.tsx",
+      module_id: "🧭.tsx",
       uri: sourceUri("🧭.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -107,7 +107,7 @@ void test("native object transport returns typed values and rejects the former J
     },
   ];
   assert.deepEqual(
-    compileProject(sources, cssInput(css)).modules.map((module) => module.path),
+    compileProject(sources, cssInput(css)).modules.map((module) => module.module_id),
     ["🧭.tsx"],
   );
   const summary = summarizeSource(
@@ -118,7 +118,7 @@ void test("native object transport returns typed values and rejects the former J
   );
   const handle = summary.exports.find((entry) => entry.name === "handle").value;
   assert.equal(handle.kind, "refs");
-  assert.equal(handle.value[0].reference.module_path, "🧭.tsx");
+  assert.equal(handle.value[0].reference.module_id, "🧭.tsx");
   assert.equal(handle.value[0].permitted_boundaries, null);
   const reserved = summarizeSource(
     "import {style} from 'stillwind/react'; export const __proto__=style.ref();",
@@ -174,7 +174,7 @@ void test("removal reports producer presence independently of shared CSS", async
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   session.compile([
     {
-      path: "a.ts",
+      module_id: "a.ts",
       uri: sourceUri("a.ts"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -182,7 +182,7 @@ void test("removal reports producer presence independently of shared CSS", async
       source,
     },
     {
-      path: "b.ts",
+      module_id: "b.ts",
       uri: sourceUri("b.ts"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -208,7 +208,7 @@ void test("native semantic unions validate nested asset kinds and candidate payl
     compileProject(
       [
         {
-          path: "facts.ts",
+          module_id: "facts.ts",
           uri: sourceUri("facts.ts"),
           language: "tsx",
           module_kind: "unambiguous",
@@ -221,14 +221,14 @@ void test("native semantic unions validate nested asset kinds and candidate payl
     );
   const reference = {
     kind: "ref",
-    module_path: "facts.ts",
+    module_id: "facts.ts",
     start: 0,
     end: 1,
     binding_name: "handle",
   };
   const boundary = {
     kind: "ref",
-    module_path: "facts.ts",
+    module_id: "facts.ts",
     start: 2,
     end: 3,
     binding_name: "menu",
@@ -290,7 +290,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
   const session = new NativeProjectSession(loader, true);
   const result = session.compile([
     {
-      path: "button.tsx",
+      module_id: "button.tsx",
       uri: sourceUri("button.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -305,7 +305,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
     compileProject(
       [
         {
-          path: "button.tsx",
+          module_id: "button.tsx",
           uri: sourceUri("button.tsx"),
           language: "tsx",
           module_kind: "unambiguous",
@@ -364,7 +364,7 @@ void test("projected session edits original SFC text and preserves watch recover
   const prefix = "<!-- 🧭 -->\n<script>";
   const suffix = "</script><div {...props}></div><style>/* preserved */</style>";
   const input = {
-    path: "Component.svelte",
+    module_id: "Component.svelte",
     uri: sourceUri("Component.svelte"),
     module_kind: "unambiguous",
     source_map_source: sourceUri("Component.svelte"),
@@ -431,7 +431,7 @@ void test("session reload applies code generation options independently of CSS d
   const session = new NativeProjectSession(load("first"), true);
   const sources = [
     {
-      path: "button.tsx",
+      module_id: "button.tsx",
       uri: sourceUri("button.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -474,7 +474,7 @@ void test("native sessions retain independent producer rules and replace CSS rev
   const source = "import { style } from 'stillwind/react'; const x = style('bg-brand');";
   const result = session.compile([
     {
-      path: "a.tsx",
+      module_id: "a.tsx",
       uri: sourceUri("a.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -482,7 +482,7 @@ void test("native sessions retain independent producer rules and replace CSS rev
       source,
     },
     {
-      path: "b.tsx",
+      module_id: "b.tsx",
       uri: sourceUri("b.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -571,7 +571,7 @@ void test("native watch reload reports compilation errors without publishing a p
     "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'brand' }); const x = style(motion(''));";
   const output = session.compile([
     {
-      path: "motion.tsx",
+      module_id: "motion.tsx",
       uri: sourceUri("motion.tsx"),
       language: "tsx",
       module_kind: "unambiguous",
@@ -612,7 +612,7 @@ void test("native sessions join supplied type facts with another module's asset 
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "theme", "", sourceUri("theme"));
   const producer = {
-    path: "producer.tsx",
+    module_id: "producer.tsx",
     uri: sourceUri("producer.tsx"),
     language: "tsx",
     module_kind: "unambiguous",
@@ -620,7 +620,7 @@ void test("native sessions join supplied type facts with another module's asset 
     source: "import { style } from 'stillwind/react'; export const marker = style.ref('shared');",
   };
   const consumer = {
-    path: "consumer.tsx",
+    module_id: "consumer.tsx",
     uri: sourceUri("consumer.tsx"),
     language: "tsx",
     module_kind: "unambiguous",
@@ -628,7 +628,7 @@ void test("native sessions join supplied type facts with another module's asset 
     source:
       "import { style } from 'stillwind/react'; import { marker } from './producer'; const props = style(marker);",
   };
-  const summary = summarizeSource(producer.source, producer.path, "tsx", "unambiguous");
+  const summary = summarizeSource(producer.source, producer.module_id, "tsx", "unambiguous");
   const start = consumer.source.lastIndexOf("marker");
   const session = new NativeProjectSession(loader, true);
   const without = session.compile([consumer, producer]);
@@ -647,8 +647,8 @@ void test("native sessions join supplied type facts with another module's asset 
     producer,
   ]);
   assert.deepEqual(
-    withFacts.modules.map((module) => module.path),
-    [consumer.path, producer.path],
+    withFacts.modules.map((module) => module.module_id),
+    [consumer.module_id, producer.module_id],
   );
   assert.ok(
     withFacts.modules.every((module) => module.diagnostics.length === 0),

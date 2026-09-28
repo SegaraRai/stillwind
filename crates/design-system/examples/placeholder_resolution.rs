@@ -5,7 +5,7 @@ use std::hint::black_box;
 use std::time::Instant;
 
 use stillwind_design_system::{parse_theme, resolve_utility};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, SourceFile};
 
 fn main() {
     let repeated = std::iter::repeat_n("--value([length])", 32)
@@ -29,7 +29,7 @@ fn main() {
             format!("@utility {pattern} {{ {body} }}"),
         )
         .unwrap();
-        let theme = parse_theme(&source, "test.css").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert!(resolve_utility(candidate, &theme).unwrap().is_some());
         let mut samples = Vec::new();
         for _ in 0..5 {

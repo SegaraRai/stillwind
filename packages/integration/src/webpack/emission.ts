@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { fileModuleDescriptor } from "@stillwind/host";
+
 import {
   compilerOptions,
   cssEntrypoint,
@@ -111,7 +113,7 @@ function registerEmission(context: any, input?: ProducerInput) {
             input.source,
             input.id,
             {
-              documentUri: (id) => pathToFileURL(id).href,
+              describe: (id) => fileModuleDescriptor(root, id),
               resolve: async (specifier, importer) => ({
                 id: await resolveJs(specifier, importer),
               }),
@@ -122,7 +124,7 @@ function registerEmission(context: any, input?: ProducerInput) {
             { moduleCssImport: "stillwind/module-css" },
           );
           if (output && !input.manual) {
-            selection.push(output.path);
+            selection.push(output.module_id);
           }
         }
         const revision = createHash("sha256")
@@ -135,7 +137,11 @@ function registerEmission(context: any, input?: ProducerInput) {
         });
         const replacements = new Map();
         for (const resource of [...loaded.resources, ...plan.resources]) {
-          const file = await resolveAsset(resource.specifier, path.resolve(root, resource.owner));
+          const owner =
+            "module_id" in resource
+              ? compiler.resolverId(resource.module_id)
+              : resource.source_name;
+          const file = await resolveAsset(resource.specifier, owner);
           compilation.fileDependencies.add(file);
           let request = path
             .relative(

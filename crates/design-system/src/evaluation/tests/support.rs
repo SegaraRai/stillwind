@@ -7,6 +7,7 @@
 
 use stillwind_css::csswg_formal_syntax;
 use stillwind_diagnostics::CompileError;
+use stillwind_source::CssSourceName;
 
 use super::*;
 use crate::evaluation::variants::resolve::resolve_registered_variant_candidate;
@@ -377,7 +378,7 @@ pub(super) fn resolve_registry_variant_branches(
 pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     parse_theme(
         &crate::css_fixture::source(source.id(), stillwind_fixture_css(source.text())).unwrap(),
-        "test.css",
+        &CssSourceName::from("test.css"),
     )
 }
 

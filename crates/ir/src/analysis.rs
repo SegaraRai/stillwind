@@ -13,10 +13,9 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileError, LintDirective, LintFinding};
 use stillwind_semantic::{
-    AssetKind, IdentityId, IntegrationDiagnostic, ModuleId, ModuleSummary, TypeFacts,
-    TypeFactsUpdate,
+    AssetKind, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts, TypeFactsUpdate,
 };
-use stillwind_source::{Fingerprint, SourceFile, SourceProvenance, Span};
+use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span};
 
 use crate::{ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, validate_composition};
 

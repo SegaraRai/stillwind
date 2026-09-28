@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { NativeDesignSystemLoader } from "@stillwind/native";
 
+import { fileModuleDescriptor } from "../src/compiler.ts";
 import { EditorProject } from "../src/editor.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -27,7 +28,10 @@ function project(
         id: path.resolve(path.dirname(importer), `${specifier}.ts`),
       }),
       read,
-      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+      describe: (id) => ({
+        ...fileModuleDescriptor(root, id),
+        uri: `untitled:${encodeURIComponent(id)}`,
+      }),
       watch: () => {},
       warn: () => {},
     },

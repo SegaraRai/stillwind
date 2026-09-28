@@ -1,7 +1,6 @@
 //! Host module identity and the versioned type-fact contract.
 //!
-//! [`ModuleId`] is the path string the host uses for a module, kept verbatim so it
-//! matches the host's own bookkeeping key; it is deliberately not normalized.
+//! [`ModuleId`] is the opaque key the host uses for a module, kept verbatim.
 //! [`TypeFacts`] is what the TypeScript checker returns for one module: a schema tag,
 //! the module it describes, the source revision it was computed from, a revision for
 //! the semantic payload, expression facts and asset metadata. [`TypeFactsUpdate`]
@@ -13,55 +12,10 @@
 
 use std::collections::BTreeMap;
 
-use serde::Serialize;
-
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::Fingerprint;
+use stillwind_source::{Fingerprint, ModuleId};
 
 use crate::{AssetMetadata, IdentityId, TypeFact};
-
-/// Host-provided module identity, preserving the source path verbatim.
-///
-/// The wrapped string is the host's own key: it is compared byte for byte, so the host
-/// must use one spelling per module and must not expect this crate to resolve or
-/// normalize it. `Borrow<str>` lets a `BTreeMap<ModuleId, _>` be queried with a plain
-/// `&str`.
-///
-/// ```compile_fail
-/// use stillwind_semantic::ModuleId;
-/// let module: ModuleId = String::from("entry.tsx");
-/// ```
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
-#[serde(transparent)]
-pub struct ModuleId(pub String);
-
-impl ModuleId {
-    /// Borrows the host path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ModuleId {
-    /// Wraps a host path without normalizing it.
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ModuleId {
-    /// Wraps a host path without normalizing it.
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
-
-impl std::borrow::Borrow<str> for ModuleId {
-    /// Borrows the host path so maps keyed by `ModuleId` can be probed by `&str`.
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
 
 /// Type facts for one module, as produced by the host type checker.
 ///
@@ -91,7 +45,7 @@ impl TypeFacts {
     /// Schema version the frontend understands. Bump it whenever the shape or meaning
     /// of [`TypeFacts`] changes: hosts send payloads produced by an older schema, and
     /// those must be rejected rather than reinterpreted.
-    pub const SCHEMA: u32 = 1;
+    pub const SCHEMA: u32 = 2;
 }
 
 /// A problem the host hit while producing type facts for a module.

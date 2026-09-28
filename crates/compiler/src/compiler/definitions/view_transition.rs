@@ -3,7 +3,7 @@
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::ViewTransitionDefinition;
-use stillwind_source::Spanned;
+use stillwind_source::{ModuleId, Spanned};
 
 use super::super::CssContribution;
 use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_options};
@@ -21,7 +21,7 @@ use crate::identifiers::IdentifierContext;
 /// generated name, which is what pairs them at runtime.
 pub(in crate::compiler) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
-    module_id: &str,
+    module_id: &ModuleId,
     identifiers: &IdentifierContext,
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
@@ -165,7 +165,7 @@ fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedOpti
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::Compiler;
@@ -197,11 +197,11 @@ mod tests {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &theme,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &crate::CompilerOptions::default(),
             );
             let errors = result

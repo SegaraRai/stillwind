@@ -526,7 +526,7 @@ mod add_ref_tests {
 
     fn definition(module: &str, binding: &str, call_start: u32) -> RefDefinition {
         RefDefinition {
-            module_path: module.to_owned(),
+            module_id: module.into(),
             binding: Spanned::new(binding.to_owned(), Span::new(FileId(1), 0, 3)),
             label: None,
             boundary: None,

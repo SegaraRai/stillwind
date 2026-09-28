@@ -29,7 +29,7 @@ use stillwind_compiler::{
 /// The fields of a utility class request.
 #[napi(object)]
 pub struct NativeClassContext {
-    /// Normalized module path of the call site.
+    /// Module identity of the call site.
     pub module: String,
     /// The caller's class namespace.
     pub namespace: String,
@@ -42,7 +42,7 @@ pub struct NativeClassContext {
 /// The fields of a named declaration request.
 #[napi(object)]
 pub struct NativeDeclarationContext {
-    /// Normalized module path of the declaring module.
+    /// Module identity of the declaring module.
     pub module: String,
     /// Byte offset of the first character of the declaration's name.
     pub start: u32,
@@ -57,7 +57,7 @@ pub struct NativeDeclarationContext {
 /// The fields of a projection's custom-ident request.
 #[napi(object)]
 pub struct NativeLocatorContext {
-    /// Normalized module path of the declaration that owns the name.
+    /// Module identity of the declaration that owns the name.
     pub module: String,
     /// Byte offset of the first character of the declaration's name.
     pub start: u32,
@@ -265,7 +265,7 @@ impl IdentifierGenerator for NativeNaming {
             self.utility_class.as_ref(),
             FnArgs::from((
                 NativeClassContext {
-                    module: context.module.clone(),
+                    module: context.module.as_str().to_owned(),
                     namespace: context.namespace.clone(),
                     call: context.call,
                     branch: context.branch.clone(),
@@ -375,7 +375,7 @@ impl IdentifierGenerator for NativeNaming {
             self.view_transition_slot.as_ref(),
             FnArgs::from((
                 NativeClassContext {
-                    module: context.module.clone(),
+                    module: context.module.as_str().to_owned(),
                     namespace: context.namespace.clone(),
                     call: context.call,
                     branch: context.branch.clone(),
@@ -425,7 +425,7 @@ impl IdentifierGenerator for NativeNaming {
             self.layer_name.as_ref(),
             FnArgs::from((
                 NativeLayerContext {
-                    template: context.template.clone(),
+                    template: context.template.as_str().to_owned(),
                     namespace: context.namespace.clone(),
                 },
                 digest(hash),
@@ -443,7 +443,7 @@ impl IdentifierGenerator for NativeNaming {
 /// The fields of one declaration request, as the host sees them.
 fn declaration(context: &DeclarationContext) -> NativeDeclarationContext {
     NativeDeclarationContext {
-        module: context.module.clone(),
+        module: context.module.as_str().to_owned(),
         start: context.start,
         end: context.end,
         binding: context.binding.clone(),
@@ -457,7 +457,7 @@ fn declaration(context: &DeclarationContext) -> NativeDeclarationContext {
 /// The fields of one projection request, as the host sees them.
 fn locator(context: &LocatorContext) -> NativeLocatorContext {
     NativeLocatorContext {
-        module: context.module.clone(),
+        module: context.module.as_str().to_owned(),
         start: context.start,
         end: context.end,
         binding: context.binding.clone(),

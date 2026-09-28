@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { NativeProjectSession } from "@stillwind/native";
 
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import type { TypeScriptFactsService } from "../src/type-facts.ts";
 
 void test("a rejected generator name is reported through the host warnings", async () => {
@@ -14,7 +14,7 @@ void test("a rejected generator name is reported through the host warnings", asy
     compile: () => ({
       modules: [
         {
-          path: "rejected.tsx",
+          module_id: "rejected.tsx",
           code: "export const x = undefined;",
           diagnostics: [],
           lint_findings: [],
@@ -44,7 +44,10 @@ void test("a rejected generator name is reported through the host warnings", asy
       read: async () => {
         throw new Error("unexpected read");
       },
-      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+      describe: (id) => ({
+        ...fileModuleDescriptor(process.cwd(), id),
+        uri: `untitled:${encodeURIComponent(id)}`,
+      }),
       watch: () => {},
       warn: (message) => warnings.push(message),
     },

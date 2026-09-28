@@ -16,7 +16,7 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(theme.tokens.len(), 2);
     assert_eq!(theme.tokens[0].name.value, "--color-accent");
@@ -31,7 +31,7 @@ fn matches_tailwind_theme_token_emission_modes() {
         FileId(7), None, None,
         "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
     ).unwrap();
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
     let required = theme.tokens_required_by("color:var(--color-used);", false, &[]);
     assert!(
         required
@@ -65,7 +65,7 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
         "@theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
     )
     .unwrap();
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
     let required = theme.tokens_required_by(
         "@media (width >= 60rem) {} @media (width >= 70rem) {}",
         false,
@@ -89,7 +89,7 @@ fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(theme.config.prefix.as_deref(), Some("--app-"));
     assert!(theme.config.lint_enabled("prefer-typed-relationships"));
@@ -165,7 +165,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
             "@import \"tailwindcss/utilities\" layer(utilities);",
         )
         .unwrap(),
-        "test.css",
+        &CssSourceName::from("test.css"),
     )
     .unwrap();
     assert!(
@@ -225,7 +225,7 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
     let color = theme.token_in(ThemeNamespace::Color, "accent").unwrap();
 
     assert_eq!(
@@ -253,7 +253,7 @@ fn resolves_theme_reference_fallbacks_generically() {
         r"@theme { --known: blue; --alias: --theme(--known, initial); }",
     )
     .unwrap();
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(
         theme
@@ -291,7 +291,7 @@ fn parses_block_variants_and_omits_them_from_authored_output() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(
         theme.variant("pressed").unwrap().body,
@@ -323,7 +323,7 @@ fn separates_compiler_property_definitions_from_authored_property_rules() {
     )
     .unwrap();
 
-    let theme = parse_theme(&source, "test.css").unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(theme.properties.len(), 1);
     assert_eq!(theme.properties[0].name, "--example-value");

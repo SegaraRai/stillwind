@@ -10,6 +10,7 @@ use stillwind_css::fold_calc_expressions;
 use stillwind_diagnostics::{LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -27,11 +28,11 @@ export const item = style({ "hover:": "unknown-widget-class" });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -63,11 +64,11 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -104,11 +105,11 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &options,
     );
 
@@ -140,11 +141,11 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -187,11 +188,11 @@ fn a_theme_can_disable_the_element_scope_rule() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -227,11 +228,11 @@ export const doubled = style("block", title.for("hero"), "[view-transition-name:
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -270,10 +271,10 @@ fn theme_gate_emits_only_required_default_tokens_and_keyframes() {
         "import { style } from \"stillwind/react\"; const props = style(\"p-4 animate-spin\");",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, "test.tsx", ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &ModuleId::from("test.tsx"), ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
             FileId(2),
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
-        ).unwrap(), "stillwind.css", &CompilerOptions::default());
+        ).unwrap(), &CssSourceName::from("stillwind.css"), &CompilerOptions::default());
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains_css("--spacing:0.25rem;"));
@@ -296,10 +297,10 @@ fn breakpoint_variants_inline_queries_without_emitting_lookup_tokens() {
         "import { style } from \"stillwind/react\"; const props = style(\"foo:grid 東京:flex\");",
     )
     .unwrap();
-    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, "test.tsx", ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
+    let result = Compiler::compile_source(&OxcSourceAnalyzer, &component, &ModuleId::from("test.tsx"), ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous, &crate::css_fixture::source(
             FileId(2),
             "@import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\"; @theme { --breakpoint-foo: 60rem; --breakpoint-東京: 70rem; }",
-        ).unwrap(), "stillwind.css", &CompilerOptions::default());
+        ).unwrap(), &CssSourceName::from("stillwind.css"), &CompilerOptions::default());
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
@@ -324,7 +325,7 @@ fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &crate::css_fixture::source(
@@ -334,7 +335,7 @@ fn utility_ir_gate_keeps_fallbacks_and_selector_overloads() {
 @utility paint-* { &::before { content: "fallback"; } }"#,
         )
         .unwrap(),
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -369,11 +370,11 @@ const props = style("bg-linear-to-r");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -411,11 +412,11 @@ const props = style("outline-hidden");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -445,11 +446,11 @@ const props = style("divide-x-[2px]");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -479,11 +480,11 @@ const props = style("starting:opacity-0");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -535,11 +536,11 @@ fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &theme,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
             assert!(

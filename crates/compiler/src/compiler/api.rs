@@ -16,8 +16,8 @@ use std::sync::Arc;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
-use stillwind_semantic::{AssetMetadata, IdentityId, ModuleId, TypeFact, TypeFacts};
-use stillwind_source::{Fingerprint, SourceFile};
+use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
+use stillwind_source::{CssSourceName, Fingerprint, ModuleId, SourceFile};
 
 use super::vocabulary::render_vocabulary_types;
 use super::{CompileResult, Compiler};
@@ -30,13 +30,18 @@ impl Compiler {
     ///
     /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
     /// Failures retain the supplied theme source identity and typed cause.
-    pub fn read_theme(source: &SourceFile, source_name: &str) -> Result<ThemeIndex, CompileError> {
-        Ok(
-            DesignSystemSnapshot::from_source(source, source_name, DesignSystemOptions::default())
-                .map_err(|error| error.into_compile_error(source.full_span()))?
-                .theme()
-                .clone(),
+    pub fn read_theme(
+        source: &SourceFile,
+        source_name: &CssSourceName,
+    ) -> Result<ThemeIndex, CompileError> {
+        Ok(DesignSystemSnapshot::from_source(
+            source,
+            source_name.clone(),
+            DesignSystemOptions::default(),
         )
+        .map_err(|error| error.into_compile_error(source.full_span()))?
+        .theme()
+        .clone())
     }
 
     /// Renders the ambient type declarations for a theme buffer.
@@ -47,7 +52,7 @@ impl Compiler {
     /// Failures retain the supplied theme source identity and typed cause.
     pub fn generate_vocabulary_types(
         source: &SourceFile,
-        source_name: &str,
+        source_name: &CssSourceName,
     ) -> Result<String, CompileError> {
         Ok(render_vocabulary_types(&Self::read_theme(
             source,
@@ -67,12 +72,12 @@ impl Compiler {
     /// and unresolved authored theme references.
     pub fn render_stylesheet(
         source: &SourceFile,
-        source_name: &str,
+        source_name: &CssSourceName,
         module_css: &str,
         options: &CompilerOptions,
     ) -> Result<String, CompileError> {
         let snapshot =
-            DesignSystemSnapshot::from_source(source, source_name, options.design_system())
+            DesignSystemSnapshot::from_source(source, source_name.clone(), options.design_system())
                 .map_err(|error| error.into_compile_error(source.full_span()))?;
         StylesheetRenderer::new(&snapshot, options, &Identifiers::default())
             .render_stylesheet(module_css)
@@ -84,16 +89,16 @@ impl Compiler {
     pub fn compile_source(
         analyzer: &impl SourceAnalyzer,
         source: &SourceFile,
-        module_id: &str,
+        module_id: &ModuleId,
         language: ScriptLanguage,
         module_kind: ScriptModuleKind,
         theme: &SourceFile,
-        theme_name: &str,
+        theme_name: &CssSourceName,
         options: &CompilerOptions,
     ) -> CompileResult {
         let scan = analyzer.scan(
             Arc::new(source.clone()),
-            ModuleId::from(module_id),
+            module_id.clone(),
             language,
             module_kind,
         );
@@ -108,18 +113,18 @@ impl Compiler {
     pub fn compile_source_with_type_facts(
         analyzer: &impl SourceAnalyzer,
         source: &SourceFile,
-        module_id: &str,
+        module_id: &ModuleId,
         language: ScriptLanguage,
         module_kind: ScriptModuleKind,
         theme: &SourceFile,
-        theme_name: &str,
+        theme_name: &CssSourceName,
         facts: &[TypeFact],
         assets: &BTreeMap<IdentityId, AssetMetadata>,
         options: &CompilerOptions,
     ) -> CompileResult {
         let scan = analyzer.scan(
             Arc::new(source.clone()),
-            ModuleId::from(module_id),
+            module_id.clone(),
             language,
             module_kind,
         );
@@ -147,19 +152,22 @@ impl Compiler {
     pub fn compile_analysis(
         analysis: &ModuleAnalysis,
         theme: &SourceFile,
-        theme_name: &str,
+        theme_name: &CssSourceName,
         options: &CompilerOptions,
     ) -> CompileResult {
-        let snapshot =
-            match DesignSystemSnapshot::from_source(theme, theme_name, options.design_system()) {
-                Ok(snapshot) => snapshot,
-                Err(error) => {
-                    return CompileResult {
-                        diagnostics: vec![error.into_compile_error(theme.full_span())],
-                        ..CompileResult::default()
-                    };
-                }
-            };
+        let snapshot = match DesignSystemSnapshot::from_source(
+            theme,
+            theme_name.clone(),
+            options.design_system(),
+        ) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                return CompileResult {
+                    diagnostics: vec![error.into_compile_error(theme.full_span())],
+                    ..CompileResult::default()
+                };
+            }
+        };
         let module = ModuleCompiler::new(snapshot.clone(), options.clone())
             .compile(analysis, &Identifiers::default());
         StylesheetRenderer::new(&snapshot, options, &Identifiers::default())

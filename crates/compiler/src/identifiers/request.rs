@@ -10,6 +10,8 @@
 //! turns it into the compiler's own name. A family whose spelling is not the prefix followed by the
 //! digest declares that spelling here, next to its identity rule.
 
+use stillwind_source::{CssSourceName, ModuleId};
+
 use super::generator::{GeneratedName, IdentifierGenerator};
 use super::kind::{IdentifierKind, builtin_label_separator, builtin_prefix};
 use super::name::{
@@ -71,8 +73,8 @@ impl IdentifierHash {
 /// The context one utility class is generated from.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClassContext {
-    /// Normalized module path of the call site.
-    pub module: String,
+    /// Module identity of the call site.
+    pub module: ModuleId,
     /// The caller's class namespace, which separates independently built projects.
     pub namespace: String,
     /// Byte offset of the call.
@@ -84,8 +86,8 @@ pub struct ClassContext {
 /// The context one declaration name is generated from.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeclarationContext {
-    /// Normalized module path of the declaring module.
-    pub module: String,
+    /// Module identity of the declaring module.
+    pub module: ModuleId,
     /// Byte offset of the first character of the declaration's name.
     pub start: u32,
     /// Byte offset just past the declaration's name.
@@ -99,8 +101,8 @@ pub struct DeclarationContext {
 /// The context one written custom-ident is generated from.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocatorContext {
-    /// Normalized module path of the declaration that owns the name.
-    pub module: String,
+    /// Module identity of the declaration that owns the name.
+    pub module: ModuleId,
     /// Byte offset of the first character of the declaration's name.
     pub start: u32,
     /// Byte offset just past the declaration's name.
@@ -120,7 +122,7 @@ pub struct LocatorContext {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayerContext {
     /// Identity of the template the layer belongs to.
-    pub template: String,
+    pub template: CssSourceName,
     /// The caller's class namespace, which separates independently built projects.
     pub namespace: String,
 }
@@ -294,8 +296,8 @@ fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> Strin
 
 /// The declaration fields one identity is computed from.
 trait DeclarationIdentity {
-    /// Normalized module path of the declaring module.
-    fn module(&self) -> &str;
+    /// Module identity of the declaring module.
+    fn module(&self) -> &ModuleId;
     /// Byte offset of the first character of the declaration's name.
     fn start(&self) -> u32;
     /// Byte offset just past the declaration's name.
@@ -305,7 +307,7 @@ trait DeclarationIdentity {
 }
 
 impl DeclarationIdentity for DeclarationContext {
-    fn module(&self) -> &str {
+    fn module(&self) -> &ModuleId {
         &self.module
     }
 
@@ -323,7 +325,7 @@ impl DeclarationIdentity for DeclarationContext {
 }
 
 impl DeclarationIdentity for LocatorContext {
-    fn module(&self) -> &str {
+    fn module(&self) -> &ModuleId {
         &self.module
     }
 
@@ -408,7 +410,7 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
         format!(
             "stillwind/view-transition-slot/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",
             module = self.0.module,
-            module_len = self.0.module.len(),
+            module_len = self.0.module.as_str().len(),
             namespace_len = self.0.namespace.len(),
             namespace = self.0.namespace,
             branch_len = self.0.branch.len(),
@@ -430,7 +432,7 @@ name_requests! {
     ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format!(
         "stillwind/style/v1:{module}:{module_len}:{namespace_len}:{namespace}\u{0}{branch_len}:{branch}:{call}:{branch}",
         module = context.module,
-        module_len = context.module.len(),
+        module_len = context.module.as_str().len(),
         namespace_len = context.namespace.len(),
         namespace = context.namespace,
         branch_len = context.branch.len(),

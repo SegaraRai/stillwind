@@ -5,7 +5,7 @@
 //! rather than a hand-written stub registry.
 
 use stillwind_diagnostics::CompileError;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, SourceFile};
 
 use crate::*;
 
@@ -15,6 +15,6 @@ mod theme;
 fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     parse_theme(
         &crate::css_fixture::source(source.id(), source.text()).unwrap(),
-        "test.css",
+        &CssSourceName::from("test.css"),
     )
 }

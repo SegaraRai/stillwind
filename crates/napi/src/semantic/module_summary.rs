@@ -168,8 +168,8 @@ pub struct NativeModuleSummary {
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,
     /// Module this summary describes.
-    #[napi(js_name = "module_path")]
-    pub module_path: String,
+    #[napi(js_name = "module_id")]
+    pub module_id: String,
     /// Number of explicit module CSS imports.
     #[napi(js_name = "module_css_imports")]
     pub module_css_imports: u32,
@@ -210,7 +210,7 @@ impl NativeModuleSummary {
         Self {
             checker_spans: Vec::new(),
             schema: summary.schema,
-            module_path: summary.module_path,
+            module_id: summary.module_id.into_string(),
             module_css_imports,
             macro_imports,
             type_probes,

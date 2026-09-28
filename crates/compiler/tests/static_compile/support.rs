@@ -13,6 +13,7 @@ use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_css::fold_calc_expressions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -215,11 +216,11 @@ pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
             ),
         )
         .unwrap(),
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &crate::css_fixture::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     )
 }

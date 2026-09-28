@@ -11,16 +11,18 @@ use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, Design
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry, SourceUri};
 
 #[test]
 fn css_and_script_sources_share_ids_without_sharing_retention() {
     let uri = SourceUri::parse("untitled:theme.css").unwrap();
     let css = SourceFile::new(FileId(2), Some(uri), Some("theme.css".into()), "@theme {}").unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&css, "theme.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &css,
+        CssSourceName::from("theme.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let css_id = snapshot.sources().sources[0].source.id();
     let mut session = ProjectSession::new(
         snapshot,
@@ -51,7 +53,7 @@ fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
             .unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -86,7 +88,7 @@ fn module(name: &str, candidate: &str) -> ModuleAnalysis {
 fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     let snapshot = snapshot("red");
     let options = CompilerOptions {
-        class_namespace: "first".into(),
+        class_namespace: "first".to_owned(),
         ..CompilerOptions::default()
     };
     let mut session = ProjectSession::new(
@@ -97,16 +99,20 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
         Identifiers::default(),
     );
     session.update_module(module("button.tsx", "flex"));
-    let before = session.artifacts()["button.tsx"].clone();
+    let before = session.artifacts()[&ModuleId::from("button.tsx")].clone();
     let next = CompilerOptions {
-        class_namespace: "second".into(),
+        class_namespace: "second".to_owned(),
         ..options
     };
     let update = session.reload(Ok(snapshot), next.clone()).unwrap();
-    let after = &session.artifacts()["button.tsx"];
+    let after = &session.artifacts()[&ModuleId::from("button.tsx")];
     assert!(update.diagnostics.is_empty());
     assert!(update.css_changed);
-    assert!(update.transformed_modules.contains("button.tsx"));
+    assert!(
+        update
+            .transformed_modules
+            .contains(&ModuleId::from("button.tsx"))
+    );
     assert_eq!(before.key.design_system, after.key.design_system);
     assert_ne!(before.key.compiler_options, after.key.compiler_options);
     assert_ne!(before.code_transforms, after.code_transforms);
@@ -114,7 +120,7 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     let plan = session
         .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Carrier)
         .unwrap();
-    assert_eq!(plan.producers["button.tsx"], after.key);
+    assert_eq!(plan.producers[&ModuleId::from("button.tsx")], after.key);
 }
 
 /// A carrier render carries the support a module needs and never the document rules.
@@ -126,7 +132,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
             "@theme { --color-brand: red; } .document-only{color:blue;}",
         )
         .unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap();
@@ -146,7 +152,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         Identifiers::default(),
     );
     session.update_module(module("a.tsx", "bg-brand animate-spin ring-2"));
-    let artifact = session.artifacts()["a.tsx"].clone();
+    let artifact = session.artifacts()[&ModuleId::from("a.tsx")].clone();
     let css = StylesheetRenderer::new(
         &snapshot,
         &CompilerOptions::default(),
@@ -214,8 +220,8 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
     );
     assert_ne!(session.css().unwrap(), shared_css);
     assert_eq!(session.stylesheet().rule_count(), 2 * count);
-    assert!(session.remove_module("a.tsx"));
-    assert!(!session.remove_module("a.tsx"));
+    assert!(session.remove_module(&ModuleId::from("a.tsx")));
+    assert!(!session.remove_module(&ModuleId::from("a.tsx")));
     assert_ne!(session.css().unwrap(), shared_css);
     assert_eq!(session.stylesheet().rule_count(), count);
     let old_css = session.css().unwrap();
@@ -229,19 +235,21 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
     );
     assert_eq!(session.css().unwrap(), old_css);
     assert_eq!(session.snapshot().revision(), pinned.revision());
-    let analysis_revision = session.analyses()["b.tsx"].source_revision.clone();
+    let analysis_revision = session.analyses()[&ModuleId::from("b.tsx")]
+        .source_revision
+        .clone();
     let update = session
         .reload(Ok(snapshot("blue")), session.options().clone())
         .unwrap();
     assert!(update.css_changed);
     assert!(update.transformed_modules.is_empty());
     assert_eq!(
-        session.analyses()["b.tsx"].source_revision,
+        session.analyses()[&ModuleId::from("b.tsx")].source_revision,
         analysis_revision
     );
     assert_ne!(session.snapshot().revision(), pinned.revision());
     let before_removal = session.css().unwrap();
-    assert!(session.remove_module("b.tsx"));
+    assert!(session.remove_module(&ModuleId::from("b.tsx")));
     assert_ne!(session.css().unwrap(), before_removal);
     assert_eq!(session.stylesheet().rule_count(), 0);
 }
@@ -258,16 +266,27 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
         Identifiers::default(),
     );
     session.update_module(module("a.tsx", "bg-brand"));
-    let rules = session.artifacts()["a.tsx"].css.rules.as_ptr();
+    let rules = session.artifacts()[&ModuleId::from("a.tsx")]
+        .css
+        .rules
+        .as_ptr();
     assert!(
         !session
             .update_module(module("a.tsx", "bg-brand"))
             .transformed
     );
-    assert_eq!(rules, session.artifacts()["a.tsx"].css.rules.as_ptr());
-    assert!(session.dependencies().candidates["bg-brand"].contains("a.tsx"));
-    assert!(session.dependencies().theme_tokens["--color-brand"].contains("a.tsx"));
-    session.remove_module("a.tsx");
+    assert_eq!(
+        rules,
+        session.artifacts()[&ModuleId::from("a.tsx")]
+            .css
+            .rules
+            .as_ptr()
+    );
+    assert!(session.dependencies().candidates["bg-brand"].contains(&ModuleId::from("a.tsx")));
+    assert!(
+        session.dependencies().theme_tokens["--color-brand"].contains(&ModuleId::from("a.tsx"))
+    );
+    session.remove_module(&ModuleId::from("a.tsx"));
     assert!(session.dependencies().candidates.is_empty());
     assert!(session.dependencies().theme_tokens.is_empty());
 }
@@ -317,11 +336,11 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     assert_eq!(session.dependencies().assets.len(), 3);
     assert_eq!(
         session.dependencies().theme_tokens["--color-brand"],
-        ["b.tsx".into()].into()
+        [ModuleId::from("b.tsx")].into()
     );
     assert_eq!(
         session.dependencies().candidates["flex"],
-        ["a.tsx".into()].into()
+        [ModuleId::from("a.tsx")].into()
     );
     let mut rebuilt = ProjectSession::new(
         snapshot,
@@ -336,7 +355,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     assert_eq!(session.dependencies(), rebuilt.dependencies());
     assert_eq!(session.css().unwrap(), rebuilt.css().unwrap());
 
-    assert!(session.remove_module("b.tsx"));
+    assert!(session.remove_module(&ModuleId::from("b.tsx")));
     assert_eq!(session.dependencies().assets.len(), 1);
     assert!(session.dependencies().theme_tokens.is_empty());
     assert!(
@@ -345,6 +364,6 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
             .candidates
             .contains_key("hover:bg-brand")
     );
-    assert!(session.remove_module("a.tsx"));
+    assert!(session.remove_module(&ModuleId::from("a.tsx")));
     assert_eq!(session.dependencies(), &DependencyIndex::default());
 }

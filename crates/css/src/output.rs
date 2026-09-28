@@ -10,7 +10,7 @@
 //! original editable source, never a generated buffer, and may be `None` when a node
 //! has no authored origin, for example the utilities slot.
 
-use stillwind_source::Span;
+use stillwind_source::{CssSourceName, Span};
 
 /// One node of an output template.
 ///
@@ -83,7 +83,7 @@ pub enum CssOutputNode {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CssOutputTemplate {
     /// Host identity of the entry, shared by every output carrier.
-    pub source_identity: String,
+    pub source_identity: CssSourceName,
     /// Output nodes; the order is significant and must be preserved.
     pub nodes: Vec<CssOutputNode>,
 }

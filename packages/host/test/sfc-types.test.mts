@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
@@ -45,7 +45,10 @@ function harness(t: test.TestContext, files: Record<string, string>, entry: stri
           assert.notEqual(text, undefined, id);
           return text;
         },
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch: () => {},
         warn: () => {},
       },
@@ -76,7 +79,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     assert.deepEqual(first.diagnostics, []);
     assert.equal(first.composition.length, 1);
     const base = first.composition[0].base;
-    assert.equal(base.module_path, producer);
+    assert.equal(base.module_id, producer);
     assert.equal(
       Buffer.from(files[producer]).subarray(base.start, base.end).toString(),
       "style('red')",
@@ -102,7 +105,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     await assert.rejects(harness(t, files, entry).compile(), (error: unknown) => {
       assert.ok(error instanceof TypeFactsError);
       assert.equal(error.code, "SHTS002");
-      assert.equal(error.path, entry);
+      assert.equal(error.module_id, entry);
       assert.equal(
         Buffer.from(files[entry]).subarray(error.start, error.end).toString(),
         "selected",
@@ -171,9 +174,11 @@ for (const ext of ["vue", "svelte", "astro"]) {
     const result = await harness(t, files, entry).compile();
     assert.ok(result?.code);
     assert.deepEqual(result.diagnostics, []);
-    const assets = result.symbols.filter((symbol) => symbol.source_path === producer);
+    const assets = result.symbols.filter(
+      (symbol) => symbol.source_kind === "module" && symbol.source_id === producer,
+    );
     for (const symbol of assets) {
-      assert.equal(symbol.source_path, producer);
+      assert.equal(symbol.source_id, producer);
       assert.ok(
         ["r", "k", "v"].includes(
           Buffer.from(files[producer]).subarray(symbol.start, symbol.end).toString(),

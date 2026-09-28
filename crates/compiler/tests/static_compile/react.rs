@@ -9,6 +9,7 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -24,11 +25,11 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -45,7 +46,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         assert!(!code.contains("style as sw"), "{code}");
         let reparsed = parse(
             &SourceFile::new(FileId(3), None, None, code).unwrap(),
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &std::collections::BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -72,11 +73,11 @@ fn residual_macro_references_fail_the_entire_compilation() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(
@@ -98,11 +99,11 @@ fn residual_macro_references_fail_the_entire_compilation() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(
@@ -136,11 +137,11 @@ export function SaveButton() {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -172,11 +173,11 @@ const props = style("bg-accnet");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     let finding = result
@@ -215,11 +216,11 @@ const props = style("bg-[color:red");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(matches!(
@@ -254,11 +255,11 @@ const fourth = style("m-accnet");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert_eq!(result.lint_findings.len(), 1);
@@ -292,11 +293,11 @@ const props = style("bg-accent", loading && "opacity-60");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -330,11 +331,11 @@ const props = style(active ? "bg-accent" : "bg-muted");"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -377,11 +378,11 @@ const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
@@ -416,11 +417,11 @@ const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -454,11 +455,11 @@ const props = style("bg-accent", { class: ["legacy-button", loading && "is-loadi
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -498,11 +499,11 @@ const props = style({ "legacy-loading": loading });"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 

@@ -9,7 +9,7 @@ use stillwind_design_system::{
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 #[test]
 fn tailwind_resolved_property_sort_matches_upstream() {
@@ -25,9 +25,12 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         ),
     )
     .unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&source, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &source,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let mut failures = Vec::new();
     let mut unresolved = Vec::new();
     let mut candidates = Vec::new();
@@ -120,11 +123,11 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
         let output = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(output.diagnostics.is_empty(), "{output:#?}");

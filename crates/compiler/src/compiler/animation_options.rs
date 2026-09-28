@@ -126,7 +126,7 @@ fn strip_variants<'a>(raw: &'a str, variants: &[Variant]) -> &'a str {
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile, Span};
+    use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, Span};
 
     use super::super::variants::wrap_conditions;
     use super::*;
@@ -136,7 +136,7 @@ mod tests {
     fn resolves_themed_duration_as_an_animation_option_only() {
         let theme: SourceFile =
             crate::css_fixture::source(FileId(1), "@theme { --duration-normal: 180ms; }").unwrap();
-        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
             "duration-normal both".to_owned(),
             Span::new(FileId(2), 0, 20),
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn splits_a_conditioned_option_from_the_unconditional_ones() {
         let theme = crate::css_fixture::source(FileId(2), "").unwrap();
-        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
             "duration-180 motion-reduce:duration-0".to_owned(),
             Span::new(FileId(2), 0, 34),
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn rejects_a_variant_on_an_animation_option() {
         let theme = crate::css_fixture::source(FileId(2), "").unwrap();
-        let theme = Compiler::read_theme(&theme, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
             "motion-reduce:duration-0".to_owned(),
             Span::new(FileId(2), 0, 24),
@@ -235,11 +235,11 @@ mod tests {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &crate::CompilerOptions::default(),
         );
         let errors = result

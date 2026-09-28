@@ -18,8 +18,7 @@ use stillwind_compiler::{
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, Fingerprint, Span};
+use stillwind_source::{FileId, Fingerprint, ModuleId, Span};
 
 use crate::{ProjectSession, ProjectStylesheet};
 
@@ -207,7 +206,7 @@ impl ProjectSession {
             let (start, end) = symbol.start.zip(symbol.end)?;
             let source = std::iter::once(analysis)
                 .chain(analysis.asset_support.iter())
-                .find(|input| input.module_id.as_str() == symbol.source_path)?
+                .find(|input| symbol.origin.module_id() == Some(&input.module_id))?
                 .source
                 .clone();
             let span = Span::new(source.id(), start, end);
@@ -257,7 +256,7 @@ impl ProjectSession {
         while let Some(module) = pending.pop() {
             if let Some(artifact) = self.artifacts().get(&module) {
                 for dependency in &artifact.composition {
-                    let base = ModuleId::from(dependency.base.module_path.clone());
+                    let base = dependency.base.module_id.clone();
                     if modules.insert(base.clone()) {
                         pending.push(base);
                     }
@@ -272,8 +271,8 @@ impl ProjectSession {
                 .find(|module| {
                     self.artifacts().get(*module).is_none_or(|artifact| {
                         artifact.composition.iter().all(|edge| {
-                            edge.base.module_path == module.as_str()
-                                || !remaining.contains(edge.base.module_path.as_str())
+                            edge.base.module_id == **module
+                                || !remaining.contains(&edge.base.module_id)
                         })
                     })
                 })
@@ -416,11 +415,10 @@ mod tests {
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile, SourceRegistry};
-
-    use crate::SessionMode;
+    use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry};
 
     use super::*;
+    use crate::SessionMode;
 
     #[test]
     fn retained_watch_output_cannot_be_reported_as_current_coverage() {
@@ -432,7 +430,7 @@ mod tests {
                 "@utility red{color:red}@stillwind-slot utilities;",
             )
             .unwrap(),
-            "test.css",
+            CssSourceName::from("test.css"),
             DesignSystemOptions::default(),
         )
         .unwrap();
@@ -472,7 +470,13 @@ mod tests {
     #[test]
     fn explicit_selection_excludes_observed_but_unselected_producers() {
         let snapshot = DesignSystemSnapshot::from_source(
-            &SourceFile::new(FileId(0), None, None, "body{margin:0}@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;").unwrap(), "test.css",
+            &SourceFile::new(
+                FileId(0),
+                None,
+                None,
+                "body{margin:0}@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;"
+            ).unwrap(),
+            CssSourceName::from("test.css"),
             DesignSystemOptions::default(),
         ).unwrap();
         let mut session = ProjectSession::new(
@@ -507,10 +511,10 @@ mod tests {
         assert_eq!(observed.coverage, StylesheetCoverage::Observed);
         assert!(observed.css.contains("color:red") && observed.css.contains("color:blue"));
         let selection = StylesheetSelection {
-            modules: ["red.tsx".into()].into(),
+            modules: [ModuleId::from("red.tsx")].into(),
             coverage: StylesheetCoverage::Complete {
-                target: "route/index".into(),
-                revision: "graph-2".into(),
+                target: "route/index".to_owned(),
+                revision: "graph-2".to_owned(),
             },
         };
         let carrier = session
@@ -523,7 +527,7 @@ mod tests {
             .plan_stylesheet(selection.clone(), StylesheetPlacement::Document)
             .unwrap();
         assert!(document.css.contains("body"));
-        session.remove_module("red.tsx");
+        session.remove_module(&ModuleId::from("red.tsx"));
         assert!(matches!(
             session.plan_stylesheet(selection, StylesheetPlacement::Carrier),
             Err(StylesheetPlanError::MissingModules(_))

@@ -10,6 +10,7 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::LintKind;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -41,11 +42,11 @@ fn compile(args: &str, bounded: bool) -> (String, String) {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(
@@ -196,11 +197,11 @@ fn invalid_ref_variants_report_diagnostics_without_unscoped_output() {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
         assert!(!result.diagnostics.is_empty(), "{args}");
@@ -223,11 +224,11 @@ const props = style(check() && `${trigger`hover`}:text-accent ${trigger`focus`}:
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -253,11 +254,11 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -289,11 +290,11 @@ export const View = () => <><section {...style(menu)}><button {...style(trigger)
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert!(

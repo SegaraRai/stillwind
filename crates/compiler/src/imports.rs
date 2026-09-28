@@ -224,7 +224,7 @@ fn callee_prefix(mut prefix: &str) -> bool {
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::parse;
-    use stillwind_source::FileId;
+    use stillwind_source::{FileId, ModuleId};
 
     use super::*;
     use crate::{plan_macro_import_removals, render_transforms};
@@ -235,7 +235,7 @@ mod tests {
         let source = SourceFile::new(FileId(1), None, None, text).unwrap();
         let mut parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &std::collections::BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -264,7 +264,7 @@ mod tests {
         let code = render_transforms(&source, &edits).unwrap().code;
         let reparsed = parse(
             &SourceFile::new(FileId(2), None, None, code.as_str()).unwrap(),
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &std::collections::BTreeMap::default(),
             ScriptLanguage::Tsx,

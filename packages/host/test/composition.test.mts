@@ -7,7 +7,7 @@ import { runInNewContext } from "node:vm";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
 import * as runtime from "../../core/src/runtime/react.ts";
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
 async function compile(files: Record<string, string>, entry = "entry.ts") {
@@ -36,7 +36,10 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
           assert.notEqual(source, undefined);
           return source;
         },
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch: () => {},
         warn: () => {},
       },
@@ -238,7 +241,10 @@ void test("composition follows imported and re-exported style producers", async 
             id: path.resolve(path.dirname(importer), `${specifier}.ts`),
           }),
           read: async (id) => files.get(path.basename(id))!,
-          documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+          describe: (id) => ({
+            ...fileModuleDescriptor(root, id),
+            uri: `untitled:${encodeURIComponent(id)}`,
+          }),
           watch: () => {},
           warn: () => {},
         },

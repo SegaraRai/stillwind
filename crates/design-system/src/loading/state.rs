@@ -20,14 +20,14 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_source::{
-    FileId, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
+    CssSourceName, FileId, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
 };
 
 use super::expansion::ExpandedSource;
 use super::imports::{Import, imports};
 use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
-    CssSourceName, DesignSystemLoadStep,
+    DesignSystemLoadStep,
 };
 use crate::{DesignSystemOptions, DesignSystemSnapshot, parse_theme};
 
@@ -71,7 +71,7 @@ pub enum DesignSystemLoadError {
         id: u32,
     },
     /// A known name was supplied again with different document identity or content.
-    #[error("conflicting source for {}", .name.0)]
+    #[error("conflicting source for {}", .name.as_str())]
     ConflictingSource {
         /// Name that was supplied twice.
         name: CssSourceName,
@@ -287,7 +287,7 @@ impl DesignSystemLoader {
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), None, None, output.text.as_str())?;
-        let mut theme = parse_theme(&source, name.0.as_ref()).map_err(|mut error| {
+        let mut theme = parse_theme(&source, &name).map_err(|mut error| {
             // Whole-expansion failures use the root when no contiguous original span exists.
             for label in &mut error.labels {
                 label.span = output
@@ -356,7 +356,7 @@ impl DesignSystemLoader {
         let source = self.registry.register(uri, source_map_source, content)?;
         let imports =
             imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
-        parse_theme(&source, name.0.as_ref())?;
+        parse_theme(&source, &name)?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;

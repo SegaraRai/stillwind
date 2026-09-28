@@ -64,7 +64,7 @@ pub(crate) fn render_vocabulary_types(theme: &ThemeIndex) -> String {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::render_vocabulary_types;
     use crate::Compiler;
@@ -76,7 +76,7 @@ mod tests {
             "@theme { --color-accent: red; --spacing-4: 1rem; }",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&css, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&css, &CssSourceName::from("stillwind.css")).unwrap();
         let types = render_vocabulary_types(&theme);
 
         assert!(types.contains("declare module \"stillwind/macro\""));
@@ -94,7 +94,7 @@ mod tests {
             "@utility brand {color:red}\n@custom-variant active (&.active);",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source, "stillwind.css").unwrap();
+        let theme = Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
         let types = render_vocabulary_types(&theme);
         assert!(types.contains("\"brand\": true"));
         assert!(types.contains("\"active\": true"));

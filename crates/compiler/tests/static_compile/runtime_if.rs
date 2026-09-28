@@ -3,6 +3,7 @@
 use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -20,11 +21,11 @@ fn compile(candidates: &str, native: bool) -> CompileResult {
     Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions {
             use_css_if: native,
             ..CompilerOptions::default()
@@ -45,11 +46,11 @@ fn runtime_if_variant_name_is_owned_by_css_registration() {
             Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &component,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &css,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions {
                     use_css_if: true,
                     ..CompilerOptions::default()
@@ -300,7 +301,13 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             prefix: "--test-".into(),
             ..CompilerOptions::default()
         };
-        let css = Compiler::render_stylesheet(&source, "stillwind.css", "", &options).unwrap();
+        let css = Compiler::render_stylesheet(
+            &source,
+            &CssSourceName::from("stillwind.css"),
+            "",
+            &options,
+        )
+        .unwrap();
         assert!(
             !css.contains("--if(") && !css.contains("@variant") && !css.contains("@apply"),
             "{css}"

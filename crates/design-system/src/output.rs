@@ -17,7 +17,7 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_source::{FileId, Span};
+use stillwind_source::{CssSourceName, FileId, Span};
 
 use crate::ThemeToken;
 use crate::parser::extract_keyframe_blocks;
@@ -47,7 +47,7 @@ pub fn parse_output_template(
     let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false, 0)?;
     validate_slots(&nodes, false)?;
     Ok(CssOutputTemplate {
-        source_identity: String::new(),
+        source_identity: CssSourceName::default(),
         nodes,
     })
 }

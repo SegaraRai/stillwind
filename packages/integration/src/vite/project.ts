@@ -8,8 +8,9 @@ import {
   cssWithSourceMap,
   decodeCssSourceMap,
   loadCssGraph,
-  compilerModulePath,
+  compilerModuleId,
   cleanModuleId,
+  fileSourceKind,
   moduleSourceMap,
   type CssUpstreamMap,
 } from "@stillwind/host";
@@ -99,7 +100,7 @@ export function createViteProject(options: StillwindOptions) {
     );
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
-      const resolved = await resolveImport(resource.specifier, resource.owner);
+      const resolved = await resolveImport(resource.specifier, resource.source_name);
       const url = resourceUrl(resolved);
       references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
       dependencies.add(cleanModuleId(resolved));
@@ -162,7 +163,7 @@ export function createViteProject(options: StillwindOptions) {
     upstream?: CssUpstreamMap;
     code: string;
     id: string;
-    path: string;
+    module_id: string;
     manual: boolean;
     javascript: string;
     dependencies: string[];
@@ -188,7 +189,7 @@ export function createViteProject(options: StillwindOptions) {
     return "virtual:stillwind/fragment:" + key;
   };
   const producerSpecifier = (id: string) =>
-    `virtual:stillwind/producer:${Buffer.from(compilerModulePath(settings.projectRoot, cleanModuleId(id))).toString("base64url")}`;
+    `virtual:stillwind/producer:${Buffer.from(compilerModuleId(settings.projectRoot, cleanModuleId(id))).toString("base64url")}`;
   const valueSpecifier = (id: string) =>
     `virtual:stillwind/value:${Buffer.from(cleanModuleId(id)).toString("base64url")}`;
   const resolvePlan = async (
@@ -220,7 +221,7 @@ export function createViteProject(options: StillwindOptions) {
     for (const resource of plan.resources) {
       const resolved = await context.resolve(
         resource.specifier,
-        resolve(settings.projectRoot, resource.owner),
+        state.compiler!.resolverId(resource.module_id),
         { skipSelf: true },
       );
       const file = resolvedFile(resolved, `Stillwind resource ${resource.specifier}`);
@@ -267,7 +268,7 @@ export function createViteProject(options: StillwindOptions) {
     await ensureSession(state, context);
     const modules = [...inputMap(name).values()]
       .filter((input) => !input.manual)
-      .map((input) => input.path);
+      .map((input) => input.module_id);
     return resolvePlan(state, modules, context, complete);
   };
   const publish = async (name: string | undefined, context: Parameters<typeof resolvePlan>[2]) => {
@@ -285,7 +286,7 @@ export function createViteProject(options: StillwindOptions) {
           revision,
           parts: plan.parts,
           dependencies: Object.fromEntries(
-            [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+            [...inputMap(name).values()].map((input) => [input.module_id, input.dependencies]),
           ),
         },
       });
@@ -312,7 +313,7 @@ export function createViteProject(options: StillwindOptions) {
       const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
       const documentUri = (id: string) => {
         const clean = cleanModuleId(id);
-        return clean.startsWith("\0")
+        return clean.startsWith("\0") || clean.startsWith("virtual:")
           ? `stillwind-virtual:${encodeURIComponent(clean)}`
           : pathToFileURL(clean).href;
       };
@@ -322,8 +323,27 @@ export function createViteProject(options: StillwindOptions) {
         {
           resolve: (specifier, importer) =>
             context.resolve(specifier, importer, { skipSelf: true }),
-          read: (id) => readFile(id, "utf8"),
-          documentUri,
+          read: (id) => readFile(cleanModuleId(id), "utf8"),
+          describe: (resolvedId) => ({
+            module_id:
+              resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
+                ? `virtual:${encodeURIComponent(resolvedId)}`
+                : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
+            uri: documentUri(resolvedId),
+            checker_file_name:
+              resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
+                ? resolve(
+                    settings.projectRoot,
+                    ".stillwind-checker",
+                    `${createHash("sha256").update(resolvedId).digest("hex")}.ts`,
+                  )
+                : cleanModuleId(resolvedId),
+            projection_file_name:
+              resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
+                ? `virtual/${createHash("sha256").update(resolvedId).digest("hex")}.ts`
+                : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
+            ...fileSourceKind(resolvedId),
+          }),
           watch: (id) => context.addWatchFile(id),
           warn: (message) => context.warn(message),
         },
@@ -355,7 +375,7 @@ export function createViteProject(options: StillwindOptions) {
           : inputMap(name).get(cleanModuleId(id))?.upstream,
         code,
         id,
-        path: output.path,
+        module_id: output.module_id,
         manual: output.hasModuleCssImport || options.automatic === false,
         javascript,
         dependencies: output.compositionModules,
@@ -376,7 +396,7 @@ export function createViteProject(options: StillwindOptions) {
           stillwind: {
             input: code,
             id,
-            path: output.path,
+            module_id: output.module_id,
             manual: output.hasModuleCssImport,
           },
         },

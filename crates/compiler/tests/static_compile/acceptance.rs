@@ -1,14 +1,16 @@
 //! Acceptance cases for the compatibility slice.
 //!
-//! Pins that a broad CSS-first Tailwind candidate set resolves, that gradient and mask utilities
-//! emit their expected declarations, that generated names derive from normalized module paths
-//! rather than process-local file ids, and that relationship selectors and conditional ref
-//! attachments are only accepted when the available facts prove them.
+//! Pins that a broad CSS-first Tailwind candidate set resolves, that gradient and mask
+//! utilities emit their expected declarations, that generated names derive from host
+//! module identities rather than process-local file ids, and that relationship
+//! selectors and conditional ref attachments are only accepted when the available facts
+//! prove them.
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
 
@@ -26,11 +28,11 @@ export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -57,11 +59,11 @@ const props = style("grid place-items-center size-10 flex-col grow border outlin
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -97,11 +99,11 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
@@ -135,7 +137,7 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
 }
 
 #[test]
-fn names_symbols_from_normalized_module_paths_not_process_local_file_ids() {
+fn names_symbols_from_host_module_ids_not_process_local_file_ids() {
     let module = r#"import { style } from "stillwind/react";
 const trigger = style.ref();
 const props = style(trigger.anchor);"#;
@@ -147,37 +149,37 @@ const props = style(trigger.anchor);"#;
     let windows_result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &windows,
-        "src\\Menu.tsx",
+        &ModuleId::from("src\\Menu.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     let unix_result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &unix,
-        "src/Menu.tsx",
+        &ModuleId::from("src/Menu.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     let other_result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &other,
-        "src/Other.tsx",
+        &ModuleId::from("src/Other.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
 
-    assert_eq!(windows_result.symbols[0].name, unix_result.symbols[0].name);
+    assert_ne!(windows_result.symbols[0].name, unix_result.symbols[0].name);
     assert_ne!(windows_result.symbols[0].name, other_result.symbols[0].name);
-    assert!(windows_result.symbols[0].identity.contains("src/Menu.tsx"));
+    assert!(windows_result.symbols[0].identity.contains("src\\Menu.tsx"));
 }
 
 #[test]
@@ -198,11 +200,11 @@ export const props = style(selected);"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert_eq!(
@@ -230,11 +232,11 @@ export const container = style(selected.container("inline-size"));"#,
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     assert_eq!(

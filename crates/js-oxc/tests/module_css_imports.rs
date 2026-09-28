@@ -6,7 +6,7 @@
 
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, ModuleId, SourceFile};
 
 /// Only value imports of the module-css entry point are recorded.
 #[test]
@@ -31,7 +31,7 @@ fn explicit_module_css_tracks_value_import_literals_only() {
         let source = SourceFile::new(FileId(1), None, None, text).unwrap();
         let parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &std::collections::BTreeMap::default(),
             ScriptLanguage::Tsx,

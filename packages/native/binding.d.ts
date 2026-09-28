@@ -358,7 +358,7 @@ export interface NativeCheckerSpan {
 
 /** The fields of a utility class request. */
 export interface NativeClassContext {
-  /** Normalized module path of the call site. */
+  /** Module identity of the call site. */
   module: string
   /** The caller's class namespace. */
   namespace: string
@@ -502,7 +502,7 @@ export interface NativeCssResource {
   /** Placeholder left in the CSS that the host must substitute. */
   placeholder: string
   /** Opaque name of the source that owns the reference. */
-  owner: string
+  source_name: string
   /** Authored `url()` specifier. */
   specifier: string
   /** Byte start of the complete authored resource expression in the owning source. */
@@ -513,7 +513,7 @@ export interface NativeCssResource {
 
 /** The fields of a named declaration request. */
 export interface NativeDeclarationContext {
-  /** Normalized module path of the declaring module. */
+  /** Module identity of the declaring module. */
   module: string
   /** Byte offset of the first character of the declaration's name. */
   start: number
@@ -607,8 +607,10 @@ export interface NativeGeneratedSymbol {
   kind: string
   /** Stable identity of the declaration site. */
   identity: string
-  /** Module the declaration lives in, or the stylesheet that named a helper or layer. */
-  source_path: string
+  /** Domain of the source that owns this name: `module` or `stylesheet`. */
+  source_kind: string
+  /** Identity within `source_kind`. */
+  source_id: string
   /** Byte start of the declaration, absent for a name that declares nothing itself. */
   start?: number
   /** Byte end of the declaration, absent for a name that declares nothing itself. */
@@ -658,8 +660,8 @@ export interface NativeIdentifierNaming {
 export interface NativeIdentity {
   /** Kind of declaration this identity names. */
   kind: NativeAssetKind
-  /** Normalized module path of the declaring module. */
-  module_path: string
+  /** Module identity of the declaring module. */
+  module_id: string
   /**
    * Byte start of the declaration identity: binding-name span for named assets,
    * call span for styles.
@@ -691,7 +693,7 @@ export interface NativeLayerContext {
 
 /** The fields of a projection's custom-ident request. */
 export interface NativeLocatorContext {
-  /** Normalized module path of the declaration that owns the name. */
+  /** Module identity of the declaration that owns the name. */
   module: string
   /** Byte offset of the first character of the declaration's name. */
   start: number
@@ -735,7 +737,7 @@ export interface NativeModuleResource {
   /** Placeholder left in the generated CSS. */
   placeholder: string
   /** Module that owns the reference. */
-  owner: string
+  module_id: string
   /** Authored specifier. */
   specifier: string
 }
@@ -757,7 +759,7 @@ export interface NativeModuleSummary {
   /** Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`]. */
   schema: number
   /** Module this summary describes. */
-  module_path: string
+  module_id: string
   /** Number of explicit module CSS imports. */
   module_css_imports: number
   /** Number of framework macro import statements. */
@@ -792,8 +794,8 @@ export type NativeProjectionMap =
 export interface NativeProjectSource {
   /** Host-supplied absolute URI of the original editable document. */
   uri: string
-  /** Module path as the host knows it; used for identity, never for reading. */
-  path: string
+  /** Host-chosen identity of this module. */
+  module_id: string
   /**
    * Text the parser sees, and the buffer edits are applied to when there is no
    * projection.
@@ -1033,8 +1035,8 @@ export interface ProjectBindingOutput {
 export interface ProjectModuleOutput {
   /** Composition edges of this module. */
   composition: Array<NativeStyleDependency>
-  /** Module path. */
-  path: string
+  /** Host-chosen identity of this module. */
+  module_id: string
   /** Assets and resources this module references. */
   resources: Array<NativeModuleResource>
   /** Generated CSS. Rules shared with an earlier module are already removed. */

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { compileModule } from "../src/compiler.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
 import { TypeScriptFactsService } from "../src/type-facts.ts";
 
 void test("contract defaults deny builds while warn and off remain configurable", async () => {
@@ -29,7 +29,10 @@ void test("contract defaults deny builds while warn and off remain configurable"
         read: async () => {
           throw new Error("unexpected read");
         },
-        documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+        describe: (id) => ({
+          ...fileModuleDescriptor(process.cwd(), id),
+          uri: `untitled:${encodeURIComponent(id)}`,
+        }),
         watch: () => {},
         warn: (message) => warnings.push(message),
       },

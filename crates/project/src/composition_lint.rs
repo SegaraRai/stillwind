@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use stillwind_compiler::CompiledModule;
 use stillwind_css::{declaration_ranges, properties_interfere};
 use stillwind_diagnostics::{LintFinding, LintKind};
-use stillwind_semantic::{IdentityId, ModuleId};
-use stillwind_source::{FileId, Span};
+use stillwind_semantic::IdentityId;
+use stillwind_source::{FileId, ModuleId, Span};
 
 /// One declaration a call can contribute, with the variant context it sits under.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -25,7 +25,7 @@ struct DeclarationKey {
 type CallDeclarations = BTreeMap<(u32, u32), BTreeSet<DeclarationKey>>;
 
 /// Identities that make up one composition graph node.
-type CallIdentity = (String, u32, u32);
+type CallIdentity = (ModuleId, u32, u32);
 
 /// Reports both composition-order rules for one published module.
 ///
@@ -39,10 +39,10 @@ pub(crate) fn composition_lints(
         return Vec::new();
     };
     let own = call_declarations(artifact);
-    let mut cache: BTreeMap<String, CallDeclarations> = BTreeMap::new();
+    let mut cache: BTreeMap<ModuleId, CallDeclarations> = BTreeMap::new();
     let mut bases_by_call: BTreeMap<(u32, u32), BTreeSet<IdentityId>> = BTreeMap::new();
     for edge in &artifact.composition {
-        if edge.derived.module_path != module.as_str() {
+        if edge.derived.module_id != *module {
             continue;
         }
         bases_by_call
@@ -59,8 +59,7 @@ pub(crate) fn composition_lints(
         let mut unrelated: Vec<(&IdentityId, BTreeSet<DeclarationKey>)> = Vec::new();
         let mut imported: Vec<(&IdentityId, BTreeSet<DeclarationKey>)> = Vec::new();
         for base in bases {
-            let Some(declarations) = declarations_of(&mut cache, artifacts, &base.module_path)
-            else {
+            let Some(declarations) = declarations_of(&mut cache, artifacts, &base.module_id) else {
                 continue;
             };
             let keys = declarations
@@ -70,7 +69,7 @@ pub(crate) fn composition_lints(
             if keys.is_empty() {
                 continue;
             }
-            if base.module_path == module.as_str() {
+            if base.module_id == *module {
                 unrelated.push((base, keys));
             } else {
                 imported.push((base, keys));
@@ -122,8 +121,8 @@ fn ambiguous_base_order(
             );
             finding.notes.push(format!(
                 "`{}` and `{}` are independent bases{}",
-                left.module_path,
-                right.module_path,
+                left.module_id,
+                right.module_id,
                 context_note(&left_declaration)
             ));
             findings.push(finding);
@@ -145,7 +144,7 @@ fn imported_base_interference(
     for (base, keys) in imported {
         let mut competing = own.clone();
         for (other, other_keys) in same_module {
-            if other.module_path == base.module_path
+            if other.module_id == base.module_id
                 && other.start == base.start
                 && other.end == base.end
             {
@@ -163,12 +162,12 @@ fn imported_base_interference(
         else {
             continue;
         };
-        if base.module_path == module.as_str() {
+        if base.module_id == *module {
             continue;
         }
         let mut finding = LintFinding::new(
             LintKind::ImportedBaseInterference {
-                module: base.module_path.clone(),
+                module: base.module_id.clone(),
                 properties: describe(&base_declaration, &competing_declaration),
             },
             span,
@@ -223,7 +222,7 @@ fn describe(left: &DeclarationKey, right: &DeclarationKey) -> String {
 }
 
 fn identity_key(identity: &IdentityId) -> CallIdentity {
-    (identity.module_path.clone(), identity.start, identity.end)
+    (identity.module_id.clone(), identity.start, identity.end)
 }
 
 /// Every composition edge of every published artifact.
@@ -267,15 +266,15 @@ fn reaches(
 }
 
 fn declarations_of<'a>(
-    cache: &'a mut BTreeMap<String, CallDeclarations>,
+    cache: &'a mut BTreeMap<ModuleId, CallDeclarations>,
     artifacts: &BTreeMap<ModuleId, CompiledModule>,
-    module_path: &str,
+    module_id: &ModuleId,
 ) -> Option<&'a CallDeclarations> {
-    if !cache.contains_key(module_path) {
-        let artifact = artifacts.get(&ModuleId::from(module_path))?;
-        cache.insert(module_path.to_owned(), call_declarations(artifact));
+    if !cache.contains_key(module_id) {
+        let artifact = artifacts.get(module_id)?;
+        cache.insert(module_id.clone(), call_declarations(artifact));
     }
-    cache.get(module_path)
+    cache.get(module_id)
 }
 
 /// Declarations each call of one artifact contributes, per call span.
@@ -459,7 +458,7 @@ mod tests {
     }
 
     fn identity(module: &str, call: (u32, u32, &str, &str)) -> IdentityId {
-        IdentityId::new(AssetKind::Style, module, call.0, call.1, "")
+        IdentityId::new(AssetKind::Style, module.into(), call.0, call.1, "")
     }
 
     fn artifacts(modules: &[(&str, CompiledModule)]) -> BTreeMap<ModuleId, CompiledModule> {
@@ -713,8 +712,8 @@ mod tests {
     /// repeated, and disjoint bases stay silent.
     #[test]
     fn ambiguous_base_order_reports_only_independent_bases() {
-        let left = IdentityId::new(AssetKind::Style, "a.tsx", 0, 8, "");
-        let right = IdentityId::new(AssetKind::Style, "b.tsx", 0, 8, "");
+        let left = IdentityId::new(AssetKind::Style, "a.tsx".into(), 0, 8, "");
+        let right = IdentityId::new(AssetKind::Style, "b.tsx".into(), 0, 8, "");
         let span = Span::new(FileId(1), 0, 4);
         let interfering = [
             (&left, BTreeSet::from([declaration("padding")])),
@@ -747,7 +746,7 @@ mod tests {
         let module = ModuleId::from("app.tsx");
         let span = Span::new(FileId(1), 0, 4);
         let imported = [(
-            &IdentityId::new(AssetKind::Style, "base.tsx", 0, 8, ""),
+            &IdentityId::new(AssetKind::Style, "base.tsx".into(), 0, 8, ""),
             BTreeSet::from([declaration("padding-top")]),
         )];
         let findings = imported_base_interference(&own, &[], &imported, &module, span);
@@ -755,23 +754,23 @@ mod tests {
         assert_eq!(findings[0].code(), "imported-base-interference");
         assert!(findings[0].notes[0].contains("selector and at-rule contexts"));
         let same_module = [(
-            &IdentityId::new(AssetKind::Style, "app.tsx", 0, 8, ""),
+            &IdentityId::new(AssetKind::Style, "app.tsx".into(), 0, 8, ""),
             BTreeSet::from([declaration("padding-top")]),
         )];
         assert!(imported_base_interference(&own, &[], &same_module, &module, span).is_empty());
         let disjoint = [(
-            &IdentityId::new(AssetKind::Style, "base.tsx", 16, 24, ""),
+            &IdentityId::new(AssetKind::Style, "base.tsx".into(), 16, 24, ""),
             BTreeSet::from([declaration("color")]),
         )];
         assert!(imported_base_interference(&own, &[], &disjoint, &module, span).is_empty());
         // Another imported base contributes its slots to the competition.
         let siblings = [
             (
-                &IdentityId::new(AssetKind::Style, "first.tsx", 0, 8, ""),
+                &IdentityId::new(AssetKind::Style, "first.tsx".into(), 0, 8, ""),
                 BTreeSet::from([declaration("color")]),
             ),
             (
-                &IdentityId::new(AssetKind::Style, "second.tsx", 0, 8, ""),
+                &IdentityId::new(AssetKind::Style, "second.tsx".into(), 0, 8, ""),
                 BTreeSet::from([declaration("padding-top")]),
             ),
         ];
@@ -780,7 +779,7 @@ mod tests {
         assert!(
             matches!(
                 &findings[0].kind,
-                LintKind::ImportedBaseInterference { module, .. } if module == "second.tsx"
+                LintKind::ImportedBaseInterference { module, .. } if module.as_str() == "second.tsx"
             ),
             "{:?}",
             findings[0].kind

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{FileId, ModuleId, SourceFile};
 
 #[test]
 fn calls_constructors_and_local_computation_need_no_pure_annotation() {
@@ -34,7 +34,7 @@ fn calls_constructors_and_local_computation_need_no_pure_annotation() {
         )).unwrap();
         let parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -76,7 +76,7 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
             .unwrap();
             let parsed = parse(
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 &[],
                 &BTreeMap::default(),
                 ScriptLanguage::Tsx,
@@ -105,7 +105,7 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
         let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ 'data-value': {value} }}); }}")).unwrap();
         let parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -124,7 +124,7 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
     assert!(
         parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -151,7 +151,7 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
         assert!(
             parse(
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 &[],
                 &BTreeMap::default(),
                 ScriptLanguage::Tsx,
@@ -170,7 +170,7 @@ fn container_projection_rejects_extra_arguments() {
     assert!(
         parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,

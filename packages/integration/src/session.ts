@@ -7,6 +7,8 @@ import type { StillwindOptions } from "./options.ts";
 export class IntegrationSession {
   readonly native: NativeProjectSession;
   readonly root: string;
+  readonly #resolverIdsByModuleId = new Map<string, string>();
+  readonly #moduleIdsByResolverId = new Map<string, string>();
   private facts?: TypeScriptFactsService;
 
   constructor(
@@ -20,21 +22,53 @@ export class IntegrationSession {
     this.native = new NativeProjectSession(loader, watch, mode, options.naming);
   }
 
-  compile(
+  async compile(
     code: string,
     id: string,
     host: CompilerHost,
     transport: Parameters<typeof compileModule>[6] = {},
   ) {
-    return compileModule(
+    const pending = new Map<string, string>();
+    const pendingByResolverId = new Map<string, string>();
+    const output = await compileModule(
       this.native,
       () => (this.facts ??= new TypeScriptFactsService(this.root)),
       code,
       id,
       this.root,
-      host,
+      {
+        ...host,
+        onModule: (moduleId, resolverId) => {
+          const previous = this.#resolverIdsByModuleId.get(moduleId);
+          if (previous !== undefined && previous !== resolverId) {
+            throw new Error(`Module identity ${moduleId} changed resolver identity`);
+          }
+          const priorModuleId =
+            pendingByResolverId.get(resolverId) ?? this.#moduleIdsByResolverId.get(resolverId);
+          if (priorModuleId !== undefined && priorModuleId !== moduleId) {
+            throw new Error(`Resolver identity ${resolverId} changed module identity`);
+          }
+          pending.set(moduleId, resolverId);
+          pendingByResolverId.set(resolverId, moduleId);
+        },
+      },
       transport,
     );
+    for (const [moduleId, resolverId] of pending) {
+      this.#resolverIdsByModuleId.set(moduleId, resolverId);
+      this.#moduleIdsByResolverId.set(resolverId, moduleId);
+      host.onModule?.(moduleId, resolverId);
+    }
+    return output;
+  }
+
+  /** Returns the host resolver identity for a published module. */
+  resolverId(moduleId: string): string {
+    const id = this.#resolverIdsByModuleId.get(moduleId);
+    if (id === undefined) {
+      throw new Error(`Unknown Stillwind module identity: ${moduleId}`);
+    }
+    return id;
   }
 
   close(): void {

@@ -7,11 +7,11 @@
 //! [`TypeFacts`] a checker hands back for one module.
 //!
 //! Two rules dominate. Identity is created at the declaration site and derives from the
-//! normalized module path plus the declaration span, so an asset keeps one identity
-//! however it is imported or re-exported. Symbolic values stay sound: a value becomes
-//! finite only when the frontend proved the candidates, because a wrongly finite set
-//! pins CSS that may never apply. No I/O happens here, and nothing in this crate knows
-//! what CSS will be generated.
+//! module identity plus the declaration span, so an asset keeps one identity however it
+//! is imported or re-exported. Symbolic values stay sound: a value becomes finite only
+//! when the frontend proved the candidates, because a wrongly finite set pins CSS that
+//! may never apply. No I/O happens here, and nothing in this crate knows what CSS will
+//! be generated.
 
 #![cfg_attr(
     not(test),
@@ -34,7 +34,7 @@ mod type_facts;
 
 pub use assets::{AssetMetadata, AssetRecord};
 pub use identity::{AssetKind, IdentityId};
-pub use module::{IntegrationDiagnostic, ModuleId, TypeFacts, TypeFactsUpdate};
+pub use module::{IntegrationDiagnostic, TypeFacts, TypeFactsUpdate};
 pub use module_summary::{ImportBinding, ModuleSpecifier, ModuleSummary, ReExport};
 pub use symbolic::{Candidates, ExportedValue, RefAlternative, SymbolicError, SymbolicValue};
 pub use type_facts::TypeFact;

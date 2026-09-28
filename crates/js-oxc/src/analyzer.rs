@@ -89,7 +89,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                         module_id: input.module_id.clone(),
                         source_revision: Fingerprint::of(source.text()),
                         local_ir: ModuleIr::react(),
-                        summary: ModuleSummary::new(input.module_id.as_str()),
+                        summary: ModuleSummary::new(input.module_id.clone()),
                         type_probes: Vec::new(),
                         lint_directives: collect_lint_directives(source.text()),
                         diagnostics: vec![CompileError::new(error.into(), source.full_span())],
@@ -104,7 +104,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             (
                 parse(
                     &source,
-                    input.module_id.as_str(),
+                    &input.module_id,
                     &[],
                     &BTreeMap::new(),
                     input.language,
@@ -185,7 +185,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                             )],
                             lint_findings: Vec::new(),
                             module: ModuleIr::react(),
-                            summary: ModuleSummary::new(scan.module_id.as_str()),
+                            summary: ModuleSummary::new(scan.module_id.clone()),
                         };
                         select_framework(&mut parsed, &scan.input);
                         return parsed;
@@ -194,7 +194,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             } else {
                 parse(
                     &scan.source,
-                    scan.module_id.as_str(),
+                    &scan.module_id,
                     &facts.facts,
                     &facts.assets,
                     scan.input.language,

@@ -15,8 +15,10 @@ use stillwind_ir::{
     StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
-use stillwind_semantic::{AssetKind, ExportedValue, ModuleId, SymbolicValue, TypeFact, TypeFacts};
-use stillwind_source::{FileId, Fingerprint, ProjectionMap, SourceFile, Span, VolarMapping};
+use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_source::{
+    FileId, Fingerprint, ModuleId, ProjectionMap, SourceFile, Span, VolarMapping,
+};
 
 #[test]
 fn checker_spans_restore_each_generated_receiver_for_properties_and_calls() {
@@ -233,7 +235,7 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
         .unwrap();
         let parsed = parse(
             &normalized.source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
             &BTreeMap::default(),
             ScriptLanguage::Tsx,
@@ -305,7 +307,7 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
         .iter()
         .find(|asset| asset.identity.kind == AssetKind::Ref)
         .unwrap();
-    assert_eq!(asset.identity.module_path, "Component.svelte");
+    assert_eq!(asset.identity.module_id, "Component.svelte".into());
     assert_eq!(
         &original.text()[asset.identity.start as usize..asset.identity.end as usize],
         "target"

@@ -111,7 +111,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
             revision,
             parts: plan.parts,
             dependencies: Object.fromEntries(
-              [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+              [...inputMap(name).values()].map((input) => [input.module_id, input.dependencies]),
             ),
           },
           settings.devSourceMaps,
@@ -172,7 +172,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         }
         const plan = await resolvePlan(
           environmentState(name),
-          [input.path],
+          [input.module_id],
           this,
           !settings.watching,
         );

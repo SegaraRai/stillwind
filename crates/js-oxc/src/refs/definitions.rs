@@ -13,7 +13,7 @@ use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{RefDefinition, StyleInput, StyleVariant};
-use stillwind_source::{Span, Spanned, normalized_module_path};
+use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
 
@@ -75,7 +75,7 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         Some(RefDefinition {
-            module_path: normalized_module_path(self.module_id),
+            module_id: self.module_id.clone(),
             binding,
             label,
             boundary,

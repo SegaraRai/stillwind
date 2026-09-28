@@ -3,7 +3,7 @@
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
-use stillwind_source::Span;
+use stillwind_source::{ModuleId, Span};
 
 use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
@@ -18,7 +18,7 @@ use crate::identifiers::IdentifierContext;
 /// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
 pub(in crate::compiler) fn emit_keyframes_definition(
     contribution: &mut CssContribution,
-    module_id: &str,
+    module_id: &ModuleId,
     identifiers: &IdentifierContext,
     keyframes: &KeyframesDefinition,
     theme: &ThemeIndex,
@@ -170,7 +170,7 @@ fn emit_frames(
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::Compiler;
@@ -186,11 +186,11 @@ mod tests {
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
             &theme,
-            "stillwind.css",
+            &CssSourceName::from("stillwind.css"),
             &crate::CompilerOptions::default(),
         );
         let errors = result

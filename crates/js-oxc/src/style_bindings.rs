@@ -18,7 +18,7 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
-use stillwind_source::{SourceFile, Span};
+use stillwind_source::{ModuleId, SourceFile, Span};
 
 use crate::state::MacroExtractor;
 
@@ -69,7 +69,7 @@ impl<'a> MacroExtractor<'a> {
 /// Visitor state for one seeding pass.
 struct Bindings<'s> {
     /// Module identity used for style declarations.
-    module_id: &'s str,
+    module_id: &'s ModuleId,
     /// Symbols bound to the imported `style` macro.
     macros: &'s HashSet<SymbolId>,
     /// Scoping table used to resolve callee references.
@@ -103,7 +103,7 @@ impl<'a> Visit<'a> for Bindings<'_> {
                 binding,
                 ExportedValue::Styles(SymbolicValue::exact(IdentityId::new(
                     AssetKind::Style,
-                    self.module_id,
+                    self.module_id.clone(),
                     span.start.0,
                     span.end.0,
                     "",

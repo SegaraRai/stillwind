@@ -21,7 +21,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::CompilationDependencies;
-use stillwind_semantic::{IdentityId, ModuleId};
+use stillwind_semantic::IdentityId;
+use stillwind_source::ModuleId;
 
 /// Reverse memberships derived from the currently published artifacts.
 ///

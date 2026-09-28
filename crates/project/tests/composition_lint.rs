@@ -15,13 +15,12 @@ use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, SourceRegistry};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
 
 fn snapshot() -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -90,7 +89,10 @@ const b = style('ms-4');
 const c = style(a, b, 'text-brand');
 ",
     ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
+    let artifact = session
+        .artifacts()
+        .get(&ModuleId::from("app.tsx"))
+        .expect("published");
     let findings = artifact
         .lint_findings
         .iter()
@@ -114,7 +116,10 @@ const b = style('p-4');
 const c = style(a, b, 'text-brand');
 ",
     ));
-    let artifact = session.artifacts().get("app.tsx").expect("published");
+    let artifact = session
+        .artifacts()
+        .get(&ModuleId::from("app.tsx"))
+        .expect("published");
     assert!(
         !artifact
             .lint_findings

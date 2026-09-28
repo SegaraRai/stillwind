@@ -263,10 +263,18 @@ impl ExportedValue {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::ModuleId;
+
     use super::*;
 
     fn identity(kind: AssetKind, start: u32) -> IdentityId {
-        IdentityId::new(kind, r"src\Menu.tsx", start, start + 1, "asset")
+        IdentityId::new(
+            kind,
+            ModuleId::from(r"src\Menu.tsx"),
+            start,
+            start + 1,
+            "asset",
+        )
     }
 
     #[test]
@@ -297,21 +305,16 @@ mod tests {
                 .is_err()
         );
     }
-}
-
-#[cfg(test)]
-mod boundary_tests {
-    use super::*;
 
     #[test]
     fn finite_values_deduplicate_and_reject_mixed_asset_kinds() {
-        let id = IdentityId::new(AssetKind::Ref, "x", 0, 1, "boundary");
+        let id = IdentityId::new(AssetKind::Ref, ModuleId::from("x"), 0, 1, "boundary");
         let value = SymbolicValue::finite(AssetKind::Ref, [id.clone(), id]).unwrap();
         assert_eq!(value.finite_candidates().unwrap().len(), 1);
-        let wrong = IdentityId::new(AssetKind::Keyframes, "x", 0, 1, "animation");
+        let wrong = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "animation");
         assert!(SymbolicValue::finite(AssetKind::Ref, [wrong.clone()]).is_err());
         assert!(RefAlternative::new(wrong, None).is_err());
-        let reference = IdentityId::new(AssetKind::Ref, "x", 0, 1, "ref");
+        let reference = IdentityId::new(AssetKind::Ref, ModuleId::from("x"), 0, 1, "ref");
         assert!(
             RefAlternative::new(
                 reference,
@@ -324,7 +327,13 @@ mod boundary_tests {
     proptest::proptest! {
         #[test]
         fn finite_values_ignore_order_and_duplicates(offsets in proptest::collection::vec(0_u32..100, 0..12)) {
-            let identities = offsets.iter().map(|&start| IdentityId::new(AssetKind::Ref, "x", start, start + 1, "r")).collect::<Vec<_>>();
+            let identities = offsets.iter().map(|&start| IdentityId::new(
+                AssetKind::Ref,
+                ModuleId::from("x"),
+                start,
+                start + 1,
+                "r"
+            )).collect::<Vec<_>>();
             let forward = SymbolicValue::finite(AssetKind::Ref, identities.clone()).unwrap();
             let reverse = SymbolicValue::finite(AssetKind::Ref, identities.iter().rev().chain(&identities).cloned()).unwrap();
             proptest::prop_assert_eq!(forward, reverse);

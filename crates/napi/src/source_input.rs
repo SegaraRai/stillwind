@@ -19,9 +19,9 @@ use stillwind_ir::{
     AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
     ProjectionRegion, ScriptLanguage, ScriptModuleKind, SourceInput,
 };
-use stillwind_semantic::{ModuleId, TypeFact};
+use stillwind_semantic::TypeFact;
 use stillwind_source::{
-    CoordinateIndex, FileId, ProjectionMap, SourceFile, SourceRegistry, SourceUri, Span,
+    CoordinateIndex, FileId, ModuleId, ProjectionMap, SourceFile, SourceRegistry, SourceUri, Span,
     Utf16Offset, VolarMapping,
 };
 
@@ -122,8 +122,9 @@ pub enum NativeAttributeQuote {
 pub struct NativeProjectSource {
     /// Host-supplied absolute URI of the original editable document.
     pub uri: String,
-    /// Module path as the host knows it; used for identity, never for reading.
-    pub path: String,
+    /// Host-chosen identity of this module.
+    #[napi(js_name = "module_id")]
+    pub module_id: String,
     /// Text the parser sees, and the buffer edits are applied to when there is no
     /// projection.
     pub source: String,
@@ -221,7 +222,7 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
         Ok(Self {
             uri: SourceUri::parse(value.uri)
                 .map_err(|error| Error::from_reason(error.to_string()))?,
-            path: value.path,
+            module_id: ModuleId::from(value.module_id),
             source: value.source,
             type_facts: value
                 .type_facts
@@ -268,8 +269,8 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
 pub struct ProjectSource {
     /// Host-supplied identity of the original editable document.
     pub uri: SourceUri,
-    /// Module path as the host knows it.
-    pub path: String,
+    /// Host-chosen identity of this module.
+    pub module_id: ModuleId,
     /// Text the parser sees.
     pub source: String,
     /// Facts the host produced for this module.
@@ -441,7 +442,7 @@ impl ProjectSource {
             None
         };
         Ok(SourceInput {
-            module_id: ModuleId::from(self.path.as_str()),
+            module_id: self.module_id.clone(),
             stylesheet_imports: self.stylesheet_imports.clone(),
             module_css_import: self.module_css_import.clone(),
             code,

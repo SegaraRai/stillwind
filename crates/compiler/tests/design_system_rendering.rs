@@ -9,7 +9,7 @@ use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions,
     DesignSystemSnapshot,
 };
-use stillwind_source::{FileId, SourceFile, SourceRegistry};
+use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry};
 
 #[test]
 fn renders_repeated_imports_in_authored_order() {
@@ -40,7 +40,8 @@ fn renders_repeated_imports_in_authored_order() {
         &SourceFile::new(
             FileId(1), None, None,
             "@theme { --color-brand: blue; } @theme { --color-brand: blue; } @theme { --color-brand: red; }"
-        ).unwrap(), "test.css",
+        ).unwrap(),
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default()
     ).unwrap();
     assert_eq!(
@@ -119,7 +120,7 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
                     let files = requests
                         .into_iter()
                         .map(|request| {
-                            let file = Path::new(request.importer.0.as_ref())
+                            let file = Path::new(request.importer.as_str())
                                 .parent()
                                 .unwrap()
                                 .join(&request.specifier)
@@ -150,7 +151,7 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
     );
     let bare = DesignSystemSnapshot::from_source(
         &SourceFile::new(FileId(1), None, None, "").unwrap(),
-        "test.css",
+        "test.css".into(),
         DesignSystemOptions::default(),
     )
     .unwrap();
@@ -180,7 +181,16 @@ fn rendering_is_independent_of_import_response_order() {
     batched.provide_many([input(0, "root", root)]);
     batched.provide_many([input(2, "b", b), input(1, "a", a)]);
     let batch_snapshot = complete(batched.provide_many([input(3, "c", c)]));
-    let flat = DesignSystemSnapshot::from_source(&SourceFile::new(FileId(1), None, None, format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")).unwrap(), "test.css", DesignSystemOptions::default()).unwrap();
+    let flat = DesignSystemSnapshot::from_source(
+        &SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!("{a} {c} @theme {{ --color-brand: blue; }} .b {{ color: blue; }} .root {{ display: block; }}")
+        ).unwrap(),
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default()
+    ).unwrap();
     assert_eq!(
         StylesheetRenderer::new(
             &snapshot,
@@ -248,7 +258,7 @@ fn renders_each_diamond_import_occurrence() {
 fn cloned_snapshots_render_identically() {
     let snapshot = DesignSystemSnapshot::from_source(
         &SourceFile::new(FileId(1), None, None, "@theme { --color-brand: red; }").unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap();

@@ -20,7 +20,7 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
 };
-use stillwind_source::Fingerprint;
+use stillwind_source::{Fingerprint, ModuleId};
 
 use crate::{
     CompilationDependencies, CompileResult, CompiledModule, Compiler, CompilerOptions,
@@ -117,7 +117,7 @@ impl ModuleCompiler {
             &self.options,
             identifiers,
         );
-        self.capture_resources(&mut result, module.module_id.as_str());
+        self.capture_resources(&mut result, &module.module_id);
         for support in &module.asset_support {
             let mut compiled = Compiler::compile_support_with_snapshot(
                 &support.source,
@@ -126,7 +126,7 @@ impl ModuleCompiler {
                 &self.options,
                 identifiers,
             );
-            self.capture_resources(&mut compiled, support.module_id.as_str());
+            self.capture_resources(&mut compiled, &support.module_id);
             result.module_css.push_str(&compiled.module_css);
             result.contributions.extend(compiled.contributions);
             result.resources.extend(compiled.resources);
@@ -146,7 +146,7 @@ impl ModuleCompiler {
     /// theme asset keeps its host-facing identity. Placeholders are derived from the
     /// owner path and the specifier, and references are rewritten from the end of the
     /// CSS towards the start so earlier byte ranges stay valid.
-    fn capture_resources(&self, result: &mut CompileResult, owner: &str) {
+    fn capture_resources(&self, result: &mut CompileResult, owner: &ModuleId) {
         for contribution in &mut result.contributions {
             let mut references = relative_css_urls(&contribution.css);
             references.retain(|reference| {
@@ -162,7 +162,7 @@ impl ModuleCompiler {
                     "__stillwind_js_resource_{}__",
                     Fingerprint::of(format!(
                         "{}:{owner}{}:{}",
-                        owner.len(),
+                        owner.as_str().len(),
                         reference.specifier.len(),
                         reference.specifier
                     ))
@@ -178,7 +178,7 @@ impl ModuleCompiler {
                     .replace_range(reference.range, &replacement);
                 result.resources.push(ModuleResourceReference {
                     placeholder,
-                    owner: owner.into(),
+                    owner: owner.clone(),
                     specifier: reference.specifier,
                 });
             }
@@ -395,8 +395,8 @@ mod tests {
     use stillwind_diagnostics::CompileErrorKind;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_semantic::{ModuleId, TypeFacts};
-    use stillwind_source::{FileId, Fingerprint, SourceFile};
+    use stillwind_semantic::TypeFacts;
+    use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile};
 
     use super::*;
 
@@ -435,9 +435,12 @@ mod tests {
             "@utility flex { display:flex; } @stillwind-slot utilities;",
         )
         .unwrap();
-        let design =
-            DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-                .unwrap();
+        let design = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
         let compiled = ModuleCompiler::new(design, CompilerOptions::default())
             .compile(&analysis, &Identifiers::default());
         assert!(

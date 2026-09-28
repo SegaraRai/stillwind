@@ -21,7 +21,7 @@ export function checkerEnvironment(source: ProjectSource): {
     return { checker_types: [] };
   }
   const require = createRequire(import.meta.url);
-  const userRequire = createRequire(path.resolve(source.id));
+  const userRequire = createRequire(path.resolve(source.checker_file_name));
   if (source.framework === "Svelte") {
     return {
       checker_types: [
@@ -78,7 +78,7 @@ function clientProjectionStart(
     }
   }
   if (candidates.size !== 1) {
-    throw new Error(`Cannot map Astro client script in ${source.path}`);
+    throw new Error(`Cannot map Astro client script in ${source.module_id}`);
   }
   return [...candidates][0];
 }

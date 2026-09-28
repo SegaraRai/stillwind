@@ -14,9 +14,9 @@
 //! length is not preserved.
 
 use stillwind_css::relative_css_urls;
-use stillwind_source::{Fingerprint, SourceError, SourceFile, Span};
+use stillwind_source::{CssSourceName, Fingerprint, SourceError, SourceFile, Span};
 
-use super::protocol::{CssResourceReference, CssSourceMapping, CssSourceName};
+use super::protocol::{CssResourceReference, CssSourceMapping};
 
 /// One source's inlined text plus the mapping and resources it produced.
 #[derive(Clone, Debug, Default)]
@@ -89,7 +89,12 @@ impl ExpandedSource {
             let start = range.start + resource.range.start;
             let end = range.start + resource.range.end;
             self.append_original(source, cursor..start)?;
-            let identity = format!("{}:{}{}", name.0.len(), name.0, resource.specifier);
+            let identity = format!(
+                "{}:{}{}",
+                name.as_str().len(),
+                name.as_str(),
+                resource.specifier
+            );
             let placeholder = format!("__stillwind_resource_{}__", Fingerprint::of(identity).0);
             let replacement = if resource.string {
                 format!("\"{placeholder}\"")
@@ -106,7 +111,7 @@ impl ExpandedSource {
             });
             self.resources.push(CssResourceReference {
                 placeholder,
-                owner: name.0.to_string(),
+                source_name: name.clone(),
                 specifier: resource.specifier,
                 span: Span::new(
                     source.id(),
@@ -243,7 +248,10 @@ mod tests {
             )
             .unwrap();
         assert_eq!(output.resources.len(), 1);
-        assert_eq!(output.resources[0].owner, "nested/design.css");
+        assert_eq!(
+            output.resources[0].source_name.as_str(),
+            "nested/design.css"
+        );
         assert_eq!(output.resources[0].specifier, "é.png");
         assert_eq!(
             source.slice(output.resources[0].span).unwrap(),

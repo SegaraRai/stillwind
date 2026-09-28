@@ -29,7 +29,7 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
     "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props = style('red');";
   session.compile([
     {
-      path: "entry.tsx",
+      module_id: "entry.tsx",
       uri: "untitled:entry.tsx",
       source,
       language: "tsx",

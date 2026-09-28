@@ -4,7 +4,7 @@ use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_diagnostics::{LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 #[test]
 fn suspending_value_expressions_stay_in_the_original_scope() {
@@ -17,11 +17,11 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &css,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
             assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -40,7 +40,7 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
             assert!(
                 parse(
                     &generated,
-                    "test.tsx",
+                    &ModuleId::from("test.tsx"),
                     &[],
                     &std::collections::BTreeMap::default(),
                     ScriptLanguage::Tsx,
@@ -74,11 +74,11 @@ fn contract_severity_and_suppression_leave_transforms_available() {
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
                 &css,
-                "stillwind.css",
+                &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
             assert!(result.diagnostics.is_empty(), "{result:#?}");

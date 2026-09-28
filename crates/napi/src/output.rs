@@ -16,14 +16,14 @@ use serde::Serialize;
 
 use stillwind_compiler::{
     ExpressionTransformMapping, GeneratedClass, GeneratedSymbol, GuardStep,
-    ModuleResourceReference, RejectedIdentifier, TransformMapping,
+    ModuleResourceReference, RejectedIdentifier, SymbolOrigin, TransformMapping,
 };
 use stillwind_diagnostics::{
     DiagnosticSeverity, ResolvedAction, ResolvedDiagnostic, ResolvedEdit, ResolvedLabel,
     ResolvedLocation,
 };
 use stillwind_ir::StyleDependency;
-use stillwind_source::Span;
+use stillwind_source::{ModuleId, Span};
 
 use crate::semantic::NativeIdentity;
 
@@ -307,7 +307,8 @@ pub struct NativeModuleResource {
     /// Placeholder left in the generated CSS.
     pub placeholder: String,
     /// Module that owns the reference.
-    pub owner: String,
+    #[napi(js_name = "module_id")]
+    pub module_id: String,
     /// Authored specifier.
     pub specifier: String,
 }
@@ -316,7 +317,7 @@ impl From<ModuleResourceReference> for NativeModuleResource {
     fn from(value: ModuleResourceReference) -> Self {
         Self {
             placeholder: value.placeholder,
-            owner: value.owner,
+            module_id: value.owner.into_string(),
             specifier: value.specifier,
         }
     }
@@ -471,9 +472,12 @@ pub struct NativeGeneratedSymbol {
     pub kind: String,
     /// Stable identity of the declaration site.
     pub identity: String,
-    /// Module the declaration lives in, or the stylesheet that named a helper or layer.
-    #[napi(js_name = "source_path")]
-    pub source_path: String,
+    /// Domain of the source that owns this name: `module` or `stylesheet`.
+    #[napi(js_name = "source_kind")]
+    pub source_kind: String,
+    /// Identity within `source_kind`.
+    #[napi(js_name = "source_id")]
+    pub source_id: String,
     /// Byte start of the declaration, absent for a name that declares nothing itself.
     pub start: Option<u32>,
     /// Byte end of the declaration, absent for a name that declares nothing itself.
@@ -486,7 +490,15 @@ impl From<GeneratedSymbol> for NativeGeneratedSymbol {
             name: value.name,
             kind: value.kind,
             identity: value.identity,
-            source_path: value.source_path,
+            source_kind: match &value.origin {
+                SymbolOrigin::Module(_) => "module",
+                SymbolOrigin::Stylesheet(_) => "stylesheet",
+            }
+            .to_owned(),
+            source_id: match value.origin {
+                SymbolOrigin::Module(id) => id.into_string(),
+                SymbolOrigin::Stylesheet(id) => id.as_str().to_owned(),
+            },
             start: value.start,
             end: value.end,
         }
@@ -542,8 +554,9 @@ pub struct NativeDiagnosticBatch {
 pub struct ProjectModuleOutput {
     /// Composition edges of this module.
     pub composition: Vec<NativeStyleDependency>,
-    /// Module path.
-    pub path: String,
+    /// Host-chosen identity of this module.
+    #[napi(js_name = "module_id")]
+    pub module_id: String,
     /// Assets and resources this module references.
     pub resources: Vec<NativeModuleResource>,
     /// Generated CSS. Rules shared with an earlier module are already removed.
@@ -575,7 +588,7 @@ pub struct ProjectModuleOutput {
 }
 
 impl ProjectModuleOutput {
-    pub(crate) fn new(path: String, output: BindingOutput) -> Self {
+    pub(crate) fn new(module_id: ModuleId, output: BindingOutput) -> Self {
         let BindingOutput {
             composition,
             resources,
@@ -592,7 +605,7 @@ impl ProjectModuleOutput {
         } = output;
         Self {
             composition,
-            path,
+            module_id: module_id.into_string(),
             resources,
             css,
             code,

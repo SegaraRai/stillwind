@@ -11,7 +11,8 @@
 //!
 //! `text` owns source buffers and spans; `coordinates` converts host coordinates;
 //! `projection` validates generated-to-original correspondence; `fingerprint` provides
-//! content and normalized module identities. Diagnostic reporting belongs to consumers.
+//! content identity; `identity` holds opaque host keys. Diagnostic reporting belongs to
+//! consumers.
 
 #![cfg_attr(
     not(test),
@@ -27,15 +28,17 @@
 
 mod coordinates;
 mod fingerprint;
+mod identity;
 mod projection;
 mod text;
 
 pub use coordinates::{CoordinateError, CoordinateIndex, Utf16Offset};
 pub use fingerprint::Fingerprint;
+pub use identity::{CssSourceName, ModuleId};
 pub use projection::{
     ProjectionError, ProjectionIndex, ProjectionMap, SourceProvenance, VolarMapping,
 };
 pub use text::{
     BytePos, FileId, Position, SourceError, SourceFile, SourceRegistry, SourceRegistryError,
-    SourceUri, SourceUriError, Span, Spanned, normalized_module_path, range_of,
+    SourceUri, SourceUriError, Span, Spanned, range_of,
 };

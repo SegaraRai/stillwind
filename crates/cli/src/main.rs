@@ -37,7 +37,7 @@ use stillwind_diagnostics::{
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{SourceError, SourceRegistry, SourceRegistryError, SourceUri};
+use stillwind_source::{ModuleId, SourceError, SourceRegistry, SourceRegistryError, SourceUri};
 
 mod arguments;
 mod loading;
@@ -82,6 +82,9 @@ enum CommandError {
         #[source]
         source: std::io::Error,
     },
+    /// A compiled resource belongs to a module absent from this one-source invocation.
+    #[error("cannot resolve resource from unknown module {0}")]
+    ResourceOwner(String),
     /// Design-system options or the loaded design system are invalid.
     #[error("{0}")]
     Options(#[from] CompileErrorKind),
@@ -117,9 +120,16 @@ struct CliOutput {
 fn rebase_resources(
     mut css: String,
     theme_name: &str,
+    source_path: &str,
+    module_id: &ModuleId,
     snapshot: &DesignSystemSnapshot,
     resources: &[ModuleResourceReference],
 ) -> Result<String, CommandError> {
+    for resource in resources {
+        if &resource.owner != module_id {
+            return Err(CommandError::ResourceOwner(resource.owner.to_string()));
+        }
+    }
     let entry_path = std::path::absolute(theme_name).map_err(|source| CommandError::ThemePath {
         path: theme_name.into(),
         source,
@@ -129,15 +139,21 @@ fn rebase_resources(
     let resources = snapshot
         .resources
         .iter()
-        .map(|resource| (&resource.placeholder, &resource.owner, &resource.specifier))
+        .map(|resource| {
+            (
+                &resource.placeholder,
+                resource.source_name.as_str(),
+                &resource.specifier,
+            )
+        })
         .chain(
             resources
                 .iter()
-                .map(|resource| (&resource.placeholder, &resource.owner, &resource.specifier)),
+                .map(|resource| (&resource.placeholder, source_path, &resource.specifier)),
         );
     for (placeholder, owner, specifier) in resources {
         let owner_path = std::path::absolute(owner).map_err(|source| CommandError::ThemePath {
-            path: owner.clone(),
+            path: owner.to_owned(),
             source,
         })?;
         let owner_directory = owner_path.parent().unwrap_or(entry_directory);
@@ -162,7 +178,7 @@ fn run() -> Result<(), CommandError> {
         return Err(CommandError::UnknownCommand { command });
     }
     let mut sources = SourceRegistry::default();
-    let (source, module_id) = if let Some(text) = optional_argument("--source-text") {
+    let (source, source_path) = if let Some(text) = optional_argument("--source-text") {
         let path = optional_argument("--source-path").unwrap_or_else(|| "Play.tsx".to_owned());
         let source = sources.register(
             Some(
@@ -198,6 +214,7 @@ fn run() -> Result<(), CommandError> {
             path.to_string_lossy().into_owned(),
         )
     };
+    let module_id = ModuleId::from(source_path.as_str());
     let options = CompilerOptions {
         prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
         tailwind_prefix: optional_argument("--tailwind-prefix")
@@ -211,7 +228,7 @@ fn run() -> Result<(), CommandError> {
     let analysis = OxcSourceAnalyzer.finalize(
         OxcSourceAnalyzer.scan(
             source.clone(),
-            module_id.as_str().into(),
+            module_id.clone(),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         ),
@@ -236,7 +253,14 @@ fn run() -> Result<(), CommandError> {
     } else {
         None
     };
-    let css = rebase_resources(result.css, &theme_name, &snapshot, &result.resources)?;
+    let css = rebase_resources(
+        result.css,
+        &theme_name,
+        &source_path,
+        &module_id,
+        &snapshot,
+        &result.resources,
+    )?;
     let output = CliOutput {
         css,
         code,

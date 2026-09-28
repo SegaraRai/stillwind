@@ -4,12 +4,14 @@
 //! string, so the tests pin down which expressions count, which spans are recorded, and
 //! which near-misses are errors.
 
+use std::collections::BTreeMap;
+
 use stillwind_ir::{
     ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
     StyleVariant,
 };
 use stillwind_js_oxc::parse;
-use stillwind_source::{FileId, SourceFile, Span};
+use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 fn rule(expression: &ClassExpression) -> &RuleExpression {
     let ClassExpression::Rule(rule) = expression else {
@@ -30,9 +32,9 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
         )).unwrap();
         let parsed = parse(
             &source,
-            "test.tsx",
+            &ModuleId::from("test.tsx"),
             &[],
-            &std::collections::BTreeMap::default(),
+            &BTreeMap::default(),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
@@ -79,9 +81,9 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
     .unwrap();
     let parsed = parse(
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         &[],
-        &std::collections::BTreeMap::default(),
+        &BTreeMap::default(),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
@@ -171,9 +173,9 @@ fn utility_templates_require_direct_ref_variant_segments() {
         assert!(
             !parse(
                 &source,
-                "test.tsx",
+                &ModuleId::from("test.tsx"),
                 &[],
-                &std::collections::BTreeMap::default(),
+                &BTreeMap::default(),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous
             )
@@ -199,9 +201,9 @@ const props = style(classes);"#,
     .unwrap();
     let parsed = parse(
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         &[],
-        &std::collections::BTreeMap::default(),
+        &BTreeMap::default(),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );

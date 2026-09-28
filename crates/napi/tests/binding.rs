@@ -21,7 +21,7 @@ use stillwind_napi::{
     compile_project_input, compile_source_input, generate_vocabulary_types, render_stylesheet,
     summarize_source_input,
 };
-use stillwind_source::SourceUri;
+use stillwind_source::{ModuleId, SourceUri};
 
 fn compile_input(source: &str, module_id: &str, theme: &str) -> CompileSourceInput {
     CompileSourceInput {
@@ -85,7 +85,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let a = prefix.encode_utf16().count();
     let b = a + first.len() + middle.len();
     let mut input = serde_json::json!({
-        "path":"Component.svelte", "source":format!("{first}\n{second}"),
+        "module_id":"Component.svelte", "source":format!("{first}\n{second}"),
         "language":"ts", "framework":"Svelte", "fw_code": original,
         "fw2js_map":{"kind":"volar","mappings":[
             {"sourceOffsets":[a],"generatedOffsets":[0],"lengths":[first.len()]},
@@ -145,7 +145,7 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
     let suffix = "</script>\n<div {...props}></div><style>/* preserved */</style>";
     let original = format!("{prefix}{script}{suffix}");
     let source = serde_json::json!({
-        "path":"Component.svelte", "source":script, "language":"ts", "framework":"Svelte",
+        "module_id":"Component.svelte", "source":script, "language":"ts", "framework":"Svelte",
         "fw_code":original,
         "fw2js_map":{"kind":"volar","mappings":[{"sourceOffsets":[prefix.encode_utf16().count()],"generatedOffsets":[0],"lengths":[script.len()]}]},
         "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"test"},
@@ -242,15 +242,15 @@ fn serializes_cross_module_ref_summaries() {
         r#"import { style } from "stillwind/react";
 export const menu = style.ref("menu");
 export const trigger = style.ref(menu, "trigger");"#,
-        r"src\Parent.tsx",
+        &ModuleId::from(r"src\Parent.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     )
     .unwrap();
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
-    assert_eq!(value["schema"], 1);
-    assert_eq!(value["module_path"], "src/Parent.tsx");
+    assert_eq!(value["schema"], 2);
+    assert_eq!(value["module_id"], r"src\Parent.tsx");
     assert_eq!(value["exports"][0]["name"], "menu");
     assert_eq!(value["exports"][0]["value"]["kind"], "refs");
     assert_eq!(
@@ -271,13 +271,13 @@ export const trigger = style.ref(menu, "trigger");"#,
 fn requires_typescript_facts_for_cross_module_refs() {
     let sources = serde_json::json!([
         {
-            "path": "src/Parent.tsx",
+            "module_id": "src/Parent.tsx",
             "source": r#"import { style } from "stillwind/react";
 export const menu = style.ref("menu");
 export const parent = style(menu);"#
         },
         {
-            "path": "src/Child.tsx",
+            "module_id": "src/Child.tsx",
             "source": r#"import { style } from "stillwind/react";
 import { menu } from "./Parent";
 export const child = style({ [menu`hover:`]: "text-white" });"#
@@ -301,17 +301,17 @@ export const child = style({ [menu`hover:`]: "text-white" });"#
 fn assembles_project_fragments_under_one_shared_stylesheet() {
     let sources = serde_json::json!([
         {
-            "path": "src/One.tsx",
+            "module_id": "src/One.tsx",
             "source": r#"import { style } from "stillwind/react";
     export const one = style("text-white");"#
         },
         {
-            "path": "src/Two.tsx",
+            "module_id": "src/Two.tsx",
             "source": r#"import { style } from "stillwind/react";
     export const two = style("bg-white");"#
         },
         {
-            "path": "src/Duplicate.tsx",
+            "module_id": "src/Duplicate.tsx",
             "source": r#"import { style } from "stillwind/react";
     export const duplicate = style("text-white");"#
         }
@@ -414,7 +414,7 @@ fn project_api_preserves_configuration_errors() {
 
 fn sources_from_value(mut value: serde_json::Value) -> Vec<ProjectSource> {
     for source in value.as_array_mut().unwrap() {
-        let path = source["path"].as_str().unwrap().to_owned();
+        let path = source["module_id"].as_str().unwrap().to_owned();
         let uri = format!("test:///{path}");
         source["uri"] = serde_json::Value::String(uri.clone());
         source["source_map_source"] = serde_json::Value::String(uri);

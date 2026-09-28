@@ -4,7 +4,7 @@ use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, SourceFile};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
@@ -31,11 +31,11 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        "test.tsx",
+        &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
         &theme,
-        "stillwind.css",
+        &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
     (source, result)

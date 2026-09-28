@@ -15,11 +15,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind, LintSeverity, SourceFailureContext};
-use stillwind_source::{Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span};
+use stillwind_source::{
+    CssSourceName, Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span,
+};
 
 use super::{PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry};
 use crate::{
-    BuiltinDefinitions, CssFileRequest, CssSourceGraph, CssSourceName, DesignSystemLoadError,
+    BuiltinDefinitions, CssFileRequest, CssSourceGraph, DesignSystemLoadError,
     DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_definitions,
     builtin_theme_order,
 };
@@ -82,9 +84,7 @@ impl DesignSystemError {
                     CompileErrorKind::UnknownCssRequest { id }
                 }
                 DesignSystemLoadError::ConflictingSource { name } => {
-                    CompileErrorKind::ConflictingCssSource {
-                        name: name.0.to_string(),
-                    }
+                    CompileErrorKind::ConflictingCssSource { name }
                 }
                 DesignSystemLoadError::InvalidOptions(error) => error,
                 DesignSystemLoadError::Cycle { chain } => CompileErrorKind::CssImportCycle {
@@ -191,12 +191,12 @@ impl DesignSystemSnapshot {
     /// loader-local; this rebinding applies only to errors returned from this entry point.
     pub fn from_source(
         source: &SourceFile,
-        source_name: &str,
+        source_name: CssSourceName,
         options: DesignSystemOptions,
     ) -> Result<Self, DesignSystemError> {
         match DesignSystemLoader::new(options, SourceRegistry::default()).provide(
             0,
-            CssSourceName::from(source_name),
+            source_name,
             source.uri().cloned(),
             source.source_map_source().map(Into::into),
             source.text().into(),

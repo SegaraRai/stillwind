@@ -15,15 +15,14 @@ use stillwind_diagnostics::CompileErrorKind;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, SourceFile, SourceRegistry};
+use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
 
 /// One snapshot whose theme declares a single token.
 fn snapshot(color: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
         &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
             .unwrap(),
-        "test.css",
+        CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )
     .unwrap()
@@ -86,7 +85,7 @@ fn distinct_pools_may_publish_the_same_spelling() {
     );
     let update = session.update_module(ref_module());
     assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
-    let artifact = &session.artifacts()["panel.tsx"];
+    let artifact = &session.artifacts()[&ModuleId::from("panel.tsx")];
     let anchor_pool = artifact
         .symbols
         .iter()
@@ -113,7 +112,8 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
     );
     assert!(session.update_module(ref_module()).diagnostics.is_empty());
     // The producer's own stylesheet names its anchor `shared`, which the generator also returned.
-    let reported = session.reserve_authored_css("panel.css", ":root{anchor-name:shared;}");
+    let reported =
+        session.reserve_authored_css(&ModuleId::from("panel.css"), ":root{anchor-name:shared;}");
     assert!(
         reported.values().flatten().any(|error| matches!(
             error.kind,
@@ -122,7 +122,11 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
         "{reported:?}"
     );
     // Forgetting the stylesheet gives the name back.
-    assert!(session.forget_authored_css("panel.css").is_empty());
+    assert!(
+        session
+            .forget_authored_css(&ModuleId::from("panel.css"))
+            .is_empty()
+    );
 }
 
 #[test]
@@ -132,9 +136,12 @@ fn a_generated_anchor_name_is_checked_against_the_authored_document() {
         ":root{anchor-name:shared;} @stillwind-slot utilities;",
     )
     .unwrap();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, "test.css", DesignSystemOptions::default())
-            .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &theme,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
     let mut session = ProjectSession::new(
         snapshot,
         &SourceRegistry::default(),

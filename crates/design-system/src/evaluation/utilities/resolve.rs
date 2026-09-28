@@ -236,7 +236,7 @@ pub(crate) fn project_animation_option_utility(
 mod tests {
     use std::sync::Arc;
 
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::BuiltinDefinitions;
@@ -322,7 +322,8 @@ mod tests {
                 FileId(1), None, None,
                 "@stillwind-utility x-* { color: --value([color]); } @utility x-* { width: --value([length]); }",
             )
-            .unwrap(), "test.css",
+            .unwrap(),
+            &CssSourceName::from("test.css"),
         )
         .unwrap();
         let resolved = resolve_utility("x-[red]", &theme).unwrap();

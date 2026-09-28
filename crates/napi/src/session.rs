@@ -10,7 +10,7 @@
 //! host already produced through its long-lived TS7 service rather than running a
 //! checker of its own.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use napi::Error;
@@ -28,8 +28,8 @@ use stillwind_diagnostics::{CompileError, DiagnosticBatch, Reporter};
 use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
-use stillwind_semantic::{ModuleId, TypeFacts, TypeFactsUpdate};
-use stillwind_source::{Fingerprint, SourceRegistry, SourceUri};
+use stillwind_semantic::{TypeFacts, TypeFactsUpdate};
+use stillwind_source::{Fingerprint, ModuleId, SourceRegistry, SourceUri};
 
 use crate::api::binding_output_with_batch;
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
@@ -200,7 +200,7 @@ impl NativeDesignSystemLoader {
                     .into_iter()
                     .map(|request| NativeCssRequest {
                         id: request.id,
-                        importer: request.importer.0.to_string(),
+                        importer: request.importer.as_str().to_owned(),
                         specifier: request.specifier,
                     })
                     .collect(),
@@ -214,7 +214,7 @@ impl NativeDesignSystemLoader {
                         .iter()
                         .map(|resource| NativeCssResource {
                             placeholder: resource.placeholder.clone(),
-                            owner: resource.owner.clone(),
+                            source_name: resource.source_name.as_str().to_owned(),
                             specifier: resource.specifier.clone(),
                             start: resource.span.start.0,
                             end: resource.span.end.0,
@@ -224,7 +224,7 @@ impl NativeDesignSystemLoader {
                         .sources()
                         .sources
                         .iter()
-                        .map(|source| source.name.0.to_string())
+                        .map(|source| source.name.as_str().to_owned())
                         .collect(),
                 };
                 self.snapshot = Some(snapshot);
@@ -450,7 +450,7 @@ impl NativeProjectSession {
             transformed_modules: update
                 .transformed_modules
                 .into_iter()
-                .map(|module| module.0)
+                .map(ModuleId::into_string)
                 .collect(),
         })
     }
@@ -512,7 +512,11 @@ impl NativeProjectSession {
                         })?,
                         key: part.key.0,
                         css: part.css,
-                        producers: part.producers.into_iter().map(|id| id.0).collect(),
+                        producers: part
+                            .producers
+                            .into_iter()
+                            .map(ModuleId::into_string)
+                            .collect(),
                     })
                 })
                 .collect::<napi::Result<_>>()?,
@@ -526,7 +530,7 @@ impl NativeProjectSession {
                 .producers
                 .into_iter()
                 .map(|(module, key)| NativeStylesheetProducer {
-                    module: module.0,
+                    module: module.into_string(),
                     source_revision: key.source_revision.0,
                     semantic_revision: key.semantic_revision.map(|revision| revision.0),
                     compiler_version: key.compiler_version,
@@ -588,7 +592,7 @@ impl NativeProjectSession {
     #[napi]
     #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn remove(&mut self, module: String) -> napi::Result<bool> {
-        let removed = self.session.remove_module(&module);
+        let removed = self.session.remove_module(&ModuleId::from(module));
         Self::refresh_batches(&mut self.session)?;
         Ok(removed)
     }
@@ -606,8 +610,10 @@ impl NativeProjectSession {
         css: Option<String>,
     ) -> napi::Result<()> {
         let reported = match css {
-            Some(css) => self.session.reserve_authored_css(&module, &css),
-            None => self.session.forget_authored_css(&module),
+            Some(css) => self
+                .session
+                .reserve_authored_css(&ModuleId::from(module), &css),
+            None => self.session.forget_authored_css(&ModuleId::from(module)),
         };
         if reported.is_empty() {
             Self::refresh_batches(&mut self.session)?;
@@ -640,12 +646,22 @@ impl NativeProjectSession {
         producer: Option<String>,
     ) -> napi::Result<ProjectBindingOutput> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
+        let producer = producer.map(ModuleId::from);
         let sources = sources
             .into_iter()
             .map(TryInto::try_into)
             .collect::<napi::Result<Vec<ProjectSource>>>()?;
+        let mut module_ids = BTreeSet::new();
+        for source in &sources {
+            if !module_ids.insert(&source.module_id) {
+                return Err(Error::from_reason(format!(
+                    "Duplicate Stillwind module identity: {}",
+                    source.module_id
+                )));
+            }
+        }
         if let Some(producer) = &producer
-            && !sources.iter().any(|source| &source.path == producer)
+            && !sources.iter().any(|source| &source.module_id == producer)
         {
             return Err(Error::from_reason(format!(
                 "Unknown Stillwind producer: {producer}"
@@ -695,7 +711,7 @@ impl NativeProjectSession {
             let (output, batch) =
                 binding_output_with_batch(result, &scan.source, &diagnostic_sources)?;
             transaction.publish_diagnostic_batch(scan.module_id.clone(), batch);
-            modules.push(ProjectModuleOutput::new(scan.module_id.0, output));
+            modules.push(ProjectModuleOutput::new(scan.module_id, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
             transaction
@@ -703,7 +719,7 @@ impl NativeProjectSession {
                 .map_err(|error| Error::from_reason(error.to_string()))?;
             self.session = transaction;
             if let Some(producer) = &producer {
-                modules.retain(|module| &module.path == producer);
+                modules.retain(|module| module.module_id == producer.as_str());
             }
         } else {
             self.session.reject_updates(attempted);

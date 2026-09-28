@@ -171,7 +171,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
           parts.push({ id: `${index}:${part.key}`, href: href(reference) });
         }
         const dependencies = new Map(
-          [...inputMap(name).values()].map((input) => [input.path, input.dependencies]),
+          [...inputMap(name).values()].map((input) => [input.module_id, input.dependencies]),
         );
         const modules = Object.fromEntries(
           plan.producers.map((producer) => {
@@ -217,8 +217,8 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
           [...graph].flatMap(
             (id) =>
               manifest!.modules[
-                inputMap(this.environment?.name).get(cleanModuleId(id))?.path ??
-                  this.getModuleInfo(id)?.meta.stillwind?.path ??
+                inputMap(this.environment?.name).get(cleanModuleId(id))?.module_id ??
+                  this.getModuleInfo(id)?.meta.stillwind?.module_id ??
                   (id.startsWith(producerPrefix)
                     ? Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8")
                     : "")

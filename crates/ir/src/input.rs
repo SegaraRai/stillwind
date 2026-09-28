@@ -14,8 +14,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_semantic::ModuleId;
-use stillwind_source::{FileId, Fingerprint, ProjectionMap, SourceFile, Span};
+use stillwind_source::{FileId, Fingerprint, ModuleId, ProjectionMap, SourceFile, Span};
 
 use crate::AdapterKind;
 
