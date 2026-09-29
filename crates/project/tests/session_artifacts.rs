@@ -4,6 +4,7 @@
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetPlacement, StylesheetRenderer};
@@ -336,11 +337,11 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     assert_eq!(session.dependencies().assets.len(), 3);
     assert_eq!(
         session.dependencies().theme_tokens["--color-brand"],
-        [ModuleId::from("b.tsx")].into()
+        BTreeSet::from([ModuleId::from("b.tsx")])
     );
     assert_eq!(
         session.dependencies().candidates["flex"],
-        [ModuleId::from("a.tsx")].into()
+        BTreeSet::from([ModuleId::from("a.tsx")])
     );
     let mut rebuilt = ProjectSession::new(
         snapshot,

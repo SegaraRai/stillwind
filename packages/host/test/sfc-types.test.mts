@@ -11,7 +11,7 @@ import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
 
-test("checker declaration identity has its own namespace", () => {
+void test("checker declaration identity has its own namespace", () => {
   assert.match(
     identityKey({ kind: "ref", module_id: "src/a.tsx", start: 2, end: 6, binding_name: "item" }),
     /^stillwind-identity\/v1:/,
