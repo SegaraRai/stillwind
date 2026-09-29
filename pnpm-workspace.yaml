@@ -32,6 +32,7 @@ minimumReleaseAgeExclude:
 
 overrides:
   vite@*: "catalog:"
+  vitest: 5.0.1
 
 peerDependencyRules:
   allowAny:
