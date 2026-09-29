@@ -9,6 +9,7 @@ type FixtureFile = {
   before: string;
   after: string;
   css: string;
+  minifiedCss: string;
   diff?: Array<{ fromA: number; toA: number; fromB: number; toB: number }>;
 };
 type FixtureProject = {
@@ -17,6 +18,7 @@ type FixtureProject = {
   description: string;
   tags: string[];
   css: string;
+  minifiedCss: string;
   files: FixtureFile[];
 };
 type Catalog = { schemaVersion: 1; projects: FixtureProject[] };
@@ -52,6 +54,7 @@ function App() {
   const [routeVersion, setRouteVersion] = useState(0);
   const [query, setQuery] = useState("");
   const [cssScope, setCssScope] = useState<"module" | "project">("module");
+  const [minified, setMinified] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -133,10 +136,10 @@ function App() {
     return <main className="loading">Loading fixture catalog…</main>;
   }
   const { project, file } = route;
+  const cssSource = cssScope === "module" ? file : project;
   const cssOutput =
-    cssScope === "module"
-      ? file.css.trim() || "/* This module does not own any unique generated CSS. */\n"
-      : project.css;
+    (minified ? cssSource.minifiedCss : cssSource.css).trim() ||
+    "/* No generated CSS in this selection. */\n";
 
   return (
     <div className="shell">
@@ -239,22 +242,35 @@ function App() {
             Generated CSS
             <small>{cssScope === "module" ? file.path : project.id}</small>
           </div>
-          <nav aria-label="CSS scope">
-            <button
-              className={cssScope === "module" ? "selected" : ""}
-              aria-pressed={cssScope === "module"}
-              onClick={() => setCssScope("module")}
+          <div className="css-controls">
+            <label
+              className="minify-toggle"
+              title="Minify with Lightning CSS, then format for review"
             >
-              Module CSS
-            </button>
-            <button
-              className={cssScope === "project" ? "selected" : ""}
-              aria-pressed={cssScope === "project"}
-              onClick={() => setCssScope("project")}
-            >
-              Project CSS
-            </button>
-          </nav>
+              <input
+                type="checkbox"
+                checked={minified}
+                onChange={(event) => setMinified(event.target.checked)}
+              />
+              Minified (formatted)
+            </label>
+            <nav aria-label="CSS scope">
+              <button
+                className={cssScope === "module" ? "selected" : ""}
+                aria-pressed={cssScope === "module"}
+                onClick={() => setCssScope("module")}
+              >
+                Module CSS
+              </button>
+              <button
+                className={cssScope === "project" ? "selected" : ""}
+                aria-pressed={cssScope === "project"}
+                onClick={() => setCssScope("project")}
+              >
+                Project CSS
+              </button>
+            </nav>
+          </div>
         </div>
         <div className="css-panel">
           <Suspense fallback={<div className="code-skeleton">Loading source…</div>}>

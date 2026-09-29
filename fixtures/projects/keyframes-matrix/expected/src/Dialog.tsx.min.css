@@ -1,0 +1,21 @@
+.sw_rdg4x {
+  border-radius: var(--radius-md);
+}
+.sw_rdg4x[data-state="closed"] {
+  animation-name: sw-kf-12rqq;
+  animation-duration: var(--duration-fast);
+  animation-timing-function: var(--ease-standard);
+  animation-fill-mode: both;
+}
+.sw_oyibx {
+  animation-name: sw-kf-enter-cxv19;
+  animation-duration: var(--duration-normal);
+  animation-timing-function: var(--ease-standard);
+  animation-fill-mode: both;
+}
+.sw_0xhzs {
+  animation-name: sw-kf-12rqq;
+  animation-duration: var(--duration-normal);
+  animation-timing-function: var(--ease-standard);
+  animation-fill-mode: both;
+}

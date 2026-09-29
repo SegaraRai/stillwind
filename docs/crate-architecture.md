@@ -21,6 +21,9 @@ are documented in [framework projection design](framework-projection-design.md).
 | `napi`          | Node transport, serialization, and composition of the Rust services                                                                 |
 | `cli`           | Filesystem/package resolution and command-line composition                                                                          |
 
+`css` also exposes optional final asset minification and source-map composition through its
+`minify` feature. See [CSS minification](css-minification.md) for the public API.
+
 `crates/test-support` contains shared test sources, not a workspace crate.
 
 ## Dependency direction

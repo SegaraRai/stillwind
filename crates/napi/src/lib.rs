@@ -6,10 +6,10 @@
 //!
 //! Two families of functions exist. The one-shot functions ([`compile_source`],
 //! [`compile_project`], [`render_stylesheet`], [`summarize_source`],
-//! [`generate_vocabulary_types`]) are pure, so they have plain Rust counterparts that
-//! the E2E tests call directly. The classes `NativeDesignSystemLoader` and
-//! `NativeProjectSession` carry state across calls and are thin wrappers over
-//! [`stillwind_design_system`] and [`stillwind_project`].
+//! [`generate_vocabulary_types`], [`minify_css`]) are pure, so they have plain Rust
+//! counterparts that the E2E tests call directly. The classes
+//! `NativeDesignSystemLoader` and `NativeProjectSession` carry state across calls and
+//! are thin wrappers over [`stillwind_design_system`] and [`stillwind_project`].
 //!
 //! File and module resolution stays in JavaScript. The binding only receives buffers
 //! that the host already read, and it reports unresolved CSS imports as requests for
@@ -28,6 +28,7 @@
 )]
 
 mod api;
+mod minify;
 mod naming;
 mod options;
 mod output;
@@ -37,6 +38,7 @@ mod source_input;
 mod stylesheet;
 
 pub use api::*;
+pub use minify::*;
 pub use output::{
     BindingOutput, BindingRejectedIdentifier, ProjectBindingOutput, ProjectModuleOutput,
 };

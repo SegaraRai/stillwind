@@ -286,6 +286,20 @@ h1 {
   padding: 2px;
   border-radius: 5px;
 }
+.css-controls {
+  flex-shrink: 0;
+}
+.minify-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 10px;
+}
+.minify-toggle input {
+  accent-color: var(--cyan);
+}
 .css-head nav button {
   border: 0;
   border-radius: 4px;

@@ -567,7 +567,7 @@ impl ProjectSession {
         let mut names: BTreeMap<_, _> = self
             .artifacts
             .iter()
-            .filter(|(id, _)| except != Some(id))
+            .filter(|(id, _)| except != Some(*id))
             .flat_map(|(_, artifact)| artifact.symbols.iter())
             .map(|symbol| {
                 (

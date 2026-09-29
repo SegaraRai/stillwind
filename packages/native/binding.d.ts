@@ -314,6 +314,17 @@ export interface HostRegion {
   attribute_quote?: NativeAttributeQuote
 }
 
+/**
+ * Minifies expanded CSS and optionally composes a supplied source map.
+ * Resource resolution and map publication belong to the caller. Embedded map URLs
+ * are ignored. Returns the CSS, separate map, and warnings without changing inputs.
+ *
+ * # Errors
+ *
+ * Reports invalid options, CSS processing failures, and source-map failures.
+ */
+export declare function minifyCss(css: string, options?: NativeCssMinifyOptions | undefined | null): NativeMinifiedCss
+
 /** Asset kinds as the host names them. */
 export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'view-transition'
 
@@ -486,6 +497,31 @@ export type NativeCssLoadStep =
     revision: string; /** Resource references the CSS declares. */
     resources: Array<NativeCssResource>; /** Names of every source the loader received, for watch registration. */
   sources: Array<string> }
+
+/** Final asset processing settings. Omitted fields use the Rust API defaults. */
+export interface NativeCssMinifyOptions {
+  /** Input identity in diagnostics and source maps. Defaults to `input.css`. */
+  filename?: string
+  /**
+   * Browser names mapped to 24-bit `major << 16 | minor << 8 | patch` versions.
+   * Supports android, chrome, edge, firefox, ie, `ios_saf`, opera, safari, samsung.
+   */
+  targets?: Record<string, number>
+  /** Case-sensitive Lightning CSS feature names to transform, e.g. `Nesting`. */
+  include?: Array<string>
+  /** Feature names to preserve. Must not overlap `include`, including group flags. */
+  exclude?: Array<string>
+  /** Generate a separate v3 map. Defaults to false. */
+  sourceMap?: boolean
+  /** Non-indexed v3 JSON for this exact input. Requires `sourceMap: true`. */
+  inputSourceMap?: string
+  /** Include source text in the returned map. Defaults to true. */
+  includeSourcesContent?: boolean
+  /** Names the caller has proven unused, interpreted by Lightning CSS. */
+  unusedSymbols?: Array<string>
+  /** Discard invalid input with warnings instead of failing parsing. Defaults to false. */
+  errorRecovery?: boolean
+}
 
 /** One unresolved CSS import. */
 export interface NativeCssRequest {
@@ -730,6 +766,16 @@ export interface NativeMapSource {
    * file again.
    */
   content: string
+}
+
+/** CSS and optional debugging metadata from final asset processing. */
+export interface NativeMinifiedCss {
+  /** Minified CSS without an appended source-map URL. */
+  css: string
+  /** Standard v3 source-map JSON when requested. */
+  sourceMap?: string
+  /** Parser messages with input locations where available. */
+  warnings: Array<string>
 }
 
 /** A `url()` reference the host must resolve. */

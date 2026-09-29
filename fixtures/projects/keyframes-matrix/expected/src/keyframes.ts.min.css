@@ -1,0 +1,32 @@
+@keyframes sw-kf-enter-cxv19 {
+  0% {
+    opacity: 0;
+    --tw-translate-y: var(--spacing-2);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+    --tw-scale-x: calc(98 * 1%);
+    --tw-scale-y: calc(98 * 1%);
+    --tw-scale-z: calc(98 * 1%);
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+  to {
+    opacity: 1;
+    --tw-translate-y: 0px;
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+    --tw-scale-x: calc(100 * 1%);
+    --tw-scale-y: calc(100 * 1%);
+    --tw-scale-z: calc(100 * 1%);
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+}
+@keyframes sw-kf-12rqq {
+  0% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    --tw-scale-x: calc(98 * 1%);
+    --tw-scale-y: calc(98 * 1%);
+    --tw-scale-z: calc(98 * 1%);
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+}

@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 stillwind-compiler = { path = "../compiler" }
-stillwind-css = { path = "../css" }
+stillwind-css = { path = "../css", features = ["minify"] }
 stillwind-design-system = { path = "../design-system" }
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-ir = { path = "../ir" }

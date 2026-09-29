@@ -9,11 +9,16 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+minify = ["lightningcss/sourcemap", "dep:parcel_sourcemap", "dep:serde_json"]
+
 [dependencies]
 stillwind-source = { path = "../source" }
 cssparser.workspace = true
 lightningcss.workspace = true
 thiserror.workspace = true
+parcel_sourcemap = { version = "2.1.1", features = ["json"], optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true

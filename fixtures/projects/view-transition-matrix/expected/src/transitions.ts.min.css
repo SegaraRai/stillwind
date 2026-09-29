@@ -1,0 +1,58 @@
+::view-transition-old(.sw-vt-page-title-56mrr) {
+  opacity: 0;
+}
+::view-transition-new(.sw-vt-page-title-56mrr),
+::view-transition-old(.sw-vt-9jm9s) {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.sw-vt-9jm9s) {
+    opacity: 0.75;
+  }
+}
+::view-transition-new(.sw-vt-9jm9s) {
+  opacity: 0;
+}
+::view-transition-image-pair(.sw-vt-9jm9s) {
+  isolation: auto;
+}
+.sw_emmun {
+  view-transition-class: sw-vt-page-title-56mrr;
+}
+.sw_9fn5a {
+  view-transition-class: sw-vt-page-title-56mrr;
+  view-transition-name: sw-vt-page-title-56mrr-hero;
+  display: block;
+}
+.sw_wg0m9 {
+  display: block;
+}
+.sw_5gz1v {
+  view-transition-name: sw-vt-page-title-56mrr-hero;
+}
+.sw_eh2pn {
+  view-transition-name: sw-vt-9jm9s-hero;
+}
+.sw_976sw {
+  view-transition-class: sw-vt-page-title-56mrr;
+  display: block;
+}
+.sw_0nemx {
+  view-transition-name: hero;
+  display: block;
+}
+.sw_cplaa {
+  view-transition-class: sw-vt-page-title-56mrr sw-vt-9jm9s;
+  view-transition-name: sw-vt-page-title-56mrr-one;
+  view-transition-name: sw-vt-9jm9s-two;
+  display: block;
+}
+.sw_x7k17 {
+  view-transition-class: sw-vt-page-title-56mrr var(--sw-vtc-7bfra,);
+  view-transition-name: sw-vt-page-title-56mrr-base;
+  display: block;
+}
+.sw_q11eg {
+  --sw-vtc-7bfra: sw-vt-9jm9s;
+  view-transition-name: sw-vt-9jm9s-guarded;
+}

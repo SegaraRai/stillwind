@@ -39,6 +39,7 @@ export const summarizeSource = binding.summarizeSource;
 export const scanSource = binding.scanSource;
 export const generateVocabularyTypes = binding.generateVocabularyTypes;
 export const foldCalcExpressions = binding.foldCalcExpressions;
+export const minifyCss = binding.minifyCss;
 export const NativeDesignSystemLoader = binding.NativeDesignSystemLoader;
 export const NativeProjectSession = binding.NativeProjectSession;
 

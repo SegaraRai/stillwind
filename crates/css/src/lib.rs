@@ -12,6 +12,9 @@
 //! `blocks` scans raw text without understanding declarations, and `output`
 //! describes where authored CSS goes without choosing the host's module or
 //! chunk layout.
+//!
+//! With the `minify` feature, `minify_css` processes complete assets and composes
+//! source maps independently of Stillwind compilation.
 
 #![cfg_attr(
     not(test),
@@ -37,6 +40,9 @@ mod resources;
 mod selectors;
 mod values;
 
+#[cfg(feature = "minify")]
+mod minify;
+
 pub use blocks::*;
 pub use colors::*;
 pub use custom_properties::*;
@@ -48,3 +54,6 @@ pub use output::*;
 pub use resources::*;
 pub use selectors::*;
 pub use values::*;
+
+#[cfg(feature = "minify")]
+pub use minify::*;

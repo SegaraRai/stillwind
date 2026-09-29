@@ -8,6 +8,53 @@ const bindingSpecifier =
     ? pathToFileURL(createRequire(import.meta.url).resolve("../npm/wasm32-wasi")).href
     : "../dist/index.js";
 
+void test("minifyCss exposes final CSS processing and separate source maps", async () => {
+  const { minifyCss } = await import(bindingSpecifier);
+  const result = minifyCss(".a { color: red; &:hover { color: blue } } .unused { width: 1px }", {
+    filename: "asset.css",
+    targets: { chrome: 100 << 16 },
+    unusedSymbols: ["unused"],
+    sourceMap: true,
+    includeSourcesContent: false,
+  });
+  assert.ok(!result.css.includes("&"));
+  assert.ok(!result.css.includes("unused"));
+  assert.ok(!result.css.includes("sourceMappingURL"));
+  const map = JSON.parse(result.sourceMap);
+  assert.equal(map.version, 3);
+  assert.ok(map.sources.includes("asset.css"));
+  assert.equal(map.sourcesContent, undefined);
+  assert.deepEqual(result.warnings, []);
+  assert.ok(minifyCss(".a { color: red } ").css.includes(".a{color:red}"));
+});
+
+void test("minifyCss forwards input maps, features, recovery, and option errors", async () => {
+  const { minifyCss } = await import(bindingSpecifier);
+  const inputSourceMap = JSON.stringify({
+    version: 3,
+    sources: ["original.tsx"],
+    sourcesContent: ["original source"],
+    names: [],
+    mappings: "AAEE",
+  });
+  const result = minifyCss(".a { color: red; &:hover { color: blue } }", {
+    include: ["Nesting"],
+    sourceMap: true,
+    inputSourceMap,
+  });
+  assert.ok(!result.css.includes("&"));
+  assert.ok(JSON.parse(result.sourceMap).sources.includes("original.tsx"));
+  const preserved = minifyCss(".a { &:hover { color: blue } }", {
+    targets: { chrome: 100 << 16 },
+    exclude: ["Nesting"],
+  });
+  assert.ok(preserved.css.includes("&"));
+  assert.throws(() => minifyCss(".a { color red }"), /CSS parse failed/);
+  assert.ok(minifyCss(".a { color red }", { errorRecovery: true }).warnings.length > 0);
+  assert.throws(() => minifyCss("", { include: ["Typo"] }), /unknown CSS feature/);
+  assert.throws(() => minifyCss("", { inputSourceMap }), /requires source_map/);
+});
+
 const sourceUri = (path) => pathToFileURL(path).href;
 const cssInput = (content) => ({
   content,

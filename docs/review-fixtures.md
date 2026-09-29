@@ -48,6 +48,13 @@ mapping metadata was introduced. Generated CSS is formatted during snapshot
 generation. The lower panel can switch between the selected module's unique CSS
 fragment and the complete project stylesheet in `expected/project.css`.
 
+Each CSS snapshot also has a `.min.css` sibling produced by `minifyCss` with
+default options, then formatted with Prettier for review. Both module fragments
+and complete project stylesheets are minified independently. The viewer's
+“Minified (formatted)” checkbox switches between the original and optimized
+snapshots while retaining the selected scope. These formatted snapshots show
+optimization changes rather than the byte size of the compact production output.
+
 ## Current review narratives
 
 - `utility-props-matrix`: utilities, arrays, conditions, ternaries, attributes,

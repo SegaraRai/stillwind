@@ -1,0 +1,27 @@
+.sw_b0to5:where(.sw_trigger_fnrq8) {
+  anchor-scope: --sw-a-trigger-fnrq8;
+  container: sw-c-trigger-fnrq8/inline-size;
+}
+.sw_bm2ay {
+  display: inline-flex;
+  position: relative;
+}
+.sw_bm2ay:where(.sw_trigger_fnrq8) {
+  anchor-name: --sw-a-trigger-fnrq8;
+}
+.sw_vr124 {
+  position: absolute;
+}
+.sw_vr124:where(.sw_trigger_fnrq8) {
+  position-anchor: --sw-a-trigger-fnrq8;
+}
+@container sw-c-trigger-fnrq8 (width>=40rem) {
+  .sw_vr124 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (hover: hover) {
+  .sw_vr124:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_fnrq8):hover) *) {
+    color: var(--color-accent);
+  }
+}

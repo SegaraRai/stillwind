@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   compileProject as compileNativeProject,
+  minifyCss,
   renderStylesheet,
   summarizeSource,
   type NativeCompilerOptions,
@@ -181,6 +182,16 @@ async function prettyCss(css: string) {
   return css.trim() === "" ? "" : format(css, { parser: "css", printWidth: 100 });
 }
 
+async function minifiedCss(css: string, filename: string) {
+  const result = minifyCss(css, { filename });
+  assert.deepEqual(result.warnings, [], `${filename}: minification warnings`);
+  return prettyCss(result.css);
+}
+
+function minifiedPath(file: string) {
+  return file.replace(/\.css$/, ".min.css");
+}
+
 function writeOrCheck(file: string, content: string, stale: string[]) {
   const next = `${normalize(content).trimEnd()}\n`;
   if (check) {
@@ -257,8 +268,22 @@ for (const { root, manifest } of projects) {
     const finalized = runnableOutput(module, `${manifest.id}/${module.path}`);
     writeOrCheck(expectedPath(root, module.path), finalized.output, stale);
     writeOrCheck(cssPath(root, module.path), await prettyCss(module.css), stale);
+    writeOrCheck(
+      minifiedPath(cssPath(root, module.path)),
+      await minifiedCss(module.css, `${manifest.id}/${module.path}.css`),
+      stale,
+    );
   }
   writeOrCheck(projectCssPath(root), await prettyCss(output.projectCss), stale);
+  writeOrCheck(
+    minifiedPath(projectCssPath(root)),
+    await minifiedCss(output.projectCss, `${manifest.id}/project.css`),
+    stale,
+  );
+}
+
+if (stale.length > 0) {
+  throw new Error(`Review fixtures are stale:\n${stale.join("\n")}\nRun: vp run fixtures:refresh`);
 }
 
 const catalog = {
@@ -266,12 +291,14 @@ const catalog = {
   projects: projects.map(({ root, manifest }) => ({
     ...manifest,
     css: normalize(readFileSync(projectCssPath(root), "utf8")),
+    minifiedCss: normalize(readFileSync(minifiedPath(projectCssPath(root)), "utf8")),
     files: manifest.sources.map((sourcePath) => ({
       path: sourcePath,
       language: sourcePath.endsWith("x") ? "tsx" : "typescript",
       before: normalize(readFileSync(path.join(root, "input", sourcePath), "utf8")),
       after: normalize(readFileSync(expectedPath(root, sourcePath), "utf8")),
       css: normalize(readFileSync(cssPath(root, sourcePath), "utf8")),
+      minifiedCss: normalize(readFileSync(minifiedPath(cssPath(root, sourcePath)), "utf8")),
       diff: (() => {
         const output = compiledProjects
           .get(manifest.id)!

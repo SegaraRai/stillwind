@@ -1,0 +1,6 @@
+.sw_nw6lm:where(.sw_secondary_63olu) {
+  anchor-name: --sw-a-secondary-63olu;
+}
+.sw_nw6lm:where(.sw_primary_z410i) {
+  anchor-name: --sw-a-primary-z410i;
+}
