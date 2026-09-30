@@ -49,11 +49,21 @@ export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
 };
 
+/**
+ * A ref's CSS projection, which must appear directly in a supported style input.
+ * It cannot be stored for reuse and does not attach the receiver's marker.
+ */
 export type StyleRefProjection<RefId extends string = string, BoundaryId extends string = never> = {
   readonly [refProjection]: true;
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
+/**
+ * An explicit scope written as a literal keyword or a literal array of refs.
+ * For a ref that can resolve to several identities, the scope includes all of them,
+ * regardless of which one is selected at runtime. Duplicate identities and empty
+ * arrays produce lint findings.
+ */
 export type AnchorScope = "all" | "none" | readonly StyleRef<string, string>[];
 export type CssWideKeyword =
   | "initial"
@@ -62,6 +72,7 @@ export type CssWideKeyword =
   | "revert"
   | "revert-layer"
   | "revert-rule";
+/** Literal values accepted by `asContainer` for container-type, including CSS-wide keywords. */
 export type ContainerType =
   | CssWideKeyword
   | "normal"
@@ -73,12 +84,28 @@ export type ContainerType =
   | "inline-size scroll-state"
   | "scroll-state inline-size";
 
-/** A DOM identity. The same declaration marks the element and bounds bounded refs. */
+/**
+ * A DOM identity attached by passing the ref itself to `style()`.
+ * `asAnchor` and `asContainer` add CSS that applies only when the same element has
+ * this ref's marker. A ref declaration can also serve as the boundary for other refs.
+ */
 export type StyleRef<RefId extends string = string, BoundaryId extends string = never> = {
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
+  /**
+   * Adds this ref's anchor-name. Omitting `scope` emits no anchor-scope.
+   * If `scope` is an array, this ref is included only when listed in that array.
+   * Use the call directly in a style input and attach the ref to the same element.
+   */
   asAnchor(scope?: AnchorScope): StyleRefProjection<RefId, BoundaryId>;
+  /**
+   * Adds this ref's container-name and, if provided, the literal container-type.
+   * Omitting `type` emits no container-type, leaving the CSS cascade to determine it.
+   * Use the call directly in a style input and attach the ref to the same element.
+   */
   asContainer(type?: ContainerType): StyleRefProjection<RefId, BoundaryId>;
+  /** Adds position-anchor to the styled element. Use this property directly as a style input. */
   readonly positionAnchor: StyleRefProjection<RefId, BoundaryId>;
+  /** Creates a named-container query from literal CSS for a variant key or template substitution. */
   at(query: string): StyleRefVariant<RefId, BoundaryId>;
   at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
   (strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
@@ -86,6 +113,11 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
   (variants: string): StyleRefVariant<RefId, BoundaryId>;
 };
 
+/**
+ * A ref selector or query used as a computed variant key or a substitution in a
+ * utility template. Although its type extends string, it cannot be used as an
+ * independent runtime value.
+ */
 export type StyleRefVariant<
   RefId extends string = string,
   BoundaryId extends string = never,
@@ -94,7 +126,7 @@ export type StyleRefVariant<
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
-/** Syntax consumed directly as a style input; it has no independently materialized value. */
+/** Must appear directly in a style input. It cannot be stored for reuse as a value. */
 export type StyleKeyframesUse<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [keyframesIdentity]: Id;
@@ -113,7 +145,7 @@ export interface StyleKeyframesFrames {
 /** A keyframes declaration: one frames object and the optional label its generated name spells out. */
 export type StyleKeyframesDefinition = { readonly label?: string } & StyleKeyframesFrames;
 
-/** Syntax consumed directly as a style input; it has no independently materialized value. */
+/** Must appear directly in a style input. It cannot be stored for reuse as a value. */
 export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [viewTransitionIdentity]: Id;
@@ -124,8 +156,11 @@ export type StyleViewTransition<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [viewTransitionIdentity]: Id;
   /**
-   * Names the participants at a supported style input position, under a pure value key.
-   * A literal key folds into the stylesheet; an expression is read at runtime.
+   * Names participants using a string or number key, which defaults to the empty string.
+   * The key must obey the macro purity contract. Use this call directly in a supported
+   * style input. A literal key produces a name in the stylesheet. A dynamic key writes
+   * view-transition-name to inline style unless CSS variants need a custom property
+   * to control when the name applies.
    */
   for(key?: string | number): StyleViewTransitionUse<Id>;
 };
@@ -205,6 +240,12 @@ export type StyleArgument =
  * checker metadata.
  */
 export type StyleMacro<Props = object> = {
+  /**
+   * Adds anchor-scope without requiring a ref marker on the element.
+   * Use this call directly in a style input. The argument follows the same literal
+   * keyword or array rules as `ref.asAnchor`. An empty array emits no declaration.
+   * This call does not attach any ref marker.
+   */
   anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]

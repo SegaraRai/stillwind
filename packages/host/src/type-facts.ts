@@ -127,6 +127,15 @@ function symbolic(
   return { kind, candidates: { kind: "finite", values: [...identities] } };
 }
 
+/**
+ * Returns the finite set of declaration identities represented by a checker type.
+ * Each identity must be registered in `identities`. Every member of a union must
+ * belong to the same asset family.
+ *
+ * Returns null for unsupported types, types that represent macro uses, unions of
+ * different asset families, or unknown identities. The function reads type arguments
+ * from the checker and leaves the identity registry unchanged.
+ */
 function typeFactValue(
   checker: Checker,
   type: Type,
@@ -507,6 +516,16 @@ function diagnosticText(diagnostic: Diagnostic): string {
   return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(diagnosticText)].join("\n");
 }
 
+/**
+ * Queries the types of expressions in the shadow AST described by `mapping`.
+ * `sourceFile` must be the checker source whose offsets are used in that mapping.
+ * Returns facts in AST traversal order, with each probe's original UTF-8 range.
+ *
+ * Throws TypeFactsError if a probe has no matching AST expression, even when it is
+ * optional. It also throws when a required query needs Stillwind declarations but
+ * cannot resolve their identities. Unrecognized optional probes and ordinary
+ * expressions that do not represent assets produce no fact.
+ */
 function factsForSource(
   checker: Checker,
   sourceFile: SourceFile,

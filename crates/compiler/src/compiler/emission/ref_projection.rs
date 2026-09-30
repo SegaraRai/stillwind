@@ -20,7 +20,12 @@ use crate::generated::Code;
 use crate::identifiers::{IdentifierContext, IdentifierPool};
 
 impl CallEmitter<'_> {
-    /// Builds one receiver's CSS contribution without attaching its marker.
+    /// Builds the CSS contribution for `projection` on `definition`.
+    /// `wrappers` lists the enclosing CSS variants from outermost to innermost.
+    /// Provider selectors require the receiver's marker. Consumer selectors do not.
+    ///
+    /// Records symbols for generated anchor or container names without attaching the
+    /// marker. Returns `None` and adds a diagnostic if variant or name resolution fails.
     fn ref_contribution(
         &mut self,
         definition: &RefDefinition,
@@ -54,7 +59,13 @@ impl CallEmitter<'_> {
         Some(rule_contribution(&plan, declaration, selector))
     }
 
-    /// Contributes a statically resolved use to its current unit or region.
+    /// Lowers the ref use at `span` with the JavaScript conditions in `guard` and
+    /// CSS variants in `wrappers`. It records the properties supplied by the use before
+    /// merging its rules. If no region is pending, `fold` allows an unconditional use
+    /// to join the base.
+    ///
+    /// Returns the class expression still needed at runtime. `None` means that the rules
+    /// were merged or that resolution or emission failed. Failures add diagnostics.
     pub(super) fn emit_ref_projection(
         &mut self,
         definition: &RefDefinition,
@@ -76,7 +87,13 @@ impl CallEmitter<'_> {
         self.contribute_rule(contribution, guard, fold)
     }
 
-    /// Selects a finite candidate's CSS unit using the receiver's marker token.
+    /// Lowers each possible receiver in `refs` for the expression at `value`.
+    /// `guard` lists the enclosing JavaScript conditions, and `wrappers` lists the CSS
+    /// variants. The function records runtime asset dependencies and supplied properties.
+    ///
+    /// The returned expression selects classes using the receiver's `c` field. With one
+    /// candidate, the rules may be merged without a lookup. `None` means merging or
+    /// failure. Failures add diagnostics and keep earlier records and allocations.
     pub(super) fn emit_dynamic_ref_projection(
         &mut self,
         value: &Span,
@@ -109,7 +126,13 @@ impl CallEmitter<'_> {
         self.emit_candidate_units(value, super::CLASS_KEY, candidates, guard)
     }
 
-    /// Emits explicit scope CSS without a receiver gate or marker attachment.
+    /// Adds CSS for `scope` at `span`, with the conditions in `guard` and variants in
+    /// `wrappers`. The selector does not require a ref marker. An empty ref list emits
+    /// nothing. Other scopes are recorded as provider writes for conflict checks.
+    ///
+    /// If no region is pending, `fold` allows the rules to join the base. Returns the
+    /// class expression still needed at runtime, or `None` when the rules are empty,
+    /// are merged, or fail to lower. Failures add diagnostics.
     pub(super) fn emit_anchor_scope(
         &mut self,
         scope: &AnchorScope,
@@ -136,6 +159,10 @@ impl CallEmitter<'_> {
     }
 }
 
+/// Builds one authored utility from `declaration` and the optional `selector`.
+/// The selector, when present, requires the receiver's marker. The function includes
+/// both strings and the variant `plan` in the canonical identity, then applies the
+/// plan to the utility. It does not allocate names.
 fn rule_contribution(
     plan: &StyleVariantPlan,
     declaration: String,
@@ -166,7 +193,14 @@ fn rule_contribution(
     }
 }
 
-/// Serializes an explicit scope union; an empty list emits no declaration.
+/// Returns the CSS declaration for `scope`, or an empty string for an empty ref list.
+/// The caller must remove duplicate refs and put them in the intended output order.
+/// `context` generates and escapes their anchor names. The receiver is included
+/// only when it appears in the list.
+///
+/// # Errors
+///
+/// Returns an error if anchor-name generation fails for any listed ref.
 fn render_anchor_scope(
     context: &IdentifierContext,
     scope: &AnchorScope,
@@ -189,26 +223,24 @@ fn render_anchor_scope(
     Ok(format!("anchor-scope:{value};"))
 }
 
-/// Reads the canonical class token off a compiled ref or scope value.
-///
-/// Every ref value carries its marker under `c`, so attachments emit a direct property
-/// read. The returned value is a known class string.
+/// Returns an expression that will read the marker token from a compiled ref's `c`
+/// field. The caller must supply code that yields a compiled ref record. This
+/// function does not evaluate or validate that code.
 pub(super) fn ref_class_read(value: Code) -> ValueExpr {
     ValueExpr::RefClassRead { value }
 }
 
-/// Returns `(CSS declaration, optional generated-name symbol)` for a projection applied
-/// to the element itself. The symbol is present only when the projection writes an
-/// anchor or container name.
+/// Returns the CSS declaration and optional generated-name symbol for `projection`.
+/// `definition` provides the receiver identity. `module_id` identifies the module
+/// that reports the symbol.
 ///
-/// An anchor projection writes the declaration's `anchor-name`, and a container
-/// projection writes its `container-name`, which is also the name `at()` queries; both
-/// are written for the ref's identity, so one declaration legitimately appears in two
-/// CSS namespaces.
+/// Providers return a symbol for their anchor or container name. If scope or type is
+/// omitted, its property is omitted too. The caller adds any selector that requires
+/// the receiver's marker.
 ///
 /// # Errors
 ///
-/// Returns the host generator's failure for the anchor or container family.
+/// Returns an error if name generation fails for the receiver or a listed scope ref.
 fn render_ref_projection(
     context: &IdentifierContext,
     definition: &RefDefinition,

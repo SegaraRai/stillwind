@@ -64,7 +64,9 @@ impl ModuleIr {
 /// Binding-aware import information. All spans belong to the editable source.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ModuleImports {
-    /// Nested macro uses consumed by enclosing style transformations.
+    /// Ranges in the original source where the frontend accepted nested macro uses.
+    /// Import removal uses a range only if it is inside a transformed style call and
+    /// the reference to the macro binding starts at the same position.
     #[serde(default)]
     pub consumed_uses: Vec<Span>,
     /// Includes nested bindings and unresolved reads to avoid capturing user code.
@@ -239,9 +241,17 @@ pub struct AssetReference {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RefProjection {
     /// Supplies the receiver's anchor name and optional explicit scope.
-    AsAnchor(Option<AnchorScope>),
+    AsAnchor(
+        /// `None` omits `anchor-scope`. An explicit list includes the receiver only
+        /// when it occurs in that list.
+        Option<AnchorScope>,
+    ),
     /// Supplies the receiver's container name and optional container type.
-    AsContainer(Option<Spanned<String>>),
+    AsContainer(
+        /// A supported literal in normalized form, with its source span. `None` omits
+        /// `container-type`. The compiler does not provide a default.
+        Option<Spanned<String>>,
+    ),
     /// References an anchor from the styled element.
     PositionAnchor,
 }
@@ -254,7 +264,11 @@ pub enum AnchorScope {
     /// The CSS keyword `none`.
     None,
     /// Unique ref identities whose generated anchor names are scoped.
-    Refs(Vec<RefDefinition>),
+    Refs(
+        /// All possible ref declarations, with each identity included once in
+        /// first-seen order. An empty list emits no scope declaration.
+        Vec<RefDefinition>,
+    ),
 }
 
 /// Ordered variants shared by object wrappers and direct template interpolation.

@@ -11,8 +11,14 @@ use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// Reports recognized calls absent from the exact set consumed by input parsers.
-    /// Unresolved receivers register checker probes without producing a diagnostic.
+    /// Checks for macro calls that no style-input parser has consumed.
+    ///
+    /// Call this after parsing supported style inputs. A recognized but unconsumed use
+    /// adds a diagnostic. Unknown receivers add optional checker probes. Declaration
+    /// calls are checked separately when validating declaration placement.
+    ///
+    /// The inner callee range is always marked as consumed. This prevents a second
+    /// diagnostic for the method property when the visitor descends into the callee.
     pub(crate) fn report_unconsumed_call(&mut self, call: &CallExpression<'a>) {
         let callee_span = call.callee.get_inner_expression().span();
         self.consumed_use_spans.insert(LocalSpan::from(callee_span));
@@ -48,8 +54,14 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Checks property and tagged-template forms without accepting surrounding
-    /// style-call containment as evidence that an input parser consumed them.
+    /// Checks whether a property access or tagged template is an unconsumed macro use.
+    ///
+    /// Call this after parsing supported style inputs and before visiting children.
+    /// Recognized but unconsumed uses add diagnostics. Unknown receivers add optional
+    /// checker probes.
+    ///
+    /// For a tagged template, the inner tag range is also marked as consumed so visiting
+    /// its children does not produce a duplicate diagnostic.
     pub(crate) fn report_unconsumed_expression(&mut self, expression: &Expression<'a>) {
         let span = expression.span();
         let consumed = self.consumed_use_spans.contains(&LocalSpan::from(span));
@@ -77,8 +89,15 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Records receiver probes and recognizes even non-finite checker facts for
-    /// rejection; constructing a use still requires finite declaration candidates.
+    /// Returns whether the receiver is an asset of `kind`.
+    ///
+    /// Checker facts can establish its kind even when they do not give a finite set of
+    /// possible declarations. A true result therefore does not guarantee that the
+    /// receiver can be lowered. Unknown receivers return false and may add optional
+    /// checker probes.
+    ///
+    /// The caller must enter with `probing_use` set to false. During resolution, the
+    /// function temporarily sets it to true and restores false before returning.
     fn use_receiver_is(&self, expression: &Expression<'a>, kind: AssetKind) -> bool {
         let expression = expression.get_inner_expression();
         if let Some(fact) = self.type_fact(expression.span()) {
@@ -95,6 +114,10 @@ impl<'a> MacroExtractor<'a> {
         resolved
     }
 
+    /// Adds a diagnostic for the unconsumed macro `syntax` at `span`.
+    ///
+    /// The span must refer to the current AST buffer. It is converted with the
+    /// extractor's source-span constructor before being added to the diagnostic.
     fn unconsumed_use(&mut self, span: Span, syntax: String) {
         self.diagnostics.push(CompileError::new(
             CompileErrorKind::UnconsumedMacroUse { syntax },
@@ -103,7 +126,12 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-/// Returns recognized member syntax without treating its spelling as proof of an asset.
+/// Returns the receiver, member name, and expected asset kind when the member name
+/// matches known macro syntax.
+///
+/// Accepts static members and computed members with literal string keys after
+/// unwrapping expressions. Other forms return `None`. The caller must resolve the
+/// receiver identity and request any checker probes.
 fn macro_member<'e, 'a>(
     expression: &'e Expression<'a>,
 ) -> Option<(&'e Expression<'a>, &'e str, AssetKind)> {

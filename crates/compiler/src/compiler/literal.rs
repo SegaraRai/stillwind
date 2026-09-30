@@ -19,15 +19,12 @@ use super::utilities::resolve::{
 use super::variants::document_scoped_selector;
 use crate::CompilerOptions;
 
-/// The pieces one utility literal contributes before it becomes a leaf or a base-unit
-/// entry.
+/// Rules and class names collected before they are assigned to a class unit.
 ///
-/// [`Self::canonical`] is a fragment of the class-hash input assembled by `ClassUnits`.
-/// Keeping markers, external names, and resolved utilities in separate lists is what
-/// lets an unresolved candidate still reach the output as a class name while
-/// contributing no rule. A view transition contributes one class token and at most one
-/// static name, and they travel beside the utilities because a class unit declares them
-/// rather than a utility.
+/// [`Self::canonical`] contributes to the class hash assembled by `ClassUnits`.
+/// Separate lists for rules and names allow unresolved candidates to appear as
+/// class names without adding CSS. Transition uses keep their CSS context until
+/// the owning unit chooses whether to write tokens directly or through slots.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Hash fragment for rule-bearing candidates and their wrappers, in source order.
@@ -40,7 +37,7 @@ pub(super) struct LiteralContribution {
     pub(super) external: Vec<String>,
     /// Names with no rule of their own, such as asset markers.
     pub(super) plain: Vec<String>,
-    /// Transition tokens and their optional static names, in encounter order.
+    /// Transition uses with their tokens, CSS contexts, and names, in encounter order.
     pub(super) view_transitions: Vec<TransitionContribution>,
 }
 
@@ -50,15 +47,19 @@ pub(super) struct TransitionContribution {
     pub token: String,
     /// Escaped static participant name.
     pub name: Option<String>,
-    /// Inline custom property carrying a name controlled by a CSS variant.
+    /// Custom property that holds a dynamic name controlled by a CSS variant.
+    /// Requires `plan` and a runtime value for this property from the same use.
     pub dynamic_name_property: Option<String>,
     /// CSS application context; absence permits a base token to be emitted literally.
     pub plan: Option<StyleVariantPlan>,
 }
 
 impl LiteralContribution {
-    /// Adds rule-bearing pieces in source order while leaving runtime-only names to the
-    /// caller.
+    /// Appends the canonical input, utilities, and transition uses from `other` when
+    /// it contains rules. Their order is preserved.
+    ///
+    /// Marker, external, and plain class names are discarded. The caller must extract
+    /// any names it needs before passing `other` to this function.
     pub(super) fn append_rules(&mut self, other: Self) {
         if !other.utilities.is_empty() || !other.view_transitions.is_empty() {
             self.canonical.push_str(&other.canonical);

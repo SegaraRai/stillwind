@@ -1,12 +1,12 @@
 //! Structure-preserving style emission.
 //!
 //! [`CallEmitter::run`] resolves style inputs into class units and typed contributions
-//! for fragment folding. It retains guards, source occurrences; subtrees with no
+//! for fragment folding. It retains guards and source occurrences. Subtrees with no
 //! contribution are omitted under the macro purity contract. It does not choose final
 //! framework keys or allocate runtime helper imports.
 //!
 //! [`ClassUnits`] owns class identities and base-before-conditional CSS publication.
-//! [`LiteralContribution`](super::literal::LiteralContribution) resolves utility text,
+//! [`LiteralContribution`] resolves utility text,
 //! and fragment rendering later chooses a representation without changing those CSS
 //! identities or declaration order.
 //!
@@ -14,7 +14,8 @@
 //! read the private fields while the rest of the compiler cannot. `call` runs the walk
 //! and dispatches one style input; `class_value` lowers class expressions;
 //! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
-//! contribution kind each.
+//! contribution kind each. `provider_lints` compares properties from individual uses
+//! before their rules are merged into classes.
 
 mod call;
 mod class_value;
@@ -42,7 +43,7 @@ use crate::identifiers::IdentifierContext;
 use provider_lints::PropertyWrite;
 use view_transition::TransitionNamePaths;
 
-/// Object key under which a ref or scope value carries its canonical class token.
+/// Object key under which a compiled ref record carries its canonical marker token.
 pub(super) const CLASS_KEY: &str = "c";
 
 /// Object key under which a keyframes value carries its generated keyframes name.
@@ -77,11 +78,11 @@ pub(super) struct CallEmitter<'a> {
     diagnostics: &'a mut Vec<CompileError>,
     /// Nonfatal findings appended in encounter order.
     lint_findings: &'a mut Vec<LintFinding>,
-    /// Identities the module references at runtime; the pipeline uses this set to
-    /// decide which declarations are replaced by a runtime call and which are erased.
+    /// Identities referenced at runtime. The pipeline retains compiled identity
+    /// records for these declarations and erases declarations without runtime uses.
     runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Definition identities whose CSS this module must emit; every use, static or
-    /// dynamic, and every `.for` application records here.
+    /// Asset definitions whose CSS this module must emit. Static and dynamic uses
+    /// record their possible definitions here, including `.for(...)` inputs.
     required_definitions: &'a mut BTreeSet<IdentityId>,
     /// Runtime contributions accumulated for source-position ordering during rendering.
     parts: Vec<StyleEmissionPart>,
@@ -91,12 +92,16 @@ pub(super) struct CallEmitter<'a> {
     units: ClassUnits<'a>,
     /// Anchor and container names this call wrote, reported with the class symbols.
     written_name_symbols: Vec<GeneratedSymbol>,
+    /// Properties recorded for each use, kept until provider conflicts are checked.
     property_writes: Vec<PropertyWrite>,
+    /// Each entry contains one attachment site's possible marker tokens and enclosing
+    /// JavaScript conditions. One site selects at most one marker. Separate sites can
+    /// attach multiple markers to the element.
     attachment_sets: Vec<(Vec<String>, Vec<GuardStep>)>,
     /// Whether the call marks participants with a view-transition class.
     view_transition_classes: bool,
-    /// Name supplies from utilities and transition uses, grouped by their shared guard paths.
-    /// The maximum simultaneous count drives duplicate-name linting.
+    /// Name supplies from utilities and transition uses, grouped by their shared guard
+    /// paths. The maximum simultaneous count drives duplicate-name linting.
     view_transition_name_paths: TransitionNamePaths,
 }
 

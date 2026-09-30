@@ -12,17 +12,32 @@ use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::CallEmitter;
 
+/// CSS properties added by one use, recorded before class units are merged.
+///
+/// When a use can resolve to several receivers, their records share the same span.
+/// Conflict checks use that span to avoid comparing alternatives from the same use.
 pub(super) struct PropertyWrite {
     properties: Vec<String>,
+    /// Whether the properties come from a ref provider or `style.anchorScope`.
     provider: bool,
     span: Span,
+    /// Enclosing JavaScript conditions, outermost first.
     guard: Vec<GuardStep>,
+    /// The receiver's canonical marker token, if the selector requires that marker.
     gate: Option<String>,
 }
 
 impl CallEmitter<'_> {
-    /// Retains declarations targeting the element for later overlap checks.
-    /// Arbitrary selector targets are excluded when their overlap cannot be established.
+    /// Records the CSS property names in `contribution` for later conflict checks.
+    ///
+    /// `span` identifies the source use, and `guard` contains its enclosing JavaScript
+    /// conditions. For provider uses, `gate` contains the receiver's canonical marker
+    /// token, if the selector requires one.
+    ///
+    /// Ordinary utilities with selectors are skipped because the compiler cannot
+    /// determine which element they affect. Provider declarations are included even
+    /// when they have selectors. Malformed declarations and contributions with no
+    /// properties are skipped.
     pub(super) fn record_property_writes(
         &mut self,
         contribution: &LiteralContribution,
@@ -55,7 +70,12 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Proves two distinct marker gates cannot be satisfied by this call's attachments.
+    /// Returns whether this call's attachments prove that markers `a` and `b` cannot
+    /// appear together. The caller must pass two distinct canonical marker tokens.
+    ///
+    /// Both markers must have a recorded attachment site. They are exclusive if every
+    /// pair of sites either selects between them or lies in opposite branches of the
+    /// same source condition. The check does not inspect attachments outside this call.
     fn exclusive_markers(&self, a: &str, b: &str) -> bool {
         let a_sites = self
             .attachment_sets
@@ -82,7 +102,13 @@ impl CallEmitter<'_> {
             })
     }
 
-    /// Warns once per conflicting source pair; no winner is inferred from CSS order.
+    /// Appends warnings for conflicting CSS properties after all uses and attachments
+    /// have been recorded. Each pair must include a provider or an explicit scope.
+    /// Shorthands count as conflicts when they affect the same property.
+    ///
+    /// The check skips alternatives from one use and uses whose conditions or marker
+    /// requirements cannot hold together. It reports each source pair at most once
+    /// per invocation and leaves CSS and its order unchanged.
     pub(super) fn report_provider_conflicts(&mut self) {
         let mut reported = BTreeSet::new();
         for (index, current) in self.property_writes.iter().enumerate() {

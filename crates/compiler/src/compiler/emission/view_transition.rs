@@ -63,10 +63,15 @@ impl TransitionNamePaths {
 }
 
 impl CallEmitter<'_> {
-    /// Resolves a transition use within a class tree, retaining any name value beside
-    /// its class under the tree's JavaScript condition path. Returns the class
-    /// expression, with a dynamic name payload when required; `None` means CSS variant
-    /// resolution or generated identity allocation failed.
+    /// Lowers one transition use with the conditions in `guard` and variants in
+    /// `wrappers`. It records definition and runtime dependencies, and counts how many
+    /// names the use supplies. `fold` allows its rules to join the base.
+    ///
+    /// Returns the class expression together with any dynamic name. The name is written
+    /// to inline style unless CSS wrappers require a custom property. The result can be
+    /// empty after merging. Resolution and source errors add diagnostics and return
+    /// `None`. Class-unit errors can leave a name in the result, so callers must check
+    /// diagnostics even when an expression is returned.
     pub(super) fn emit_view_transition_expression(
         &mut self,
         transition: &AssetReference,
@@ -110,9 +115,18 @@ impl CallEmitter<'_> {
         ))
     }
 
-    /// Builds every candidate class for a finite transition value within a class tree.
-    /// Returns a runtime lookup of those classes with any dynamic name payload; `None`
-    /// means resolution, source slicing, or name allocation failed.
+    /// Lowers all possible receivers for the expression at `value`, with the conditions
+    /// in `guard` and variants in `wrappers`. It records dependencies and counts the
+    /// names supplied by the use.
+    ///
+    /// The returned expression uses the receiver's `v` field to select a class and
+    /// keeps any dynamic name alongside it. With one candidate, the rules may join the
+    /// current region or base. A dynamic name uses inline style when there are no CSS
+    /// wrappers.
+    ///
+    /// Failures add diagnostics and may return `None`. An error while allocating a
+    /// class unit can still leave an expression, so callers must always check
+    /// diagnostics.
     pub(super) fn emit_dynamic_view_transition_expression(
         &mut self,
         value: &Span,
@@ -163,7 +177,14 @@ impl CallEmitter<'_> {
         ))
     }
 
-    /// Retains the transition's CSS context until the shared unit allocator merges its region.
+    /// Keeps a transition token and name for later allocation to a class unit.
+    ///
+    /// `token` is the canonical token, and `name` is an escaped static CSS identifier.
+    /// `dynamic_name_property` names a custom property whose runtime value must come
+    /// from the same use. It requires at least one CSS variant in `wrappers`.
+    ///
+    /// Returns the contribution without allocating names or classes. If variant
+    /// resolution fails, it adds a diagnostic and returns `None`.
     fn transition_contribution(
         &mut self,
         token: String,
@@ -271,6 +292,14 @@ impl CallEmitter<'_> {
         }))
     }
 
+    /// Builds the expression that will compute a dynamic transition name.
+    ///
+    /// When provided, `token` supplies the canonical identity. Otherwise, the
+    /// expression reads the receiver at `value`.
+    ///
+    /// Returns `Some(None)` when no dynamic name is needed, or `Some(Some(value))` with
+    /// the runtime expression. A source extraction failure adds a diagnostic and
+    /// returns outer `None`.
     #[expect(
         clippy::option_option,
         reason = "outer None records a fatal source error; inner None means no runtime name"

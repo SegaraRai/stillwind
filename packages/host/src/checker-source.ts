@@ -15,7 +15,13 @@ export interface CheckerSpan {
 
 /** Original-coordinate requests for one module and its optional parser projection. */
 export interface TypeFactSource extends ProjectSource {
-  /** Half-open UTF-8 ranges in fw_code, or source for plain modules. */
+  /**
+   * Half-open UTF-8 ranges in fw_code, or source for plain modules.
+   * When `recognition_only` is true, the query only checks whether the receiver is
+   * a Stillwind macro asset. A type that cannot be resolved produces no fact.
+   * When false or omitted, the query follows the required-query policy for lowering.
+   * Every probe must still match an expression in the checker AST.
+   */
   probes: readonly { start: number; end: number; recognition_only?: boolean }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
   checker_spans?: readonly CheckerSpan[];

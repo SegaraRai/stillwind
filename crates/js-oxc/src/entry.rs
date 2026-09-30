@@ -41,7 +41,8 @@ pub struct ParsedJavaScript {
     pub framework: Option<AdapterKind>,
     /// Expression spans the host checker should resolve, deduplicated.
     pub type_probes: Vec<Span>,
-    /// Receiver spans queried only to recognize otherwise unconsumed macro syntax.
+    /// Receiver ranges queried to check whether unconsumed syntax is a macro use.
+    /// Missing facts are allowed. Ranges already in `type_probes` are excluded.
     pub use_probes: Vec<Span>,
     /// Fatal errors produced by parsing and extraction.
     pub diagnostics: Vec<CompileError>,

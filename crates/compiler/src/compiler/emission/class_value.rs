@@ -378,11 +378,13 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Lowers a whole branch of a conditional expression.
+    /// Lowers one branch with the supplied JavaScript conditions and CSS variants.
+    /// Consecutive rules share a class region. Nested JavaScript conditions separate
+    /// those regions.
     ///
-    /// Visits every child under the same condition and collects its CSS rules into one
-    /// class. Empty contributions are removed under the macro purity contract; a
-    /// remaining singleton stays a single class expression.
+    /// Returns the remaining classes and values in encounter order. Empty groups are
+    /// removed and groups with one item are simplified under the macro purity contract.
+    /// Failures add diagnostics. Previously allocated contributions may remain.
     fn emit_sequence(
         &mut self,
         expressions: &[ClassExpression],
@@ -408,8 +410,18 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Allocates candidate units and emits a lookup without adding identity markers.
-    /// A singleton joins the current static region; allocation errors are recorded.
+    /// Lowers all possible candidates for the receiver at `value`.
+    /// Each candidate must pair a unique canonical identity token with its resolved
+    /// rules. `key` is the identity field in the compiled receiver (`c`, `k`, or `v`).
+    /// `guard` lists the enclosing JavaScript conditions.
+    ///
+    /// With one candidate, the rules join the current region or base without reading
+    /// the receiver. With multiple candidates, each gets a leaf unit and the returned
+    /// expression looks up the selected class.
+    ///
+    /// `None` means either that the single candidate was merged or that lowering failed.
+    /// Failures add diagnostics and keep earlier allocations. Callers must check the
+    /// diagnostics to distinguish these outcomes.
     pub(super) fn emit_candidate_units(
         &mut self,
         value: &stillwind_source::Span,
@@ -448,10 +460,13 @@ impl CallEmitter<'_> {
         }))
     }
 
-    /// Adds one resolved rule to the current condition region or the call's base unit.
-    /// Returns runtime-only names or a leaf class when needed; `None` means the rule
-    /// was absorbed into a pending region or base, or class allocation failed with a
-    /// separately recorded diagnostic.
+    /// Adds resolved rules under the JavaScript conditions in `guard`.
+    /// If a region is pending, the rules join it regardless of `fold`. Otherwise, `fold`
+    /// allows the rules to join the base only when `guard` is empty.
+    ///
+    /// Returns an expression for class names that must still be added at runtime, or
+    /// for a generated leaf. `None` means that the rules were merged or that allocation
+    /// or emission failed. Failures add diagnostics.
     pub(super) fn contribute_rule(
         &mut self,
         mut contribution: LiteralContribution,
@@ -479,9 +494,12 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Publishes one condition region's collected rules as one generated class. Returns
-    /// that class expression, or `None` when there are no rules or name allocation
-    /// fails with a separately recorded diagnostic.
+    /// Allocates a class for the collected rules under the conditions in `guard`.
+    /// The caller must reserve `order` first and extract any marker or external class
+    /// names from `contribution` before calling this function.
+    ///
+    /// Returns a generated leaf. Returns `None` if the region has no rules or allocation
+    /// or emission fails. Failures add diagnostics.
     pub(super) fn finish_region(
         &mut self,
         contribution: LiteralContribution,

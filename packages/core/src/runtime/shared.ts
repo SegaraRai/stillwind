@@ -78,12 +78,12 @@ export function stillwindEscapedIdentifier(value: string): string {
 }
 
 /**
- * Returns the `view-transition-name` a participant is paired under: its class token and
- * key, joined with `-`, escaped for a CSS value position.
+ * Returns a participant's `view-transition-name` by joining its class token and key
+ * with `-` and escaping the result for use as a CSS value.
  *
- * The value may be the token itself or one of the records the compiler emits, with a key
- * supplied at the use site.
- * Throws TypeError for a value that carries no token at all.
+ * `value` must be a nonempty token string or a compiled record with that string in `v`.
+ * `key` is the string or number passed by the caller. It is converted with String before escaping.
+ * Throws TypeError when the token is missing, empty, or not a string.
  */
 export function stillwindViewTransitionName(value: unknown, key: string | number): string {
   const record =

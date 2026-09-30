@@ -1,15 +1,14 @@
-//! In-file validation of ref usage rules: ancestry and boundary containment.
+//! Checks ref providers, attachments, and ancestry within one module.
 //!
-//! These checks run after the whole module is visited, because they compare uses with
-//! declarations and with each other. A rule is only decided when the relevant JSX is
-//! visible in this file: a use without a JSX path, or a ref whose provider lives in
-//! another module, is skipped rather than reported, since nothing here can prove a
-//! violation.
+//! `validate_refs` runs after traversal so it can look for providers across all
+//! recorded uses, including uses outside JSX. It checks whether a provider's ref is
+//! attached in the same style call or on the same known JSX element. Composition can
+//! supply attachments that are not visible here, so it suppresses that warning.
+//! Ancestry checks need known JSX paths. Checks for bounded refs use declarations
+//! available in this module.
 //!
-//! Findings use the stable `require-anchor-provider`, `require-container-provider`,
-//! `valid-ref-ancestry`, `require-boundary-provider`, `valid-boundary-ancestry`, and
-//! `bounded-selector-in-boundary` rule names. These checks produce lint findings
-//! directly; `swlint-*` suppression never applies to the compiler's fatal ref errors.
+//! These checks add lint findings. Extraction reports fatal syntax and identity
+//! errors separately, and lint suppression does not affect those errors.
 
 use std::collections::HashSet;
 
@@ -20,12 +19,13 @@ use super::RefUseKind;
 use crate::state::MacroExtractor;
 
 impl MacroExtractor<'_> {
-    /// Checks every ref use whose rule can be decided from this module.
+    /// Checks ref uses after the entire module has been visited and adds lint findings.
+    /// Providers are matched by declaration identity across all recorded uses.
+    /// Attachments are checked using known style calls and JSX paths. Composition can
+    /// prevent the check from proving that an attachment is missing.
     ///
-    /// Anchors are collected across the whole module rather than per JSX tree, because
-    /// a ref may be attached in one element and used in a nested one. A selector use is
-    /// only reported when at least one anchor path is known and none of them is an
-    /// ancestor.
+    /// Selector ancestry is checked only when relevant marker paths are known. The
+    /// function also validates bounded refs. Calling it again adds the findings again.
     pub(crate) fn validate_refs(&mut self) {
         let names = self
             .ref_uses
@@ -235,7 +235,10 @@ fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
 }
 
-/// Composition can supply an attachment that this module's JSX inspection cannot prove absent.
+/// Returns whether `input` contains composition, including inside arrays and either
+/// conditional branch. It does not predict which branch will run.
+///
+/// If composition is present, this call alone cannot prove a missing attachment.
 fn has_composition(input: &StyleInput) -> bool {
     match input {
         StyleInput::Composition { .. } => true,

@@ -10,7 +10,7 @@ use stillwind_source::{ModuleId, Span};
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
-/// Ref use kind.
+/// How a ref is used, so validation can check its provider, attachment, and ancestry.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum RefUseKind {
     /// `ref` itself.
@@ -23,7 +23,7 @@ pub(crate) enum RefUseKind {
     AsContainer,
     /// `ref.positionAnchor`.
     PositionAnchor,
-    /// `ref.at(...)` vatiant.
+    /// `ref.at(...)` variant.
     ContainerQueryVariant,
 }
 
@@ -37,24 +37,32 @@ impl<'a> From<&'a RefProjection> for RefUseKind {
     }
 }
 
-/// One recorded ref use.
+/// A ref use linked to its declaration for validation within this module.
 #[derive(Clone, Debug)]
 pub(crate) struct RefUse {
-    /// Marker name of the ref that was used, as written at its declaration.
+    /// The binding name at the declaration, used in diagnostics.
     pub(crate) name: String,
-    /// Declaration identity used to distinguish aliases from equal binding spellings.
+    /// The module that declared the ref, its binding name, and its original span.
     pub(crate) identity: (ModuleId, String, Span),
     /// Use kind.
     pub(crate) projection: RefUseKind,
-    /// Whole expression the use came from.
+    /// Whole use expression in the current AST buffer.
     pub(crate) span: Span,
     /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Resolves explicit provider/consumer uses and scope-only uses to finite identities.
-    /// Returns `None` for unrelated expressions or after reporting invalid arguments.
+    /// Parses an expression into a ref rule. The caller must pass an expression from
+    /// a supported style input position.
+    ///
+    /// The parser resolves receivers and scope members to finite sets of declarations.
+    /// It records uses and checker probes, and marks recognized syntax as consumed
+    /// before validating its arguments. Successful scope-only calls also record the
+    /// ranges needed to remove their macro imports.
+    ///
+    /// Returns `None` for unrelated syntax or invalid uses. An invalid use adds a
+    /// diagnostic. The extractor may have changed even when the result is `None`.
     pub(crate) fn collect_ref_projection(
         &mut self,
         expression: &Expression<'a>,
@@ -149,7 +157,12 @@ impl<'a> MacroExtractor<'a> {
         ))
     }
 
-    /// Validates an optional literal container type and returns its canonical spelling.
+    /// Parses the optional argument of an `asContainer` call.
+    /// With no argument, the result is `Some(AsContainer(None))`. A single string literal
+    /// is trimmed and normalized while keeping its source span.
+    ///
+    /// Returns `None` and adds an invalid-container-type diagnostic for too many arguments,
+    /// a spread, a nonliteral argument, or unsupported text.
     fn collect_container_type(&mut self, call: &CallExpression<'a>) -> Option<RefProjection> {
         match call.arguments.as_slice() {
             [] => Some(RefProjection::AsContainer(None)),
@@ -177,8 +190,15 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Resolves a scope list to its complete candidate union, retaining first occurrence order.
-    /// Invalid entries are fatal diagnostics; empty and repeated identities produce lint findings.
+    /// Parses a scope keyword or literal ref array at the supplied source span.
+    /// Each array entry is resolved to every possible ref declaration. Receiver probes
+    /// are recorded for all entries even if another entry fails.
+    ///
+    /// The result contains each declaration identity once, in first-seen order. Empty
+    /// arrays and duplicate identities add lint findings. An empty array produces an
+    /// empty scope. The receiver is included only if the array lists it.
+    ///
+    /// Missing or invalid syntax adds a diagnostic and returns `None`.
     fn collect_anchor_scope(
         &mut self,
         expression: Option<&Expression<'a>>,
@@ -249,11 +269,12 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Records one ref use for later ancestry validation.
+    /// Records a use of `definition` for later validation in this module.
+    /// `projection` describes how the ref is used. `span` covers the use expression in
+    /// the current AST buffer.
     ///
-    /// `projection` is the use kind that `validation` reads and `span` is the whole
-    /// expression the user wrote. The JSX path is recorded only when the use is inside
-    /// a JSX tree, because the ancestry rules cannot be checked otherwise.
+    /// The record keeps the declaration's original identity and a copy of the current
+    /// JSX path. Repeated occurrences get separate records.
     pub(crate) fn record_ref_use(
         &mut self,
         definition: &RefDefinition,
@@ -274,7 +295,9 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
-/// Canonicalizes the finite keyword grammar accepted by the public container-type API.
+/// Returns a supported container type with its keywords in canonical order.
+/// The caller must trim surrounding whitespace. Internal spacing must match a
+/// supported spelling. Unsupported text returns `None` without adding a diagnostic.
 fn normalize_container_type(value: &str) -> Option<&str> {
     match value {
         "scroll-state size" => Some("size scroll-state"),

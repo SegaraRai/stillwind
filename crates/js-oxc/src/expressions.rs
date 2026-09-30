@@ -81,11 +81,14 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Records an expression the host checker should resolve.
+    /// Records the expression's range in the AST buffer for a host checker query.
     ///
-    /// Literals are skipped because their type is already known, and the probe set
-    /// deduplicates spans. Probes are what keep a module of literal utilities from
-    /// asking the checker anything.
+    /// The selected probe set removes duplicates. When `probing_use` is true, the probe
+    /// only asks whether this is a macro receiver, so a missing fact is allowed.
+    /// Otherwise, the probe is subject to the required-query policy for lowering.
+    ///
+    /// Literals are skipped. Control-flow expressions handled by lowering their branches
+    /// are also skipped.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
         // Control-flow expressions are lowered through their branches. A whole-expression
         // fact would bypass branch-specific macro lowering and erase empty alternatives.

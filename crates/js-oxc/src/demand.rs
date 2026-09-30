@@ -89,9 +89,10 @@ impl<'a> Visit<'a> for StatementReads {
 /// Fills [`ModuleSummary::probe_imports`] and [`ModuleSummary::export_imports`] on
 /// `summary`.
 ///
-/// `probes` are the spans the project asked about and `exports` the
-/// `(symbol, exported name)` pairs to slice for. Both results are sorted by
-/// `(source, imported, local)`, so callers must not read them as source order.
+/// `program`, `scoping`, and `probes` must describe the same analysis buffer. `probes`
+/// contains the ranges the project asked about. `exports` contains the
+/// `(symbol, exported name)` pairs whose dependencies are needed. Both results are
+/// sorted by `(source, imported, local)`, so callers must not read them as source order.
 pub(crate) fn collect(
     program: &Program<'_>,
     scoping: &Scoping,

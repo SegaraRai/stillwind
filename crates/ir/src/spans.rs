@@ -160,6 +160,14 @@ fn map_asset<E>(
     Ok(())
 }
 
+/// Rewrites the spans in an explicit container type or anchor scope in place.
+///
+/// `map` must accept the coordinate space and file identity of each stored span.
+/// Projections without arguments need no mapping.
+///
+/// # Errors
+///
+/// Returns the first error from `map`. Spans already rewritten keep their new values.
 fn map_projection<E>(
     projection: &mut RefProjection,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
@@ -173,6 +181,15 @@ fn map_projection<E>(
     Ok(())
 }
 
+/// Rewrites the declaration and boundary spans of each ref in `scope` in place.
+///
+/// `map` must handle the file identities and coordinate spaces of those declarations.
+/// Keyword scopes need no mapping.
+///
+/// # Errors
+///
+/// Returns the first error from `map`. Refs or fields already rewritten keep their
+/// new values.
 fn map_anchor_scope<E>(
     scope: &mut AnchorScope,
     map: &mut impl FnMut(Span) -> Result<Span, E>,

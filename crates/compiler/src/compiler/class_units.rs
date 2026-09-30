@@ -24,12 +24,12 @@ use crate::identifiers::{
 };
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
-/// View-transition data one class unit declares.
+/// View-transition declarations owned by one class unit.
 ///
-/// The class property is one declaration, so the unit that owns the element class list
-/// references a slot per guarded use and each guarded unit fills its own slot. The resolved
-/// list is whatever slots the element actually declares, so two conditions that hold
-/// together contribute both tokens instead of replacing one another.
+/// The base unit lists transition tokens through custom-property slots when a use
+/// is conditional, is selected at runtime, or has CSS wrappers. The unit for that
+/// use fills its slot under the same conditions as its rules. If two conditions
+/// hold together, both tokens appear in the element's view-transition-class.
 #[derive(Clone, Default)]
 pub(super) struct ViewTransitionClassUnit {
     /// Escaped class tokens the unit declares literally, in first-seen order.
@@ -102,6 +102,7 @@ pub(super) struct BaseUnit {
     pub(super) canonical: String,
     /// Resolved utilities, in their encountered order.
     pub(super) utilities: Vec<CompiledUtility>,
+    /// Transition uses kept until the base unit's CSS is generated.
     transitions: Vec<TransitionContribution>,
     /// Marker and external names retained alongside the generated base class.
     pub(super) names: Vec<String>,
@@ -170,7 +171,10 @@ impl<'a> ClassUnits<'a> {
         }
     }
 
-    /// Merges a contribution into the unconditional base unit.
+    /// Adds `contribution` to the unconditional base in encounter order.
+    /// The caller must ensure that the contribution applies unconditionally.
+    /// This keeps its canonical input, rules, transition uses, and class names without
+    /// allocating a class or publishing CSS.
     pub(super) fn fold(&mut self, contribution: LiteralContribution) {
         self.base.canonical.push_str(&contribution.canonical);
         self.base.utilities.extend(contribution.utilities);
@@ -180,15 +184,18 @@ impl<'a> ClassUnits<'a> {
         self.base.names.extend(contribution.plain);
     }
 
-    /// Turns one contribution into a leaf expression, generating its class unit.
+    /// Allocates a class unit for `contribution` under the JavaScript conditions in
+    /// `guard`. It reserves the next traversal order, so identical rules at different
+    /// positions receive distinct unit identities.
     ///
-    /// The branch index is part of the class identity, so identical utilities in two
-    /// branches still produce distinct units and the later unit can override the
-    /// earlier one.
+    /// Returns a leaf containing generated and retained class names. Class metadata is
+    /// recorded and CSS is queued for `finish` to publish.
     ///
     /// # Errors
     ///
-    /// Returns the host generator's failure for the utility class family.
+    /// Returns an error if generating a class or slot name, or emitting utilities, fails.
+    /// Earlier allocations and shared registry changes remain. The caller must discard
+    /// the failed compilation.
     pub(super) fn leaf(
         &mut self,
         contribution: LiteralContribution,
@@ -205,13 +212,16 @@ impl<'a> ClassUnits<'a> {
         self.class_index
     }
 
-    /// Allocates one previously reserved rule region after all of its leaves are known.
-    /// Returns a leaf expression with its class names in emission order, including
-    /// retained marker and external names.
+    /// Allocates a class unit for `contribution` under the JavaScript conditions in
+    /// `guard`. The caller must pass a unique `order` obtained from `reserve_branch`.
+    ///
+    /// Returns a leaf containing the generated class and any marker or external names.
+    /// Class metadata is recorded and CSS is queued for `finish` to publish.
     ///
     /// # Errors
     ///
-    /// Returns the host generator's failure for the utility class family.
+    /// Returns an error if generating a class or slot name, or emitting utilities, fails.
+    /// Earlier allocations and registry changes remain.
     pub(super) fn leaf_at(
         &mut self,
         mut contribution: LiteralContribution,
@@ -247,14 +257,19 @@ impl<'a> ClassUnits<'a> {
         Ok(Emitted::Leaf { names })
     }
 
-    /// Publishes base CSS before leaf CSS and returns `(unconditional class names,
-    /// generated class metadata)`. The generated base name precedes retained
-    /// marker/external names, and its metadata precedes conditional metadata.
-    /// Conditional metadata follows source traversal order.
+    /// Consumes the allocator and publishes the base CSS before the queued leaf CSS.
+    /// Leaves are published in traversal order. Transition slots can require a base
+    /// class even when there are no ordinary base utilities.
+    ///
+    /// Returns unconditional class names and generated class metadata. The base name
+    /// comes before marker and external names. The base metadata comes before leaf
+    /// metadata, which follows traversal order.
     ///
     /// # Errors
     ///
-    /// Returns the host generator's failure for the base unit's utility class.
+    /// Returns an error if generating base class or slot names, emitting utilities, or
+    /// rendering rule boundaries fails. Shared symbols and allocations may already have
+    /// changed. CSS is appended to the destination only after rendering succeeds.
     pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
@@ -324,15 +339,17 @@ impl<'a> ClassUnits<'a> {
         ))
     }
 
-    /// Generates one class unit and returns `(class name, CSS contributions)` without
-    /// publishing the contributions.
+    /// Generates a class name from `call` and the canonical `branch`, then returns
+    /// that name and the unpublished CSS for `definitions`.
     ///
-    /// Only the first caller for a name records its symbol, so an identical call that
-    /// reuses a name from an earlier call carries no rules of its own.
+    /// Rules and a symbol are recorded only for the first occurrence of each pair of
+    /// generated name and identity. Later occurrences return no CSS.
     ///
     /// # Errors
     ///
-    /// Returns the host generator's failure for the utility class family.
+    /// Returns an error if class generation or utility emission fails. The pair may
+    /// already be in the deduplication registry. The caller must discard the failed
+    /// compilation.
     fn name_unit(
         &mut self,
         call: u32,
@@ -378,8 +395,19 @@ impl<'a> ClassUnits<'a> {
         );
     }
 
-    /// Converts token supplies into base literals or slot declarations before allocating a class.
-    /// Returns token metadata and appends wrapped declarations to `utilities`; name allocation can fail.
+    /// Converts `transitions` into token metadata and appends their rules to `utilities`.
+    /// The transitions keep their input order, and `branch` distinguishes their slots
+    /// from those of other units in this call.
+    ///
+    /// When `base` is true, a transition without a CSS plan keeps its token as a literal.
+    /// Other transitions use slots and apply their CSS plans. If a transition has a
+    /// dynamic-name property, the caller must provide both a plan and a runtime value
+    /// for that property.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if slot generation fails. Rules already appended to `utilities`
+    /// remain when a later transition fails.
     fn materialize_transitions(
         &self,
         branch: &str,
@@ -442,11 +470,13 @@ impl<'a> ClassUnits<'a> {
             .collect()
     }
 
-    /// The custom property name one guarded unit fills with its class token.
+    /// Returns the generated custom-property name for a slot in this call.
+    /// The caller must use a stable `branch` value that distinguishes this slot from
+    /// other slots used for transition tokens or names.
     ///
     /// # Errors
     ///
-    /// Returns the host generator failure in release mode.
+    /// Returns an error if the configured slot generator fails.
     fn view_transition_slot(&self, branch: &str) -> Result<String, CompileErrorKind> {
         let context = ClassContext {
             module: self.module_id.clone(),

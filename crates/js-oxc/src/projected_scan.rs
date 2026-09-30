@@ -3,8 +3,10 @@
 //! The pipeline is: build a [`SourceFile`] for the generated text, normalize it against
 //! the projection, parse the normalized source, map the IR back to the original file,
 //! then rewrite every diagnostic label, lint label, module specifier, asset record and
-//! exported symbolic value into original spans. Anything that cannot be mapped is
-//! reported rather than left in generated coordinates.
+//! exported symbolic value into original spans. If required data cannot be mapped,
+//! parsing returns an error or reports a diagnostic. Optional recognition probes
+//! are omitted when their generated code has no corresponding original source.
+
 use std::collections::BTreeMap;
 
 use stillwind_ir::SourceInput;

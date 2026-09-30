@@ -85,11 +85,14 @@ impl<'a> MacroExtractor<'a> {
         })
     }
 
-    /// Extracts one ref variant from a computed key or template substitution.
+    /// Parses a ref variant used as a computed key or a substitution in a utility
+    /// template. Tagged templates must contain one static text segment with no
+    /// interpolations.
     ///
-    /// The tag or callee must resolve to a ref, and a tag must be static (no
-    /// interpolations). `None` means the expression is not a ref variant, which lets
-    /// callers try other forms before reporting an error.
+    /// The parser marks the expression's AST range as consumed before validation. It
+    /// then resolves possible refs and records their uses and checker probes. Returns
+    /// the variant, or `None` for unrelated or invalid syntax. Invalid syntax can add
+    /// diagnostics, and the extractor may have changed even when `None` is returned.
     pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
         self.consumed_use_spans
             .insert(LocalSpan::from(expression.span()));

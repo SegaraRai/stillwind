@@ -234,7 +234,10 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.
     pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
-    /// AST-buffer ranges consumed at supported projection or variant positions.
+    /// Ranges in the AST buffer that have already been handled as macro uses.
+    /// Parsers add ranges even when their arguments are invalid. Validation also
+    /// adds callee and tag ranges to prevent duplicate diagnostics. A recorded
+    /// range therefore does not guarantee successful lowering.
     pub(crate) consumed_use_spans: BTreeSet<LocalSpan>,
     /// Symbols bound to a view-transition declaration, with their names.
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
@@ -254,6 +257,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) next_jsx_element: usize,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
+    /// Ranges of parsed scope-only calls, used when removing their macro imports.
+    /// They refer to the AST buffer until mapped back to the original source.
     pub(crate) consumed_macro_uses: Vec<Span>,
     /// Module specifier literals of this module, in source order.
     pub(crate) module_specifiers: Vec<ModuleSpecifier>,
@@ -268,6 +273,9 @@ pub(crate) struct MacroExtractor<'a> {
     /// AST-buffer receiver ranges used to identify Stillwind assets; missing facts
     /// leave the receiver as ordinary JavaScript without a diagnostic.
     pub(crate) use_probes: RefCell<BTreeSet<LocalSpan>>,
+    /// Makes receiver probes optional while checking whether a use is a macro.
+    /// Must be false outside `use_receiver_is` so probes needed for lowering stay
+    /// subject to the required-query policy.
     pub(crate) probing_use: Cell<bool>,
     /// Metadata for identities declared in other modules.
     pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,

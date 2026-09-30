@@ -58,12 +58,14 @@ impl CallEmitter<'_> {
         self.contribute_rule(contribution, guard, fold)
     }
 
-    /// Lowers one keyframes use whose keyframes is only known at runtime.
+    /// Lowers `options` for every possible keyframes receiver at `value`.
+    /// `guard` contains the enclosing JavaScript conditions, and `wrappers` contains the
+    /// CSS variants. The function records definition and runtime dependencies.
     ///
-    /// Every candidate contributes its own prebuilt class, so the runtime selects one
-    /// class set by the name the value carries. Returns the candidate lookup
-    /// expression, or `None` if variant resolution, source slicing, or name allocation
-    /// fails.
+    /// With multiple candidates, the returned expression selects a class using the
+    /// receiver's `k` field. With one candidate, the rules may join the current region
+    /// or base. `None` means merging or failure. Callers must check diagnostics even
+    /// when an expression is returned.
     pub(super) fn emit_dynamic_keyframes_use(
         &mut self,
         value: &Span,
