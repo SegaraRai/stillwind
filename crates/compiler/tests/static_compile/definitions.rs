@@ -772,10 +772,8 @@ export const item = style("block", first && one, second && two);"#,
     assert!(transformed.contains("(second) &&"), "{transformed}");
 }
 
-/// A `.for(...)` outside a call builds a value: a literal key folds into a record, and a
-/// key only the runtime knows stays a call the runtime resolves.
 #[test]
-fn lowers_view_transition_key_applications_outside_calls() {
+fn rejects_view_transition_key_applications_outside_calls() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -801,21 +799,17 @@ export const useLiteral = style("block", literal);"#,
         &CompilerOptions::default(),
     );
 
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    let transformed = result.apply_to_source(&component).unwrap();
-    assert!(
-        transformed.contains("const literal = {v:\"sw-vt-"),
-        "{transformed}"
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .filter(|error| error.kind.code() == "SHMACRO003")
+            .count(),
+        2,
+        "{:?}",
+        result.diagnostics
     );
-    assert!(transformed.contains(",w:\"hero\"}"), "{transformed}");
-    assert!(
-        transformed.contains("stillwindViewTransitionKey(card,product.id)"),
-        "{transformed}"
-    );
-    assert!(
-        transformed.contains("stillwindViewTransitionName(literal)"),
-        "{transformed}"
-    );
+    assert!(result.transforms.is_empty());
 }
 
 #[test]

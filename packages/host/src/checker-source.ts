@@ -16,7 +16,7 @@ export interface CheckerSpan {
 /** Original-coordinate requests for one module and its optional parser projection. */
 export interface TypeFactSource extends ProjectSource {
   /** Half-open UTF-8 ranges in fw_code, or source for plain modules. */
-  probes: readonly { start: number; end: number }[];
+  probes: readonly { start: number; end: number; recognition_only?: boolean }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
   checker_spans?: readonly CheckerSpan[];
   /** Alternative checker buffers, including independent Astro client modules. */
@@ -71,7 +71,7 @@ export class CheckerSource {
   readonly id: string;
   readonly identities = new Map<string, NativeAssetRecord["identity"]>();
   /** Shadow UTF-16 AST ranges keyed to original UTF-8 probe ranges. */
-  readonly probes = new Map<string, { start: number; end: number }>();
+  readonly probes = new Map<string, { start: number; end: number; recognition_only?: boolean }>();
   readonly #edits: ShadowEdit[] = [];
   readonly #original: string;
   readonly #points: Map<number, number | null>;

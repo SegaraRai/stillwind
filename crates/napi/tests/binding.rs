@@ -249,7 +249,7 @@ export const trigger = style.ref(menu, "trigger");"#,
     .unwrap();
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
-    assert_eq!(value["schema"], 2);
+    assert_eq!(value["schema"], 3);
     assert_eq!(value["module_id"], r"src\Parent.tsx");
     assert_eq!(value["exports"][0]["name"], "menu");
     assert_eq!(value["exports"][0]["value"]["kind"], "refs");

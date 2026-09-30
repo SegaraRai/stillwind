@@ -241,8 +241,8 @@ impl CallEmitter<'_> {
         Emitted::Group(vec![Some(EmittedEntry::Class(class)), Some(extra)])
     }
 
-    /// Returns the deferred runtime name expression for a dynamic key or a keyed
-    /// transition value. `Ok(None)` means no runtime name is required.
+    /// Returns the deferred runtime name expression for a dynamic key. `Ok(None)` means
+    /// no runtime name is required.
     ///
     /// # Errors
     ///
@@ -254,22 +254,16 @@ impl CallEmitter<'_> {
         value: Span,
     ) -> Result<Option<ValueExpr>, SourceError> {
         let key = match name {
-            ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => Some(*key),
-            ViewTransitionName::Value => None,
+            ViewTransitionName::Key(ViewTransitionKey::Dynamic(key)) => *key,
             ViewTransitionName::None | ViewTransitionName::Key(ViewTransitionKey::Literal(_)) => {
                 return Ok(None);
             }
         };
         let receiver = match token {
-            Some(token) if !matches!(name, ViewTransitionName::Value) => {
-                format!("\"{token}\"").into()
-            }
+            Some(token) => format!("\"{token}\"").into(),
             _ => self.source_expression_result(value)?,
         };
-        let mut arguments = vec![receiver];
-        if let Some(key) = key {
-            arguments.push(self.source_expression_result(key)?);
-        }
+        let arguments = vec![receiver, self.source_expression_result(key)?];
         Ok(Some(ValueExpr::Call {
             helper: RuntimeHelper::ViewTransitionName,
             arguments,
@@ -299,12 +293,14 @@ impl CallEmitter<'_> {
     /// Reports a call whose view-transition name supply is missing or duplicated.
     ///
     /// Participation needs exactly one name per element, and the compiler sees only the
-    /// supplies the call itself states: a name another call, a stylesheet, or a user inline
-    /// style supplies stays invisible, so the finding is advisory rather than fatal.
+    /// supplies the call itself states: a name another call, a stylesheet, or a user
+    /// inline style supplies stays invisible, so the finding is advisory rather than
+    /// fatal.
     pub(super) fn report_view_transition_names(&mut self) {
-        // TODO: report a repeated render or an unstable key. The call alone cannot show it: a
-        // literal name inside `items.map((item) => …)` marks every element identically, so the
-        // finding needs the loop or callback the frontend sees, which the IR does not carry.
+        // TODO: report a repeated render or an unstable key. The call alone cannot show
+        // it: a literal name inside `items.map((item) => …)` marks every element
+        // identically, so the finding needs the loop or callback the frontend sees,
+        // which the IR does not carry.
         if !self.view_transition_classes {
             return;
         }
@@ -321,15 +317,13 @@ impl CallEmitter<'_> {
 /// The static name one view-transition use declares for a class token, if it declares
 /// one.
 ///
-/// A literal key is folded here; an expression key and a key carried by the value are
-/// written as a style property instead.
+/// A literal key is folded here; an expression key is written as a style property
+/// instead.
 fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option<String> {
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Literal(key)) => {
             Some(view_transition_name(token, key))
         }
-        ViewTransitionName::None
-        | ViewTransitionName::Key(ViewTransitionKey::Dynamic(_))
-        | ViewTransitionName::Value => None,
+        ViewTransitionName::None | ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)) => None,
     }
 }

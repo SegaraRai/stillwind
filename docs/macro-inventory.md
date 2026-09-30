@@ -27,17 +27,17 @@ Status: 2026-09-17 時点の実装。根拠は `packages/core/src`（マクロ�
 
 ## 一覧
 
-| マクロ               | 構文                                                                                        | 表すもの                                              | JS への lower                                                                                              | 生成する CSS                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| props                | `style(...inputs)`                                                                          | 要素の props 一式                                     | props object / `stillwindClsx` / `stillwindMerge`                                                          | utility class 規則（base unit → 条件付き unit）                                        |
-| ref 宣言             | `style.ref()`, `style.ref("label")`, `style.ref(boundary)`, `style.ref(boundary, "label")`  | DOM identity と境界                                   | `{c:"<marker>"}`（実行時参照が無ければ `undefined`）                                                       | なし（marker は class token のみ）                                                     |
-| keyframes 宣言       | `style.keyframes({...})`                                                                    | アニメーション定義                                    | `{k:"<name>"}`（実行時参照が無ければ `undefined`）                                                         | `@keyframes <name>{...}`（条件分岐は media/supports で包む）                           |
-| keyframes use        | `<kf>("<options>")`                                                                         | animation の適用                                      | class token（静的）/ `({name:class})[value.k]`（動的）                                                     | `.<class>{animation-name:<name>;<options>}`                                            |
-| view transition 宣言 | `style.viewTransition({...})`                                                               | transition の定義                                     | `{v:"<class token>"}`（同左）                                                                              | `::view-transition-group \| old \| new \| image-pair(.<token>)`                        |
-| view transition use  | `style(vt)`, `style(vt.for(key))`                                                           | 参加要素のマークと名前                                | class token / `{v:...}[value.v]` 表引き / `{v,w}` / `stillwindViewTransitionKey(...)`（宣言箇所の `.for`） | `.<class>{view-transition-class:...}`、literal key は `view-transition-name` も        |
-| ref 射影             | `ref.asAnchor()`, `ref.positionAnchor`, `style.anchorScope([ref])`, `ref.asContainer(type)` | anchor / container の宣言                             | `({"<marker>":"<class>"})[ref.c]`                                                                          | `anchor-name` / `position-anchor` / `anchor-scope` / `container-name`+`container-type` |
-| ref variant          | `` ref`hover:` ``, `ref()`, `ref("hover:")`, `ref.at("width >= 40rem")`                     | selector / container query の wrapper                 | JS には現れない（utility 側の class に吸収）                                                               | marker を参照する selector、`@container <name> (query)`                                |
-| 入力キー             | `{ class: … }`, `{ "--x": v }`, `{ "aria-x": v }`, `{ "hover:": … }`                        | 外部 class / custom property / 属性 / variant wrapper | `stillwindClsx` の引数 / style チャネル / そのままの prop / selector                                       | variant は utility 規則へ、他は CSS なし                                               |
+| マクロ               | 構文                                                                                        | 表すもの                                              | JS への lower                                                        | 生成する CSS                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| props                | `style(...inputs)`                                                                          | 要素の props 一式                                     | props object / `stillwindClsx` / `stillwindMerge`                    | utility class 規則（base unit → 条件付き unit）                                        |
+| ref 宣言             | `style.ref()`, `style.ref("label")`, `style.ref(boundary)`, `style.ref(boundary, "label")`  | DOM identity と境界                                   | `{c:"<marker>"}`（実行時参照が無ければ `undefined`）                 | なし（marker は class token のみ）                                                     |
+| keyframes 宣言       | `style.keyframes({...})`                                                                    | アニメーション定義                                    | `{k:"<name>"}`（実行時参照が無ければ `undefined`）                   | `@keyframes <name>{...}`（条件分岐は media/supports で包む）                           |
+| keyframes use        | `<kf>("<options>")`                                                                         | animation の適用                                      | class token（静的）/ `({name:class})[value.k]`（動的）               | `.<class>{animation-name:<name>;<options>}`                                            |
+| view transition 宣言 | `style.viewTransition({...})`                                                               | transition の定義                                     | `{v:"<class token>"}`（同左）                                        | `::view-transition-group \| old \| new \| image-pair(.<token>)`                        |
+| view transition use  | `style(vt)`, `style(vt.for(key))`                                                           | 参加要素のマークと名前                                | class token / `{v:...}[value.v]` 表引き / 動的 key の inline name    | `.<class>{view-transition-class:...}`、literal key は `view-transition-name` も        |
+| ref 射影             | `ref.asAnchor()`, `ref.positionAnchor`, `style.anchorScope([ref])`, `ref.asContainer(type)` | anchor / container の宣言                             | `({"<marker>":"<class>"})[ref.c]`                                    | `anchor-name` / `position-anchor` / `anchor-scope` / `container-name`+`container-type` |
+| ref variant          | `` ref`hover:` ``, `ref()`, `ref("hover:")`, `ref.at("width >= 40rem")`                     | selector / container query の wrapper                 | JS には現れない（utility 側の class に吸収）                         | marker を参照する selector、`@container <name> (query)`                                |
+| 入力キー             | `{ class: … }`, `{ "--x": v }`, `{ "aria-x": v }`, `{ "hover:": … }`                        | 外部 class / custom property / 属性 / variant wrapper | `stillwindClsx` の引数 / style チャネル / そのままの prop / selector | variant は utility 規則へ、他は CSS なし                                               |
 
 ## 1. `style(...)`: props マクロ
 
@@ -164,14 +164,12 @@ use 側は `animation-name` と option の宣言を class unit に書く。条�
 | 値が実行時に必要 | `const pageTitle = {v:"sw-vt-page-title-vtl83"};` |
 | 不要             | `undefined`                                       |
 
-`.for(key)` は key が literal か式か、使う場所が `style()` の中か宣言箇所かで lower が分かれる。
+`.for(key?)` は `style()` の対応する入力位置でのみ消費する。key が literal か式かで lower が分かれる。
 
-| 場所                         | key                    | lower                                    | CSS                                                                                                 |
-| ---------------------------- | ---------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `style(vt.for(…))`           | literal                | class token                              | `view-transition-class` + `view-transition-name`（`<token>-<key>` を CSS identifier として escape） |
-| `style(vt.for(…))`           | 式                     | class token + inline                     | `view-transition-class` のみ。name は `stillwindViewTransitionName("<token>", key)`                 |
-| 宣言箇所（binding 初期化子） | literal（候補が 1 つ） | `{v:"<token>",w:"outside"}`              | なし（値が name を運ぶ）                                                                            |
-| 宣言箇所（binding 初期化子） | 式（または候補が複数） | `stillwindViewTransitionKey(value, key)` | なし                                                                                                |
+| 場所               | key     | lower                | CSS                                                                                                 |
+| ------------------ | ------- | -------------------- | --------------------------------------------------------------------------------------------------- |
+| `style(vt.for(…))` | literal | class token          | `view-transition-class` + `view-transition-name`（`<token>-<key>` を CSS identifier として escape） |
+| `style(vt.for(…))` | 式      | class token + inline | `view-transition-class` のみ。name は `stillwindViewTransitionName("<token>", key)`                 |
 
 use の lower は identity が静的か動的かでも分かれる。動的候補は `({token: class})[value.v]` の
 表引き（`style(selectedTransition)`）、literal key 付きなら候補ごとの class に name を焼き込む。
@@ -284,7 +282,7 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 - `bounded-ref-layout`: ref marker、boundary、anchor 射影、container、ref variant。
 - `typed-ref-graph`: import 越しの ref の添付と射影。
 - `keyframes-matrix`: 静的 / 動的 keyframes use と条件分岐。
-- `view-transition-matrix`: 静的 / 動的 identity、literal / 式 key、宣言箇所の `.for`、
+- `view-transition-matrix`: 静的 / 動的 identity、literal / 式 key、完成 props の再利用と通常データからの use、
   複数 transition の 1 call、ガード付き use。
 - `runtime-if-fallback` / `runtime-if-native`: `if(...)` の 2 戦略。
 - `tailwind-relationships`: `group` / `peer` marker の互換経路。

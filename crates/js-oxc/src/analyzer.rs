@@ -62,8 +62,7 @@ impl OxcSourceAnalyzer {
                 }
                 ExportedValue::Styles(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value)
-                | ExportedValue::ViewTransitionKeys(value) => {
+                | ExportedValue::ViewTransitions(value) => {
                     assets.extend(value.finite_candidates().into_iter().flatten().cloned());
                 }
             }
@@ -123,7 +122,14 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             type_probes: parsed
                 .type_probes
                 .into_iter()
-                .map(|span| TypeProbe { span })
+                .map(|span| TypeProbe {
+                    span,
+                    recognition_only: false,
+                })
+                .chain(parsed.use_probes.into_iter().map(|span| TypeProbe {
+                    span,
+                    recognition_only: true,
+                }))
                 .collect(),
             lint_directives: collect_lint_directives(source.text()),
             source,
@@ -177,6 +183,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                     }
                     Err(error) => {
                         let mut parsed = ParsedJavaScript {
+                            use_probes: Vec::new(),
                             framework: None,
                             type_probes: Vec::new(),
                             diagnostics: vec![CompileError::new(

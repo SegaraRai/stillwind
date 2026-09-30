@@ -19,11 +19,17 @@ use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span
 
 use crate::{ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, validate_composition};
 
-/// An expression whose TypeScript type the host must report back.
+/// An expression whose TypeScript type the host queries for lowering or macro
+/// recognition.
 #[derive(Clone, Debug)]
 pub struct TypeProbe {
-    /// Original UTF-8 span of the expression whose type the host must report.
+    /// Original UTF-8 span of the expression to query.
     pub span: Span,
+    /// True when the query only identifies whether a receiver is a Stillwind macro
+    /// asset. Resolving a fact is optional: without one, the receiver is treated as
+    /// ordinary JavaScript and this query produces no error. Recognized assets can be
+    /// used to diagnose unconsumed macro syntax.
+    pub recognition_only: bool,
 }
 
 /// Local extraction for one module, before cross-module facts exist.

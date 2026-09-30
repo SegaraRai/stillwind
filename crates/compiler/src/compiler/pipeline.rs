@@ -15,8 +15,8 @@ use std::collections::BTreeSet;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, CompileErrorKind, filter_lint_findings};
 use stillwind_ir::{
-    ModuleAnalysis, ViewTransitionKey, composition_dependencies, ordered_style_calls,
-    split_view_transition_classes, validate_composition,
+    ModuleAnalysis, composition_dependencies, ordered_style_calls, split_view_transition_classes,
+    validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -27,19 +27,17 @@ use super::definitions::{
 };
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
-    VIEW_TRANSITION_KEY,
 };
 use super::fragment::render_style_call;
 use super::output::CompileResult;
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
-    identity_declaration, named_declaration, ref_marker_name,
+    named_declaration, ref_marker_name,
 };
 use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
-use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
-use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
+use crate::runtime::{RuntimeBindings, encode_projected_edits};
 use crate::transforms::SourceTransform;
 use crate::{CompilerOptions, GeneratedSymbol, SymbolOrigin};
 
@@ -208,12 +206,6 @@ impl Compiler {
                 expressions: replacement.mappings,
             });
         }
-        for application in &module.view_transition_key_applications {
-            for transition in &application.transitions {
-                runtime_assets.insert(transition.identity.clone());
-                required_definitions.insert(transition.identity.clone());
-            }
-        }
         let mut definition_css = Vec::new();
         for animation in &module.keyframes_declarations {
             let mut contribution = CssContribution::default();
@@ -267,56 +259,6 @@ impl Compiler {
                 } else {
                     "undefined".to_owned()
                 },
-                expressions: Vec::new(),
-            });
-        }
-        for application in &module.view_transition_key_applications {
-            let key = match &application.key {
-                ViewTransitionKey::Literal(key) => js_string(key),
-                ViewTransitionKey::Dynamic(span) => {
-                    if let Ok(text) = source.slice(*span) {
-                        text.to_owned()
-                    } else {
-                        diagnostics.push(CompileError::new(
-                            CompileErrorKind::InvalidViewTransitionKeyExpression,
-                            application.call_span,
-                        ));
-                        continue;
-                    }
-                }
-            };
-            let replacement = match (&application.key, application.transitions.as_slice()) {
-                (ViewTransitionKey::Literal(_), [transition]) => {
-                    match identifiers.view_transition_class(&identity_declaration(transition)) {
-                        Ok(class) => format!(
-                            "{{{VIEW_TRANSITION_CLASS_KEY}:{class},{VIEW_TRANSITION_KEY}:{key}}}",
-                            class = class.javascript_string()
-                        ),
-                        Err(failure) => {
-                            diagnostics.push(CompileError::new(failure, application.call_span));
-                            "undefined".to_owned()
-                        }
-                    }
-                }
-                _ => {
-                    if let Ok(receiver) = source.slice(application.value) {
-                        format!(
-                            "{}({receiver},{key})",
-                            runtime
-                                .require(RuntimeHelper::ViewTransitionKey, application.call_span)
-                        )
-                    } else {
-                        diagnostics.push(CompileError::new(
-                            CompileErrorKind::InvalidViewTransitionKeyExpression,
-                            application.call_span,
-                        ));
-                        continue;
-                    }
-                }
-            };
-            result.transforms.push(SourceTransform {
-                call_span: application.call_span,
-                replacement,
                 expressions: Vec::new(),
             });
         }

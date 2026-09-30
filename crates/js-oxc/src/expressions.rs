@@ -26,6 +26,7 @@ use stillwind_ir::{
 use stillwind_semantic::{ExportedValue, IdentityId};
 use stillwind_source::Span;
 
+use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -107,7 +108,12 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         let span = expression.span();
-        self.type_probes.borrow_mut().insert((span.start, span.end));
+        let probes = if self.probing_use.get() {
+            &self.use_probes
+        } else {
+            &self.type_probes
+        };
+        probes.borrow_mut().insert(LocalSpan::from(span));
     }
 
     /// Lowers one `style()` argument into zero or more IR inputs.

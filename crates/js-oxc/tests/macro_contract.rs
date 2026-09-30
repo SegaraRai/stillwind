@@ -205,3 +205,122 @@ fn scope_analysis_probes_receiver_and_every_unresolved_list_entry() {
         );
     }
 }
+
+#[test]
+fn projections_and_ref_variants_require_exact_consumption_positions() {
+    let declarations = "const r=style.ref(); const s=style.ref(); const k=style.keyframes({from:'opacity-0'}); const v=style.viewTransition({old:'opacity-0'});";
+    for expression in [
+        "r.asAnchor",
+        "r.asContainer",
+        "r.at",
+        "v.for",
+        "style.anchorScope",
+        r#"r["positionAnchor"]"#,
+        r#"r["asAnchor"]()"#,
+        "r.asAnchor()",
+        "r.asContainer()",
+        "r.positionAnchor",
+        "style.anchorScope([r])",
+        "v.for()",
+        "v.for('hero')",
+        "v.for(key)",
+        "r()",
+        "r('hover:')",
+        "r`hover:`",
+        "r.at('width > 1px')",
+        "r.at`width > 1px`",
+        "(enabled ? r : s).asAnchor()",
+        "(enabled ? r : s).positionAnchor",
+        "(enabled ? r : s)('hover:')",
+        "k('1s')",
+    ] {
+        for usage in [
+            format!("const x={expression};"),
+            format!("const x=style({{'data-value':{expression}}});"),
+            format!("const x=style({{class: consume({expression})}});"),
+        ] {
+            let source = SourceFile::new(
+                FileId(1),
+                None,
+                None,
+                format!("import {{style}} from 'stillwind/react'; {declarations} {usage}"),
+            )
+            .unwrap();
+            let parsed = parse(
+                &source,
+                &ModuleId::from("test.ts"),
+                &[],
+                &BTreeMap::new(),
+                ScriptLanguage::Ts,
+                ScriptModuleKind::Unambiguous,
+            );
+            let expected = if expression.starts_with("k(") {
+                "SHANIMATION002"
+            } else {
+                "SHMACRO003"
+            };
+            assert!(
+                parsed
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.kind.code() == expected),
+                "{usage}: {:?}",
+                parsed.diagnostics
+            );
+        }
+    }
+}
+
+#[test]
+fn completed_styles_and_supported_projection_positions_remain_valid() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r"
+import { style } from 'stillwind/react';
+const r = style.ref();
+const k = style.keyframes({ from: 'opacity-0' });
+const v = style.viewTransition({ old: 'opacity-0' });
+const base = style(r, r.asAnchor([r]), r.asContainer('size'));
+const props = style(
+    base,
+    r.positionAnchor,
+    style.anchorScope('none'),
+    k('1s'),
+    v.for(key),
+    {
+        [r()]: 'block',
+        [r('hover:')]: 'block',
+        [r`focus:`]: 'block',
+        [r.at('width > 1px')]: 'block'
+    },
+    `${r`hover:`}:block`,
+    `${r.at`width > 1px`}:block`
+);
+const ordinary = {
+    asAnchor() {},
+    asContainer() {},
+    positionAnchor: 1,
+    for() {},
+    at() {}
+};
+const a = ordinary.asAnchor();
+const b = ordinary.asContainer();
+const c = ordinary.positionAnchor;
+const d = ordinary.for();
+const e = ordinary.at`abc`;
+const f = ordinary.at('abc');
+",
+    )
+    .unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.ts"),
+        &[],
+        &BTreeMap::new(),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+}

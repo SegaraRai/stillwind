@@ -94,6 +94,7 @@ export type StyleRefVariant<
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
+/** Syntax consumed directly as a style input; it has no independently materialized value. */
 export type StyleKeyframesUse<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [keyframesIdentity]: Id;
@@ -112,6 +113,7 @@ export interface StyleKeyframesFrames {
 /** A keyframes declaration: one frames object and the optional label its generated name spells out. */
 export type StyleKeyframesDefinition = { readonly label?: string } & StyleKeyframesFrames;
 
+/** Syntax consumed directly as a style input; it has no independently materialized value. */
 export type StyleViewTransitionUse<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [viewTransitionIdentity]: Id;
@@ -122,7 +124,7 @@ export type StyleViewTransition<Id extends string = string> = {
   readonly [refProjection]: true;
   readonly [viewTransitionIdentity]: Id;
   /**
-   * Names the participants this use marks, under a pure value key.
+   * Names the participants at a supported style input position, under a pure value key.
    * A literal key folds into the stylesheet; an expression is read at runtime.
    */
   for(key?: string | number): StyleViewTransitionUse<Id>;
@@ -182,6 +184,9 @@ export type StyleArgument =
 
 /**
  * Compile-time UI declarations with pure value expressions.
+ * Only completed style calls and declaration macros produce reusable values.
+ * Projections require their supported style input positions; ref variants require
+ * computed variant keys or utility template substitutions.
  * Each argument expression must return an equivalent value for the same inputs and
  * must not mutate shared data or perform observable effects, including through
  * callees, getters, or value conversion. Calls need no PURE annotation. Functions

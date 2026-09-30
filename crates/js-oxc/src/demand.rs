@@ -22,13 +22,15 @@ use oxc::semantic::{ReferenceId, Scoping, SymbolId};
 use stillwind_ir::from_macro_import;
 use stillwind_semantic::{ImportBinding, ModuleSummary};
 
+use crate::local_span::LocalSpan;
+
 /// The bindings and references of one top-level statement.
 #[derive(Default)]
 struct StatementReads {
     /// Bound names paired with their symbols, in source order.
     bindings: Vec<(String, SymbolId)>,
     /// Identifier reads as span plus reference id, in source order.
-    references: Vec<(u32, u32, ReferenceId)>,
+    references: Vec<(LocalSpan, ReferenceId)>,
     /// Non-macro import bindings paired with their local symbols, including imports
     /// nested in converter-generated functions. Symbol identity distinguishes equal
     /// local names in separate scopes when resolving semantic dependencies.
@@ -79,7 +81,7 @@ impl<'a> Visit<'a> for StatementReads {
     fn visit_identifier_reference(&mut self, node: &IdentifierReference<'a>) {
         if let Some(reference) = node.reference_id.get() {
             self.references
-                .push((node.span.start, node.span.end, reference));
+                .push((LocalSpan::from(node.span), reference));
         }
     }
 }
@@ -93,7 +95,7 @@ impl<'a> Visit<'a> for StatementReads {
 pub(crate) fn collect(
     program: &Program<'_>,
     scoping: &Scoping,
-    probes: &BTreeSet<(u32, u32)>,
+    probes: &BTreeSet<LocalSpan>,
     exports: &[(SymbolId, String)],
     summary: &mut ModuleSummary,
 ) {
@@ -106,18 +108,18 @@ pub(crate) fn collect(
         let symbols: Vec<_> = references
             .references
             .iter()
-            .filter_map(|(_, _, reference)| scoping.get_reference(*reference).symbol_id())
+            .filter_map(|(_, reference)| scoping.get_reference(*reference).symbol_id())
             .collect();
-        for (start, end, reference) in &references.references {
+        for (span, reference) in &references.references {
             if probes
                 .iter()
-                .any(|(left, right)| left <= start && end <= right)
+                .any(|probe| probe.start <= span.start && span.end <= probe.end)
                 && let Some(symbol) = scoping.get_reference(*reference).symbol_id()
             {
                 roots.push(symbol);
             }
         }
-        for (_, _, reference) in &references.references {
+        for (_, reference) in &references.references {
             let reference = scoping.get_reference(*reference);
             if (reference.is_write() || references.bindings.is_empty())
                 && let Some(symbol) = reference.symbol_id()

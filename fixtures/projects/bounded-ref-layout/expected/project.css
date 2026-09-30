@@ -426,31 +426,31 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_ehe53 {
+  .sw_gitix {
     anchor-scope: --sw-a-trigger-w0wbm;
   }
-  .sw_ehe53:where(.sw_container_gxe38) {
+  .sw_gitix:where(.sw_container_gxe38) {
     container-name: sw-c-container-gxe38;
     container-type: inline-size;
   }
-  .sw_6lvoa {
+  .sw_2f4mf {
     position: relative;
     display: inline-flex;
   }
-  .sw_6lvoa:where(.sw_trigger_w0wbm) {
+  .sw_2f4mf:where(.sw_trigger_w0wbm) {
     anchor-name: --sw-a-trigger-w0wbm;
   }
-  .sw_k36l5 {
+  .sw_94u4o {
     position-anchor: --sw-a-trigger-w0wbm;
     position: absolute;
   }
   @container sw-c-container-gxe38 (width >= 40rem) {
-    .sw_k36l5 {
+    .sw_94u4o {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .sw_k36l5:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_w0wbm):hover) *) {
+    .sw_94u4o:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_w0wbm):hover) *) {
       color: var(--color-accent);
     }
   }

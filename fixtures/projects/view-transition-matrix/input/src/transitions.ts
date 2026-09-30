@@ -23,10 +23,11 @@ export const conditionalTransition = style(selectedTransition);
 export const conditionalKeyedTransition = style(selectedTransition.for(transitionKey));
 export const conditionalLiteralKey = style("block", selectedTransition.for("hero"));
 
-// A key applied where the transition was declared travels in the value.
-export const keyedOutside = pageTitle.for("outside");
-export const keyedDynamically = pageCard.for(transitionKey);
-export const usesKeyedOutside = style("block", keyedOutside);
+// Completed props can be reused; ordinary data retains a transition and its key.
+export const keyedProps = style(pageTitle.for("outside"));
+export const transitionData = { transition: pageCard, key: transitionKey };
+export const usesTransitionData = style("block", transitionData.transition.for(transitionData.key));
+export const usesKeyedProps = style("block", keyedProps);
 
 // A name another declaration states, and several transitions in one call.
 export const namedExplicitly = style("block", pageTitle, "[view-transition-name:hero]");

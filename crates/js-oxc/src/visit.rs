@@ -28,6 +28,11 @@ use stillwind_source::Spanned;
 use crate::state::MacroExtractor;
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
+    fn visit_expression(&mut self, expression: &Expression<'a>) {
+        self.report_unconsumed_expression(expression);
+        walk::walk_expression(self, expression);
+    }
+
     /// Tracks the JSX ancestor path and gives each element a stable index.
     ///
     /// Path indices are assigned in visit order, so a sibling comparison later uses the
@@ -193,10 +198,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// Only calls whose callee resolves to the imported macro are collected. A call
     /// nested inside an already-collected one is reported as `SHCOMP001` instead of
     /// being lowered, and spread arguments are errors. Every other call is checked for
-    /// a keyframes use the lowering cannot consume.
+    /// a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         if !self.is_style_call(call) {
-            self.report_unclaimed_keyframes_use(call);
+            self.report_unconsumed_call(call);
             walk::walk_call_expression(self, call);
             return;
         }
@@ -303,36 +308,6 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 );
                 self.view_transition_declarations.push(definition);
             }
-        }
-        if let (
-            BindingPattern::BindingIdentifier(identifier),
-            Some(Expression::CallExpression(call)),
-        ) = (&declarator.id, &declarator.init)
-            && let Some(application) = self.collect_view_transition_key_application(call)
-        {
-            // The binding denotes a transition that already carries its key, so a later use
-            // reads the name from the value instead of deriving it from a use-site key.
-            if let Some(symbol_id) = identifier.symbol_id.get()
-                && let Ok(value) = SymbolicValue::finite(
-                    AssetKind::ViewTransition,
-                    application
-                        .transitions
-                        .iter()
-                        .map(|transition| transition.identity.clone()),
-                )
-            {
-                self.view_transition_key_symbols.insert(
-                    symbol_id,
-                    application
-                        .transitions
-                        .iter()
-                        .map(|transition| transition.identity.clone())
-                        .collect(),
-                );
-                self.local_values
-                    .insert(symbol_id, ExportedValue::ViewTransitionKeys(value));
-            }
-            self.view_transition_key_applications.push(application);
         }
         walk::walk_variable_declarator(self, declarator);
     }

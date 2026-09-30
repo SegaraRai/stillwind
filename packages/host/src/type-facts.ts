@@ -136,7 +136,6 @@ function typeFactValue(
   const refs = [];
   const keyframes: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
-  let viewTransitionKeyed = false;
   const styles: IdentityId[] = [];
 
   for (const constituent of constituents) {
@@ -170,7 +169,7 @@ function typeFactValue(
       }
       continue;
     }
-    if (symbol?.name === "StyleKeyframes" || symbol?.name === "StyleKeyframesUse") {
+    if (symbol?.name === "StyleKeyframes") {
       const candidates = knownIdentities(args[0], identities, "keyframes");
       if (!candidates) {
         return null;
@@ -178,13 +177,12 @@ function typeFactValue(
       keyframes.push(...candidates);
       continue;
     }
-    if (symbol?.name === "StyleViewTransition" || symbol?.name === "StyleViewTransitionUse") {
+    if (symbol?.name === "StyleViewTransition") {
       const candidates = knownIdentities(args[0], identities, "view-transition");
       if (!candidates) {
         return null;
       }
       viewTransitions.push(...candidates);
-      viewTransitionKeyed ||= symbol.name === "StyleViewTransitionUse";
       continue;
     }
     return null;
@@ -206,15 +204,10 @@ function typeFactValue(
     return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
   }
   if (viewTransitions.length > 0) {
-    return viewTransitionKeyed
-      ? {
-          kind: "view-transition-keys",
-          value: symbolic("view-transition", viewTransitions),
-        }
-      : {
-          kind: "view-transitions",
-          value: symbolic("view-transition", viewTransitions),
-        };
+    return {
+      kind: "view-transitions",
+      value: symbolic("view-transition", viewTransitions),
+    };
   }
   return null;
 }
@@ -550,6 +543,9 @@ function factsForSource(
     const type = types[index];
     const value = type && typeFactValue(checker, type, identities);
     if (!value) {
+      // Recognition queries only identify Stillwind receivers for unconsumed-use diagnostics.
+      // Missing facts leave the receiver as ordinary JavaScript without an error.
+      if (probe.recognition_only) continue;
       const name = type && (type.getAliasSymbol() ?? type.getSymbol())?.name;
       if (
         !type ||
@@ -558,12 +554,12 @@ function factsForSource(
             isCallExpression(expression) ||
             isPropertyAccessExpression(expression) ||
             isElementAccessExpression(expression))) ||
-        (name && /^Style(?:Result|Ref|Keyframes(?:Use)?|ViewTransition(?:Use)?)$/.test(name)) ||
+        (name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name)) ||
         (type.isUnionType() &&
           type
             .getTypes()
             .some((t) =>
-              /^Style(?:Result|Ref|Keyframes(?:Use)?|ViewTransition(?:Use)?)$/.test(
+              /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(
                 (t.getAliasSymbol() ?? t.getSymbol())?.name ?? "",
               ),
             ))

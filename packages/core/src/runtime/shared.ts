@@ -81,46 +81,18 @@ export function stillwindEscapedIdentifier(value: string): string {
  * Returns the `view-transition-name` a participant is paired under: its class token and
  * key, joined with `-`, escaped for a CSS value position.
  *
- * The value may be the token itself or one of the records the compiler emits, whose key
- * an explicit argument overrides. A record without a key names nothing, and the empty
- * string leaves the property to whatever the element's class already declares.
+ * The value may be the token itself or one of the records the compiler emits, with a key
+ * supplied at the use site.
  * Throws TypeError for a value that carries no token at all.
  */
-export function stillwindViewTransitionName(value: unknown, key?: string | number): string {
+export function stillwindViewTransitionName(value: unknown, key: string | number): string {
   const record =
-    value && typeof value === "object" && "v" in value
-      ? (value as { v?: unknown; w?: unknown })
-      : undefined;
+    value && typeof value === "object" && "v" in value ? (value as { v?: unknown }) : undefined;
   const token = typeof value === "string" ? value : record?.v;
   if (typeof token !== "string" || token.length === 0) {
     throw new TypeError("Stillwind received a view transition without a class token.");
   }
-  const resolved =
-    key ?? (typeof record?.w === "string" || typeof record?.w === "number" ? record.w : undefined);
-  if (resolved === undefined) {
-    return "";
-  }
-  return stillwindEscapedIdentifier(`${token}-${String(resolved)}`);
-}
-
-/**
- * Returns the value a keyed view transition carries, so a key applied where the transition
- * was declared travels with it. Throws TypeError for a value without a class token.
- */
-export function stillwindViewTransitionKey(
-  value: unknown,
-  key: string | number,
-): { readonly v: string; readonly w: string | number } {
-  const token =
-    typeof value === "string"
-      ? value
-      : value && typeof value === "object" && "v" in value && typeof value.v === "string"
-        ? value.v
-        : undefined;
-  if (typeof token !== "string" || token.length === 0) {
-    throw new TypeError("Stillwind received a view transition without a class token.");
-  }
-  return { v: token, w: key };
+  return stillwindEscapedIdentifier(`${token}-${String(key)}`);
 }
 
 function flatten(value: unknown): string[] {

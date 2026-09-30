@@ -91,7 +91,7 @@ pub struct ModuleSummary {
 
 impl ModuleSummary {
     /// Schema version hosts must understand before reading a summary.
-    pub const SCHEMA: u32 = 2;
+    pub const SCHEMA: u32 = 3;
 
     /// Creates an empty summary for [`Self::module_id`], preserving the identity and
     /// stamping the current schema.
@@ -129,8 +129,7 @@ impl ModuleSummary {
                 }
                 ExportedValue::Styles(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value)
-                | ExportedValue::ViewTransitionKeys(value) => {
+                | ExportedValue::ViewTransitions(value) => {
                     if let Candidates::Finite(candidates) = &value.candidates {
                         identities.extend(candidates.iter().cloned());
                     } else {

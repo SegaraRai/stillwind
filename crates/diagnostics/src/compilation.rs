@@ -99,6 +99,14 @@ pub enum CompileErrorKind {
     /// A keyframes use appears where the call cannot become a class input.
     #[error("a keyframes use must be a class input of style()")]
     KeyframesUseNotAClassInput,
+    /// A projection or ref variant was not consumed at a supported style input position.
+    #[error(
+        "{syntax} must be consumed at its supported input position within style(); it cannot be materialized independently"
+    )]
+    UnconsumedMacroUse {
+        /// Display spelling of the rejected projection or variant.
+        syntax: String,
+    },
     /// A keyframes declaration does not supply one static frame object.
     #[error("style.keyframes() requires one object of static keyframe utility strings")]
     InvalidKeyframesDefinition,
@@ -689,6 +697,7 @@ impl CompileErrorKind {
             | Self::InvalidAttributeKey => "SHJS003",
             Self::InvalidVariantInput { .. } => "SHJS004",
             Self::InvalidUtilityTemplate => "SHJS005",
+            Self::UnconsumedMacroUse { .. } => "SHMACRO003",
             Self::InvalidKeyframesOptions
             | Self::KeyframesUseNotAClassInput
             | Self::UnknownAnimationOption { .. } => "SHANIMATION002",

@@ -5,9 +5,11 @@
 //! ref definitions, keyframes and view-transition declarations, resolves the framework
 //! adapter, and publishes a [`stillwind_semantic::ModuleSummary`] plus the type probes
 //! the host checker still has to answer. `entry` coordinates parsing and extraction;
-//! `contract` validates macro argument expressions before folding. `normalization` and
-//! `projected_scan` restore editable source coordinates for converted framework input,
-//! including the effect-proof spans.
+//! `contract` validates macro argument expressions before folding; `uses` rejects
+//! unconsumed projections and ref variants. `normalization` and `projected_scan`
+//! restore editable source coordinates for converted framework input, including the
+//! effect-proof spans. `local_span` supplies file-local range keys for extraction and
+//! checker bookkeeping.
 //!
 //! Three contracts hold throughout. Extraction is binding-bound, never name-bound: a
 //! local `style` that shadows the import is not the macro. Every span in a result
@@ -37,12 +39,14 @@ mod entry;
 mod expressions;
 mod imports;
 mod keyframes;
+mod local_span;
 mod normalization;
 mod projected_scan;
 mod refs;
 mod state;
 mod style_bindings;
 mod templates;
+mod uses;
 mod view_transition;
 mod visit;
 

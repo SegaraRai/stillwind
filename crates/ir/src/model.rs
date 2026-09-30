@@ -39,26 +39,6 @@ pub struct ModuleIr {
     pub keyframes_declarations: Vec<KeyframesDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
-    /// In source order. Each entry is a `transition.for(key)` value built outside a
-    /// call.
-    pub view_transition_key_applications: Vec<ViewTransitionKeyApplication>,
-}
-
-/// One `transition.for(key)` application written outside a `style()` call.
-///
-/// The application builds a value rather than a style input, so it lowers to a record
-/// that carries the key, or to a runtime call when only the value knows its class.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ViewTransitionKeyApplication {
-    /// The whole `.for(...)` call, used for the replacement.
-    pub call_span: Span,
-    /// The receiver expression, which denotes the transitions.
-    pub value: Span,
-    /// The key the application states.
-    pub key: ViewTransitionKey,
-    /// Every statically reachable transition of the receiver. An empty finite set
-    /// leaves the runtime key application in place but requires no definitions.
-    pub transitions: Vec<AssetReference>,
 }
 
 impl ModuleIr {
@@ -77,7 +57,6 @@ impl ModuleIr {
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
-            view_transition_key_applications: Vec::new(),
         }
     }
 }
@@ -392,8 +371,6 @@ pub enum ViewTransitionName {
     None,
     /// A key the use site states.
     Key(ViewTransitionKey),
-    /// The value carries the key that was applied where the transition was declared.
-    Value,
 }
 
 /// One key a view-transition use pairs its participants under.

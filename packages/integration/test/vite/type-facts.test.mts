@@ -153,8 +153,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
-  // A projection reads the use-site ref value, never the member expression it was written on.
-  // The lowered ref value is a record under c, so `selected.asAnchor()` must compile to `selected.c`.
+  // Only the attachment supplies the selected marker.
   assert.match(consumer.code, /attached = \{className:\(\(selected\)\.c\)\}/);
   // A dynamic animation selects its prebuilt class by the keyframes name the value carries.
   assert.match(consumer.code, /\[\(selectedKeyframes\)\.k\]/);
@@ -165,7 +164,10 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   );
   assert.match(consumer.code, /stillwindViewTransitionName\("sw-vt-[^"]+",transitionKey\)/);
   assert.match(consumer.code, /stillwindViewTransitionName\(selectedTransition,transitionKey\)/);
-  assert.match(consumer.code, /stillwindViewTransitionName\(keyedTransitionAlias\)/);
+  assert.match(
+    consumer.code,
+    /stillwindViewTransitionName\(transitionData\.transition,transitionData\.key\)/,
+  );
   assert.equal(consumer.code.match(/transitionKey/g)?.length, 4);
   assert.equal(consumer.css.match(/anchor-name:--sw-a-/g)?.length, 2);
   assert.equal(consumer.css.match(/animation-name:sw-kf-/g)?.length, 2);

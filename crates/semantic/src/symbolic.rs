@@ -207,11 +207,6 @@ pub enum ExportedValue {
     Keyframes(SymbolicValue),
     /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),
-    /// Candidate set of view-transition uses that already carry their own key.
-    ///
-    /// A key applied where the transition was declared travels in the value, so the use
-    /// site cannot derive the name statically and reads it at runtime.
-    ViewTransitionKeys(SymbolicValue),
 }
 
 impl ExportedValue {
@@ -232,10 +227,7 @@ impl ExportedValue {
                 }
                 Ok(())
             }
-            Self::Styles(value)
-            | Self::Keyframes(value)
-            | Self::ViewTransitions(value)
-            | Self::ViewTransitionKeys(value) => {
+            Self::Styles(value) | Self::Keyframes(value) | Self::ViewTransitions(value) => {
                 if value.kind != self.kind() {
                     return Err(SymbolicError::KindMismatch {
                         expected: self.kind(),
@@ -256,7 +248,7 @@ impl ExportedValue {
             Self::Styles(_) => AssetKind::Style,
             Self::Refs(_) => AssetKind::Ref,
             Self::Keyframes(_) => AssetKind::Keyframes,
-            Self::ViewTransitions(_) | Self::ViewTransitionKeys(_) => AssetKind::ViewTransition,
+            Self::ViewTransitions(_) => AssetKind::ViewTransition,
         }
     }
 }

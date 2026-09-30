@@ -352,11 +352,7 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
             | StyleInput::DynamicViewTransitionUse { name, .. } => {
                 // A transition use marks the element with a class, which composes like any other
                 // class; only a name the runtime composes travels as an inline property.
-                props |= matches!(
-                    name,
-                    ViewTransitionName::Key(ViewTransitionKey::Dynamic(_))
-                        | ViewTransitionName::Value
-                );
+                props |= matches!(name, ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)));
             }
             StyleInput::Class(expression) => props |= class_expression(expression),
             _ => {}
@@ -388,10 +384,9 @@ fn class_expression(expression: &ClassExpression) -> bool {
 fn rule_expression(expression: &RuleExpression) -> bool {
     match expression {
         RuleExpression::ViewTransitionUse { name, .. }
-        | RuleExpression::DynamicViewTransitionUse { name, .. } => matches!(
-            name,
-            ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)) | ViewTransitionName::Value
-        ),
+        | RuleExpression::DynamicViewTransitionUse { name, .. } => {
+            matches!(name, ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)))
+        }
         RuleExpression::Array(elements)
         | RuleExpression::Group {
             inputs: elements, ..

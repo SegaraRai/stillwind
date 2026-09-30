@@ -114,10 +114,16 @@ impl From<ModuleSpecifier> for NativeModuleSpecifier {
     }
 }
 
-/// Span of an expression the host must resolve.
+/// Expression range queried for lowering or optional macro recognition.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct NativeTypeProbe {
+    /// True when the query only identifies whether a receiver is a Stillwind macro asset.
+    /// Resolving a fact is optional: without one, the receiver is treated as ordinary
+    /// JavaScript and this query produces no error. Recognized assets can be used to
+    /// diagnose unconsumed macro syntax.
+    #[napi(js_name = "recognition_only")]
+    pub recognition_only: bool,
     /// Inclusive original UTF-8 byte offset of the expression.
     pub start: u32,
     /// Exclusive original UTF-8 byte offset of the expression.

@@ -392,6 +392,7 @@ pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSumm
         scan.type_probes
             .iter()
             .map(|probe| NativeTypeProbe {
+                recognition_only: probe.recognition_only,
                 start: probe.span.start.0,
                 end: probe.span.end.0,
             })
@@ -466,9 +467,15 @@ pub fn summarize_source_input(
             .type_probes
             .iter()
             .map(|span| NativeTypeProbe {
+                recognition_only: false,
                 start: span.start.0,
                 end: span.end.0,
             })
+            .chain(parsed.use_probes.iter().map(|span| NativeTypeProbe {
+                recognition_only: true,
+                start: span.start.0,
+                end: span.end.0,
+            }))
             .collect(),
     ))
 }

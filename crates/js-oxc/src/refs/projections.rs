@@ -7,6 +7,7 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKin
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
 use stillwind_source::{ModuleId, Span};
 
+use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 /// Ref use kind.
@@ -62,6 +63,8 @@ impl<'a> MacroExtractor<'a> {
         if let Expression::CallExpression(call) = expression
             && self.is_style_member(&call.callee, "anchorScope")
         {
+            self.consumed_use_spans
+                .insert(LocalSpan::from(expression.span()));
             let [argument] = call.arguments.as_slice() else {
                 self.diagnostics.push(CompileError::new(
                     CompileErrorKind::InvalidAnchorScope,
@@ -79,6 +82,8 @@ impl<'a> MacroExtractor<'a> {
             Expression::StaticMemberExpression(member)
                 if member.property.name == "positionAnchor" =>
             {
+                self.consumed_use_spans
+                    .insert(LocalSpan::from(expression.span()));
                 (&member.object, RefProjection::PositionAnchor)
             }
             Expression::CallExpression(call) => {
@@ -88,6 +93,7 @@ impl<'a> MacroExtractor<'a> {
                 self.record_type_probe(&member.object);
                 let projection = match member.property.name.as_str() {
                     "asAnchor" => {
+                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
                         let scope = match call.arguments.as_slice() {
                             [] => None,
                             [argument] => {
@@ -103,7 +109,10 @@ impl<'a> MacroExtractor<'a> {
                         };
                         RefProjection::AsAnchor(scope)
                     }
-                    "asContainer" => self.collect_container_type(call)?,
+                    "asContainer" => {
+                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                        self.collect_container_type(call)?
+                    }
                     _ => return None,
                 };
                 (&member.object, projection)

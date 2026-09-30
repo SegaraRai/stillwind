@@ -590,8 +590,6 @@ export type NativeExportedValue =
   value: NativeSymbolicValue }
   | { kind: 'view-transitions'; /** Reachable transition identities. */
   value: NativeSymbolicValue }
-  | { kind: 'view-transition-keys'; /** Reachable transition identities. */
-  value: NativeSymbolicValue }
 
 /** Imports reachable from one export of a module. */
 export interface NativeExportImports {
@@ -1051,8 +1049,15 @@ export interface NativeTypeFact {
   value: NativeExportedValue
 }
 
-/** Span of an expression the host must resolve. */
+/** Expression range queried for lowering or optional macro recognition. */
 export interface NativeTypeProbe {
+  /**
+   * True when the query only identifies whether a receiver is a Stillwind macro asset.
+   * Resolving a fact is optional: without one, the receiver is treated as ordinary
+   * JavaScript and this query produces no error. Recognized assets can be used to
+   * diagnose unconsumed macro syntax.
+   */
+  recognition_only: boolean
   /** Inclusive original UTF-8 byte offset of the expression. */
   start: number
   /** Exclusive original UTF-8 byte offset of the expression. */

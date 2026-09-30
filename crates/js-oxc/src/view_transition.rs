@@ -6,42 +6,37 @@
 //! declaration identity. A use may add a stable key through `.for(key)`, which stays a
 //! user expression rather than being evaluated here.
 //!
-//! Keyed uses are always dynamic in the IR even when only one transition is possible,
-//! because the key expression must be evaluated at runtime for every instance that
-//! renders.
+//! Literal keys fold into CSS; expression keys remain use-site spans for runtime name
+//! emission. Projection calls have no independently materialized value.
 
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
 use stillwind_ir::{
-    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey,
-    ViewTransitionKeyApplication, ViewTransitionName,
+    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };
 use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::Spanned;
 
+use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// Resolves an expression to the view transitions it may denote, and whether the value
-    /// already carries the key its participants are paired under.
+    /// Resolves an expression to its finite view-transition declaration candidates.
     ///
     /// Facts win over local bindings, exactly as for keyframes; `None` means the
     /// expression is not a view-transition value.
     pub(crate) fn view_transition_references(
         &self,
         expression: &Expression<'a>,
-    ) -> Option<(Vec<AssetReference>, bool)> {
+    ) -> Option<Vec<AssetReference>> {
         let expression = expression.get_inner_expression();
         if let Expression::ConditionalExpression(conditional) = expression {
             let consequent = self.view_transition_references(&conditional.consequent);
             let alternate = self.view_transition_references(&conditional.alternate);
-            let (mut refs, keyed) = consequent?;
-            let (alternate, alternate_keyed) = alternate?;
-            if keyed != alternate_keyed {
-                return None;
-            }
+            let mut refs = consequent?;
+            let alternate = alternate?;
             for reference in alternate {
                 if !refs
                     .iter()
@@ -50,64 +45,42 @@ impl<'a> MacroExtractor<'a> {
                     refs.push(reference);
                 }
             }
-            return Some((refs, keyed));
+            return Some(refs);
         }
         let span = expression.span();
         self.record_type_probe(expression);
         if let Some(fact) = self.type_fact(span) {
-            let (value, keyed) = match fact {
-                ExportedValue::ViewTransitions(value) => (value, false),
-                ExportedValue::ViewTransitionKeys(value) => (value, true),
-                _ => return None,
+            let ExportedValue::ViewTransitions(value) = fact else {
+                return None;
             };
             let references = value
                 .finite_candidates()?
                 .iter()
                 .map(|identity| Some(self.asset_reference(identity, span)))
                 .collect::<Option<Vec<AssetReference>>>()?;
-            return Some((references, keyed));
+            return Some(references);
         }
         let Expression::Identifier(identifier) = expression else {
             return None;
         };
         let reference_id = identifier.reference_id.get()?;
         let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        if let Some(transition) = self.view_transition_symbols.get(&symbol_id) {
-            let span = self.source_span(span);
-            let identity = self.identity(AssetKind::ViewTransition, transition);
-            return Some((
-                vec![AssetReference {
-                    label: self.declaration_label(&identity, span),
-                    identity,
-                    span,
-                }],
-                false,
-            ));
-        }
-        // A binding whose `.for(...)` was applied where the transition was declared carries
-        // its key, so the use names itself from the value.
-        let keyed = self.view_transition_key_symbols.get(&symbol_id)?;
+        let transition = self.view_transition_symbols.get(&symbol_id)?;
         let span = self.source_span(span);
-        Some((
-            keyed
-                .iter()
-                .map(|identity| AssetReference {
-                    label: self.declaration_label(identity, span),
-                    identity: identity.clone(),
-                    span,
-                })
-                .collect(),
-            true,
-        ))
+        let identity = self.identity(AssetKind::ViewTransition, transition);
+        Some(vec![AssetReference {
+            label: self.declaration_label(&identity, span),
+            identity,
+            span,
+        }])
     }
 
     /// Recognizes `<transition>` and `<transition>.for(key)` uses.
     ///
     /// A literal key folds here and any other key expression is kept as a user span,
     /// never evaluated. A use that the checker already described through a type fact
-    /// becomes dynamic even when only one candidate remains, and a value that carries a
-    /// key of its own is named from the value at runtime. An empty finite candidate set
-    /// produces no use node.
+    /// becomes dynamic even when only one candidate remains. An empty finite candidate
+    /// set produces no use node.
     pub(crate) fn view_transition_use(
         &mut self,
         expression: &Expression<'a>,
@@ -120,7 +93,8 @@ impl<'a> MacroExtractor<'a> {
             if member.property.name.as_str() != "for" {
                 return None;
             }
-            let (transitions, _) = self.view_transition_references(&member.object)?;
+            let transitions = self.view_transition_references(&member.object)?;
+            self.consumed_use_spans.insert(LocalSpan::from(call.span));
             let key = self.view_transition_key(call)?;
             (
                 self.source_span(member.object.span()),
@@ -128,12 +102,8 @@ impl<'a> MacroExtractor<'a> {
                 ViewTransitionName::Key(key),
             )
         } else {
-            let (transitions, keyed) = self.view_transition_references(expression)?;
-            let name = if keyed {
-                ViewTransitionName::Value
-            } else {
-                ViewTransitionName::None
-            };
+            let transitions = self.view_transition_references(expression)?;
+            let name = ViewTransitionName::None;
             (self.source_span(expression.span()), transitions, name)
         };
         if expression_has_type_fact && matches!(name, ViewTransitionName::None) {
@@ -157,34 +127,9 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Reads the key one `.for(...)` call states.
-    /// Collects one `transition.for(key)` application written outside a `style()` call.
-    ///
-    /// A style-call argument consumes its own `.for`, so only a binding initializer reaches
-    /// here; the value it builds carries the key to the uses that follow.
-    pub(crate) fn collect_view_transition_key_application(
-        &mut self,
-        call: &CallExpression<'a>,
-    ) -> Option<ViewTransitionKeyApplication> {
-        let Expression::StaticMemberExpression(member) = &call.callee else {
-            return None;
-        };
-        if member.property.name.as_str() != "for" {
-            return None;
-        }
-        let (transitions, _) = self.view_transition_references(&member.object)?;
-        let key = self.view_transition_key(call)?;
-        Some(ViewTransitionKeyApplication {
-            call_span: self.source_span(call.span),
-            value: self.source_span(member.object.span()),
-            key,
-            transitions,
-        })
-    }
-
-    ///
-    /// A literal key folds at compile time and any other expression is read by the runtime.
-    /// More than one argument is reported and contributes nothing.
+    /// Reads a use-site key. A literal key folds at compile time and any other
+    /// expression is read by the runtime. More than one argument is reported and
+    /// contributes nothing.
     fn view_transition_key(&mut self, call: &CallExpression<'a>) -> Option<ViewTransitionKey> {
         let argument = match call.arguments.len() {
             0 => return Some(ViewTransitionKey::Literal(String::new())),

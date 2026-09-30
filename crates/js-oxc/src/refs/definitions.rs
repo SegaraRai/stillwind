@@ -16,6 +16,7 @@ use stillwind_ir::{RefDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
 use super::RefUseKind;
+use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -90,6 +91,8 @@ impl<'a> MacroExtractor<'a> {
     /// interpolations). `None` means the expression is not a ref variant, which lets
     /// callers try other forms before reporting an error.
     pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
+        self.consumed_use_spans
+            .insert(LocalSpan::from(expression.span()));
         let (reference, mut prefix) = match expression {
             Expression::TaggedTemplateExpression(tagged) => {
                 if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {

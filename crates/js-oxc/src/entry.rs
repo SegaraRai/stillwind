@@ -41,6 +41,8 @@ pub struct ParsedJavaScript {
     pub framework: Option<AdapterKind>,
     /// Expression spans the host checker should resolve, deduplicated.
     pub type_probes: Vec<Span>,
+    /// Receiver spans queried only to recognize otherwise unconsumed macro syntax.
+    pub use_probes: Vec<Span>,
     /// Fatal errors produced by parsing and extraction.
     pub diagnostics: Vec<CompileError>,
     /// Advisory findings produced by extraction.
@@ -132,7 +134,12 @@ pub(crate) fn parse_with_coordinates(
     crate::demand::collect(
         &result.program,
         semantic.scoping(),
-        &extractor.type_probes.borrow(),
+        &extractor
+            .type_probes
+            .borrow()
+            .union(&extractor.use_probes.borrow())
+            .copied()
+            .collect(),
         &extractor.export_symbols,
         &mut summary,
     );
@@ -148,16 +155,22 @@ pub(crate) fn parse_with_coordinates(
         ref_definitions: extractor.ref_definitions,
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
-        view_transition_key_applications: extractor.view_transition_key_applications,
     };
     lint_findings.extend(validate(&result.program, &module, source.id()));
+    let use_probes = extractor
+        .use_probes
+        .borrow()
+        .difference(&extractor.type_probes.borrow())
+        .map(|span| Span::new(source.id(), span.start, span.end))
+        .collect();
     ParsedJavaScript {
         framework: extractor.adapter,
+        use_probes,
         type_probes: extractor
             .type_probes
             .into_inner()
             .into_iter()
-            .map(|(start, end)| Span::new(source.id(), start, end))
+            .map(|span| Span::new(source.id(), span.start, span.end))
             .collect(),
         diagnostics,
         lint_findings,

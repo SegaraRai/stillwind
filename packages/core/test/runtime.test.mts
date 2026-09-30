@@ -2,23 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import {
-  stillwindEscapedIdentifier,
-  stillwindViewTransitionKey,
-  stillwindViewTransitionName,
-} from "../dist/runtime/react.js";
+import { stillwindEscapedIdentifier, stillwindViewTransitionName } from "../dist/runtime/react.js";
 
 void test("view transition names pair a class token with a key", () => {
-  assert.equal(stillwindViewTransitionName("sw-vt-card"), "");
   assert.equal(stillwindViewTransitionName("sw-vt-card", "hero"), "sw-vt-card-hero");
   assert.equal(stillwindViewTransitionName("sw-vt-card", "item 1"), "sw-vt-card-item\\ 1");
-  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", w: 7 }), "sw-vt-card-7");
+  assert.equal(stillwindViewTransitionName({ v: "sw-vt-card" }, 7), "sw-vt-card-7");
   assert.equal(stillwindViewTransitionName({ v: "sw-vt-card", w: 7 }, "hero"), "sw-vt-card-hero");
-  assert.deepEqual(stillwindViewTransitionKey({ v: "sw-vt-card" }, "hero"), {
-    v: "sw-vt-card",
-    w: "hero",
-  });
-  assert.throws(() => stillwindViewTransitionName({}), TypeError);
+  assert.throws(() => stillwindViewTransitionName({}, "hero"), TypeError);
 });
 
 void test("escapes identifiers the way the compiler does", () => {

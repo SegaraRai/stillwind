@@ -217,9 +217,9 @@ derived の規則が base のリストを置き換える（slot を call 横断�
 導出は宣言ごとに一意な名前を得るための便宜であり、名前と宣言の対応関係を意味しない。
 別の宣言が同じ値を書くことも、リテラル名で別コンポーネントと pairing することも自由。
 
-- 宣言の外（`export const keyed = vt.for(id)` 等）では、リテラルなら `{v:"…", w:"…"}`、
-  動的なら `stillwindViewTransitionKey(vt, id)` 呼び出しに書き換える
-  （runtime に `.for` メソッドを置かない）。
+- `.for(key?)` は `style()` の対応する入力位置でのみ消費する。
+  完成した `style(vt.for(id))` の props、または `{ transition: vt, key: id }` の
+  普通のデータを保持し、使用先の `style()` で消費する。
 
 ### 3.7 エスケープ
 

@@ -55,10 +55,6 @@ pub(super) const KEYFRAMES_KEY: &str = "k";
 /// its participants.
 pub(super) const VIEW_TRANSITION_CLASS_KEY: &str = "v";
 
-/// Object key under which a keyed view-transition value carries the key its
-/// participants pair under.
-pub(super) const VIEW_TRANSITION_KEY: &str = "w";
-
 /// One `style()` call being lowered.
 ///
 /// The emitter accumulates state rather than building a tree in one pass, because the
@@ -143,7 +139,6 @@ pub(super) struct CallEmitterInputs<'a> {
     /// Referenced runtime identities used to retain declarations that need runtime
     /// values.
     pub runtime_assets: &'a mut BTreeSet<IdentityId>,
-    /// Definition identities whose CSS the module must emit, recorded by every use and
-    /// by `.for` applications.
+    /// Definition identities whose CSS the module must emit, recorded by each use.
     pub required_definitions: &'a mut BTreeSet<IdentityId>,
 }

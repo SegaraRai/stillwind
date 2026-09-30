@@ -14,6 +14,38 @@ Stillwind のマクロは UI を記述するための宣言である。値を計
 生成された語彙ファイルはこのモジュールを拡張し、各フレームワークの型に共通で反映される。
 コンパイル後の props 合成は `packages/core/src/runtime/` が担当する。
 
+## 実体化と消費位置
+
+単独で実体化して保持・受け渡しできるのは、完成した `style(...inputs)` と
+`style.ref(...)` / `style.keyframes(...)` / `style.viewTransition(...)` の宣言である。
+宣言は binding 初期化子に置く。`style()` の直接ネストは禁止し、完成した props を
+変数経由で composition する。
+
+次の構文は `style()` 内の対応する入力位置で直接消費する。
+
+- `ref.asAnchor(scope?)`、`ref.asContainer(type?)`、`ref.positionAnchor`、
+  `style.anchorScope(scope)`、`keyframes(options)`、`transition.for(key?)` は
+  class/rule を供給できる入力位置に置く。対応する配列・条件分岐・variant value も含む。
+- `ref()`、`ref("hover:")`、ref タグ、`ref.at(query)`、ref.at タグは
+  variant object の計算キー、または対応する utility template 補間に置く。
+
+`style()` 内にあっても属性値、任意関数の引数などでは消費できない。
+未消費の keyframes call は `SHANIMATION002`、その他の projection / ref variant は
+`SHMACRO003` で拒否する。判定には解決済み binding と checker の receiver 情報を使う。
+公開の use 型は入力構文の型検査用であり、独立した実行時の値を保証しない。
+
+```ts
+const transition = style.viewTransition({ old: "opacity-0" });
+const props = style(transition.for(key));
+const reused = style(props, "block");
+
+const data = { transition, key };
+const composed = style({ "hover:": data.transition.for(data.key) });
+```
+
+`const use = transition.for(key)` のように projection を保存せず、完成した props、
+または declaration と引数を持つ普通のデータを再利用する。
+
 ## 実行時の値式
 
 `style()` の条件式、`class`、カスタムプロパティ、`aria-*` / `data-*` の値、合成元 style、
@@ -63,7 +95,6 @@ const props = style({ "--progress": value });
 | \x60keyframes(options)\x60                                              | options は文字列リテラル。receiver は有限の animation 候補。use は `style()` の class 入力としてのみ置ける                                                                         |
 | `style.viewTransition(definition)`                                      | 静的 object。`group` は animation option、`old` / `new` / `imagePair` は utility 文字列リテラル。条件 variant は 4 bucket とも media / supports のみ可。値は `{v:"<class token>"}` |
 | `transition.for(key?)`                                                  | receiver は有限の transition 候補。リテラル key はコンパイル時に畳み込み、式は実行時。名前は `serializeIdentifier(token + "-" + String(key))`                                      |
-| `transition.for(key)`                                                   | transition は有限候補、key は純粋な `string` / `number` の値式                                                                                                                     |
 | `ref.asAnchor(scope?)` / `.positionAnchor` / `style.anchorScope(scope)` | ref は有限候補。receiver は純粋な選択式                                                                                                                                            |
 | `ref.asContainer(type?)`                                                | type は省略可能。CSS container-type の有限 keyword union の文字列リテラル                                                                                                          |
 | `ref.at(query)` / ref.at タグ                                           | ref は有限候補。query は静的文字列で variant を返す                                                                                                                                |

@@ -52,8 +52,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 | `style.keyframes(definition)` の frame                                 | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`     |
 | `keyframes(options)`                                                   | `ClassExpression::KeyframesUse { animation, options }`（option 列）                          |
 | `style.viewTransition(definition)`                                     | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列 |
-| `transition.for(key?)`（`style()` の外）                               | `ViewTransitionKeyApplication { call_span, value, key, transitions }`                        |
-| `transition.for(key?)`（`style()` の中）/ キー付きバインディング       | `ViewTransitionName::Key(ViewTransitionKey::…)` / `ViewTransitionName::Value`                |
+| `transition.for(key?)`（`style()` の対応する入力位置）                 | `ViewTransitionName::Key(ViewTransitionKey::…)`                                              |
 | `StillwindDeclarationIdentity` 引数                                    | IR 表現なし（checker メタデータ）                                                            |
 
 ## 1. 現状の問題
@@ -110,8 +109,8 @@ media / supports の入れ子を作る同じ形が、`motion/keyframes.rs`（ani
 
 宣言の置換はどちらも `runtime_assets.contains(...)` で決まる。静的 animation use は
 `runtime_assets` に入らないので宣言は `undefined` になり、静的 VT use は入るので `{v:...}` が
-残る。VT 側は key が値を通ってくる `ViewTransitionName::Value` で値の読み出しが要るためだが、
-それ以外の静的 use も含む保守的な近似になっている。§8 で決める。
+残る場合がある。宣言値の保持は use-site の runtime identity 読み取りに従う。
+`.for(key?)` の独立した keyed 値は実体化しない。現在の契約は [macro-contract](macro-contract.md) を参照。
 
 ## 2. 守るべき最小原則
 
@@ -348,8 +347,8 @@ aliased import と member 受信の回帰テストを追加する。実装後は
 
 ## 8. 未決
 
-- 静的 VT use を `runtime_assets` に入れ続けるか。値を読むのは動的 identity、動的 key、
-  `ViewTransitionName::Value` だけなので絞れるが、出力（宣言が `undefined` になるか）が変わる。
+- 静的 VT use の `runtime_assets` 登録を絞るか。use-site の runtime identity 読み取りに
+  必要な場合へ絞ると、出力（宣言が `undefined` になるか）が変わる。
   絞るなら単独のコミットにし、fixture の期待値を更新する。
 - `utilities/render.rs` と `style_variants.rs` の step 解釈をどこまで共有するか。少なくとも
   media / supports の入れ子は共有する（§5.3）。

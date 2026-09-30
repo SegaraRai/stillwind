@@ -15,6 +15,8 @@ use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_ir::ModuleIr;
 use stillwind_source::{FileId, Span};
 
+use crate::local_span::LocalSpan;
+
 /// Returns suppressible contract findings at original-source UTF-8 spans.
 /// `program` and `module` must describe the same buffer identified by `file`.
 /// Only extracted macro calls are checked; absence of a diagnostic does not prove
@@ -37,7 +39,7 @@ pub(crate) fn validate(program: &Program<'_>, module: &ModuleIr, file: FileId) -
                 .iter()
                 .map(|item| item.call_span),
         )
-        .map(|span| (span.start.0, span.end.0))
+        .map(|span| LocalSpan::new(span.start.0, span.end.0))
         .collect();
     let mut collector = Collector {
         roots,
@@ -61,14 +63,14 @@ pub(crate) fn validate(program: &Program<'_>, module: &ModuleIr, file: FileId) -
 /// Locates macro roots while still traversing functions containing independent macros.
 struct Collector {
     /// Unvisited original-buffer UTF-8 call ranges.
-    roots: BTreeSet<(u32, u32)>,
+    roots: BTreeSet<LocalSpan>,
     violations: Violations,
 }
 
 impl<'a> Visit<'a> for Collector {
     fn visit_expression(&mut self, expression: &Expression<'a>) {
         let span = expression.span();
-        if self.roots.remove(&(span.start, span.end)) {
+        if self.roots.remove(&LocalSpan::from(span)) {
             self.violations.visit_expression(expression);
         }
         walk::walk_expression(self, expression);

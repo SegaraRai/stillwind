@@ -42,8 +42,6 @@ pub(crate) enum RuntimeHelper {
     ToFragment,
     /// The `stillwindViewTransitionName` runtime export.
     ViewTransitionName,
-    /// The `stillwindViewTransitionKey` runtime export.
-    ViewTransitionKey,
 }
 
 impl RuntimeHelper {
@@ -60,7 +58,6 @@ impl RuntimeHelper {
             Self::StyleValue => "stillwindStyleValue",
             Self::ToFragment => "stillwindToFragment",
             Self::ViewTransitionName => "stillwindViewTransitionName",
-            Self::ViewTransitionKey => "stillwindViewTransitionKey",
         }
     }
 

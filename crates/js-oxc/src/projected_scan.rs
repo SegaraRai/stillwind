@@ -82,6 +82,15 @@ pub(crate) fn parse_projected(
             Ok(mapped.original)
         })
         .collect::<Result<_, ProjectionError>>()?;
+    parsed.use_probes = parsed
+        .use_probes
+        .into_iter()
+        .filter_map(|span| {
+            let mapped = normalized.original_span(span).ok()?;
+            provenance.push(mapped);
+            Some(mapped.original)
+        })
+        .collect();
     for diagnostic in &mut parsed.diagnostics {
         for label in &mut diagnostic.labels {
             label.span = map_span(label.span).unwrap_or(projection.original.full_span());

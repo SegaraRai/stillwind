@@ -9,7 +9,7 @@
 //! macro. Identity is created in [`MacroExtractor::identity`], which always anchors to
 //! the declaration's own span in this module.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use oxc::ast::ast::ModuleExportName;
@@ -18,7 +18,6 @@ use oxc::semantic::{Scoping, SymbolId};
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     AdapterKind, KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition,
-    ViewTransitionKeyApplication,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
@@ -26,6 +25,7 @@ use stillwind_semantic::{
 };
 use stillwind_source::{ModuleId, SourceFile, Span, Spanned};
 
+use crate::local_span::LocalSpan;
 use crate::refs::RefUse;
 
 impl<'a> MacroExtractor<'a> {
@@ -55,11 +55,9 @@ impl<'a> MacroExtractor<'a> {
             ref_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),
             keyframes_declarations: Vec::new(),
-            keyframes_use_spans: BTreeSet::new(),
+            consumed_use_spans: BTreeSet::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
-            view_transition_key_applications: Vec::new(),
-            view_transition_key_symbols: HashMap::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
@@ -73,17 +71,20 @@ impl<'a> MacroExtractor<'a> {
             export_symbols: Vec::new(),
             type_facts: type_facts
                 .iter()
-                .map(|fact| ((fact.start, fact.end), fact.value.clone()))
+                .map(|fact| (LocalSpan::new(fact.start, fact.end), fact.value.clone()))
                 .collect(),
             imported_assets,
             type_probes: RefCell::default(),
+            use_probes: RefCell::default(),
+            probing_use: Cell::new(false),
         }
     }
 
     /// Looks up a fact by its original UTF-8 expression range.
     pub(crate) fn type_fact(&self, span: oxc::span::Span) -> Option<&ExportedValue> {
         let span = (self.coordinates)(self.source_span(span))?;
-        self.type_facts.get(&(span.start.0, span.end.0))
+        self.type_facts
+            .get(&LocalSpan::new(span.start.0, span.end.0))
     }
 
     /// Creates the declaration-site identity of an asset declared in this module.
@@ -233,16 +234,12 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
     /// Animation declarations in declaration order.
     pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
-    /// Call spans the class-expression lowering claimed as keyframes uses. A call
-    /// outside this set is one the compiler cannot consume.
-    pub(crate) keyframes_use_spans: BTreeSet<(u32, u32)>,
+    /// AST-buffer ranges consumed at supported projection or variant positions.
+    pub(crate) consumed_use_spans: BTreeSet<LocalSpan>,
     /// Symbols bound to a view-transition declaration, with their names.
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
     /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
-    pub(crate) view_transition_key_applications: Vec<ViewTransitionKeyApplication>,
-    /// Bindings whose value is a transition that already carries its key, by symbol.
-    pub(crate) view_transition_key_symbols: HashMap<SymbolId, Vec<IdentityId>>,
     /// Symbolic value of each local binding the pass could resolve.
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
@@ -265,9 +262,13 @@ pub(crate) struct MacroExtractor<'a> {
     /// Exported bindings as symbol plus exported name, in visit order.
     pub(crate) export_symbols: Vec<(SymbolId, String)>,
     /// Checker facts keyed by original UTF-8 expression range.
-    pub(crate) type_facts: HashMap<(u32, u32), ExportedValue>,
-    /// Spans the checker should resolve, accumulated during the visit.
-    pub(crate) type_probes: RefCell<BTreeSet<(u32, u32)>>,
+    pub(crate) type_facts: HashMap<LocalSpan, ExportedValue>,
+    /// AST-buffer ranges the checker should resolve, accumulated during the visit.
+    pub(crate) type_probes: RefCell<BTreeSet<LocalSpan>>,
+    /// AST-buffer receiver ranges used to identify Stillwind assets; missing facts
+    /// leave the receiver as ordinary JavaScript without a diagnostic.
+    pub(crate) use_probes: RefCell<BTreeSet<LocalSpan>>,
+    pub(crate) probing_use: Cell<bool>,
     /// Metadata for identities declared in other modules.
     pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }
