@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{ConditionalBranches, StyleInput};
 
 use super::RefUseKind;
@@ -56,7 +56,7 @@ impl MacroExtractor<'_> {
                     .filter(|ref_use| ref_use.projection == RefUseKind::PositionAnchor)
                 {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingAnchor { name: name.clone() },
+                        LintDiagnostic::MissingAnchor { name: name.clone() },
                         ref_use.span,
                     ));
                 }
@@ -68,7 +68,7 @@ impl MacroExtractor<'_> {
                 ref_use.projection == RefUseKind::ContainerQueryVariant && !has_container
             }) {
                 self.lint_findings.push(LintFinding::new(
-                    LintKind::MissingContainer { name: name.clone() },
+                    LintDiagnostic::MissingContainer { name: name.clone() },
                     ref_use.span,
                 ));
             }
@@ -92,7 +92,7 @@ impl MacroExtractor<'_> {
                     owning_call.is_some_and(|call| call.inputs.iter().any(has_composition));
                 if !attached && !uncertain && owning_call.is_some() {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingRefAttachment { name: name.clone() },
+                        LintDiagnostic::MissingRefAttachment { name: name.clone() },
                         provider.span,
                     ));
                 }
@@ -119,7 +119,7 @@ impl MacroExtractor<'_> {
                         .any(|anchor_path| is_strict_ancestor(anchor_path, path))
                 {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingRefAncestor { name: name.clone() },
+                        LintDiagnostic::MissingRefAncestor { name: name.clone() },
                         ref_use.span,
                     ));
                 }
@@ -158,7 +158,7 @@ impl MacroExtractor<'_> {
                 .collect::<Vec<_>>();
             if providers.is_empty() {
                 self.lint_findings.push(LintFinding::new(
-                    LintKind::UnattachedBoundary {
+                    LintDiagnostic::UnattachedBoundary {
                         name: definition.binding.value.clone(),
                         boundary: boundary.binding.value.clone(),
                     },
@@ -188,7 +188,7 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, reference_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::MissingBoundaryAncestor {
+                        LintDiagnostic::MissingBoundaryAncestor {
                             boundary: boundary.binding.value.clone(),
                             name: definition.binding.value.clone(),
                         },
@@ -215,7 +215,7 @@ impl MacroExtractor<'_> {
                         .is_some_and(|path| is_strict_ancestor(path, target_path))
                 }) {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::SelectorOutsideBoundary {
+                        LintDiagnostic::SelectorOutsideBoundary {
                             name: definition.binding.value.clone(),
                             boundary: boundary.binding.value.clone(),
                         },

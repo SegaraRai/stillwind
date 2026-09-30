@@ -15,7 +15,7 @@ use stillwind_design_system::{
     UtilityResolutionError, builtin_property_definitions, builtin_utility_token_prefixes,
     compare_variant_sequences, resolve_variant,
 };
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_source::{FileId, ModuleId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
@@ -208,7 +208,7 @@ impl DesignSystemQuery {
             Vec::new()
         } else {
             vec![LintFinding::new(
-                LintKind::UnresolvedCandidate {
+                LintDiagnostic::UnresolvedCandidate {
                     candidate: candidate.to_owned(),
                     classification: unresolved_utility_kind(candidate),
                 },
@@ -244,7 +244,7 @@ impl DesignSystemQuery {
             Ok(artifact) => artifact.rules,
             Err(offset) => {
                 diagnostics.push(LintFinding::new(
-                    LintKind::InvalidCandidateCss {
+                    LintDiagnostic::InvalidCandidateCss {
                         offset,
                         classification: unresolved_utility_kind(candidate),
                     },
@@ -389,7 +389,7 @@ mod tests {
     use std::sync::Arc;
 
     use stillwind_design_system::DesignSystemOptions;
-    use stillwind_diagnostics::{LintKind, UtilityFailure};
+    use stillwind_diagnostics::{LintDiagnostic, UtilityFailure};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -627,8 +627,8 @@ mod tests {
                 query.resolve_candidate(candidate).unwrap().diagnostics
             );
             assert_eq!(
-                findings[0].kind,
-                LintKind::UnresolvedCandidate {
+                findings[0].diagnostic,
+                LintDiagnostic::UnresolvedCandidate {
                     candidate: candidate.into(),
                     classification
                 }

@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceError, Span};
@@ -334,9 +334,9 @@ impl CallEmitter<'_> {
             return;
         }
         let kind = match self.view_transition_name_paths.maximum() {
-            0 => LintKind::MissingViewTransitionName,
+            0 => LintDiagnostic::MissingViewTransitionName,
             1 => return,
-            count => LintKind::DuplicateViewTransitionName { count },
+            count => LintDiagnostic::DuplicateViewTransitionName { count },
         };
         self.lint_findings
             .push(LintFinding::new(kind, self.call.span));

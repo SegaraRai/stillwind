@@ -61,10 +61,10 @@ pub struct ModuleUpdate {
 }
 
 /// Whether one finding comes from the composition-order comparison.
-fn is_composition_order_lint(kind: &LintKind) -> bool {
+fn is_composition_order_lint(kind: LintKind) -> bool {
     matches!(
         kind,
-        LintKind::AmbiguousBaseOrder { .. } | LintKind::ImportedBaseInterference { .. }
+        LintKind::AmbiguousBaseOrder | LintKind::ImportedBaseInterference
     )
 }
 
@@ -462,7 +462,7 @@ impl ProjectSession {
             };
             artifact
                 .lint_findings
-                .retain(|finding| !is_composition_order_lint(&finding.kind));
+                .retain(|finding| !is_composition_order_lint(finding.kind()));
             artifact.lint_findings.extend(findings);
         }
     }

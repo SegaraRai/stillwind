@@ -61,10 +61,10 @@ pub struct BindingOutput {
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
     #[napi(
-        js_name = "lint_policy",
+        js_name = "lint_settings",
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
     )]
-    pub lint_policy: BTreeMap<String, String>,
+    pub lint_settings: BTreeMap<String, String>,
 }
 
 /// One source-resolved diagnostic transferred from the common reporting layer.
@@ -581,10 +581,10 @@ pub struct ProjectModuleOutput {
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
     #[napi(
-        js_name = "lint_policy",
+        js_name = "lint_settings",
         ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
     )]
-    pub lint_policy: BTreeMap<String, String>,
+    pub lint_settings: BTreeMap<String, String>,
 }
 
 impl ProjectModuleOutput {
@@ -601,7 +601,7 @@ impl ProjectModuleOutput {
             reports,
             rejected_names,
             lint_findings,
-            lint_policy,
+            lint_settings,
         } = output;
         Self {
             composition,
@@ -616,7 +616,7 @@ impl ProjectModuleOutput {
             reports,
             rejected_names,
             lint_findings,
-            lint_policy,
+            lint_settings,
         }
     }
 }

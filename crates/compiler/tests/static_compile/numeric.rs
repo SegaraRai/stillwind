@@ -5,7 +5,7 @@
 //! arbitrary values and the property families that must reject them.
 
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{LintKind, UtilityFailure};
+use stillwind_diagnostics::{LintDiagnostic, UtilityFailure};
 
 use super::*;
 
@@ -60,7 +60,7 @@ proptest! {
         let unknown = result
             .lint_findings
             .iter()
-            .filter(|finding| matches!(finding.kind, LintKind::UnresolvedUtility { classification: UtilityFailure::Unknown, .. }))
+            .filter(|finding| matches!(finding.diagnostic, LintDiagnostic::UnresolvedUtility { classification: UtilityFailure::Unknown, .. }))
             .count();
         prop_assert_eq!(unknown, 4, "{:#?}", result.diagnostics);
     }

@@ -3,7 +3,7 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintDiagnostic, LintFinding};
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
 use stillwind_source::{ModuleId, Span};
 
@@ -243,7 +243,7 @@ impl<'a> MacroExtractor<'a> {
                                 && existing.binding == definition.binding
                         }) {
                             self.lint_findings.push(LintFinding::new(
-                                LintKind::AnchorScopeList {
+                                LintDiagnostic::AnchorScopeList {
                                     detail: "contains duplicate ref identities".into(),
                                 },
                                 self.source_span(element.span()),
@@ -255,7 +255,7 @@ impl<'a> MacroExtractor<'a> {
                 }
                 if refs.is_empty() {
                     self.lint_findings.push(LintFinding::new(
-                        LintKind::AnchorScopeList {
+                        LintDiagnostic::AnchorScopeList {
                             detail: "is empty; no scope declaration is emitted".into(),
                         },
                         span,

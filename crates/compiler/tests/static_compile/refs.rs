@@ -6,7 +6,7 @@
 //! which cannot hold the required ancestry is rejected.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::LintKind;
+use stillwind_diagnostics::LintDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -212,7 +212,7 @@ const panel = style(popover.positionAnchor());"#,
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::MissingAnchor { .. }))
+            .any(|item| matches!(item.diagnostic, LintDiagnostic::MissingAnchor { .. }))
     );
     assert!(!result.css.is_empty());
 }
@@ -454,10 +454,10 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
     );
 
     assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|item| matches!(item.kind, LintKind::SelectorOutsideBoundary { .. })),
+        result.lint_findings.iter().any(|item| matches!(
+            item.diagnostic,
+            LintDiagnostic::SelectorOutsideBoundary { .. }
+        )),
         "{:#?}",
         result.lint_findings
     );
@@ -489,10 +489,10 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
     );
 
     assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|item| matches!(item.kind, LintKind::MissingBoundaryAncestor { .. })),
+        result.lint_findings.iter().any(|item| matches!(
+            item.diagnostic,
+            LintDiagnostic::MissingBoundaryAncestor { .. }
+        )),
         "{:#?}",
         result.lint_findings
     );

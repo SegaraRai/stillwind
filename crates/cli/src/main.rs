@@ -22,7 +22,6 @@
     )
 )]
 
-use std::collections::BTreeMap;
 use std::{env, fs};
 
 use serde::Serialize;
@@ -33,7 +32,7 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
-    AggregateError, CompileErrorKind, LintSeverity, Reporter, ResolvedDiagnostic,
+    AggregateError, CompileErrorKind, LintSettings, Reporter, ResolvedDiagnostic,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -107,7 +106,7 @@ struct CliOutput {
     /// Suppressible lint findings with resolved source locations.
     lint_findings: Vec<ResolvedDiagnostic>,
     /// Effective lint policy, keyed by rule name.
-    lint_policy: BTreeMap<String, LintSeverity>,
+    lint_settings: LintSettings,
 }
 
 /// Rewrites emitted resource URLs to be relative to the theme's directory.
@@ -242,7 +241,7 @@ fn run() -> Result<(), CommandError> {
         &result.diagnostics,
         &result.lint_findings,
         &sources,
-        result.lint_policy.clone(),
+        result.lint_settings.clone(),
     )?;
     let diagnostic_count = result.diagnostics.len();
     let mut reports = reports.diagnostics;
@@ -267,7 +266,7 @@ fn run() -> Result<(), CommandError> {
         classes: result.classes,
         diagnostics,
         lint_findings,
-        lint_policy: result.lint_policy,
+        lint_settings: result.lint_settings,
     };
     println!("{}", serde_json::to_string(&output)?);
     Ok(())

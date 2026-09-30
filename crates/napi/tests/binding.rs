@@ -66,11 +66,11 @@ fn lint_severities_keep_their_host_protocol_spellings() {
         let output = compile_source_input(&compile_input(
             "import {style} from 'stillwind/react'; const props = style('flex');",
             "entry.tsx",
-            &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{custom: {severity};}}"),
+            &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{valid-anchor-scope: {severity};}}"),
         ), &CompilerOptions::default()).unwrap();
-        assert_eq!(output.lint_policy["custom"], severity);
+        assert_eq!(output.lint_settings["valid-anchor-scope"], severity);
         let json = serde_json::to_value(output).unwrap();
-        assert_eq!(json["lint_policy"]["custom"], severity);
+        assert_eq!(json["lint_settings"]["valid-anchor-scope"], severity);
     }
 }
 

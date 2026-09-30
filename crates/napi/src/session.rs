@@ -24,7 +24,7 @@ use stillwind_compiler::{
 use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::{CompileError, DiagnosticBatch, Reporter};
+use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
 use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
@@ -86,7 +86,7 @@ fn resolve_error_map(
     let mut batches = BTreeMap::new();
     let mut lines = Vec::new();
     for (module, errors) in diagnostics {
-        let batch = Reporter::collect(errors, &[], sources, BTreeMap::new())
+        let batch = Reporter::collect(errors, &[], sources, LintSettings::default())
             .map_err(|error| Error::from_reason(error.to_string()))?;
         for diagnostic in &batch.diagnostics {
             lines.push(format!(
@@ -242,7 +242,7 @@ impl NativeDesignSystemLoader {
                         std::slice::from_ref(&compiled),
                         &[],
                         self.loader.sources(),
-                        BTreeMap::new(),
+                        LintSettings::default(),
                     )
                     .map_err(|failure| Error::from_reason(failure.to_string()))?
                     .diagnostics
@@ -704,7 +704,7 @@ impl NativeProjectSession {
             } else {
                 CompileResult {
                     diagnostics: update.diagnostics,
-                    lint_policy: snapshot.theme().config.lint_rules.clone(),
+                    lint_settings: snapshot.theme().config.lint_settings.clone(),
                     ..CompileResult::default()
                 }
             };

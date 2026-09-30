@@ -182,7 +182,7 @@ impl CompiledModule {
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
-            lint_policy: snapshot.theme().config.lint_rules.clone(),
+            lint_settings: snapshot.theme().config.lint_settings.clone(),
         }
     }
 }

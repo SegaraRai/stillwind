@@ -1,7 +1,7 @@
 //! Suppressible macro contracts preserve editable output and JavaScript scope.
 
 use stillwind_compiler::{Compiler, CompilerOptions};
-use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -29,10 +29,12 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
                 result
                     .lint_findings
                     .iter()
-                    .any(|finding| finding.kind == LintKind::MacroExecutionBoundary)
+                    .any(|finding| finding.diagnostic == LintDiagnostic::MacroExecutionBoundary)
             );
             assert_eq!(
-                result.lint_policy["macro-execution-boundary"],
+                result
+                    .lint_settings
+                    .reporting_severity(LintKind::MacroExecutionBoundary),
                 LintSeverity::Deny
             );
             let code = result.apply_to_source(&source).unwrap();
@@ -84,12 +86,18 @@ fn contract_severity_and_suppression_leave_transforms_available() {
             assert!(result.diagnostics.is_empty(), "{result:#?}");
             assert!(!result.transforms.is_empty());
             assert_eq!(
-                result.lint_policy["macro-argument-mutation"].as_str(),
+                result
+                    .lint_settings
+                    .reporting_severity(LintKind::MacroArgumentMutation)
+                    .as_str(),
                 level
             );
             assert_eq!(result.lint_findings.is_empty(), suppressed);
             let serialized = serde_json::to_value(&result).unwrap();
-            assert_eq!(serialized["lint_policy"]["macro-argument-mutation"], level);
+            assert_eq!(
+                serialized["lint_settings"]["macro-argument-mutation"],
+                level
+            );
         }
     }
 }

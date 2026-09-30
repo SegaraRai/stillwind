@@ -7,7 +7,7 @@
 //! selector.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::LintKind;
+use stillwind_diagnostics::LintDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -303,10 +303,10 @@ export const View = () => <><section {...style(menu)}><button {...style(trigger)
         &CompilerOptions::default(),
     );
     assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|finding| matches!(finding.kind, LintKind::SelectorOutsideBoundary { .. })),
+        result.lint_findings.iter().any(|finding| matches!(
+            finding.diagnostic,
+            LintDiagnostic::SelectorOutsideBoundary { .. }
+        )),
         "{:?}",
         result.lint_findings
     );

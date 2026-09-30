@@ -6,7 +6,7 @@
 //! their independent props channels. Final framework fields and helper imports are
 //! selected later by fragment rendering.
 
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
 };
@@ -31,7 +31,12 @@ impl CallEmitter<'_> {
         let StyleVariant::Prefix(prefix) = variant else {
             return;
         };
-        if !self.theme.config.lint_enabled("require-element-scope") {
+        if !self
+            .theme
+            .config
+            .lint_settings
+            .enabled_for_detection(LintKind::RequireElementScope)
+        {
             return;
         }
         let Some(variants) = parse_prefix(prefix) else {
@@ -43,7 +48,7 @@ impl CallEmitter<'_> {
             .find_map(|variant| document_scoped_selector(variant, theme))
         {
             self.lint_findings.push(LintFinding::new(
-                LintKind::DocumentScopedSelector { selector },
+                LintDiagnostic::DocumentScopedSelector { selector },
                 prefix.span,
             ));
         }

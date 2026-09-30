@@ -10,11 +10,9 @@
 //! and rejects failed compilations. This module defines transport values; compilation,
 //! slot assembly, and host resource resolution belong to their respective callers.
 
-use std::collections::BTreeMap;
-
 use serde::Serialize;
 
-use stillwind_diagnostics::{CompileError, LintFinding, LintSeverity};
+use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
 use stillwind_ir::StyleDependency;
 use stillwind_source::SourceFile;
 
@@ -65,8 +63,8 @@ pub struct CompileResult {
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
-    /// Rule name to severity map in effect for the lint findings above.
-    pub lint_policy: BTreeMap<String, LintSeverity>,
+    /// Settings used to report the lint findings above; serialized as rule names to severities.
+    pub lint_settings: LintSettings,
 }
 
 impl CompileResult {

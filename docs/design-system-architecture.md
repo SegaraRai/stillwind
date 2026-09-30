@@ -132,7 +132,7 @@ struct DesignSystemData {
     imports: FrameworkImports,
     layers: LayerConfiguration,
     candidate_order: CandidateOrder,
-    lint_policy: LintPolicy,
+    lint_settings: LintSettings,
 
     diagnostics: Vec<DesignSystemDiagnostic>,
     fingerprints: DefinitionFingerprints,
@@ -171,7 +171,7 @@ semantic groups and definitions:
 struct DefinitionFingerprints {
     config: Fingerprint,
     ordering: Fingerprint,
-    lint_policy: Fingerprint,
+    lint_settings: Fingerprint,
     theme_tokens: BTreeMap<ThemeTokenId, Fingerprint>,
     utilities: BTreeMap<UtilityDefinitionId, Fingerprint>,
     variants: BTreeMap<VariantDefinitionId, Fingerprint>,

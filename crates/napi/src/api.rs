@@ -185,7 +185,7 @@ pub(super) fn binding_output_with_batch(
         &result.diagnostics,
         &result.lint_findings,
         sources,
-        result.lint_policy.clone(),
+        result.lint_settings.clone(),
     )?;
     let diagnostics = resolved
         .diagnostics
@@ -230,10 +230,15 @@ pub(super) fn binding_output_with_batch(
             diagnostics,
             reports,
             lint_findings,
-            lint_policy: result
-                .lint_policy
-                .into_iter()
-                .map(|(rule, severity)| (rule, severity.as_str().to_owned()))
+            lint_settings: result
+                .lint_settings
+                .iter()
+                .map(|config| {
+                    (
+                        config.kind().name().to_owned(),
+                        config.severity().as_str().to_owned(),
+                    )
+                })
                 .collect(),
         },
         resolved,

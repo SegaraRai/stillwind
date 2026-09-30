@@ -45,7 +45,7 @@ for (const adapter of ["svelte", "astro"]) {
     const output = await compileFixture(source, "NoJsx.tsx");
     assert.deepEqual(output.diagnostics, []);
     assert.ok(output.code);
-    assert.equal(output.lint_policy[rule], "warn");
+    assert.equal(output.lint_settings[rule], "warn");
     assert.equal(output.lint_findings.length, 1);
     const finding = output.lint_findings[0]!;
     assert.equal(finding.rule, rule);
@@ -167,7 +167,7 @@ void test("CSS configures framework import warn, off, and deny with next-line su
         const output = await compile();
         assert.ok(output?.code);
         assert.deepEqual(output.diagnostics, []);
-        assert.equal(output.lint_policy[rule], level ?? "warn");
+        assert.equal(output.lint_settings[rule], level ?? "warn");
         const active = !suppressed && level !== "off";
         assert.equal(output.lint_findings.length, active ? 1 : 0);
         assert.equal(warnings.length, active ? 1 : 0);

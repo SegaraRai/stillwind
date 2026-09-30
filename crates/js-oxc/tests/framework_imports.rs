@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
 };
@@ -50,7 +50,7 @@ fn original_formats_check_value_macro_imports_even_without_calls_or_jsx() {
             );
             if expected {
                 let finding = &scan.lint_findings[0];
-                assert_eq!(finding.kind.code(), "framework-import-mismatch");
+                assert_eq!(finding.code(), "framework-import-mismatch");
                 assert_eq!(
                     scan.source.slice(finding.labels[0].span).unwrap(),
                     format!("'{import}'")
@@ -121,7 +121,7 @@ fn finalization_without_facts_preserves_one_finding() {
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
     assert_eq!(analysis.lint_findings.len(), 1);
     assert!(matches!(
-        analysis.lint_findings[0].kind,
-        LintKind::FrameworkImportMismatch { .. }
+        analysis.lint_findings[0].diagnostic,
+        LintDiagnostic::FrameworkImportMismatch { .. }
     ));
 }

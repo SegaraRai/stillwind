@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use cssparser::Parser;
 
 use stillwind_css::{declaration_ranges, properties_interfere};
-use stillwind_diagnostics::{Label, LintFinding, LintKind};
+use stillwind_diagnostics::{Label, LintDiagnostic, LintFinding};
 use stillwind_source::Span;
 
 use super::super::literal::LiteralContribution;
@@ -149,7 +149,7 @@ impl CallEmitter<'_> {
                     && reported.insert((previous.span.start.0, current.span.start.0))
                 {
                     let mut finding = LintFinding::new(
-                        LintKind::ProviderConflict {
+                        LintDiagnostic::ProviderConflict {
                             properties: properties.join(", "),
                         },
                         current.span,

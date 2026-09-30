@@ -73,6 +73,30 @@ const oneShotInput = (source, moduleId, theme) => ({
   css: cssInput(theme),
 });
 
+void test("lint settings preserve rule names and reporting levels across the native boundary", async () => {
+  const { compileSource } = await import(bindingSpecifier);
+  const source = "import {style} from 'stillwind/react'; export const props=style('missing');";
+  for (const severity of ["warn", "deny", "off"]) {
+    const output = compileSource(
+      oneShotInput(
+        source,
+        "lint.tsx",
+        `@stillwind-slot utilities; @stillwind {unknown-utility: ${severity}; typo: deny;}`,
+      ),
+    );
+    assert.deepEqual(output.diagnostics, []);
+    assert.equal(output.lint_settings["unknown-utility"], severity);
+    assert.equal(output.lint_settings["macro-argument-mutation"], "deny");
+    assert.equal(Object.hasOwn(output.lint_settings, "typo"), false);
+    assert.equal(output.lint_findings.length, severity === "off" ? 0 : 1);
+    if (severity !== "off") {
+      assert.equal(output.lint_findings[0].rule, "unknown-utility");
+      assert.equal(output.reports[0].severity, severity === "deny" ? "error" : "warning");
+    }
+    assert.ok(output.code);
+  }
+});
+
 void test("failed compile transactions retain watch CSS but reject current plans", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();

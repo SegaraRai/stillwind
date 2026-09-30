@@ -254,7 +254,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
 }
 
 #[test]
-fn lint_policy_does_not_change_generated_artifacts_and_compilers_are_thread_safe() {
+fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_safe() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),

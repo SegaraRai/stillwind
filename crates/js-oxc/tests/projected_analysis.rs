@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
     RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
@@ -120,7 +120,7 @@ fn original_component_format_reports_import_mismatch_without_adapter_conflict() 
     assert_eq!(scan.local_ir.adapter, AdapterKind::React);
     assert_eq!(scan.lint_findings.len(), 1);
     assert_eq!(
-        scan.lint_findings[0].kind.code(),
+        scan.lint_findings[0].diagnostic.code(),
         "framework-import-mismatch"
     );
     assert_eq!(
@@ -208,7 +208,7 @@ fn contract_findings_map_to_original_framework_expression_spans() {
     let error = analysis
         .lint_findings
         .iter()
-        .find(|error| error.kind == LintKind::MacroArgumentMutation)
+        .find(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
         .unwrap();
     assert_eq!(error.labels[0].span.file, original.id());
     assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");

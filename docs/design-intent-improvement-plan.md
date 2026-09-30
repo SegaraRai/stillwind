@@ -200,7 +200,7 @@ identity のハッシュ計算は不変。Unicode・空白・記号付き ref �
 - [x] `use` / `useXxx` の呼び出し名判定など、React 固有の規約を Stillwind の共通 validator から除去する。
 - [x] `MacroArgumentMutation` / `MacroExecutionBoundary` の現行検出対象を、変換可能な契約違反と
       実際に変換不可能な入力に分ける。既存 enum をそのまま移すだけにしない。
-- [x] 前者は型付き `LintKind` と `LintFinding`、既定 error の有効 policy で扱う。
+- [x] 前者は型付き `LintDiagnostic` と `LintFinding`、既定 error の有効 policy で扱う。
       通常の関数名、class/JSX などを一律に不可能とはみなさず、値式として保持できるか確認する。
 - [x] `await` / `yield` 等も使用文脈で確認する。必要な ref の関係を保てない変換は compile error とし、
       そのケースのために変換機構を複雑化しない。

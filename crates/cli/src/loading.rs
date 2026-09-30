@@ -8,7 +8,6 @@
 //! Requests are served one at a time, in the order the loader asks, so a missing file
 //! is reported with the importer that requested it.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf, absolute};
 use std::sync::Arc;
@@ -20,7 +19,7 @@ use stillwind_design_system::{
     CssFileRequest, DesignSystemError, DesignSystemLoadError, DesignSystemLoadStep,
     DesignSystemLoader, DesignSystemOptions, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::{AggregateError, Reporter};
+use stillwind_diagnostics::{AggregateError, LintSettings, Reporter};
 use stillwind_source::{
     SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri, SourceUriError,
 };
@@ -133,7 +132,7 @@ pub(super) fn load_design_system(
                             std::slice::from_ref(&compiled),
                             &[],
                             loader.sources(),
-                            BTreeMap::new(),
+                            LintSettings::default(),
                         )?
                         .diagnostics
                         .into_iter()

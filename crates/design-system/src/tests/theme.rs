@@ -4,6 +4,8 @@
 //! modes, namespace resets, CSS-first configuration, and the rule that importing the
 //! package is what selects the built-in definitions and default tokens.
 
+use stillwind_diagnostics::LintKind;
+
 use super::*;
 
 #[test]
@@ -92,7 +94,12 @@ fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
     assert_eq!(theme.config.prefix.as_deref(), Some("--app-"));
-    assert!(theme.config.lint_enabled("prefer-typed-relationships"));
+    assert!(
+        theme
+            .config
+            .lint_settings
+            .enabled_for_detection(LintKind::PreferTypedRelationships)
+    );
     assert!(!theme.custom_css().contains("@stillwind"));
     assert!(theme.custom_css().contains(".card"));
 }

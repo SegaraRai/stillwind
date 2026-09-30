@@ -954,7 +954,7 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
-    use crate::{Label, LintFinding, LintKind};
+    use crate::{Label, LintDiagnostic, LintFinding};
 
     /// Distinct causes may share one reporting code, and the code is not the message.
     #[test]
@@ -1008,7 +1008,7 @@ mod tests {
         );
 
         let finding = LintFinding::new(
-            LintKind::MissingAnchor {
+            LintDiagnostic::MissingAnchor {
                 name: "対象".into(),
             },
             span,
@@ -1017,6 +1017,8 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
         assert_eq!(finding.code(), "require-anchor-provider");
+        assert_eq!(value["diagnostic"]["MissingAnchor"]["name"], "対象");
+        assert!(value.get("kind").is_none());
         assert_eq!(
             finding.to_string(),
             "ref `対象` uses position without an asAnchor() provider"

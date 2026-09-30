@@ -5,7 +5,7 @@
 //! bindings, typed findings, and independently converted source coordinates.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
-use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -523,11 +523,13 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
         result
             .lint_findings
             .iter()
-            .any(|error| error.kind == LintKind::MacroArgumentMutation)
+            .any(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
     );
     assert!(!result.transforms.is_empty());
     assert_eq!(
-        result.lint_policy["macro-argument-mutation"],
+        result
+            .lint_settings
+            .reporting_severity(LintKind::MacroArgumentMutation),
         LintSeverity::Deny
     );
 }

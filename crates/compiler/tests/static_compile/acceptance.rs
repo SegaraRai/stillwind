@@ -7,7 +7,7 @@
 //! prove them.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -40,7 +40,7 @@ export const Bad = () => <><div {...style(trigger, trigger.asAnchor())} /><span 
         result
             .lint_findings
             .iter()
-            .any(|item| matches!(item.kind, LintKind::MissingRefAncestor { .. }))
+            .any(|item| matches!(item.diagnostic, LintDiagnostic::MissingRefAncestor { .. }))
     );
 }
 

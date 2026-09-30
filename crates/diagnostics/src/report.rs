@@ -12,8 +12,8 @@ use stillwind_source::{
 };
 
 use crate::{
-    CompileError, CompileErrorKind, LintFinding, LintKind, LintSeverity, SourceRange,
-    filter_lint_findings,
+    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, LintSettings, LintSeverity,
+    SourceRange, filter_lint_findings,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -192,7 +192,7 @@ pub enum DiagnosticCause {
     /// Fatal compilation error.
     Compile(CompileErrorKind),
     /// Suppressible lint finding.
-    Lint(LintKind),
+    Lint(LintDiagnostic),
 }
 
 impl DiagnosticCause {
@@ -276,7 +276,7 @@ impl LocatedDiagnostic {
         sources: &SourceRegistry,
     ) -> Result<Self, SourceRegistryError> {
         Self::from_internal(
-            DiagnosticCause::Lint(finding.kind.clone()),
+            DiagnosticCause::Lint(finding.diagnostic.clone()),
             &finding.info,
             sources,
         )
@@ -307,7 +307,7 @@ impl LocatedDiagnostic {
 
 /// Temporary reporter for a single analysis or update.
 pub struct Reporter {
-    lint_policy: BTreeMap<String, LintSeverity>,
+    lint_settings: LintSettings,
     revisions: BTreeMap<SourceUri, String>,
     diagnostics: Vec<ResolvedDiagnostic>,
 }
@@ -322,9 +322,9 @@ impl Reporter {
         errors: &[CompileError],
         findings: &[LintFinding],
         sources: &SourceRegistry,
-        lint_policy: BTreeMap<String, LintSeverity>,
+        lint_settings: LintSettings,
     ) -> Result<DiagnosticBatch, AggregateError> {
-        let mut reporter = Self::new(lint_policy);
+        let mut reporter = Self::new(lint_settings);
         for error in errors {
             reporter.report(&LocatedDiagnostic::from_compile(error, sources)?)?;
         }
@@ -335,9 +335,9 @@ impl Reporter {
     }
 
     /// Starts a report with the lint policy in effect for this analysis.
-    pub fn new(lint_policy: BTreeMap<String, LintSeverity>) -> Self {
+    pub fn new(lint_settings: LintSettings) -> Self {
         Self {
-            lint_policy,
+            lint_settings,
             revisions: BTreeMap::new(),
             diagnostics: Vec::new(),
         }
@@ -371,14 +371,10 @@ impl Reporter {
             .iter()
             .map(Self::resolve_action)
             .collect::<Result<Vec<_>, _>>()?;
-        let severity = if let DiagnosticCause::Lint(kind) = &diagnostic.cause {
-            let level = self
-                .lint_policy
-                .get(kind.code())
-                .copied()
-                .unwrap_or(LintSeverity::Warn);
+        let severity = if let DiagnosticCause::Lint(lint) = &diagnostic.cause {
+            let level = self.lint_settings.reporting_severity(lint.kind());
             let mut finding = vec![LintFinding::new(
-                kind.clone(),
+                lint.clone(),
                 Span::new(
                     primary_source.id(),
                     diagnostic.primary.range.start(),
@@ -504,7 +500,7 @@ mod tests {
     use stillwind_source::{SourceFile, SourceRegistry, SourceRegistryError};
 
     use super::*;
-    use crate::{FixAction, SourceEdit};
+    use crate::{FixAction, LintConfig, LintKind, SourceEdit};
 
     fn document(sources: &mut SourceRegistry, uri: &str, text: &str) -> Arc<SourceFile> {
         sources
@@ -522,7 +518,7 @@ mod tests {
         let first = document(&mut sources, "untitled:main", "a😀\r\nβ");
         let second = document(&mut sources, "untitled:other", "xy");
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintKind::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
             range(&sources, &first, 7, 9),
         );
         finding.related.push(LocatedLabel {
@@ -551,7 +547,7 @@ mod tests {
                 }],
             },
         ];
-        let mut reporter = Reporter::new(BTreeMap::new());
+        let mut reporter = Reporter::new(LintSettings::default());
         reporter.report(&finding).unwrap();
         let batch = reporter.finish();
         let diagnostic = &batch.diagnostics[0];
@@ -599,25 +595,33 @@ mod tests {
         let start = u32::try_from(source.text().len() - 1).unwrap();
         let finding = || {
             LocatedDiagnostic::new(
-                DiagnosticCause::Lint(LintKind::MissingAnchor { name: "x".into() }),
+                DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
                 range(&sources, &source, start, start + 1),
             )
         };
-        let code = finding().cause.code().to_owned();
-        let mut reporter = Reporter::new(BTreeMap::new());
+        let kind = LintKind::RequireAnchorProvider;
+        let mut reporter = Reporter::new(LintSettings::default());
         reporter.report(&finding()).unwrap();
         assert!(reporter.finish().diagnostics.is_empty());
         let plain = document(&mut sources, "untitled:plain", "x");
         let finding = || {
             LocatedDiagnostic::new(
-                DiagnosticCause::Lint(LintKind::MissingAnchor { name: "x".into() }),
+                DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
                 range(&sources, &plain, 0, 1),
             )
         };
-        let mut reporter = Reporter::new([(code.clone(), LintSeverity::Off)].into());
+        let mut reporter = Reporter::new(
+            [LintConfig::new(kind, LintSeverity::Off)]
+                .into_iter()
+                .collect(),
+        );
         reporter.report(&finding()).unwrap();
         assert!(reporter.finish().diagnostics.is_empty());
-        let mut reporter = Reporter::new([(code, LintSeverity::Deny)].into());
+        let mut reporter = Reporter::new(
+            [LintConfig::new(kind, LintSeverity::Deny)]
+                .into_iter()
+                .collect(),
+        );
         reporter.report(&finding()).unwrap();
         assert_eq!(
             reporter.finish().diagnostics[0].severity,
@@ -631,7 +635,7 @@ mod tests {
         let source = document(&mut sources, "untitled:same", "abc");
         let changed = document(&mut sources, "untitled:same", "xyz");
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintKind::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
             range(&sources, &source, 0, 1),
         );
         finding.actions.push(FixAction {
@@ -647,13 +651,13 @@ mod tests {
                 },
             ],
         });
-        let mut reporter = Reporter::new(BTreeMap::new());
+        let mut reporter = Reporter::new(LintSettings::default());
         assert!(matches!(
             reporter.report(&finding),
             Err(ReportError::InvalidAction(_))
         ));
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintKind::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
             range(&sources, &source, 0, 1),
         );
         finding.actions.push(FixAction {
@@ -706,7 +710,7 @@ mod tests {
             Span::new(source.id(), 1, 2),
         );
         let located = LocatedDiagnostic::from_compile(&error, &first_project).unwrap();
-        let mut reporter = Reporter::new(BTreeMap::new());
+        let mut reporter = Reporter::new(LintSettings::default());
         reporter.report(&located).unwrap();
         assert_eq!(
             reporter.finish().diagnostics[0]

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{
     ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
 };
@@ -202,8 +202,8 @@ fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
         );
         assert!(
             result.lint_findings.iter().any(|finding| matches!(
-                finding.kind,
-                LintKind::UnresolvedUtility {
+                finding.diagnostic,
+                LintDiagnostic::UnresolvedUtility {
                     classification: UtilityFailure::Unknown,
                     ..
                 }
@@ -795,7 +795,7 @@ fn scope_lists_warn_for_empty_and_duplicate_identities() {
         result
             .lint_findings
             .iter()
-            .filter(|f| matches!(f.kind, LintKind::AnchorScopeList { .. }))
+            .filter(|f| matches!(f.diagnostic, LintDiagnostic::AnchorScopeList { .. }))
             .count(),
         2
     );
@@ -870,7 +870,7 @@ fn provider_lints_distinguish_missing_attachment_and_property_conflicts() {
         missing
             .lint_findings
             .iter()
-            .any(|f| matches!(f.kind, LintKind::MissingRefAttachment { .. }))
+            .any(|f| matches!(f.diagnostic, LintDiagnostic::MissingRefAttachment { .. }))
     );
     let (_, conflict) = compile(
         "const r=style.ref();const x=style(r,r.asContainer('size'),'[container-type:normal]');",
@@ -880,7 +880,7 @@ fn provider_lints_distinguish_missing_attachment_and_property_conflicts() {
         conflict
             .lint_findings
             .iter()
-            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. })),
+            .any(|f| matches!(f.diagnostic, LintDiagnostic::ProviderConflict { .. })),
         "{:?}",
         conflict.lint_findings
     );
@@ -892,7 +892,7 @@ fn provider_lints_distinguish_missing_attachment_and_property_conflicts() {
         !omitted
             .lint_findings
             .iter()
-            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. }))
+            .any(|f| matches!(f.diagnostic, LintDiagnostic::ProviderConflict { .. }))
     );
     let (_, duplicate) = compile(
         "const r=style.ref();const x=style(r,r.asContainer('size'),r.asContainer('normal'));",
@@ -902,7 +902,7 @@ fn provider_lints_distinguish_missing_attachment_and_property_conflicts() {
         duplicate
             .lint_findings
             .iter()
-            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. }))
+            .any(|f| matches!(f.diagnostic, LintDiagnostic::ProviderConflict { .. }))
     );
 }
 
@@ -923,8 +923,8 @@ fn exclusive_provider_marker_gates_do_not_conflict() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(
         !result.lint_findings.iter().any(|f| matches!(
-            f.kind,
-            LintKind::ProviderConflict { .. } | LintKind::MissingRefAttachment { .. }
+            f.diagnostic,
+            LintDiagnostic::ProviderConflict { .. } | LintDiagnostic::MissingRefAttachment { .. }
         )),
         "{:?}",
         result.lint_findings

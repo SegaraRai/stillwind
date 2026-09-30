@@ -115,7 +115,7 @@ impl Compiler {
         let theme = snapshot.theme();
         let module_id = &parsed.module_id;
         let options = compiler_options;
-        result.lint_policy.clone_from(&theme.config.lint_rules);
+        result.lint_settings.clone_from(&theme.config.lint_settings);
         filter_lint_findings(source, &mut result.lint_findings);
         result
             .lint_findings

@@ -5,7 +5,7 @@
 //! framework imports gate the baseline layers.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -154,8 +154,8 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             .lint_findings
             .iter()
             .filter(|finding| matches!(
-                finding.kind,
-                LintKind::UnresolvedUtility {
+                finding.diagnostic,
+                LintDiagnostic::UnresolvedUtility {
                     classification: UtilityFailure::Unknown,
                     ..
                 }
@@ -195,8 +195,8 @@ fn framework_imports_gate_baseline_layers() {
             .lint_findings
             .iter()
             .any(|finding| matches!(
-                finding.kind,
-                LintKind::UnresolvedUtility {
+                finding.diagnostic,
+                LintDiagnostic::UnresolvedUtility {
                     classification: UtilityFailure::Unknown,
                     ..
                 }

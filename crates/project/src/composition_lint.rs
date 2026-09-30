@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::CompiledModule;
 use stillwind_css::{declaration_ranges, properties_interfere};
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{FileId, ModuleId, Span};
 
@@ -114,7 +114,7 @@ fn ambiguous_base_order(
                 continue;
             };
             let mut finding = LintFinding::new(
-                LintKind::AmbiguousBaseOrder {
+                LintDiagnostic::AmbiguousBaseOrder {
                     properties: describe(&left_declaration, &right_declaration),
                 },
                 span,
@@ -166,7 +166,7 @@ fn imported_base_interference(
             continue;
         }
         let mut finding = LintFinding::new(
-            LintKind::ImportedBaseInterference {
+            LintDiagnostic::ImportedBaseInterference {
                 module: base.module_id.clone(),
                 properties: describe(&base_declaration, &competing_declaration),
             },
@@ -471,7 +471,7 @@ mod tests {
     fn codes(findings: &[LintFinding]) -> String {
         findings
             .iter()
-            .map(|finding| format!("{} {:?}", finding.code(), finding.kind))
+            .map(|finding| format!("{} {:?}", finding.code(), finding.diagnostic))
             .collect::<Vec<_>>()
             .join("; ")
     }
@@ -542,7 +542,7 @@ mod tests {
         let published = artifacts(&[("app.tsx", app)]);
         let findings = composition_lints(&published, &ModuleId::from("app.tsx"));
         assert_eq!(findings.len(), 1, "{}", codes(&findings));
-        let message = findings[0].kind.to_string();
+        let message = findings[0].diagnostic.to_string();
         assert!(message.contains("padding"), "{message}");
         assert!(message.contains("padding-top"), "{message}");
     }
@@ -778,11 +778,11 @@ mod tests {
         assert_eq!(findings.len(), 1, "{}", codes(&findings));
         assert!(
             matches!(
-                &findings[0].kind,
-                LintKind::ImportedBaseInterference { module, .. } if module.as_str() == "second.tsx"
+                &findings[0].diagnostic,
+                LintDiagnostic::ImportedBaseInterference { module, .. } if module.as_str() == "second.tsx"
             ),
             "{:?}",
-            findings[0].kind
+            findings[0].diagnostic
         );
     }
 }

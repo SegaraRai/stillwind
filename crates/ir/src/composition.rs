@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintDiagnostic, LintFinding};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, Span};
 
@@ -190,7 +190,7 @@ pub fn split_view_transition_classes(module: &ModuleAnalysis) -> Vec<LintFinding
         });
         if replaces {
             findings.push(LintFinding::new(
-                LintKind::SplitViewTransitionClasses,
+                LintDiagnostic::SplitViewTransitionClasses,
                 call.span,
             ));
         }

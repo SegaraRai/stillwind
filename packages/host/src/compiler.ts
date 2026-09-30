@@ -64,7 +64,7 @@ export function fileSourceKind(
   id: string,
 ): Pick<ProjectSource, "language" | "module_kind" | "source_format" | "framework"> {
   const name = cleanModuleId(id).toLowerCase();
-  const extension = /\.[^.]$/.exec(name)?.[0];
+  const extension = /\.[^.]+$/.exec(name)?.[0];
   const source_format =
     asRecord({
       ".jsx": "jsx",
@@ -298,7 +298,7 @@ export async function compileModule(
       reports: [],
       rejected_names: [],
       lint_findings: [],
-      lint_policy: {} as Record<string, "off" | "warn" | "deny">,
+      lint_settings: {} as Record<string, "off" | "warn" | "deny">,
       composition: [],
       hasModuleCssImport,
       compositionModules: [],
@@ -323,7 +323,7 @@ export async function compileModule(
     }
     const deniedFindings: string[] = [];
     for (const finding of output.lint_findings ?? []) {
-      const level = output.lint_policy?.[finding.rule] ?? "warn";
+      const level = output.lint_settings?.[finding.rule] ?? "warn";
       if (level === "off") {
         continue;
       }

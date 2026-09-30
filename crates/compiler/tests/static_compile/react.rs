@@ -6,7 +6,7 @@
 //! conditional branches, and explicit `class` entries behave as documented.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintKind, UtilityFailure};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
@@ -186,8 +186,8 @@ const props = style("bg-accnet");"#,
         .expect("an unknown utility finding");
 
     assert!(matches!(
-        finding.kind,
-        LintKind::UnresolvedUtility {
+        finding.diagnostic,
+        LintDiagnostic::UnresolvedUtility {
             classification: UtilityFailure::Unknown,
             ..
         }
@@ -224,8 +224,8 @@ const props = style("bg-[color:red");"#,
         &CompilerOptions::default(),
     );
     assert!(matches!(
-        result.lint_findings[0].kind,
-        LintKind::UnresolvedUtility {
+        result.lint_findings[0].diagnostic,
+        LintDiagnostic::UnresolvedUtility {
             classification: UtilityFailure::Invalid,
             ..
         }
@@ -264,8 +264,8 @@ const fourth = style("m-accnet");"#,
     );
     assert_eq!(result.lint_findings.len(), 1);
     assert!(matches!(
-        result.lint_findings[0].kind,
-        LintKind::UnresolvedUtility {
+        result.lint_findings[0].diagnostic,
+        LintDiagnostic::UnresolvedUtility {
             classification: UtilityFailure::Unknown,
             ..
         }

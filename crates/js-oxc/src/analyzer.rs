@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_diagnostics::{
-    CompileError, CompileErrorKind, LintFinding, LintKind, collect_lint_directives,
+    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, collect_lint_directives,
 };
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{
@@ -259,7 +259,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
     for import in &parsed.module.imports.macros {
         if !allowed.is_empty() && !allowed.contains(&import.adapter) {
             parsed.lint_findings.push(LintFinding::new(
-                LintKind::FrameworkImportMismatch {
+                LintDiagnostic::FrameworkImportMismatch {
                     import: import.adapter.spec().macro_import.into(),
                     source_format: input.source_format.description().into(),
                     expected: allowed

@@ -11,7 +11,7 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::span::GetSpan;
 use oxc::syntax::scope::ScopeFlags;
 
-use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::ModuleIr;
 use stillwind_source::{FileId, Span};
 
@@ -56,7 +56,7 @@ pub(crate) fn validate(program: &Program<'_>, module: &ModuleIr, file: FileId) -
     collector
         .violations
         .errors
-        .dedup_by(|a, b| a.kind == b.kind && a.labels == b.labels);
+        .dedup_by(|a, b| a.diagnostic == b.diagnostic && a.labels == b.labels);
     collector.violations.errors
 }
 
@@ -85,9 +85,9 @@ struct Violations {
 }
 
 impl Violations {
-    fn report(&mut self, span: oxc::span::Span, kind: LintKind) {
+    fn report(&mut self, span: oxc::span::Span, diagnostic: LintDiagnostic) {
         self.errors.push(LintFinding::new(
-            kind,
+            diagnostic,
             Span::new(self.file, span.start, span.end),
         ));
     }
@@ -101,15 +101,15 @@ impl<'a> Visit<'a> for Violations {
         match expression {
             Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_) => {}
             Expression::AssignmentExpression(_) | Expression::UpdateExpression(_) => {
-                self.report(expression.span(), LintKind::MacroArgumentMutation);
+                self.report(expression.span(), LintDiagnostic::MacroArgumentMutation);
             }
             Expression::UnaryExpression(unary) if unary.operator.is_delete() => {
-                self.report(expression.span(), LintKind::MacroArgumentMutation);
+                self.report(expression.span(), LintDiagnostic::MacroArgumentMutation);
             }
             Expression::AwaitExpression(_)
             | Expression::YieldExpression(_)
             | Expression::ImportExpression(_) => {
-                self.report(expression.span(), LintKind::MacroExecutionBoundary);
+                self.report(expression.span(), LintDiagnostic::MacroExecutionBoundary);
             }
             _ => walk::walk_expression(self, expression),
         }

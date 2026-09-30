@@ -2,14 +2,10 @@
 //!
 //! Only settings the loader can resolve from CSS itself live here: utility ordering,
 //! custom-property prefixes and lint severities. A key is stored as a lint rule only
-//! when its value is `warn`, `deny`, or `off`, so an unrelated declaration in the same
-//! block cannot silently become a policy.
-
-use std::collections::BTreeMap;
+//! when its name identifies a supported rule and its value is `warn`, `deny`, or `off`.
 
 use stillwind_css::{extract_named_blocks, strip_css_comments};
-use stillwind_diagnostics::{LintKind, LintSeverity};
-use stillwind_source::ModuleId;
+use stillwind_diagnostics::{LintConfig, LintKind, LintSettings, LintSeverity};
 
 /// Extracts the configuration from every `@stillwind` block, after comments are removed
 /// so a commented example cannot configure a project.
@@ -38,8 +34,10 @@ pub(crate) fn extract_stillwind_config(css: &str) -> StillwindConfig {
                     "tailwind" => config.utility_order = UtilityOrderMode::Tailwind,
                     _ => {}
                 }
-            } else if let Some(severity) = LintSeverity::from_css(value) {
-                config.lint_rules.insert(key.to_owned(), severity);
+            } else if let Some(kind) = LintKind::from_name(key)
+                && let Some(severity) = LintSeverity::from_css(value)
+            {
+                config.lint_settings.insert(LintConfig::new(kind, severity));
             }
         }
     }
@@ -56,7 +54,7 @@ pub struct StillwindConfig {
     /// Tailwind-compatibility prefix, when the CSS configures one.
     pub tailwind_prefix: Option<String>,
     /// Rule defaults overridden by CSS-authored severities.
-    pub lint_rules: BTreeMap<String, LintSeverity>,
+    pub lint_settings: LintSettings,
 }
 
 impl Default for StillwindConfig {
@@ -65,58 +63,8 @@ impl Default for StillwindConfig {
             utility_order: UtilityOrderMode::default(),
             prefix: None,
             tailwind_prefix: None,
-            lint_rules: [
-                (
-                    LintKind::FrameworkImportMismatch {
-                        import: String::new(),
-                        source_format: String::new(),
-                        expected: String::new(),
-                    },
-                    LintSeverity::Warn,
-                ),
-                (LintKind::MacroArgumentMutation, LintSeverity::Deny),
-                (LintKind::MacroExecutionBoundary, LintSeverity::Deny),
-                (
-                    LintKind::DocumentScopedSelector {
-                        selector: String::new(),
-                    },
-                    LintSeverity::Deny,
-                ),
-                (LintKind::MissingViewTransitionName, LintSeverity::Warn),
-                (
-                    LintKind::DuplicateViewTransitionName { count: 0 },
-                    LintSeverity::Warn,
-                ),
-                (LintKind::SplitViewTransitionClasses, LintSeverity::Warn),
-                (
-                    LintKind::AmbiguousBaseOrder {
-                        properties: String::new(),
-                    },
-                    LintSeverity::Warn,
-                ),
-                (
-                    LintKind::ImportedBaseInterference {
-                        module: ModuleId::from(""),
-                        properties: String::new(),
-                    },
-                    LintSeverity::Warn,
-                ),
-            ]
-            .into_iter()
-            .map(|(kind, level)| (kind.code().to_owned(), level))
-            .collect(),
+            lint_settings: LintSettings::with_defaults(),
         }
-    }
-}
-
-impl StillwindConfig {
-    /// Whether a rule is active, which is the case for `warn` and `deny` and never for
-    /// `off` or an unmentioned rule.
-    #[must_use]
-    pub fn lint_enabled(&self, rule: &str) -> bool {
-        self.lint_rules
-            .get(rule)
-            .is_some_and(|level| matches!(level, LintSeverity::Warn | LintSeverity::Deny))
     }
 }
 
@@ -143,17 +91,31 @@ mod tests {
         let config = extract_stillwind_config(
             "@stillwind { utility-order: tailwind; utility-order: unknown;
              macro-argument-mutation: off; macro-argument-mutation: unknown;
+             valid-anchor-scope: deny; unknown-utility: off;
              custom: deny; quiet: off; ignored: unknown; }",
         );
         assert_eq!(config.utility_order, UtilityOrderMode::Tailwind);
         assert_eq!(
-            config.lint_rules["macro-argument-mutation"],
+            config
+                .lint_settings
+                .reporting_severity(LintKind::MacroArgumentMutation),
             LintSeverity::Off
         );
-        assert_eq!(config.lint_rules["custom"], LintSeverity::Deny);
-        assert!(!config.lint_rules.contains_key("ignored"));
-        assert!(config.lint_enabled("custom"));
-        assert!(!config.lint_enabled("quiet"));
+        assert_eq!(
+            config.lint_settings.get(LintKind::ValidAnchorScope),
+            Some(&LintConfig::ValidAnchorScope(LintSeverity::Deny))
+        );
+        assert_eq!(config.lint_settings.iter().count(), 11);
+        assert!(
+            !config
+                .lint_settings
+                .enabled_for_detection(LintKind::UnknownUtility)
+        );
+        assert!(
+            !config
+                .lint_settings
+                .enabled_for_detection(LintKind::InvalidUtility)
+        );
         let config = extract_stillwind_config(
             "@stillwind { utility-order: tailwind; } @stillwind { utility-order: 'authored'; }",
         );
@@ -163,12 +125,36 @@ mod tests {
     #[test]
     fn config_parsing_ignores_comments_and_distinguishes_disabled_rules() {
         let config = extract_stillwind_config(
-            "/* @stillwind { prefix: nope; } */ @stillwind { prefix: 'app'; tailwind-prefix: tw; unknown: warn; quiet: off; }",
+            "/* @stillwind { prefix: nope; require-element-scope: off; } */
+             @stillwind { prefix: 'app'; tailwind-prefix: tw;
+             invalid-utility: 'off'; prefer-typed-relationships: warn;
+             unknown: warn; quiet: off; }
+             @stillwind { prefer-typed-relationships: 'deny'; }",
         );
         assert_eq!(config.prefix.as_deref(), Some("app"));
         assert_eq!(config.tailwind_prefix.as_deref(), Some("tw"));
-        assert!(config.lint_enabled("unknown"));
-        assert!(!config.lint_enabled("quiet"));
-        assert!(!config.lint_enabled("absent"));
+        assert_eq!(config.lint_settings.iter().count(), 11);
+        assert_eq!(
+            config
+                .lint_settings
+                .reporting_severity(LintKind::RequireElementScope),
+            LintSeverity::Deny
+        );
+        assert!(
+            !config
+                .lint_settings
+                .enabled_for_detection(LintKind::InvalidUtility)
+        );
+        assert!(
+            config
+                .lint_settings
+                .enabled_for_detection(LintKind::PreferTypedRelationships)
+        );
+        assert_eq!(
+            config
+                .lint_settings
+                .reporting_severity(LintKind::PreferTypedRelationships),
+            LintSeverity::Deny
+        );
     }
 }

@@ -99,7 +99,7 @@ const c = style(a, b, 'text-brand');
         .filter(|finding| finding.code() == "ambiguous-base-order")
         .collect::<Vec<_>>();
     assert_eq!(findings.len(), 1, "{findings:?}");
-    let message = findings[0].kind.to_string();
+    let message = findings[0].diagnostic.to_string();
     assert!(message.contains("margin"), "{message}");
 }
 

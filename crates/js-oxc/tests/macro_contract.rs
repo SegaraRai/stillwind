@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileErrorKind, LintKind};
+use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, ModuleId, SourceFile};
@@ -85,7 +85,7 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
             let errors = parsed
                 .lint_findings
                 .iter()
-                .filter(|error| error.kind == LintKind::MacroArgumentMutation)
+                .filter(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{body}: {:?}", parsed.diagnostics);
             assert!(
@@ -114,7 +114,7 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
         let errors = parsed
             .lint_findings
             .iter()
-            .filter(|error| error.kind == LintKind::MacroExecutionBoundary)
+            .filter(|error| error.diagnostic == LintDiagnostic::MacroExecutionBoundary)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{value}: {:?}", parsed.diagnostics);
         assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), value);
@@ -159,7 +159,7 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
             )
             .lint_findings
             .iter()
-            .any(|error| error.kind == LintKind::MacroArgumentMutation)
+            .any(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
         );
     }
 }

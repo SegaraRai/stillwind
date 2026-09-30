@@ -52,16 +52,25 @@ production/build dependencies using Cargo metadata. It also runs as part of
 
 ## Diagnostic contracts
 
-`stillwind-diagnostics` owns two independent pairs: `CompileErrorKind` wrapped by
-`CompileError`, and `LintKind` wrapped by `LintFinding`. Each kind uses `thiserror`
-for display and an exhaustive `code() -> &'static str` implementation for reporting
-identity. Different message templates have different variants. Multiple variants
-may share a code, and a typed context may select different codes for one variant.
-Lint codes are the rule names accepted by `swlint-*` directives.
+`stillwind-diagnostics` owns compilation errors and lint diagnostics. `CompileErrorKind`
+is wrapped by `CompileError`. `LintDiagnostic` owns the message template and concrete
+values for a detected lint, and `LintFinding` attaches its source details.
+Different message templates have different diagnostic variants.
+
+`LintKind` identifies one lint rule and corresponds to one stable name accepted by CSS
+configuration and `swlint-*` directives. `LintDiagnostic::kind()` selects that rule;
+multiple diagnostic variants can select the same rule, and utility classification can
+select different rules for one diagnostic variant. `LintConfig` has one setting variant
+for each `LintKind`. `LintSettings` stores at most one setting for each rule and prevents
+keys from disagreeing with their setting variants. Unconfigured rules do not enable
+configured detection, but a producer can still detect them; reporting then uses `warn`.
+
+CSS configuration retains only recognized rule names with valid severities. Settings
+serialize to the host protocol as a map of rule names to severities.
 
 Wrappers retain ordered labels and notes, plus an optional source name for compilation
 error display. The first label is the primary location and controls suppression. Only lint findings can be suppressed. Detection creates
-the appropriate kind directly: reporting codes do not decide whether an issue is
+the appropriate diagnostic directly: reporting codes do not decide whether an issue is
 fatal. Candidate queries attach synthetic spans over the supplied candidate text.
 
 The diagnostics crate depends only on `source` within the workspace. Producers return

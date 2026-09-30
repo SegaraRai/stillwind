@@ -7,7 +7,9 @@ use stillwind_design_system::{
     ThemeIndex, compatibility_marker_class, is_condition_variant,
     is_tailwind_relationship_candidate, resolve_variant,
 };
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_diagnostics::{
+    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, LintKind,
+};
 use stillwind_source::Spanned;
 use stillwind_syntax::parse_candidate;
 
@@ -108,11 +110,14 @@ impl LiteralContribution {
                 continue;
             }
             if (options.forbid_tailwind_relationships
-                || theme.config.lint_enabled("prefer-typed-relationships"))
+                || theme
+                    .config
+                    .lint_settings
+                    .enabled_for_detection(LintKind::PreferTypedRelationships))
                 && is_tailwind_relationship_candidate(&raw, theme)
             {
                 lint_findings.push(LintFinding::new(
-                    LintKind::PreferTypedRelationships {
+                    LintDiagnostic::PreferTypedRelationships {
                         utility: raw.clone(),
                     },
                     utility.span,
@@ -133,7 +138,10 @@ impl LiteralContribution {
                         .iter()
                         .filter(|utility| utility.declaration.contains("view-transition-name"))
                         .count();
-                    if theme.config.lint_enabled("require-element-scope")
+                    if theme
+                        .config
+                        .lint_settings
+                        .enabled_for_detection(LintKind::RequireElementScope)
                         && let Some(candidate) = parse_candidate(&utility.value.raw)
                         && let Some(selector) = candidate
                             .variants
@@ -141,7 +149,7 @@ impl LiteralContribution {
                             .find_map(|variant| document_scoped_selector(variant, theme))
                     {
                         lint_findings.push(LintFinding::new(
-                            LintKind::DocumentScopedSelector { selector },
+                            LintDiagnostic::DocumentScopedSelector { selector },
                             utility.span,
                         ));
                     }
@@ -152,7 +160,7 @@ impl LiteralContribution {
                 }
                 Ok(None) => {
                     lint_findings.push(LintFinding::new(
-                        LintKind::UnresolvedUtility {
+                        LintDiagnostic::UnresolvedUtility {
                             utility: utility.value.raw.clone(),
                             classification: unresolved_utility_kind(&utility.value.raw),
                         },

@@ -7,7 +7,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{LintKind, LintSeverity};
+use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -117,7 +117,10 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
         result
             .lint_findings
             .iter()
-            .filter(|finding| matches!(finding.kind, LintKind::PreferTypedRelationships { .. }))
+            .filter(|finding| matches!(
+                finding.diagnostic,
+                LintDiagnostic::PreferTypedRelationships { .. }
+            ))
             .count(),
         2
     );
@@ -153,14 +156,16 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
     let selectors = result
         .lint_findings
         .iter()
-        .filter_map(|finding| match &finding.kind {
-            LintKind::DocumentScopedSelector { selector } => Some(selector.as_str()),
+        .filter_map(|finding| match &finding.diagnostic {
+            LintDiagnostic::DocumentScopedSelector { selector } => Some(selector.as_str()),
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(selectors, vec![":host", ":host-context(.dark)"]);
     assert_eq!(
-        result.lint_policy["require-element-scope"],
+        result
+            .lint_settings
+            .reporting_severity(LintKind::RequireElementScope),
         LintSeverity::Deny
     );
     assert!(
@@ -202,7 +207,9 @@ fn a_theme_can_disable_the_element_scope_rule() {
         result.lint_findings
     );
     assert_eq!(
-        result.lint_policy["require-element-scope"],
+        result
+            .lint_settings
+            .reporting_severity(LintKind::RequireElementScope),
         LintSeverity::Off
     );
 }
@@ -240,24 +247,33 @@ export const doubled = style("block", title.for("hero"), "[view-transition-name:
     let missing = result
         .lint_findings
         .iter()
-        .filter(|finding| matches!(finding.kind, LintKind::MissingViewTransitionName))
+        .filter(|finding| {
+            matches!(
+                finding.diagnostic,
+                LintDiagnostic::MissingViewTransitionName
+            )
+        })
         .count();
     let duplicated = result
         .lint_findings
         .iter()
-        .filter_map(|finding| match finding.kind {
-            LintKind::DuplicateViewTransitionName { count } => Some(count),
+        .filter_map(|finding| match finding.diagnostic {
+            LintDiagnostic::DuplicateViewTransitionName { count } => Some(count),
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(missing, 1, "{:#?}", result.lint_findings);
     assert_eq!(duplicated, vec![2], "{:#?}", result.lint_findings);
     assert_eq!(
-        result.lint_policy["require-view-transition-name"],
+        result
+            .lint_settings
+            .reporting_severity(LintKind::RequireViewTransitionName),
         LintSeverity::Warn
     );
     assert_eq!(
-        result.lint_policy["single-view-transition-name"],
+        result
+            .lint_settings
+            .reporting_severity(LintKind::SingleViewTransitionName),
         LintSeverity::Warn
     );
 }

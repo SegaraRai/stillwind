@@ -9,7 +9,7 @@ view-transition-name を独立に与える設計。設計・実装エージェ�
   utility bucket は **media / supports 条件 variant のみ**を受け付け、それ以外は
   `InvalidViewTransitionVariant`（SHVIEW003）で拒否する。無条件 utility は1つの規則にまとめ、
   条件付き utility は base 規則の後に1規則ずつ出力する。
-- `require-element-scope`（`LintKind::DocumentScopedSelector`、既定 deny）。
+- `require-element-scope`（`LintDiagnostic::DocumentScopedSelector`、既定 deny）。
   要素にも宣言 identity にも紐づかない選択子（`[:host]:`、`[::view-transition-old(*)]:` など）を lint する。
   文書全体の規則は stylesheet に書く、という分担の強制装置。
 - 上記2つは作業ツリーに実装済み。以下はそれらを前提に、VT の identity と名前を組み替える設計。

@@ -222,7 +222,7 @@ export interface BindingOutput {
   /** Non-fatal findings. */
   lint_findings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
-  lint_policy: Record<string, 'warn' | 'deny' | 'off'>
+  lint_settings: Record<string, 'warn' | 'deny' | 'off'>
 }
 
 /** One rejected generated name, reported for a host that supplies its own generators. */
@@ -1117,7 +1117,7 @@ export interface ProjectModuleOutput {
   /** Non-fatal findings. */
   lint_findings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
-  lint_policy: Record<string, 'warn' | 'deny' | 'off'>
+  lint_settings: Record<string, 'warn' | 'deny' | 'off'>
 }
 
 /**

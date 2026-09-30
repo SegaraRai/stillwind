@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintSeverity, SourceFailureContext};
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintSettings, SourceFailureContext};
 use stillwind_source::{
     CssSourceName, Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span,
 };
@@ -123,7 +123,7 @@ pub struct DefinitionFingerprints {
     /// mode, which decide emitted ordering.
     pub ordering: Fingerprint,
     /// Authored lint severities.
-    pub lint_policy: Fingerprint,
+    pub lint_settings: Fingerprint,
     /// Fingerprint of each effective token after namespace resets and overrides. Its
     /// keys match the active token registry.
     pub theme_tokens: BTreeMap<String, Fingerprint>,
@@ -256,7 +256,7 @@ impl DesignSystemSnapshot {
             theme.utility_positions,
             theme.config.utility_order,
         ));
-        let lint_policy = Fingerprint::of(format!("{:?}", theme.config.lint_rules));
+        let lint_settings = Fingerprint::of(format!("{:?}", theme.config.lint_settings));
         let builtins = Some(builtin_definitions(&theme));
         let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
             definitions.declaration_formats.clone()
@@ -378,7 +378,7 @@ impl DesignSystemSnapshot {
                     content,
                     config: config_hash,
                     ordering,
-                    lint_policy,
+                    lint_settings,
                     theme_tokens,
                     utilities,
                     variants,
@@ -434,8 +434,8 @@ impl DesignSystemSnapshot {
 
     /// Authored lint severities, mapped from rule name to `warn`, `deny`, or `off`.
     /// Lint policy never changes generated CSS or generated names.
-    pub fn lint_policy(&self) -> &BTreeMap<String, LintSeverity> {
-        &self.inner.theme.config.lint_rules
+    pub fn lint_settings(&self) -> &LintSettings {
+        &self.inner.theme.config.lint_settings
     }
 
     /// Variants from the selected built-ins and from the project CSS, grouped by name.
