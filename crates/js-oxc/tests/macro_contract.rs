@@ -219,7 +219,7 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
         r#"r["asAnchor"]()"#,
         "r.asAnchor()",
         "r.asContainer()",
-        "r.positionAnchor",
+        "r.positionAnchor()",
         "style.anchorScope([r])",
         "v.for()",
         "v.for('hero')",
@@ -230,7 +230,7 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
         "r.at('width > 1px')",
         "r.at`width > 1px`",
         "(enabled ? r : s).asAnchor()",
-        "(enabled ? r : s).positionAnchor",
+        "(enabled ? r : s).positionAnchor()",
         "(enabled ? r : s)('hover:')",
         "k('1s')",
     ] {
@@ -285,7 +285,7 @@ const v = style.viewTransition({ old: 'opacity-0' });
 const base = style(r, r.asAnchor([r]), r.asContainer('size'));
 const props = style(
     base,
-    r.positionAnchor,
+    r.positionAnchor(),
     style.anchorScope('none'),
     k('1s'),
     v.for(key),
@@ -311,6 +311,8 @@ const c = ordinary.positionAnchor;
 const d = ordinary.for();
 const e = ordinary.at`abc`;
 const f = ordinary.at('abc');
+const ordinaryMethod = { positionAnchor() {} };
+ordinaryMethod.positionAnchor();
 ",
     )
     .unwrap();
@@ -323,4 +325,49 @@ const f = ordinary.at('abc');
         ScriptModuleKind::Unambiguous,
     );
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+}
+
+#[test]
+fn position_anchor_requires_a_call_without_arguments() {
+    for (expression, expected) in [
+        (
+            "r.positionAnchor",
+            CompileErrorKind::UnconsumedMacroUse {
+                syntax: "positionAnchor".into(),
+            },
+        ),
+        (
+            "r.positionAnchor('unused')",
+            CompileErrorKind::InvalidPositionAnchorArguments,
+        ),
+        (
+            "r.positionAnchor(undefined)",
+            CompileErrorKind::InvalidPositionAnchorArguments,
+        ),
+        (
+            "r.positionAnchor(...[])",
+            CompileErrorKind::InvalidPositionAnchorArguments,
+        ),
+    ] {
+        let source = SourceFile::new(
+            FileId(1), None, None,
+            format!("import {{style}} from 'stillwind/react'; const r=style.ref(); const x=style({expression});"),
+        ).unwrap();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("test.ts"),
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        );
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|error| error.kind == expected),
+            "{expression}: {:?}",
+            parsed.diagnostics
+        );
+    }
 }

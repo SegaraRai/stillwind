@@ -25,10 +25,10 @@ ref identity の宣言は `style.ref()` に統一する。`style.anchor()` や
 | `ref.asAnchor(...)` を `style()` に渡す      | receiver のアンカー名を供給する CSS use を作る。scope の詳細は後述 | なし          |
 | `ref.asContainer(...)` を `style()` に渡す   | receiver のコンテナー名と型設定を供給する CSS use を作る           | なし          |
 | `style.anchorScope(...)` を `style()` に渡す | 対象要素に scope だけを供給する CSS use を作る                     | なし          |
-| `ref.positionAnchor` を `style()` に渡す     | receiver のアンカーを参照する CSS use                              | なし          |
+| `ref.positionAnchor()` を `style()` に渡す   | receiver のアンカーを参照する CSS use                              | なし          |
 | `ref.at(query)`                              | receiver のコンテナー名を参照する variant                          | なし          |
 
-`positionAnchor` は現行 API のプロパティ表記を用いている。メソッド化は別の判断である。
+`positionAnchor()` は引数なしのメソッドで、consumer use を生成する。
 `asXXX` は新しい ref identity を作らず、receiver の identity から生成名を得る。
 `asContainer` の引数に同じ ref を重ねて渡す必要はない。
 
@@ -238,7 +238,7 @@ gate、CSS variant、token 合成などに必要な経由は残し、共通 lowe
 | `ref.anchor`                           | `ref.asAnchor()` へ置換。anchor-name だけを供給し、marker attachment は別途明示する |
 | `ref.container(type)`                  | `ref.asContainer(type)` へ置換。use は marker を追加しない                          |
 | `ref.anchorScope`                      | `style.anchorScope([ref])` へ置換。scope 要素に参照先 marker を追加しない           |
-| `ref.positionAnchor`                   | consumer の役割を維持し、class unit の経路へ変更。メソッド化は未決                  |
+| `ref.positionAnchor()`                 | 引数なしのメソッドとして consumer use を生成し、class unit の経路で出力する         |
 | `ref.at(query)` / ref selector variant | 参照先の名前・marker を使う役割を維持。provider の設定は明示 use が担う             |
 
 `ref.anchorName` は現行 API に存在せず、削除対象の名前として扱わない。
@@ -311,7 +311,7 @@ consumer 側の設定漏れは別の診断である。`positionAnchor` に対す
 - 空 scope 配列は警告し、scope 宣言を省略する。重複は identity で除去し、最初の出現順を保つ。
 - scope 引数は `all` / `none` または配列リテラルで、各要素は有限 ref 候補へ解決できる式を受け付ける。
 - container-type は省略または型に列挙した文字列リテラルを受け付ける。
-- `positionAnchor` はプロパティ形式を維持する。
+- `positionAnchor()` は引数を受け付けない。
 - property 衝突 Lint は同じ style 呼び出し内の供給を比較する。任意 selector による対象の重なりや別モジュールの DOM 関係は完全には検証しない。
 
 ## 検証する契約

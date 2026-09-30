@@ -191,6 +191,9 @@ pub enum CompileErrorKind {
     /// A container query projection lacks its literal query and utility arguments.
     #[error("ref.at() requires one nonempty literal query or a static template")]
     InvalidContainerQuery,
+    /// A position-anchor use supplies arguments to a method that accepts none.
+    #[error("ref.positionAnchor() does not accept arguments")]
+    InvalidPositionAnchorArguments,
     /// A projection receiver is not an identity created by a ref declaration.
     #[error("ref projections must use an identity returned by style.ref()")]
     InvalidRefProjection,
@@ -721,7 +724,8 @@ impl CompileErrorKind {
             | Self::InvalidRefBoundary
             | Self::InvalidRefLabelArgument
             | Self::InvalidRefArguments
-            | Self::InvalidRefProjection => "SHREF001",
+            | Self::InvalidRefProjection
+            | Self::InvalidPositionAnchorArguments => "SHREF001",
             Self::NonStaticRefVariant => "SHREF005",
             Self::InvalidAnchorScope => "SHREF010",
             Self::InvalidContainerType => "SHREF002",

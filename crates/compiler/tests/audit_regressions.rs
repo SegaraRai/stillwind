@@ -767,7 +767,7 @@ fn motion_definitions_transport_explicit_property_dependencies_without_directive
 #[test]
 fn explicit_ref_uses_separate_attachment_gate_and_scope() {
     let (source, result) = compile(
-        "const r=style.ref(); const a=style.ref(); export const x=style(r,r.asAnchor([a]),r.asContainer()); export const y=style(r.positionAnchor); export const z=style(style.anchorScope([a]));",
+        "const r=style.ref(); const a=style.ref(); export const x=style(r,r.asAnchor([a]),r.asContainer()); export const y=style(r.positionAnchor()); export const z=style(style.anchorScope([a]));",
         "",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -957,7 +957,7 @@ fn conditional_static_uses_share_one_unit_and_keep_transition_tokens() {
 #[test]
 fn dynamic_scope_includes_every_candidate_without_runtime_lookup() {
     let (source, result) = compile(
-        "const a=style.ref();const b=style.ref();const x=style(style.anchorScope([flag?a:b]));const y=style((flag?a:b).positionAnchor);",
+        "const a=style.ref();const b=style.ref();const x=style(style.anchorScope([flag?a:b]));const y=style((flag?a:b).positionAnchor());",
         "",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);

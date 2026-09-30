@@ -103,8 +103,8 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * Use the call directly in a style input and attach the ref to the same element.
    */
   asContainer(type?: ContainerType): StyleRefProjection<RefId, BoundaryId>;
-  /** Adds position-anchor to the styled element. Use this property directly as a style input. */
-  readonly positionAnchor: StyleRefProjection<RefId, BoundaryId>;
+  /** Adds position-anchor to the styled element. Use this call directly as a style input. */
+  positionAnchor(): StyleRefProjection<RefId, BoundaryId>;
   /** Creates a named-container query from literal CSS for a variant key or template substitution. */
   at(query: string): StyleRefVariant<RefId, BoundaryId>;
   at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
@@ -240,13 +240,6 @@ export type StyleArgument =
  * checker metadata.
  */
 export type StyleMacro<Props = object> = {
-  /**
-   * Adds anchor-scope without requiring a ref marker on the element.
-   * Use this call directly in a style input. The argument follows the same literal
-   * keyword or array rules as `ref.asAnchor`. An empty array emits no declaration.
-   * This call does not attach any ref marker.
-   */
-  anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
@@ -281,6 +274,13 @@ export type StyleMacro<Props = object> = {
     definition: StyleViewTransitionDefinition,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleViewTransition<Id>;
+  /**
+   * Adds anchor-scope without requiring a ref marker on the element.
+   * Use this call directly in a style input. The argument follows the same literal
+   * keyword or array rules as `ref.asAnchor`. An empty array emits no declaration.
+   * This call does not attach any ref marker.
+   */
+  anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
 };
 
 /** Creates a macro entrypoint that reports missing compiler integration if executed. */

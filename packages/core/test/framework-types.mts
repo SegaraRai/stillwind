@@ -22,7 +22,7 @@ export type FrameworkSpreadContracts = [
 function variantWrapperTypes(active: boolean) {
   const anchor = react.ref("anchor");
   const transition = react.viewTransition({ old: "opacity-0" });
-  react({ "hover:": [anchor.positionAnchor, active && transition.for("hero")] });
+  react({ "hover:": [anchor.positionAnchor(), active && transition.for("hero")] });
   react([
     anchor,
     { "aria-busy": active, "--size": 4, class: "external" },
@@ -89,7 +89,7 @@ function boundedIdentityTypes(
 ) {
   const bounded = react.ref(boundary, identity);
   react(bounded, bounded.asAnchor());
-  svelte(bounded, bounded.positionAnchor);
+  svelte(bounded, bounded.positionAnchor());
   vue({ [bounded("hover")]: "text-accent" });
 }
 void boundedIdentityTypes;
@@ -98,6 +98,11 @@ function explicitRefUses(flag: boolean) {
   const a = react.ref();
   const b = react.ref();
   const selected = flag ? a : b;
+  react(selected.positionAnchor());
+  // @ts-expect-error positionAnchor must be called
+  react(a.positionAnchor);
+  // @ts-expect-error positionAnchor takes no arguments
+  a.positionAnchor("unused");
   react(selected, selected.asAnchor([a, selected]), selected.asContainer());
   react(react.anchorScope([a, b] as const), react.anchorScope("none"));
   react(a, a.asContainer("scroll-state size"), a.asAnchor("all"));

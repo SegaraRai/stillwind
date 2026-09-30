@@ -281,7 +281,7 @@ const popover = style.ref();
 
 <div {...style(popover.anchorScope, popover.container("inline-size"), "relative")}>
   <button {...style(popover.anchor, "inline-flex")}>More</button>
-  <div {...style(popover.positionAnchor, "absolute position-area-block-end")} />
+  <div {...style(popover.positionAnchor(), "absolute position-area-block-end")} />
   <div {...style(popover.at("width >= 40rem", "grid-cols-2"))} />
 </div>;
 ```

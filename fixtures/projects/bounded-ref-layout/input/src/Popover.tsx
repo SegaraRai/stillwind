@@ -13,7 +13,7 @@ export function Popover() {
         <button {...style(trigger, trigger.asAnchor(), "relative inline-flex")}>Open</button>
         <div
           {...style(
-            trigger.positionAnchor,
+            trigger.positionAnchor(),
             { [container.at("width >= 40rem")]: "grid-cols-2" },
             `${trigger`hover:`}:text-accent`,
             "absolute",

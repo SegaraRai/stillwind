@@ -21,7 +21,7 @@ pub(crate) enum RefUseKind {
     AsAnchor,
     /// `ref.asContainer(...)`.
     AsContainer,
-    /// `ref.positionAnchor`.
+    /// `ref.positionAnchor()`.
     PositionAnchor,
     /// `ref.at(...)` variant.
     ContainerQueryVariant,
@@ -87,13 +87,6 @@ impl<'a> MacroExtractor<'a> {
             ));
         }
         let (receiver, projection) = match expression {
-            Expression::StaticMemberExpression(member)
-                if member.property.name == "positionAnchor" =>
-            {
-                self.consumed_use_spans
-                    .insert(LocalSpan::from(expression.span()));
-                (&member.object, RefProjection::PositionAnchor)
-            }
             Expression::CallExpression(call) => {
                 let Expression::StaticMemberExpression(member) = &call.callee else {
                     return None;
@@ -120,6 +113,17 @@ impl<'a> MacroExtractor<'a> {
                     "asContainer" => {
                         self.consumed_use_spans.insert(LocalSpan::from(call.span));
                         self.collect_container_type(call)?
+                    }
+                    "positionAnchor" => {
+                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                        if !call.arguments.is_empty() {
+                            self.diagnostics.push(CompileError::new(
+                                CompileErrorKind::InvalidPositionAnchorArguments,
+                                span,
+                            ));
+                            return None;
+                        }
+                        RefProjection::PositionAnchor
                     }
                     _ => return None,
                 };

@@ -21,7 +21,7 @@ fn consumer_inside_variant_keeps_variant_without_marker_gate() {
         None,
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
-export const item = style({ "hover:": trigger.positionAnchor });"#,
+export const item = style({ "hover:": trigger.positionAnchor() });"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
@@ -52,7 +52,7 @@ fn conditional_region_collects_utilities_and_ref_projection_into_one_class() {
         None,
         r#"import { style } from "stillwind/react";
 const anchor = style.ref();
-export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"]);"#,
+export const item = style(enabled && ["p-4", anchor.positionAnchor(), "text-red"]);"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
@@ -97,7 +97,7 @@ fn unconditional_projection_and_custom_property_materialize_direct_props() {
         None,
         r#"import { style } from "stillwind/react";
 const anchor = style.ref();
-export const item = style("flex", anchor.positionAnchor, { "--x": size });"#,
+export const item = style("flex", anchor.positionAnchor(), { "--x": size });"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
@@ -129,7 +129,7 @@ fn projects_one_ref_into_anchor_position_and_container_names() {
 const popover = style.ref();
 const root = style(popover, style.anchorScope([popover]), popover.asContainer("inline-size"));
 const trigger = style(popover, popover.asAnchor(), "relative");
-const panel = style(popover.positionAnchor, "absolute");"#,
+const panel = style(popover.positionAnchor(), "absolute");"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
@@ -192,7 +192,7 @@ fn reports_a_position_anchor_use_without_an_anchor_provider() {
         None,
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
-const panel = style(popover.positionAnchor);"#,
+const panel = style(popover.positionAnchor());"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
