@@ -7,7 +7,7 @@
 //! prove them.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -208,8 +208,8 @@ export const props = style(selected);"#,
         &CompilerOptions::default(),
     );
     assert_eq!(
-        result.diagnostics[0].kind,
-        CompileErrorKind::RefFactsRequired
+        result.diagnostics[0].diagnostic,
+        CompileDiagnostic::RefFactsRequired
     );
 }
 
@@ -240,7 +240,7 @@ export const container = style(selected.asContainer("inline-size"));"#,
         &CompilerOptions::default(),
     );
     assert_eq!(
-        result.diagnostics[0].kind,
-        CompileErrorKind::RefProjectionFactsRequired
+        result.diagnostics[0].diagnostic,
+        CompileDiagnostic::RefProjectionFactsRequired
     );
 }

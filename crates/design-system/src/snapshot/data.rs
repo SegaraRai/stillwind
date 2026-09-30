@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintSettings, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSettings, SourceFailureContext};
 use stillwind_source::{
     CssSourceName, Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span,
 };
@@ -56,7 +56,7 @@ impl DesignSystemError {
     pub fn into_compile_error(self, span: Span) -> CompileError {
         let kind = match self {
             DesignSystemError::UnresolvedImports { requests } => {
-                CompileErrorKind::UnresolvedCssImports {
+                CompileDiagnostic::UnresolvedCssImports {
                     requests: format!("{requests:?}"),
                 }
             }
@@ -65,29 +65,29 @@ impl DesignSystemError {
                     return error;
                 }
                 DesignSystemLoadError::Registry(SourceRegistryError::FileIdExhausted) => {
-                    CompileErrorKind::CssSourceIdExhausted
+                    CompileDiagnostic::CssSourceIdExhausted
                 }
                 DesignSystemLoadError::InvalidGraph | DesignSystemLoadError::Registry(_) => {
-                    CompileErrorKind::InvalidCssGraph
+                    CompileDiagnostic::InvalidCssGraph
                 }
                 DesignSystemLoadError::Source(error) => {
-                    CompileErrorKind::source_failure(&error, SourceFailureContext::Stylesheet)
+                    CompileDiagnostic::source_failure(&error, SourceFailureContext::Stylesheet)
                 }
                 DesignSystemLoadError::RequestIdExhausted => {
-                    CompileErrorKind::CssRequestIdExhausted
+                    CompileDiagnostic::CssRequestIdExhausted
                 }
-                DesignSystemLoadError::AlreadyComplete => CompileErrorKind::CssLoadAlreadyComplete,
+                DesignSystemLoadError::AlreadyComplete => CompileDiagnostic::CssLoadAlreadyComplete,
                 DesignSystemLoadError::InvalidInitialBatch { count } => {
-                    CompileErrorKind::InvalidCssInitialBatch { count }
+                    CompileDiagnostic::InvalidCssInitialBatch { count }
                 }
                 DesignSystemLoadError::UnknownOrDuplicateRequest { id } => {
-                    CompileErrorKind::UnknownCssRequest { id }
+                    CompileDiagnostic::UnknownCssRequest { id }
                 }
                 DesignSystemLoadError::ConflictingSource { name } => {
-                    CompileErrorKind::ConflictingCssSource { name }
+                    CompileDiagnostic::ConflictingCssSource { name }
                 }
                 DesignSystemLoadError::InvalidOptions(error) => error,
-                DesignSystemLoadError::Cycle { chain } => CompileErrorKind::CssImportCycle {
+                DesignSystemLoadError::Cycle { chain } => CompileDiagnostic::CssImportCycle {
                     requests: format!("{chain:?}"),
                 },
             },
@@ -234,7 +234,7 @@ impl DesignSystemSnapshot {
         theme: ThemeIndex,
         mut config: DesignSystemOptions,
         sources: CssSourceGraph,
-    ) -> Result<Self, CompileErrorKind> {
+    ) -> Result<Self, CompileDiagnostic> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
         if let Some(prefix) = &theme.config.prefix {
             config.prefix.clone_from(prefix);

@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -87,10 +87,10 @@ impl CompilerOptions {
     /// Returns the typed prefix-shape or namespace-conflict failures from
     /// [`DesignSystemOptions::validate`], retaining the rejected configuration values,
     /// or the rejected hash length when it is outside the range a digest can fill.
-    pub fn validate(&self) -> Result<(), CompileErrorKind> {
+    pub fn validate(&self) -> Result<(), CompileDiagnostic> {
         self.design_system().validate()?;
         if !(1..=MAXIMUM_HASH_LENGTH).contains(&self.hash_length) {
-            return Err(CompileErrorKind::InvalidHashLength {
+            return Err(CompileDiagnostic::InvalidHashLength {
                 length: self.hash_length,
                 maximum: MAXIMUM_HASH_LENGTH,
             });

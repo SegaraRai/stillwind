@@ -6,7 +6,7 @@
 //! conditional branches, and explicit `class` entries behave as documented.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
@@ -82,8 +82,8 @@ fn residual_macro_references_fail_the_entire_compilation() {
         );
         assert!(
             result.diagnostics.iter().any(|error| matches!(
-                error.kind,
-                CompileErrorKind::UntransformedMacroReference { .. }
+                error.diagnostic,
+                CompileDiagnostic::UntransformedMacroReference { .. }
             )),
             "{:?}",
             result.diagnostics
@@ -108,8 +108,8 @@ fn residual_macro_references_fail_the_entire_compilation() {
     );
     assert!(
         result.diagnostics.iter().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::UntransformedMacroReference { .. }
+            error.diagnostic,
+            CompileDiagnostic::UntransformedMacroReference { .. }
         )),
         "{:?}",
         result.diagnostics
@@ -511,7 +511,7 @@ const props = style({ "legacy-loading": loading });"#,
         result
             .diagnostics
             .iter()
-            .any(|item| item.kind == CompileErrorKind::InvalidAttributeKey),
+            .any(|item| item.diagnostic == CompileDiagnostic::InvalidAttributeKey),
         "{:#?}",
         result.diagnostics
     );

@@ -1,7 +1,7 @@
 //! Stateless compilation entry points.
 //!
 //! [`Compiler`] has no instances: each function takes the analyzer, sources, and options, and
-//! returns a [`CompileResult`]. A theme that cannot be read becomes a `SHCSS001` diagnostic
+//! returns a [`CompileResult`]. A theme that cannot be read becomes a CSS diagnostic
 //! against the theme file instead of an error, so a caller always receives a result shape it
 //! knows how to report; only the theme-reading helpers return a [`CompileError`].
 //!
@@ -146,7 +146,7 @@ impl Compiler {
 
     /// Compiles an already finalized analysis against a theme buffer.
     ///
-    /// A design-system failure is reported as a `SHCSS001` diagnostic spanning the whole
+    /// A design-system failure is reported as a CSS diagnostic spanning the whole
     /// theme file, with an empty result otherwise, because there is no module output to
     /// return once the theme is unusable.
     pub fn compile_analysis(

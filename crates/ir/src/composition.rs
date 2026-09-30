@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, Span};
 
@@ -61,7 +61,7 @@ fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
 /// Checks every possible base and both style and producer-module cycles.
 ///
 /// `require_complete` is set when the caller compiles a closed producer set, such as a
-/// whole project: an unresolved base is then an error (`SHCOMP005`). Rendering one
+/// whole project: an unresolved base is then an error (`CompileDiagnostic::UnavailableStyleBase`). Rendering one
 /// module in isolation passes `false`, because bases owned by other modules are
 /// expected to arrive later.
 ///
@@ -99,11 +99,11 @@ pub fn validate_composition(
         }
     }
     let Some(order) = ordered(&edges) else {
-        return vec![CompileError::new(CompileErrorKind::CompositionCycle, at)];
+        return vec![CompileError::new(CompileDiagnostic::CompositionCycle, at)];
     };
     if ordered(&module_edges).is_none() {
         return vec![CompileError::new(
-            CompileErrorKind::CompositionModuleCycle,
+            CompileDiagnostic::CompositionModuleCycle,
             at,
         )];
     }
@@ -111,19 +111,19 @@ pub fn validate_composition(
         for dependency in &edges[&key] {
             if require_complete && !edges.contains_key(dependency) {
                 return vec![CompileError::new(
-                    CompileErrorKind::UnavailableStyleBase,
+                    CompileDiagnostic::UnavailableStyleBase,
                     at,
                 )];
             }
             if props.contains(dependency) {
-                return vec![CompileError::new(CompileErrorKind::StyleBaseWithProps, at)];
+                return vec![CompileError::new(CompileDiagnostic::StyleBaseWithProps, at)];
             }
             if class_properties
                 .get(dependency)
                 .is_some_and(|property| *property != class_properties[&key])
             {
                 return vec![CompileError::new(
-                    CompileErrorKind::StyleBaseFrameworkMismatch,
+                    CompileDiagnostic::StyleBaseFrameworkMismatch,
                     at,
                 )];
             }

@@ -35,7 +35,7 @@ converter は `@stillwind/projection` に隔離し、JavaScript SDK を必要と
 | 診断の editor 位置                                                           | 原文 UTF-16 offset、およびゼロ始まり line / column |
 
 Rust の AST 抽出中のみ正規化した解析 buffer の範囲が存在する。公開前に原文へ戻し、
-対応を検証できない場合は `SHPRJ001` 等で拒否する。別モジュールの宣言 identity を
+対応を検証できない場合は投影や座標に対応する診断で拒否する。別モジュールの宣言 identity を
 使用側の source map で再変換しない。生成シンボルの宣言位置も identity に従う。
 
 ## 型の伝播とエラー

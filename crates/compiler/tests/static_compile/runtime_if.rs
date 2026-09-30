@@ -309,7 +309,7 @@ fn runtime_if_negated_variants_require_native_lowering() {
             fallback
                 .diagnostics
                 .iter()
-                .any(|error| error.kind.to_string().contains("useCssIf: true")),
+                .any(|error| error.diagnostic.to_string().contains("useCssIf: true")),
             "{candidate}: {:?}",
             fallback.diagnostics
         );
@@ -348,7 +348,7 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
         let fallback = compile(candidate, false);
         assert!(
             fallback.diagnostics.iter().any(|error| error
-                .kind
+                .diagnostic
                 .to_string()
                 .contains("value comparisons require useCssIf: true")),
             "{candidate}: {:?}",

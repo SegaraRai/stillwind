@@ -10,7 +10,7 @@
 //! its expansion loop, leaving that directive and later occurrences unchanged.
 
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_syntax::parse_candidate;
 
 use super::super::conditionals::guard;
@@ -36,7 +36,7 @@ pub(in crate::compiler) fn expand_authored_directives(
     theme: &ThemeIndex,
     required_properties: &mut Vec<String>,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let mut output = css.to_owned();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
@@ -50,7 +50,7 @@ pub(in crate::compiler) fn expand_authored_directives(
                 Ok(Some(utility)) => utilities.push(utility),
                 Ok(None) => {}
                 Err(error) => {
-                    return Err(CompileErrorKind::MalformedUtilityRequirement {
+                    return Err(CompileDiagnostic::MalformedUtilityRequirement {
                         utility: error.name,
                         offset: error.source.offset,
                     });
@@ -117,7 +117,7 @@ pub(in crate::compiler) fn expand_authored_variant(
     body: &str,
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
-) -> Result<Option<String>, CompileErrorKind> {
+) -> Result<Option<String>, CompileDiagnostic> {
     let mut output = String::new();
     for variant_sequence in split_css_top_level(prelude, ',') {
         let Some(candidate) = parse_candidate(&format!("{}:flex", variant_sequence.trim())) else {
@@ -212,7 +212,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     variant_paths(applications)
         .iter()
         .map(|path| {
@@ -288,7 +288,7 @@ mod tests {
         css: &str,
         theme: &ThemeIndex,
         required: &mut Vec<String>,
-    ) -> Result<String, CompileErrorKind> {
+    ) -> Result<String, CompileDiagnostic> {
         expand_authored_directives(
             css,
             theme,

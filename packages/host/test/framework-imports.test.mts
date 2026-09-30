@@ -98,11 +98,11 @@ void test("Vue JSX compiles to class and style object props with an explicit Vue
   assert.deepEqual(Object.keys(props), ["class", "style"]);
 });
 
-void test("Vue SFC with a React macro warns in original coordinates without SHJS008", async () => {
+void test("Vue SFC with a React macro warns in original coordinates without a framework conflict", async () => {
   const literal = "'stillwind/react'";
   const source = `<script setup>\n// 🧭\nimport {style} from ${literal};\nconst props = style('flex');\n</script><template><div v-bind="props" /></template>`;
   const output = await compileFixture(source, "WrongMacro.vue");
-  assert.ok(!output.diagnostics.some((diagnostic) => diagnostic.code === "SHJS008"));
+  assert.ok(!output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001"));
   assert.deepEqual(output.diagnostics, []);
   assert.ok(output.code);
   assert.equal(output.lint_findings.length, 1);
@@ -120,7 +120,7 @@ void test("explicit framework constraints remain fatal even for an otherwise all
     "React",
   );
   assert.equal(output.code, null);
-  assert.ok(output.diagnostics.some((diagnostic) => diagnostic.code === "SHJS008"));
+  assert.ok(output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001"));
   assert.deepEqual(output.lint_findings, []);
 });
 

@@ -8,7 +8,7 @@
 //! non-macro specifiers stay verbatim, so user formatting inside the declaration
 //! survives.
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::ModuleImports;
 use stillwind_source::{SourceFile, Span};
 
@@ -35,7 +35,7 @@ pub fn plan_macro_import_removals(
     for import in &imports.macros {
         let declaration = source.slice(import.span).map_err(|error| {
             CompileError::new(
-                CompileErrorKind::import_source_failure(&error),
+                CompileDiagnostic::import_source_failure(&error),
                 source.full_span(),
             )
         })?;
@@ -44,7 +44,7 @@ pub fn plan_macro_import_removals(
         for specifier in &import.specifiers {
             source.slice(specifier.span).map_err(|error| {
                 CompileError::new(
-                    CompileErrorKind::import_source_failure(&error),
+                    CompileDiagnostic::import_source_failure(&error),
                     source.full_span(),
                 )
             })?;
@@ -55,7 +55,7 @@ pub fn plan_macro_import_removals(
         }
         if !valid {
             return Err(CompileError::new(
-                CompileErrorKind::InvalidImportMetadata { span: import.span },
+                CompileDiagnostic::InvalidImportMetadata { span: import.span },
                 import.span,
             ));
         }
@@ -65,7 +65,7 @@ pub fn plan_macro_import_removals(
             }
             if specifier.has_unmapped_references {
                 return Err(CompileError::new(
-                    CompileErrorKind::UnmappedMacroReference {
+                    CompileDiagnostic::UnmappedMacroReference {
                         local: specifier.local.clone(),
                         span: specifier.span,
                     },
@@ -92,7 +92,7 @@ pub fn plan_macro_import_removals(
                             .is_ok_and(callee_prefix))
                 }) {
                     return Err(CompileError::new(
-                        CompileErrorKind::UntransformedMacroReference {
+                        CompileDiagnostic::UntransformedMacroReference {
                             local: specifier.local.clone(),
                             span: *reference,
                         },
@@ -301,14 +301,14 @@ mod tests {
         assert!(matches!(
             rewrite(input, false, false),
             Err(CompileError {
-                kind: CompileErrorKind::UntransformedMacroReference { .. },
+                diagnostic: CompileDiagnostic::UntransformedMacroReference { .. },
                 ..
             })
         ));
         assert!(matches!(
             rewrite(input, true, true),
             Err(CompileError {
-                kind: CompileErrorKind::UnmappedMacroReference { .. },
+                diagnostic: CompileDiagnostic::UnmappedMacroReference { .. },
                 ..
             })
         ));
@@ -316,7 +316,7 @@ mod tests {
         assert!(matches!(
             rewrite(&residual, true, false),
             Err(CompileError {
-                kind: CompileErrorKind::UntransformedMacroReference { .. },
+                diagnostic: CompileDiagnostic::UntransformedMacroReference { .. },
                 ..
             })
         ));

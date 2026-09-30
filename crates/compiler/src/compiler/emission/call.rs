@@ -5,7 +5,7 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling
 //! files.
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_ir::{
     AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
     GroupEntry, StyleInput,
@@ -300,7 +300,7 @@ impl<'a> CallEmitter<'a> {
         &mut self,
         reference: &AssetReference,
         kind: AssetKind,
-    ) -> Result<String, CompileErrorKind> {
+    ) -> Result<String, CompileDiagnostic> {
         let symbol = definition_name_symbol(self.identifiers, reference, kind)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
@@ -312,7 +312,7 @@ impl<'a> CallEmitter<'a> {
     /// The failed call is omitted from the output, and the pipeline clears every
     /// generated artifact once a diagnostic exists, so a rejected name never reaches
     /// generated code.
-    pub(super) fn reject_name(&mut self, failure: CompileErrorKind, span: Span) {
+    pub(super) fn reject_name(&mut self, failure: CompileDiagnostic, span: Span) {
         self.diagnostics.push(CompileError::new(failure, span));
     }
 
@@ -374,7 +374,7 @@ impl<'a> CallEmitter<'a> {
 
     pub(super) fn report_source_error(&mut self, error: &SourceError) {
         self.diagnostics.push(CompileError::new(
-            CompileErrorKind::source_failure(error, SourceFailureContext::Emission),
+            CompileDiagnostic::source_failure(error, SourceFailureContext::Emission),
             self.call.span,
         ));
     }

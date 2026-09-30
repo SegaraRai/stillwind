@@ -1,7 +1,7 @@
 //! Typed compilation errors, advisory lint findings, and source highlights.
 //!
-//! Construct a [`CompileError`] from its kind or a [`LintFinding`] from a
-//! [`LintDiagnostic`] and a source span. Causes own message templates; [`LintKind`]
+//! Construct a [`CompileError`] from a [`CompileDiagnostic`] or a [`LintFinding`] from
+//! a [`LintDiagnostic`] and a source span. Causes own message templates; [`LintKind`]
 //! identifies a named lint rule, and [`LintSettings`] stores its configuration.
 //! Wrappers retain ordered labels and notes. Compilation errors may also carry an
 //! opaque display source name. The first label is the primary location and controls
@@ -30,7 +30,7 @@ mod lint;
 mod report;
 
 pub use compilation::{
-    CompileError, CompileErrorKind, SourceFailureContext, VariantInputErrorKind,
+    CompileDiagnostic, CompileError, CompileErrorCode, SourceFailureContext, VariantInputErrorKind,
 };
 pub use label::{DiagnosticInfo, FixAction, Label, Labels, SourceEdit, SourceRange};
 pub use lint::{

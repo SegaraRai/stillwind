@@ -12,7 +12,7 @@ use stillwind_compiler::{
     LayerContext, LayerName, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
@@ -155,8 +155,8 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     let update = session.update_module(module);
     assert!(
         update.diagnostics.iter().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::GeneratedIdentifierCollision { .. }
+            error.diagnostic,
+            CompileDiagnostic::GeneratedIdentifierCollision { .. }
         )),
         "{:?} {:?}",
         update.diagnostics,
@@ -212,8 +212,8 @@ fn a_helper_name_is_checked_in_the_custom_property_pool() {
     // Two helpers for different CSS may not share the one name the generator returned.
     assert!(
         update.diagnostics.iter().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::GeneratedIdentifierCollision { .. }
+            error.diagnostic,
+            CompileDiagnostic::GeneratedIdentifierCollision { .. }
         )),
         "{:?}",
         update.diagnostics
@@ -253,8 +253,8 @@ fn merge_barriers_have_an_independent_collision_pool() {
         ));
         assert_eq!(
             update.diagnostics.iter().any(|error| matches!(
-                error.kind,
-                CompileErrorKind::GeneratedIdentifierCollision { .. }
+                error.diagnostic,
+                CompileDiagnostic::GeneratedIdentifierCollision { .. }
             )),
             collision,
             "{candidates}: {:?}",
@@ -325,7 +325,7 @@ fn a_layer_name_is_checked_against_the_authored_document() {
     assert!(
         matches!(
             failure,
-            CompileErrorKind::GeneratedIdentifierCollision { .. }
+            CompileDiagnostic::GeneratedIdentifierCollision { .. }
         ),
         "{failure:?}"
     );

@@ -13,7 +13,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileError, CompileErrorKind, filter_lint_findings};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, filter_lint_findings};
 use stillwind_ir::{
     ModuleAnalysis, composition_dependencies, ordered_style_calls, split_view_transition_classes,
     validate_composition,
@@ -429,7 +429,7 @@ fn ref_value(token: &str) -> String {
 /// sees a partially named module.
 fn push_or_report<T>(
     diagnostics: &mut Vec<CompileError>,
-    value: Result<T, CompileErrorKind>,
+    value: Result<T, CompileDiagnostic>,
     span: Span,
 ) -> Option<T> {
     match value {

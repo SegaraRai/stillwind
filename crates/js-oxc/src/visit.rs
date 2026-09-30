@@ -17,7 +17,7 @@ use oxc::ast::ast::{
 };
 use oxc::ast_visit::{Visit, walk};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{StyleCall, from_macro_import};
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
@@ -79,7 +79,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     let adapter = spec.id;
                     if self.adapter.is_some_and(|previous| previous != adapter) {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::MixedFrameworks,
+                            CompileDiagnostic::MixedFrameworks,
                             self.source_span(declaration.span),
                         ));
                     }
@@ -196,8 +196,9 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// Collects one `style(...)` call site.
     ///
     /// Only calls whose callee resolves to the imported macro are collected. A call
-    /// nested inside an already-collected one is reported as `SHCOMP001` instead of
-    /// being lowered, and spread arguments are errors. Every other call is checked for
+    /// nested inside an already-collected one produces
+    /// [`CompileDiagnostic::NestedStyleCall`], and spread arguments are errors.
+    /// Every other call is checked for
     /// a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         if !self.is_style_call(call) {
@@ -213,7 +214,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {
             self.diagnostics
-                .push(CompileError::new(CompileErrorKind::NestedStyleCall, span));
+                .push(CompileError::new(CompileDiagnostic::NestedStyleCall, span));
             return;
         }
 

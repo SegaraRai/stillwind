@@ -1,7 +1,7 @@
 //! View-transition definitions: the group rule and the three pseudo-element phases.
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::ViewTransitionDefinition;
 use stillwind_source::{ModuleId, Spanned};
 
@@ -86,7 +86,7 @@ fn emit_view_transition_utilities(
             Ok(Some(resolved)) => resolved,
             Ok(None) => {
                 diagnostics.push(CompileError::new(
-                    CompileErrorKind::UnavailableUtility {
+                    CompileDiagnostic::UnavailableUtility {
                         utility: utility.value.raw.clone(),
                     },
                     utility.span,
@@ -95,7 +95,7 @@ fn emit_view_transition_utilities(
             }
             Err(error) => {
                 diagnostics.push(CompileError::new(
-                    CompileErrorKind::MalformedUtilityRequirement {
+                    CompileDiagnostic::MalformedUtilityRequirement {
                         utility: error.name,
                         offset: error.source.offset,
                     },
@@ -110,7 +110,7 @@ fn emit_view_transition_utilities(
         }
         let Some(paths) = condition_paths(&resolved.variants, theme) else {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidViewTransitionVariant,
+                CompileDiagnostic::InvalidViewTransitionVariant,
                 utility.span,
             ));
             continue;
@@ -207,7 +207,7 @@ mod tests {
             let errors = result
                 .diagnostics
                 .iter()
-                .filter(|error| error.kind == CompileErrorKind::InvalidViewTransitionVariant)
+                .filter(|error| error.diagnostic == CompileDiagnostic::InvalidViewTransitionVariant)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{definition}: {:?}", result.diagnostics);
             assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), expected);

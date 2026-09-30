@@ -16,7 +16,7 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    AggregateError, CompileError, CompileErrorKind, DiagnosticBatch, Reporter, ResolvedDiagnostic,
+    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, Reporter, ResolvedDiagnostic,
     SourceFailureContext,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
@@ -56,7 +56,7 @@ pub enum BindingApiError {
     DesignSystem(#[from] DesignSystemError),
     /// Compiler options were rejected.
     #[error("{0}")]
-    Options(#[from] CompileErrorKind),
+    Options(#[from] CompileDiagnostic),
 }
 
 impl From<BindingApiError> for Error {
@@ -264,23 +264,23 @@ fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
     }
 }
 
-fn transform_failure_kind(error: &TransformError) -> CompileErrorKind {
+fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
     match error {
-        TransformError::CompilationFailed => CompileErrorKind::InvalidTransformState,
+        TransformError::CompilationFailed => CompileDiagnostic::InvalidTransformState,
         TransformError::InvalidSpan(source) => {
-            CompileErrorKind::source_failure(source, SourceFailureContext::Transform)
+            CompileDiagnostic::source_failure(source, SourceFailureContext::Transform)
         }
         TransformError::InvalidExpressionMapping(span) => {
-            CompileErrorKind::InvalidTransformExpressionMapping { span: *span }
+            CompileDiagnostic::InvalidTransformExpressionMapping { span: *span }
         }
         TransformError::Overlap {
             span,
             previous_start,
-        } => CompileErrorKind::InvalidTransformOverlap {
+        } => CompileDiagnostic::InvalidTransformOverlap {
             span: *span,
             previous_start: *previous_start,
         },
-        TransformError::TooLarge => CompileErrorKind::InvalidTransformSize,
+        TransformError::TooLarge => CompileDiagnostic::InvalidTransformSize,
     }
 }
 
@@ -382,11 +382,10 @@ pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSumm
     let source = ProjectSource::try_from(source)?;
     let mut registry = SourceRegistry::default();
     let scan = OxcSourceAnalyzer.scan_input(source.input(&mut registry)?);
-    if let Some(error) = scan
-        .diagnostics
-        .iter()
-        .find(|error| error.kind.code() == "SHPRJ001" || error.kind.code() == "SHJS001")
-    {
+    if let Some(error) = scan.diagnostics.iter().find(|error| {
+        error.diagnostic.is_projection_failure()
+            || matches!(error.diagnostic, CompileDiagnostic::JavaScriptParse)
+    }) {
         return Err(Error::from_reason(error.to_string()));
     }
     let count = |length| u32::try_from(length).map_err(|_| Error::from_reason("too many imports"));
@@ -674,12 +673,12 @@ mod tests {
         assert!(output.code.is_none());
         assert!(output.css.is_empty());
         assert_eq!(output.diagnostics.len(), 1);
-        assert_eq!(output.diagnostics[0].code, "SHSPAN004");
+        assert_eq!(output.diagnostics[0].code, "SW09004");
         assert!(output.diagnostics[0].message.contains("expected FileId("));
 
         let mut result = CompileResult::default();
         result.diagnostics.push(CompileError::new(
-            CompileErrorKind::InvalidStyleInput,
+            CompileDiagnostic::InvalidStyleInput,
             Span::new(FileId(3), 0, 1),
         ));
         assert!(matches!(

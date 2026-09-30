@@ -18,7 +18,7 @@ use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding};
 use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, SourceFile, Span};
@@ -103,7 +103,7 @@ pub(crate) fn parse_with_coordinates(
         .into_iter()
         .map(|diagnostic| {
             let mut error =
-                CompileError::new(CompileErrorKind::JavaScriptParse, source.full_span());
+                CompileError::new(CompileDiagnostic::JavaScriptParse, source.full_span());
             error.notes.push(diagnostic.to_string());
             error
         })
@@ -113,7 +113,7 @@ pub(crate) fn parse_with_coordinates(
         type_facts
     } else {
         diagnostics.push(CompileError::new(
-            CompileErrorKind::InvalidSymbolicFacts,
+            CompileDiagnostic::InvalidSymbolicFacts,
             source.full_span(),
         ));
         &[]
@@ -297,7 +297,7 @@ mod tests {
         );
         assert_eq!(parsed.diagnostics.len(), 1);
         let diagnostic = &parsed.diagnostics[0];
-        assert_eq!(diagnostic.kind, CompileErrorKind::JavaScriptParse);
+        assert_eq!(diagnostic.diagnostic, CompileDiagnostic::JavaScriptParse);
         assert_eq!(diagnostic.labels[0].span, source.full_span());
         // The parser's own wording is retained as a note rather than rewritten.
         assert!(

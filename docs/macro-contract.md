@@ -30,8 +30,8 @@ Stillwind のマクロは UI を記述するための宣言である。値を計
   variant object の計算キー、または対応する utility template 補間に置く。
 
 `style()` 内にあっても属性値、任意関数の引数などでは消費できない。
-未消費の keyframes call は `SHANIMATION002`、その他の projection / ref variant は
-`SHMACRO003` で拒否する。判定には解決済み binding と checker の receiver 情報を使う。
+未消費の keyframes call は `SW04002`、その他の projection / ref variant は
+`SW01011` で拒否する。判定には解決済み binding と checker の receiver 情報を使う。
 公開の use 型は入力構文の型検査用であり、独立した実行時の値を保証しない。
 
 ```ts

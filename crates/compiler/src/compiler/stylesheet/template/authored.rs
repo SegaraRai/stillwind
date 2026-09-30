@@ -7,7 +7,7 @@
 
 use stillwind_css::take_property_requirements;
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
@@ -36,9 +36,9 @@ pub(super) fn render_authored(
     required_properties: &mut Vec<String>,
     options: &CompilerOptions,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let (css, requirements) = take_property_requirements(css).map_err(|error| {
-        CompileErrorKind::MalformedPropertyRequirement {
+        CompileDiagnostic::MalformedPropertyRequirement {
             offset: error.offset,
         }
     })?;
@@ -50,11 +50,11 @@ pub(super) fn render_authored(
             required_properties,
             identifiers,
         )?)
-        .map_err(|error| CompileErrorKind::InvalidThemeReference {
+        .map_err(|error| CompileDiagnostic::InvalidThemeReference {
             offset: error.offset(),
             detail: error.to_string(),
         })?
-        .ok_or(CompileErrorKind::UnresolvedThemeReference)
+        .ok_or(CompileDiagnostic::UnresolvedThemeReference)
         .and_then(|css| lower(&css, options.use_css_if, identifiers))
         // The helper prefix is the built-in marker plus the role letter, so replacing the
         // marker puts every role's spelling under the configured custom-property prefix.

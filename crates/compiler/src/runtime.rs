@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
 use stillwind_source::Span;
 
@@ -245,7 +245,7 @@ impl<'a> RuntimeBindings<'a> {
             } else {
                 // A selected anchor must have contained a successfully lowered macro.
                 return Err(CompileError::new(
-                    CompileErrorKind::MissingRuntimeAnchor { span },
+                    CompileDiagnostic::MissingRuntimeAnchor { span },
                     span,
                 ));
             }
@@ -253,15 +253,15 @@ impl<'a> RuntimeBindings<'a> {
         for &span in &module.ir.imports.module_css {
             module.source.slice(span).map_err(|error| {
                 CompileError::new(
-                    CompileErrorKind::import_source_failure(&error),
+                    CompileDiagnostic::import_source_failure(&error),
                     module.source.full_span(),
                 )
             })?;
             let target = module.input.module_css_import.as_ref().ok_or_else(|| {
-                CompileError::new(CompileErrorKind::MissingModuleCssTarget { span }, span)
+                CompileError::new(CompileDiagnostic::MissingModuleCssTarget { span }, span)
             })?;
             let quoted = serde_json::to_string(target).map_err(|_| {
-                CompileError::new(CompileErrorKind::InvalidImportMetadata { span }, span)
+                CompileError::new(CompileDiagnostic::InvalidImportMetadata { span }, span)
             })?;
             edits.push(SourceTransform {
                 call_span: span,
@@ -277,7 +277,7 @@ impl<'a> RuntimeBindings<'a> {
                 .first()
                 .ok_or_else(|| {
                     CompileError::new(
-                        CompileErrorKind::MissingRuntimeAnchor {
+                        CompileDiagnostic::MissingRuntimeAnchor {
                             span: module.source.full_span(),
                         },
                         module.source.full_span(),
@@ -289,7 +289,7 @@ impl<'a> RuntimeBindings<'a> {
                 .find(|edit| edit.call_span == anchor)
                 .ok_or_else(|| {
                     CompileError::new(
-                        CompileErrorKind::MissingRuntimeAnchor { span: anchor },
+                        CompileDiagnostic::MissingRuntimeAnchor { span: anchor },
                         anchor,
                     )
                 })?;
@@ -297,7 +297,7 @@ impl<'a> RuntimeBindings<'a> {
                 edit.replacement.push_str("\nimport ");
                 let quoted = serde_json::to_string(specifier).map_err(|_| {
                     CompileError::new(
-                        CompileErrorKind::InvalidImportMetadata { span: anchor },
+                        CompileDiagnostic::InvalidImportMetadata { span: anchor },
                         anchor,
                     )
                 })?;
@@ -322,7 +322,7 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
     let Some(projection) = &module.input.projection else {
         return if module.ir.imports.macros.is_empty() {
             Err(CompileError::new(
-                CompileErrorKind::MissingRuntimeAnchor { span: at },
+                CompileDiagnostic::MissingRuntimeAnchor { span: at },
                 at,
             ))
         } else {
@@ -330,11 +330,11 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
         };
     };
     let region = projection_region(module, at)?.ok_or_else(|| {
-        CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+        CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
     })?;
     module.source.slice(region.source).map_err(|error| {
         CompileError::new(
-            CompileErrorKind::import_source_failure(&error),
+            CompileDiagnostic::import_source_failure(&error),
             module.source.full_span(),
         )
     })?;
@@ -343,23 +343,23 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
     loop {
         if !visited.insert(id) {
             return Err(CompileError::new(
-                CompileErrorKind::InvalidImportMetadata { span: at },
+                CompileDiagnostic::InvalidImportMetadata { span: at },
                 at,
             ));
         }
         let mut realms = projection.realms.iter().filter(|realm| realm.id == id);
         let realm = realms.next().ok_or_else(|| {
-            CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
         })?;
         if realms.next().is_some() {
             return Err(CompileError::new(
-                CompileErrorKind::InvalidImportMetadata { span: at },
+                CompileDiagnostic::InvalidImportMetadata { span: at },
                 at,
             ));
         }
         module.source.slice(realm.source).map_err(|error| {
             CompileError::new(
-                CompileErrorKind::import_source_failure(&error),
+                CompileDiagnostic::import_source_failure(&error),
                 module.source.full_span(),
             )
         })?;
@@ -373,7 +373,7 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
             return Ok(anchor);
         }
         id = realm.parent.ok_or_else(|| {
-            CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
         })?;
     }
 }
@@ -396,11 +396,11 @@ fn projection_region(
         .iter()
         .filter(|region| contains(region.source, at));
     let region = regions.next().ok_or_else(|| {
-        CompileError::new(CompileErrorKind::MissingRuntimeAnchor { span: at }, at)
+        CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
     })?;
     if regions.next().is_some() {
         return Err(CompileError::new(
-            CompileErrorKind::InvalidImportMetadata { span: at },
+            CompileDiagnostic::InvalidImportMetadata { span: at },
             at,
         ));
     }
@@ -457,7 +457,7 @@ pub(crate) fn encode_projected_edits(
             || text.get(end) != Some(&(character as u8))
         {
             return Err(CompileError::new(
-                CompileErrorKind::InvalidImportMetadata {
+                CompileDiagnostic::InvalidImportMetadata {
                     span: region.source,
                 },
                 region.source,
@@ -505,7 +505,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&module, module.source.full_span()),
             Err(CompileError {
-                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
             })
         ));
@@ -577,7 +577,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&orphan, at),
             Err(CompileError {
-                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
             })
         ));
@@ -594,7 +594,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&cycle, Span::new(FileId(1), 50, 55)),
             Err(CompileError {
-                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
                 ..
             })
         ));
@@ -605,7 +605,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&duplicated, Span::new(FileId(1), 52, 53)),
             Err(CompileError {
-                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
                 ..
             })
         ));
@@ -619,7 +619,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&single, Span::new(FileId(1), 0, 5)),
             Err(CompileError {
-                kind: CompileErrorKind::MissingRuntimeAnchor { .. },
+                diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
             })
         ));
@@ -630,7 +630,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&overlapping, Span::new(FileId(1), 52, 53)),
             Err(CompileError {
-                kind: CompileErrorKind::InvalidImportMetadata { .. },
+                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
                 ..
             })
         ));

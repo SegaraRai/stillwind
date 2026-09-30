@@ -12,7 +12,7 @@ use stillwind_source::{
 };
 
 use crate::{
-    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, LintSettings, LintSeverity,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSettings, LintSeverity,
     SourceRange, filter_lint_findings,
 };
 
@@ -190,7 +190,7 @@ pub struct DiagnosticBatch {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiagnosticCause {
     /// Fatal compilation error.
-    Compile(CompileErrorKind),
+    Compile(CompileDiagnostic),
     /// Suppressible lint finding.
     Lint(LintDiagnostic),
 }
@@ -198,7 +198,7 @@ pub enum DiagnosticCause {
 impl DiagnosticCause {
     fn code(&self) -> &'static str {
         match self {
-            Self::Compile(kind) => kind.code(),
+            Self::Compile(diagnostic) => diagnostic.code().as_str(),
             Self::Lint(kind) => kind.code(),
         }
     }
@@ -260,7 +260,7 @@ impl LocatedDiagnostic {
         sources: &SourceRegistry,
     ) -> Result<Self, SourceRegistryError> {
         Self::from_internal(
-            DiagnosticCause::Compile(error.kind.clone()),
+            DiagnosticCause::Compile(error.diagnostic.clone()),
             &error.info,
             sources,
         )
@@ -706,7 +706,7 @@ mod tests {
         let mut first_project = SourceRegistry::default();
         let source = document(&mut first_project, "untitled:first", "abc");
         let error = CompileError::new(
-            CompileErrorKind::FrameworkConflict,
+            CompileDiagnostic::FrameworkConflict,
             Span::new(source.id(), 1, 2),
         );
         let located = LocatedDiagnostic::from_compile(&error, &first_project).unwrap();
@@ -725,7 +725,7 @@ mod tests {
         );
         let generated = first_project.register(None, None, "abc").unwrap();
         let error = CompileError::new(
-            CompileErrorKind::FrameworkConflict,
+            CompileDiagnostic::FrameworkConflict,
             Span::new(generated.id(), 0, 1),
         );
         assert!(

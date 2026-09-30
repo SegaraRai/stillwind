@@ -32,7 +32,7 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
-    AggregateError, CompileErrorKind, LintSettings, Reporter, ResolvedDiagnostic,
+    AggregateError, CompileDiagnostic, LintSettings, Reporter, ResolvedDiagnostic,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -86,7 +86,7 @@ enum CommandError {
     ResourceOwner(String),
     /// Design-system options or the loaded design system are invalid.
     #[error("{0}")]
-    Options(#[from] CompileErrorKind),
+    Options(#[from] CompileDiagnostic),
     /// The result could not be serialized.
     #[error("{0}")]
     Output(#[from] serde_json::Error),

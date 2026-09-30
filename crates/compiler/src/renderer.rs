@@ -5,12 +5,11 @@
 //! registrations the CSS actually needs, and walks the template's layers and slots.
 //! [`StylesheetPlacement`] decides whether authored document rules and Preflight
 //! participate, so a per-module carrier does not duplicate them. Assembly failures come
-//! back as [`CompileErrorKind`], or, when rendering a whole compilation, as a `SHCSS001`
-//! diagnostic that invalidates the generated output instead of shipping CSS known to be
+//! back as [`CompileDiagnostic`], or, when rendering a whole compilation, as a CSS diagnostic that invalidates the generated output instead of shipping CSS known to be
 //! incomplete.
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::Span;
 
 use crate::compiler::{
@@ -135,7 +134,7 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// authored theme-reference errors. No partial stylesheet is returned.
-    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
+    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, CompileDiagnostic> {
         render_stylesheet(
             self.snapshot.theme(),
             module_css,
@@ -153,7 +152,7 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// theme-reference errors in retained carrier CSS.
-    pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, CompileErrorKind> {
+    pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, CompileDiagnostic> {
         render_module_stylesheet(
             self.snapshot.theme(),
             module_css,
@@ -173,7 +172,7 @@ impl<'a> StylesheetRenderer<'a> {
         &self,
         module_css: &MappedStylesheet,
         placement: StylesheetPlacement,
-    ) -> Result<MappedStylesheet, CompileErrorKind> {
+    ) -> Result<MappedStylesheet, CompileDiagnostic> {
         render_mapped(
             &self.snapshot.theme().output_template,
             self.snapshot.theme(),

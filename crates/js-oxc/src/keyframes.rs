@@ -10,7 +10,7 @@ use oxc::ast::ast::{
 };
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{
     AssetReference, ClassExpression, KeyframesBody, KeyframesBranch, KeyframesDefinition,
     KeyframesFrame, RuleExpression, StyleVariant,
@@ -133,14 +133,14 @@ impl<'a> MacroExtractor<'a> {
         self.consumed_use_spans.insert(LocalSpan::from(call.span));
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidKeyframesOptions,
+                CompileDiagnostic::InvalidKeyframesOptions,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::StringLiteral(options)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidKeyframesOptions,
+                CompileDiagnostic::InvalidKeyframesOptions,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
@@ -173,14 +173,14 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<KeyframesDefinition> {
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidKeyframesDefinition,
+                CompileDiagnostic::InvalidKeyframesDefinition,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidKeyframesDefinition,
+                CompileDiagnostic::InvalidKeyframesDefinition,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
@@ -210,14 +210,14 @@ impl<'a> MacroExtractor<'a> {
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::KeyframesSpread,
+                    CompileDiagnostic::KeyframesSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidKeyframesProperty,
+                    CompileDiagnostic::InvalidKeyframesProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -241,7 +241,7 @@ impl<'a> MacroExtractor<'a> {
                     }
                 } else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidKeyframesDefinition,
+                        CompileDiagnostic::InvalidKeyframesDefinition,
                         self.source_span(property.value.span()),
                     ));
                 }
@@ -249,7 +249,7 @@ impl<'a> MacroExtractor<'a> {
             }
             let Some(selector) = key else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidKeyframesFrameKey,
+                    CompileDiagnostic::InvalidKeyframesFrameKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -261,12 +261,12 @@ impl<'a> MacroExtractor<'a> {
                             *label = Some(self.string_literal(value));
                         }
                         _ => self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::InvalidKeyframesLabel,
+                            CompileDiagnostic::InvalidKeyframesLabel,
                             self.source_span(property.value.span()),
                         )),
                     },
                     None => self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidKeyframesLabel,
+                        CompileDiagnostic::InvalidKeyframesLabel,
                         self.source_span(property.key.span()),
                     )),
                 }
@@ -274,14 +274,14 @@ impl<'a> MacroExtractor<'a> {
             }
             if !is_keyframes_frame(&selector.value) {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidKeyframesFrameSelector,
+                    CompileDiagnostic::InvalidKeyframesFrameSelector,
                     selector.span,
                 ));
                 continue;
             }
             let Expression::StringLiteral(utilities) = &property.value else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidKeyframesFrameValue,
+                    CompileDiagnostic::InvalidKeyframesFrameValue,
                     self.source_span(property.value.span()),
                 ));
                 continue;
@@ -293,7 +293,7 @@ impl<'a> MacroExtractor<'a> {
         }
         if frames.is_empty() && branches.is_empty() {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::EmptyKeyframes,
+                CompileDiagnostic::EmptyKeyframes,
                 self.source_span(object.span),
             ));
             return None;

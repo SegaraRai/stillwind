@@ -5,7 +5,7 @@
 //! framework imports gate the baseline layers.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -38,8 +38,8 @@ fn malformed_theme_reference_is_a_diagnostic_instead_of_an_omitted_token() {
     );
     assert!(
         result.diagnostics.iter().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::InvalidThemeReference { offset: 0, .. }
+            error.diagnostic,
+            CompileDiagnostic::InvalidThemeReference { offset: 0, .. }
         )),
         "{result:#?}"
     );

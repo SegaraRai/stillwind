@@ -11,7 +11,7 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{RefDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
@@ -41,7 +41,7 @@ impl<'a> MacroExtractor<'a> {
                         (Some(boundary), None)
                     } else {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::InvalidRefArgument,
+                            CompileDiagnostic::InvalidRefArgument,
                             self.source_span(argument.span()),
                         ));
                         return None;
@@ -54,14 +54,14 @@ impl<'a> MacroExtractor<'a> {
                     .and_then(|boundary| self.boundary_reference(boundary))
                 else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidRefBoundary,
+                        CompileDiagnostic::InvalidRefBoundary,
                         self.source_span(boundary.span()),
                     ));
                     return None;
                 };
                 let Some(Expression::StringLiteral(label)) = label.as_expression() else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidRefLabelArgument,
+                        CompileDiagnostic::InvalidRefLabelArgument,
                         self.source_span(label.span()),
                     ));
                     return None;
@@ -70,7 +70,7 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidRefArguments,
+                    CompileDiagnostic::InvalidRefArguments,
                     self.source_span(call.span),
                 ));
                 return None;
@@ -100,7 +100,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::TaggedTemplateExpression(tagged) => {
                 if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::NonStaticRefVariant,
+                        CompileDiagnostic::NonStaticRefVariant,
                         self.source_span(tagged.quasi.span),
                     ));
                     return None;
@@ -122,7 +122,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::CallExpression(call) if call.arguments.len() == 1 && !call.optional => {
                 let Expression::StringLiteral(value) = call.arguments[0].as_expression()? else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::NonStaticRefVariant,
+                        CompileDiagnostic::NonStaticRefVariant,
                         self.source_span(call.span),
                     ));
                     return None;
@@ -136,7 +136,7 @@ impl<'a> MacroExtractor<'a> {
         {
             let Some(refs) = self.ref_references(&member.object) else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::UnidentifiedRefVariant,
+                    CompileDiagnostic::UnidentifiedRefVariant,
                     self.source_span(member.object.span()),
                 ));
                 return None;
@@ -155,7 +155,7 @@ impl<'a> MacroExtractor<'a> {
         }
         let Some(refs) = self.ref_references(reference) else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::UnidentifiedRefVariant,
+                CompileDiagnostic::UnidentifiedRefVariant,
                 self.source_span(reference.span()),
             ));
             return None;

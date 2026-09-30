@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{ModuleId, Span};
 
 use super::fragment::Emitted;
@@ -200,7 +200,7 @@ impl<'a> ClassUnits<'a> {
         &mut self,
         contribution: LiteralContribution,
         guard: &[GuardStep],
-    ) -> Result<Emitted, CompileErrorKind> {
+    ) -> Result<Emitted, CompileDiagnostic> {
         let order = self.reserve_branch();
         self.leaf_at(contribution, guard, order)
     }
@@ -227,7 +227,7 @@ impl<'a> ClassUnits<'a> {
         mut contribution: LiteralContribution,
         guard: &[GuardStep],
         order: u32,
-    ) -> Result<Emitted, CompileErrorKind> {
+    ) -> Result<Emitted, CompileDiagnostic> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() || !contribution.view_transitions.is_empty() {
             let branch = format!("{}:{}", order, contribution.canonical);
@@ -270,7 +270,9 @@ impl<'a> ClassUnits<'a> {
     /// Returns an error if generating base class or slot names, emitting utilities, or
     /// rendering rule boundaries fails. Shared symbols and allocations may already have
     /// changed. CSS is appended to the destination only after rendering succeeds.
-    pub(super) fn finish(mut self) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileErrorKind> {
+    pub(super) fn finish(
+        mut self,
+    ) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileDiagnostic> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
         let base_branch = format!("0:{}", self.base.canonical);
@@ -355,7 +357,7 @@ impl<'a> ClassUnits<'a> {
         call: u32,
         branch: &str,
         definitions: &[CompiledUtility],
-    ) -> Result<(String, Vec<CssContribution>), CompileErrorKind> {
+    ) -> Result<(String, Vec<CssContribution>), CompileDiagnostic> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
@@ -414,7 +416,7 @@ impl<'a> ClassUnits<'a> {
         transitions: Vec<TransitionContribution>,
         utilities: &mut Vec<CompiledUtility>,
         base: bool,
-    ) -> Result<ViewTransitionClassUnit, CompileErrorKind> {
+    ) -> Result<ViewTransitionClassUnit, CompileDiagnostic> {
         let mut unit = ViewTransitionClassUnit::default();
         for (index, transition) in transitions.into_iter().enumerate() {
             if base && transition.plan.is_none() {
@@ -458,7 +460,7 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn view_transition_dynamic_name_slot(
         &self,
         source_offset: u32,
-    ) -> Result<String, CompileErrorKind> {
+    ) -> Result<String, CompileDiagnostic> {
         self.view_transition_slot(&format!("view-transition-name:{source_offset}"))
     }
 
@@ -477,7 +479,7 @@ impl<'a> ClassUnits<'a> {
     /// # Errors
     ///
     /// Returns an error if the configured slot generator fails.
-    fn view_transition_slot(&self, branch: &str) -> Result<String, CompileErrorKind> {
+    fn view_transition_slot(&self, branch: &str) -> Result<String, CompileDiagnostic> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),

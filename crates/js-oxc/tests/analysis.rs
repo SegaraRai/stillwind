@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
@@ -49,7 +49,7 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
         parsed
             .diagnostics
             .iter()
-            .any(|d| d.kind == CompileErrorKind::InvalidSymbolicFacts)
+            .any(|d| d.diagnostic == CompileDiagnostic::InvalidSymbolicFacts)
     );
 }
 

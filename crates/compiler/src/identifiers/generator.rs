@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::kind::{IdentifierKind, IdentifierMode};
 use super::name::{
@@ -428,7 +428,7 @@ impl IdentifierContext {
     pub(crate) fn class_name(
         &self,
         context: &ClassContext,
-    ) -> Result<UtilityClass, CompileErrorKind> {
+    ) -> Result<UtilityClass, CompileDiagnostic> {
         self.resolve_name(&ClassName(context.clone()))
     }
 
@@ -440,7 +440,7 @@ impl IdentifierContext {
     pub(crate) fn ref_marker_name(
         &self,
         context: &DeclarationContext,
-    ) -> Result<RefMarker, CompileErrorKind> {
+    ) -> Result<RefMarker, CompileDiagnostic> {
         self.resolve_name(&RefMarkerName(context.clone()))
     }
 
@@ -452,7 +452,7 @@ impl IdentifierContext {
     pub(crate) fn anchor_name(
         &self,
         context: &LocatorContext,
-    ) -> Result<AnchorName, CompileErrorKind> {
+    ) -> Result<AnchorName, CompileDiagnostic> {
         self.resolve_name(&AnchorNameRequest(context.clone()))
     }
 
@@ -464,7 +464,7 @@ impl IdentifierContext {
     pub(crate) fn container_name(
         &self,
         context: &LocatorContext,
-    ) -> Result<ContainerName, CompileErrorKind> {
+    ) -> Result<ContainerName, CompileDiagnostic> {
         self.resolve_name(&ContainerNameRequest(context.clone()))
     }
 
@@ -476,7 +476,7 @@ impl IdentifierContext {
     pub(crate) fn keyframes_name(
         &self,
         context: &DeclarationContext,
-    ) -> Result<KeyframesName, CompileErrorKind> {
+    ) -> Result<KeyframesName, CompileDiagnostic> {
         self.resolve_name(&KeyframesNameRequest(context.clone()))
     }
 
@@ -488,7 +488,7 @@ impl IdentifierContext {
     pub(crate) fn view_transition_class(
         &self,
         context: &DeclarationContext,
-    ) -> Result<ViewTransitionClass, CompileErrorKind> {
+    ) -> Result<ViewTransitionClass, CompileDiagnostic> {
         self.resolve_name(&ViewTransitionClassRequest(context.clone()))
     }
 
@@ -501,7 +501,7 @@ impl IdentifierContext {
     pub(crate) fn condition_helper(
         &self,
         context: &ConditionContext,
-    ) -> Result<ConditionHelperName, CompileErrorKind> {
+    ) -> Result<ConditionHelperName, CompileDiagnostic> {
         self.resolve_name(&ConditionHelperRequest(context.clone()))
     }
 
@@ -513,7 +513,7 @@ impl IdentifierContext {
     pub(crate) fn view_transition_slot(
         &self,
         context: &ClassContext,
-    ) -> Result<ViewTransitionSlotName, CompileErrorKind> {
+    ) -> Result<ViewTransitionSlotName, CompileDiagnostic> {
         self.resolve_name(&ViewTransitionSlotRequest(context.clone()))
     }
 
@@ -522,7 +522,10 @@ impl IdentifierContext {
     /// # Errors
     ///
     /// Returns the host generator's failure in release mode.
-    pub(crate) fn layer_name(&self, context: &LayerContext) -> Result<LayerName, CompileErrorKind> {
+    pub(crate) fn layer_name(
+        &self,
+        context: &LayerContext,
+    ) -> Result<LayerName, CompileDiagnostic> {
         self.resolve_name(&LayerNameRequest(context.clone()))
     }
 
@@ -534,12 +537,12 @@ impl IdentifierContext {
     ///
     /// # Errors
     ///
-    /// Returns [`CompileErrorKind::IdentifierGenerationFailed`] for a rejected request
+    /// Returns [`CompileDiagnostic::IdentifierGenerationFailed`] for a rejected request
     /// in release mode.
     pub(crate) fn resolve_name<T: Token, R: NameRequest<T>>(
         &self,
         request: &R,
-    ) -> Result<T, CompileErrorKind> {
+    ) -> Result<T, CompileDiagnostic> {
         let kind = request.kind();
         let hash = request.hash();
         let key = (kind, hash, request.label().cloned());
@@ -582,12 +585,12 @@ impl IdentifierContext {
         request: &R,
         hash: &IdentifierHash,
         generated: Result<String, String>,
-    ) -> Result<T, CompileErrorKind> {
+    ) -> Result<T, CompileDiagnostic> {
         match generated {
             // A host name arrives as a name its own family already built, so cleaning
             // it again only proves the family's rule is idempotent.
             Ok(name) => T::new(&name).map_err(|error| {
-                CompileErrorKind::IdentifierGenerationFailed(
+                CompileDiagnostic::IdentifierGenerationFailed(
                     request.kind().as_str().into(),
                     error.to_string().into(),
                 )
@@ -606,10 +609,10 @@ impl IdentifierContext {
         request: &R,
         hash: &IdentifierHash,
         reason: String,
-    ) -> Result<T, CompileErrorKind> {
+    ) -> Result<T, CompileDiagnostic> {
         let kind = request.kind();
         let failure = |detail: String| {
-            CompileErrorKind::IdentifierGenerationFailed(kind.as_str().into(), detail.into())
+            CompileDiagnostic::IdentifierGenerationFailed(kind.as_str().into(), detail.into())
         };
         if self.mode == IdentifierMode::Release {
             return Err(failure(reason));

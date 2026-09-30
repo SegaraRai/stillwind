@@ -8,7 +8,7 @@ use stillwind_design_system::{
     is_tailwind_relationship_candidate, resolve_variant,
 };
 use stillwind_diagnostics::{
-    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, LintKind,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind,
 };
 use stillwind_source::Spanned;
 use stillwind_syntax::parse_candidate;
@@ -102,7 +102,7 @@ impl LiteralContribution {
                 })
             }) {
                 diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidRuntimeConditional {
+                    CompileDiagnostic::InvalidRuntimeConditional {
                         detail: "invalid CSS-registered if-condition capture".to_owned(),
                     },
                     utility.span,
@@ -169,7 +169,7 @@ impl LiteralContribution {
                     contribution.external.push(utility.value.raw.clone());
                 }
                 Err(error) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::MalformedUtilityRequirement {
+                    CompileDiagnostic::MalformedUtilityRequirement {
                         utility: error.name,
                         offset: error.source.offset,
                     },

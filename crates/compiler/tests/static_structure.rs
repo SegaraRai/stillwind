@@ -1,7 +1,7 @@
 //! Literal structure normalization through the public compiler.
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
-use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -78,8 +78,8 @@ fn inline_custom_properties_combine_with_variant_utilities() {
             css,
         );
         assert!(
-            result.diagnostics.iter().any(|error| error.kind
-                == CompileErrorKind::InvalidVariantInput {
+            result.diagnostics.iter().any(|error| error.diagnostic
+                == CompileDiagnostic::InvalidVariantInput {
                     reason: VariantInputErrorKind::CustomProperty,
                 }),
             "{result:#?}"
@@ -104,8 +104,8 @@ fn malformed_utility_requirement_keeps_its_definition_cause() {
     );
     assert!(
         result.diagnostics.iter().any(|error| matches!(
-            &error.kind,
-            CompileErrorKind::MalformedUtilityRequirement { utility, offset: 0 }
+            &error.diagnostic,
+            CompileDiagnostic::MalformedUtilityRequirement { utility, offset: 0 }
                 if utility == "faulty"
         )),
         "{result:#?}"
@@ -131,7 +131,7 @@ fn nested_variant_failure_labels_the_first_incompatible_leaf() {
         let failure = result
             .diagnostics
             .iter()
-            .find(|error| error.kind == CompileErrorKind::InvalidVariantInput { reason })
+            .find(|error| error.diagnostic == CompileDiagnostic::InvalidVariantInput { reason })
             .unwrap();
         assert_eq!(source.slice(failure.labels[0].span).unwrap(), label);
     }
@@ -140,17 +140,17 @@ fn nested_variant_failure_labels_the_first_incompatible_leaf() {
 #[test]
 fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
     for (input, expected) in [
-        ("[...values]", CompileErrorKind::StyleArraySpread),
-        ("...values", CompileErrorKind::StyleArgumentSpread),
-        ("{...values}", CompileErrorKind::AttributeSpread),
-        ("{[key]: 'a'}", CompileErrorKind::InvalidComputedAttribute),
+        ("[...values]", CompileDiagnostic::StyleArraySpread),
+        ("...values", CompileDiagnostic::StyleArgumentSpread),
+        ("{...values}", CompileDiagnostic::AttributeSpread),
+        ("{[key]: 'a'}", CompileDiagnostic::InvalidComputedAttribute),
     ] {
         let (_, result) = compile(&format!("const x = style({input});"), "");
         assert!(
             result
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == expected),
+                .any(|error| error.diagnostic == expected),
             "{result:#?}"
         );
         assert!(result.transforms.is_empty());

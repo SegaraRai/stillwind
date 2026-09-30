@@ -52,8 +52,12 @@ production/build dependencies using Cargo metadata. It also runs as part of
 
 ## Diagnostic contracts
 
-`stillwind-diagnostics` owns compilation errors and lint diagnostics. `CompileErrorKind`
-is wrapped by `CompileError`. `LintDiagnostic` owns the message template and concrete
+`stillwind-diagnostics` owns compilation errors and lint diagnostics. `CompileDiagnostic`
+owns each fatal message and its payload, and `CompileError` attaches source details.
+`CompileErrorCode` corresponds to one diagnostic variant and exposes its unique
+`SWnnmmm` code through `as_str()`. Internal consumers compare typed variants; external
+reports serialize code strings. Source failure context retains the operation and does
+not change the diagnostic identity. `LintDiagnostic` owns the message template and concrete
 values for a detected lint, and `LintFinding` attaches its source details.
 Different message templates have different diagnostic variants.
 

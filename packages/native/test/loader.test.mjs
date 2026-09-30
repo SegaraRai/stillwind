@@ -401,7 +401,7 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
   );
   assert.throws(() => renderStylesheet(result.modules[0].css, css), /@stillwind-slot/);
   const standalone = compileSource(oneShotInput(source, "button.tsx", css));
-  assert.equal(standalone.diagnostics[0].code, "SHCSS001");
+  assert.equal(standalone.diagnostics[0].code, "SW08002");
   assert.equal(standalone.diagnostics[0].start, 0);
   assert.equal(standalone.diagnostics[0].end, Buffer.byteLength(source));
   assert.equal(standalone.code, null);
@@ -467,11 +467,11 @@ void test("projected session edits original SFC text and preserves watch recover
   assert(!before.code.includes("stillwind/svelte"));
   const css = session.css();
   const missingRealm = session.compile([{ ...input, import_realms: [], regions: [] }]).modules[0];
-  assert.equal(missingRealm.diagnostics[0].code, "SHIMPORT001");
+  assert.equal(missingRealm.diagnostics[0].code, "SW11007");
   assert.equal(session.css(), css);
   const invalid = { ...input, fw2js_map: { kind: "volar", mappings: [] } };
   const failed = session.compile([invalid]).modules[0];
-  assert.equal(failed.diagnostics[0].code, "SHPRJ001");
+  assert.equal(failed.diagnostics[0].code, "SW10002");
   assert.equal(session.css(), css);
   const recovered = session.compile([input]).modules[0];
   assert.deepEqual(recovered.diagnostics, []);
@@ -627,7 +627,7 @@ void test("CSS load errors include the accepted document range", async () => {
   const loader = new NativeDesignSystemLoader();
   assert.throws(
     () => loader.provide(0, "broken.css", "@theme {", "untitled:broken.css"),
-    /untitled:broken\.css:1:1-1:\d+: SHCSS\d+:/,
+    /untitled:broken\.css:1:1-1:\d+: SW08026:/,
   );
 });
 
@@ -669,7 +669,7 @@ void test("native watch reload reports compilation errors without publishing a p
   invalid.provide(0, "theme", "", sourceUri("theme"));
   assert.throws(
     () => session.reload(invalid),
-    /CSS reload compilation failed.*motion\.tsx.*SH001.*unknown or unavailable utility `brand`/s,
+    /CSS reload compilation failed.*motion\.tsx.*SW02003.*unknown or unavailable utility `brand`/s,
   );
   assert.equal(
     session.diagnosticBatches()[0].reports[0].primary.location.uri,

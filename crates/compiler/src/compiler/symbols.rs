@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{AssetReference, BoundaryRef, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
@@ -136,7 +136,7 @@ fn declared_label(label: Option<&Spanned<String>>) -> Option<Label> {
 pub(crate) fn ref_marker_name(
     context: &IdentifierContext,
     definition: &RefDefinition,
-) -> Result<RefMarker, CompileErrorKind> {
+) -> Result<RefMarker, CompileDiagnostic> {
     context.ref_marker_name(&ref_declaration_context(definition))
 }
 
@@ -148,7 +148,7 @@ pub(crate) fn ref_marker_name(
 pub(crate) fn boundary_marker_name(
     context: &IdentifierContext,
     boundary: &BoundaryRef,
-) -> Result<RefMarker, CompileErrorKind> {
+) -> Result<RefMarker, CompileDiagnostic> {
     context.ref_marker_name(&boundary_declaration_context(boundary))
 }
 
@@ -161,7 +161,7 @@ pub(crate) fn anchor_name(
     context: &IdentifierContext,
     definition: &RefDefinition,
     projection: Option<&str>,
-) -> Result<AnchorName, CompileErrorKind> {
+) -> Result<AnchorName, CompileDiagnostic> {
     context.anchor_name(&ref_context(definition, projection))
 }
 
@@ -177,7 +177,7 @@ pub(crate) fn anchor_name(
 pub(crate) fn ref_container_name(
     context: &IdentifierContext,
     definition: &RefDefinition,
-) -> Result<ContainerName, CompileErrorKind> {
+) -> Result<ContainerName, CompileDiagnostic> {
     context.container_name(&ref_context(definition, Some("container")))
 }
 
@@ -257,7 +257,7 @@ fn declared_name(
     context: &IdentifierContext,
     kind: AssetKind,
     declaration: &DeclarationContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let name = match kind {
         AssetKind::Keyframes => context.keyframes_name(declaration)?.as_str().to_owned(),
         AssetKind::ViewTransition => context
@@ -307,7 +307,7 @@ pub(super) fn generated_symbol(
     kind: AssetKind,
     definition: &Spanned<String>,
     label: Option<&Spanned<String>>,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
+) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
         name: declared_name(
             context,
@@ -337,7 +337,7 @@ pub(super) fn generated_symbol(
 pub(super) fn generated_ref_symbol(
     context: &IdentifierContext,
     definition: &RefDefinition,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
+) -> Result<GeneratedSymbol, CompileDiagnostic> {
     let identity = identity_input(&ref_identity(definition));
     Ok(GeneratedSymbol {
         name: anchor_name(context, definition, None)?.as_str().to_owned(),
@@ -358,7 +358,7 @@ pub(super) fn generated_ref_symbol(
 pub(super) fn generated_ref_marker_symbol(
     context: &IdentifierContext,
     definition: &RefDefinition,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
+) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
         name: ref_marker_name(context, definition)?.as_str().to_owned(),
         kind: "ref-marker".to_owned(),
@@ -411,7 +411,7 @@ pub(super) fn definition_name_symbol(
     context: &IdentifierContext,
     reference: &AssetReference,
     kind: AssetKind,
-) -> Result<GeneratedSymbol, CompileErrorKind> {
+) -> Result<GeneratedSymbol, CompileDiagnostic> {
     let name = declared_name(context, kind, &identity_declaration(reference))?;
     Ok(GeneratedSymbol {
         name,

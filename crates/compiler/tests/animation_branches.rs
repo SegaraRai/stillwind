@@ -1,7 +1,7 @@
 //! Complete keyframes branch replacement and detached CSS conditions.
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -71,7 +71,7 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
             result
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == CompileErrorKind::InvalidKeyframesVariant),
+                .any(|error| error.diagnostic == CompileDiagnostic::InvalidKeyframesVariant),
             "{key}: {result:#?}"
         );
         assert!(result.css.is_empty());
@@ -81,6 +81,6 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
         result
             .diagnostics
             .iter()
-            .any(|error| error.kind == CompileErrorKind::KeyframesFrameVariants)
+            .any(|error| error.diagnostic == CompileDiagnostic::KeyframesFrameVariants)
     );
 }

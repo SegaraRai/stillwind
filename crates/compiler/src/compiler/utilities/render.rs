@@ -11,7 +11,7 @@ use stillwind_css::instantiate_selector;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
 };
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
@@ -36,7 +36,7 @@ pub(in crate::compiler) fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     if !utility.variant_applications.is_empty() {
         return utility
             .variant_applications
@@ -99,7 +99,7 @@ pub(in crate::compiler) fn render_utility_rule_path(
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantApplication],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     variant_paths(applications)
         .iter()
         .map(|path| {
@@ -128,7 +128,7 @@ fn render_utility_steps(
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantStep<'_>],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let mut declaration = declaration.to_owned();
     let class_selector = class_selector.to_owned();
     let mut selector = utility.selector.as_deref().map_or_else(

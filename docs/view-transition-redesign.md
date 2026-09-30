@@ -7,7 +7,7 @@ view-transition-name を独立に与える設計。設計・実装エージェ�
 
 - 宣言 bucket は `group`（animation option 文字列）/ `old` / `new` / `imagePair`（utility 文字列）。
   utility bucket は **media / supports 条件 variant のみ**を受け付け、それ以外は
-  `InvalidViewTransitionVariant`（SHVIEW003）で拒否する。無条件 utility は1つの規則にまとめ、
+  `InvalidViewTransitionVariant`（SW05009）で拒否する。無条件 utility は1つの規則にまとめ、
   条件付き utility は base 規則の後に1規則ずつ出力する。
 - `require-element-scope`（`LintDiagnostic::DocumentScopedSelector`、既定 deny）。
   要素にも宣言 identity にも紐づかない選択子（`[:host]:`、`[::view-transition-old(*)]:` など）を lint する。
@@ -25,7 +25,7 @@ view-transition-name を独立に与える設計。設計・実装エージェ�
   `--sw-vt-name:none;--sw-vt-class:none;view-transition-name:var(--sw-vt-name);view-transition-class:var(--sw-vt-class);`）
   ＋ runtime payload `stillwindViewTransitionStyle(value, key, candidates, "--sw-vt-name", "--sw-vt-class")`。
 - `.for(key)` は runtime メソッド（`stillwindViewTransition` が返す）。キーは `-k-<hex codepoints>` で符号化。
-- 1 call 1 VT（SHVIEW004）。VT を持つ base の合成は SHCOMP006 で拒否。
+- 1 call 1 VT（SHVIEW004）。VT を持つ base の合成は SW06005 で拒否。
 - `IdentifierKind::ViewTransitionClass` はプール（著者 CSS からの予約収集）だけを持ち、
   接頭辞も生成器も無い（`builtin_prefix(ViewTransitionClass) == ""`、`ViewTransitionClassRequest` なし）。
   napi のホスト生成器は name 側のみ。
@@ -208,7 +208,7 @@ derived の規則が base のリストを置き換える（slot を call 横断�
 
 ### 3.6 `.for` の仕様（マクロ）
 
-- 引数は0個または1個。2個以上は診断（現行 SHVIEW002 のメッセージを
+- 引数は0個または1個。2個以上は診断（現行 SW05001 のメッセージを
   「0個または1個」に緩める）。
 - 引数が無い場合と `""` は同じ結果（`token-`）。
 - 引数がリテラルなら、コンパイル時に連結とエスケープを確定して CSS に出す。
@@ -304,11 +304,11 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 制約:
 
 - 条件は media / supports のみ。要素依存の選択子、`@container`、任意 at-rule を option に
-  書いた場合は `InvalidViewTransitionVariant`（SHVIEW003）で拒否する（他の3 bucket と揃える）。
+  書いた場合は `InvalidViewTransitionVariant`（SW05009）で拒否する（他の3 bucket と揃える）。
 - 負値と `!important` は拒否したまま（option は値の記述で、修飾付き utility ではない）。
   option 自体の文法の誤り（未知の名前、負値、`!important`）は現行どおり
-  `UnknownAnimationOption`（SHANIMATION002）、variant の位置の誤りは bucket 側の
-  `InvalidViewTransitionVariant`（SHVIEW003）と使い分ける。
+  `UnknownAnimationOption`（SW04002）、variant の位置の誤りは bucket 側の
+  `InvalidViewTransitionVariant`（SW05009）と使い分ける。
 - `[transition-duration:75ms]` のようなプロパティ投影も同じ経路に載せる。条件を剥がして解決し、
   投影した宣言を同じ wrapper に置く（投影が対象外プロパティを落とす規則は変えない）。
 - 実装箇所は `crates/compiler/src/compiler/definitions/view_transition.rs` の
@@ -335,7 +335,7 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
   宣言値の形は emission 側の表現）
 - `crates/compiler/src/compiler/emission/`（`{v}` literal、静的 CSS、
   `stillwindViewTransitionName` 呼び出し、`--sw-vt-*` と `stillwindViewTransitionStyle` の削除）
-- `crates/diagnostics/src/compilation.rs`（SHVIEW002 の緩和、SHVIEW004 の削除）
+- `crates/diagnostics/src/compilation/diagnostic.rs`（SW05001 の緩和、SHVIEW004 の削除）
 - `packages/core/src/runtime/shared.ts`（helper の入れ替え）、`packages/core/src/macro/index.ts`（`for(key?)`）
 
 **Phase 3: 動的 identity**

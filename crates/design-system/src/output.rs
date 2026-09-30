@@ -16,7 +16,7 @@
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
 
 use crate::ThemeToken;
@@ -25,7 +25,7 @@ use crate::parser::extract_keyframe_blocks;
 /// Deepest group nesting accepted in one authored buffer.
 ///
 /// Parsing recurses once per nested group, so this bounds the stack one stylesheet can
-/// consume; deeper input is reported as [`CompileErrorKind::CssNestingTooDeep`] instead
+/// consume; deeper input is reported as [`CompileDiagnostic::CssNestingTooDeep`] instead
 /// of exhausting the stack.
 const MAX_BLOCK_NESTING: usize = 64;
 
@@ -43,7 +43,7 @@ const MAX_BLOCK_NESTING: usize = 64;
 pub fn parse_output_template(
     css: &str,
     tokens: &[ThemeToken],
-) -> Result<CssOutputTemplate, CompileErrorKind> {
+) -> Result<CssOutputTemplate, CompileDiagnostic> {
     let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), false, 0)?;
     validate_slots(&nodes, false)?;
     Ok(CssOutputTemplate {
@@ -63,7 +63,7 @@ pub fn parse_output_template(
 /// Returns a block error for unparsable or unterminated `@theme` syntax.
 pub(crate) fn theme_blocks(
     css: &str,
-) -> Result<Vec<(std::ops::Range<usize>, String)>, CompileErrorKind> {
+) -> Result<Vec<(std::ops::Range<usize>, String)>, CompileDiagnostic> {
     let mut blocks = Vec::new();
     parse_nodes(css, 0, &[], &mut blocks, false, 0)?;
     Ok(blocks)
@@ -90,7 +90,7 @@ fn is_definition(name: &str) -> bool {
 fn consume_block(
     parser: &mut Parser<'_>,
     base: usize,
-) -> Result<Option<(usize, usize)>, CompileErrorKind> {
+) -> Result<Option<(usize, usize)>, CompileDiagnostic> {
     loop {
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::CurlyBracketBlock) => {
@@ -100,7 +100,7 @@ fn consume_block(
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(())
                     })
-                    .map_err(|_| CompileErrorKind::InvalidCssOutputBlock {
+                    .map_err(|_| CompileDiagnostic::InvalidCssOutputBlock {
                         offset: base + position,
                     })?;
                 return Ok(Some((position, parser.position().byte_index() - 1)));
@@ -131,9 +131,9 @@ fn parse_nodes(
     theme_blocks: &mut Vec<(std::ops::Range<usize>, String)>,
     conditional: bool,
     depth: usize,
-) -> Result<Vec<CssOutputNode>, CompileErrorKind> {
+) -> Result<Vec<CssOutputNode>, CompileDiagnostic> {
     if depth > MAX_BLOCK_NESTING {
-        return Err(CompileErrorKind::CssNestingTooDeep {
+        return Err(CompileDiagnostic::CssNestingTooDeep {
             offset: base,
             limit: MAX_BLOCK_NESTING,
         });
@@ -153,7 +153,7 @@ fn parse_nodes(
             && is_definition(name)
             && name != "stillwind-slot"
         {
-            return Err(CompileErrorKind::ConditionalDefinition {
+            return Err(CompileDiagnostic::ConditionalDefinition {
                 offset: base + start,
                 directive: name.into(),
             });
@@ -162,11 +162,11 @@ fn parse_nodes(
         let end = parser.position().byte_index();
         let origin = Some(Span::new(
             FileId(0),
-            u32::try_from(base + start).map_err(|_| CompileErrorKind::InvalidCssOutputBlock {
+            u32::try_from(base + start).map_err(|_| CompileDiagnostic::InvalidCssOutputBlock {
                 offset: base + start,
             })?,
             u32::try_from(base + end)
-                .map_err(|_| CompileErrorKind::InvalidCssOutputBlock { offset: base + end })?,
+                .map_err(|_| CompileDiagnostic::InvalidCssOutputBlock { offset: base + end })?,
         ));
         match (name.as_deref(), block) {
             (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder {
@@ -174,7 +174,7 @@ fn parse_nodes(
                 origin,
             }),
             (Some("stillwind-slot"), Some(_)) | (Some("theme"), None) => {
-                return Err(CompileErrorKind::InvalidCssOutputBlock {
+                return Err(CompileDiagnostic::InvalidCssOutputBlock {
                     offset: base + start,
                 });
             }
@@ -187,7 +187,7 @@ fn parse_nodes(
                     "properties" => CssOutputNode::Properties,
                     "property-initials" => CssOutputNode::PropertyInitials,
                     _ => {
-                        return Err(CompileErrorKind::UnsupportedOutputSlot {
+                        return Err(CompileDiagnostic::UnsupportedOutputSlot {
                             offset: base + start,
                             slot: value.into(),
                         });
@@ -258,7 +258,7 @@ fn parse_nodes(
                                 | CssOutputNode::PropertyInitials
                         )
                     }) {
-                        return Err(CompileErrorKind::InvalidCssOutputBlock {
+                        return Err(CompileDiagnostic::InvalidCssOutputBlock {
                             offset: base + start,
                         });
                     }
@@ -291,8 +291,8 @@ fn parse_nodes(
 ///
 /// # Errors
 ///
-/// Returns [`CompileErrorKind::InvalidOutputSlotContext`] at the first mismatched slot.
-fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), CompileErrorKind> {
+/// Returns [`CompileDiagnostic::InvalidOutputSlotContext`] at the first mismatched slot.
+fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), CompileDiagnostic> {
     for node in nodes {
         let (name, needs_declarations) = match node {
             CssOutputNode::ThemeVariables => ("theme", true),
@@ -311,7 +311,7 @@ fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), Com
             _ => continue,
         };
         if declarations != needs_declarations {
-            return Err(CompileErrorKind::InvalidOutputSlotContext { slot: name.into() });
+            return Err(CompileDiagnostic::InvalidOutputSlotContext { slot: name.into() });
         }
     }
     Ok(())
@@ -388,7 +388,7 @@ mod tests {
         // A declaration slot outside a style rule is a context error.
         assert!(matches!(
             parse_output_template("@stillwind-slot theme;", &[]),
-            Err(CompileErrorKind::InvalidOutputSlotContext { slot }) if slot == "theme"
+            Err(CompileDiagnostic::InvalidOutputSlotContext { slot }) if slot == "theme"
         ));
     }
 
@@ -399,7 +399,7 @@ mod tests {
         let css = "@stillwind-slot unknown;";
         assert!(matches!(
             parse_output_template(css, &[]),
-            Err(CompileErrorKind::UnsupportedOutputSlot { offset, slot })
+            Err(CompileDiagnostic::UnsupportedOutputSlot { offset, slot })
                 if offset == 0 && slot == "unknown"
         ));
         for (css, expected) in [
@@ -419,7 +419,7 @@ mod tests {
         }
         assert!(matches!(
             parse_output_template("@media print { @theme { --a: 1; } }", &[]),
-            Err(CompileErrorKind::ConditionalDefinition { directive, .. }) if directive == "theme"
+            Err(CompileDiagnostic::ConditionalDefinition { directive, .. }) if directive == "theme"
         ));
     }
 
@@ -439,7 +439,7 @@ mod tests {
         );
         assert!(matches!(
             parse_output_template(&deep, &[]),
-            Err(CompileErrorKind::CssNestingTooDeep { limit, .. }) if limit == MAX_BLOCK_NESTING
+            Err(CompileDiagnostic::CssNestingTooDeep { limit, .. }) if limit == MAX_BLOCK_NESTING
         ));
     }
 
@@ -475,7 +475,7 @@ mod tests {
         );
         assert!(matches!(
             parse_output_template("@stillwind-slot other;", &[]),
-            Err(CompileErrorKind::UnsupportedOutputSlot { .. })
+            Err(CompileDiagnostic::UnsupportedOutputSlot { .. })
         ));
     }
 
@@ -494,7 +494,7 @@ mod tests {
         ] {
             assert!(matches!(
                 parse_output_template(css, &[]),
-                Err(CompileErrorKind::ConditionalDefinition { .. })
+                Err(CompileDiagnostic::ConditionalDefinition { .. })
             ));
         }
     }

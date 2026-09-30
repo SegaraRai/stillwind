@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 /// The `--sw-` and `--tw-` namespaces used by generated custom properties.
 ///
@@ -41,23 +41,23 @@ impl DesignSystemOptions {
     ///
     /// # Errors
     ///
-    /// Returns [`CompileErrorKind::InvalidPropertyPrefix`] for malformed prefixes, or
-    /// [`CompileErrorKind::ConflictingPropertyPrefixes`] for identical namespaces.
+    /// Returns [`CompileDiagnostic::InvalidPropertyPrefix`] for malformed prefixes, or
+    /// [`CompileDiagnostic::ConflictingPropertyPrefixes`] for identical namespaces.
     /// Shape checks do not constitute full CSS identifier validation.
-    pub fn validate(&self) -> Result<(), CompileErrorKind> {
+    pub fn validate(&self) -> Result<(), CompileDiagnostic> {
         for (name, value) in [
             ("prefix", self.prefix.as_str()),
             ("tailwindPrefix", self.tailwind_prefix.as_str()),
         ] {
             if !value.starts_with("--") || !value.ends_with('-') || value.len() < 4 {
-                return Err(CompileErrorKind::InvalidPropertyPrefix {
+                return Err(CompileDiagnostic::InvalidPropertyPrefix {
                     option: name.into(),
                     value: value.into(),
                 });
             }
         }
         if self.prefix == self.tailwind_prefix {
-            return Err(CompileErrorKind::ConflictingPropertyPrefixes {
+            return Err(CompileDiagnostic::ConflictingPropertyPrefixes {
                 prefix: self.prefix.clone(),
             });
         }
@@ -82,7 +82,7 @@ impl DesignSystemOptions {
 
 #[cfg(test)]
 mod tests {
-    use super::{CompileErrorKind, DesignSystemOptions};
+    use super::{CompileDiagnostic, DesignSystemOptions};
 
     #[test]
     fn invalid_options_identify_the_option_and_value() {
@@ -91,7 +91,7 @@ mod tests {
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(CompileErrorKind::InvalidPropertyPrefix {
+            matches!(options.validate(), Err(CompileDiagnostic::InvalidPropertyPrefix {
                 option,
                 value,
             }) if option == "prefix" && value == "bad")
@@ -101,7 +101,7 @@ mod tests {
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(CompileErrorKind::InvalidPropertyPrefix {
+            matches!(options.validate(), Err(CompileDiagnostic::InvalidPropertyPrefix {
                 option,
                 value,
             }) if option == "tailwindPrefix" && value == "bad")
@@ -111,7 +111,7 @@ mod tests {
             ..DesignSystemOptions::default()
         };
         assert!(
-            matches!(options.validate(), Err(CompileErrorKind::ConflictingPropertyPrefixes {
+            matches!(options.validate(), Err(CompileDiagnostic::ConflictingPropertyPrefixes {
                 prefix,
             }) if prefix == "--sw-")
         );

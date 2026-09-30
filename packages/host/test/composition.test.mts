@@ -98,7 +98,7 @@ globalThis.result={props,events};`,
     compile({
       "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected: typeof a | typeof b=a;if(flag)selected=b;const props=style(selected,'blue');`,
     }),
-    /SHCOMP006/,
+    /SW06005/,
   );
 });
 
@@ -110,7 +110,7 @@ void test("rejects a CSS module cycle even when the style graph is acyclic", asy
       "middle.ts":
         "import {style} from 'stillwind/react';import {base} from './entry';export const middle=style(base,'green');",
     }),
-    /SHCOMP004/,
+    /SW06003/,
   );
 });
 
@@ -119,7 +119,7 @@ void test("retains mutable candidates through exports and factories", async () =
     compile({
       "entry.ts": `import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});let selected: typeof a | typeof b=a;if(flag)selected=b;function select(){return selected;}const props=style(select(),'blue');`,
     }),
-    /SHCOMP006/,
+    /SW06005/,
   );
   await assert.rejects(
     compile({
@@ -128,7 +128,7 @@ void test("retains mutable candidates through exports and factories", async () =
       "base.ts":
         "import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});export let selected: typeof a | typeof b=a;if(flag)selected=b;",
     }),
-    /SHCOMP006/,
+    /SW06005/,
   );
 });
 
@@ -138,7 +138,7 @@ void test("parameterized factories preserve all base origins", async () => {
       "entry.ts":
         "import {style} from 'stillwind/react';const a=style('red');const b=style('green',{'data-x':1});function select(flag){return flag?a:b;}const props=style(select(flag),'blue');",
     }),
-    /SHCOMP006/,
+    /SW06005/,
   );
   const output = await compile({
     "entry.ts":
@@ -150,7 +150,7 @@ void test("parameterized factories preserve all base origins", async () => {
       "entry.ts":
         "import {style} from 'stillwind/react';const a=style('red',{'data-x':1}),b=style('green');const choice:{value:typeof a|typeof b}={value:a};if(flag)choice.value=b;const props=style(choice.value,'blue');",
     }),
-    /SHCOMP006/,
+    /SW06005/,
   );
 });
 
@@ -185,12 +185,12 @@ void test("conditional utilities keep their branches alongside a runtime-selecte
 
 void test("rejects unknown, props-bearing, nested, and incompatible-framework bases", async () => {
   for (const [body, error] of [
-    ["const base={className:'user'};const props=style(base,'blue');", /SHTS001/],
+    ["const base={className:'user'};const props=style(base,'blue');", /SW03001/],
     [
       "const a=style('red');const b=style('green',{'data-x':1});const merged=style(a,b);const props=style(merged,'blue');",
-      /SHCOMP006/,
+      /SW06005/,
     ],
-    ["const props=style({'data-x':style('red')});", /SHCOMP001/],
+    ["const props=style({'data-x':style('red')});", /SW06001/],
   ] as const) {
     await assert.rejects(
       compile({ "entry.ts": `import {style} from 'stillwind/react';${body}` }),
@@ -203,7 +203,7 @@ void test("rejects unknown, props-bearing, nested, and incompatible-framework ba
         "import {style} from 'stillwind/react';import {base} from './base';const props=style(base,'blue');",
       "base.ts": "import {style} from 'stillwind/solid';export const base=style('red');",
     }),
-    /SHCOMP007/,
+    /SW06006/,
   );
 });
 
@@ -261,7 +261,7 @@ void test("composition follows imported and re-exported style producers", async 
       "base.ts",
       "import {style} from 'stillwind/react';export const a=style('red',{'data-x':1});export const b=style('green');",
     );
-    await assert.rejects(compile(), /SHCOMP006/);
+    await assert.rejects(compile(), /SW06005/);
   } finally {
     facts.close();
   }

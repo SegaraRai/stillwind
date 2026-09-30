@@ -1,7 +1,7 @@
 //! Complete conditional keyframe definitions and their registration requirements.
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
 use stillwind_source::{ModuleId, Span};
 
@@ -88,7 +88,7 @@ fn collect_definitions<'a>(
         else {
             if let Some(variant) = wrappers.last() {
                 diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidKeyframesVariant,
+                    CompileDiagnostic::InvalidKeyframesVariant,
                     variant_span(variant),
                 ));
             }
@@ -133,17 +133,17 @@ fn emit_frames(
             match resolve_utility(&utility.value.raw, theme) {
                 Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
                 Ok(Some(_)) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::KeyframesFrameVariants,
+                    CompileDiagnostic::KeyframesFrameVariants,
                     utility.span,
                 )),
                 Ok(None) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::UnavailableUtility {
+                    CompileDiagnostic::UnavailableUtility {
                         utility: utility.value.raw.clone(),
                     },
                     utility.span,
                 )),
                 Err(error) => diagnostics.push(CompileError::new(
-                    CompileErrorKind::MalformedUtilityRequirement {
+                    CompileDiagnostic::MalformedUtilityRequirement {
                         utility: error.name,
                         offset: error.source.offset,
                     },
@@ -196,7 +196,7 @@ mod tests {
         let errors = result
             .diagnostics
             .iter()
-            .filter(|error| error.kind == CompileErrorKind::KeyframesFrameVariants)
+            .filter(|error| error.diagnostic == CompileDiagnostic::KeyframesFrameVariants)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
         assert_eq!(

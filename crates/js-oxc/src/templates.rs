@@ -9,11 +9,11 @@
 //! The accepted grammar is narrow on purpose. A substitution must be a direct
 //! ref call or tag, the text after it must begin with `:`, and any text before it
 //! must already be a complete `variant:` prefix; anything else fails with
-//! `SHJS005` instead of guessing how the author meant to splice a string.
+//! `CompileDiagnostic::InvalidUtilityTemplate` instead of guessing how the author meant to splice a string.
 
 use oxc::ast::ast::TemplateLiteral;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{ClassExpression, RuleExpression, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
@@ -186,5 +186,5 @@ fn subspan(span: Span, start: usize, end: usize) -> Span {
 
 /// The single diagnostic for every rejection path in this module.
 fn template_error(span: Span) -> CompileError {
-    CompileError::new(CompileErrorKind::InvalidUtilityTemplate, span)
+    CompileError::new(CompileDiagnostic::InvalidUtilityTemplate, span)
 }

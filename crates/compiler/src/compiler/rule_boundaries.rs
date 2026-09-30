@@ -16,7 +16,7 @@ use std::ops::Range;
 
 use cssparser::{Parser, Token};
 use stillwind_css::properties_interfere;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::conditionals::{consume, declaration_values};
 use crate::MappedStylesheet;
@@ -81,7 +81,7 @@ impl<'a> RuleBoundaries<'a> {
     ///
     /// Malformed block boundaries or noncanonical internal markers can produce invalid
     /// edit offsets and panic during slicing.
-    pub(crate) fn render(&mut self, css: &str) -> Result<String, CompileErrorKind> {
+    pub(crate) fn render(&mut self, css: &str) -> Result<String, CompileDiagnostic> {
         let edits = self.edits(css)?;
         let mut output = String::new();
         let mut cursor = 0;
@@ -112,7 +112,7 @@ impl<'a> RuleBoundaries<'a> {
     pub(super) fn render_mapped(
         &mut self,
         css: &mut MappedStylesheet,
-    ) -> Result<(), CompileErrorKind> {
+    ) -> Result<(), CompileDiagnostic> {
         let edits = self.edits(&css.css)?;
         css.replace_ranges(&edits);
         Ok(())
@@ -126,7 +126,7 @@ impl<'a> RuleBoundaries<'a> {
     /// # Errors
     ///
     /// Returns a naming failure with any earlier state changes retained.
-    fn edits(&mut self, css: &str) -> Result<Vec<(Range<usize>, String)>, CompileErrorKind> {
+    fn edits(&mut self, css: &str) -> Result<Vec<(Range<usize>, String)>, CompileDiagnostic> {
         let mut edits = Vec::new();
         self.walk(css, 0..css.len(), false, &mut edits)?;
         edits.sort_by_key(|(range, _)| range.start);
@@ -172,7 +172,7 @@ impl<'a> RuleBoundaries<'a> {
     /// # Errors
     ///
     /// Returns the identifier allocator's failure for the rule-boundary name.
-    fn support(&self) -> Result<String, CompileErrorKind> {
+    fn support(&self) -> Result<String, CompileDiagnostic> {
         let name = self.identifiers.condition_helper(&ConditionContext {
             role: ConditionRole::Rule,
             text: format!("{}\0{}", self.owner, self.interval),
@@ -209,7 +209,7 @@ impl<'a> RuleBoundaries<'a> {
         range: Range<usize>,
         protected: bool,
         edits: &mut Vec<(Range<usize>, String)>,
-    ) -> Result<(), CompileErrorKind> {
+    ) -> Result<(), CompileDiagnostic> {
         let children = blocks(css, range.clone());
         let mut cursor = range.start;
         for block in children {
@@ -249,7 +249,7 @@ impl<'a> RuleBoundaries<'a> {
         range: Range<usize>,
         protected: bool,
         edits: &mut Vec<(Range<usize>, String)>,
-    ) -> Result<(), CompileErrorKind> {
+    ) -> Result<(), CompileDiagnostic> {
         if declaration_values(&css[range.clone()]).is_empty() {
             return Ok(());
         }

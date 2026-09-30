@@ -15,7 +15,7 @@ use stillwind_design_system::{
     CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
     builtin_property_definitions,
 };
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::Span;
 
 use super::super::keyframes::extract_authored_keyframes;
@@ -77,7 +77,7 @@ impl<'a> SupportSelection<'a> {
         document: bool,
         sources: Option<&'a CssSourceGraph>,
         identifiers: &'a IdentifierContext,
-    ) -> Result<Self, CompileErrorKind> {
+    ) -> Result<Self, CompileDiagnostic> {
         let mut explicit = utility_css.required_properties.clone();
         let authored = if document {
             render_authored(
@@ -100,7 +100,7 @@ impl<'a> SupportSelection<'a> {
                 property.name == *name || options.rewrite_generated(&property.name) == *name
             })
         }) {
-            return Err(CompileErrorKind::InvalidPropertyRequirement);
+            return Err(CompileDiagnostic::InvalidPropertyRequirement);
         }
         let required = theme.tokens_required_by(&used, false, builtin_omit_token_prefixes(theme));
         let tokens = theme
@@ -145,12 +145,12 @@ impl<'a> SupportSelection<'a> {
             }
         }
         let mut property_usage =
-            custom_property_usage(&used).map_err(|error| CompileErrorKind::PropertyUsage {
+            custom_property_usage(&used).map_err(|error| CompileDiagnostic::PropertyUsage {
                 detail: error.0.to_string(),
             })?;
         property_usage
             .add_declarations(&declarations)
-            .map_err(|error| CompileErrorKind::PropertyUsage {
+            .map_err(|error| CompileDiagnostic::PropertyUsage {
                 detail: error.0.to_string(),
             })?;
         let properties = render_used_properties(theme, &property_usage, options, &explicit);
@@ -184,7 +184,7 @@ impl<'a> SupportSelection<'a> {
     pub(super) fn render(
         self,
         utility_css: &MappedStylesheet,
-    ) -> Result<SupportOutput, CompileErrorKind> {
+    ) -> Result<SupportOutput, CompileDiagnostic> {
         let mut theme_variables = MappedStylesheet::default();
         let mut keyframes = MappedStylesheet::default();
         for definition in &self.definitions {
@@ -232,7 +232,7 @@ impl<'a> SupportSelection<'a> {
         origin: Option<Span>,
         emit_tokens: bool,
         emit_keyframes: bool,
-    ) -> Result<MappedStylesheet, CompileErrorKind> {
+    ) -> Result<MappedStylesheet, CompileDiagnostic> {
         let mut output = MappedStylesheet::default();
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
@@ -278,13 +278,13 @@ impl<'a> SupportSelection<'a> {
 fn resolve_theme_value(
     theme: &ThemeIndex,
     value: &str,
-) -> Result<Option<String>, CompileErrorKind> {
-    theme
-        .resolve_theme_references(value)
-        .map_err(|error| CompileErrorKind::InvalidThemeReference {
+) -> Result<Option<String>, CompileDiagnostic> {
+    theme.resolve_theme_references(value).map_err(|error| {
+        CompileDiagnostic::InvalidThemeReference {
             offset: error.offset(),
             detail: error.to_string(),
-        })
+        }
+    })
 }
 
 /// Ready-to-insert support fragments; selectors and conditions belong to the template.

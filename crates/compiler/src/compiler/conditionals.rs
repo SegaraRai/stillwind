@@ -15,7 +15,7 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{runtime_condition_value, runtime_if_arguments};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use crate::identifiers::{ConditionContext, ConditionRole, IdentifierContext};
 
@@ -27,7 +27,7 @@ fn helper(
     identifiers: &IdentifierContext,
     role: ConditionRole,
     text: &str,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     Ok(identifiers
         .condition_helper(&ConditionContext {
             role,
@@ -51,7 +51,7 @@ pub(super) fn lower(
     css: &str,
     use_css_if: bool,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     if !css.contains("--if(") {
         return Ok(css.to_owned());
     }
@@ -124,8 +124,8 @@ pub(super) fn lower(
 }
 
 /// Copies a lowering failure's explanation into the compilation diagnostic kind.
-fn invalid(detail: &str) -> CompileErrorKind {
-    CompileErrorKind::InvalidRuntimeConditional {
+fn invalid(detail: &str) -> CompileDiagnostic {
+    CompileDiagnostic::InvalidRuntimeConditional {
         detail: detail.to_owned(),
     }
 }
@@ -154,9 +154,9 @@ pub(super) fn guard(
     condition: &str,
     identifiers: &IdentifierContext,
     known: &[String],
-) -> Result<Guarded, CompileErrorKind> {
+) -> Result<Guarded, CompileDiagnostic> {
     let mut gates = Vec::new();
-    let css = map_declarations::<CompileErrorKind>(css, |property, value| {
+    let css = map_declarations::<CompileDiagnostic>(css, |property, value| {
         if known.iter().any(|gate| gate == property.trim()) {
             return Ok(format!("{property}:{value}"));
         }
@@ -227,7 +227,7 @@ fn gate_condition(
     declarations: &mut String,
     identifiers: &IdentifierContext,
     gates: &mut Vec<String>,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let condition = condition.trim();
     if runtime_condition_value(condition).is_some() {
         let name = helper(identifiers, ConditionRole::GateValue, condition)?;
@@ -377,12 +377,12 @@ mod tests {
     }
 
     /// Lowers with the compiler's own helper names.
-    fn lower_builtin(css: &str, use_css_if: bool) -> Result<String, CompileErrorKind> {
+    fn lower_builtin(css: &str, use_css_if: bool) -> Result<String, CompileDiagnostic> {
         lower(css, use_css_if, &identifiers())
     }
 
     /// Guards with the compiler's own gate names.
-    fn guard_builtin(css: &str, condition: &str) -> Result<Guarded, CompileErrorKind> {
+    fn guard_builtin(css: &str, condition: &str) -> Result<Guarded, CompileDiagnostic> {
         guard(css, condition, &identifiers(), &[])
     }
 

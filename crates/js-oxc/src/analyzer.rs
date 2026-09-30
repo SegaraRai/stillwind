@@ -8,7 +8,7 @@
 //!
 //! The split exists so a host can cache scans across edits and only pay for
 //! finalization when the checker's answers change. Neither pass may panic on bad input:
-//! a failed projection becomes an `SHPRJ001` diagnostic on a best-effort scan, and
+//! a failed projection becomes a projection diagnostic on a best-effort scan, and
 //! unusable facts become an [`IntegrationDiagnostic`] while the scan's own result is
 //! used unchanged.
 
@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_diagnostics::{
-    CompileError, CompileErrorKind, LintDiagnostic, LintFinding, collect_lint_directives,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, collect_lint_directives,
 };
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{
@@ -78,8 +78,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     ///
     /// A projected input is normalized and mapped back to original spans before
     /// the IR is produced, so every span in the result belongs to the original
-    /// file. Projection failures do not propagate as errors: the scan carries an
-    /// `SHPRJ001` diagnostic and empty IR so the caller can report and continue.
+    /// file. Projection failures do not propagate as errors: the scan carries
+    /// a projection diagnostic and empty IR so the caller can report and continue.
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
         let source = Arc::clone(input.edit_source());
         let (mut parsed, provenance) = if input.projection.is_some() {
@@ -168,7 +168,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             if !valid {
                 integration_diagnostics.push(IntegrationDiagnostic {
                     module_id: Some(scan.module_id.clone()),
-                    kind: CompileErrorKind::InvalidTypeScriptFacts,
+                    diagnostic: CompileDiagnostic::InvalidTypeScriptFacts,
                 });
             }
             valid
@@ -252,7 +252,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
 /// Checks macro imports against the original format and selects the output adapter.
 ///
 /// Format mismatches append advisory findings at import literals. An explicit adapter
-/// that contradicts the macro import appends `SHJS008`; otherwise it overrides the
+/// that contradicts the macro import appends `CompileDiagnostic::FrameworkConflict`; otherwise it overrides the
 /// default adapter. Component formats supply the default when no macro is imported.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
     let allowed = input.source_format.adapters();
@@ -278,7 +278,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
             .is_some_and(|selected| selected != framework)
         {
             parsed.diagnostics.push(CompileError::new(
-                CompileErrorKind::FrameworkConflict,
+                CompileDiagnostic::FrameworkConflict,
                 input.edit_source().full_span(),
             ));
         } else {

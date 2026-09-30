@@ -6,7 +6,7 @@
 //! usable as an option even though it is not a utility.
 
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
@@ -59,7 +59,7 @@ pub(super) fn resolve_options(
         let raw = option.value.raw.clone();
         let unknown = || {
             CompileError::new(
-                CompileErrorKind::UnknownAnimationOption {
+                CompileDiagnostic::UnknownAnimationOption {
                     option: raw.clone(),
                 },
                 option.span,
@@ -82,7 +82,7 @@ pub(super) fn resolve_options(
                 }
                 Err(error) => {
                     diagnostics.push(CompileError::new(
-                        CompileErrorKind::MalformedUtilityRequirement {
+                        CompileDiagnostic::MalformedUtilityRequirement {
                             utility: error.name,
                             offset: error.source.offset,
                         },
@@ -101,7 +101,7 @@ pub(super) fn resolve_options(
         }
         let Some(paths) = condition_paths(&candidate.variants, theme) else {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidViewTransitionVariant,
+                CompileDiagnostic::InvalidViewTransitionVariant,
                 option.span,
             ));
             continue;
@@ -201,9 +201,9 @@ mod tests {
         assert_eq!(
             diagnostics
                 .iter()
-                .map(|error| error.kind.clone())
+                .map(|error| error.diagnostic.clone())
                 .collect::<Vec<_>>(),
-            vec![CompileErrorKind::UnknownAnimationOption {
+            vec![CompileDiagnostic::UnknownAnimationOption {
                 option: "motion-reduce:duration-0".to_owned(),
             }]
         );
@@ -246,8 +246,8 @@ mod tests {
             .diagnostics
             .iter()
             .filter(|error| {
-                error.kind
-                    == CompileErrorKind::UnknownAnimationOption {
+                error.diagnostic
+                    == CompileDiagnostic::UnknownAnimationOption {
                         option: "motion-reduce:nope-0".to_owned(),
                     }
             })

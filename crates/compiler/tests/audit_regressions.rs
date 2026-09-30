@@ -6,7 +6,7 @@ use std::sync::Arc;
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{
     ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
 };
@@ -63,8 +63,8 @@ fn deeply_nested_utility_values_fail_with_a_nesting_diagnostic() {
     let diagnostic = result.diagnostics.first().expect("a nesting diagnostic");
     assert!(
         matches!(
-            diagnostic.kind,
-            CompileErrorKind::CssNestingTooDeep { limit, .. }
+            diagnostic.diagnostic,
+            CompileDiagnostic::CssNestingTooDeep { limit, .. }
                 if limit == MAX_VALUE_NESTING
         ),
         "{:#?}",
@@ -857,7 +857,7 @@ fn container_type_accepts_css_keyword_combinations_and_rejects_invalid_values() 
             result
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == CompileErrorKind::InvalidContainerType),
+                .any(|error| error.diagnostic == CompileDiagnostic::InvalidContainerType),
             "{value}"
         );
     }

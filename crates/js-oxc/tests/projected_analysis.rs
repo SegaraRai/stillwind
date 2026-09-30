@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
     RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
@@ -377,7 +377,7 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
             .scan_input(changed)
             .diagnostics
             .iter()
-            .any(|error| error.kind == CompileErrorKind::FrameworkConflict)
+            .any(|error| error.diagnostic == CompileDiagnostic::FrameworkConflict)
     );
     let mut changed = input;
     changed.projection.as_mut().unwrap().map = ProjectionMap::Volar {
@@ -385,8 +385,8 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
     };
     let scan = OxcSourceAnalyzer.scan_input(changed);
     assert!(matches!(
-        scan.diagnostics[0].kind,
-        CompileErrorKind::ProjectionUnmapped { .. }
+        scan.diagnostics[0].diagnostic,
+        CompileDiagnostic::ProjectionUnmapped { .. }
     ));
     assert!(scan.local_ir.style_calls.is_empty());
     assert!(scan.local_ir.ref_definitions.is_empty());

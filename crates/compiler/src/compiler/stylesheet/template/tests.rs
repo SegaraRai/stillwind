@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use stillwind_css::CssOutputNode;
 use stillwind_design_system::parse_theme;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, SourceFile};
 
 use stillwind_css::CssOutputTemplate;
@@ -46,7 +46,7 @@ fn render(
     utility_css: &str,
     options: &CompilerOptions,
     document: bool,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     super::render(
         template,
         theme,
@@ -65,7 +65,7 @@ fn render_mapped(
     options: &CompilerOptions,
     document: bool,
     sources: Option<&CssSourceGraph>,
-) -> Result<MappedStylesheet, CompileErrorKind> {
+) -> Result<MappedStylesheet, CompileDiagnostic> {
     super::render_mapped(
         template,
         theme,
@@ -367,7 +367,7 @@ fn registrations_require_a_destination_instead_of_implicit_tail_output() {
             &CompilerOptions::default(),
             true
         ),
-        Err(CompileErrorKind::MissingPropertySlot { slot }) if slot == "properties"
+        Err(CompileDiagnostic::MissingPropertySlot { slot }) if slot == "properties"
     ));
 }
 
@@ -388,7 +388,7 @@ fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
             &CompilerOptions::default(),
             true
         ),
-        Err(CompileErrorKind::MissingUtilitiesSlot)
+        Err(CompileDiagnostic::MissingUtilitiesSlot)
     ));
     assert!(theme.registry.utilities.is_empty());
     assert!(theme.tokens.is_empty());
@@ -453,7 +453,7 @@ fn registration_destinations_are_checked_before_theme_lowering() {
     let utility = ".x{color:var(--brand);width:var(--length)}";
     assert!(matches!(render(&theme.output_template, &theme, utility,
         &CompilerOptions::default(), false),
-        Err(CompileErrorKind::MissingPropertySlot { slot }) if slot == "properties"));
+        Err(CompileDiagnostic::MissingPropertySlot { slot }) if slot == "properties"));
     theme
         .output_template
         .nodes
@@ -466,6 +466,6 @@ fn registration_destinations_are_checked_before_theme_lowering() {
             &CompilerOptions::default(),
             false
         ),
-        Err(CompileErrorKind::InvalidRuntimeConditional { .. })
+        Err(CompileDiagnostic::InvalidRuntimeConditional { .. })
     ));
 }

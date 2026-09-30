@@ -142,17 +142,11 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     input["regions"].as_array_mut().unwrap().push(duplicate);
     let invalid = compile(&input);
     assert!(invalid["modules"][0]["code"].is_null());
-    assert_eq!(
-        invalid["modules"][0]["diagnostics"][0]["code"],
-        "SHIMPORT001"
-    );
+    assert_eq!(invalid["modules"][0]["diagnostics"][0]["code"], "SW11008");
     input["regions"] = serde_json::json!([]);
     let missing = compile(&input);
     assert!(missing["modules"][0]["code"].is_null());
-    assert_eq!(
-        missing["modules"][0]["diagnostics"][0]["code"],
-        "SHIMPORT001"
-    );
+    assert_eq!(missing["modules"][0]["diagnostics"][0]["code"], "SW11007");
 }
 
 #[test]
@@ -334,7 +328,7 @@ export const child = style({ [menu`hover:`]: "text-white" });"#
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["modules"].as_array().unwrap().len(), 2);
-    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SHTS001");
+    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SW03007");
 }
 
 #[test]

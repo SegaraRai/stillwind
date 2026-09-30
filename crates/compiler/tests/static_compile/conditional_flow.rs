@@ -6,7 +6,7 @@
 //! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
-use stillwind_diagnostics::{CompileErrorKind, VariantInputErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -41,7 +41,10 @@ export const two = style({ "hover:": base });"#,
         result
             .diagnostics
             .iter()
-            .filter(|error| matches!(error.kind, CompileErrorKind::InvalidVariantInput { .. }))
+            .filter(|error| matches!(
+                error.diagnostic,
+                CompileDiagnostic::InvalidVariantInput { .. }
+            ))
             .count(),
         2,
         "{:#?}",
@@ -50,8 +53,8 @@ export const two = style({ "hover:": base });"#,
     let failures = result
         .diagnostics
         .iter()
-        .filter_map(|error| match error.kind {
-            CompileErrorKind::InvalidVariantInput { reason } => Some((
+        .filter_map(|error| match error.diagnostic {
+            CompileDiagnostic::InvalidVariantInput { reason } => Some((
                 reason,
                 component.slice(error.labels[0].span).unwrap().to_owned(),
             )),
@@ -228,19 +231,19 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
     for (body, kind) in [
         (
             "const props = style(a || \"p-2\");",
-            CompileErrorKind::InvalidStyleInput,
+            CompileDiagnostic::InvalidStyleInput,
         ),
         (
             "const props = style(a ?? \"p-2\");",
-            CompileErrorKind::InvalidStyleInput,
+            CompileDiagnostic::InvalidStyleInput,
         ),
         (
             "const props = style(`${a ? \"hover\" : \"focus\"}:p-2`);",
-            CompileErrorKind::InvalidUtilityTemplate,
+            CompileDiagnostic::InvalidUtilityTemplate,
         ),
         (
             "const props = style(\"p-4\", { \"hover:\": { \"aria-busy\": true } });",
-            CompileErrorKind::InvalidVariantInput {
+            CompileDiagnostic::InvalidVariantInput {
                 reason: VariantInputErrorKind::Attribute,
             },
         ),
@@ -266,7 +269,10 @@ fn unsupported_forms_still_report_their_existing_diagnostics() {
             &CompilerOptions::default(),
         );
         assert!(
-            result.diagnostics.iter().any(|error| error.kind == kind),
+            result
+                .diagnostics
+                .iter()
+                .any(|error| error.diagnostic == kind),
             "{body}: {:#?}",
             result.diagnostics
         );

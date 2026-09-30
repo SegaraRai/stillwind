@@ -18,7 +18,7 @@ use stillwind_compiler::{
     UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileErrorKind, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, SourceFailureContext};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, RefDefinition, RuleExpression, ScriptLanguage,
     ScriptModuleKind, SourceAnalyzer, StyleInput, StyleVariant,
@@ -72,15 +72,15 @@ fn composition_rejects_props_and_nested_calls() {
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
-            CompileErrorKind::StyleBaseWithProps,
+            CompileDiagnostic::StyleBaseWithProps,
         ),
         (
             "const a=style(style('flex'),'block');",
-            CompileErrorKind::NestedStyleCall,
+            CompileDiagnostic::NestedStyleCall,
         ),
         (
             "const a=style(b,'flex');const b=style(a,'block');",
-            CompileErrorKind::CompositionCycle,
+            CompileDiagnostic::CompositionCycle,
         ),
     ] {
         let source = SourceFile::new(
@@ -104,7 +104,7 @@ fn composition_rejects_props_and_nested_calls() {
             output
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == expected),
+                .any(|error| error.diagnostic == expected),
             "{:?}",
             output.diagnostics
         );
@@ -205,11 +205,11 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
     for (css, expected) in [
         (
             "@utility flex {display:flex;}",
-            CompileErrorKind::MissingUtilitiesSlot,
+            CompileDiagnostic::MissingUtilitiesSlot,
         ),
         (
             "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(--missing);}",
-            CompileErrorKind::UnresolvedThemeReference,
+            CompileDiagnostic::UnresolvedThemeReference,
         ),
     ] {
         let theme = SourceFile::new(FileId(2), None, None, css).unwrap();
@@ -229,7 +229,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             expected
         );
         let document = renderer.render_compilation(&compiled, source.full_span());
-        assert_eq!(document.diagnostics[0].kind, expected);
+        assert_eq!(document.diagnostics[0].diagnostic, expected);
         assert_eq!(document.diagnostics[0].labels[0].span, source.full_span());
         assert!(document.css.is_empty());
         assert!(document.module_css.is_empty());
@@ -388,13 +388,13 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     ]
     .into_iter()
     .zip([
-        CompileErrorKind::InvalidVariantPrefix,
-        CompileErrorKind::InvalidVariantPrefix,
-        CompileErrorKind::SourceInvalidSpan {
+        CompileDiagnostic::InvalidVariantPrefix,
+        CompileDiagnostic::InvalidVariantPrefix,
+        CompileDiagnostic::SourceInvalidSpan {
             span: invalid,
             context: SourceFailureContext::Utility,
         },
-        CompileErrorKind::SourceInvalidSpan {
+        CompileDiagnostic::SourceInvalidSpan {
             span: invalid,
             context: SourceFailureContext::Emission,
         },
@@ -408,7 +408,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
             compiled
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == expected)
+                .any(|error| error.diagnostic == expected)
         );
         assert!(compiled.css.rules.is_empty());
         assert!(compiled.code_transforms.is_empty());

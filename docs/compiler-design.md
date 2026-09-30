@@ -486,7 +486,7 @@ report its confidence: it may error for locally proven misuse, warn for likely
 misuse, and stay silent when a component/portal boundary makes a conclusion
 unsound. The compiler never invents parent-child facts.
 
-Diagnostics use stable codes (`SH001` etc.), primary and secondary labels,
+Diagnostics use stable codes (`SWnnmmm`: two category digits and three digits identifying a diagnostic), primary and secondary labels,
 help text, and optional non-overlapping edits.
 
 ```rust

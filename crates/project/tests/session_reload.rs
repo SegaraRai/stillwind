@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
@@ -41,7 +41,7 @@ fn module(name: &str, candidate: &str) -> ModuleAnalysis {
 fn failing_module(name: &str) -> ModuleAnalysis {
     let mut analysis = module(name, "flex");
     analysis.diagnostics.push(CompileError::new(
-        CompileErrorKind::InvalidSymbolicFacts,
+        CompileDiagnostic::InvalidSymbolicFacts,
         analysis.source.full_span(),
     ));
     analysis
@@ -118,7 +118,10 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     assert!(
         update.diagnostics[&ModuleId::from("motion.tsx")]
             .iter()
-            .any(|error| matches!(error.kind, CompileErrorKind::UnavailableUtility { .. }))
+            .any(|error| matches!(
+                error.diagnostic,
+                CompileDiagnostic::UnavailableUtility { .. }
+            ))
     );
     assert!(!update.css_changed);
     assert!(update.transformed_modules.is_empty());

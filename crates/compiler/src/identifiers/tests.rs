@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
@@ -307,7 +307,7 @@ fn release_mode_fails_on_a_rejected_name() {
     let failure = context.class_name(&class_context("0:flex")).unwrap_err();
     assert!(matches!(
         failure,
-        CompileErrorKind::IdentifierGenerationFailed(..)
+        CompileDiagnostic::IdentifierGenerationFailed(..)
     ));
     assert!(context.drain_rejected().is_empty());
 }

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, ModuleId, SourceFile};
@@ -178,7 +178,7 @@ fn container_projection_rejects_extra_arguments() {
         )
         .diagnostics
         .iter()
-        .any(|error| error.kind == CompileErrorKind::InvalidContainerType)
+        .any(|error| error.diagnostic == CompileDiagnostic::InvalidContainerType)
     );
 }
 
@@ -255,15 +255,15 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
                 ScriptModuleKind::Unambiguous,
             );
             let expected = if expression.starts_with("k(") {
-                "SHANIMATION002"
+                stillwind_diagnostics::CompileErrorCode::KeyframesUseNotAClassInput
             } else {
-                "SHMACRO003"
+                stillwind_diagnostics::CompileErrorCode::UnconsumedMacroUse
             };
             assert!(
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|error| error.kind.code() == expected),
+                    .any(|error| error.diagnostic.code() == expected),
                 "{usage}: {:?}",
                 parsed.diagnostics
             );
@@ -332,21 +332,21 @@ fn position_anchor_requires_a_call_without_arguments() {
     for (expression, expected) in [
         (
             "r.positionAnchor",
-            CompileErrorKind::UnconsumedMacroUse {
+            CompileDiagnostic::UnconsumedMacroUse {
                 syntax: "positionAnchor".into(),
             },
         ),
         (
             "r.positionAnchor('unused')",
-            CompileErrorKind::InvalidPositionAnchorArguments,
+            CompileDiagnostic::InvalidPositionAnchorArguments,
         ),
         (
             "r.positionAnchor(undefined)",
-            CompileErrorKind::InvalidPositionAnchorArguments,
+            CompileDiagnostic::InvalidPositionAnchorArguments,
         ),
         (
             "r.positionAnchor(...[])",
-            CompileErrorKind::InvalidPositionAnchorArguments,
+            CompileDiagnostic::InvalidPositionAnchorArguments,
         ),
     ] {
         let source = SourceFile::new(
@@ -365,7 +365,7 @@ fn position_anchor_requires_a_call_without_arguments() {
             parsed
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == expected),
+                .any(|error| error.diagnostic == expected),
             "{expression}: {:?}",
             parsed.diagnostics
         );

@@ -17,7 +17,7 @@ use stillwind_compiler::{
     StylesheetMapping, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Fingerprint, ModuleId, Span};
 
 use crate::{ProjectSession, ProjectStylesheet};
@@ -43,7 +43,7 @@ pub enum StylesheetPlanError {
     CyclicModules(BTreeSet<ModuleId>),
     /// Rendering the selected CSS failed.
     #[error("{0}")]
-    Stylesheet(#[from] CompileErrorKind),
+    Stylesheet(#[from] CompileDiagnostic),
 }
 
 /// How much the host knows about the selected producer set.
@@ -292,7 +292,7 @@ fn optimize_stylesheet(
 ) -> Result<MappedStylesheet, StylesheetPlanError> {
     let mut optimized = utility_css.clone();
     let mut syntax = CssRule::parse(&utility_css.css).map_err(|offset| {
-        StylesheetPlanError::Stylesheet(CompileErrorKind::InvalidGeneratedCss { offset })
+        StylesheetPlanError::Stylesheet(CompileDiagnostic::InvalidGeneratedCss { offset })
     })?;
     optimize_rules(&mut syntax);
     optimized.css.clear();
@@ -320,7 +320,7 @@ fn stylesheet_parts(
     let mut sequences = BTreeMap::new();
     let parts = stylesheet_fragments(&reference.css)
         .map_err(|offset| {
-            StylesheetPlanError::Stylesheet(CompileErrorKind::InvalidGeneratedCss { offset })
+            StylesheetPlanError::Stylesheet(CompileDiagnostic::InvalidGeneratedCss { offset })
         })?
         .into_iter()
         .map(|(css, range)| {

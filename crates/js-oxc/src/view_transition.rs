@@ -12,7 +12,7 @@
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_ir::{
     AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };
@@ -136,7 +136,7 @@ impl<'a> MacroExtractor<'a> {
             1 => call.arguments[0].as_expression()?,
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidViewTransitionKeyExpression,
+                    CompileDiagnostic::InvalidViewTransitionKeyExpression,
                     self.source_span(call.span),
                 ));
                 return None;
@@ -151,7 +151,7 @@ impl<'a> MacroExtractor<'a> {
                     Ok(raw) => raw,
                     Err(error) => {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::source_failure(
+                            CompileDiagnostic::source_failure(
                                 &error,
                                 SourceFailureContext::Frontend,
                             ),
@@ -184,14 +184,14 @@ impl<'a> MacroExtractor<'a> {
     ) -> Option<ViewTransitionDefinition> {
         if call.arguments.len() != 1 {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidViewTransitionDefinition,
+                CompileDiagnostic::InvalidViewTransitionDefinition,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::InvalidViewTransitionDefinition,
+                CompileDiagnostic::InvalidViewTransitionDefinition,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
@@ -204,30 +204,30 @@ impl<'a> MacroExtractor<'a> {
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::ViewTransitionSpread,
+                    CompileDiagnostic::ViewTransitionSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.computed || property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidViewTransitionProperty,
+                    CompileDiagnostic::InvalidViewTransitionProperty,
                     self.source_span(property.span),
                 ));
                 continue;
             }
             let Some(property_name) = self.property_name(&property.key) else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidViewTransitionKey,
+                    CompileDiagnostic::InvalidViewTransitionKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
             let Expression::StringLiteral(value) = &property.value else {
                 let kind = if property_name.value == "label" {
-                    CompileErrorKind::InvalidViewTransitionLabel
+                    CompileDiagnostic::InvalidViewTransitionLabel
                 } else {
-                    CompileErrorKind::InvalidViewTransitionValue
+                    CompileDiagnostic::InvalidViewTransitionValue
                 };
                 self.diagnostics.push(CompileError::new(
                     kind,
@@ -243,14 +243,14 @@ impl<'a> MacroExtractor<'a> {
                 "new" => new = Some(value),
                 "imagePair" => image_pair = Some(value),
                 _ => self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidViewTransitionKey,
+                    CompileDiagnostic::InvalidViewTransitionKey,
                     property_name.span,
                 )),
             }
         }
         if group.is_none() && old.is_none() && new.is_none() && image_pair.is_none() {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::EmptyViewTransition,
+                CompileDiagnostic::EmptyViewTransition,
                 self.source_span(call.span),
             ));
             return None;

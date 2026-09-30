@@ -7,7 +7,7 @@
 //! span so the value never reaches a parser that would refuse it.
 
 use stillwind_css::{MAX_VALUE_NESTING, value_nesting_overflow};
-use stillwind_diagnostics::{CompileError, CompileErrorKind, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_source::Spanned;
 use stillwind_syntax::UtilityToken;
 
@@ -26,7 +26,7 @@ pub(super) fn lex_utilities(
             .collect(),
         Err(error) => {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::source_failure(&error, SourceFailureContext::Utility),
+                CompileDiagnostic::source_failure(&error, SourceFailureContext::Utility),
                 input.span,
             ));
             Vec::new()
@@ -47,7 +47,7 @@ fn reject_excessive_nesting(
         return false;
     };
     diagnostics.push(CompileError::new(
-        CompileErrorKind::CssNestingTooDeep {
+        CompileDiagnostic::CssNestingTooDeep {
             offset: token.span.start.0 as usize + offset,
             limit: MAX_VALUE_NESTING,
         },

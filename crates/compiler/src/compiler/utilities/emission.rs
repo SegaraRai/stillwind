@@ -12,7 +12,7 @@ use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::CssContribution;
 use super::declaration_order::{combine_declarations_for_theme, order_utilities};
@@ -32,7 +32,7 @@ pub(crate) fn emit_utility_rules(
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
-) -> Result<(), CompileErrorKind> {
+) -> Result<(), CompileDiagnostic> {
     let mut css = String::new();
     emit_utility_css(&mut css, class_selector, utilities, theme, identifiers)?;
     contributions.push(CssContribution {
@@ -52,7 +52,7 @@ fn emit_utility_css(
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
-) -> Result<(), CompileErrorKind> {
+) -> Result<(), CompileDiagnostic> {
     let utilities = order_utilities(utilities.iter().collect());
     let base = utilities
         .iter()

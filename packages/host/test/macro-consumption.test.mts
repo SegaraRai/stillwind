@@ -74,7 +74,7 @@ export const invalid=${expression};`;
       );
       const output = result.modules.find((entry) => entry.module_id === "consumption-consumer.ts");
       assert.ok(output);
-      const code = expression.startsWith("frames(") ? "SHANIMATION002" : "SHMACRO003";
+      const code = expression.startsWith("frames(") ? "SW04002" : "SW01011";
       assert.ok(
         output.diagnostics.some((error) => error.code === code),
         `${expression}: ${JSON.stringify(output.diagnostics)}`,

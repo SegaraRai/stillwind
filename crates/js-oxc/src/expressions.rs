@@ -18,7 +18,7 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, VariantInputErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, VariantInputErrorKind};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
     RuleExpression, RuleExpressionError, RuleExpressionErrorKind, StyleInput, StyleVariant,
@@ -135,7 +135,7 @@ impl<'a> MacroExtractor<'a> {
             && self.is_style_call(call)
         {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::NestedStyleCall,
+                CompileDiagnostic::NestedStyleCall,
                 self.source_span(call.span),
             ));
             return;
@@ -216,7 +216,7 @@ impl<'a> MacroExtractor<'a> {
                         self.collect_style_expression(&spread.argument, &mut elements);
                     } else {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::StyleArraySpread,
+                            CompileDiagnostic::StyleArraySpread,
                             self.source_span(spread.span),
                         ));
                     }
@@ -300,7 +300,7 @@ impl<'a> MacroExtractor<'a> {
                                 elements.extend(self.class_expression_sequence(&spread.argument));
                             } else {
                                 self.diagnostics.push(CompileError::new(
-                                    CompileErrorKind::StyleArraySpread,
+                                    CompileDiagnostic::StyleArraySpread,
                                     self.source_span(spread.span),
                                 ));
                             }
@@ -327,7 +327,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::Identifier(value) if value.name == "undefined" => None,
             Expression::Identifier(_) => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::RefFactsRequired,
+                    CompileDiagnostic::RefFactsRequired,
                     self.source_span(expression.span()),
                 ));
                 None
@@ -360,7 +360,7 @@ impl<'a> MacroExtractor<'a> {
                     };
                 }
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidStyleInput,
+                    CompileDiagnostic::InvalidStyleInput,
                     self.source_span(expression.span()),
                 ));
                 None
@@ -393,7 +393,7 @@ impl<'a> MacroExtractor<'a> {
         for property in properties {
             if property.method || property.kind != PropertyKind::Init {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAttributeProperty,
+                    CompileDiagnostic::InvalidAttributeProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -406,7 +406,7 @@ impl<'a> MacroExtractor<'a> {
                     .and_then(|key| self.ref_variant(key))
                 else {
                     self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidComputedAttribute,
+                        CompileDiagnostic::InvalidComputedAttribute,
                         self.source_span(property.key.span()),
                     ));
                     continue;
@@ -427,7 +427,7 @@ impl<'a> MacroExtractor<'a> {
             }
             let Some(name) = name else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAttributeKey,
+                    CompileDiagnostic::InvalidAttributeKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -451,7 +451,7 @@ impl<'a> MacroExtractor<'a> {
             }
             if !name.value.ends_with(':') || name.value == ":" {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAttributeKey,
+                    CompileDiagnostic::InvalidAttributeKey,
                     name.span,
                 ));
                 continue;
@@ -478,7 +478,7 @@ impl<'a> MacroExtractor<'a> {
     ) {
         let Expression::ArrayExpression(array) = expression.get_inner_expression() else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::StyleArgumentSpread,
+                CompileDiagnostic::StyleArgumentSpread,
                 self.source_span(expression.span()),
             ));
             return;
@@ -507,7 +507,7 @@ impl<'a> MacroExtractor<'a> {
                         self.collect_object_properties(object, properties);
                     } else {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::AttributeSpread,
+                            CompileDiagnostic::AttributeSpread,
                             self.source_span(spread.span),
                         ));
                     }
@@ -570,7 +570,7 @@ impl<'a> MacroExtractor<'a> {
             Ok(inputs) => inputs,
             Err(failure) => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidVariantInput {
+                    CompileDiagnostic::InvalidVariantInput {
                         reason: failure.reason,
                     },
                     failure.span,

@@ -4,7 +4,7 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::{GetSpan, Span};
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_semantic::AssetKind;
 
 use crate::local_span::LocalSpan;
@@ -46,7 +46,7 @@ impl<'a> MacroExtractor<'a> {
         }
         if self.use_receiver_is(&call.callee, AssetKind::Keyframes) {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::KeyframesUseNotAClassInput,
+                CompileDiagnostic::KeyframesUseNotAClassInput,
                 self.source_span(call.span),
             ));
         } else if self.use_receiver_is(&call.callee, AssetKind::Ref) {
@@ -120,7 +120,7 @@ impl<'a> MacroExtractor<'a> {
     /// extractor's source-span constructor before being added to the diagnostic.
     fn unconsumed_use(&mut self, span: Span, syntax: String) {
         self.diagnostics.push(CompileError::new(
-            CompileErrorKind::UnconsumedMacroUse { syntax },
+            CompileDiagnostic::UnconsumedMacroUse { syntax },
             self.source_span(span),
         ));
     }

@@ -7,7 +7,7 @@
 //! diagnostics elsewhere.
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use crate::CompilerOptions;
 use crate::identifiers::IdentifierContext;
@@ -24,7 +24,7 @@ pub(crate) fn render_stylesheet(
     utility_css: &str,
     options: &CompilerOptions,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     render(theme, utility_css, options, true, identifiers)
 }
 
@@ -38,7 +38,7 @@ pub(crate) fn render_module_stylesheet(
     utility_css: &str,
     options: &CompilerOptions,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     render(theme, utility_css, options, false, identifiers)
 }
 
@@ -54,7 +54,7 @@ fn render(
     options: &CompilerOptions,
     document: bool,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     super::template::render(
         &theme.output_template,
         theme,

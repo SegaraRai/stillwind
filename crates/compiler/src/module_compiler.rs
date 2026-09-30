@@ -16,7 +16,7 @@ use std::collections::BTreeSet;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
 };
@@ -199,17 +199,16 @@ impl ModuleCompiler {
         let result = self.compile_support_closure(module, &identifiers);
         let mut diagnostics = result.diagnostics;
         diagnostics.extend(
-            module
-                .integration_diagnostics
-                .iter()
-                .map(|error| CompileError::new(error.kind.clone(), module.source.full_span())),
+            module.integration_diagnostics.iter().map(|error| {
+                CompileError::new(error.diagnostic.clone(), module.source.full_span())
+            }),
         );
         let css = if diagnostics.is_empty() {
             match ModuleCssArtifact::from_contributions(&result.contributions) {
                 Ok(css) => css,
                 Err(error) => {
                     diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidGeneratedCss { offset: error },
+                        CompileDiagnostic::InvalidGeneratedCss { offset: error },
                         module.source.full_span(),
                     ));
                     ModuleCssArtifact::default()
@@ -390,7 +389,7 @@ mod tests {
     use std::sync::Arc;
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-    use stillwind_diagnostics::CompileErrorKind;
+    use stillwind_diagnostics::CompileDiagnostic;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_semantic::TypeFacts;
@@ -445,7 +444,7 @@ mod tests {
             compiled
                 .diagnostics
                 .iter()
-                .any(|d| d.kind == CompileErrorKind::InvalidTypeScriptFacts)
+                .any(|d| d.diagnostic == CompileDiagnostic::InvalidTypeScriptFacts)
         );
         assert!(compiled.css.rules.is_empty());
         assert!(compiled.code_transforms.is_empty());

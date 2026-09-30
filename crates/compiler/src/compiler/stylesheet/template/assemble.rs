@@ -7,7 +7,7 @@
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 
 use super::emit::emit;
 use super::support::SupportSelection;
@@ -32,7 +32,7 @@ pub(in super::super) fn render(
     options: &CompilerOptions,
     document: bool,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     render_mapped(
         template,
         theme,
@@ -63,7 +63,7 @@ pub(in super::super) fn render(
 ///
 /// # Errors
 ///
-/// Returns [`CompileErrorKind`] for malformed or unknown registration requirements,
+/// Returns [`CompileDiagnostic`] for malformed or unknown registration requirements,
 /// unresolved authored theme references, invalid property-usage syntax, or a missing
 /// destination for a nonempty generated contribution. Conditional lowering can also
 /// fail for included authored CSS, selected theme tokens, or selected theme keyframes.
@@ -78,7 +78,7 @@ pub(crate) fn render_mapped(
     document: bool,
     sources: Option<&CssSourceGraph>,
     identifiers: &IdentifierContext,
-) -> Result<MappedStylesheet, CompileErrorKind> {
+) -> Result<MappedStylesheet, CompileDiagnostic> {
     let selection = SupportSelection::select(
         template,
         theme,
@@ -92,14 +92,14 @@ pub(crate) fn render_mapped(
     if !properties.registrations.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::Properties)
     {
-        return Err(CompileErrorKind::MissingPropertySlot {
+        return Err(CompileDiagnostic::MissingPropertySlot {
             slot: "properties".into(),
         });
     }
     if !properties.initials.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::PropertyInitials)
     {
-        return Err(CompileErrorKind::MissingPropertySlot {
+        return Err(CompileDiagnostic::MissingPropertySlot {
             slot: "property-initials".into(),
         });
     }
@@ -117,7 +117,7 @@ pub(crate) fn render_mapped(
         ),
     ] {
         if needed && !has_slot(&template.nodes, &slot) {
-            return Err(CompileErrorKind::MissingPropertySlot { slot: name.into() });
+            return Err(CompileDiagnostic::MissingPropertySlot { slot: name.into() });
         }
     }
     let (css, slots) = emit(
@@ -131,7 +131,7 @@ pub(crate) fn render_mapped(
         identifiers,
     )?;
     if !utility_css.css.is_empty() && slots == 0 {
-        return Err(CompileErrorKind::MissingUtilitiesSlot);
+        return Err(CompileDiagnostic::MissingUtilitiesSlot);
     }
     Ok(css)
 }

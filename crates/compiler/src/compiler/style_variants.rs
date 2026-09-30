@@ -21,7 +21,7 @@ use stillwind_css::instantiate_selector;
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
@@ -135,7 +135,7 @@ impl StyleVariantPlan {
             collect_variant_and_applications(theme, prefix, diagnostics)?;
         if refs.is_empty() {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::UnidentifiedRef,
+                CompileDiagnostic::UnidentifiedRef,
                 prefix.span,
             ));
             return None;
@@ -148,7 +148,7 @@ impl StyleVariantPlan {
             .any(|step| matches!(step, VariantStep::Conditional(_)))
         {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::UnavailableVariantPrefix,
+                CompileDiagnostic::UnavailableVariantPrefix,
                 prefix.span,
             ));
             return None;
@@ -205,7 +205,7 @@ impl StyleVariantPlan {
     ) -> Option<()> {
         if refs.is_empty() {
             diagnostics.push(CompileError::new(
-                CompileErrorKind::UnidentifiedRef,
+                CompileDiagnostic::UnidentifiedRef,
                 query.span,
             ));
             return None;
@@ -297,7 +297,7 @@ fn collect_variant_and_applications(
 ) -> Option<(Vec<Variant>, Vec<VariantApplication>)> {
     let Some(variants) = parse_prefix(prefix) else {
         diagnostics.push(CompileError::new(
-            CompileErrorKind::InvalidVariantPrefix,
+            CompileDiagnostic::InvalidVariantPrefix,
             prefix.span,
         ));
         return None;
@@ -308,7 +308,7 @@ fn collect_variant_and_applications(
         .collect::<Option<Vec<_>>>()
     else {
         diagnostics.push(CompileError::new(
-            CompileErrorKind::UnavailableVariantPrefix,
+            CompileDiagnostic::UnavailableVariantPrefix,
             prefix.span,
         ));
         return None;
@@ -609,7 +609,10 @@ mod add_ref_tests {
         );
         assert!(!plan.has_refs);
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].kind, CompileErrorKind::UnidentifiedRef);
+        assert_eq!(
+            diagnostics[0].diagnostic,
+            CompileDiagnostic::UnidentifiedRef
+        );
         assert_eq!(diagnostics[0].labels[0].span, prefix.span);
     }
 
@@ -631,7 +634,10 @@ mod add_ref_tests {
             .is_none()
         );
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].kind, CompileErrorKind::InvalidVariantPrefix);
+        assert_eq!(
+            diagnostics[0].diagnostic,
+            CompileDiagnostic::InvalidVariantPrefix
+        );
         assert!(!plan.has_refs);
     }
 
@@ -662,13 +668,13 @@ mod add_ref_tests {
         assert_eq!(diagnostics[0].labels[0].span, call_span);
         assert!(
             matches!(
-                &diagnostics[0].kind,
-                CompileErrorKind::IdentifierGenerationFailed(family, message)
+                &diagnostics[0].diagnostic,
+                CompileDiagnostic::IdentifierGenerationFailed(family, message)
                     if family.as_ref() == "ref-marker"
                         && message.as_ref() == "no marker for this ref"
             ),
             "{:?}",
-            diagnostics[0].kind
+            diagnostics[0].diagnostic
         );
     }
 }

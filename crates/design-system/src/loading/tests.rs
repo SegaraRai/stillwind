@@ -6,7 +6,7 @@
 //! supplied. A package import stays a host request, and parse failures keep a typed
 //! `#[source]` cause and a span in the supplied buffer.
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry, SourceUri};
 use stillwind_syntax::parse_candidate;
 
@@ -47,7 +47,7 @@ fn parse_failures_keep_source_span_and_typed_cause() {
     assert!(matches!(
         &error,
         DesignSystemLoadError::Compilation(CompileError {
-            kind: CompileErrorKind::InvalidImportSpecifier { offset: 0, .. },
+            diagnostic: CompileDiagnostic::InvalidImportSpecifier { offset: 0, .. },
             ..
         })
     ));
@@ -55,7 +55,7 @@ fn parse_failures_keep_source_span_and_typed_cause() {
         error
             .source()
             .unwrap()
-            .downcast_ref::<CompileErrorKind>()
+            .downcast_ref::<CompileDiagnostic>()
             .is_some()
     );
     let mut loader =
@@ -77,7 +77,7 @@ fn parse_failures_keep_source_span_and_typed_cause() {
         error
             .source()
             .unwrap()
-            .downcast_ref::<CompileErrorKind>()
+            .downcast_ref::<CompileDiagnostic>()
             .is_some()
     );
     // The single-buffer entry reports the same identity for the same failure.
@@ -91,8 +91,8 @@ fn parse_failures_keep_source_span_and_typed_cause() {
     .into_compile_error(source.full_span());
     assert_eq!(error.labels[0].span, source.full_span());
     assert!(matches!(
-        error.kind,
-        CompileErrorKind::UnterminatedCssBlock { .. }
+        error.diagnostic,
+        CompileDiagnostic::UnterminatedCssBlock { .. }
     ));
 }
 
@@ -117,7 +117,7 @@ fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening()
     assert!(matches!(
         DesignSystemSnapshot::from_source(&source, CssSourceName::from("test.css"), options),
         Err(DesignSystemError::Load(
-            DesignSystemLoadError::InvalidOptions(CompileErrorKind::InvalidPropertyPrefix {
+            DesignSystemLoadError::InvalidOptions(CompileDiagnostic::InvalidPropertyPrefix {
                 option,
                 ..
             })
@@ -697,8 +697,8 @@ fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
         panic!("expected conditional definition failure")
     };
     assert!(matches!(
-        error.kind,
-        CompileErrorKind::ConditionalDefinition { .. }
+        error.diagnostic,
+        CompileDiagnostic::ConditionalDefinition { .. }
     ));
     assert_eq!(
         error.labels[0].span,

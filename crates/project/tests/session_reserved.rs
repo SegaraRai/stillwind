@@ -11,7 +11,7 @@ use stillwind_compiler::{
     IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
@@ -116,8 +116,8 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
         session.reserve_authored_css(&ModuleId::from("panel.css"), ":root{anchor-name:shared;}");
     assert!(
         reported.values().flatten().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::GeneratedIdentifierCollision { .. }
+            error.diagnostic,
+            CompileDiagnostic::GeneratedIdentifierCollision { .. }
         )),
         "{reported:?}"
     );
@@ -153,8 +153,8 @@ fn a_generated_anchor_name_is_checked_against_the_authored_document() {
     // The generator names the anchor `shared`, which the authored declaration already owns.
     assert!(
         update.diagnostics.iter().any(|error| matches!(
-            error.kind,
-            CompileErrorKind::GeneratedIdentifierCollision { .. }
+            error.diagnostic,
+            CompileDiagnostic::GeneratedIdentifierCollision { .. }
         )),
         "{:?}",
         update.diagnostics

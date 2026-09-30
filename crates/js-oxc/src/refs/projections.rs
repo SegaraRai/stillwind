@@ -3,7 +3,7 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
 use stillwind_source::{ModuleId, Span};
 
@@ -75,7 +75,7 @@ impl<'a> MacroExtractor<'a> {
                 .insert(LocalSpan::from(expression.span()));
             let [argument] = call.arguments.as_slice() else {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnchorScope,
+                    CompileDiagnostic::InvalidAnchorScope,
                     span,
                 ));
                 return None;
@@ -102,7 +102,7 @@ impl<'a> MacroExtractor<'a> {
                             }
                             _ => {
                                 self.diagnostics.push(CompileError::new(
-                                    CompileErrorKind::InvalidAnchorScope,
+                                    CompileDiagnostic::InvalidAnchorScope,
                                     span,
                                 ));
                                 return None;
@@ -118,7 +118,7 @@ impl<'a> MacroExtractor<'a> {
                         self.consumed_use_spans.insert(LocalSpan::from(call.span));
                         if !call.arguments.is_empty() {
                             self.diagnostics.push(CompileError::new(
-                                CompileErrorKind::InvalidPositionAnchorArguments,
+                                CompileDiagnostic::InvalidPositionAnchorArguments,
                                 span,
                             ));
                             return None;
@@ -133,7 +133,7 @@ impl<'a> MacroExtractor<'a> {
         };
         let Some(refs) = self.ref_references(receiver) else {
             self.diagnostics.push(CompileError::new(
-                CompileErrorKind::RefProjectionFactsRequired,
+                CompileDiagnostic::RefProjectionFactsRequired,
                 span,
             ));
             return None;
@@ -179,14 +179,14 @@ impl<'a> MacroExtractor<'a> {
                     }
                 }
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidContainerType,
+                    CompileDiagnostic::InvalidContainerType,
                     self.source_span(argument.span()),
                 ));
                 None
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidContainerType,
+                    CompileDiagnostic::InvalidContainerType,
                     self.source_span(call.span),
                 ));
                 None
@@ -232,7 +232,7 @@ impl<'a> MacroExtractor<'a> {
                 for (element, candidates) in candidates {
                     let Some(candidates) = candidates else {
                         self.diagnostics.push(CompileError::new(
-                            CompileErrorKind::InvalidAnchorScope,
+                            CompileDiagnostic::InvalidAnchorScope,
                             self.source_span(element.span()),
                         ));
                         return None;
@@ -265,7 +265,7 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {
                 self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidAnchorScope,
+                    CompileDiagnostic::InvalidAnchorScope,
                     span,
                 ));
                 None

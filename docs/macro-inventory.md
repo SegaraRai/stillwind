@@ -129,7 +129,7 @@ variant key の値は完全置換の入れ子 object（`crates/js-oxc/src/keyfra
 
 use は宣言値の呼び出し `enter("duration-normal ease-standard both")`。呼び出し自体は
 コンパイル時に消え、動的候補では値の `.k` を読む。宣言値は呼び出し可能な値ではないため、
-class 入力として消費されない use は `KeyframesUseNotAClassInput`（SHANIMATION002）で拒否する。
+class 入力として消費されない use は `KeyframesUseNotAClassInput`（SW04002）で拒否する。
 
 | 候補                           | lower                                                                              |
 | ------------------------------ | ---------------------------------------------------------------------------------- |

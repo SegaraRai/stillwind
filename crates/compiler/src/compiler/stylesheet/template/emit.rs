@@ -12,7 +12,7 @@ use cssparser::{Parser, Token};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{SourceFile, Span};
 
 use super::authored::render_authored;
@@ -48,7 +48,7 @@ pub(super) fn emit(
     sources: Option<&CssSourceGraph>,
     support: &SupportOutput,
     identifiers: &IdentifierContext,
-) -> Result<(MappedStylesheet, usize), CompileErrorKind> {
+) -> Result<(MappedStylesheet, usize), CompileDiagnostic> {
     let mut context = Context {
         theme,
         utility_css,
@@ -123,7 +123,7 @@ impl Context<'_> {
     ///
     /// Propagates authored rendering errors from [`Self::nodes_in_context`]. Counters may
     /// already have advanced on failure; no partial mapped output is returned.
-    fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, CompileErrorKind> {
+    fn nodes(&mut self, nodes: &[CssOutputNode]) -> Result<MappedStylesheet, CompileDiagnostic> {
         self.nodes_in_context(nodes, false)
     }
 
@@ -148,7 +148,7 @@ impl Context<'_> {
         &mut self,
         nodes: &[CssOutputNode],
         declarations: bool,
-    ) -> Result<MappedStylesheet, CompileErrorKind> {
+    ) -> Result<MappedStylesheet, CompileDiagnostic> {
         let mut output = MappedStylesheet::default();
         for node in nodes {
             let position = self.position;

@@ -97,7 +97,7 @@ export interface BindingAction {
 
 /** One compiler error, in both byte and editor coordinates. */
 export interface BindingDiagnostic {
-  /** Stable diagnostic code, such as `SH001`. */
+  /** Stable diagnostic code, such as `SW02003`. */
   code: string
   /** Rendered message. */
   message: string

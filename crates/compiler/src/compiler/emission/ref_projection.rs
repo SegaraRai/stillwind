@@ -1,7 +1,7 @@
 //! Ref projections, static and dynamic, and the declarations they render.
 
 use stillwind_design_system::UtilityOrder;
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, StyleVariant};
 use stillwind_source::{ModuleId, Span};
 
@@ -204,7 +204,7 @@ fn rule_contribution(
 fn render_anchor_scope(
     context: &IdentifierContext,
     scope: &AnchorScope,
-) -> Result<String, CompileErrorKind> {
+) -> Result<String, CompileDiagnostic> {
     let value = match scope {
         AnchorScope::All => "all".to_owned(),
         AnchorScope::None => "none".to_owned(),
@@ -246,7 +246,7 @@ fn render_ref_projection(
     definition: &RefDefinition,
     projection: &RefProjection,
     module_id: &ModuleId,
-) -> Result<(String, Option<GeneratedSymbol>), CompileErrorKind> {
+) -> Result<(String, Option<GeneratedSymbol>), CompileDiagnostic> {
     let name = anchor_name(context, definition, Some(ref_projection_name(projection)))?;
     let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
         Some(projection_symbol(

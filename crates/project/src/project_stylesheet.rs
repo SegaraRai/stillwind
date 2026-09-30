@@ -9,7 +9,7 @@ use std::sync::Arc;
 use stillwind_compiler::{
     GeneratedRule, MappedStylesheet, ModuleCssArtifact, StylesheetPlacement, StylesheetRenderer,
 };
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{ModuleId, SourceFile, Span};
 
 /// Published rule occurrences ordered by the supplied producer list.
@@ -51,7 +51,7 @@ impl ProjectStylesheet {
     /// # Errors
     ///
     /// No errors are currently produced.
-    pub fn module_css(&self) -> Result<String, CompileErrorKind> {
+    pub fn module_css(&self) -> Result<String, CompileDiagnostic> {
         let mapped = self.module_css_with_origins(|_, _| None);
         Ok(mapped
             .keyframes
@@ -85,7 +85,10 @@ impl ProjectStylesheet {
     /// # Errors
     ///
     /// Returns invalid template or support errors.
-    pub fn serialize(&self, renderer: &StylesheetRenderer<'_>) -> Result<String, CompileErrorKind> {
+    pub fn serialize(
+        &self,
+        renderer: &StylesheetRenderer<'_>,
+    ) -> Result<String, CompileDiagnostic> {
         renderer
             .render_mapped_stylesheet(
                 &self.module_css_with_origins(|_, _| None),

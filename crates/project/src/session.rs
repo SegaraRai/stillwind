@@ -12,7 +12,7 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    CompileError, CompileErrorKind, DiagnosticBatch, LintKind, filter_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticBatch, LintKind, filter_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceRegistry, SourceRegistryError, Span};
@@ -36,7 +36,7 @@ pub enum SessionReloadError {
     Stylesheet(
         /// Failure rendering the project stylesheet for the reload.
         #[from]
-        CompileErrorKind,
+        CompileDiagnostic,
     ),
 }
 
@@ -332,18 +332,18 @@ impl ProjectSession {
     ///
     /// Returns an error if stylesheet serialization fails, or when a name the render generated
     /// collides with another name in its CSS namespace.
-    pub fn css(&self) -> Result<String, CompileErrorKind> {
+    pub fn css(&self) -> Result<String, CompileDiagnostic> {
         let renderer = StylesheetRenderer::new(&self.current, &self.options, &self.identifiers);
         let mut stylesheet = self.stylesheet.clone();
         let mut modules = self.artifacts.keys().cloned().collect();
         let order = self
             .stylesheet_order(&mut modules)
-            .map_err(|_| CompileErrorKind::MissingRule)?;
+            .map_err(|_| CompileDiagnostic::MissingRule)?;
         if modules
             .iter()
             .any(|module| !self.artifacts.contains_key(module))
         {
-            return Err(CompileErrorKind::MissingRule);
+            return Err(CompileDiagnostic::MissingRule);
         }
         stylesheet.set_order(order);
         let css = stylesheet.serialize(&renderer)?;
@@ -361,7 +361,7 @@ impl ProjectSession {
     ///
     /// Generated identifiers are checked against every other module's symbols, not only
     /// this module's, because all artifacts share one document. A collision is reported
-    /// as `SHSYMBOL001` and prevents publication. Each CSS namespace is checked on its
+    /// as `CompileDiagnostic::GeneratedIdentifierCollision` and prevents publication. Each CSS namespace is checked on its
     /// own, so one spelling may appear in two pools without a conflict while two
     /// identities inside one pool may not share a spelling.
     ///
@@ -616,7 +616,7 @@ impl ProjectSession {
     pub(crate) fn check_document_names(
         &self,
         symbols: &[GeneratedSymbol],
-    ) -> Result<(), CompileErrorKind> {
+    ) -> Result<(), CompileDiagnostic> {
         let mut names = self.document_names(None);
         for symbol in symbols {
             if let Some(collision) = insert_document_name(&mut names, symbol) {
@@ -657,14 +657,14 @@ fn insert_reserved<'a>(
 fn insert_document_name<'a>(
     names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
     symbol: &'a GeneratedSymbol,
-) -> Option<CompileErrorKind> {
+) -> Option<CompileDiagnostic> {
     names
         .insert(
             (symbol.pool, symbol.name.as_str()),
             symbol.identity.as_str(),
         )
         .filter(|identity| *identity != symbol.identity)
-        .map(|_| CompileErrorKind::GeneratedIdentifierCollision {
+        .map(|_| CompileDiagnostic::GeneratedIdentifierCollision {
             name: symbol.name.clone().into(),
         })
 }

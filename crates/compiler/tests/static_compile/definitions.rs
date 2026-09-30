@@ -6,7 +6,7 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic, LintKind, LintSeverity};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -401,7 +401,7 @@ export const props = style(named, "flex");"#,
         result
             .diagnostics
             .iter()
-            .any(|error| matches!(error.kind, CompileErrorKind::StyleBaseWithProps)),
+            .any(|error| matches!(error.diagnostic, CompileDiagnostic::StyleBaseWithProps)),
         "{:#?}",
         result.diagnostics
     );
@@ -805,7 +805,10 @@ export const useLiteral = style("block", literal);"#,
         result
             .diagnostics
             .iter()
-            .filter(|error| error.kind.code() == "SHMACRO003")
+            .filter(|error| matches!(
+                error.diagnostic,
+                CompileDiagnostic::UnconsumedMacroUse { .. }
+            ))
             .count(),
         2,
         "{:?}",

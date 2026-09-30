@@ -234,7 +234,7 @@ impl From<StyleDependency> for NativeStyleDependency {
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 pub struct BindingDiagnostic {
-    /// Stable diagnostic code, such as `SH001`.
+    /// Stable diagnostic code, such as `SW02003`.
     pub code: String,
     /// Rendered message.
     pub message: String,

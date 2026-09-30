@@ -18,7 +18,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{
     CssSourceName, FileId, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
 };
@@ -88,7 +88,7 @@ pub enum DesignSystemLoadError {
     InvalidOptions(
         /// Validation failure for the resolved prefix configuration.
         #[from]
-        CompileErrorKind,
+        CompileDiagnostic,
     ),
     /// The import graph contains a cycle.
     #[error("CSS import cycle: {chain:?}")]

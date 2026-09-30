@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
@@ -70,7 +70,7 @@ export const derived = style(base, 'p-4');
         update
             .diagnostics
             .iter()
-            .any(|error| error.kind == CompileErrorKind::RefFactsRequired),
+            .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
         "expected a facts requirement, got {:?}",
         update.diagnostics
     );

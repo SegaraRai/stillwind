@@ -1,15 +1,10 @@
-//! Fatal causes, reporting codes, and source-located compilation errors.
-//!
-//! Producers construct a [`CompileErrorKind`] and attach a valid reporting span with
-//! [`CompileError::new`]. Source/projection conversions preserve rejected coordinates
-//! as cause data; they do not choose a valid primary label or perform detection.
+//! Fatal diagnostic payloads and message templates.
 
 use serde::{Deserialize, Serialize};
 
-use stillwind_source::{
-    BytePos, CoordinateError, CssSourceName, FileId, Position, ProjectionError, SourceError, Span,
-    Utf16Offset,
-};
+use stillwind_source::{BytePos, CssSourceName, FileId, Position, Span, Utf16Offset};
+
+use super::SourceFailureContext;
 
 /// The reason a style input cannot be transformed by a CSS variant.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
@@ -36,11 +31,11 @@ pub enum VariantInputErrorKind {
 
 /// Typed causes and display templates for fatal compilation errors.
 ///
-/// Codes are reporting identities, not discriminants: distinct causes may share a code.
-/// The kind owns cause data and its message template; [`CompileError`] supplies the
+/// Each variant has a unique reporting code. The diagnostic owns cause data and its
+/// message template; [`super::CompileError`] supplies the
 /// reporting location, optional source name, and notes. Match variants to inspect causes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
-pub enum CompileErrorKind {
+pub enum CompileDiagnostic {
     /// The host-selected framework disagrees with the imported macro entry point.
     #[error("explicit framework conflicts with the imported style macro")]
     FrameworkConflict,
@@ -284,7 +279,7 @@ pub enum CompileErrorKind {
     SourceTooLarge {
         /// Requested source length or offset outside the supported coordinate space.
         value: usize,
-        /// Operation reporting this source failure; determines the error code.
+        /// Operation that encountered this source failure.
         context: SourceFailureContext,
     },
     /// Import-edit validation exceeds the supported source-coordinate space.
@@ -302,7 +297,7 @@ pub enum CompileErrorKind {
         start: usize,
         /// Exclusive byte offset of the rejected range.
         end: usize,
-        /// Operation reporting this source failure; determines the error code.
+        /// Operation that encountered this source failure.
         context: SourceFailureContext,
     },
     /// Import-edit validation requested an unusable byte range.
@@ -320,7 +315,7 @@ pub enum CompileErrorKind {
         expected: FileId,
         /// File identity carried by the rejected span.
         actual: FileId,
-        /// Operation reporting this source failure; determines the error code.
+        /// Operation that encountered this source failure.
         context: SourceFailureContext,
     },
     /// Import-edit metadata points into a different source file.
@@ -338,7 +333,7 @@ pub enum CompileErrorKind {
     SourceInvalidSpan {
         /// Rejected span, including its source identity and half-open UTF-8 byte range.
         span: Span,
-        /// Operation reporting this source failure; determines the error code.
+        /// Operation that encountered this source failure.
         context: SourceFailureContext,
     },
     /// Import-edit validation rejected a span's bounds or UTF-8 boundaries.
@@ -352,7 +347,7 @@ pub enum CompileErrorKind {
     SourceInvalidOffset {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: BytePos,
-        /// Operation reporting this source failure; determines the error code.
+        /// Operation that encountered this source failure.
         context: SourceFailureContext,
     },
     /// Import-edit validation rejected a UTF-8 byte position.
@@ -674,386 +669,4 @@ pub enum CompileErrorKind {
         /// Explanation supplied by the underlying parser or map validator.
         detail: String,
     },
-}
-
-impl CompileErrorKind {
-    /// Returns the stable fatal-error reporting code, shared by related causes.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "Keep the complete cause-to-code mapping exhaustive in one place."
-    )]
-    pub const fn code(&self) -> &'static str {
-        match self {
-            Self::FrameworkConflict | Self::MixedFrameworks => "SHJS008",
-            Self::InvalidSymbolicFacts | Self::InvalidTypeScriptFacts => "SHFACT001",
-            Self::NestedStyleCall => "SHCOMP001",
-            Self::StyleArraySpread
-            | Self::StyleArrayHole
-            | Self::InvalidStyleInput
-            | Self::StyleArgumentSpread => "SHJS002",
-            Self::RefFactsRequired
-            | Self::UnidentifiedRefVariant
-            | Self::RefProjectionFactsRequired => "SHTS001",
-            Self::AttributeSpread
-            | Self::InvalidAttributeProperty
-            | Self::InvalidComputedAttribute
-            | Self::InvalidAttributeKey => "SHJS003",
-            Self::InvalidVariantInput { .. } => "SHJS004",
-            Self::InvalidUtilityTemplate => "SHJS005",
-            Self::UnconsumedMacroUse { .. } => "SHMACRO003",
-            Self::InvalidKeyframesOptions
-            | Self::KeyframesUseNotAClassInput
-            | Self::UnknownAnimationOption { .. } => "SHANIMATION002",
-            Self::InvalidKeyframesDefinition
-            | Self::KeyframesSpread
-            | Self::InvalidKeyframesProperty
-            | Self::InvalidKeyframesFrameKey
-            | Self::InvalidKeyframesFrameSelector
-            | Self::InvalidKeyframesFrameValue
-            | Self::EmptyKeyframes
-            | Self::InvalidKeyframesLabel => "SHANIMATION001",
-            Self::InvalidViewTransitionKeyExpression => "SHVIEW002",
-            Self::InvalidViewTransitionDefinition
-            | Self::ViewTransitionSpread
-            | Self::InvalidViewTransitionProperty
-            | Self::InvalidViewTransitionKey
-            | Self::InvalidViewTransitionValue
-            | Self::EmptyViewTransition
-            | Self::InvalidViewTransitionLabel => "SHVIEW001",
-            Self::InvalidRefArgument
-            | Self::InvalidRefBoundary
-            | Self::InvalidRefLabelArgument
-            | Self::InvalidRefArguments
-            | Self::InvalidRefProjection
-            | Self::InvalidPositionAnchorArguments => "SHREF001",
-            Self::NonStaticRefVariant => "SHREF005",
-            Self::InvalidAnchorScope => "SHREF010",
-            Self::InvalidContainerType => "SHREF002",
-            Self::InvalidContainerQuery => "SHREF004",
-            Self::CompositionCycle => "SHCOMP003",
-            Self::CompositionModuleCycle => "SHCOMP004",
-            Self::UnavailableStyleBase => "SHCOMP005",
-            Self::StyleBaseWithProps => "SHCOMP006",
-            Self::StyleBaseFrameworkMismatch => "SHCOMP007",
-            Self::KeyframesFrameVariants => "SHANIMATION003",
-            Self::InvalidKeyframesVariant => "SHANIMATION004",
-            Self::InvalidViewTransitionVariant => "SHVIEW003",
-            Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix | Self::UnidentifiedRef => {
-                "SHREF003"
-            }
-            Self::GeneratedIdentifierCollision { .. } => "SHSYMBOL001",
-            Self::IdentifierGenerationFailed { .. } => "SHSYMBOL002",
-            Self::UnavailableUtility { .. } => "SH001",
-            Self::JavaScriptParse => "SHJS001",
-            Self::InvalidGeneratedCss { .. }
-            | Self::UnresolvedThemeReference
-            | Self::InvalidThemeReference { .. }
-            | Self::MissingUtilitiesSlot
-            | Self::MissingPropertySlot { .. }
-            | Self::InvalidPropertyRequirement
-            | Self::MalformedPropertyRequirement { .. }
-            | Self::MalformedUtilityRequirement { .. }
-            | Self::InvalidRuntimeConditional { .. }
-            | Self::PropertyUsage { .. }
-            | Self::MissingRule
-            | Self::InvalidCssGraph
-            | Self::CssRequestIdExhausted
-            | Self::CssSourceIdExhausted
-            | Self::CssLoadAlreadyComplete
-            | Self::InvalidCssInitialBatch { .. }
-            | Self::UnknownCssRequest { .. }
-            | Self::ConflictingCssSource { .. }
-            | Self::CssImportCycle { .. }
-            | Self::UnresolvedCssImports { .. }
-            | Self::InvalidPropertyPrefix { .. }
-            | Self::InvalidHashLength { .. }
-            | Self::ConflictingPropertyPrefixes { .. }
-            | Self::ConditionalDefinition { .. }
-            | Self::UnsupportedOutputSlot { .. }
-            | Self::InvalidOutputSlotContext { .. }
-            | Self::InvalidCssOutputBlock { .. }
-            | Self::CssOffsetTooLarge { .. }
-            | Self::CssParse { .. }
-            | Self::UnterminatedTheme { .. }
-            | Self::UnterminatedCssBlock { .. }
-            | Self::CssNestingTooDeep { .. }
-            | Self::UnsupportedImportModifier { .. }
-            | Self::InvalidImportModifierOrder { .. }
-            | Self::InvalidImportBlock { .. }
-            | Self::InvalidImportSpecifier { .. }
-            | Self::InvalidImportModifiers { .. }
-            | Self::InvalidImportModifierBlock { .. } => "SHCSS001",
-            Self::InvalidTransformExpressionMapping { .. }
-            | Self::InvalidTransformOverlap { .. }
-            | Self::InvalidTransformSize
-            | Self::InvalidTransformState => "SHSPAN004",
-            Self::SourceTooLarge { context, .. }
-            | Self::SourceInternalMap { context }
-            | Self::SourceInvalidRange { context, .. }
-            | Self::SourceWrongFile { context, .. }
-            | Self::SourceInvalidSpan { context, .. }
-            | Self::SourceInvalidOffset { context, .. } => context.code(),
-            Self::ImportSourceTooLarge { .. }
-            | Self::ImportSourceInternalMap
-            | Self::ImportSourceInvalidRange { .. }
-            | Self::ImportSourceWrongFile { .. }
-            | Self::ImportSourceInvalidSpan { .. }
-            | Self::ImportSourceInvalidOffset { .. }
-            | Self::MissingRuntimeAnchor { .. }
-            | Self::InvalidImportMetadata { .. }
-            | Self::MissingModuleCssTarget { .. }
-            | Self::UntransformedMacroReference { .. }
-            | Self::UnmappedMacroReference { .. } => "SHIMPORT001",
-            Self::ProjectionMap { .. }
-            | Self::ProjectionUnmapped { .. }
-            | Self::ProjectionContent { .. }
-            | Self::InvalidUtf16Offset { .. }
-            | Self::InvalidUtf16Position { .. }
-            | Self::InvalidUtf8Offset { .. } => "SHPRJ001",
-        }
-    }
-}
-
-impl CompileErrorKind {
-    /// Preserves source-failure fields in an import-edit cause with code `SHIMPORT001`.
-    /// The caller attaches a valid reporting span separately; rejected coordinates may be invalid.
-    pub fn import_source_failure(error: &SourceError) -> Self {
-        match *error {
-            SourceError::InternalSourceMap => Self::ImportSourceInternalMap,
-            SourceError::TooLarge(value) => Self::ImportSourceTooLarge { value },
-            SourceError::InvalidRange { start, end } => {
-                Self::ImportSourceInvalidRange { start, end }
-            }
-            SourceError::WrongFile { expected, actual } => {
-                Self::ImportSourceWrongFile { expected, actual }
-            }
-            SourceError::InvalidSpan(span) => Self::ImportSourceInvalidSpan { span },
-            SourceError::InvalidOffset(offset) => Self::ImportSourceInvalidOffset { offset },
-        }
-    }
-
-    /// Preserves source-failure fields and selects a reporting code using `context`.
-    /// This does not validate coordinates or attach a primary reporting location.
-    pub fn source_failure(error: &SourceError, context: SourceFailureContext) -> Self {
-        match *error {
-            SourceError::InternalSourceMap => Self::SourceInternalMap { context },
-            SourceError::TooLarge(value) => Self::SourceTooLarge { value, context },
-            SourceError::InvalidRange { start, end } => Self::SourceInvalidRange {
-                start,
-                end,
-                context,
-            },
-            SourceError::WrongFile { expected, actual } => Self::SourceWrongFile {
-                expected,
-                actual,
-                context,
-            },
-            SourceError::InvalidSpan(span) => Self::SourceInvalidSpan { span, context },
-            SourceError::InvalidOffset(offset) => Self::SourceInvalidOffset { offset, context },
-        }
-    }
-}
-
-impl From<ProjectionError> for CompileErrorKind {
-    fn from(error: ProjectionError) -> Self {
-        match error {
-            ProjectionError::Map(detail) => Self::ProjectionMap { detail },
-            ProjectionError::Source(error) => {
-                Self::source_failure(&error, SourceFailureContext::Projection)
-            }
-            ProjectionError::Coordinate(error) => match error {
-                CoordinateError::Offset(offset) => Self::InvalidUtf16Offset { offset },
-                CoordinateError::Position(position) => Self::InvalidUtf16Position { position },
-                CoordinateError::Byte(offset) => Self::InvalidUtf8Offset { offset },
-            },
-            ProjectionError::Unmapped(span) => Self::ProjectionUnmapped { span },
-            ProjectionError::Content(span) => Self::ProjectionContent { span },
-        }
-    }
-}
-
-/// One fatal error with its source highlights and supplementary context.
-///
-/// [`Self::new`] attaches one primary label; callers may add highlights and notes.
-/// Display includes the optional source name and cause, while labels and notes are
-/// formatted separately by the host. Fatal errors do not participate in lint suppression.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, thiserror::Error)]
-#[error("{kind}")]
-pub struct CompileError {
-    /// Typed cause; owns the message template and reporting code.
-    #[source]
-    pub kind: CompileErrorKind,
-    /// Mandatory primary location and shared diagnostic details.
-    pub info: Box<crate::DiagnosticInfo>,
-}
-
-impl CompileError {
-    /// Attaches `span` as the sole primary label, with no source name or notes.
-    /// The caller supplies a valid reporting span; rejected coordinates remain in `kind`.
-    pub fn new(kind: CompileErrorKind, span: Span) -> Self {
-        Self {
-            kind,
-            info: Box::new(crate::DiagnosticInfo::new(span)),
-        }
-    }
-
-    /// Returns the cause's stable reporting code.
-    #[must_use]
-    pub const fn code(&self) -> &'static str {
-        self.kind.code()
-    }
-}
-
-impl std::ops::Deref for CompileError {
-    type Target = crate::DiagnosticInfo;
-
-    fn deref(&self) -> &Self::Target {
-        &self.info
-    }
-}
-
-impl std::ops::DerefMut for CompileError {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.info
-    }
-}
-
-/// Operation that reports a source-coordinate failure with its own stable code.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub enum SourceFailureContext {
-    /// Utility tokenization (`SHSPAN001`).
-    Utility,
-    /// Framework projection (`SHPRJ001`).
-    Projection,
-    /// CSS source loading (`SHCSS001`).
-    Stylesheet,
-    /// Style call emission (`SHSPAN002`).
-    Emission,
-    /// JavaScript source extraction (`SHSPAN003`).
-    Frontend,
-    /// Source-transform rendering (`SHSPAN004`).
-    Transform,
-}
-
-impl SourceFailureContext {
-    /// Returns the reporting code for the operation.
-    pub const fn code(self) -> &'static str {
-        match self {
-            Self::Utility => "SHSPAN001",
-            Self::Projection => "SHPRJ001",
-            Self::Stylesheet => "SHCSS001",
-            Self::Emission => "SHSPAN002",
-            Self::Frontend => "SHSPAN003",
-            Self::Transform => "SHSPAN004",
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use stillwind_source::{FileId, Span};
-
-    use super::*;
-    use crate::{Label, LintDiagnostic, LintFinding};
-
-    /// Distinct causes may share one reporting code, and the code is not the message.
-    #[test]
-    fn distinct_causes_share_codes_without_sharing_messages() {
-        let invalid = CompileErrorKind::InvalidVariantPrefix;
-        let unavailable = CompileErrorKind::UnavailableVariantPrefix;
-        let unidentified = CompileErrorKind::UnidentifiedRef;
-        assert_ne!(invalid, unavailable);
-        assert_eq!(invalid.code(), "SHREF003");
-        assert_eq!(unavailable.code(), invalid.code());
-        assert_eq!(unidentified.code(), invalid.code());
-        assert_eq!(invalid.to_string(), "invalid variant prefix");
-        assert_eq!(
-            unavailable.to_string(),
-            "unknown or unavailable variant prefix"
-        );
-        assert_eq!(
-            unidentified.to_string(),
-            "ref variant has no known ref identity"
-        );
-    }
-
-    #[test]
-    fn wrappers_serialize_owned_causes_labels_and_notes() {
-        let span = Span::new(FileId(7), 4, 12);
-        let mut error = CompileError::new(
-            CompileErrorKind::GeneratedIdentifierCollision {
-                name: "衝突".into(),
-            },
-            span,
-        );
-        error.labels.push(Label {
-            span: Span::new(FileId(8), 0, 3),
-            message: Some("previous definition".into()),
-        });
-        error
-            .notes
-            .push("reported while publishing the module".into());
-        let json = serde_json::to_string(&error).unwrap();
-        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 2);
-        assert_eq!(
-            value["info"]["notes"][0],
-            "reported while publishing the module"
-        );
-        assert_eq!(error.code(), "SHSYMBOL001");
-        assert_eq!(error.to_string(), "generated identifier collision: 衝突");
-        assert_eq!(
-            std::error::Error::source(&error).unwrap().to_string(),
-            error.to_string()
-        );
-
-        let finding = LintFinding::new(
-            LintDiagnostic::MissingAnchor {
-                name: "対象".into(),
-            },
-            span,
-        );
-        let json = serde_json::to_string(&finding).unwrap();
-        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
-        assert_eq!(finding.code(), "require-anchor-provider");
-        assert_eq!(value["diagnostic"]["MissingAnchor"]["name"], "対象");
-        assert!(value.get("kind").is_none());
-        assert_eq!(
-            finding.to_string(),
-            "ref `対象` uses position without an asAnchor() provider"
-        );
-    }
-
-    #[test]
-    fn generator_failures_report_their_family_and_message() {
-        let span = Span::new(FileId(7), 4, 12);
-        let error = CompileError::new(
-            CompileErrorKind::IdentifierGenerationFailed(
-                "keyframes".into(),
-                "no name for this declaration".into(),
-            ),
-            span,
-        );
-        assert_eq!(error.code(), "SHSYMBOL002");
-        assert_eq!(
-            error.to_string(),
-            "identifier generation failed for keyframes: no name for this declaration"
-        );
-        let json = serde_json::to_string(&error).unwrap();
-        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
-    }
-
-    #[test]
-    fn internal_error_display_contains_only_the_typed_cause() {
-        let error = CompileError::new(
-            CompileErrorKind::UnterminatedCssBlock { offset: 8 },
-            Span::new(FileId(77), 0, 9),
-        );
-        assert_eq!(error.to_string(), error.kind.to_string());
-        assert_eq!(error.code(), error.kind.code());
-        let value: serde_json::Value = serde_json::to_value(&error).unwrap();
-        assert!(value["info"].get("source_name").is_none());
-    }
 }

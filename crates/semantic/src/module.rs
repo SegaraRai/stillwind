@@ -12,7 +12,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{Fingerprint, ModuleId};
 
 use crate::{AssetMetadata, IdentityId, TypeFact};
@@ -58,7 +58,7 @@ pub struct IntegrationDiagnostic {
     /// Module the failure concerns, or `None` for a run-wide problem.
     pub module_id: Option<ModuleId>,
     /// Typed compilation failure reported by the fact provider.
-    pub kind: CompileErrorKind,
+    pub diagnostic: CompileDiagnostic,
 }
 
 /// One round of type facts from the host: facts per module plus diagnostics.

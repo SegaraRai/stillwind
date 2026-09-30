@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::CompileErrorKind;
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{
     AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, RuleExpression, ScriptLanguage,
     ScriptModuleKind, StyleInput, StyleVariant,
@@ -37,9 +37,9 @@ fn parser_diagnostics_keep_external_detail_as_notes() {
     let error = parsed
         .diagnostics
         .iter()
-        .find(|error| error.kind == CompileErrorKind::JavaScriptParse)
+        .find(|error| error.diagnostic == CompileDiagnostic::JavaScriptParse)
         .unwrap();
-    assert_eq!(error.kind, CompileErrorKind::JavaScriptParse);
+    assert_eq!(error.diagnostic, CompileDiagnostic::JavaScriptParse);
     assert_eq!(error.to_string(), "JavaScript parse error");
     assert_eq!(error.labels[0].span, source.full_span());
     assert!(!error.notes[0].is_empty());
@@ -267,7 +267,7 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
         )
         .diagnostics
         .iter()
-        .any(|error| error.kind == CompileErrorKind::MixedFrameworks)
+        .any(|error| error.diagnostic == CompileDiagnostic::MixedFrameworks)
     );
 }
 
@@ -526,39 +526,39 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
     for (body, kind) in [
         (
             "const x=style.ref(...args);",
-            CompileErrorKind::InvalidRefArgument,
+            CompileDiagnostic::InvalidRefArgument,
         ),
         (
             "const x=style.ref(...args,'x');",
-            CompileErrorKind::InvalidRefBoundary,
+            CompileDiagnostic::InvalidRefBoundary,
         ),
         (
             "const s=style.ref(); const x=style.ref(s,...args);",
-            CompileErrorKind::InvalidRefLabelArgument,
+            CompileDiagnostic::InvalidRefLabelArgument,
         ),
         (
             "const x=style.keyframes(...args);",
-            CompileErrorKind::InvalidKeyframesDefinition,
+            CompileDiagnostic::InvalidKeyframesDefinition,
         ),
         (
             "const a=style.keyframes({from:'flex'}); const x=style(a(...args));",
-            CompileErrorKind::InvalidKeyframesOptions,
+            CompileDiagnostic::InvalidKeyframesOptions,
         ),
         (
             "const x=style.viewTransition(...args);",
-            CompileErrorKind::InvalidViewTransitionDefinition,
+            CompileDiagnostic::InvalidViewTransitionDefinition,
         ),
         (
             "const r=style.ref(); const x=style(r.asContainer(...args));",
-            CompileErrorKind::InvalidContainerType,
+            CompileDiagnostic::InvalidContainerType,
         ),
         (
             "const r=style.ref(); const x=style({[r.at(...args)]: 'flex'});",
-            CompileErrorKind::InvalidComputedAttribute,
+            CompileDiagnostic::InvalidComputedAttribute,
         ),
         (
             "const r=style.ref(); const x=style({[r.at('width > 1px',...args)]: 'flex'});",
-            CompileErrorKind::InvalidComputedAttribute,
+            CompileDiagnostic::InvalidComputedAttribute,
         ),
     ] {
         let source = SourceFile::new(
@@ -579,7 +579,7 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
         let diagnostic = parsed
             .diagnostics
             .iter()
-            .find(|diagnostic| diagnostic.kind == kind)
+            .find(|diagnostic| diagnostic.diagnostic == kind)
             .unwrap_or_else(|| panic!("missing {kind:?} for {body}: {:?}", parsed.diagnostics));
         assert!(
             source
@@ -612,7 +612,7 @@ fn ref_definition_requires_one_boundary_identity() {
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|error| error.kind == CompileErrorKind::InvalidRefBoundary),
+                    .any(|error| error.diagnostic == CompileDiagnostic::InvalidRefBoundary),
                 "{:?}",
                 parsed.diagnostics
             );
@@ -833,7 +833,7 @@ fn unclaimed_keyframes_uses_report_diagnostics() {
             parsed
                 .diagnostics
                 .iter()
-                .any(|error| error.kind == CompileErrorKind::KeyframesUseNotAClassInput),
+                .any(|error| error.diagnostic == CompileDiagnostic::KeyframesUseNotAClassInput),
             "{body}: {:?}",
             parsed.diagnostics
         );

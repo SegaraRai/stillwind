@@ -185,7 +185,7 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   quoted.attribute_quote = "single";
   const wrongQuote = compile(input);
   assert.equal(wrongQuote.code, null);
-  assert.equal(wrongQuote.diagnostics[0]?.code, "SHIMPORT001");
+  assert.equal(wrongQuote.diagnostics[0]?.code, "SW11008");
   const leaked = await projectFrameworkSource({
     resolver_id: "/src/Bad.vue",
     checker_file_name: "/src/Bad.vue",
@@ -197,7 +197,7 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   });
   const leftover = compile(leaked);
   assert.equal(leftover.code, null);
-  assert.equal(leftover.diagnostics[0]?.code, "SHIMPORT001");
+  assert.equal(leftover.diagnostics[0]?.code, "SW11010");
   const missingTarget = await projectFrameworkSource({
     resolver_id: "/src/Bad.vue",
     checker_file_name: "/src/Bad.vue",
@@ -212,7 +212,7 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   });
   const noVirtualModule = compile(missingTarget);
   assert.equal(noVirtualModule.code, null);
-  assert.equal(noVirtualModule.diagnostics[0]?.code, "SHIMPORT001");
+  assert.equal(noVirtualModule.diagnostics[0]?.code, "SW11009");
   assert.match(noVirtualModule.diagnostics[0]!.message, /host-allocated virtual module/);
 });
 

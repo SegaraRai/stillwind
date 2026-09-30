@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileErrorKind, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
 };
@@ -98,8 +98,8 @@ fn explicit_adapter_conflicts_and_mixed_macros_remain_fatal() {
     source.framework = Some(AdapterKind::React);
     let scan = OxcSourceAnalyzer.scan_input(source);
     assert_eq!(
-        scan.diagnostics[0].kind,
-        CompileErrorKind::FrameworkConflict
+        scan.diagnostics[0].diagnostic,
+        CompileDiagnostic::FrameworkConflict
     );
     assert_eq!(scan.lint_findings, []);
 
@@ -108,7 +108,10 @@ fn explicit_adapter_conflicts_and_mixed_macros_remain_fatal() {
         ScriptLanguage::Tsx,
         SourceFormat::Jsx,
     ));
-    assert_eq!(scan.diagnostics[0].kind, CompileErrorKind::MixedFrameworks);
+    assert_eq!(
+        scan.diagnostics[0].diagnostic,
+        CompileDiagnostic::MixedFrameworks
+    );
 }
 
 #[test]

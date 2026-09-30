@@ -19,7 +19,7 @@ use stillwind_css::{
     CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
     extract_property_definitions, unterminated_block, value_nesting_overflow,
 };
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
 use super::config::{StillwindConfig, extract_stillwind_config};
@@ -62,12 +62,12 @@ pub fn parse_theme(
 fn parse_theme_contents(
     source: &SourceFile,
     source_identity: &CssSourceName,
-) -> Result<ThemeIndex, CompileErrorKind> {
+) -> Result<ThemeIndex, CompileDiagnostic> {
     if let Some(offset) = unterminated_block(source.text()) {
-        return Err(CompileErrorKind::UnterminatedCssBlock { offset });
+        return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
     }
     if let Some(offset) = value_nesting_overflow(source.text()) {
-        return Err(CompileErrorKind::CssNestingTooDeep {
+        return Err(CompileDiagnostic::CssNestingTooDeep {
             offset,
             limit: MAX_VALUE_NESTING,
         });
@@ -78,7 +78,7 @@ fn parse_theme_contents(
     template.source_identity = source_identity.clone();
     theme.custom_css = template.authored_css();
     StyleSheet::parse(&theme.custom_css, ParserOptions::default()).map_err(|error| {
-        CompileErrorKind::CssParse {
+        CompileDiagnostic::CssParse {
             detail: error.to_string(),
         }
     })?;
@@ -146,8 +146,8 @@ pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
 ///
 /// Returns an invalid-offset error when the value does not fit, so no caller can
 /// truncate a span silently.
-pub(crate) fn offset(value: usize) -> Result<u32, CompileErrorKind> {
-    u32::try_from(value).map_err(|_| CompileErrorKind::CssOffsetTooLarge { offset: value })
+pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
+    u32::try_from(value).map_err(|_| CompileDiagnostic::CssOffsetTooLarge { offset: value })
 }
 
 /// Collects the tokens of every `@theme` block, applying each block's mode to the
@@ -162,7 +162,7 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileErrorKind> {
 pub(crate) fn extract_theme_tokens(
     file: FileId,
     css: &str,
-) -> Result<ThemeIndex, CompileErrorKind> {
+) -> Result<ThemeIndex, CompileDiagnostic> {
     let mut tokens = Vec::new();
     for (range, modifier) in theme_blocks(css)? {
         let mode = ThemeTokenMode::parse(&modifier);
@@ -237,7 +237,7 @@ mod panic_regressions {
                     parse_theme(&source, &CssSourceName::from("test.css")),
                 ] {
                     assert!(
-                        matches!(result, Err(CompileError { kind: CompileErrorKind::UnterminatedCssBlock { offset }, .. })
+                        matches!(result, Err(CompileError { diagnostic: CompileDiagnostic::UnterminatedCssBlock { offset }, .. })
                         if offset == directive.len() + 1),
                         "{css}: {result:?}"
                     );
@@ -286,7 +286,7 @@ mod panic_regressions {
             matches!(
                 parse_theme(&source, &CssSourceName::from("test.css")),
                 Err(CompileError {
-                    kind: CompileErrorKind::CssNestingTooDeep { .. },
+                    diagnostic: CompileDiagnostic::CssNestingTooDeep { .. },
                     ..
                 })
             ),
@@ -302,7 +302,7 @@ mod panic_regressions {
             matches!(
                 parse_theme(&source, &CssSourceName::from("test.css")),
                 Err(CompileError {
-                    kind: CompileErrorKind::CssNestingTooDeep { .. },
+                    diagnostic: CompileDiagnostic::CssNestingTooDeep { .. },
                     ..
                 })
             ),

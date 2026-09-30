@@ -246,7 +246,7 @@ mod tests {
     use stillwind_source::SourceError;
 
     use super::*;
-    use crate::{CompileErrorKind, SourceFailureContext};
+    use crate::{CompileDiagnostic, SourceFailureContext};
 
     #[test]
     fn utility_diagnostics_share_rules_without_losing_their_contents() {
@@ -278,8 +278,7 @@ mod tests {
         }
     }
 
-    /// One message template can carry several codes, including codes shared with fatal
-    /// errors for the same source-coordinate cause.
+    /// Utility classification chooses the lint rule while source context preserves the operation.
     #[test]
     fn one_message_template_can_report_multiple_codes() {
         let findings = [UtilityFailure::Invalid, UtilityFailure::Unknown].map(|classification| {
@@ -296,16 +295,24 @@ mod tests {
             "unknown or unavailable utility `hover:[`"
         );
 
-        for (context, code) in [
-            (SourceFailureContext::Utility, "SHSPAN001"),
-            (SourceFailureContext::Projection, "SHPRJ001"),
-            (SourceFailureContext::Stylesheet, "SHCSS001"),
+        for context in [
+            SourceFailureContext::Utility,
+            SourceFailureContext::Projection,
+            SourceFailureContext::Stylesheet,
         ] {
-            let error = CompileErrorKind::source_failure(
+            let error = CompileDiagnostic::source_failure(
                 &SourceError::InvalidRange { start: 9, end: 2 },
                 context,
             );
-            assert_eq!(error.code(), code);
+            assert_eq!(error.code(), crate::CompileErrorCode::SourceInvalidRange);
+            assert_eq!(
+                error,
+                CompileDiagnostic::SourceInvalidRange {
+                    start: 9,
+                    end: 2,
+                    context
+                }
+            );
             assert_eq!(error.to_string(), "invalid source byte range 9..2");
         }
     }
