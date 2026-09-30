@@ -15,6 +15,7 @@ use stillwind_diagnostics::{CompileError, CompileErrorKind};
 use stillwind_ir::{RefDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
+use super::RefUseKind;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -144,7 +145,7 @@ impl<'a> MacroExtractor<'a> {
             for definition in &refs {
                 self.record_ref_use(
                     definition,
-                    "container-query",
+                    RefUseKind::ContainerQueryVariant,
                     self.source_span(expression.span()),
                 );
             }
@@ -164,7 +165,11 @@ impl<'a> MacroExtractor<'a> {
             prefix.value.push(':');
         }
         for definition in &refs {
-            self.record_ref_use(definition, "selector", self.source_span(expression.span()));
+            self.record_ref_use(
+                definition,
+                RefUseKind::SelectorVariant,
+                self.source_span(expression.span()),
+            );
         }
         Some(StyleVariant::Ref { refs, prefix })
     }
@@ -181,7 +186,11 @@ impl<'a> MacroExtractor<'a> {
     ) -> bool {
         if let Some(refs) = self.ref_references(expression) {
             for definition in &refs {
-                self.record_ref_use(definition, "ref", self.source_span(expression.span()));
+                self.record_ref_use(
+                    definition,
+                    RefUseKind::Marker,
+                    self.source_span(expression.span()),
+                );
             }
             if refs.len() == 1 {
                 inputs.push(StyleInput::RefAttachment {

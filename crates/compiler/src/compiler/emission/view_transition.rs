@@ -13,11 +13,10 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceError, Span};
 
 use super::super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
-use super::super::literal::LiteralContribution;
-use super::super::props::{GuardStep, StyleEmissionPart};
+use super::super::literal::{LiteralContribution, TransitionContribution};
+use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
-use crate::generated::js_string;
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
 
@@ -74,6 +73,7 @@ impl CallEmitter<'_> {
         name: &ViewTransitionName,
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
+        fold: bool,
     ) -> Option<Emitted> {
         self.required_definitions
             .insert(transition.identity.clone());
@@ -97,15 +97,13 @@ impl CallEmitter<'_> {
         } else {
             Some(self.view_transition_name_property(transition.span.start.0)?)
         };
-        let class = self.view_transition_class(
-            &token,
-            static_name.as_deref(),
-            name_property.as_deref(),
-            guard,
-            wrappers,
-        )?;
+        let contribution =
+            self.transition_contribution(token, static_name, name_property.clone(), wrappers)?;
+        let class = self
+            .contribute_rule(contribution, guard, fold)
+            .unwrap_or(Emitted::Leaf { names: Vec::new() });
         Some(Self::view_transition_emitted(
-            Emitted::Leaf { names: vec![class] },
+            class,
             name_value,
             name_property,
             transition.span,
@@ -133,7 +131,7 @@ impl CallEmitter<'_> {
         } else {
             Some(self.view_transition_name_property(value.start.0)?)
         };
-        let mut table = Vec::new();
+        let mut candidates = Vec::new();
         for transition in transitions {
             self.runtime_assets.insert(transition.identity.clone());
             self.required_definitions
@@ -146,20 +144,17 @@ impl CallEmitter<'_> {
                 }
             };
             let static_name = static_view_transition_name(name, &token);
-            let class = self.view_transition_class(
-                &token,
-                static_name.as_deref(),
-                name_property.as_deref(),
-                guard,
+            let contribution = self.transition_contribution(
+                token.clone(),
+                static_name,
+                name_property.clone(),
                 wrappers,
             )?;
-            table.push(format!("{}:{}", js_string(&token), js_string(&class)));
+            candidates.push((token, contribution));
         }
-        let class = Emitted::Expression(ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: VIEW_TRANSITION_CLASS_KEY.to_owned(),
-            table: format!("{{{}}}", table.join(",")).into(),
-        });
+        let class = self
+            .emit_candidate_units(value, VIEW_TRANSITION_CLASS_KEY, candidates, guard)
+            .unwrap_or(Emitted::Leaf { names: Vec::new() });
         Some(Self::view_transition_emitted(
             class,
             name_value,
@@ -168,41 +163,40 @@ impl CallEmitter<'_> {
         ))
     }
 
-    /// Returns the class name for one transition token under the active CSS wrappers.
-    /// Reports name allocation failures and returns `None` on failure.
-    fn view_transition_class(
+    /// Retains the transition's CSS context until the shared unit allocator merges its region.
+    fn transition_contribution(
         &mut self,
-        token: &str,
-        static_name: Option<&str>,
-        dynamic_name_property: Option<&str>,
-        guard: &[GuardStep],
+        token: String,
+        name: Option<String>,
+        dynamic_name_property: Option<String>,
         wrappers: &[StyleVariant],
-    ) -> Option<String> {
-        let class = if wrappers.is_empty() {
-            self.units
-                .view_transition_class_unit(token, static_name, guard)
+    ) -> Option<LiteralContribution> {
+        let plan = if wrappers.is_empty() {
+            None
         } else {
-            let plan = StyleVariantPlan::resolve(
+            Some(StyleVariantPlan::resolve(
                 self.identifiers,
                 wrappers,
                 self.theme,
                 self.diagnostics,
-            )?;
-            self.units.view_transition_variant_class_unit(
-                token,
-                static_name,
-                dynamic_name_property,
-                guard,
-                &plan,
-            )
+            )?)
         };
-        match class {
-            Ok(class) => Some(class),
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                None
-            }
-        }
+        let canonical = format!(
+            "{}\0view-transition\0{token}\0{}\0{}\0",
+            plan.as_ref().map_or("", |plan| plan.canonical.as_str()),
+            name.as_deref().unwrap_or(""),
+            dynamic_name_property.as_deref().unwrap_or("")
+        );
+        Some(LiteralContribution {
+            canonical,
+            view_transitions: vec![TransitionContribution {
+                token,
+                name,
+                dynamic_name_property,
+                plan,
+            }],
+            ..LiteralContribution::default()
+        })
     }
 
     /// Returns the custom-property name for a dynamic transition name at an original
@@ -302,120 +296,6 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Lowers one view-transition use whose transition is known at compile time.
-    ///
-    /// An empty guard folds the class into the base unit; a guarded use takes its own
-    /// class unit so the condition selects the class rather than the declarations.
-    /// Returns `Some(())` after recording the contribution, or `None` if a generated
-    /// transition identity or class name cannot be produced.
-    pub(super) fn emit_view_transition_use(
-        &mut self,
-        transition: &AssetReference,
-        name: &ViewTransitionName,
-        guard: &[GuardStep],
-    ) -> Option<()> {
-        self.required_definitions
-            .insert(transition.identity.clone());
-        self.runtime_assets.insert(transition.identity.clone());
-        self.view_transition_classes = true;
-        if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard, 1);
-        }
-        let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
-            Ok(token) => token,
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                return None;
-            }
-        };
-        let static_name = static_view_transition_name(name, &token);
-        if guard.is_empty() {
-            self.units.fold(LiteralContribution {
-                canonical: format!("view-transition:{token}\0"),
-                utilities: Vec::new(),
-                markers: Vec::new(),
-                external: Vec::new(),
-                plain: Vec::new(),
-                view_transition_token: Some(token.clone()),
-                view_transition_name: static_name,
-            });
-        } else {
-            let class =
-                match self
-                    .units
-                    .view_transition_class_unit(&token, static_name.as_deref(), guard)
-                {
-                    Ok(class) => class,
-                    Err(failure) => {
-                        self.reject_name(failure, self.call.span);
-                        return None;
-                    }
-                };
-            self.parts.push(StyleEmissionPart::Class {
-                emitted: Emitted::Leaf { names: vec![class] },
-                position: transition.span.start.0,
-            });
-        }
-        self.emit_view_transition_name(name, Some(&token), transition.span)?;
-        Some(())
-    }
-
-    /// Lowers one view-transition use whose transition is only known at runtime.
-    ///
-    /// The emitted lookup maps each candidate token to its class set; a name the use
-    /// states becomes a style property that the same runtime value selects from.
-    /// Returns `Some(())` after recording the lookup, or `None` if a required source
-    /// value or generated identity cannot be produced.
-    pub(super) fn emit_dynamic_view_transition_use(
-        &mut self,
-        value: &Span,
-        transitions: &[AssetReference],
-        name: &ViewTransitionName,
-        guard: &[GuardStep],
-    ) -> Option<()> {
-        self.view_transition_classes = true;
-        if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard, 1);
-        }
-        let mut table = Vec::new();
-        for transition in transitions {
-            self.runtime_assets.insert(transition.identity.clone());
-            self.required_definitions
-                .insert(transition.identity.clone());
-            let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
-                Ok(token) => token,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
-            let static_name = static_view_transition_name(name, &token);
-            let class =
-                match self
-                    .units
-                    .view_transition_class_unit(&token, static_name.as_deref(), guard)
-                {
-                    Ok(class) => class,
-                    Err(failure) => {
-                        self.reject_name(failure, self.call.span);
-                        return None;
-                    }
-                };
-            table.push(format!("{}:{}", js_string(&token), js_string(&class)));
-        }
-        let expression = ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: VIEW_TRANSITION_CLASS_KEY.to_owned(),
-            table: format!("{{{}}}", table.join(",")).into(),
-        };
-        self.parts.push(StyleEmissionPart::Class {
-            emitted: Emitted::Expression(expression),
-            position: value.start.0,
-        });
-        self.emit_view_transition_name(name, None, *value)?;
-        Some(())
-    }
-
     /// Reports a call whose view-transition name supply is missing or duplicated.
     ///
     /// Participation needs exactly one name per element, and the compiler sees only the
@@ -435,30 +315,6 @@ impl CallEmitter<'_> {
         };
         self.lint_findings
             .push(LintFinding::new(kind, self.call.span));
-    }
-
-    /// Adds the inline name a use writes when its key is not a literal.
-    ///
-    /// A name the use site states statically becomes a declaration in the class; one built
-    /// from an expression, or read from the value the transition travelled in, becomes a
-    /// style property instead.
-    fn emit_view_transition_name(
-        &mut self,
-        name: &ViewTransitionName,
-        token: Option<&str>,
-        value: Span,
-    ) -> Option<()> {
-        let Some(name_value) = self.checked_view_transition_name_value(name, token, value)? else {
-            return Some(());
-        };
-        self.parts.push(StyleEmissionPart::Style {
-            expression: ValueExpr::Entry {
-                property: "view-transition-name".to_owned(),
-                value: Box::new(name_value),
-            },
-            position: value.start.0,
-        });
-        Some(())
     }
 }
 

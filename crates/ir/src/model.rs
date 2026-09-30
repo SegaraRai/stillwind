@@ -68,6 +68,7 @@ impl ModuleIr {
         Self {
             adapter: AdapterKind::React,
             imports: ModuleImports {
+                consumed_uses: Vec::new(),
                 reserved_names: Vec::new(),
                 macros: Vec::new(),
                 module_css: Vec::new(),
@@ -84,6 +85,9 @@ impl ModuleIr {
 /// Binding-aware import information. All spans belong to the editable source.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ModuleImports {
+    /// Nested macro uses consumed by enclosing style transformations.
+    #[serde(default)]
+    pub consumed_uses: Vec<Span>,
     /// Includes nested bindings and unresolved reads to avoid capturing user code.
     pub reserved_names: Vec<String>,
     /// Macro imports that code generation may remove once the call is lowered.
@@ -255,18 +259,23 @@ pub struct AssetReference {
 /// The CSS role a ref plays at a use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RefProjection {
-    /// `ref.anchor`: the element is the anchor for positioning.
-    Anchor,
-    /// `ref.positionAnchor`: the element is positioned against an anchor, writing
-    /// `position-anchor`.
+    /// Supplies the receiver's anchor name and optional explicit scope.
+    AsAnchor(Option<AnchorScope>),
+    /// Supplies the receiver's container name and optional container type.
+    AsContainer(Option<Spanned<String>>),
+    /// References an anchor from the styled element.
     PositionAnchor,
-    /// `ref.anchorScope`: limits anchor-name visibility with `anchor-scope`.
-    AnchorScope,
-    /// `container()`: the element is a query container of the named type.
-    Container(
-        /// Literal CSS container type and its source span.
-        Spanned<String>,
-    ),
+}
+
+/// Explicit anchor visibility, resolved to the union of finite ref candidates.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum AnchorScope {
+    /// The CSS keyword `all`.
+    All,
+    /// The CSS keyword `none`.
+    None,
+    /// Unique ref identities whose generated anchor names are scoped.
+    Refs(Vec<RefDefinition>),
 }
 
 /// Ordered variants shared by object wrappers and direct template interpolation.
@@ -560,14 +569,20 @@ pub enum RuleExpression {
         /// Rule entries in source order.
         inputs: Vec<Self>,
     },
-    /// `ref.anchor` and the other ref projections.
+    /// A scope-only use with no receiver attachment.
+    AnchorScope {
+        /// Scope supplied independently of a receiver or marker attachment.
+        scope: AnchorScope,
+        /// Whole use expression for diagnostics and source mapping.
+        span: Span,
+    },
+    /// A use with one known receiver identity.
     RefProjection {
         /// The ref this projection applies to.
         definition: RefDefinition,
         /// The receiver expression the use site wrote, in the original source.
         ///
-        /// Generated code reads the declaration token off this expression, so an alias or a
-        /// member receiver names the same declaration.
+        /// Retained for source locations; static uses need no runtime marker read.
         value: Span,
         /// The CSS role the referenced element plays for this call.
         projection: RefProjection,
@@ -577,8 +592,7 @@ pub enum RuleExpression {
         /// The runtime ref value.
         value: Span,
         /// Every statically reachable alternative, used for CSS planning. An empty
-        /// finite set produces no projection CSS; the runtime ref class read remains in
-        /// the emitted expression.
+        /// finite set produces no CSS and selects from an empty lookup table.
         refs: Vec<RefDefinition>,
         /// The CSS role the projected element plays in each alternative.
         projection: RefProjection,

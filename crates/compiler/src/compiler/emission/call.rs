@@ -57,6 +57,8 @@ impl<'a> CallEmitter<'a> {
                 inputs.emitted_utility_classes,
             ),
             written_name_symbols: Vec::new(),
+            property_writes: Vec::new(),
+            attachment_sets: Vec::new(),
             view_transition_classes: false,
             view_transition_name_paths: TransitionNamePaths::default(),
         };
@@ -70,6 +72,7 @@ impl<'a> CallEmitter<'a> {
             self.emit_input(&input, &mut Vec::new())?;
         }
         self.report_view_transition_names();
+        self.report_provider_conflicts();
         let parts = std::mem::take(&mut self.parts);
         let call_span = self.call.span;
         match self.units.finish() {
@@ -184,6 +187,8 @@ impl<'a> CallEmitter<'a> {
                     }
                 };
                 let marker = marker.as_str().to_owned();
+                self.attachment_sets
+                    .push((vec![marker.clone()], guard.clone()));
                 if !guard.is_empty() {
                     self.parts.push(StyleEmissionPart::Class {
                         emitted: Emitted::Leaf {
@@ -205,18 +210,46 @@ impl<'a> CallEmitter<'a> {
             }
             StyleInput::DynamicRefAttachment { value, refs } => {
                 self.runtime_assets.extend(refs.iter().map(ref_identity));
+                self.attachment_sets.push((
+                    refs.iter()
+                        .filter_map(|definition| {
+                            ref_marker_name(self.identifiers, definition)
+                                .ok()
+                                .map(|name| name.as_str().to_owned())
+                        })
+                        .collect(),
+                    guard.clone(),
+                ));
                 let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }
             StyleInput::ViewTransitionUse { transition, name } => {
-                self.emit_view_transition_use(transition, name, guard)?;
+                if let Some(emitted) =
+                    self.emit_view_transition_expression(transition, name, guard, &[], true)
+                {
+                    self.parts.push(StyleEmissionPart::Class {
+                        emitted,
+                        position: transition.span.start.0,
+                    });
+                }
             }
             StyleInput::DynamicViewTransitionUse {
                 value,
                 transitions,
                 name,
             } => {
-                self.emit_dynamic_view_transition_use(value, transitions, name, guard)?;
+                if let Some(emitted) = self.emit_dynamic_view_transition_expression(
+                    value,
+                    transitions,
+                    name,
+                    guard,
+                    &[],
+                ) {
+                    self.parts.push(StyleEmissionPart::Class {
+                        emitted,
+                        position: value.start.0,
+                    });
+                }
             }
         }
         Some(())

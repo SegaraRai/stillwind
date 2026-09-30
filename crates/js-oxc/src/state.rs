@@ -67,6 +67,7 @@ impl<'a> MacroExtractor<'a> {
             jsx_path: Vec::new(),
             next_jsx_element: 0,
             imports: Vec::new(),
+            consumed_macro_uses: Vec::new(),
             module_specifiers: Vec::new(),
             re_exports: Vec::new(),
             export_symbols: Vec::new(),
@@ -256,6 +257,7 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) next_jsx_element: usize,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
+    pub(crate) consumed_macro_uses: Vec<Span>,
     /// Module specifier literals of this module, in source order.
     pub(crate) module_specifiers: Vec<ModuleSpecifier>,
     /// Re-export edges of this module, in source order.

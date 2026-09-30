@@ -1,1 +1,12 @@
-
+.sw_yieb3 {
+  view-transition-class: sw-vt-page-title-56mrr;
+}
+.sw_m1ewp {
+  view-transition-class: var(--sw-vtc-4wcp5,) var(--sw-vtc-ssrq9,);
+}
+.sw_x2sz9 {
+  --sw-vtc-4wcp5: sw-vt-page-title-56mrr;
+}
+.sw_pyfzj {
+  --sw-vtc-ssrq9: sw-vt-9jm9s;
+}

@@ -17,6 +17,7 @@ use super::super::props::{GuardStep, StyleEmissionPart};
 use super::super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::super::variants::document_scoped_selector;
 use super::{CallEmitter, PendingRegion};
+use crate::generated::js_string;
 use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
@@ -231,6 +232,7 @@ impl CallEmitter<'_> {
                     self.lint_findings,
                     &mut name_supplies,
                 );
+                self.record_property_writes(&contribution, false, value.span, guard, None);
                 if name_supplies > 0 {
                     self.view_transition_name_paths.insert(guard, name_supplies);
                 }
@@ -309,23 +311,21 @@ impl CallEmitter<'_> {
                     .any(Option::is_some)
                     .then_some(Emitted::Group(items))
             }
+            RuleExpression::AnchorScope { scope, span } => {
+                self.emit_anchor_scope(scope, *span, guard, wrappers, fold)
+            }
             RuleExpression::RefProjection {
                 definition,
                 value,
                 projection,
-            } => self.emit_ref_projection(definition, value, projection, guard, wrappers),
+            } => self.emit_ref_projection(definition, *value, projection, guard, wrappers, fold),
             RuleExpression::DynamicRefProjection {
                 value,
                 refs,
                 projection,
             } => self.emit_dynamic_ref_projection(value, refs, projection, guard, wrappers),
             RuleExpression::ViewTransitionUse { transition, name } => {
-                if fold && guard.is_empty() && wrappers.is_empty() {
-                    self.emit_view_transition_use(transition, name, guard)?;
-                    None
-                } else {
-                    self.emit_view_transition_expression(transition, name, guard, wrappers)
-                }
+                self.emit_view_transition_expression(transition, name, guard, wrappers, fold)
             }
             RuleExpression::DynamicViewTransitionUse {
                 value,
@@ -408,6 +408,46 @@ impl CallEmitter<'_> {
         }
     }
 
+    /// Allocates candidate units and emits a lookup without adding identity markers.
+    /// A singleton joins the current static region; allocation errors are recorded.
+    pub(super) fn emit_candidate_units(
+        &mut self,
+        value: &stillwind_source::Span,
+        key: &str,
+        candidates: Vec<(String, LiteralContribution)>,
+        guard: &[GuardStep],
+    ) -> Option<Emitted> {
+        if candidates.len() == 1 {
+            let (_, contribution) = candidates.into_iter().next()?;
+            return self.contribute_rule(contribution, guard, true);
+        }
+        let mut table = Vec::new();
+        for (identity, contribution) in candidates {
+            let class = match self.units.leaf(contribution, guard) {
+                Ok(class) => class,
+                Err(failure) => {
+                    self.reject_name(failure, self.call.span);
+                    return None;
+                }
+            };
+            let Emitted::Leaf { names } = class else {
+                return None;
+            };
+            let key = js_string(&identity);
+            let key = if identity == "__proto__" {
+                format!("[{key}]")
+            } else {
+                key
+            };
+            table.push(format!("{key}:{}", js_string(&names.join(" "))));
+        }
+        Some(Emitted::Expression(ValueExpr::Lookup {
+            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
+            key: key.to_owned(),
+            table: format!("{{{}}}", table.join(",")).into(),
+        }))
+    }
+
     /// Adds one resolved rule to the current condition region or the call's base unit.
     /// Returns runtime-only names or a leaf class when needed; `None` means the rule
     /// was absorbed into a pending region or base, or class allocation failed with a
@@ -448,7 +488,7 @@ impl CallEmitter<'_> {
         guard: &[GuardStep],
         order: u32,
     ) -> Option<Emitted> {
-        if contribution.utilities.is_empty() {
+        if contribution.utilities.is_empty() && contribution.view_transitions.is_empty() {
             return None;
         }
         match self.units.leaf_at(contribution, guard, order) {
@@ -507,7 +547,9 @@ fn rule_position(expression: &RuleExpression) -> u32 {
             | StyleVariant::Ref { prefix, .. }
             | StyleVariant::Container { query: prefix, .. } => prefix.span.start.0,
         },
-        RuleExpression::Group { span, .. } => span.start.0,
+        RuleExpression::AnchorScope { span, .. } | RuleExpression::Group { span, .. } => {
+            span.start.0
+        }
         RuleExpression::RefProjection { value, .. }
         | RuleExpression::DynamicRefProjection { value, .. }
         | RuleExpression::DynamicViewTransitionUse { value, .. }

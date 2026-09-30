@@ -59,14 +59,34 @@ pub enum LintKind {
         "evaluate await, yield, and dynamic imports outside macro arguments, then pass their values"
     )]
     MacroExecutionBoundary,
+    /// An explicit anchor scope has no names or repeats an identity.
+    #[error("anchor scope {detail}")]
+    AnchorScopeList {
+        /// Empty-list or repeated-identity explanation.
+        detail: String,
+    },
+    /// A provider's marker gate cannot match a known attachment on its target.
+    #[error("ref `{name}` provider has no matching marker attachment on this element")]
+    MissingRefAttachment {
+        /// Ref binding displayed to the user.
+        name: String,
+    },
+    /// A provider and another source supply overlapping CSS properties.
+    #[error(
+        "provider use overlaps `{properties}` from another source; their order is not guaranteed"
+    )]
+    ProviderConflict {
+        /// Overlapping property names, including shorthand relationships.
+        properties: String,
+    },
     /// A ref uses positioning without a known anchor attachment.
-    #[error("ref `{name}` uses position without an anchor projection")]
+    #[error("ref `{name}` uses position without an asAnchor() provider")]
     MissingAnchor {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
     },
     /// A ref uses a container query without a known container attachment.
-    #[error("ref `{name}` uses a container query without a container projection")]
+    #[error("ref `{name}` uses a container query without an asContainer() provider")]
     MissingContainer {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
@@ -194,6 +214,9 @@ impl LintKind {
         match self {
             Self::MacroArgumentMutation => "macro-argument-mutation",
             Self::MacroExecutionBoundary => "macro-execution-boundary",
+            Self::AnchorScopeList { .. } => "valid-anchor-scope",
+            Self::MissingRefAttachment { .. } => "require-ref-attachment",
+            Self::ProviderConflict { .. } => "conflicting-provider-properties",
             Self::MissingAnchor { .. } => "require-anchor-provider",
             Self::MissingContainer { .. } => "require-container-provider",
             Self::MissingRefAncestor { .. } => "valid-ref-ancestry",

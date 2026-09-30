@@ -139,9 +139,11 @@ pub(crate) fn parse_with_coordinates(
     diagnostics.extend(extractor.diagnostics);
     let mut lint_findings = extractor.lint_findings;
 
+    let mut imports = crate::imports::collect(&result.program, semantic.scoping(), source.id());
+    imports.consumed_uses = extractor.consumed_macro_uses;
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
-        imports: crate::imports::collect(&result.program, semantic.scoping(), source.id()),
+        imports,
         style_calls: extractor.style_calls,
         ref_definitions: extractor.ref_definitions,
         keyframes_declarations: extractor.keyframes_declarations,

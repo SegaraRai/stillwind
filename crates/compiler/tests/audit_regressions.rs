@@ -304,13 +304,18 @@ fn motion_css_is_retained_for_uses_and_exports_only() {
 }
 
 #[test]
-fn static_ref_projection_reads_the_use_site_receiver() {
+fn static_ref_projection_resolves_alias_without_runtime_marker() {
     let source = SourceFile::new(
         FileId(1), None, None,
-        "import { style } from 'stillwind/react'; import { primary as p } from './refs'; export const x = style(p.anchor);",
+        "import { style } from 'stillwind/react'; import { primary as p } from './refs'; export const x = style(p.asAnchor());",
     )
     .unwrap();
-    let receiver: u32 = source.text().rfind("p.anchor").unwrap().try_into().unwrap();
+    let receiver: u32 = source
+        .text()
+        .rfind("p.asAnchor()")
+        .unwrap()
+        .try_into()
+        .unwrap();
     let reference = IdentityId::new(AssetKind::Ref, ModuleId::from("refs.tsx"), 6, 13, "primary");
     let facts = [TypeFact {
         start: receiver,
@@ -339,22 +344,23 @@ fn static_ref_projection_reads_the_use_site_receiver() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
-    assert!(value.contains("(p).c"), "{value}");
+    assert!(!value.contains("(p).c"), "{value}");
+    assert!(result.css.contains("anchor-name:"));
     assert!(!value.contains("primary"), "{value}");
 }
 
 #[test]
-fn static_ref_projection_reads_a_member_receiver() {
+fn static_ref_projection_resolves_member_without_runtime_marker() {
     let source = SourceFile::new(
         FileId(1),
         None,
         None,
-        "import { style } from 'stillwind/react'; export const x = style(holder.trigger.anchor);",
+        "import { style } from 'stillwind/react'; export const x = style(holder.trigger.asAnchor());",
     )
     .unwrap();
     let receiver: u32 = source
         .text()
-        .rfind("holder.trigger.anchor")
+        .rfind("holder.trigger.asAnchor()")
         .unwrap()
         .try_into()
         .unwrap();
@@ -392,7 +398,8 @@ fn static_ref_projection_reads_a_member_receiver() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
-    assert!(value.contains("(holder.trigger).c"), "{value}");
+    assert!(!value.contains("(holder.trigger).c"), "{value}");
+    assert!(result.css.contains("anchor-name:"));
 }
 
 #[test]
@@ -401,12 +408,12 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
         FileId(1),
         None,
         None,
-        "import { style } from 'stillwind/react'; export const x = style(choice.anchor);",
+        "import { style } from 'stillwind/react'; export const x = style(choice.asAnchor());",
     )
     .unwrap();
     let receiver: u32 = source
         .text()
-        .find("choice.anchor")
+        .find("choice.asAnchor()")
         .unwrap()
         .try_into()
         .unwrap();
@@ -447,7 +454,7 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     assert!(code.contains("(choice).c"), "{code}");
-    assert!(!code.contains("})[(choice).c]"), "{code}");
+    assert!(code.contains("})[(choice).c]"), "{code}");
     assert_eq!(
         result.css.matches(":where(.sw_").count(),
         2,
@@ -755,4 +762,246 @@ fn motion_definitions_transport_explicit_property_dependencies_without_directive
                 .any(|part| part.required_properties == ["--dependency"])
         );
     }
+}
+
+#[test]
+fn explicit_ref_uses_separate_attachment_gate_and_scope() {
+    let (source, result) = compile(
+        "const r=style.ref(); const a=style.ref(); export const x=style(r,r.asAnchor([a]),r.asContainer()); export const y=style(r.positionAnchor); export const z=style(style.anchorScope([a]));",
+        "",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(!result.css.contains("container-type:"));
+    assert_eq!(result.css.matches("anchor-name:").count(), 1);
+    assert_eq!(result.css.matches("anchor-scope:").count(), 2);
+    assert_eq!(result.css.matches(":where(").count(), 2);
+    let code = result.apply_to_source(&source).unwrap();
+    assert!(!code.contains("(r).c"), "{code}");
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+}
+
+#[test]
+fn scope_lists_warn_for_empty_and_duplicate_identities() {
+    let (_, result) = compile(
+        "const a=style.ref();const x=style(a,a.asAnchor([]),style.anchorScope([a,a]));",
+        "",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        result
+            .lint_findings
+            .iter()
+            .filter(|f| matches!(f.kind, LintKind::AnchorScopeList { .. }))
+            .count(),
+        2
+    );
+    assert_eq!(result.css.matches("anchor-scope:").count(), 1);
+    let (_, omitted) = compile(
+        "const a=style.ref();const x=style(a,a.asAnchor(),a.asContainer());",
+        "",
+    );
+    assert!(!omitted.css.contains("anchor-scope:"));
+    assert!(!omitted.css.contains("container-type:"));
+    let (_, explicit) = compile(
+        "const a=style.ref();const x=style(a,a.asAnchor('none'),a.asContainer('normal'));",
+        "",
+    );
+    assert!(explicit.css.contains("anchor-scope:none"));
+    assert!(explicit.css.contains("container-type:normal"));
+}
+
+#[test]
+fn container_type_accepts_css_keyword_combinations_and_rejects_invalid_values() {
+    for value in [
+        "normal",
+        "size",
+        "inline-size",
+        "scroll-state",
+        "size scroll-state",
+        "inline-size scroll-state",
+        "scroll-state size",
+        "scroll-state inline-size",
+        "initial",
+        "inherit",
+        "unset",
+        "revert",
+        "revert-layer",
+        "revert-rule",
+    ] {
+        let (_, result) = compile(
+            &format!("const r=style.ref();const x=style(r,r.asContainer('{value}'));"),
+            "",
+        );
+        assert!(
+            result.diagnostics.is_empty(),
+            "{value}: {:?}",
+            result.diagnostics
+        );
+        assert!(!result.css.contains("container-type:scroll-state size"));
+    }
+    for value in [
+        "normal scroll-state",
+        "size inline-size",
+        "size size",
+        "var(--type)",
+    ] {
+        let (_, result) = compile(
+            &format!("const r=style.ref();const x=style(r,r.asContainer('{value}'));"),
+            "",
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|error| error.kind == CompileErrorKind::InvalidContainerType),
+            "{value}"
+        );
+    }
+}
+
+#[test]
+fn provider_lints_distinguish_missing_attachment_and_property_conflicts() {
+    let (_, missing) = compile("const r=style.ref();const x=style(r.asAnchor());", "");
+    assert!(
+        missing
+            .lint_findings
+            .iter()
+            .any(|f| matches!(f.kind, LintKind::MissingRefAttachment { .. }))
+    );
+    let (_, conflict) = compile(
+        "const r=style.ref();const x=style(r,r.asContainer('size'),'[container-type:normal]');",
+        "",
+    );
+    assert!(
+        conflict
+            .lint_findings
+            .iter()
+            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. })),
+        "{:?}",
+        conflict.lint_findings
+    );
+    let (_, omitted) = compile(
+        "const r=style.ref();const x=style(r,r.asContainer(),'[container-type:normal]');",
+        "",
+    );
+    assert!(
+        !omitted
+            .lint_findings
+            .iter()
+            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. }))
+    );
+    let (_, duplicate) = compile(
+        "const r=style.ref();const x=style(r,r.asContainer('size'),r.asContainer('normal'));",
+        "",
+    );
+    assert!(
+        duplicate
+            .lint_findings
+            .iter()
+            .any(|f| matches!(f.kind, LintKind::ProviderConflict { .. }))
+    );
+}
+
+#[test]
+fn old_ref_provider_members_are_rejected() {
+    for input in ["r.anchor", "r.anchorScope", "r.container('size')"] {
+        let (_, result) = compile(&format!("const r=style.ref();const x=style({input});"), "");
+        assert!(!result.diagnostics.is_empty(), "{input}");
+    }
+}
+
+#[test]
+fn exclusive_provider_marker_gates_do_not_conflict() {
+    let (_, result) = compile(
+        "const a=style.ref();const b=style.ref();const x=style(flag?a:b,a.asContainer('size'),b.asContainer('normal'));",
+        "",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        !result.lint_findings.iter().any(|f| matches!(
+            f.kind,
+            LintKind::ProviderConflict { .. } | LintKind::MissingRefAttachment { .. }
+        )),
+        "{:?}",
+        result.lint_findings
+    );
+}
+
+#[test]
+fn conditional_static_uses_share_one_unit_and_keep_transition_tokens() {
+    let (source, result) = compile(
+        "const r=style.ref();const a=style.viewTransition({old:'block'});const b=style.viewTransition({old:'block'});const k=style.keyframes({from:'block'});const x=style(r,flag&&[r.asAnchor(),a,b,k('')]);",
+        "@stillwind-utility block {display:block;}",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        result
+            .classes
+            .iter()
+            .filter(|class| !class.guard_path.is_empty())
+            .count(),
+        1,
+        "{:?}",
+        result.classes
+    );
+    assert!(result.css.contains("animation-name:"));
+    assert!(result.css.contains("anchor-name:"));
+    assert!(result.css.contains("view-transition-class:"));
+    assert!(!result.apply_to_source(&source).unwrap().contains("(r).c"));
+}
+
+#[test]
+fn dynamic_scope_includes_every_candidate_without_runtime_lookup() {
+    let (source, result) = compile(
+        "const a=style.ref();const b=style.ref();const x=style(style.anchorScope([flag?a:b]));const y=style((flag?a:b).positionAnchor);",
+        "",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let scope = result
+        .css
+        .split("anchor-scope:")
+        .nth(1)
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap();
+    assert_eq!(scope.split(',').count(), 2, "{scope}");
+    for name in scope.split(',') {
+        assert!(result.css.contains(&format!("position-anchor:{name};")));
+    }
+    let code = result.apply_to_source(&source).unwrap();
+    let x = code
+        .split("const x=")
+        .nth(1)
+        .unwrap()
+        .split(';')
+        .next()
+        .unwrap();
+    assert!(!x.contains("flag"), "{x}");
+    assert!(!result.css.contains(":where("));
+}
+
+#[test]
+fn css_wrapped_transitions_merge_into_the_same_conditional_unit() {
+    let (_, result) = compile(
+        "const r=style.ref();const a=style.viewTransition({old:'block'});const b=style.viewTransition({old:'block'});const x=style(r,flag&&[r.asAnchor(),{'hover:':[a.for('a'),b]}]);",
+        "@stillwind-utility block {display:block;} @stillwind-variant hover { &:hover { @slot; } }",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        result
+            .classes
+            .iter()
+            .filter(|class| !class.guard_path.is_empty())
+            .count(),
+        1,
+        "{:?}",
+        result.classes
+    );
+    assert!(result.css.contains(":hover"));
+    assert!(result.css.contains("view-transition-class:"));
 }

@@ -14,7 +14,7 @@ use stillwind_source::{CssSourceName, ModuleId};
 use super::*;
 
 #[test]
-fn ref_projection_inside_variant_keeps_the_selector_gate() {
+fn consumer_inside_variant_keeps_variant_without_marker_gate() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -70,12 +70,12 @@ export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"])
     assert_eq!(result.classes.len(), 1, "{:?}", result.classes);
     let class = &result.classes[0].class_name;
     assert!(
-        result.css.contains(&format!(".{class}{{padding:")),
+        result.css.contains(&format!(".{class}{{")),
         "{}",
         result.css
     );
     assert!(
-        result.css.contains(&format!(".{class}:where(.sw_")),
+        !result.css.contains(&format!(".{class}:where(.sw_")),
         "{}",
         result.css
     );
@@ -85,7 +85,7 @@ export const item = style(enabled && ["p-4", anchor.positionAnchor, "text-red"])
     assert!(output.contains("stillwindClsx("), "{output}");
     assert!(!output.contains("stillwindMerge("), "{output}");
     assert!(output.contains("enabled"), "{output}");
-    assert!(output.contains("(anchor).c"), "{output}");
+    assert!(!output.contains("(anchor).c"), "{output}");
     assert!(!output.contains("[(anchor).c]"), "{output}");
 }
 
@@ -127,8 +127,8 @@ fn projects_one_ref_into_anchor_position_and_container_names() {
         None,
         r#"import { style } from "stillwind/react";
 const popover = style.ref();
-const root = style(popover.anchorScope, popover.container("inline-size"));
-const trigger = style(popover.anchor, "relative");
+const root = style(popover, style.anchorScope([popover]), popover.asContainer("inline-size"));
+const trigger = style(popover, popover.asAnchor(), "relative");
 const panel = style(popover.positionAnchor, "absolute");"#,
     )
     .unwrap();
@@ -175,13 +175,12 @@ const panel = style(popover.positionAnchor, "absolute");"#,
     assert!(result.css.contains_css("container-type:inline-size;"));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.ref()"), "{transformed}");
-    // The projection reads the declaration's canonical token, so the declaration stays a
-    // value instead of being erased as unused.
+    // Static uses and attachments need no runtime identity record.
     assert!(
-        transformed.contains("const popover = {c:\"sw_"),
+        transformed.contains("const popover = undefined"),
         "{transformed}"
     );
-    assert!(transformed.contains("(popover).c"), "{transformed}");
+    assert!(!transformed.contains("(popover).c"), "{transformed}");
     assert!(!transformed.contains("})[(popover).c]"), "{transformed}");
 }
 
@@ -226,7 +225,7 @@ fn emits_named_container_rules_from_ref_queries() {
         None,
         r#"import { style } from "stillwind/react";
 const card = style.ref();
-const root = style(card.container("inline-size"));
+const root = style(card, card.asContainer("inline-size"));
 const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     )
     .unwrap();
@@ -275,7 +274,7 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         "`${card.at('width >= 40rem')}:hover:grid-cols-2`",
     ] {
         let source = SourceFile::new(FileId(1), None, None, format!(
-            "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card.container('size')); const x = style({input});"
+            "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card, card.asContainer('size')); const x = style({input});"
         )).unwrap();
         let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
         let result = Compiler::compile_source(
@@ -303,7 +302,7 @@ fn uses_ref_tagged_selectors_as_automatically_named_parent_groups() {
         None,
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
-const parent = style(trigger.anchor, "inline-flex");
+const parent = style(trigger, trigger.asAnchor(), "inline-flex");
 const child = style({ [trigger`hover:`]: "text-accent" });"#,
     )
     .unwrap();

@@ -40,19 +40,30 @@ pub(super) struct LiteralContribution {
     pub(super) external: Vec<String>,
     /// Names with no rule of their own, such as asset markers.
     pub(super) plain: Vec<String>,
-    /// View-transition class token this contribution declares, when it declares one.
-    pub(super) view_transition_token: Option<String>,
-    /// Escaped view-transition name this contribution declares statically, if any.
-    pub(super) view_transition_name: Option<String>,
+    /// Transition tokens and their optional static names, in encounter order.
+    pub(super) view_transitions: Vec<TransitionContribution>,
+}
+
+/// A transition token with its CSS application context and name supply.
+pub(super) struct TransitionContribution {
+    /// Canonical generated token, escaped when serialized into CSS.
+    pub token: String,
+    /// Escaped static participant name.
+    pub name: Option<String>,
+    /// Inline custom property carrying a name controlled by a CSS variant.
+    pub dynamic_name_property: Option<String>,
+    /// CSS application context; absence permits a base token to be emitted literally.
+    pub plan: Option<StyleVariantPlan>,
 }
 
 impl LiteralContribution {
     /// Adds rule-bearing pieces in source order while leaving runtime-only names to the
     /// caller.
     pub(super) fn append_rules(&mut self, other: Self) {
-        if !other.utilities.is_empty() {
+        if !other.utilities.is_empty() || !other.view_transitions.is_empty() {
             self.canonical.push_str(&other.canonical);
             self.utilities.extend(other.utilities);
+            self.view_transitions.extend(other.view_transitions);
         }
     }
 

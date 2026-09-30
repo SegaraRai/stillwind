@@ -284,8 +284,8 @@ fn folded_javascript_matches_runtime_materialization() {
                 expression: "base()".into(),
                 position: 1,
             },
-            StyleEmissionPart::Style {
-                expression: "payload()".into(),
+            StyleEmissionPart::Class {
+                emitted: Emitted::Group(vec![Some(EmittedEntry::StylePayload("payload()".into()))]),
                 position: 1,
             },
         ] {
@@ -476,8 +476,8 @@ fn class_branches_and_single_style_payloads_materialize_without_merge() {
                 },
             ] {
                 let input = emission(
-                    vec![StyleEmissionPart::Style {
-                        expression: payload,
+                    vec![StyleEmissionPart::Class {
+                        emitted: Emitted::Group(vec![Some(EmittedEntry::StylePayload(payload))]),
                         position: 2,
                     }],
                     base,
@@ -530,8 +530,8 @@ fn style_fields_follow_framework_specification() {
     };
     for part in [
         custom("--x", 1),
-        StyleEmissionPart::Style {
-            expression: "payload()".into(),
+        StyleEmissionPart::Class {
+            emitted: Emitted::Group(vec![Some(EmittedEntry::StylePayload("payload()".into()))]),
             position: 1,
         },
     ] {

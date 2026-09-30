@@ -293,8 +293,7 @@ impl Fragment {
             | StyleEmissionPart::Class { position, .. }
             | StyleEmissionPart::Attributes { position, .. }
             | StyleEmissionPart::CustomProperties { position, .. }
-            | StyleEmissionPart::Base { position, .. }
-            | StyleEmissionPart::Style { position, .. } => *position,
+            | StyleEmissionPart::Base { position, .. } => *position,
         });
         Self::Sequence(
             parts
@@ -315,9 +314,6 @@ impl Fragment {
                     }
                     StyleEmissionPart::Base { expression, .. } => {
                         Self::FromProps(expression.clone())
-                    }
-                    StyleEmissionPart::Style { expression, .. } => {
-                        Self::StylePayload(expression.clone())
                     }
                 })
                 .collect(),

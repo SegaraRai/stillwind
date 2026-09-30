@@ -20,8 +20,8 @@ fn validates_ref_selector_ancestry_when_jsx_placement_is_known() {
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const trigger = style.ref();
-export const Good = () => <div {...style(trigger.anchor)}><span {...style({ [trigger`hover:`]: "text-accent" })} /></div>;
-export const Bad = () => <><div {...style(trigger.anchor)} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
+export const Good = () => <div {...style(trigger, trigger.asAnchor())}><span {...style({ [trigger`hover:`]: "text-accent" })} /></div>;
+export const Bad = () => <><div {...style(trigger, trigger.asAnchor())} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
@@ -140,7 +140,7 @@ const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue
 fn names_symbols_from_host_module_ids_not_process_local_file_ids() {
     let module = r#"import { style } from "stillwind/react";
 const trigger = style.ref();
-const props = style(trigger.anchor);"#;
+const props = style(trigger, trigger.asAnchor());"#;
     let windows = SourceFile::new(FileId(1), None, None, module).unwrap();
     let unix = SourceFile::new(FileId(1), None, None, module).unwrap();
     let other = SourceFile::new(FileId(1), None, None, module).unwrap();
@@ -223,8 +223,8 @@ fn rejects_conditional_ref_projections_without_typescript_facts() {
 const first = style.ref("first");
 const second = style.ref("second");
 const selected = enabled ? first : second;
-export const anchor = style(selected.anchor);
-export const container = style(selected.container("inline-size"));"#,
+export const anchor = style(selected.asAnchor());
+export const container = style(selected.asContainer("inline-size"));"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();

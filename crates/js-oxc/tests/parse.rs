@@ -549,7 +549,7 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             CompileErrorKind::InvalidViewTransitionDefinition,
         ),
         (
-            "const r=style.ref(); const x=style(r.container(...args));",
+            "const r=style.ref(); const x=style(r.asContainer(...args));",
             CompileErrorKind::InvalidContainerType,
         ),
         (

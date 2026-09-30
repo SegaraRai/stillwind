@@ -88,8 +88,32 @@ function boundedIdentityTypes(
   identity: import("stillwind/react").StillwindDeclarationIdentity<"bounded">,
 ) {
   const bounded = react.ref(boundary, identity);
-  react(bounded, bounded.anchor);
+  react(bounded, bounded.asAnchor());
   svelte(bounded, bounded.positionAnchor);
   vue({ [bounded("hover")]: "text-accent" });
 }
 void boundedIdentityTypes;
+
+function explicitRefUses(flag: boolean) {
+  const a = react.ref();
+  const b = react.ref();
+  const selected = flag ? a : b;
+  react(selected, selected.asAnchor([a, selected]), selected.asContainer());
+  react(react.anchorScope([a, b] as const), react.anchorScope("none"));
+  react(a, a.asContainer("scroll-state size"), a.asAnchor("all"));
+  react(a, a.asContainer("inline-size scroll-state"));
+  react(a, a.asContainer("revert-rule"));
+  // @ts-expect-error mutually exclusive size modes
+  a.asContainer("size inline-size");
+  // @ts-expect-error normal cannot combine with scroll-state
+  a.asContainer("normal scroll-state");
+  // @ts-expect-error provider configuration requires an explicit use
+  a.anchor;
+  // @ts-expect-error receiver scope property was removed
+  a.anchorScope;
+  // @ts-expect-error container provider was renamed
+  a.container("size");
+  // @ts-expect-error scope identities must be refs
+  react.anchorScope(["a"]);
+}
+void explicitRefUses;

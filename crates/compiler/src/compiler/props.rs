@@ -9,7 +9,7 @@ use serde::Serialize;
 use stillwind_ir::ConditionalBranches;
 use stillwind_source::Span;
 
-use super::fragment::{Emitted, Property, ValueExpr};
+use super::fragment::{Emitted, Property};
 use crate::GeneratedSymbol;
 use crate::generated::Code;
 
@@ -75,13 +75,6 @@ pub(crate) enum StyleEmissionPart {
     Base {
         /// Complete expression producing materialized props, with retained occurrence mappings.
         expression: Code,
-        /// Original-source UTF-8 byte offset used for stable ordering before folding.
-        position: u32,
-    },
-    /// The style payload expression.
-    Style {
-        /// Source expression or deferred helper producing the style payload.
-        expression: ValueExpr,
         /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },

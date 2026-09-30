@@ -24,7 +24,7 @@ export function App() {
     <main {...style("bg-surface p-4 rounded-md", enter("duration-normal ease-standard both"))}>
       <p>Stillwind Play</p>
       <h1>React, compiled as you type.</h1>
-      <div {...style(trigger.anchor, "inline-flex")}>
+      <div {...style(trigger, trigger.asAnchor(), "inline-flex")}>
         <button
           {...style(
             "inline-flex items-center rounded-md bg-accent px-4 py-2 text-white transition hover:bg-accent/90",

@@ -166,7 +166,7 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
 
 #[test]
 fn container_projection_rejects_extra_arguments() {
-    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref(); const props = style(ref.container('size', ignored()));").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref(); const props = style(ref.asContainer('size', ignored()));").unwrap();
     assert!(
         parse(
             &source,
@@ -180,4 +180,28 @@ fn container_projection_rejects_extra_arguments() {
         .iter()
         .any(|error| error.kind == CompileErrorKind::InvalidContainerType)
     );
+}
+
+#[test]
+fn scope_analysis_probes_receiver_and_every_unresolved_list_entry() {
+    let text =
+        "import {style} from 'stillwind/react';const x=style(receiver.asAnchor([first,second]));";
+    let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    for name in ["receiver", "first", "second"] {
+        let start = u32::try_from(text.find(name).unwrap()).unwrap();
+        assert!(
+            parsed.type_probes.iter().any(|span| span.start.0 == start
+                && span.end.0 == start + u32::try_from(name.len()).unwrap()),
+            "missing {name}: {:?}",
+            parsed.type_probes
+        );
+    }
 }

@@ -54,13 +54,31 @@ export type StyleRefProjection<RefId extends string = string, BoundaryId extends
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
 };
 
+export type AnchorScope = "all" | "none" | readonly StyleRef<string, string>[];
+export type CssWideKeyword =
+  | "initial"
+  | "inherit"
+  | "unset"
+  | "revert"
+  | "revert-layer"
+  | "revert-rule";
+export type ContainerType =
+  | CssWideKeyword
+  | "normal"
+  | "size"
+  | "inline-size"
+  | "scroll-state"
+  | "size scroll-state"
+  | "scroll-state size"
+  | "inline-size scroll-state"
+  | "scroll-state inline-size";
+
 /** A DOM identity. The same declaration marks the element and bounds bounded refs. */
 export type StyleRef<RefId extends string = string, BoundaryId extends string = never> = {
   readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
-  readonly anchor: StyleRefProjection<RefId, BoundaryId>;
+  asAnchor(scope?: AnchorScope): StyleRefProjection<RefId, BoundaryId>;
+  asContainer(type?: ContainerType): StyleRefProjection<RefId, BoundaryId>;
   readonly positionAnchor: StyleRefProjection<RefId, BoundaryId>;
-  readonly anchorScope: StyleRefProjection<RefId, BoundaryId>;
-  container(type: "size" | "inline-size"): StyleRefProjection<RefId, BoundaryId>;
   at(query: string): StyleRefVariant<RefId, BoundaryId>;
   at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
   (strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
@@ -182,6 +200,7 @@ export type StyleArgument =
  * checker metadata.
  */
 export type StyleMacro<Props = object> = {
+  anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
@@ -227,6 +246,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       );
     },
     {
+      anchorScope(): never {
+        throw new Error("Stillwind style.anchorScope() is a compile-time macro.");
+      },
       ref(): never {
         throw new Error("Stillwind style.ref() is a compile-time macro.");
       },

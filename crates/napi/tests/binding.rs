@@ -218,7 +218,7 @@ fn exposes_generated_symbols_for_build_wide_collision_checks() {
         &compile_input(
             r#"import { style } from "stillwind/react";
 const menu = style.ref();
-const props = style(menu.anchor);"#,
+const props = style(menu.asAnchor());"#,
             "src/Menu.tsx",
             &css_fixture::with_defaults("@theme {}"),
         ),

@@ -80,10 +80,9 @@ pub(crate) fn detached_symbol(name: &DetachedName, origin: SymbolOrigin) -> Gene
 /// Diagnostic-facing name of a ref projection.
 pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
     match projection {
-        RefProjection::Anchor => "anchor",
+        RefProjection::AsAnchor(_) => "anchor",
         RefProjection::PositionAnchor => "positionAnchor",
-        RefProjection::AnchorScope => "anchorScope",
-        RefProjection::Container(_) => "container",
+        RefProjection::AsContainer(_) => "container",
     }
 }
 

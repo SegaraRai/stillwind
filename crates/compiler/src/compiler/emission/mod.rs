@@ -19,6 +19,7 @@
 mod call;
 mod class_value;
 mod keyframes_use;
+mod provider_lints;
 mod ref_projection;
 mod view_transition;
 
@@ -33,10 +34,12 @@ use stillwind_source::{ModuleId, SourceFile};
 use super::CssContribution;
 use super::class_units::ClassUnits;
 use super::literal::LiteralContribution;
-use super::props::StyleEmissionPart;
+use super::props::{GuardStep, StyleEmissionPart};
+use super::symbols::GeneratedSymbol;
+use crate::CompilerOptions;
 use crate::identifiers::IdentifierContext;
-use crate::{CompilerOptions, GeneratedSymbol};
 
+use provider_lints::PropertyWrite;
 use view_transition::TransitionNamePaths;
 
 /// Object key under which a ref or scope value carries its canonical class token.
@@ -92,6 +95,8 @@ pub(super) struct CallEmitter<'a> {
     units: ClassUnits<'a>,
     /// Anchor and container names this call wrote, reported with the class symbols.
     written_name_symbols: Vec<GeneratedSymbol>,
+    property_writes: Vec<PropertyWrite>,
+    attachment_sets: Vec<(Vec<String>, Vec<GuardStep>)>,
     /// Whether the call marks participants with a view-transition class.
     view_transition_classes: bool,
     /// Name supplies from utilities and transition uses, grouped by their shared guard paths.

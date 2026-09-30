@@ -1,31 +1,50 @@
-//! Ref projections: `anchor`, `positionAnchor`, `anchorScope`, `container` and `at`.
-//!
-//! A projection turns a ref identity into something a style call can attach to an
-//! element or use as a container query source. Projections need the ref to be
-//! resolvable to finite candidates, from local analysis or checker facts. Unresolved
-//! refs are reported as `SHTS001` instead of being guessed.
-//!
-//! Every use is also recorded with the JSX path it appeared on, which is what the
-//! ancestry validation later reads. A projection over any finite set other than one
-//! candidate, including an empty set, becomes a dynamic projection.
+//! Explicit ref provider and consumer uses, finite scope lists, and recorded attachments.
 
-use oxc::ast::ast::Expression;
+use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind};
-use stillwind_ir::{RefDefinition, RefProjection, RuleExpression, StyleInput};
-use stillwind_source::Span;
+use stillwind_diagnostics::{CompileError, CompileErrorKind, LintFinding, LintKind};
+use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
+use stillwind_source::{ModuleId, Span};
 
 use crate::state::MacroExtractor;
+
+/// Ref use kind.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum RefUseKind {
+    /// `ref` itself.
+    Marker,
+    /// `ref("hover:")` and `` ref`hover:` `` variants.
+    SelectorVariant,
+    /// `ref.asAnchor(...)`.
+    AsAnchor,
+    /// `ref.asContainer(...)`.
+    AsContainer,
+    /// `ref.positionAnchor`.
+    PositionAnchor,
+    /// `ref.at(...)` vatiant.
+    ContainerQueryVariant,
+}
+
+impl<'a> From<&'a RefProjection> for RefUseKind {
+    fn from(value: &'a RefProjection) -> Self {
+        match value {
+            RefProjection::AsAnchor(_) => RefUseKind::AsAnchor,
+            RefProjection::AsContainer(_) => RefUseKind::AsContainer,
+            RefProjection::PositionAnchor => RefUseKind::PositionAnchor,
+        }
+    }
+}
 
 /// One recorded ref use.
 #[derive(Clone, Debug)]
 pub(crate) struct RefUse {
     /// Marker name of the ref that was used, as written at its declaration.
     pub(crate) name: String,
-    /// Use kind: `ref`, `selector`, `anchor`, `positionAnchor`, `anchorScope`,
-    /// `container` or `container-query`.
-    pub(crate) projection: &'static str,
+    /// Declaration identity used to distinguish aliases from equal binding spellings.
+    pub(crate) identity: (ModuleId, String, Span),
+    /// Use kind.
+    pub(crate) projection: RefUseKind,
     /// Whole expression the use came from.
     pub(crate) span: Span,
     /// JSX ancestor path of the use, when it appeared inside JSX.
@@ -33,92 +52,191 @@ pub(crate) struct RefUse {
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Lowers one ref projection expression, if it is one.
-    ///
-    /// Recognizes the member projections and `ref.container("type")`, and returns
-    /// `None` when the expression is not a projection so callers can try other forms.
-    /// Arguments must be literal, because the projection becomes generated CSS rather
-    /// than a runtime value.
+    /// Resolves explicit provider/consumer uses and scope-only uses to finite identities.
+    /// Returns `None` for unrelated expressions or after reporting invalid arguments.
     pub(crate) fn collect_ref_projection(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
-        let (ref_expression, projection) = match expression {
-            Expression::StaticMemberExpression(member) => {
-                let projection = match member.property.name.as_str() {
-                    "anchor" => RefProjection::Anchor,
-                    "positionAnchor" => RefProjection::PositionAnchor,
-                    "anchorScope" => RefProjection::AnchorScope,
-                    _ => return None,
-                };
-                (&member.object, projection)
+        let span = self.source_span(expression.span());
+        if let Expression::CallExpression(call) = expression
+            && self.is_style_member(&call.callee, "anchorScope")
+        {
+            let [argument] = call.arguments.as_slice() else {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidAnchorScope,
+                    span,
+                ));
+                return None;
+            };
+            let scope = self.collect_anchor_scope(argument.as_expression(), span)?;
+            self.consumed_macro_uses.push(span);
+            return Some(StyleInput::Class(
+                RuleExpression::AnchorScope { scope, span }.into(),
+            ));
+        }
+        let (receiver, projection) = match expression {
+            Expression::StaticMemberExpression(member)
+                if member.property.name == "positionAnchor" =>
+            {
+                (&member.object, RefProjection::PositionAnchor)
             }
             Expression::CallExpression(call) => {
                 let Expression::StaticMemberExpression(member) = &call.callee else {
                     return None;
                 };
-                if member.property.name.as_str() != "container" {
-                    return None;
-                }
-                let [argument] = call.arguments.as_slice() else {
-                    self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidContainerType,
-                        self.source_span(call.span),
-                    ));
-                    return None;
+                self.record_type_probe(&member.object);
+                let projection = match member.property.name.as_str() {
+                    "asAnchor" => {
+                        let scope = match call.arguments.as_slice() {
+                            [] => None,
+                            [argument] => {
+                                Some(self.collect_anchor_scope(argument.as_expression(), span)?)
+                            }
+                            _ => {
+                                self.diagnostics.push(CompileError::new(
+                                    CompileErrorKind::InvalidAnchorScope,
+                                    span,
+                                ));
+                                return None;
+                            }
+                        };
+                        RefProjection::AsAnchor(scope)
+                    }
+                    "asContainer" => self.collect_container_type(call)?,
+                    _ => return None,
                 };
-                let Some(Expression::StringLiteral(value)) = argument.as_expression() else {
-                    self.diagnostics.push(CompileError::new(
-                        CompileErrorKind::InvalidContainerType,
-                        self.source_span(argument.span()),
-                    ));
-                    return None;
-                };
-                (
-                    &member.object,
-                    RefProjection::Container(self.string_literal(value)),
-                )
+                (&member.object, projection)
             }
             _ => return None,
         };
-        let Some(refs) = self.ref_references(ref_expression) else {
+        let Some(refs) = self.ref_references(receiver) else {
             self.diagnostics.push(CompileError::new(
                 CompileErrorKind::RefProjectionFactsRequired,
-                self.source_span(expression.span()),
+                span,
             ));
             return None;
         };
-        let projection_name = match &projection {
-            RefProjection::Anchor => "anchor",
-            RefProjection::PositionAnchor => "positionAnchor",
-            RefProjection::AnchorScope => "anchorScope",
-            RefProjection::Container(_) => "container",
-        };
+        let kind = (&projection).into();
         for definition in &refs {
-            self.record_ref_use(
-                definition,
-                projection_name,
-                self.source_span(expression.span()),
-            );
+            self.record_ref_use(definition, kind, span);
         }
-        if refs.len() == 1 {
-            Some(StyleInput::Class(
+        let value = self.source_span(receiver.span());
+        Some(StyleInput::Class(
+            if let [definition] = refs.as_slice() {
                 RuleExpression::RefProjection {
-                    definition: refs[0].clone(),
-                    value: self.source_span(ref_expression.span()),
+                    definition: definition.clone(),
+                    value,
                     projection,
                 }
-                .into(),
-            ))
-        } else {
-            Some(StyleInput::Class(
+            } else {
                 RuleExpression::DynamicRefProjection {
-                    value: self.source_span(ref_expression.span()),
+                    value,
                     refs,
                     projection,
                 }
-                .into(),
-            ))
+            }
+            .into(),
+        ))
+    }
+
+    /// Validates an optional literal container type and returns its canonical spelling.
+    fn collect_container_type(&mut self, call: &CallExpression<'a>) -> Option<RefProjection> {
+        match call.arguments.as_slice() {
+            [] => Some(RefProjection::AsContainer(None)),
+            [argument] => {
+                if let Some(Expression::StringLiteral(value)) = argument.as_expression() {
+                    let mut kind = self.string_literal(value);
+                    if let Some(normalized) = normalize_container_type(kind.value.trim()) {
+                        kind.value = normalized.to_owned();
+                        return Some(RefProjection::AsContainer(Some(kind)));
+                    }
+                }
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidContainerType,
+                    self.source_span(argument.span()),
+                ));
+                None
+            }
+            _ => {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidContainerType,
+                    self.source_span(call.span),
+                ));
+                None
+            }
+        }
+    }
+
+    /// Resolves a scope list to its complete candidate union, retaining first occurrence order.
+    /// Invalid entries are fatal diagnostics; empty and repeated identities produce lint findings.
+    fn collect_anchor_scope(
+        &mut self,
+        expression: Option<&Expression<'a>>,
+        span: Span,
+    ) -> Option<AnchorScope> {
+        match expression.map(Expression::get_inner_expression) {
+            Some(Expression::StringLiteral(value)) if value.value == "all" => {
+                Some(AnchorScope::All)
+            }
+            Some(Expression::StringLiteral(value)) if value.value == "none" => {
+                Some(AnchorScope::None)
+            }
+            Some(Expression::ArrayExpression(array)) => {
+                let mut refs: Vec<RefDefinition> = Vec::new();
+                let candidates = array
+                    .elements
+                    .iter()
+                    .map(|element| {
+                        (
+                            element,
+                            element
+                                .as_expression()
+                                .and_then(|value| self.ref_references(value)),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                for (element, candidates) in candidates {
+                    let Some(candidates) = candidates else {
+                        self.diagnostics.push(CompileError::new(
+                            CompileErrorKind::InvalidAnchorScope,
+                            self.source_span(element.span()),
+                        ));
+                        return None;
+                    };
+                    for definition in candidates {
+                        if refs.iter().any(|existing| {
+                            existing.module_id == definition.module_id
+                                && existing.binding == definition.binding
+                        }) {
+                            self.lint_findings.push(LintFinding::new(
+                                LintKind::AnchorScopeList {
+                                    detail: "contains duplicate ref identities".into(),
+                                },
+                                self.source_span(element.span()),
+                            ));
+                        } else {
+                            refs.push(definition);
+                        }
+                    }
+                }
+                if refs.is_empty() {
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::AnchorScopeList {
+                            detail: "is empty; no scope declaration is emitted".into(),
+                        },
+                        span,
+                    ));
+                }
+                Some(AnchorScope::Refs(refs))
+            }
+            _ => {
+                self.diagnostics.push(CompileError::new(
+                    CompileErrorKind::InvalidAnchorScope,
+                    span,
+                ));
+                None
+            }
         }
     }
 
@@ -130,14 +248,40 @@ impl<'a> MacroExtractor<'a> {
     pub(crate) fn record_ref_use(
         &mut self,
         definition: &RefDefinition,
-        projection: &'static str,
+        projection: RefUseKind,
         span: Span,
     ) {
         self.ref_uses.push(RefUse {
             name: definition.binding.value.clone(),
+            identity: (
+                definition.module_id.clone(),
+                definition.binding.value.clone(),
+                definition.binding.span,
+            ),
             projection,
             span,
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
         });
+    }
+}
+
+/// Canonicalizes the finite keyword grammar accepted by the public container-type API.
+fn normalize_container_type(value: &str) -> Option<&str> {
+    match value {
+        "scroll-state size" => Some("size scroll-state"),
+        "scroll-state inline-size" => Some("inline-size scroll-state"),
+        "normal"
+        | "size"
+        | "inline-size"
+        | "scroll-state"
+        | "size scroll-state"
+        | "inline-size scroll-state"
+        | "initial"
+        | "inherit"
+        | "unset"
+        | "revert"
+        | "revert-layer"
+        | "revert-rule" => Some(value),
+        _ => None,
     }
 }

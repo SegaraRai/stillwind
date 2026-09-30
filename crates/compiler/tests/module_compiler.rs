@@ -514,7 +514,7 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
 }
 
 #[test]
-fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
+fn static_provider_does_not_attach_a_marker_named_like_an_object_property() {
     #[derive(Debug)]
     struct PrototypeGenerator;
 
@@ -540,7 +540,7 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1), None, None,
-            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.asAnchor());",
         )
         .unwrap(),
     );
@@ -574,7 +574,7 @@ fn a_ref_marker_named_like_an_object_property_is_read_as_a_class_value() {
         .code_transforms
         .iter()
         .map(|transform| transform.replacement.as_str())
-        .find(|replacement| replacement.contains("(menu).c"))
+        .find(|replacement| replacement.starts_with("{className:"))
         .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
     assert!(!projection.contains("\"__proto__\""), "{projection}");
 }
@@ -731,7 +731,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1), None, None,
-            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor); const y = style('flex');",
+            "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.asAnchor()); const y = style('flex');",
         )
         .unwrap(),
     );

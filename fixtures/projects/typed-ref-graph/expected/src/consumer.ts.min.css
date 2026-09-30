@@ -1,6 +1,11 @@
-.sw_nw6lm:where(.sw_secondary_63olu) {
+.sw_klgcs:where(.sw_secondary_63olu) {
   anchor-name: --sw-a-secondary-63olu;
+  anchor-scope: --sw-a-secondary-63olu, --sw-a-primary-z410i;
 }
-.sw_nw6lm:where(.sw_primary_z410i) {
+.sw_uwznf:where(.sw_primary_z410i) {
   anchor-name: --sw-a-primary-z410i;
+  anchor-scope: --sw-a-secondary-63olu, --sw-a-primary-z410i;
+}
+.sw_0ebvd {
+  anchor-scope: --sw-a-secondary-63olu, --sw-a-primary-z410i;
 }

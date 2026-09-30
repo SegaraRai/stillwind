@@ -7,14 +7,13 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
 use super::super::animation_options::{OptionVariants, resolve_options};
-use super::super::fragment::{Emitted, ValueExpr};
+use super::super::fragment::Emitted;
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::identity_declaration;
 use super::super::utilities::resolve::CompiledUtility;
 use super::{CallEmitter, KEYFRAMES_KEY};
-use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
 
 impl CallEmitter<'_> {
@@ -54,8 +53,7 @@ impl CallEmitter<'_> {
             markers: Vec::new(),
             external: Vec::new(),
             plain: Vec::new(),
-            view_transition_token: None,
-            view_transition_name: None,
+            view_transitions: Vec::new(),
         };
         self.contribute_rule(contribution, guard, fold)
     }
@@ -76,7 +74,7 @@ impl CallEmitter<'_> {
     ) -> Option<Emitted> {
         let plan =
             StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
-        let mut table = Vec::new();
+        let mut candidates = Vec::new();
         for keyframes in keyframes {
             self.runtime_assets.insert(keyframes.identity.clone());
             self.required_definitions.insert(keyframes.identity.clone());
@@ -105,29 +103,11 @@ impl CallEmitter<'_> {
                 markers: Vec::new(),
                 external: Vec::new(),
                 plain: Vec::new(),
-                view_transition_token: None,
-                view_transition_name: None,
+                view_transitions: Vec::new(),
             };
-            let class = match self.units.leaf(contribution, guard) {
-                Ok(class) => class,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
-            let Emitted::Leaf { names } = class else {
-                return None;
-            };
-            let class = js_string(&names.join(" "));
-            table.push(format!("\"{identity}\":{class}"));
+            candidates.push((identity, contribution));
         }
-        let table = table.join(",");
-        let expression = ValueExpr::Lookup {
-            value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: KEYFRAMES_KEY.to_owned(),
-            table: format!("{{{table}}}").into(),
-        };
-        Some(Emitted::Expression(expression))
+        self.emit_candidate_units(value, KEYFRAMES_KEY, candidates, guard)
     }
 }
 

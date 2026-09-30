@@ -14,7 +14,9 @@
 use std::collections::HashSet;
 
 use stillwind_diagnostics::{LintFinding, LintKind};
+use stillwind_ir::{ConditionalBranches, StyleInput};
 
+use super::RefUseKind;
 use crate::state::MacroExtractor;
 
 impl MacroExtractor<'_> {
@@ -28,22 +30,30 @@ impl MacroExtractor<'_> {
         let names = self
             .ref_uses
             .iter()
-            .map(|ref_use| ref_use.name.clone())
+            .map(|ref_use| ref_use.identity.clone())
             .collect::<HashSet<_>>();
-        for name in names {
+        for identity in names {
             let uses = self
                 .ref_uses
                 .iter()
-                .filter(|ref_use| ref_use.name == name)
+                .filter(|ref_use| ref_use.identity == identity)
                 .collect::<Vec<_>>();
+            let name = uses[0].name.clone();
             let has_boundary = self.ref_definitions.iter().any(|definition| {
-                definition.binding.value == name && definition.boundary.is_some()
+                (
+                    definition.module_id.clone(),
+                    definition.binding.value.clone(),
+                    definition.binding.span,
+                ) == identity
+                    && definition.boundary.is_some()
             });
-            let has_anchor = uses.iter().any(|ref_use| ref_use.projection == "anchor");
+            let has_anchor = uses
+                .iter()
+                .any(|ref_use| ref_use.projection == RefUseKind::AsAnchor);
             if !has_anchor {
                 for ref_use in uses
                     .iter()
-                    .filter(|ref_use| ref_use.projection == "positionAnchor")
+                    .filter(|ref_use| ref_use.projection == RefUseKind::PositionAnchor)
                 {
                     self.lint_findings.push(LintFinding::new(
                         LintKind::MissingAnchor { name: name.clone() },
@@ -51,27 +61,53 @@ impl MacroExtractor<'_> {
                     ));
                 }
             }
-            let has_container = uses.iter().any(|ref_use| ref_use.projection == "container");
-            for ref_use in uses
+            let has_container = uses
                 .iter()
-                .filter(|ref_use| ref_use.projection == "container-query" && !has_container)
-            {
+                .any(|ref_use| ref_use.projection == RefUseKind::AsContainer);
+            for ref_use in uses.iter().filter(|ref_use| {
+                ref_use.projection == RefUseKind::ContainerQueryVariant && !has_container
+            }) {
                 self.lint_findings.push(LintFinding::new(
                     LintKind::MissingContainer { name: name.clone() },
                     ref_use.span,
                 ));
             }
+            for provider in uses.iter().filter(|use_| {
+                matches!(
+                    use_.projection,
+                    RefUseKind::AsAnchor | RefUseKind::AsContainer
+                )
+            }) {
+                let owning_call = self.style_calls.iter().find(|call| {
+                    call.span.start <= provider.span.start && call.span.end >= provider.span.end
+                });
+                let attached = uses.iter().any(|use_| {
+                    use_.projection == RefUseKind::Marker
+                        && (provider.jsx_path.is_some() && provider.jsx_path == use_.jsx_path
+                            || owning_call.is_some_and(|call| {
+                                call.span.start <= use_.span.start && call.span.end >= use_.span.end
+                            }))
+                });
+                let uncertain =
+                    owning_call.is_some_and(|call| call.inputs.iter().any(has_composition));
+                if !attached && !uncertain && owning_call.is_some() {
+                    self.lint_findings.push(LintFinding::new(
+                        LintKind::MissingRefAttachment { name: name.clone() },
+                        provider.span,
+                    ));
+                }
+            }
             let known_anchor_paths = uses
                 .iter()
                 .filter_map(|ref_use| {
-                    (ref_use.projection == "anchor" || ref_use.projection == "ref")
+                    (ref_use.projection == RefUseKind::Marker)
                         .then_some(ref_use.jsx_path.as_ref())
                         .flatten()
                 })
                 .collect::<Vec<_>>();
             for ref_use in uses
                 .iter()
-                .filter(|ref_use| ref_use.projection == "selector")
+                .filter(|ref_use| ref_use.projection == RefUseKind::SelectorVariant)
             {
                 let Some(path) = &ref_use.jsx_path else {
                     continue;
@@ -110,7 +146,15 @@ impl MacroExtractor<'_> {
             let providers = self
                 .ref_uses
                 .iter()
-                .filter(|use_| use_.name == boundary.binding.value && use_.projection == "ref")
+                .filter(|use_| {
+                    use_.identity
+                        == (
+                            boundary.module_id.clone(),
+                            boundary.binding.value.clone(),
+                            boundary.binding.span,
+                        )
+                        && use_.projection == RefUseKind::Marker
+                })
                 .collect::<Vec<_>>();
             if providers.is_empty() {
                 self.lint_findings.push(LintFinding::new(
@@ -123,8 +167,16 @@ impl MacroExtractor<'_> {
                 continue;
             }
             for reference_use in self.ref_uses.iter().filter(|use_| {
-                use_.name == definition.binding.value
-                    && !matches!(use_.projection, "selector" | "container-query")
+                use_.identity
+                    == (
+                        definition.module_id.clone(),
+                        definition.binding.value.clone(),
+                        definition.binding.span,
+                    )
+                    && matches!(
+                        use_.projection,
+                        RefUseKind::Marker | RefUseKind::AsAnchor | RefUseKind::AsContainer
+                    )
             }) {
                 let Some(reference_path) = &reference_use.jsx_path else {
                     continue;
@@ -145,7 +197,13 @@ impl MacroExtractor<'_> {
                 }
             }
             for selector_use in self.ref_uses.iter().filter(|use_| {
-                use_.name == definition.binding.value && use_.projection == "selector"
+                use_.identity
+                    == (
+                        definition.module_id.clone(),
+                        definition.binding.value.clone(),
+                        definition.binding.span,
+                    )
+                    && use_.projection == RefUseKind::SelectorVariant
             }) {
                 let Some(target_path) = &selector_use.jsx_path else {
                     continue;
@@ -175,6 +233,22 @@ impl MacroExtractor<'_> {
 /// never look nested.
 fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)
+}
+
+/// Composition can supply an attachment that this module's JSX inspection cannot prove absent.
+fn has_composition(input: &StyleInput) -> bool {
+    match input {
+        StyleInput::Composition { .. } => true,
+        StyleInput::Array(inputs) => inputs.iter().any(has_composition),
+        StyleInput::Conditional { branches, .. } => match branches {
+            ConditionalBranches::And { consequent } => consequent.iter().any(has_composition),
+            ConditionalBranches::Ternary {
+                consequent,
+                alternate,
+            } => consequent.iter().chain(alternate).any(has_composition),
+        },
+        _ => false,
+    }
 }
 
 #[cfg(test)]

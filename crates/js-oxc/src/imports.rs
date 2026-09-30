@@ -50,6 +50,7 @@ pub(crate) fn collect(program: &Program<'_>, scoping: &Scoping, file: FileId) ->
         }
     }
     ModuleImports {
+        consumed_uses: Vec::new(),
         reserved_names: collector.names.into_iter().collect(),
         macros: collector.imports,
         module_css: collector.module_css,

@@ -172,8 +172,11 @@ pub enum CompileErrorKind {
     #[error("ref variants require a statically identified style.ref()")]
     UnidentifiedRefVariant,
     /// A container projection does not supply a literal container type.
-    #[error("ref.container() requires a literal container type")]
+    #[error("ref.asContainer() requires a valid literal CSS container type")]
     InvalidContainerType,
+    /// Scope arguments must be keywords or statically enumerable ref arrays.
+    #[error("anchor scope requires all, none, or an array of finite ref candidates")]
+    InvalidAnchorScope,
     /// A ref projection cannot be resolved locally without host checker facts.
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
@@ -711,6 +714,7 @@ impl CompileErrorKind {
             | Self::InvalidRefArguments
             | Self::InvalidRefProjection => "SHREF001",
             Self::NonStaticRefVariant => "SHREF005",
+            Self::InvalidAnchorScope => "SHREF010",
             Self::InvalidContainerType => "SHREF002",
             Self::InvalidContainerQuery => "SHREF004",
             Self::CompositionCycle => "SHCOMP003",
@@ -1002,7 +1006,7 @@ mod tests {
         assert_eq!(finding.code(), "require-anchor-provider");
         assert_eq!(
             finding.to_string(),
-            "ref `対象` uses position without an anchor projection"
+            "ref `対象` uses position without an asAnchor() provider"
         );
     }
 

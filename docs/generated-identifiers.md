@@ -77,7 +77,7 @@ Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残
 ## 1. lower の原則
 
 すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.keyframes()`、
-`style.viewTransition()`、`ref.anchor` などの射影）は、呼び出し単位で「何らかの値」へ lower される。
+`style.viewTransition()`、`ref.asAnchor()` などの射影）は、呼び出し単位で「何らかの値」へ lower される。
 置換はマクロ呼び出しのスパン単位で行われ、lower に付随して CSS が生成される。
 
 lower の結果は全体最適化の後に、プレーンなリテラル、オブジェクト、ヘルパ呼び出しのいずれにも
@@ -100,15 +100,14 @@ const primary = { c: "sw_primary_3k9xa" };
 マーカークラスになる。将来、値が 1 つしかないことを活かして単なる文字列へ縮めてもよい。
 
 - 添付: `style(selectedRef)` → `selectedRef.c`
-- 射影: `style(selectedRef.anchor)` → `({ "sw_a…": "sw_x", "sw_b…": "sw_y" })[selectedRef.c]`
+- 射影: `style(selectedRef.asAnchor())` → `({ "sw_a…": "sw_x", "sw_b…": "sw_y" })[selectedRef.c]`
 - animation / view transition も同じ形（`c` が identity 文字列）
 
 この形にすると、投影用の第 2 識別子（`_swp_<marker>_<suffix>`）とその実行時組み立て、
 宣言ヘルパ（ref / keyframes / view transition）の出力、prod の表引きヘルパが
 すべて不要になる。
 
-既定の生成では、ref マーカーを anchor 名・container 名・`@container` 名にも流用する。
-1 宣言 1 識別子になり、DOM トークンと anchor 名の対応が自明になる。`ref.container(type)` が書く container 名と `ref.at(query)` が読む `@container` 名も、同じ 1 名になる。
+ref マーカー・anchor 名・container 名は同じ宣言 identity から、それぞれの名前空間で生成する。`ref.asContainer(type)` が書く container 名と `ref.at(query)` が読む `@container` 名も、同じ 1 名になる。
 
 ## 3. dev / prod
 
@@ -234,8 +233,9 @@ body はそのまま書き出し、prefix を足さない。prefix はコンパ�
 | custom property 名  | エスケープ可                 | エスケープ | `--` の前置はコンパイラが行う                                |
 | `@layer` 名         | エスケープ可                 | エスケープ | `.` は `_` に置換する（`.` は入れ子レイヤになるため）        |
 
-ref マーカーは `{ c: "<marker>" }` の値として出力される。attachment と projection は
-`c` をクラス文字列として読むため、マーカー名に JavaScript オブジェクトキー向けの置換は行わない。
+ref の runtime 値は `{ c: "<marker>" }` を持つ。動的 attachment は `c` をクラス文字列として読み、
+動的 use は候補 class unit の lookup キーとして読む。`__proto__` は computed key で出力し、
+オブジェクトリテラルの prototype 設定として解釈されるのを防ぐ。
 
 NUL は置換する。置換と正規化は生の名前に対して 1 回だけ行い、比較・CSS・JS が同じ
 カノニカルを見るようにする。エスケープ後に置換すると、CSS だけ別の名前になる。

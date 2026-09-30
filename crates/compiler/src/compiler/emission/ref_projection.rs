@@ -2,7 +2,7 @@
 
 use stillwind_design_system::UtilityOrder;
 use stillwind_diagnostics::CompileErrorKind;
-use stillwind_ir::{RefDefinition, RefProjection, StyleVariant};
+use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, StyleVariant};
 use stillwind_source::{ModuleId, Span};
 
 use super::super::fragment::{Emitted, ValueExpr};
@@ -20,89 +20,63 @@ use crate::generated::Code;
 use crate::identifiers::{IdentifierContext, IdentifierPool};
 
 impl CallEmitter<'_> {
-    /// Lowers one static ref projection onto the element the projection is written on.
-    ///
-    /// The emitted class read uses the receiver expression the use site wrote, so an
-    /// alias or member receiver names the same declaration. Returns the marker class
-    /// read, or `None` if variant resolution, source slicing, or generated-name
-    /// allocation fails.
-    pub(super) fn emit_ref_projection(
+    /// Builds one receiver's CSS contribution without attaching its marker.
+    fn ref_contribution(
         &mut self,
         definition: &RefDefinition,
-        value: &Span,
         projection: &RefProjection,
-        guard: &[GuardStep],
         wrappers: &[StyleVariant],
-    ) -> Option<Emitted> {
+    ) -> Option<LiteralContribution> {
         let plan =
             StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
-        let name = ref_projection_name(projection);
-        // The projection reads the declaration's canonical token, so the
-        // declaration has to keep its runtime value.
-        self.runtime_assets.insert(ref_identity(definition));
-        let anchor = match anchor_name(self.identifiers, definition, Some(name)) {
-            Ok(anchor) => anchor,
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                return None;
-            }
-        };
-        let marker = match ref_marker_name(self.identifiers, definition) {
-            Ok(marker) => marker,
-            Err(failure) => {
-                self.reject_name(failure, self.call.span);
-                return None;
-            }
-        };
-        let (declaration, name_symbol) =
+        let (declaration, symbol) =
             match render_ref_projection(self.identifiers, definition, projection, self.module_id) {
-                Ok(rendered) => rendered,
+                Ok(value) => value,
                 Err(failure) => {
                     self.reject_name(failure, self.call.span);
                     return None;
                 }
             };
-        if let Some(symbol) = name_symbol {
+        if let Some(symbol) = symbol {
             self.written_name_symbols.push(symbol);
         }
-        let mut utility = CompiledUtility {
-            required_properties: Vec::new(),
-            variants: Vec::new(),
-            variant_applications: Vec::new(),
-            declaration,
-            selector: Some(format!("&:where({})", marker.selector())),
-            container: None,
-            nested: Vec::new(),
-            order: UtilityOrder::Authored(None),
-            candidate: String::new(),
+        let selector = if matches!(projection, RefProjection::PositionAnchor) {
+            None
+        } else {
+            match ref_marker_name(self.identifiers, definition) {
+                Ok(marker) => Some(format!("&:where({})", marker.selector())),
+                Err(failure) => {
+                    self.reject_name(failure, self.call.span);
+                    return None;
+                }
+            }
         };
-        plan.apply_rule(&mut utility);
-        let contribution = LiteralContribution {
-            canonical: format!(
-                "{}\0ref-projection\0{}\0{name}\0",
-                plan.canonical,
-                anchor.as_str()
-            ),
-            utilities: vec![utility],
-            markers: Vec::new(),
-            external: Vec::new(),
-            plain: Vec::new(),
-            view_transition_token: None,
-            view_transition_name: None,
-        };
-        self.contribute_rule(contribution, guard, true);
-        Some(Emitted::Expression(ref_class_read(
-            self.source_expression(*value)?,
-        )))
+        Some(rule_contribution(&plan, declaration, selector))
     }
 
-    /// Lowers one dynamic ref projection using each finite candidate for CSS planning.
-    ///
-    /// Every statically known ref contributes a marker token. Its projection rule is
-    /// gated by that marker within the surrounding class unit. Returns the marker class
-    /// read, or `None` if variant resolution, source slicing, or generated-name
-    /// allocation fails. An empty finite set emits no projection CSS but still reads
-    /// the runtime ref value.
+    /// Contributes a statically resolved use to its current unit or region.
+    pub(super) fn emit_ref_projection(
+        &mut self,
+        definition: &RefDefinition,
+        span: Span,
+        projection: &RefProjection,
+        guard: &[GuardStep],
+        wrappers: &[StyleVariant],
+        fold: bool,
+    ) -> Option<Emitted> {
+        let contribution = self.ref_contribution(definition, projection, wrappers)?;
+        let gate = if matches!(projection, RefProjection::PositionAnchor) {
+            None
+        } else {
+            ref_marker_name(self.identifiers, definition)
+                .ok()
+                .map(|marker| marker.as_str().to_owned())
+        };
+        self.record_property_writes(&contribution, gate.is_some(), span, guard, gate.as_deref());
+        self.contribute_rule(contribution, guard, fold)
+    }
+
+    /// Selects a finite candidate's CSS unit using the receiver's marker token.
     pub(super) fn emit_dynamic_ref_projection(
         &mut self,
         value: &Span,
@@ -111,8 +85,7 @@ impl CallEmitter<'_> {
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
-        let plan =
-            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let mut candidates = Vec::new();
         for definition in refs {
             self.runtime_assets.insert(ref_identity(definition));
             let marker = match ref_marker_name(self.identifiers, definition) {
@@ -122,67 +95,104 @@ impl CallEmitter<'_> {
                     return None;
                 }
             };
-            let anchor = match anchor_name(self.identifiers, definition, Some("dynamic")) {
-                Ok(anchor) => anchor,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
-            let canonical = format!(
-                "{}\0dynamic-ref-projection\0{}\0{}\0",
-                plan.canonical,
-                anchor.as_str(),
-                ref_projection_name(projection)
+            let contribution = self.ref_contribution(definition, projection, wrappers)?;
+            let provider = !matches!(projection, RefProjection::PositionAnchor);
+            self.record_property_writes(
+                &contribution,
+                provider,
+                *value,
+                guard,
+                provider.then_some(marker.as_str()),
             );
-            let (declaration, name_symbol) = match render_ref_projection(
-                self.identifiers,
-                definition,
-                projection,
-                self.module_id,
-            ) {
-                Ok(rendered) => rendered,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
-            if let Some(symbol) = name_symbol {
-                self.written_name_symbols.push(symbol);
-            }
-            let mut utility = CompiledUtility {
-                required_properties: Vec::new(),
-                variants: Vec::new(),
-                variant_applications: Vec::new(),
-                declaration,
-                selector: Some(format!("&:where({})", marker.selector())),
-                container: None,
-                nested: Vec::new(),
-                order: UtilityOrder::Authored(None),
-                candidate: String::new(),
-            };
-            plan.apply_rule(&mut utility);
-            let contribution = LiteralContribution {
-                canonical,
-                utilities: vec![utility],
-                markers: Vec::new(),
-                external: Vec::new(),
-                plain: Vec::new(),
-                view_transition_token: None,
-                view_transition_name: None,
-            };
-            self.contribute_rule(contribution, guard, true);
+            candidates.push((marker.as_str().to_owned(), contribution));
         }
-        Some(Emitted::Expression(ref_class_read(
-            self.source_expression(*value)?,
-        )))
+        self.emit_candidate_units(value, super::CLASS_KEY, candidates, guard)
     }
+
+    /// Emits explicit scope CSS without a receiver gate or marker attachment.
+    pub(super) fn emit_anchor_scope(
+        &mut self,
+        scope: &AnchorScope,
+        span: Span,
+        guard: &[GuardStep],
+        wrappers: &[StyleVariant],
+        fold: bool,
+    ) -> Option<Emitted> {
+        let plan =
+            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let declaration = match render_anchor_scope(self.identifiers, scope) {
+            Ok(value) => value,
+            Err(failure) => {
+                self.reject_name(failure, self.call.span);
+                return None;
+            }
+        };
+        if declaration.is_empty() {
+            return None;
+        }
+        let contribution = rule_contribution(&plan, declaration, None);
+        self.record_property_writes(&contribution, true, span, guard, None);
+        self.contribute_rule(contribution, guard, fold)
+    }
+}
+
+fn rule_contribution(
+    plan: &StyleVariantPlan,
+    declaration: String,
+    selector: Option<String>,
+) -> LiteralContribution {
+    let canonical = format!(
+        "{}\0ref-use\0{}\0{}\0",
+        plan.canonical,
+        selector.as_deref().unwrap_or(""),
+        declaration
+    );
+    let mut utility = CompiledUtility {
+        required_properties: Vec::new(),
+        variants: Vec::new(),
+        variant_applications: Vec::new(),
+        declaration,
+        selector,
+        container: None,
+        nested: Vec::new(),
+        order: UtilityOrder::Authored(None),
+        candidate: String::new(),
+    };
+    plan.apply_rule(&mut utility);
+    LiteralContribution {
+        canonical,
+        utilities: vec![utility],
+        ..LiteralContribution::default()
+    }
+}
+
+/// Serializes an explicit scope union; an empty list emits no declaration.
+fn render_anchor_scope(
+    context: &IdentifierContext,
+    scope: &AnchorScope,
+) -> Result<String, CompileErrorKind> {
+    let value = match scope {
+        AnchorScope::All => "all".to_owned(),
+        AnchorScope::None => "none".to_owned(),
+        AnchorScope::Refs(refs) => {
+            if refs.is_empty() {
+                return Ok(String::new());
+            }
+            refs.iter()
+                .map(|definition| {
+                    anchor_name(context, definition, None).map(|name| name.dashed_ident())
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .join(",")
+        }
+    };
+    Ok(format!("anchor-scope:{value};"))
 }
 
 /// Reads the canonical class token off a compiled ref or scope value.
 ///
-/// Every ref value carries its marker under `c`, so attachments and projections emit a
-/// direct property read. The returned value is a known class string.
+/// Every ref value carries its marker under `c`, so attachments emit a direct property
+/// read. The returned value is a known class string.
 pub(super) fn ref_class_read(value: Code) -> ValueExpr {
     ValueExpr::RefClassRead { value }
 }
@@ -217,21 +227,30 @@ fn render_ref_projection(
         ))
     };
     Ok(match projection {
-        RefProjection::Anchor => (
-            format!("anchor-name:{};", name.dashed_ident()),
+        RefProjection::AsAnchor(scope) => (
+            format!(
+                "anchor-name:{};{}",
+                name.dashed_ident(),
+                scope
+                    .as_ref()
+                    .map(|scope| render_anchor_scope(context, scope))
+                    .transpose()?
+                    .unwrap_or_default()
+            ),
             symbol(name.as_str(), IdentifierPool::AnchorName, "anchor"),
         ),
         RefProjection::PositionAnchor => {
             (format!("position-anchor:{};", name.dashed_ident()), None)
         }
-        RefProjection::AnchorScope => (format!("anchor-scope:{};", name.dashed_ident()), None),
-        RefProjection::Container(kind) => {
+        RefProjection::AsContainer(kind) => {
             let container = ref_container_name(context, definition)?;
             (
                 format!(
-                    "container-name:{};container-type:{};",
+                    "container-name:{};{}",
                     container.custom_ident(),
-                    kind.value
+                    kind.as_ref()
+                        .map(|kind| format!("container-type:{};", kind.value))
+                        .unwrap_or_default()
                 ),
                 Some(projection_symbol(
                     container.as_str(),
@@ -280,7 +299,7 @@ mod tests {
         let (anchor, anchor_symbol) = render_ref_projection(
             &context,
             &definition,
-            &RefProjection::Anchor,
+            &RefProjection::AsAnchor(None),
             &ModuleId::from("x"),
         )
         .unwrap();
@@ -299,18 +318,13 @@ mod tests {
         )
         .unwrap();
         assert_eq!(position, format!("position-anchor:{reference}"));
-        let (scope_projection, _) = render_ref_projection(
-            &context,
-            &definition,
-            &RefProjection::AnchorScope,
-            &ModuleId::from("x"),
-        )
-        .unwrap();
+        let scope_projection =
+            render_anchor_scope(&context, &AnchorScope::Refs(vec![definition.clone()])).unwrap();
         assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
         let (container, container_symbol) = render_ref_projection(
             &context,
             &definition,
-            &RefProjection::Container(Spanned::new("size".to_owned(), binding.span)),
+            &RefProjection::AsContainer(Some(Spanned::new("size".to_owned(), binding.span))),
             &ModuleId::from("x"),
         )
         .unwrap();

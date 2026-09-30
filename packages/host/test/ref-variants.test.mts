@@ -77,24 +77,28 @@ export const props = style(${expression});`;
         // The pairs are read from the compiled selectors: each boundary must bind to
         // exactly one ref of the pair.
         const pairs = [
-          ...output.css.matchAll(
-            /@media \(hover:hover\)\{\.(sw_\w+):has\(\.(sw_\w+):where\(:hover\)\)/g,
-          ),
+          ...output.css.matchAll(/:where\(\.(sw_\w+)\):has\(:where\(\.(sw_\w+)\):hover\)/g),
         ].map((match) => ({ boundary: match[1], ref: match[2] }));
         assert.equal(pairs.length, 2, output.css);
         const [first, second] = pairs;
         assert.notEqual(first.boundary, second.boundary);
         assert.notEqual(first.ref, second.ref);
         assert.ok(
-          output.css.includes(`.${first.boundary}:has(.${first.ref}:where(:hover))`),
+          output.css.includes(`:where(.${first.boundary}):has(:where(.${first.ref}):hover)`),
           output.css,
         );
         assert.ok(
-          output.css.includes(`.${second.boundary}:has(.${second.ref}:where(:hover))`),
+          output.css.includes(`:where(.${second.boundary}):has(:where(.${second.ref}):hover)`),
           output.css,
         );
-        assert.ok(!output.css.includes(`.${first.boundary}:has(.${second.ref}:`), output.css);
-        assert.ok(!output.css.includes(`.${second.boundary}:has(.${first.ref}:`), output.css);
+        assert.ok(
+          !output.css.includes(`:where(.${first.boundary}):has(:where(.${second.ref}):`),
+          output.css,
+        );
+        assert.ok(
+          !output.css.includes(`:where(.${second.boundary}):has(:where(.${first.ref}):`),
+          output.css,
+        );
       }
       assert.match(output.css, /:active\{color:red;/);
       assert.doesNotMatch(output.code, /selected\(|selected`|selected\.at/);

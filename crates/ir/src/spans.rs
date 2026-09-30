@@ -16,9 +16,9 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AssetReference, BoundaryRef, ClassExpression, ConditionalBranches, GroupEntry, KeyframesBody,
-    KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression, StyleInput,
-    StyleVariant, ViewTransitionKey, ViewTransitionName,
+    AnchorScope, AssetReference, BoundaryRef, ClassExpression, ConditionalBranches, GroupEntry,
+    KeyframesBody, KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression,
+    StyleInput, StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -38,6 +38,9 @@ impl ModuleIr {
         mut map: impl FnMut(Span) -> Result<Span, E>,
     ) -> Result<Self, E> {
         let mut result = self.clone();
+        for span in &mut result.imports.consumed_uses {
+            *span = map(*span)?;
+        }
         for source in &mut result.imports.module_css {
             *source = map(*source)?;
         }
@@ -161,8 +164,23 @@ fn map_projection<E>(
     projection: &mut RefProjection,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
-    if let RefProjection::Container(name) = projection {
+    if let RefProjection::AsContainer(Some(name)) = projection {
         map_value(name, map)?;
+    }
+    if let RefProjection::AsAnchor(Some(scope)) = projection {
+        map_anchor_scope(scope, map)?;
+    }
+    Ok(())
+}
+
+fn map_anchor_scope<E>(
+    scope: &mut AnchorScope,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    if let AnchorScope::Refs(refs) = scope {
+        for definition in refs {
+            map_ref(definition, map)?;
+        }
     }
     Ok(())
 }
@@ -367,6 +385,10 @@ fn map_rule_expression<E>(
             for input in inputs {
                 map_rule_expression(input, map)?;
             }
+        }
+        RuleExpression::AnchorScope { scope, span } => {
+            *span = map(*span)?;
+            map_anchor_scope(scope, map)?;
         }
         RuleExpression::RefProjection {
             definition,

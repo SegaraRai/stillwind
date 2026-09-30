@@ -61,7 +61,7 @@ fn ref_module() -> ModuleAnalysis {
             Arc::new(
                 SourceFile::new(
                     FileId(1), None, None,
-                    "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.anchor);",
+                    "import { style } from 'stillwind/react'; export const menu = style.ref('menu'); const x = style(menu.asAnchor());",
                 )
                 .unwrap(),
             ),

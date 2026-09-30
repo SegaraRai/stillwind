@@ -1,15 +1,16 @@
-import { stillwindClsx } from "stillwind/react/runtime";
+
 
 const menu = undefined;
-const trigger = {c:"sw_trigger_fnrq8"};
+const container = undefined;
+const trigger = undefined;
 
 export function Popover() {
   return (
     <section {...{className:"sw_menu_qgtyh"}}>
-      <div {...{className:stillwindClsx("sw_b0to5",(trigger).c,(trigger).c)}}>
-        <button {...{className:stillwindClsx("sw_bm2ay sw_trigger_fnrq8",(trigger).c)}}>Open</button>
+      <div {...{className:"sw_ehe53 sw_container_gxe38"}}>
+        <button {...{className:"sw_6lvoa sw_trigger_w0wbm"}}>Open</button>
         <div
-          {...{className:stillwindClsx("sw_vr124",(trigger).c)}}
+          {...{className:"sw_k36l5"}}
         />
       </div>
     </section>

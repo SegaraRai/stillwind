@@ -77,13 +77,19 @@ pub fn plan_macro_import_removals(
                     edit.call_span.file == reference.file
                         && edit.call_span.start <= reference.start
                         && reference.end <= edit.call_span.end
-                        && source
+                        && (imports.consumed_uses.iter().any(|use_| {
+                            use_.file == reference.file
+                                && edit.call_span.start <= use_.start
+                                && use_.end <= edit.call_span.end
+                                && use_.start == reference.start
+                                && reference.end <= use_.end
+                        }) || source
                             .slice(Span::new(
                                 reference.file,
                                 edit.call_span.start.0,
                                 reference.start.0,
                             ))
-                            .is_ok_and(callee_prefix)
+                            .is_ok_and(callee_prefix))
                 }) {
                     return Err(CompileError::new(
                         CompileErrorKind::UntransformedMacroReference {

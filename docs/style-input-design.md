@@ -1,5 +1,9 @@
 # `style()` input lowering design
 
+[Explicit ref uses](ref-use-design.md) supply provider CSS through class units;
+only `style(ref)` attaches a marker. Provider/utility conflicts are lint findings,
+and Stillwind does not guarantee their relative order.
+
 `style()` is lowered as a source-ordered tree. Arrays, logical conjunctions, and
 ternaries retain their evaluation boundaries. A CSS variant wraps a rule subtree;
 it does not change where JavaScript tests run.
@@ -59,9 +63,8 @@ flowchart TD
 
 The props-only inputs may occur under JavaScript conditionals and arrays at any
 depth. A variant value may likewise contain arrays, conditionals, and nested
-variants, provided all of its leaves are rule contributions. A ref projection
-may generate a marker token as part of its class value; that does not turn a
-ref _attachment_ into a variant-capable input.
+variants, provided all of its leaves are rule contributions. Ref uses contribute
+CSS without attaching markers. Ref attachments remain props-only inputs.
 
 Unresolved utility candidates retain their authored class token. The surrounding
 variant wrapper does not become a literal prefix when resolution fails. A known
@@ -79,12 +82,11 @@ condition splits the surrounding region, so rules before and after it retain
 their cascade order. CSS is published with the base unit before guarded
 regions, retaining region order and declaration order.
 
-Ref attachments and ref projection markers keep their own class tokens. A ref
-projection's CSS rule uses the region class and a zero-specificity marker gate,
-so several projections and utilities can share one CSS class while a dynamic
-ref value still selects the appropriate declaration. Uses whose runtime value
-selects a distinct transition or keyframes candidate may retain candidate
-specific class identities.
+Ref attachments supply marker tokens. Provider uses gate their region's CSS with
+`:where(.marker)`; position-anchor consumers and scope-only uses have no receiver
+gate. Finite dynamic ref, keyframes, and unwrapped transition uses select candidate
+class units through the shared lookup lowering. Singleton candidates fold into a
+static contribution. Only attachments add the marker to the styled element.
 
 A view transition use contributes to the element's `view-transition-class` list.
 Guarded uses fill distinct custom-property slots so simultaneously true paths
@@ -124,9 +126,8 @@ required structural property; the fragment renderer may combine them further.
 - CSS declarations, dependencies, generated identifiers, and runtime props are
   recorded as explicit lowering effects. A class token is never the sole record
   of a rule's side effects.
-- Finite runtime candidates allocate CSS for every candidate. Ref projections
-  select marker tokens through the original receiver value; transition and
-  keyframes uses can select candidate classes. Unknown candidates keep the
+- Finite runtime candidates allocate CSS for every candidate. Ref, transition, and
+  keyframes uses select candidate class units through the original receiver value. Unknown candidates keep the
   existing diagnostic rather than guessing a CSS effect.
 - A finite candidate set may be empty when analysis proves no declaration is
   reachable. The parser omits empty transition and keyframes uses. Empty ref
