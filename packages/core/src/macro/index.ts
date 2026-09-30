@@ -1,19 +1,48 @@
-/** Compile-time macro contracts shared by every framework entrypoint. */
+/**
+ * Shared types for the framework-specific `style` macros.
+ * Import `style` from a framework entrypoint such as `stillwind/react`.
+ * Declaration values and completed style props can be stored and passed between
+ * modules. Projection calls and ref variants must be consumed directly inside
+ * `style()` at the positions described by their methods.
+ *
+ * @packageDocumentation
+ */
+
+/**
+ * Attribute names accepted by `style()` objects. Attribute values remain props.
+ */
 export type StyleAttributeName = `aria-${string}` | `data-${string}`;
 
-/** Augmented by the generated `src/stillwind.generated.d.ts` file. */
+/**
+ * Internal use only. Generated vocabulary declarations add utility names as keys
+ * in a module augmentation of `stillwind/macro`.
+ * @internal
+ */
 export interface StillwindUtilityVocabulary {}
+
+/**
+ * Internal use only. Generated vocabulary declarations add variant names as keys
+ * in a module augmentation of `stillwind/macro`.
+ * @internal
+ */
 export interface StillwindVariantVocabulary {}
 
 type VocabularyUtility = Extract<keyof StillwindUtilityVocabulary, string>;
+
 type VocabularyVariant = Extract<keyof StillwindVariantVocabulary, string>;
+
 type UtilityWithVariant<Utility extends string, Variant extends string> = [Utility] extends [never]
   ? string
   : [Variant] extends [never]
     ? Utility
     : Utility | `${Variant}:${string}`;
-/** Utility names and variant prefixes; the compiler validates the full token.
- * Avoid materializing every utility/variant pair in large generated vocabularies.
+
+/**
+ * One utility token with optional variant prefixes from the generated vocabulary.
+ * Without a utility vocabulary this type accepts any string. With a variant
+ * vocabulary it checks the first prefix. The compiler validates the whole token.
+ * This describes ordinary string data. It does not make dynamically constructed
+ * utility strings valid inputs to `style()`.
  */
 export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyVariant>;
 
@@ -22,9 +51,19 @@ export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyV
 // TypeScript's union-complexity limit in real themes.
 type UtilityString = string;
 
+/**
+ * A static variant prefix used as an object key in `style()`, including its final
+ * `:`. Nested keys compose from outermost to innermost. Raw selector keys must
+ * use arbitrary-variant syntax, such as `[&:hover]:`.
+ */
 export type StyleVariant = `${string}:`;
 
-/** Values accepted by the explicit `{ class: … }` external-class entry. */
+/**
+ * Ordinary values for the external-class entry `{ class: value }` in `style()`.
+ * Strings, numbers, and bigints become class text. Arrays are flattened, and object keys
+ * are included when their values are truthy. Booleans, null, and undefined add
+ * no class text. These values may be stored and passed to other functions.
+ */
 export type StillwindClassValue =
   | string
   | number
@@ -40,22 +79,46 @@ declare const refIdentity: unique symbol;
 declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
 
+/**
+ * Materialized framework props returned by a completed `style()` call.
+ * Store, export, pass, or return this value, spread it onto an element, or pass it
+ * to another `style()` call to compose styles. Directly nesting `style()` calls
+ * is rejected. Store the completed result before composing it.
+ * `Props` describes the framework's attributes and `Id` tracks compiler identity.
+ */
 export type StyleResult<Id extends string = string, Props = object> = Props & {
-  /** Checker-only declaration identity; macro lowering never emits this attribute. */
+  /**
+   * Internal use only. The checker tracks identity through this field. Compiled
+   * props contain no such attribute.
+   * @internal
+   */
   readonly "data-__stillwindStyleIdentity": Id;
 };
 
+/**
+ * Internal use only. The compiler inserts this identity argument in source used
+ * by the TypeScript checker. Application code must not construct or pass it.
+ * @internal
+ */
 export type StillwindDeclarationIdentity<Id extends string> = {
   readonly __stillwindDeclarationIdentity: Id;
 };
 
 /**
- * A ref's CSS projection, which must appear directly in a supported style input.
- * It cannot be stored for reuse and does not attach the receiver's marker.
+ * Input syntax returned by `asAnchor`, `asContainer`, `positionAnchor`, or
+ * `style.anchorScope`. Use the call directly in `style()` as a rule input,
+ * including an array, conditional branch, or variant value at that position.
+ * It has no independently materialized value and cannot be stored, exported,
+ * passed, or returned for later use. It does not attach a ref marker.
  */
 export type StyleRefProjection<RefId extends string = string, BoundaryId extends string = never> = {
+  /** @internal */
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
+  /** @internal */
+  readonly [refIdentity]: {
+    readonly ref: RefId;
+    readonly boundary: BoundaryId;
+  };
 };
 
 /**
@@ -63,8 +126,16 @@ export type StyleRefProjection<RefId extends string = string, BoundaryId extends
  * For a ref that can resolve to several identities, the scope includes all of them,
  * regardless of which one is selected at runtime. Duplicate identities and empty
  * arrays produce lint findings.
+ * Write the keyword or array directly in `asAnchor()` or `style.anchorScope()`.
+ * A stored scope value does not satisfy the compiler's literal syntax contract.
  */
 export type AnchorScope = "all" | "none" | readonly StyleRef<string, string>[];
+
+/**
+ * CSS-wide keywords accepted as literal `container-type` values by `asContainer`.
+ * Write the keyword directly as a string literal in the macro call.
+ * A stored string does not satisfy that syntax contract.
+ */
 export type CssWideKeyword =
   | "initial"
   | "inherit"
@@ -72,7 +143,12 @@ export type CssWideKeyword =
   | "revert"
   | "revert-layer"
   | "revert-rule";
-/** Literal values accepted by `asContainer` for container-type, including CSS-wide keywords. */
+
+/**
+ * Literal `container-type` values accepted by `asContainer`.
+ * A size mode may combine with `scroll-state` in either listed order. Write the
+ * string literal directly in the call. A stored string is rejected.
+ */
 export type ContainerType =
   | CssWideKeyword
   | "normal"
@@ -88,93 +164,287 @@ export type ContainerType =
  * A DOM identity attached by passing the ref itself to `style()`.
  * `asAnchor` and `asContainer` add CSS that applies only when the same element has
  * this ref's marker. A ref declaration can also serve as the boundary for other refs.
+ * The declaration value may be stored, exported, passed, returned, and selected
+ * conditionally. Its projection and variant calls must appear directly inside
+ * `style()` and cannot be kept as separate values. `RefId` and `BoundaryId` carry
+ * compiler identity. Application code should let the checker infer them.
  */
 export type StyleRef<RefId extends string = string, BoundaryId extends string = never> = {
-  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
+  /** @internal */
+  readonly [refIdentity]: {
+    readonly ref: RefId;
+    readonly boundary: BoundaryId;
+  };
+
   /**
-   * Adds this ref's anchor-name. Omitting `scope` emits no anchor-scope.
+   * Supplies this ref's anchor-name and optional anchor-scope.
    * If `scope` is an array, this ref is included only when listed in that array.
    * Use the call directly in a style input and attach the ref to the same element.
+   * The returned projection cannot be stored or passed for later use.
+   *
+   * @param scope - A literal `"all"`, `"none"`, or array of refs. Empty arrays and
+   * duplicate identities produce lint findings. An empty array or omitted argument
+   * emits no scope declaration.
+   * @returns Rule input that adds this ref's anchor-name when consumed by `style()`.
    */
   asAnchor(scope?: AnchorScope): StyleRefProjection<RefId, BoundaryId>;
+
   /**
    * Adds this ref's container-name and, if provided, the literal container-type.
    * Omitting `type` emits no container-type, leaving the CSS cascade to determine it.
    * Use the call directly in a style input and attach the ref to the same element.
+   * The returned projection cannot be stored or passed for later use.
+   *
+   * @param type - An optional string literal from {@link ContainerType}.
+   * @returns Rule input that adds this ref's container-name and optional container-type.
    */
   asContainer(type?: ContainerType): StyleRefProjection<RefId, BoundaryId>;
-  /** Adds position-anchor to the styled element. Use this call directly as a style input. */
+
+  /**
+   * Refers to this ref's generated anchor-name from the styled element.
+   * Supply an anchor provider with `asAnchor()` on an element carrying this ref.
+   * Use the call directly as a rule input in `style()`. The returned projection
+   * cannot be stored or passed for later use.
+   *
+   * @returns Rule input that adds position-anchor to the styled element.
+   */
   positionAnchor(): StyleRefProjection<RefId, BoundaryId>;
-  /** Creates a named-container query from literal CSS for a variant key or template substitution. */
+
+  /**
+   * Selects this ref's named container without a query condition.
+   * Supply its container-name with `asContainer()` on an element carrying this ref.
+   * Use the call directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`.
+   *
+   * @returns Variant syntax that emits `@container <name>` without parentheses.
+   * The result cannot be stored or passed as an independent value.
+   */
+  at(): StyleRefVariant<RefId, BoundaryId>;
+
+  /**
+   * Applies a literal CSS query to this ref's named container.
+   * Supply its container-name with `asContainer()` on an element carrying this ref.
+   * Use the call directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`.
+   *
+   * @param query - A string literal containing the CSS condition without its outer
+   * parentheses. Empty text emits only the container name.
+   * @returns Variant syntax for the named container query. The result cannot be
+   * stored or passed as an independent value.
+   */
   at(query: string): StyleRefVariant<RefId, BoundaryId>;
+
+  /**
+   * Applies a static tagged query to this ref's named container.
+   * Supply its container-name with `asContainer()` on an element carrying this ref.
+   * Use the tag directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`.
+   *
+   * @param strings - Text from a tag such as ``ref.at`width >= 40rem` ``.
+   * Interpolations are rejected. Empty text emits only the container name.
+   * @returns Variant syntax for the named container query. The result cannot be
+   * stored or passed as an independent value.
+   */
   at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+
+  /**
+   * Tests a static variant sequence on the referenced element.
+   * Use the tag directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`. Variants outside the
+   * tag apply to the styled target.
+   *
+   * @param strings - Text from a tag such as ``ref`hover:active` ``. Its final `:`
+   * is optional. Interpolations are rejected. Empty text tests ref presence.
+   * @returns Ref variant syntax. The result cannot be stored or passed as an
+   * independent value.
+   */
   (strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+
+  /**
+   * Tests ref presence without a state condition. An unbounded ref must be an
+   * ancestor of the target. A bounded ref and the target must be within its boundary.
+   * Use the call directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`.
+   *
+   * @returns Ref variant syntax. The result cannot be stored or passed as an
+   * independent value.
+   */
   (): StyleRefVariant<RefId, BoundaryId>;
+
+  /**
+   * Tests a literal variant sequence on the referenced element.
+   * Use the call directly as a computed variant key or a complete variant segment
+   * followed by `:` in a utility template inside `style()`. Variants outside the
+   * call apply to the styled target.
+   *
+   * @param variants - A string literal such as `"hover:active"`, with an optional
+   * final `:`. Empty text tests ref presence.
+   * @returns Ref variant syntax. The result cannot be stored or passed as an
+   * independent value.
+   */
   (variants: string): StyleRefVariant<RefId, BoundaryId>;
 };
 
 /**
- * A ref selector or query used as a computed variant key or a substitution in a
- * utility template. Although its type extends string, it cannot be used as an
- * independent runtime value.
+ * Syntax for a ref selector or named container query inside `style()`.
+ * Write its call or tag directly as a computed variant key or a complete variant
+ * segment followed by `:` in a utility template. It has no independently
+ * materialized value and cannot be stored, exported, passed, or returned for
+ * later use, even though its type extends string.
  */
 export type StyleRefVariant<
   RefId extends string = string,
   BoundaryId extends string = never,
 > = string & {
+  /** @internal */
   readonly [refProjection]: true;
-  readonly [refIdentity]: { readonly ref: RefId; readonly boundary: BoundaryId };
+  /** @internal */
+  readonly [refIdentity]: {
+    readonly ref: RefId;
+    readonly boundary: BoundaryId;
+  };
 };
 
-/** Must appear directly in a style input. It cannot be stored for reuse as a value. */
+/**
+ * Animation use syntax returned by calling a keyframes declaration with options.
+ * Write the call directly as a rule input in `style()`, including an array,
+ * conditional branch, or variant value at that position. The result has no
+ * independently materialized value and cannot be stored or passed for later use.
+ */
 export type StyleKeyframesUse<Id extends string = string> = {
+  /** @internal */
   readonly [refProjection]: true;
+  /** @internal */
   readonly [keyframesIdentity]: Id;
 };
 
+/**
+ * A reusable animation declaration created by `style.keyframes()`.
+ * Store, export, pass, return, or conditionally select the declaration value.
+ * Call it with literal animation options directly inside `style()` to apply it.
+ * `Id` carries compiler identity and should be inferred by the checker.
+ */
 export type StyleKeyframes<Id extends string = string> = {
-  (options: string): StyleKeyframesUse<Id>;
+  /** @internal */
   readonly [keyframesIdentity]: Id;
+
+  /**
+   * Applies this animation with literal animation-option utilities.
+   * Use the call directly as a rule input in `style()`. The resulting animation
+   * use cannot be stored or passed for later use.
+   *
+   * @param options - A string literal of options such as
+   * `"duration-normal ease-standard both"`.
+   * @returns Rule input that supplies animation-name and the requested options.
+   */
+  (options: string): StyleKeyframesUse<Id>;
 };
 
-/** One frames object: `from`, `to`, or percentage keys, each a utility string or a conditional body. */
+/**
+ * Static frames in a keyframes definition or a conditional replacement body.
+ * Write the object directly in `style.keyframes()`. A stored definition object
+ * is rejected. Conditional variants must be media or supports conditions.
+ */
 export interface StyleKeyframesFrames {
+  /**
+   * `from`, `to`, or comma-separated unsigned integer percentage keys accept literal utility
+   * strings without utility variants. Keys ending in `:` accept complete replacement
+   * frame objects. Replacement bodies do not inherit the enclosing frames.
+   */
   readonly [frameOrVariant: string]: string | StyleKeyframesFrames;
 }
 
-/** A keyframes declaration: one frames object and the optional label its generated name spells out. */
-export type StyleKeyframesDefinition = { readonly label?: string } & StyleKeyframesFrames;
+/**
+ * A static object accepted directly by `style.keyframes()`, with frames and optional
+ * conditional replacements. Each body must contain frames or replacement branches.
+ * Store and transport the resulting declaration rather than this definition object.
+ */
+export type StyleKeyframesDefinition = {
+  /**
+   * Optional string literal included in the generated animation name.
+   */
+  readonly label?: string;
+} & StyleKeyframesFrames;
 
-/** Must appear directly in a style input. It cannot be stored for reuse as a value. */
+/**
+ * Participant naming syntax returned by `transition.for()`.
+ * Write the call directly as a rule input in `style()`, including an array,
+ * conditional branch, or variant value at that position. The result has no
+ * independently materialized value and cannot be stored or passed for later use.
+ */
 export type StyleViewTransitionUse<Id extends string = string> = {
+  /** @internal */
   readonly [refProjection]: true;
+  /** @internal */
   readonly [viewTransitionIdentity]: Id;
 };
 
-/** A declared view transition: participants share its class, and only `.for` names them. */
+/**
+ * A reusable view transition declaration created by `style.viewTransition()`.
+ * Store, export, pass, return, or conditionally select the declaration value.
+ * Passing it to `style()` adds its transition class. Calling `.for()` also names the
+ * participant. Calls to `.for()` must be consumed directly inside `style()`.
+ * `Id` carries compiler identity and should be inferred by the checker.
+ */
 export type StyleViewTransition<Id extends string = string> = {
+  /** @internal */
   readonly [refProjection]: true;
+  /** @internal */
   readonly [viewTransitionIdentity]: Id;
+
   /**
-   * Names participants using a string or number key, which defaults to the empty string.
-   * The key must obey the macro purity contract. Use this call directly in a supported
+   * Names participants by combining this declaration's class token with a key.
+   * The key must obey the purity contract of {@link StyleMacro}. Use this call directly in a supported
    * style input. A literal key produces a name in the stylesheet. A dynamic key writes
    * view-transition-name to inline style unless CSS variants need a custom property
    * to control when the name applies.
+   * The returned use cannot be stored or passed for later use. Simultaneously
+   * rendered participants need distinct, application-stable keys.
+   *
+   * @param key - A string or number that forms the pairing name with the
+   * declaration's class token. Omitting it uses the empty string.
+   * @returns Rule input that supplies view-transition-class and view-transition-name.
    */
   for(key?: string | number): StyleViewTransitionUse<Id>;
 };
 
+/**
+ * A static object accepted directly by `style.viewTransition()`.
+ * Supply at least one phase as a string literal. Phase strings may use media and
+ * supports variants. Selector and container variants are rejected.
+ * Store and transport the resulting declaration rather than this definition object.
+ */
 export type StyleViewTransitionDefinition = {
-  /** Optional label the generated class token spells out; a literal string only. */
+  /**
+   * Optional string literal included in the generated transition class token.
+   */
   label?: string;
+  /**
+   * Literal animation-option utilities for `::view-transition-group`.
+   */
   group?: string;
+  /**
+   * Literal utilities for `::view-transition-old`.
+   */
   old?: string;
+  /**
+   * Literal utilities for `::view-transition-new`.
+   */
   new?: string;
+  /**
+   * Literal utilities for `::view-transition-image-pair`.
+   */
   imagePair?: string;
 };
 
-/** Variant wrappers compose from outermost to innermost, just like utility prefixes. */
+/**
+ * Inputs allowed inside a variant wrapper in `style()`.
+ * Arrays and nested wrappers compose. False, null, and undefined contribute no
+ * rules. Projection and animation-use calls must be written directly in the
+ * wrapper. The type does not permit storing those calls for later use.
+ * Ref attachments, props composition, attributes, external classes, and inline
+ * custom properties require positions outside variant wrappers.
+ */
 export type StyleVariantValue =
   | UtilityString
   | StyleRefProjection<string, string>
@@ -187,13 +457,35 @@ export type StyleVariantValue =
   | readonly StyleVariantValue[]
   | StyleVariantObject;
 
+/**
+ * A variant wrapper written directly in `style()`.
+ * The wrapper itself is input syntax and cannot be stored for later consumption.
+ * Each key applies its conditions to every nested rule, from outermost to innermost.
+ */
 export interface StyleVariantObject {
+  /**
+   * Static variant prefixes with a final `:` wrap the associated rule inputs.
+   */
   readonly [variant: StyleVariant]: StyleVariantValue;
+  /**
+   * Direct ref-variant calls or tags provide computed keys for the associated rules.
+   */
   readonly [variant: StyleRefVariant<string, string>]: StyleVariantValue;
 }
 
-/** Inline CSS values; strings are CSS text and URL objects become url("..."). */
+/**
+ * Ordinary values for inline custom properties. These may be stored and passed
+ * between functions. Strings are CSS text, numbers have no unit, and URL objects
+ * become escaped `url("...")` values. True becomes one space, and false becomes `initial`.
+ */
 export type StyleCustomPropertyValue = URL | string | number | boolean;
+
+/**
+ * Custom-property entries for an object written directly in `style()` outside
+ * variant wrappers. Names start with `--`, and values may be dynamic pure expressions.
+ * Store individual values or completed style props for reuse. A stored input
+ * object does not replace the macro's direct object syntax.
+ */
 export type StyleCustomProperties = Readonly<Record<`--${string}`, StyleCustomPropertyValue>>;
 
 // Keep computed ref-variant objects valid when TypeScript widens their keys to string.
@@ -202,6 +494,13 @@ type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
     readonly class?: StillwindClassValue;
   };
 
+/**
+ * Inputs accepted by `style()`, including recursive arrays and conditional branches.
+ * Completed style props and declaration values can be stored and passed for reuse.
+ * Utility strings and input objects require static syntax. Projection and animation
+ * uses require direct calls, and ref variants require computed keys or utility
+ * template substitutions. This union does not make every member a portable value.
+ */
 export type StyleArgument =
   | StyleResult<string, object>
   | UtilityString
@@ -220,8 +519,9 @@ export type StyleArgument =
 /**
  * Compile-time UI declarations with pure value expressions.
  * Only completed style calls and declaration macros produce reusable values.
- * Projections require their supported style input positions; ref variants require
+ * Projections require their supported style input positions. Ref variants require
  * computed variant keys or utility template substitutions.
+ *
  * Each argument expression must return an equivalent value for the same inputs and
  * must not mutate shared data or perform observable effects, including through
  * callees, getters, or value conversion. Calls need no PURE annotation. Functions
@@ -230,8 +530,8 @@ export type StyleArgument =
  * Evaluation order and count are not API guarantees: unused expressions may be
  * omitted and class/value conversions may be combined. Do not rely on exceptions
  * from unused expressions. Read time/randomness and perform I/O, state updates,
- * Hooks, await/yield, imports, JSX, and class initialization outside the macro;
- * pass their resulting values. Reactive reads stay in the current computation
+ * Hooks, await/yield, imports, JSX, and class initialization outside the macro.
+ * Pass their resulting values. Reactive reads stay in the current computation
  * scope and must not be used only to establish a subscription.
  *
  * Names, utility definitions, animation options, and selector/query arguments are
@@ -240,50 +540,186 @@ export type StyleArgument =
  * checker metadata.
  */
 export type StyleMacro<Props = object> = {
+  /**
+   * Internal use only. The checker supplies the final identity argument to track
+   * the completed props value. Application code must use the overload without it.
+   * @internal
+   */
   <Id extends string>(
     ...inputs: [...StyleArgument[], StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, Props>;
+
+  /**
+   * Compiles static utility branches and combines them with attributes, inline
+   * custom properties, external classes, and completed style props.
+   * Value expressions must obey the purity contract of {@link StyleMacro}. Projection and
+   * animation-use calls must appear directly at supported input positions.
+   * Ref variants require computed keys or utility template substitutions.
+   *
+   * @param inputs - Rule and prop inputs in composition order. Later prop values
+   * replace earlier values, and classes are concatenated. Utility construction must
+   * be static, and invalid utilities or unsupported syntax cause compilation errors.
+   * @returns Framework props that may be stored, exported, passed, returned, or
+   * spread onto an element. Store this result before passing it to another
+   * `style()` call. Direct nested calls are rejected. CSS is emitted at build time.
+   */
   (...inputs: readonly StyleArgument[]): StyleResult<string, Props>;
+
+  /**
+   * Declares an unlabeled DOM identity in a binding initializer.
+   * Passing the declaration to `style()` attaches its marker to that element.
+   *
+   * @returns A reusable ref declaration that may be stored, exported, passed,
+   * returned, or conditionally selected. Its identity belongs to the declaration
+   * site. Repeated evaluation does not allocate new CSS identities.
+   */
   ref(): StyleRef;
+
+  /**
+   * Declares a labeled DOM identity in a binding initializer.
+   * Passing the declaration to `style()` attaches its marker to that element.
+   *
+   * @param label - A string literal used in generated names. Empty text omits the
+   * label. Labels do not determine declaration identity.
+   * @returns A reusable ref declaration that may be stored, exported, passed,
+   * returned, or conditionally selected. Repeated evaluation keeps its identity.
+   */
   ref(label: string): StyleRef;
-  /** The compiler requires the boundary to resolve to exactly one ref identity. */
+
+  /**
+   * Declares an unlabeled ref whose selectors use a structural boundary.
+   * Write the declaration in a binding initializer. Attach the boundary to a
+   * strict ancestor of the ref's element. Selector targets must be within it.
+   *
+   * @param boundary - A reusable ref value that the compiler can resolve to
+   * exactly one declaration identity. Several possible boundaries are rejected.
+   * @returns A reusable bounded ref declaration that may be stored, exported,
+   * passed, returned, or conditionally selected.
+   */
   ref(boundary: StyleRef<string, string>): StyleRef;
-  /** The compiler requires the boundary to resolve to exactly one ref identity. */
+
+  /**
+   * Declares a labeled ref whose selectors use a structural boundary.
+   * Write the declaration in a binding initializer. Attach the boundary to a
+   * strict ancestor of the ref's element. Selector targets must be within it.
+   *
+   * @param boundary - A reusable ref value that the compiler can resolve to
+   * exactly one declaration identity. Several possible boundaries are rejected.
+   * @param label - A string literal used in generated names. Empty text omits the
+   * label. Labels do not determine declaration identity.
+   * @returns A reusable bounded ref declaration that may be stored, exported,
+   * passed, returned, or conditionally selected.
+   */
   ref(boundary: StyleRef<string, string>, label: string): StyleRef;
+
+  /**
+   * Internal use only. The checker supplies identity for an unlabeled ref declaration.
+   * Application code must use `ref()` without this argument.
+   * @internal
+   */
   ref<const Id extends string>(identity: StillwindDeclarationIdentity<Id>): StyleRef<Id>;
+
+  /**
+   * Internal use only. The checker supplies identity for a labeled ref declaration.
+   * Application code must use `ref(label)` without the identity argument.
+   * @internal
+   */
   ref<const Id extends string>(
     label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
+
+  /**
+   * Internal use only. The checker supplies identity for an unlabeled bounded ref.
+   * Application code must use `ref(boundary)` without the identity argument.
+   * @internal
+   */
   ref<const BoundaryId extends string, const Id extends string>(
     boundary: StyleRef<BoundaryId, string>,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, BoundaryId>;
+
+  /**
+   * Internal use only. The checker supplies identity for a labeled bounded ref.
+   * Application code must use `ref(boundary, label)` without the identity argument.
+   * @internal
+   */
   ref<const BoundaryId extends string, const Id extends string>(
     boundary: StyleRef<BoundaryId, string>,
     label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id, BoundaryId>;
+
+  /**
+   * Declares a local animation in a binding initializer and assigns its CSS name.
+   * Apply it by calling the returned declaration with literal options directly
+   * inside `style()`. The animation use cannot be stored for later consumption.
+   *
+   * @param definition - A direct static object with frame utility strings, optional
+   * media/supports replacement bodies, and an optional literal label. Invalid frame
+   * syntax or utilities cause compilation errors.
+   * @returns A reusable keyframes declaration that may be stored, exported, passed,
+   * returned, or conditionally selected. Its identity belongs to the declaration site.
+   */
   keyframes(definition: StyleKeyframesDefinition): StyleKeyframes;
+
+  /**
+   * Internal use only. The checker supplies identity for a keyframes declaration.
+   * Application code must use `keyframes(definition)` without the identity argument.
+   * @internal
+   */
   keyframes<const Id extends string>(
     definition: StyleKeyframesDefinition,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleKeyframes<Id>;
+
+  /**
+   * Declares view transition phases in a binding initializer and assigns their class.
+   * Pass the declaration to `style()` to mark participants, or call `.for(key)`
+   * directly inside `style()` to also name them. The naming use cannot be stored.
+   *
+   * @param definition - A direct static object with at least one literal phase
+   * string and an optional literal label. Invalid phases, utilities, or condition
+   * variants cause compilation errors.
+   * @returns A reusable transition declaration that may be stored, exported, passed,
+   * returned, or conditionally selected. Its identity belongs to the declaration site.
+   */
   viewTransition(definition: StyleViewTransitionDefinition): StyleViewTransition;
+
+  /**
+   * Internal use only. The checker supplies identity for a view transition declaration.
+   * Application code must use `viewTransition(definition)` without the identity argument.
+   * @internal
+   */
   viewTransition<const Id extends string>(
     definition: StyleViewTransitionDefinition,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleViewTransition<Id>;
+
   /**
    * Adds anchor-scope without requiring a ref marker on the element.
    * Use this call directly in a style input. The argument follows the same literal
    * keyword or array rules as `ref.asAnchor`. An empty array emits no declaration.
-   * This call does not attach any ref marker.
+   * The returned projection cannot be stored, exported, passed, or returned for
+   * later consumption.
+   *
+   * @param scope - A literal `"all"`, `"none"`, or array of refs. All possible
+   * identities of each entry are included. Empty arrays and duplicate identities
+   * produce lint findings.
+   * @returns Rule input that supplies anchor-scope when consumed by `style()`.
    */
   anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
 };
 
-/** Creates a macro entrypoint that reports missing compiler integration if executed. */
+/**
+ * Internal use only. Builds the placeholder exported by each framework entrypoint.
+ * The compiler replaces supported macro calls before the application runs.
+ *
+ * @returns A fresh callable object with declaration and scope methods. Calling
+ * the object or any of these methods throws an Error about missing integration.
+ * Creating the placeholder itself does not execute any macro or generate CSS.
+ * @internal
+ */
 export function createStyleMacro<Props>(): StyleMacro<Props> {
   return Object.assign(
     (): never => {

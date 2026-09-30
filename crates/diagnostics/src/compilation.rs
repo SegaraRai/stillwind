@@ -189,7 +189,7 @@ pub enum CompileErrorKind {
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
     /// A container query projection lacks its literal query and utility arguments.
-    #[error("ref.at() requires one nonempty literal query or a static template")]
+    #[error("ref.at() accepts no arguments, one literal query, or a static template")]
     InvalidContainerQuery,
     /// A position-anchor use supplies arguments to a method that accepts none.
     #[error("ref.positionAnchor() does not accept arguments")]

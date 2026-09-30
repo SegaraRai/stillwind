@@ -88,7 +88,7 @@ The conceptual React output is:
 ```tsx
 {
   className: stillwindClsx("sw_a1", loading && "sw_b2"),
-  "aria-busy": loading || undefined,
+  "aria-busy": loading,
 }
 ```
 
@@ -278,19 +278,45 @@ Refs also own anchor positioning and container-query projections:
 
 ```tsx
 const popover = style.ref();
+const card = style.ref();
 
-<div {...style(popover.anchorScope, popover.container("inline-size"), "relative")}>
-  <button {...style(popover.anchor, "inline-flex")}>More</button>
+<div {...style(style.anchorScope([popover]), card, card.asContainer("inline-size"), "relative")}>
+  <button {...style(popover, popover.asAnchor(), "inline-flex")}>More</button>
   <div {...style(popover.positionAnchor(), "absolute position-area-block-end")} />
-  <div {...style(popover.at("width >= 40rem", "grid-cols-2"))} />
+  <div {...style({ [card.at("width >= 40rem")]: "grid-cols-2" })} />
 </div>;
 ```
 
-`anchorScope` is a projection, not a boundary: it emits CSS `anchor-scope`, while
-naming a ref in another ref's declaration creates the structural boundary that ref
-selectors are read through. The linter also checks missing anchor/container
-providers; it does not infer relationships across component boundaries, portals, or
-arbitrary `children`.
+Attach the ref itself to the same element that uses `asAnchor()` or
+`asContainer()`. These projections add the generated `anchor-name` or
+`container-name`; they do not attach the ref's marker. `asAnchor(scope?)` can
+also add `anchor-scope`. `asContainer(type?)` adds `container-type` only when a
+type is supplied.
+
+`style.anchorScope(scope)` emits CSS `anchor-scope` on its element. Its argument
+is `"all"`, `"none"`, or a literal array of refs. Naming a ref in another ref's
+declaration creates the structural boundary used by ref selectors.
+
+`at(query?)` returns a variant for a computed key or a utility template
+substitution. A string literal and a static tag accept the same query:
+
+```tsx
+style({ [card.at`width >= 40rem`]: "grid-cols-2" });
+style(`${card.at("width >= 40rem")}:grid-cols-2`);
+```
+
+Omitting the query or providing empty text emits `@container <container-name>`
+without a query condition or parentheses. These forms are equivalent:
+
+```tsx
+style({ [card.at()]: "grid" });
+style({ [card.at("")]: "grid" });
+style({ [card.at``]: "grid" });
+```
+
+The linter checks missing ref attachments and anchor/container providers. It
+does not infer relationships across component boundaries, portals, or arbitrary
+`children`.
 
 ## Local animation, written with utilities
 

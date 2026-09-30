@@ -288,6 +288,7 @@ pub enum StyleVariant {
         /// resolution.
         refs: Vec<RefDefinition>,
         /// Literal CSS query condition, without the generated container name.
+        /// Empty text emits only the container name.
         query: Spanned<String>,
     },
     /// Correlated ref and boundary alternatives, written as `ref()`, `ref("variant:")`,

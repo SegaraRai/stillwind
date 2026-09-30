@@ -267,6 +267,58 @@ const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
 }
 
 #[test]
+fn empty_ref_queries_emit_only_the_container_name() {
+    for query in ["card.at()", "card.at('')", "card.at``"] {
+        for input in [
+            format!("{{[{query}]: {{'hover:': 'grid-cols-2'}}}}"),
+            format!("`${{{query}}}:hover:grid-cols-2`"),
+        ] {
+            let source = SourceFile::new(
+                FileId(1),
+                None,
+                None,
+                format!(
+                    "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card, card.asContainer('size')); const x = style({input});"
+                ),
+            )
+            .unwrap();
+            let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+            let result = Compiler::compile_source(
+                &OxcSourceAnalyzer,
+                &source,
+                &ModuleId::from("test.tsx"),
+                ScriptLanguage::Tsx,
+                ScriptModuleKind::Unambiguous,
+                &theme,
+                &CssSourceName::from("stillwind.css"),
+                &CompilerOptions::default(),
+            );
+            assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+            assert!(result.lint_findings.is_empty(), "{input}: {result:#?}");
+            let name = result
+                .css
+                .split("container-name:")
+                .nth(1)
+                .and_then(|rest| rest.split(';').next())
+                .expect("container declaration");
+            assert!(
+                result.css.contains(&format!("@container {name}{{")),
+                "{input}: {}",
+                result.css
+            );
+            assert!(result.css.contains(":hover"), "{input}: {}", result.css);
+            assert!(
+                result
+                    .css
+                    .contains_css("grid-template-columns:repeat(2,minmax(0,1fr));"),
+                "{input}: {}",
+                result.css
+            );
+        }
+    }
+}
+
+#[test]
 fn container_query_variants_support_calls_tags_and_nested_wrappers() {
     for input in [
         "{[card.at('width >= 40rem')]: {'hover:': 'grid-cols-2'}}",

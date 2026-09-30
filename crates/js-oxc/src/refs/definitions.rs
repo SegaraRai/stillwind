@@ -141,13 +141,6 @@ impl<'a> MacroExtractor<'a> {
                 ));
                 return None;
             };
-            if prefix.value.is_empty() {
-                self.diagnostics.push(CompileError::new(
-                    CompileErrorKind::InvalidContainerQuery,
-                    prefix.span,
-                ));
-                return None;
-            }
             for definition in &refs {
                 self.record_ref_use(
                     definition,

@@ -214,8 +214,13 @@ impl StyleVariantPlan {
         let conditions = refs
             .iter()
             .map(|definition| {
-                ref_container_name(context, definition)
-                    .map(|name| format!("{} ({})", name.as_str(), query.value))
+                ref_container_name(context, definition).map(|name| {
+                    if query.value.is_empty() {
+                        name.as_str().to_owned()
+                    } else {
+                        format!("{} ({})", name.as_str(), query.value)
+                    }
+                })
             })
             .collect::<Result<Vec<_>, _>>();
         let conditions = match conditions {

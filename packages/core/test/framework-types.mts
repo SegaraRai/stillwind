@@ -108,6 +108,8 @@ function explicitRefUses(flag: boolean) {
   react(a, a.asContainer("scroll-state size"), a.asAnchor("all"));
   react(a, a.asContainer("inline-size scroll-state"));
   react(a, a.asContainer("revert-rule"));
+  react({ [a.at()]: "block", [a.at("")]: "flex", [a.at``]: "grid" });
+  react(`${selected.at()}:hover:block`);
   // @ts-expect-error mutually exclusive size modes
   a.asContainer("size inline-size");
   // @ts-expect-error normal cannot combine with scroll-state
