@@ -19,7 +19,7 @@ use serde_json::json;
 
 use stillwind_ir::{
     AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, ScriptModuleKind,
-    SourceAnalyzer, SourceInput,
+    SourceAnalyzer, SourceFormat, SourceInput,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile};
@@ -80,6 +80,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             language: ScriptLanguage::Tsx,
             module_kind: ScriptModuleKind::Unambiguous,
             framework: Some(input.framework),
+            source_format: match input.framework {
+                AdapterKind::Astro => SourceFormat::Astro,
+                AdapterKind::Svelte => SourceFormat::Svelte,
+                AdapterKind::Vue => SourceFormat::Vue,
+                _ => SourceFormat::Script,
+            },
             upstream_map: None,
             stylesheet_imports: Vec::new(),
             module_css_import: None,

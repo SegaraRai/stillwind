@@ -12,7 +12,13 @@ export interface CheckerBuffer {
   region?: { start: number; end: number };
 }
 
-/** Supplies framework declarations and isolates client script scopes for checking. */
+/**
+ * Returns checker declarations selected by source_format for projected input.
+ * Astro client scripts become independent buffers while the main buffer keeps their
+ * line positions. The caller supplies projection maps and original script ranges;
+ * source is not mutated. Plain input requires no extra declarations or buffers.
+ * Throws if declaration packages cannot be resolved or Astro script mappings are invalid.
+ */
 export function checkerEnvironment(source: ProjectSource): {
   checker_buffers?: CheckerBuffer[];
   checker_types: string[];
@@ -22,7 +28,7 @@ export function checkerEnvironment(source: ProjectSource): {
   }
   const require = createRequire(import.meta.url);
   const userRequire = createRequire(path.resolve(source.checker_file_name));
-  if (source.framework === "Svelte") {
+  if (source.source_format === "svelte") {
     return {
       checker_types: [
         require.resolve("svelte2tsx/svelte-shims-v4.d.ts"),
@@ -30,7 +36,7 @@ export function checkerEnvironment(source: ProjectSource): {
       ],
     };
   }
-  if (source.framework !== "Astro") {
+  if (source.source_format !== "astro") {
     return { checker_types: [] };
   }
   let main = source.source;

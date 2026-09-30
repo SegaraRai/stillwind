@@ -1,4 +1,5 @@
-//! Public compiler contracts for fragment layouts, macro contracts, and source attribution.
+//! Public compiler contracts for fragment layouts, macro contracts, and source
+//! attribution.
 //!
 //! Cases compile authored calls through the frontend, then inspect output, helper
 //! bindings, typed findings, and independently converted source coordinates.
@@ -11,7 +12,8 @@ use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 use super::Compiler;
 
-/// Compiles a call body under one framework import and an empty theme.
+/// Compiles a reusable TypeScript call body under one framework import and an empty
+/// theme.
 ///
 /// # Panics
 ///
@@ -28,8 +30,8 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
+        &ModuleId::from("test.ts"),
+        ScriptLanguage::Ts,
         ScriptModuleKind::Unambiguous,
         &css,
         &CssSourceName::from("stillwind.css"),
@@ -39,7 +41,8 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
     (source, result)
 }
 
-/// Checks the same custom-property call against object-style and string-style framework outputs.
+/// Checks the same custom-property call against object-style and string-style framework
+/// outputs.
 #[test]
 fn custom_properties_materialize_directly_for_every_framework() {
     for fw in ["react", "preact", "solid", "vue", "svelte", "astro"] {
@@ -115,7 +118,8 @@ fn unimpeded_and_duplicate_records_do_not_report_order_findings() {
     }
 }
 
-/// Checks symbolic child records under a guard that must remain outside final props materialization.
+/// Checks symbolic child records under a guard that must remain outside final props
+/// materialization.
 #[test]
 fn conditional_children_fold_without_materializing_the_parent() {
     let (_, result) = compile(
@@ -162,7 +166,8 @@ fn css_and_class_identity_do_not_depend_on_property_folding() {
     assert_eq!(plain.classes[0].guard_path, custom.classes[0].guard_path);
 }
 
-/// Reserves the default helper name to verify that deferred rendering respects binding collisions.
+/// Reserves the default helper name to verify that deferred rendering respects binding
+/// collisions.
 #[test]
 fn deferred_helpers_remain_binding_safe() {
     let (source, result) = compile(
@@ -199,7 +204,8 @@ fn empty_branches_keep_only_guards_with_contributions() {
     }
 }
 
-/// Exercises identifiers, property reads, and ordinary calls across interleaved channels in every framework.
+/// Exercises identifiers, property reads, and ordinary calls across interleaved
+/// channels in every framework.
 #[test]
 fn pure_records_can_reorder_evaluations_but_keep_runtime_key_order() {
     for fw in ["react", "preact", "solid", "vue", "svelte", "astro"] {
@@ -258,7 +264,8 @@ fn empty_conditions_are_removed_recursively_under_the_contract() {
     }
 }
 
-/// Compares UTF-16 slices independently for reordered duplicates, guards, bases, and Unicode values.
+/// Compares UTF-16 slices independently for reordered duplicates, guards, bases, and
+/// Unicode values.
 #[test]
 fn source_mappings_follow_reordered_occurrences_and_conditional_tests() {
     for fw in ["react", "preact", "solid", "vue", "svelte", "astro"] {
@@ -319,7 +326,8 @@ fn source_mappings_follow_reordered_occurrences_and_conditional_tests() {
     }
 }
 
-/// Checks authored grouping in a custom-property value remains part of its mapped expression.
+/// Checks authored grouping in a custom-property value remains part of its mapped
+/// expression.
 #[test]
 fn custom_values_keep_authored_parentheses_and_source_mapping() {
     for expression in [

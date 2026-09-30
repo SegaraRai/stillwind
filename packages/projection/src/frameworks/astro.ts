@@ -50,7 +50,7 @@ export async function convert(source: string, filename: string): Promise<Convert
           script.content.length > 0,
       )
       .map((script) => ({ start: script.position.start, end: script.position.end })),
-    framework: "Astro",
+    source_format: "astro",
     language: "tsx",
     source: result.code,
     fw2js_map: sourceMapV3(result.map),

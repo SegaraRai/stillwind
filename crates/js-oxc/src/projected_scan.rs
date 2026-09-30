@@ -32,8 +32,8 @@ pub(crate) fn parse_projected(
         .projection
         .as_ref()
         .ok_or_else(|| ProjectionError::Map("missing projection".into()))?;
-    let framework = input.framework.ok_or_else(|| {
-        ProjectionError::Map("projected inputs require an explicit framework".into())
+    let framework = input.source_format.projection_adapter().ok_or_else(|| {
+        ProjectionError::Map("projected inputs require a component source format".into())
     })?;
     if projection.converter.name.is_empty()
         || projection.converter.version.is_empty()

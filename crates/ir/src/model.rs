@@ -81,6 +81,10 @@ pub struct ModuleImports {
 /// One `import` statement that mentions the framework macro.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MacroImport {
+    /// Adapter selected by the imported macro entry point.
+    pub adapter: AdapterKind,
+    /// Span of the module specifier literal, including its quotes.
+    pub source_span: Span,
     /// Span of the whole import statement in the editable source.
     pub span: Span,
     /// In source order, including specifiers that are not the macro itself.

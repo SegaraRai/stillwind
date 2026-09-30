@@ -47,7 +47,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
       });
     }
     return {
-      framework: "Vue",
+      source_format: "vue",
       language: service.extension === ".tsx" ? "tsx" : "ts",
       source: service.code.snapshot.getText(0, service.code.snapshot.getLength()),
       fw2js_map: {

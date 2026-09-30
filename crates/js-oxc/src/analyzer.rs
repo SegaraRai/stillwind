@@ -15,7 +15,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileError, CompileErrorKind, collect_lint_directives};
+use stillwind_diagnostics::{
+    CompileError, CompileErrorKind, LintFinding, LintKind, collect_lint_directives,
+};
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{
     ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, SymbolicValue, TypeFacts,
@@ -247,11 +249,29 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     }
 }
 
-/// Applies an explicitly requested framework to a parsed module.
+/// Checks macro imports against the original format and selects the output adapter.
 ///
-/// A request that contradicts the macro import is reported as `SHJS008` instead of
-/// silently overriding either side.
+/// Format mismatches append advisory findings at import literals. An explicit adapter
+/// that contradicts the macro import appends `SHJS008`; otherwise it overrides the
+/// default adapter. Component formats supply the default when no macro is imported.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
+    let allowed = input.source_format.adapters();
+    for import in &parsed.module.imports.macros {
+        if !allowed.is_empty() && !allowed.contains(&import.adapter) {
+            parsed.lint_findings.push(LintFinding::new(
+                LintKind::FrameworkImportMismatch {
+                    import: import.adapter.spec().macro_import.into(),
+                    source_format: input.source_format.description().into(),
+                    expected: allowed
+                        .iter()
+                        .map(|adapter| format!("`{}`", adapter.spec().macro_import))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                },
+                import.source_span,
+            ));
+        }
+    }
     if let Some(framework) = input.framework {
         if parsed
             .framework
@@ -264,5 +284,9 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
         } else {
             parsed.module.adapter = framework;
         }
+    } else if parsed.framework.is_none()
+        && let Some(framework) = input.source_format.projection_adapter()
+    {
+        parsed.module.adapter = framework;
     }
 }

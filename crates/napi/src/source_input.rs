@@ -7,8 +7,8 @@
 //! rejected rather than rounded.
 //!
 //! The conversion also enforces the pairing: a projected input must carry its map,
-//! converter identity, language, and framework, and a plain input must not carry
-//! projection metadata at all. This validation applies to transport conversion;
+//! converter identity, language, and component source format. A plain input must not
+//! carry projection metadata. This validation applies to transport conversion;
 //! domain records remain publicly constructible and need validation at use sites.
 
 use napi::Error;
@@ -17,7 +17,7 @@ use serde::Deserialize;
 
 use stillwind_ir::{
     AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
-    ProjectionRegion, ScriptLanguage, ScriptModuleKind, SourceInput,
+    ProjectionRegion, ScriptLanguage, ScriptModuleKind, SourceFormat, SourceInput,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{
@@ -26,6 +26,33 @@ use stillwind_source::{
 };
 
 use crate::semantic::NativeTypeFact;
+
+/// Format of the original editable source supplied by the host.
+#[napi(string_enum = "lowercase")]
+pub enum NativeSourceFormat {
+    /// Plain JavaScript or TypeScript module.
+    Script,
+    /// JSX or TSX file, including files without JSX expressions.
+    Jsx,
+    /// Astro component.
+    Astro,
+    /// Svelte component.
+    Svelte,
+    /// Vue single-file component.
+    Vue,
+}
+
+impl From<NativeSourceFormat> for SourceFormat {
+    fn from(value: NativeSourceFormat) -> Self {
+        match value {
+            NativeSourceFormat::Script => Self::Script,
+            NativeSourceFormat::Jsx => Self::Jsx,
+            NativeSourceFormat::Astro => Self::Astro,
+            NativeSourceFormat::Svelte => Self::Svelte,
+            NativeSourceFormat::Vue => Self::Vue,
+        }
+    }
+}
 
 /// Script dialect requested by the host.
 #[napi(string_enum = "lowercase")]
@@ -136,10 +163,14 @@ pub struct NativeProjectSource {
     /// Module grammar, independent of the JavaScript or TypeScript dialect.
     #[napi(js_name = "module_kind")]
     pub module_kind: NativeScriptModuleKind,
+    /// Original format. Plain inputs default from language; projected inputs require
+    /// an explicit component format independently of the adapter constraint.
+    #[napi(js_name = "source_format")]
+    pub source_format: Option<NativeSourceFormat>,
     /// Exact source name for generated stylesheet maps.
     #[napi(js_name = "source_map_source")]
     pub source_map_source: Option<String>,
-    /// Adapter to use; absent for plain JavaScript/TypeScript.
+    /// Explicit output adapter constraint; macro imports select it when absent.
     pub framework: Option<NativeFramework>,
     /// Source map from `source` back to the file it was generated from.
     pub map: Option<String>,
@@ -232,6 +263,7 @@ impl TryFrom<NativeProjectSource> for ProjectSource {
                 .collect::<napi::Result<_>>()?,
             language,
             module_kind,
+            source_format: value.source_format.map(Into::into),
             source_map_source: value.source_map_source,
             framework,
             map: value.map,
@@ -280,9 +312,11 @@ pub struct ProjectSource {
     pub language: ScriptLanguage,
     /// Module grammar supplied by the host.
     pub module_kind: ScriptModuleKind,
+    /// Original format; required for projections, otherwise defaults from language.
+    pub source_format: Option<SourceFormat>,
     /// Exact source name for generated stylesheet maps.
     pub source_map_source: Option<String>,
-    /// Adapter to use, or `None` for plain JavaScript/TypeScript.
+    /// Explicit output adapter constraint; macro imports select it when absent.
     pub framework: Option<AdapterKind>,
     /// Source map from `source` to its upstream file.
     pub map: Option<String>,
@@ -352,6 +386,9 @@ impl ProjectSource {
         let original = self.fw_code.as_ref();
         let language = self.language;
         let module_kind = self.module_kind;
+        let source_format = self
+            .source_format
+            .unwrap_or_else(|| SourceFormat::script(language));
         let code_uri = match original {
             Some(_) => None,
             None => Some(self.uri.clone()),
@@ -387,8 +424,14 @@ impl ProjectSource {
                 .converter
                 .clone()
                 .ok_or_else(|| Error::from_reason("fw_code requires converter identity"))?;
-            if self.framework.is_none() {
-                return Err(Error::from_reason("projected input requires framework"));
+            if self
+                .source_format
+                .and_then(SourceFormat::projection_adapter)
+                .is_none()
+            {
+                return Err(Error::from_reason(
+                    "projected input requires a component source_format",
+                ));
             }
             if self.map.is_some() {
                 return Err(Error::from_reason(
@@ -448,6 +491,7 @@ impl ProjectSource {
             code,
             language,
             module_kind,
+            source_format,
             framework: self.framework,
             upstream_map: if projection.is_some() {
                 self.fw_map.clone()

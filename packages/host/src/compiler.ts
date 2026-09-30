@@ -23,6 +23,7 @@ export interface CompilerHost {
     | "projection_file_name"
     | "language"
     | "module_kind"
+    | "source_format"
     | "framework"
   >;
   resolve(
@@ -41,6 +42,12 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
+function asRecord<const T extends Readonly<Record<string, any>>>(
+  record: T,
+): T extends Record<string, infer U> ? Partial<Readonly<Record<string, U>>> : never {
+  return record as any;
+}
+
 /**
  * Returns the root-relative module identity with forward slashes. Paths outside
  * root retain `..` segments; this does not validate filesystem containment.
@@ -49,28 +56,38 @@ export function compilerModuleId(root: string, id: string): string {
   return relative(root, id).replaceAll("\\", "/");
 }
 
-/** Selects parser and framework metadata from a filesystem module name. */
+/**
+ * Returns parser metadata and the original format inferred from id's extension,
+ * ignoring query and fragment suffixes. Leaves the output adapter undefined.
+ */
 export function fileSourceKind(
   id: string,
-): Pick<ProjectSource, "language" | "module_kind" | "framework"> {
+): Pick<ProjectSource, "language" | "module_kind" | "source_format" | "framework"> {
   const name = cleanModuleId(id).toLowerCase();
-  const framework: ProjectSource["framework"] = name.endsWith(".astro")
-    ? "Astro"
-    : name.endsWith(".svelte")
-      ? "Svelte"
-      : name.endsWith(".vue")
-        ? "Vue"
-        : undefined;
-  const language: ProjectSource["language"] = /\.d\.[cm]?ts$/.test(name)
+  const extension = /\.[^.]$/.exec(name)?.[0];
+  const source_format =
+    asRecord({
+      ".jsx": "jsx",
+      ".tsx": "jsx",
+      ".astro": "astro",
+      ".svelte": "svelte",
+      ".vue": "vue",
+    })[extension ?? ""] ?? "script";
+  const language = /\.d\.[cm]?ts$/.test(name)
     ? "dts"
-    : name.endsWith(".tsx")
-      ? "tsx"
-      : /\.[cm]?ts$/.test(name)
-        ? "ts"
-        : name.endsWith(".jsx")
-          ? "jsx"
-          : "js";
-  return { language, module_kind: "unambiguous", framework };
+    : (asRecord({
+        ".ts": "ts",
+        ".cts": "ts",
+        ".mts": "ts",
+        ".tsx": "tsx",
+        ".jsx": "jsx",
+      })[extension ?? ""] ?? "js");
+  return {
+    language,
+    module_kind: "unambiguous",
+    source_format,
+    framework: undefined,
+  };
 }
 
 /** Describes a filesystem module for the project compiler. */
@@ -357,5 +374,10 @@ export async function compileModule(
   if (!output?.code) {
     return undefined;
   }
-  return { ...output, hasModuleCssImport, compositionModules, compositionTopology };
+  return {
+    ...output,
+    hasModuleCssImport,
+    compositionModules,
+    compositionTopology,
+  };
 }

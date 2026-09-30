@@ -46,6 +46,7 @@ impl ModuleIr {
         }
         for import in &mut result.imports.macros {
             import.span = map(import.span)?;
+            import.source_span = map(import.source_span)?;
             for specifier in &mut import.specifiers {
                 specifier.span = map(specifier.span)?;
                 for reference in &mut specifier.references {

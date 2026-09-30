@@ -851,9 +851,14 @@ export interface NativeProjectSource {
   language: NativeScriptLanguage
   /** Module grammar, independent of the JavaScript or TypeScript dialect. */
   module_kind: NativeScriptModuleKind
+  /**
+   * Original format. Plain inputs default from language; projected inputs require
+   * an explicit component format independently of the adapter constraint.
+   */
+  source_format?: NativeSourceFormat
   /** Exact source name for generated stylesheet maps. */
   source_map_source?: string
-  /** Adapter to use; absent for plain JavaScript/TypeScript. */
+  /** Explicit output adapter constraint; macro imports select it when absent. */
   framework?: NativeFramework
   /** Source map from `source` back to the file it was generated from. */
   map?: string
@@ -910,6 +915,9 @@ export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx' | 'dts'
 
 /** Module grammar supplied for the Oxc parser. */
 export type NativeScriptModuleKind = 'module' | 'commonJs' | 'script' | 'unambiguous'
+
+/** Format of the original editable source supplied by the host. */
+export type NativeSourceFormat = 'script' | 'jsx' | 'astro' | 'svelte' | 'vue'
 
 /** A byte span with an explicit file id. */
 export interface NativeSpan {

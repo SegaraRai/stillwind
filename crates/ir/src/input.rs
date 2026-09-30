@@ -18,6 +18,71 @@ use stillwind_source::{FileId, Fingerprint, ModuleId, ProjectionMap, SourceFile,
 
 use crate::AdapterKind;
 
+/// Format of the editable original source, independent of its analysis buffer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SourceFormat {
+    /// JavaScript or TypeScript without a JSX file extension.
+    Script,
+    /// A JSX or TSX file, including files without JSX expressions.
+    Jsx,
+    /// An Astro component.
+    Astro,
+    /// A Svelte component.
+    Svelte,
+    /// A Vue single-file component.
+    Vue,
+}
+
+impl SourceFormat {
+    /// Returns the original format for a plain script parser dialect.
+    pub const fn script(language: ScriptLanguage) -> Self {
+        match language {
+            ScriptLanguage::Jsx | ScriptLanguage::Tsx => Self::Jsx,
+            ScriptLanguage::Js | ScriptLanguage::Ts | ScriptLanguage::Dts => Self::Script,
+        }
+    }
+
+    /// Returns the adapter whose normalization policy handles this component format.
+    /// Plain scripts and JSX files have no component projection policy.
+    pub const fn projection_adapter(self) -> Option<AdapterKind> {
+        match self {
+            Self::Script | Self::Jsx => None,
+            Self::Astro => Some(AdapterKind::Astro),
+            Self::Svelte => Some(AdapterKind::Svelte),
+            Self::Vue => Some(AdapterKind::Vue),
+        }
+    }
+
+    /// Returns the adapters accepted by the import lint, or an empty slice when
+    /// any adapter is accepted for a reusable script module.
+    pub const fn adapters(self) -> &'static [AdapterKind] {
+        match self {
+            Self::Script => &[],
+            Self::Jsx => &[
+                AdapterKind::React,
+                AdapterKind::Preact,
+                AdapterKind::Solid,
+                AdapterKind::Vue,
+            ],
+            Self::Astro => &[AdapterKind::Astro],
+            Self::Svelte => &[AdapterKind::Svelte],
+            Self::Vue => &[AdapterKind::Vue],
+        }
+    }
+
+    /// Returns the format label used in import diagnostics.
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::Script => "JavaScript/TypeScript",
+            Self::Jsx => "JSX/TSX",
+            Self::Astro => "Astro",
+            Self::Svelte => "Svelte",
+            Self::Vue => "Vue SFC",
+        }
+    }
+}
+
 /// JavaScript or TypeScript dialect of a parsed source buffer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -129,7 +194,9 @@ pub struct SourceInput {
     pub language: ScriptLanguage,
     /// Module grammar supplied by the host for the parser.
     pub module_kind: ScriptModuleKind,
-    /// `None` for plain JavaScript/TypeScript without a framework adapter.
+    /// Format of the editable original, used for projection policy and import lints.
+    pub source_format: SourceFormat,
+    /// Explicit output adapter constraint. Macro imports select it when absent.
     pub framework: Option<AdapterKind>,
     /// Present when [`Self::code`] was derived from another file.
     pub projection: Option<FrameworkProjection>,
@@ -142,7 +209,8 @@ pub struct SourceInput {
 }
 
 impl SourceInput {
-    /// Input for a plain JavaScript/TypeScript module with no projection.
+    /// Returns plain script input without a projection or explicit adapter constraint.
+    /// The original format defaults from `language`; module identities are opaque.
     pub fn normal(
         code: Arc<SourceFile>,
         module_id: ModuleId,
@@ -153,6 +221,7 @@ impl SourceInput {
             module_id,
             language,
             module_kind,
+            source_format: SourceFormat::script(language),
             code,
             framework: None,
             projection: None,
@@ -170,7 +239,7 @@ impl SourceInput {
             .map_or(&self.code, |projection| &projection.original)
     }
 
-    /// Includes source, parser, framework, map, converter settings and realms. Debug
+    /// Includes source, parser, original format, framework, map, converter settings and realms. Debug
     /// representations contain values only (no addresses or host state).
     ///
     /// Hosts use this as a cache key component; two inputs with the same revision are

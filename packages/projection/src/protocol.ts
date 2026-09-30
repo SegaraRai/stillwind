@@ -3,9 +3,9 @@
  * both the parser input and edit target. For projected input, source is JS/TS and
  * fw_code is the original framework buffer receiving edits.
  *
- * Projected inputs require language, framework, converter, and fw2js_map; upstream
- * mapping belongs in fw_map rather than map. Projection metadata is invalid without
- * fw_code (empty realm/region arrays are allowed).
+ * Projected inputs require language, source_format (vue, svelte, or astro), converter,
+ * and fw2js_map. Upstream mapping belongs in fw_map rather than map. Projection
+ * metadata is invalid without fw_code (empty realm/region arrays are allowed).
  */
 export interface ProjectSource {
   /** Host identifier used for resolution and reading. */
@@ -21,8 +21,11 @@ export interface ProjectSource {
   source: string;
   language: "js" | "jsx" | "ts" | "tsx" | "dts";
   module_kind: "module" | "commonJs" | "script" | "unambiguous";
+  /** Original input format, retained when source becomes projected JS/TS. */
+  source_format?: "script" | "jsx" | "vue" | "svelte" | "astro";
   /** Exact source name written to generated stylesheet maps. */
   source_map_source?: string;
+  /** Explicit output adapter constraint; filename inference leaves it unset. */
   framework?: "React" | "Preact" | "Solid" | "Vue" | "Svelte" | "Astro";
   /** Source-to-upstream map for a normal input; it does not change the edit target. */
   map?: string;

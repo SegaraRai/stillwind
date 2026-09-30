@@ -1,12 +1,13 @@
 //! Vue adapter policy and its Volar projection rewrite.
 //!
-//! Vue sources reach the analyzer through a converter, so the policy has to tell
+//! Vue SFC sources reach the analyzer through a converter, so the policy has to tell
 //! synthetic wrappers apart from user code: `__VLS_*` scaffolding is removed, while a
 //! reference that `__VLS_ctx` wraps is mapped back to the user's original expression.
+//! Plain Vue JSX uses the same props and runtime without projection normalization.
 
 use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
 
-/// Vue uses `class`; converted inputs are analyzed through the projection path.
+/// Vue uses `class` and object styles in both SFC templates and JSX.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",

@@ -49,6 +49,16 @@ impl LintSeverity {
 /// Producers select the cause; hosts decide its presentation and configured severity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 pub enum LintKind {
+    /// A value import of the style macro is incompatible with the original file format.
+    #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
+    FrameworkImportMismatch {
+        /// Imported macro module specifier.
+        import: String,
+        /// Original format label, independent of the projected parser dialect.
+        source_format: String,
+        /// Allowed macro module specifiers joined with commas.
+        expected: String,
+    },
     /// A macro value expression visibly mutates state; default severity is error.
     #[error(
         "macro arguments must be pure; perform assignments, updates, and deletes before the macro call"
@@ -212,6 +222,7 @@ impl LintKind {
     /// Returns the stable reporting code; lint codes also name suppression rules.
     pub const fn code(&self) -> &'static str {
         match self {
+            Self::FrameworkImportMismatch { .. } => "framework-import-mismatch",
             Self::MacroArgumentMutation => "macro-argument-mutation",
             Self::MacroExecutionBoundary => "macro-execution-boundary",
             Self::AnchorScopeList { .. } => "valid-anchor-scope",

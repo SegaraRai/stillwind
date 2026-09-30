@@ -85,15 +85,32 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let a = prefix.encode_utf16().count();
     let b = a + first.len() + middle.len();
     let mut input = serde_json::json!({
-        "module_id":"Component.svelte", "source":format!("{first}\n{second}"),
-        "language":"ts", "framework":"Svelte", "fw_code": original,
-        "fw2js_map":{"kind":"volar","mappings":[
-            {"sourceOffsets":[a],"generatedOffsets":[0],"lengths":[first.len()]},
-            {"sourceOffsets":[b],"generatedOffsets":[first.len()+1],"lengths":[second.len()]}
-        ]},
-        "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"realm-test"},
-        "import_realms":[{"id":1,"start":a,"end":a+first.len()},{"id":2,"start":b,"end":b+second.len()}],
-        "regions":[{"import_realm":1,"start":a,"end":a+first.len()},{"import_realm":2,"start":b,"end":b+second.len()}]
+        "module_id": "Component.svelte",
+        "source": format!("{first}\n{second}"),
+        "language": "ts",
+        "source_format": "svelte",
+        "framework": "Svelte",
+        "fw_code": original,
+        "fw2js_map": {
+            "kind": "volar",
+            "mappings": [
+                { "sourceOffsets": [a], "generatedOffsets": [0], "lengths": [first.len()] },
+                { "sourceOffsets": [b], "generatedOffsets": [first.len() + 1], "lengths": [second.len()] },
+            ],
+        },
+        "converter": {
+            "name": "svelte2tsx",
+            "version": "0.7.61",
+            "options_fingerprint": "realm-test"
+        },
+        "import_realms": [
+            { "id": 1, "start": a, "end": a + first.len() },
+            { "id": 2, "start": b, "end": b + second.len() },
+        ],
+        "regions": [
+            { "import_realm": 1, "start": a,"end": a + first.len() },
+            { "import_realm": 2, "start": b,"end": b + second.len()},
+        ],
     });
     let compile = |input: &serde_json::Value| -> serde_json::Value {
         serde_json::to_value(
@@ -145,12 +162,35 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
     let suffix = "</script>\n<div {...props}></div><style>/* preserved */</style>";
     let original = format!("{prefix}{script}{suffix}");
     let source = serde_json::json!({
-        "module_id":"Component.svelte", "source":script, "language":"ts", "framework":"Svelte",
-        "fw_code":original,
-        "fw2js_map":{"kind":"volar","mappings":[{"sourceOffsets":[prefix.encode_utf16().count()],"generatedOffsets":[0],"lengths":[script.len()]}]},
-        "converter":{"name":"svelte2tsx","version":"0.7.61","options_fingerprint":"test"},
-        "import_realms":[{"id":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}],
-        "regions":[{"import_realm":0,"start":prefix.encode_utf16().count(),"end":prefix.encode_utf16().count()+script.len()}]
+        "module_id": "Component.svelte",
+        "source": script,
+        "language": "ts",
+        "source_format": "svelte",
+        "framework": "Svelte",
+        "fw_code": original,
+        "fw2js_map": {
+            "kind": "volar",
+            "mappings": [{
+                "sourceOffsets": [prefix.encode_utf16().count()],
+                "generatedOffsets": [0],
+                "lengths": [script.len()],
+            }],
+        },
+        "converter": {
+            "name": "svelte2tsx",
+            "version": "0.7.61",
+            "options_fingerprint": "test",
+        },
+        "import_realms": [{
+            "id": 0,
+            "start": prefix.encode_utf16().count(),
+            "end": prefix.encode_utf16().count() + script.len()
+        }],
+        "regions": [{
+            "import_realm": 0,
+            "start": prefix.encode_utf16().count(),
+            "end": prefix.encode_utf16().count() + script.len()
+        }],
     });
     let output = compile_project_input(
         &sources_from_value(serde_json::json!([source])),

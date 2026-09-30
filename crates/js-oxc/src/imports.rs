@@ -118,7 +118,7 @@ impl<'a> Visit<'a> for Collector<'_> {
         {
             self.module_css.push(self.span(declaration.source.span));
         }
-        if from_macro_import(declaration.source.value.as_str()).is_some()
+        if let Some(adapter) = from_macro_import(declaration.source.value.as_str())
             && !declaration.import_kind.is_type()
             && let Some(specifiers) = &declaration.specifiers
         {
@@ -149,6 +149,8 @@ impl<'a> Visit<'a> for Collector<'_> {
             }
             if bindings.iter().any(|binding| binding.is_macro) {
                 self.imports.push(MacroImport {
+                    adapter: adapter.id,
+                    source_span: self.span(declaration.source.span),
                     span: self.span(declaration.span),
                     specifiers: bindings,
                 });

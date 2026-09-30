@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { transform as compileAstro } from "@astrojs/compiler";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import { projectFrameworkSource } from "@stillwind/projection";
+import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 
@@ -27,6 +27,94 @@ const examples = {
   svelte: `<script lang="ts">\nimport {style} from 'stillwind/svelte';\nconst active = true, external = 'extra';\n</script>\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
   astro: `---\n// 🧭\nimport {style} from 'stillwind/astro';\nconst active = true, external = 'extra';\n---\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
 };
+
+void test("filename inference describes input format without selecting an output adapter", () => {
+  for (const [name, language, source_format] of [
+    ["Component.vue", "js", "vue"],
+    ["Component.svelte", "js", "svelte"],
+    ["Component.astro", "js", "astro"],
+    ["Component.TSX?raw#fragment", "tsx", "jsx"],
+    ["Component.jsx", "jsx", "jsx"],
+    ["module.ts", "ts", "script"],
+    ["module.mts", "ts", "script"],
+    ["module.cts", "ts", "script"],
+    ["module.js", "js", "script"],
+    ["module.mjs", "js", "script"],
+    ["module.cjs", "js", "script"],
+    ["module.d.ts", "dts", "script"],
+    ["module.d.mts", "dts", "script"],
+    ["module.d.cts", "dts", "script"],
+  ]) {
+    assert.deepEqual(fileSourceKind(name), {
+      language,
+      module_kind: "unambiguous",
+      source_format,
+      framework: undefined,
+    });
+  }
+});
+
+void test("Vue output adapter leaves JSX and unspecified input formats unprojected", async () => {
+  const source = `import {style} from 'stillwind/vue'; const view = <div {...style('flex')} />;`;
+  const input = {
+    resolver_id: "/src/Component.tsx",
+    ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
+    framework: "Vue" as const,
+    source,
+  };
+  for (const source_format of ["jsx", undefined] as const) {
+    const projected = await projectFrameworkSource({ ...input, source_format });
+    assert.equal(projected.source, source);
+    assert.equal(projected.source_format, source_format);
+    assert.equal(projected.framework, "Vue");
+    assert.equal(projected.fw_code, undefined);
+    assert.equal(projected.converter, undefined);
+    assert.deepEqual(checkerEnvironment(projected), { checker_types: [] });
+  }
+});
+
+void test("SFC source formats select converters and preserve explicit output adapters", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
+  for (const [extension, source] of Object.entries(examples)) {
+    const filename = path.join(root, `Component.${extension}`);
+    const input = {
+      resolver_id: filename,
+      ...fileModuleDescriptor(root, filename),
+      source,
+      map: "upstream map",
+    };
+    for (const framework of [undefined, "React"] as const) {
+      const projected = await projectFrameworkSource({ ...input, framework });
+      assert.equal(projected.source_format, extension);
+      assert.equal(projected.framework, framework);
+      assert.equal(projected.fw_code, source);
+      assert.ok(projected.converter?.version);
+      assert.ok(projected.fw2js_map);
+      assert.equal(projected.fw_map, input.map);
+      assert.equal(projected.map, undefined);
+      const environment = checkerEnvironment(projected);
+      assert.equal(
+        environment.checker_types.length,
+        extension === "svelte" ? 2 : extension === "astro" ? 1 : 0,
+      );
+      assert.deepEqual(await projectFrameworkSource(projected), projected);
+    }
+    assert.equal(input.source, source);
+    assert.equal(input.map, "upstream map");
+  }
+});
+
+void test("checker declarations follow projected source format instead of output adapter", () => {
+  const input = {
+    resolver_id: "/src/Component.tsx",
+    ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
+    source: "const view = <div />;",
+    fw_code: "original buffer",
+  };
+  for (const framework of ["Svelte", "Astro"] as const) {
+    assert.deepEqual(checkerEnvironment({ ...input, framework }), { checker_types: [] });
+  }
+});
 
 void test("host compiles raw SFCs and updates session CSS after edits", async (t) => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");

@@ -11,8 +11,8 @@ use std::sync::Arc;
 use stillwind_diagnostics::{CompileErrorKind, LintKind};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
-    RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceInput, StyleInput,
-    StyleVariant,
+    RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
+    StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
@@ -82,6 +82,7 @@ fn projected_script(script: &str) -> SourceInput {
         module_id: ModuleId::from("Component.svelte"),
         language: ScriptLanguage::Ts,
         module_kind: ScriptModuleKind::Unambiguous,
+        source_format: SourceFormat::Svelte,
         framework: Some(AdapterKind::Svelte),
         upstream_map: None,
         stylesheet_imports: Vec::new(),
@@ -106,6 +107,28 @@ fn projected_script(script: &str) -> SourceInput {
             regions: Vec::new(),
         }),
     }
+}
+
+#[test]
+fn original_component_format_reports_import_mismatch_without_adapter_conflict() {
+    let mut input =
+        projected_script("import { style } from 'stillwind/react'; const props = style('flex');");
+    input.framework = None;
+    input.language = ScriptLanguage::Tsx;
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    assert_eq!(scan.diagnostics, []);
+    assert_eq!(scan.local_ir.adapter, AdapterKind::React);
+    assert_eq!(scan.lint_findings.len(), 1);
+    assert_eq!(
+        scan.lint_findings[0].kind.code(),
+        "framework-import-mismatch"
+    );
+    assert_eq!(
+        scan.source
+            .slice(scan.lint_findings[0].labels[0].span)
+            .unwrap(),
+        "'stillwind/react'"
+    );
 }
 
 #[test]

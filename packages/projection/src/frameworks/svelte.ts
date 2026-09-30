@@ -44,7 +44,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
     });
   }
   return {
-    framework: "Svelte",
+    source_format: "svelte",
     language: "tsx",
     source: result.code,
     fw2js_map: sourceMapV3(result.map),

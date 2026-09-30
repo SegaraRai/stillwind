@@ -66,6 +66,14 @@ impl Default for StillwindConfig {
             prefix: None,
             tailwind_prefix: None,
             lint_rules: [
+                (
+                    LintKind::FrameworkImportMismatch {
+                        import: String::new(),
+                        source_format: String::new(),
+                        expected: String::new(),
+                    },
+                    LintSeverity::Warn,
+                ),
                 (LintKind::MacroArgumentMutation, LintSeverity::Deny),
                 (LintKind::MacroExecutionBoundary, LintSeverity::Deny),
                 (

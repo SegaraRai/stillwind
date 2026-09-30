@@ -21,7 +21,7 @@ export interface ConvertedFramework {
   checker_scripts?: Array<{ start: number; end: number }>;
   source: string;
   language: "ts" | "tsx";
-  framework: NonNullable<ProjectSource["framework"]>;
+  source_format: Extract<ProjectSource["source_format"], "vue" | "svelte" | "astro">;
   fw2js_map: ProjectionMap;
   converter: NonNullable<ProjectSource["converter"]>;
   import_realms: ScriptRegion[];

@@ -64,7 +64,25 @@ framework 記述が所有するもの:
 
 Rust の実装コードで `__VLS_ctx` などの固有名を使うのは当該 framework ファイルだけとする。テスト・文書・host の converter 呼び出しにはこの制約を適用しない。host に出力規則を重複実装しない。
 
-選択は host が渡す明示的 framework ID を基本とする。既存 import による選択は共通 registry による検証に統合する。明示指定と import が衝突する場合は診断し、別 framework へ黙って切り替えない。通常入力／投影入力の区別と framework の種類は独立した軸にする。
+host は `source_format` で原文形式を指定し、converter と投影の正規化を選択する。値として import した `style` は props と runtime の adapter を選択する。任意の `framework` は出力 adapter の明示的制約であり、import と衝突する場合はコンパイルエラーにする。通常入力／投影入力の区別と出力 adapter は独立した軸である。
+
+### 原文形式と macro import の Lint
+
+`framework-import-mismatch` は、原文形式に合わない `style` の値 import を、module specifier の文字列位置で警告する。
+
+| `source_format` | 許容する macro import                                                     |
+| --------------- | ------------------------------------------------------------------------- |
+| `script`        | すべての FW                                                               |
+| `jsx`           | `stillwind/react`、`stillwind/preact`、`stillwind/solid`、`stillwind/vue` |
+| `vue`           | `stillwind/vue`                                                           |
+| `svelte`        | `stillwind/svelte`                                                        |
+| `astro`         | `stillwind/astro`                                                         |
+
+host は `.jsx`・`.tsx` を `jsx` として扱う。JSX式や macro 呼び出しがなくても判定する。通常の JS/TS モジュールは各 FW 向けの style を定義・export できるため制限しない。型だけの import と、`style` 以外の import は対象外とする。tsconfig と JSX runtime の設定は読まず、React・Preact・Solid・Vue間の取り違えは判定しない。
+
+標準レベルは `warn`。CSS の `@stillwind { framework-import-mismatch: off; }` または `deny` と、既存の `swlint-disable` 指示で制御する。Lint は adapter を変更せず、自動修正を提供しない。異なる FW の macro を同一モジュールで混在させる場合は引き続きコンパイルエラーにする。
+
+Vue SFC と Vue JSX は `stillwind/vue` とその runtime を共用し、`class` と object 形式の `style` を生成する。`source_format: "vue"` だけが SFC converter を選ぶ。`source_format: "jsx"` に `framework: "Vue"` を付けても SFC 変換は行わない。Volar補助コードの除去、原文への位置復元、script領域へのimport配置、template属性の引用符エスケープは、projection付き入力にだけ適用する。
 
 ## 3. 入力と map の契約
 
@@ -83,7 +101,7 @@ Rust の実装コードで `__VLS_ctx` などの固有名を使うのは当該 f
 | fw2js_map  | converter が SFC→JS 生成時に作る map。検索方向は生成 code の位置→fw_code の位置 |
 | fw_map     | fw_code→さらに上流の原本への任意 map                                            |
 
-両モードとも module ID、parser source type、framework ID を明示する。投影入力には converter 名・version・設定 fingerprint を持たせ、対応パターンの検証と cache invalidation に利用する。必要な script region / import realm の対応情報は host が converter の結果から渡す。Rust で SFC タグを探して補完しない。
+両モードとも module ID と parser source type を明示する。`source_format` は原文形式を表し、投影入力では `vue`・`svelte`・`astro` の指定を必須とする。通常入力で省略すると parser dialect のJSX対応から `script` または `jsx` を選ぶ。投影入力には converter 名・version・設定 fingerprint を持たせ、対応パターンの検証と cache invalidation に利用する。必要な script region / import realm の対応情報は host が converter の結果から渡す。Rust で SFC タグを探して補完しない。
 
 `fw2js_map` は欠落不可。空・不正・異なる source の map は編集可能と見なさない。Volar mapping は v3 JSON と偽装せず、タグ付き mapping 入力として保持する。v3 と Volar を共通の位置／範囲検索インターフェースへ正規化する。Volar→v3 変換を使う場合は境界・未マップ区間・多対一対応を保持できることを先に検証する。
 

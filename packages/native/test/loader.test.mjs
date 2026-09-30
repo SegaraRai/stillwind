@@ -418,6 +418,7 @@ void test("projected session edits original SFC text and preserves watch recover
     source,
     language: "ts",
     framework: "Svelte",
+    source_format: "svelte",
     fw_code: prefix + source + suffix,
     fw2js_map: {
       kind: "volar",
@@ -452,6 +453,17 @@ void test("projected session edits original SFC text and preserves watch recover
   assert.deepEqual(recovered.diagnostics, []);
   assert.equal(recovered.code, before.code);
   assert.throws(() => session.compile([{ ...input, fw2js_map: undefined }]), /fw2js_map/);
+  assert.throws(
+    () => session.compile([{ ...input, source_format: undefined }]),
+    /component source_format/,
+  );
+  assert.throws(
+    () => session.compile([{ ...input, source_format: "jsx" }]),
+    /component source_format/,
+  );
+  const inferredAdapter = session.compile([{ ...input, framework: undefined }]).modules[0];
+  assert.deepEqual(inferredAdapter.diagnostics, []);
+  assert.equal(inferredAdapter.code, before.code);
 });
 
 void test("loads the selected package through its public entry", async () => {
