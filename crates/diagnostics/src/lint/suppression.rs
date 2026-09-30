@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 
 use stillwind_source::SourceFile;
 
-use crate::{LintFinding, LintKind};
+use super::{LintFinding, LintKind};
 
 /// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
