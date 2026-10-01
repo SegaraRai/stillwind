@@ -1,0 +1,20 @@
+{
+  "name": "@stillwind/e2e-sveltekit2-svelte5",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sveltejs/kit": "2.70.3",
+    "stillwind": "workspace:*",
+    "svelte": "5.57.1"
+  },
+  "devDependencies": {
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@sveltejs/adapter-node": "5.5.7",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

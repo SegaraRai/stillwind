@@ -1,0 +1,17 @@
+@import "stillwind";
+
+@utility brand {
+  color: rgb(11, 22, 33);
+}
+
+@utility active {
+  color: rgb(70, 80, 90);
+}
+
+@utility lazy {
+  color: rgb(90, 80, 70);
+}
+
+@utility server {
+  color: rgb(20, 40, 60);
+}

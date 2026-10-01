@@ -1,0 +1,25 @@
+{
+  "name": "@stillwind/e2e-harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/fixture.ts",
+    "./acceptance": "./src/acceptance.ts",
+    "./workspace": "./src/workspace.ts",
+    "./process": "./src/process.ts",
+    "./config": "./src/config.ts",
+    "./acceptance-config": "./src/acceptance-config.ts",
+    "./script": "./src/script.ts",
+    "./source-map": "./src/source-map.ts"
+  },
+  "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "playwright": "1.63.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

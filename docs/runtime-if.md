@@ -108,7 +108,7 @@ should fall back to. Custom minifier pipelines must preserve distinct support
 queries. Value conditionals alone do not need `revert-rule`
 unless a branch explicitly requests it.
 
-Run `vp -C e2e/frameworks run browser:runtime-if` from the repository. The task builds
+Run `vp -C e2e/css run e2e` from the repository. The task builds
 its compiler dependencies. The
 acceptance script checks both strategies after a minified Vite production build
 in installed Chrome and reports the browser version and required feature support.

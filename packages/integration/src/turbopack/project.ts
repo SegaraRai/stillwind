@@ -89,7 +89,9 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
     read,
     watch,
     resolve: async (specifier: string, importer: string) =>
-      isBuiltin(specifier)
+      // Next checks boundary markers when it builds server and client modules.
+      // They provide no styles for this graph and do not use its loader resolver.
+      isBuiltin(specifier) || specifier === "server-only" || specifier === "client-only"
         ? { id: specifier, external: true }
         : { id: await resolveJs(specifier, importer) },
     warn: (message: string) => {

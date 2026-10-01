@@ -49,10 +49,11 @@ function pluginStillwind(options: StillwindOptions) {
         // Framework pre-loaders must split routes/server functions before CSS
         // ownership is determined. Appending a normal loader still runs before SWC.
         delete javascript.enforce;
+        const script = { ...javascript, resourceQuery: { not: [/[?&]vue(?:[=&]|$)/] } };
         // Document carriers are rebuilt after graph linking. Native CSS modules avoid
         // running Rsbuild's extraction loader again during that rebuild.
         config.module.rules.push(
-          javascript,
+          script,
           ...stylesheets.map((rule) =>
             rule.test.test("stillwind-webpack.css") ? { ...rule, type: "css" } : rule,
           ),

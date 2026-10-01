@@ -73,10 +73,10 @@ the React plugin.
 source maps and explicit values. `vp run @stillwind/integration#test:frameworks` builds with
 the official Vue, Svelte and Astro integrations.
 
-In `e2e/frameworks`, run `vp run browser:emission` with installed Chrome.
+In `e2e/css`, run `vp run e2e` with installed Chrome.
 It compares computed styles across development, single/split builds, minification,
 reverse lazy-route loads, JavaScript-disabled SSR and Shadow DOM. It also checks
 CSS-only HMR, module addition/deletion and shared stylesheet instances.
 
-Framework-specific browser runners in that directory are separate acceptance probes;
+Framework-specific packages under `e2e/frameworks` are separate acceptance probes;
 passing the emission probe does not establish every framework's streaming or HMR behavior.

@@ -1,0 +1,21 @@
+{
+  "name": "@stillwind/e2e-astro7-preact11-solid1",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "7.3.5",
+    "preact": "11.0.0",
+    "solid-js": "1.9.15",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/preact": "6.0.5",
+    "@astrojs/solid-js": "7.0.2",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

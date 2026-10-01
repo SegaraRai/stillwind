@@ -1,0 +1,22 @@
+{
+  "name": "@stillwind/e2e-rspack2-vue3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "stillwind": "workspace:*",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@rspack/core": "2.2.8",
+    "@rspack/dev-server": "2.2.1",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@swc/core": "1.16.2",
+    "@types/node": "catalog:",
+    "swc-loader": "0.2.7",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vue-loader": "17.4.2"
+  }
+}

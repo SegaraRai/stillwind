@@ -18,6 +18,7 @@ export default defineConfig({
     ignorePatterns: ["packages/native/binding.d.ts"],
     sortImports: true,
     sortPackageJson: true,
+    svelte: true,
   },
   run: {
     tasks: {
@@ -38,7 +39,7 @@ export default defineConfig({
       },
       "verify:e2e": {
         command: "",
-        dependsOn: ["@stillwind/e2e-frameworks#browser"],
+        dependsOn: ["@stillwind/e2e-harness#e2e"],
         cache: false,
       },
       fmt: {
@@ -80,7 +81,7 @@ export default defineConfig({
           "@stillwind/integration#typecheck",
           "@stillwind/tools#typecheck",
           "@stillwind/benchmarks#typecheck",
-          "@stillwind/e2e-frameworks#typecheck",
+          "@stillwind/e2e-harness#check",
           "@stillwind/play#typecheck",
           "@stillwind/logo-editor#check",
           "@stillwind/fixtures-viewer#check",
@@ -97,7 +98,7 @@ export default defineConfig({
           "@stillwind/integration#test",
           "@stillwind/tools#test",
           "@stillwind/benchmarks#test",
-          "@stillwind/e2e-frameworks#test",
+          "@stillwind/e2e-harness#test",
           "@stillwind/play#test",
           "@stillwind/logo-editor#test",
         ],

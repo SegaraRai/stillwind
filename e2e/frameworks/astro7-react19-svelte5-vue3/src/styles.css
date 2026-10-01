@@ -1,0 +1,16 @@
+@layer theme, utilities;
+
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/builtins.css";
+
+@layer utilities {
+  @stillwind-slot utilities;
+}
+
+@theme {
+  --color-probe: #123456;
+}
+
+@utility shared {
+  margin: 11px;
+}

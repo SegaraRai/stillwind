@@ -1,0 +1,17 @@
+{
+  "name": "@stillwind/e2e-astro7-plain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "astro": "7.3.5",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

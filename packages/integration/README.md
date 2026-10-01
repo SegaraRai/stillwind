@@ -96,7 +96,7 @@ uses directory dependencies. Compiler options are shared with other adapters,
 except naming callbacks cannot be serialized. `mode` can explicitly select
 `development` or `release`; otherwise it follows `NODE_ENV`.
 
-`vp run browser:next-standalone` in `e2e/frameworks` exercises these public rules
+The `standalone` profile in `e2e/frameworks/next16-react19` exercises these public rules
 directly, without `withStillwind`, using Next as the Turbopack test host. It covers
 development updates and cold/warm production. Other Turbopack hosts are not covered
 by that fixture.
@@ -165,10 +165,10 @@ its route with `import './server-style.ts?stillwind.css'`; this import compiles
 only its stylesheet and does not ship its JavaScript.
 
 The TanStack Start/Rsbuild experiment covers SSR without JavaScript, lazy route CSS,
-server functions, editing, and cold/warm production. On Windows it pins a patch for `@tanstack/start-plugin-core`
-1.171.40: its Rsbuild manifest must normalize backslashes before matching
-route paths. The patch and frozen lockfile are in `e2e/frameworks`.
-Run `vp run browser:tanstack-rsbuild` there to reproduce on port 43179.
+server functions, editing, and cold/warm production. The fixture declares its own
+framework dependencies, and the frozen lockfile is at the workspace root.
+Run `vp run e2e` in `e2e/frameworks/tanstackstart1-react19-server-function` with the
+`rsbuild` profile to reproduce on port 43179.
 
 ## Transport and verification
 
@@ -186,13 +186,10 @@ files, the host implementation and the native binary are build dependencies.
 Class identity defaults to the module path relative to the application root;
 set `root` explicitly when different build environments use different roots.
 
-Run these from `e2e/frameworks` after `vp i --frozen-lockfile`:
+Run the matrix from the repository root after `vp i --frozen-lockfile`:
 
 ```sh
-vp run browser:next-turbopack
-vp run browser:next-webpack
-vp run browser:rspack
-vp run browser:rsbuild
+vp run verify:e2e
 ```
 
 The probes use the real compiler and Chrome. The package test suite checks current

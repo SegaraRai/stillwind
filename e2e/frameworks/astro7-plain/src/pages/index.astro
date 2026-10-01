@@ -1,0 +1,40 @@
+---
+import { style } from "stillwind/astro";
+import css from "stillwind/module-css";
+
+import { shared } from "../shared-style";
+import { probeComposed, probeDiamond } from "../semantics-main";
+
+const phase = 0;
+---
+
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:," />
+    <style is:inline set:html={css}></style>
+    <title>Stillwind Astro acceptance</title>
+  </head>
+  <body>
+    <div data-testid="styled" {...style(shared, "text-probe p-[12px]")}>
+      Styled
+    </div>
+    <div data-testid="main-composed" {...style(probeComposed)}>Composition</div>
+    <div data-testid="main-diamond" {...style(probeDiamond)}>Diamond</div>
+    <div
+      data-testid="main-conditional"
+      {...style(
+        "m-[40px]",
+        phase > 0 && (phase > 1 ? "m-[16px]" : "m-[24px]"),
+        { "aria-busy": String(phase > 0) },
+      )}
+    >
+      Conditional
+    </div>
+    <div
+      data-testid="main-conditional-active"
+      {...style("m-[40px]", phase >= 0 && "m-[16px]")}
+    >
+      Active
+    </div>
+  </body>
+</html>

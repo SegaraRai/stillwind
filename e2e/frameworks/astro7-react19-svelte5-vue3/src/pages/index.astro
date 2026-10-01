@@ -1,0 +1,28 @@
+---
+import { style } from "stillwind/astro";
+import css from "stillwind/module-css";
+import { shared } from "../shared-style";
+import { css as reactCss } from "../components/ReactCounter";
+import { css as svelteCss } from "../components/SvelteCounter.svelte";
+import { css as vueCss } from "../components/VueCounter.vue";
+
+import ReactCounter from "../components/ReactCounter";
+import SvelteCounter from "../components/SvelteCounter.svelte";
+import VueCounter from "../components/VueCounter.vue";
+---
+
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:," />
+    <style is:inline set:html={css + reactCss + svelteCss + vueCss}></style>
+    <title>Stillwind Astro acceptance</title>
+  </head>
+  <body>
+    <div data-testid="styled" {...style(shared, "text-probe p-[12px]")}>
+      Styled
+    </div>
+    <ReactCounter client:load />
+    <SvelteCounter client:load />
+    <VueCounter client:load />
+  </body>
+</html>

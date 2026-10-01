@@ -1,0 +1,10 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "jsx": "preserve",
+    "jsxImportSource": "react"
+  },
+  "include": ["fixture.ts", "tests/**/*.ts", "*.config.ts"],
+  "exclude": ["dist", ".e2e", "results"]
+}

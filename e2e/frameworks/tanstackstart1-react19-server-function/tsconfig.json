@@ -1,0 +1,14 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "tests/**/*.ts",
+    "fixture.ts",
+    "acceptance.config.ts",
+    "vite.config.ts",
+    "scripts/**/*.ts"
+  ]
+}

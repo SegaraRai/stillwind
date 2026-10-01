@@ -1,0 +1,22 @@
+{
+  "name": "@stillwind/e2e-solidstart2-solid1",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@solidjs/router": "1.0.0",
+    "@solidjs/start": "2.0.4",
+    "solid-js": "1.9.15",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "nitro": "3.0.260903-beta",
+    "playwright": "1.63.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

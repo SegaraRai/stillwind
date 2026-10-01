@@ -1,0 +1,27 @@
+{
+  "name": "@stillwind/e2e-tanstackstart1-react19-server-function",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-start": "1.168.60",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "srvx": "1.0.4",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "@rsbuild/core": "2.2.4",
+    "@rsbuild/plugin-react": "2.1.0",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-react": "6.1.1",
+    "nitro": "3.0.260903-beta",
+    "playwright": "1.63.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

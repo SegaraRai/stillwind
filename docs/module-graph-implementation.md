@@ -99,19 +99,11 @@ production builds. `check` runs static checks, and `fixtures:check` verifies
 generated data and project outputs. Build includes the React example, playground,
 and fixture viewer. Each example's build/dev task first builds its compiler dependencies.
 
-From `e2e/frameworks` after building the repository:
+From the repository root:
 
 ```sh
 vp i --frozen-lockfile
-vp run browser:composition
-vp run browser:next-turbopack
-vp run browser:next-webpack
-vp run browser:rspack
-vp run browser:rsbuild
-vp run browser:react-router
-vp run browser:solidstart
-vp run browser:tanstack-vite
-vp run browser:tanstack-rsbuild
+vp run verify:e2e
 ```
 
 ## Explicit limits

@@ -1,0 +1,19 @@
+{
+  "name": "@stillwind/e2e-vite8-solid2rc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@solidjs/web": "2.0.0-rc.13",
+    "solid-js": "2.0.0-rc.13",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.47",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

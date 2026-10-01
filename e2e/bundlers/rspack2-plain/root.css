@@ -1,0 +1,7 @@
+@import "stillwind";
+@theme {
+  --color-brand: rgb(11, 22, 33);
+}
+@utility lazy {
+  color: rgb(70, 80, 90);
+}

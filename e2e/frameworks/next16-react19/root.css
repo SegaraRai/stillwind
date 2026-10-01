@@ -1,0 +1,29 @@
+@import "stillwind";
+
+@theme {
+  --color-brand: rgb(11, 22, 33);
+}
+
+@utility client {
+  color: rgb(70, 80, 90);
+}
+
+@utility lazy {
+  color: rgb(90, 80, 70);
+}
+
+@utility base {
+  margin: 12px;
+}
+
+@utility override {
+  margin: 20px;
+}
+
+@utility retained {
+  padding: 7px;
+}
+
+@utility picture {
+  background-image: url("./asset.svg");
+}

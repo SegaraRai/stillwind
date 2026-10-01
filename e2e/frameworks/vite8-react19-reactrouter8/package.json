@@ -1,0 +1,25 @@
+{
+  "name": "@stillwind/e2e-vite8-react19-reactrouter8",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@react-router/node": "8.3.1",
+    "@react-router/serve": "8.3.1",
+    "isbot": "5.2.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router": "8.3.1",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "@react-router/dev": "8.3.1",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "playwright": "1.63.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

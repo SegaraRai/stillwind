@@ -1,0 +1,25 @@
+---
+import { style } from "stillwind/astro";
+import css from "stillwind/module-css";
+import { shared } from "../shared-style";
+import { css as preactCss } from "../components/preact/Counter";
+import { css as solidCss } from "../components/solid/Counter";
+
+import PreactCounter from "../components/preact/Counter";
+import SolidCounter from "../components/solid/Counter";
+---
+
+<html lang="en">
+  <head>
+    <link rel="icon" href="data:," />
+    <style is:inline set:html={css + preactCss + solidCss}></style>
+    <title>Stillwind Astro acceptance</title>
+  </head>
+  <body>
+    <div data-testid="styled" {...style(shared, "text-probe p-[12px]")}>
+      Styled
+    </div>
+    <PreactCounter client:load />
+    <SolidCounter client:load />
+  </body>
+</html>
