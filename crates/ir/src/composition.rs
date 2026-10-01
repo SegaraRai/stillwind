@@ -25,6 +25,7 @@ use crate::{ModuleAnalysis, StyleCall, StyleInput};
 
 /// One `derived` style call that consumes the payload of `base`.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StyleDependency {
     /// The call that consumes another payload.
     pub derived: IdentityId,

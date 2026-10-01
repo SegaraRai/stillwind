@@ -25,6 +25,7 @@ use crate::identifiers::{
 /// A conditional helper is named for the CSS it serves and an anonymous layer for its
 /// template, so neither has a declaration of its own: those records carry no position.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
@@ -46,7 +47,7 @@ pub struct GeneratedSymbol {
 
 /// Source identity used to attribute a generated name.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
-#[serde(tag = "kind", content = "id", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "id", rename_all = "camelCase")]
 pub enum SymbolOrigin {
     /// A script module.
     Module(ModuleId),

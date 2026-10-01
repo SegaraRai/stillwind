@@ -90,6 +90,12 @@ Vue SFC と Vue JSX は `stillwind/vue` とその runtime を共用し、`class`
 
 ホストは `ProjectInput` に元文書と識別情報を渡し、`prepareSource` が `PreparedSource` を返す。`document` は元の編集対象を表す。`document.code`、`document.uri`、`document.format`、`document.upstreamMap` の意味は投影後も変わらない。コンパイラの scan / compile は準備済みの入力だけを受け取る。
 
+Rust の `SourceInput` は module ID、準備済みソース、出力 adapter と import 設定を保持する。準備済みソースは `PreparedSource::Direct(DirectSource)` または `PreparedSource::Projected(ProjectedSource)` とする。元文書は `SourceDocument` が `Arc<SourceFile>`、形式、upstream map を保持し、本文・URI・source map source 名は `SourceFile` に保持する。
+
+`DirectSource::try_new` と `ProjectedSource::try_new` は形式と解析方法の組み合わせを検証する。投影の converter identity、元文書・投影・解析の FileId の区別、元文書上の byte span、realm ID と親・region の参照、編集範囲の重複はコアのコンストラクターで検証する。親 realm は別の script にある場合もあり、親子の範囲が包含関係にあることは要求しない。template の編集範囲も script の realm を参照できる。
+
+NAPI は輸送値のデコード、URI の変換、ソース登録、UTF-16 offset から byte span への変換を行い、コアのコンストラクターを呼ぶ。形式や realm graph の検証を独自に実装しない。構造が不正な入力はコンパイラへ渡す前にエラーになる。実際の式を map で復元できない場合、式に対応する編集範囲や runtime import が見つからない場合、属性の引用符が一致しない場合は、解析またはコンパイルの診断になる。
+
 ### 通常入力
 
 `kind: "direct"` は `document.code` を解析し、同じ本文に編集を適用する。解析コードを別フィールドに複製しない。`syntax.language` と `syntax.moduleKind` はパーサーの設定を表す。`document.format` は `script` または `jsx` であり、未投影の component 文書は通常入力として受け付けない。

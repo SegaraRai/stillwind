@@ -16,6 +16,7 @@ use super::identity::IdentityId;
 
 /// Author-visible metadata for one asset.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetMetadata {
     /// Optional literal label the author gave the declaration, such as
     /// `style.ref("trigger")`. Naming input only: identity never depends on it,
@@ -25,6 +26,7 @@ pub struct AssetMetadata {
 
 /// One declared asset, keyed by its declaration-site identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetRecord {
     /// Stable key of the asset; the only field that identifies it.
     pub identity: IdentityId,

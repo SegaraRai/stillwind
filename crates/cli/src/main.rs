@@ -94,6 +94,7 @@ enum CommandError {
 
 /// The JSON object written to stdout for a successful compile.
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct CliOutput {
     /// Rendered stylesheet, with resource placeholders already rebased.
     css: String,

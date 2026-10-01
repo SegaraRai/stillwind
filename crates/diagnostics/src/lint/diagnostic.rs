@@ -16,6 +16,7 @@ use super::LintKind;
 /// select different rules for one variant.
 /// Producers select the cause; hosts decide its presentation and configured severity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
     /// A value import of the style macro is incompatible with the original file format.
     #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
@@ -224,7 +225,7 @@ impl LintDiagnostic {
 
 /// Syntax classification of an unresolved utility or candidate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum UtilityFailure {
     /// Candidate syntax is malformed (`invalid-utility`).
     Invalid,

@@ -94,10 +94,7 @@ fn contract_severity_and_suppression_leave_transforms_available() {
             );
             assert_eq!(result.lint_findings.is_empty(), suppressed);
             let serialized = serde_json::to_value(&result).unwrap();
-            assert_eq!(
-                serialized["lint_settings"]["macro-argument-mutation"],
-                level
-            );
+            assert_eq!(serialized["lintSettings"]["macro-argument-mutation"], level);
         }
     }
 }

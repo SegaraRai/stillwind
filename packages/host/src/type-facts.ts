@@ -187,7 +187,7 @@ function typeFactValue(
       continue;
     }
     if (symbol?.name === "StyleViewTransition") {
-      const candidates = knownIdentities(args[0], identities, "view-transition");
+      const candidates = knownIdentities(args[0], identities, "viewTransition");
       if (!candidates) {
         return null;
       }
@@ -204,18 +204,27 @@ function typeFactValue(
     return null;
   }
   if (styles.length > 0) {
-    return { kind: "styles", value: symbolic("style", styles) };
+    return {
+      kind: "styles",
+      value: symbolic("style", styles),
+    };
   }
   if (refs.length > 0) {
-    return { kind: "refs", value: refs };
+    return {
+      kind: "refs",
+      value: refs,
+    };
   }
   if (keyframes.length > 0) {
-    return { kind: "keyframes", value: symbolic("keyframes", keyframes) };
+    return {
+      kind: "keyframes",
+      value: symbolic("keyframes", keyframes),
+    };
   }
   if (viewTransitions.length > 0) {
     return {
-      kind: "view-transitions",
-      value: symbolic("view-transition", viewTransitions),
+      kind: "viewTransitions",
+      value: symbolic("viewTransition", viewTransitions),
     };
   }
   return null;

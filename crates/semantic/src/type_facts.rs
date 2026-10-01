@@ -17,6 +17,7 @@ use super::symbolic::ExportedValue;
 /// [`super::TypeFacts`] revisions before trusting it, and must fall back to local analysis
 /// when it is missing.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TypeFact {
     /// UTF-8 byte offset of the expression start in the original source.
     pub start: u32,

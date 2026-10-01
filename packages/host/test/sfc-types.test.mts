@@ -21,7 +21,7 @@ void test("checker declaration identity has its own namespace", () => {
   });
   assert.equal(
     Buffer.from(key.slice("stillwind-identity/v1:".length), "base64url").toString(),
-    '{"kind":"ref","module_id":"src/a.tsx","start":2,"end":6,"binding_name":"item"}',
+    '{"kind":"ref","moduleId":"src/a.tsx","start":2,"end":6,"bindingName":"item"}',
   );
   assert.equal(
     identityKey({ bindingName: "item", end: 6, start: 2, moduleId: "src/a.tsx", kind: "ref" }),

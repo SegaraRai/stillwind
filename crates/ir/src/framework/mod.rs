@@ -97,7 +97,7 @@ pub struct FrameworkSpec {
 
 /// How a framework runtime accepts generated custom CSS properties.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum StyleFormat {
     /// React, Preact, Solid, and Vue receive custom CSS properties as an object.
     Object,

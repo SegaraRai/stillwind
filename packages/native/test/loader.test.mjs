@@ -158,7 +158,7 @@ void test("prepared documents require formats and keep document identity separat
     for (const format of ["vue", "svelte", "astro"]) {
       assert.throws(
         () => consume({ ...input, document: { ...input.document, format } }),
-        /direct input requires a script or JSX document format/,
+        /direct source requires script or JSX format/,
       );
     }
     assert.throws(
@@ -404,7 +404,7 @@ void test("native semantic unions validate nested asset kinds and candidate payl
       value: [{ reference, permittedBoundaries: finite("ref", [boundary]) }],
     },
     { kind: "keyframes", value: symbolic("keyframes") },
-    { kind: "view-transitions", value: symbolic("view-transition") },
+    { kind: "viewTransitions", value: symbolic("viewTransition") },
   ]) {
     assert.deepEqual(compile(value).modules[0].diagnostics, []);
   }
@@ -515,7 +515,8 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
 });
 
 void test("projected session edits original SFC text and preserves watch recovery", async () => {
-  const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+  const { NativeDesignSystemLoader, NativeProjectSession, scanSource, compileProject } =
+    await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();
   assert.equal(
     loader.provide(
@@ -568,10 +569,38 @@ void test("projected session edits original SFC text and preserves watch recover
   );
   assert(!before.code.includes("stillwind/svelte"));
   const css = session.css();
-  const missingRealm = session.compile([
-    { ...input, projection: { ...input.projection, importRealms: [], editableRegions: [] } },
+  for (const consume of [
+    scanSource,
+    (source) =>
+      compileProject(
+        [source],
+        cssInput("@utility flex { display:flex; } @stillwind-slot utilities;"),
+      ),
+    (source) => session.compile([source]),
+  ]) {
+    assert.throws(
+      () => consume({ ...input, projection: { ...input.projection, importRealms: [] } }),
+      /editable region 0 references missing import realm 0/,
+    );
+    assert.throws(
+      () =>
+        consume({
+          ...input,
+          projection: {
+            ...input.projection,
+            editableRegions: [
+              ...input.projection.editableRegions,
+              input.projection.editableRegions[0],
+            ],
+          },
+        }),
+      /editable regions 0 and 1 overlap/,
+    );
+  }
+  const outsideRegions = session.compile([
+    { ...input, projection: { ...input.projection, editableRegions: [] } },
   ]).modules[0];
-  assert.equal(missingRealm.diagnostics[0].code, "SW11007");
+  assert.equal(outsideRegions.diagnostics[0].code, "SW11007");
   assert.equal(session.css(), css);
   const invalid = {
     ...input,

@@ -37,7 +37,7 @@ use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{
     BindingReport, NativeDiagnosticBatch, ProjectBindingOutput, ProjectModuleOutput,
 };
-use crate::source_input::{NativePreparedSource, PreparedSource};
+use crate::source_input::{HostPreparedSource, NativePreparedSource};
 use crate::stylesheet::{
     NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
     NativeStylesheetOutput, NativeStylesheetPart, NativeStylesheetPlacement, NativeStylesheetPlan,
@@ -283,7 +283,7 @@ impl NativeDesignSystemLoader {
 /// the module and asset metadata the domain type requires.
 struct ProvidedTypeScriptFacts<'a> {
     /// Host sources in the same order as the scans passed to `update`.
-    sources: &'a [PreparedSource],
+    sources: &'a [HostPreparedSource],
 }
 
 impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
@@ -650,7 +650,7 @@ impl NativeProjectSession {
         let sources = sources
             .into_iter()
             .map(TryInto::try_into)
-            .collect::<napi::Result<Vec<PreparedSource>>>()?;
+            .collect::<napi::Result<Vec<HostPreparedSource>>>()?;
         let mut module_ids = BTreeSet::new();
         for source in &sources {
             if !module_ids.insert(source.module_id()) {

@@ -24,6 +24,7 @@ use crate::AdapterKind;
 /// for emission, but they must not drop entries, duplicate them, or change the identity
 /// of a declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleIr {
     /// Framework the module belongs to. It selects the class property, the runtime
     /// import, and the materialized style format.
@@ -63,6 +64,7 @@ impl ModuleIr {
 
 /// Binding-aware import information. All spans belong to the editable source.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleImports {
     /// Ranges in the original source where the frontend accepted nested macro uses.
     /// Import removal uses a range only if it is inside a transformed style call and
@@ -80,6 +82,7 @@ pub struct ModuleImports {
 
 /// One `import` statement that mentions the framework macro.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MacroImport {
     /// Adapter selected by the imported macro entry point.
     pub adapter: AdapterKind,
@@ -93,6 +96,7 @@ pub struct MacroImport {
 
 /// One binding of a macro import statement.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MacroImportSpecifier {
     /// Span of the binding as written, local name included.
     pub span: Span,
@@ -108,6 +112,7 @@ pub struct MacroImportSpecifier {
 
 /// One `style(...)` call with its evaluated inputs in source order.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StyleCall {
     /// Span of the whole call, including the callee expression.
     pub span: Span,
@@ -118,6 +123,7 @@ pub struct StyleCall {
 
 /// A non-class entry of an object literal, such as `"aria-busy": loading`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AttributeEntry {
     /// Attribute name as written. It is emitted as a prop, not as a class.
     pub name: Spanned<String>,
@@ -130,6 +136,7 @@ pub struct AttributeEntry {
 /// One declaration covers both roles a ref plays: the element it is attached to, and
 /// the boundary that other refs may be bounded by.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefDefinition {
     /// Module identity of the declaring module.
     pub module_id: ModuleId,
@@ -151,6 +158,7 @@ pub struct RefDefinition {
 /// boundary's own boundary, which nothing reads. Selector and marker generation need no
 /// more than these fields.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BoundaryRef {
     /// Module identity of the declaring module.
     pub module_id: ModuleId,
@@ -164,6 +172,7 @@ pub struct BoundaryRef {
 
 /// A `style.keyframes()` declaration: named keyframes plus their identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyframesDefinition {
     /// Local binding; its span seeds the declaration identity.
     pub binding: Spanned<String>,
@@ -178,6 +187,7 @@ pub struct KeyframesDefinition {
 
 /// A complete keyframe definition with optional conditional replacements.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyframesBody {
     /// Frame declarations in authored order; omitted frames are not inherited.
     pub frames: Vec<KeyframesFrame>,
@@ -188,6 +198,7 @@ pub struct KeyframesBody {
 
 /// A condition selecting a complete keyframes definition.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyframesBranch {
     /// Variant conditions resolved at the keyframes rule boundary.
     pub variant: StyleVariant,
@@ -197,6 +208,7 @@ pub struct KeyframesBranch {
 
 /// One `"from"` / `"to"` / percentage frame of a named keyframes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyframesFrame {
     /// Frame selector text: `from`, `to`, or a percentage list.
     pub selector: Spanned<String>,
@@ -207,6 +219,7 @@ pub struct KeyframesFrame {
 /// A `style.viewTransition()` declaration. Uses of one declaration share a single
 /// generated class; the optional key stays a user expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ViewTransitionDefinition {
     /// Local binding; its span seeds the declaration identity. Every use shares it.
     pub binding: Spanned<String>,
@@ -227,6 +240,7 @@ pub struct ViewTransitionDefinition {
 
 /// A declaration identity paired with source provenance at its use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetReference {
     /// Original UTF-8 declaration identity in its own module.
     pub identity: IdentityId,
@@ -243,6 +257,7 @@ pub struct AssetReference {
 
 /// The CSS role a ref plays at a use site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum RefProjection {
     /// Supplies the receiver's anchor name and optional explicit scope.
     AsAnchor(
@@ -262,6 +277,7 @@ pub enum RefProjection {
 
 /// Explicit anchor visibility, resolved to the union of finite ref candidates.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum AnchorScope {
     /// The CSS keyword `all`.
     All,
@@ -277,6 +293,12 @@ pub enum AnchorScope {
 
 /// Ordered variants shared by object wrappers and direct template interpolation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum StyleVariant {
     /// A normal variant prefix. A nonempty prefix includes its final separator;
     /// an empty prefix contributes no variants. The compiler validates the CSS
@@ -310,6 +332,12 @@ pub enum StyleVariant {
 
 /// One evaluated argument of a `style(...)` call.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum StyleInput {
     /// Source array whose entries can contribute to multiple props channels.
     Array(
@@ -385,6 +413,7 @@ pub enum StyleInput {
 /// transitions may compose the same value on purpose, so the compiler derives it from the
 /// class token and the key instead of checking it against a namespace.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ViewTransitionName {
     /// No name: the use marks its participants with a class only.
     None,
@@ -394,6 +423,7 @@ pub enum ViewTransitionName {
 
 /// One key a view-transition use pairs its participants under.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ViewTransitionKey {
     /// A literal key: the name becomes a static declaration.
     Literal(String),
@@ -405,7 +435,12 @@ pub enum ViewTransitionKey {
 /// a falsy branch exists throughout parsing, lowering, and rendering. Deserialization
 /// rejects an `alternate` on `And` and requires it on `Ternary`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(
+    deny_unknown_fields,
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ConditionalBranches<T> {
     /// `test && consequent`.
     And {
@@ -495,6 +530,12 @@ impl<T> ConditionalBranches<T> {
 
 /// A root expression that preserves mixed class and props contributions.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ClassExpression {
     /// `[a, b]`: elements are flattened at runtime in evaluation order.
     Array(
@@ -533,6 +574,12 @@ pub enum ClassExpression {
 
 /// A CSS rule expression whose every descendant may occur under a variant.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum RuleExpression {
     /// A utility string or utility template literal.
     Utilities(
@@ -713,6 +760,7 @@ impl From<RuleExpression> for ClassExpression {
 
 /// One source-ordered entry of an object literal class expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum GroupEntry {
     /// An entry contributing classes. Boxed to keep the enum small.
     Class(
@@ -733,6 +781,7 @@ pub enum GroupEntry {
 
 /// An inline CSS custom property with an expression evaluated at the call site.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CustomPropertyEntry {
     /// Decoded CSS property name, beginning with `--`. The JavaScript frontend
     /// selects this entry only after checking the prefix.
@@ -753,19 +802,21 @@ mod tests {
     fn deserialization_requires_the_branches_of_the_source_operator() {
         assert!(
             serde_json::from_str::<ConditionalBranches<Vec<u8>>>(
-                r#"{"And":{"consequent":[1],"alternate":[2]}}"#
+                r#"{ "kind": "and", "consequent": [1], "alternate": [2] }"#
             )
             .is_err()
         );
         assert!(
             serde_json::from_str::<ConditionalBranches<Vec<u8>>>(
-                r#"{"Ternary":{"consequent":[1]}}"#
+                r#"{ "kind": "ternary", "consequent": [1] }"#
             )
             .is_err()
         );
         assert!(
-            serde_json::from_str::<ConditionalBranches<Vec<u8>>>(r#"{"And":{"consequent":[1]}}"#)
-                .is_ok()
+            serde_json::from_str::<ConditionalBranches<Vec<u8>>>(
+                r#"{ "kind": "and", "consequent": [1] }"#
+            )
+            .is_ok()
         );
     }
 }

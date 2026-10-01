@@ -165,6 +165,7 @@ pub struct BytePos(
 /// range; [`SourceFile::slice`] validates the whole span. [`SourceFile::position`]
 /// validates only the byte offset supplied to it.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Span {
     /// Buffer the offsets belong to.
     pub file: FileId,
@@ -203,6 +204,7 @@ impl Span {
 /// Derived equality compares both the value and the span. Equal values from different
 /// source ranges therefore compare unequal.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Spanned<T> {
     /// The parsed value.
     pub value: T,
@@ -219,6 +221,7 @@ impl<T> Spanned<T> {
 
 /// A zero-based line and UTF-16 column, the coordinate editors and LSP use.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Position {
     /// Zero-based line index within the file.
     pub line: u32,

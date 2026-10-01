@@ -30,6 +30,7 @@ use crate::semantic::NativeIdentity;
 /// Result of compiling one module.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingOutput {
     /// Composition edges this module declared or consumed.
     pub composition: Vec<NativeStyleDependency>,
@@ -65,6 +66,7 @@ pub struct BindingOutput {
 /// One source-resolved diagnostic transferred from the common reporting layer.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingReport {
     /// Stable compiler code or lint rule.
     pub code: String,
@@ -103,6 +105,7 @@ impl From<ResolvedDiagnostic> for BindingReport {
 /// A highlight and its explanation.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingLabel {
     /// Source revision and editor range.
     pub location: BindingLocation,
@@ -122,6 +125,7 @@ impl From<ResolvedLabel> for BindingLabel {
 /// Document identity, revision, and complete half-open editor range.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingLocation {
     /// Absolute document URI supplied by the host or formed for a virtual input.
     pub uri: String,
@@ -165,6 +169,7 @@ impl From<ResolvedLocation> for BindingLocation {
 /// A revision-pinned replacement edit.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingEdit {
     /// Range in the source revision to replace.
     pub location: BindingLocation,
@@ -184,6 +189,7 @@ impl From<ResolvedEdit> for BindingEdit {
 /// One alternative fix offered for a diagnostic.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingAction {
     /// Title shown by an editor.
     pub title: String,
@@ -203,6 +209,7 @@ impl From<ResolvedAction> for BindingAction {
 /// One composition edge: [`Self::derived`] includes the payload of [`Self::base`].
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeStyleDependency {
     /// The style call that consumes another payload.
     pub derived: NativeIdentity,
@@ -222,6 +229,7 @@ impl From<StyleDependency> for NativeStyleDependency {
 /// One compiler error, in both byte and editor coordinates.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingDiagnostic {
     /// Stable diagnostic code, such as `SW02003`.
     pub code: String,
@@ -254,6 +262,7 @@ pub struct BindingDiagnostic {
 /// One lint finding.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingLintFinding {
     /// Rule name, as used by `swlint-disable` directives.
     pub rule: String,
@@ -282,6 +291,7 @@ pub struct BindingLintFinding {
 /// A `url()` reference the host must resolve.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeModuleResource {
     /// Placeholder left in the generated CSS.
     pub placeholder: String,
@@ -306,6 +316,7 @@ impl From<ModuleResourceReference> for NativeModuleResource {
 /// generated gaps outside `expressions` use the edit's original start as an anchor.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeTransformMapping {
     /// Inclusive original offset; may equal `original_end` for insertion.
     pub original_start: u32,
@@ -338,6 +349,7 @@ impl From<TransformMapping> for NativeTransformMapping {
 /// buffers; exact intervals advance both positions, while encoded intervals use an anchor.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeExpressionMapping {
     /// Inclusive original UTF-16 offset; the anchor when `exact` is false.
     pub original_start: u32,
@@ -368,6 +380,7 @@ impl From<ExpressionTransformMapping> for NativeExpressionMapping {
 /// A byte span with an explicit file id.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeSpan {
     /// File ID within the session's source scope.
     pub file: u32,
@@ -390,6 +403,7 @@ impl From<Span> for NativeSpan {
 /// One conditional test on the path that selects a generated class.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeGuardStep {
     /// The guard expression, which the runtime evaluates as written.
     pub test: NativeSpan,
@@ -409,6 +423,7 @@ impl From<GuardStep> for NativeGuardStep {
 /// A class name generated for one utility literal.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeGeneratedClass {
     /// The generated class.
     pub class_name: String,
@@ -431,6 +446,7 @@ impl From<GeneratedClass> for NativeGeneratedClass {
 /// A generated identifier that host tooling must treat as reserved.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeGeneratedSymbol {
     /// The generated name.
     pub name: String,
@@ -472,6 +488,7 @@ impl From<GeneratedSymbol> for NativeGeneratedSymbol {
 /// One rejected generated name, reported for a host that supplies its own generators.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BindingRejectedIdentifier {
     /// Identifier family the generator was asked for.
     pub kind: String,
@@ -497,6 +514,7 @@ impl From<RejectedIdentifier> for BindingRejectedIdentifier {
 /// Output of a whole-graph compile, one entry per requested module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectBindingOutput {
     /// Per-module results. Rules shared between modules appear once.
     pub modules: Vec<ProjectModuleOutput>,
@@ -505,6 +523,7 @@ pub struct ProjectBindingOutput {
 /// Latest source-resolved findings for one module's attempted revision.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeDiagnosticBatch {
     /// Project module identity for the attempted analysis.
     pub module: String,
@@ -515,6 +534,7 @@ pub struct NativeDiagnosticBatch {
 /// One module's result inside a whole-graph compile.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectModuleOutput {
     /// Composition edges of this module.
     pub composition: Vec<NativeStyleDependency>,

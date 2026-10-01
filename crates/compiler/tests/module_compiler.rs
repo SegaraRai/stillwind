@@ -20,8 +20,9 @@ use stillwind_compiler::{
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, SourceFailureContext};
 use stillwind_ir::{
-    ClassExpression, ConditionalBranches, RefDefinition, RuleExpression, ScriptLanguage,
-    ScriptModuleKind, SourceAnalyzer, StyleInput, StyleVariant,
+    ClassExpression, ConditionalBranches, DirectSource, PreparedSource, ProjectedSource,
+    RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
+    SourceDocument, SourceInput, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
@@ -492,7 +493,29 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     let compiler = ModuleCompiler::new(snapshot, CompilerOptions::default());
     let first = compiler.compile(&analysis, &Identifiers::default());
     let mut upstream_changed = analysis.clone();
-    upstream_changed.input.upstream_map = Some("{\"version\":3,\"sources\":[\"upstream\"]}".into());
+    let input = &upstream_changed.input;
+    let document = SourceDocument::new(
+        input.document().file().clone(),
+        input.document().format(),
+        Some("{\"version\":3,\"sources\":[\"upstream\"]}".into()),
+    );
+    let prepared = match input.prepared() {
+        PreparedSource::Direct(_) => {
+            PreparedSource::Direct(DirectSource::try_new(document, input.syntax()).unwrap())
+        }
+        PreparedSource::Projected(projected) => PreparedSource::Projected(
+            ProjectedSource::try_new(document, projected.projection().clone()).unwrap(),
+        ),
+    };
+    let mut rebuilt = SourceInput::new(input.module_id.clone(), prepared);
+    rebuilt.framework = input.framework;
+    rebuilt
+        .stylesheet_imports
+        .clone_from(&input.stylesheet_imports);
+    rebuilt
+        .module_css_import
+        .clone_from(&input.module_css_import);
+    upstream_changed.input = rebuilt;
     let upstream_key = compiler.key_for(&upstream_changed);
     assert_eq!(first.key.source_revision, upstream_key.source_revision);
     assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);

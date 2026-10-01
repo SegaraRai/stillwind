@@ -29,6 +29,7 @@ use crate::{
 /// Marker classes and asset symbols need not own a CSS rule. Failed pipeline output
 /// clears generated output; public construction does not enforce that relationship.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompileResult {
     /// Generated contributions in emission order, including placement and registration
     /// dependencies required for artifact construction.

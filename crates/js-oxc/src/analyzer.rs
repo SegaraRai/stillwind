@@ -81,9 +81,9 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     /// file. Projection failures do not propagate as errors: the scan carries
     /// a projection diagnostic and empty IR so the caller can report and continue.
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
-        let source = Arc::clone(input.edit_source());
-        let (mut parsed, provenance) = if input.projection.is_some() {
-            match parse_projected(&input, &[], &BTreeMap::new()) {
+        let source = Arc::clone(input.document().file());
+        let (mut parsed, provenance) = if let Some(projected) = input.projected() {
+            match parse_projected(&input.module_id, projected, &[], &BTreeMap::new()) {
                 Ok(value) => value,
                 Err(error) => {
                     return ModuleScan {
@@ -108,8 +108,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                     &input.module_id,
                     &[],
                     &BTreeMap::new(),
-                    input.language,
-                    input.module_kind,
+                    input.syntax().language(),
+                    input.syntax().module_kind(),
                 ),
                 Vec::new(),
             )
@@ -177,8 +177,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         // neither scan nor finalized IR contains checker objects or module graphs.
         let mut provenance = scan.provenance;
         let parsed = facts.map(|facts| {
-            let mut parsed = if scan.input.projection.is_some() {
-                match parse_projected(&scan.input, &facts.facts, &facts.assets) {
+            let mut parsed = if let Some(projected) = scan.input.projected() {
+                match parse_projected(&scan.module_id, projected, &facts.facts, &facts.assets) {
                     Ok((parsed, mapped)) => {
                         provenance = mapped;
                         parsed
@@ -206,8 +206,8 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                     &scan.module_id,
                     &facts.facts,
                     &facts.assets,
-                    scan.input.language,
-                    scan.input.module_kind,
+                    scan.input.syntax().language(),
+                    scan.input.syntax().module_kind(),
                 )
             };
             select_framework(&mut parsed, &scan.input);
@@ -255,13 +255,13 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
 /// that contradicts the macro import appends `CompileDiagnostic::FrameworkConflict`; otherwise it overrides the
 /// default adapter. Component formats supply the default when no macro is imported.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
-    let allowed = input.source_format.adapters();
+    let allowed = input.document().format().adapters();
     for import in &parsed.module.imports.macros {
         if !allowed.is_empty() && !allowed.contains(&import.adapter) {
             parsed.lint_findings.push(LintFinding::new(
                 LintDiagnostic::FrameworkImportMismatch {
                     import: import.adapter.spec().macro_import.into(),
-                    source_format: input.source_format.description().into(),
+                    source_format: input.document().format().description().into(),
                     expected: allowed
                         .iter()
                         .map(|adapter| format!("`{}`", adapter.spec().macro_import))
@@ -279,13 +279,13 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
         {
             parsed.diagnostics.push(CompileError::new(
                 CompileDiagnostic::FrameworkConflict,
-                input.edit_source().full_span(),
+                input.document().file().full_span(),
             ));
         } else {
             parsed.module.adapter = framework;
         }
     } else if parsed.framework.is_none()
-        && let Some(framework) = input.source_format.projection_adapter()
+        && let Some(framework) = input.document().format().projection_adapter()
     {
         parsed.module.adapter = framework;
     }

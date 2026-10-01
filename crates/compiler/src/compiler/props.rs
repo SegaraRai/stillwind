@@ -15,6 +15,7 @@ use crate::generated::Code;
 
 /// One conditional step of a class contribution's guard path.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GuardStep {
     /// The user's test expression, in the original source.
     pub test: Span,
@@ -27,6 +28,7 @@ pub struct GuardStep {
 /// A consumer that evaluates the guard path can tell which conditional classes are active for
 /// a given test outcome without re-reading the source expression.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GeneratedClass {
     /// The generated class name, without a leading dot.
     pub class_name: String,

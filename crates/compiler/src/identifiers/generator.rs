@@ -268,6 +268,7 @@ impl Eq for GeneratorSet {}
 /// and why its audience is the bundler plugin, which receives the compilation result
 /// and can warn with its own position.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RejectedIdentifier {
     /// Family the generator was asked for.
     pub kind: IdentifierKind,
@@ -282,6 +283,7 @@ pub struct RejectedIdentifier {
 
 /// Rejected names one compilation collected, in request order.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RejectedNames {
     /// Rejections, deduplicated by family, hash, and reason.
     entries: Vec<RejectedIdentifier>,

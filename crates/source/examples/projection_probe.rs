@@ -18,6 +18,7 @@ use stillwind_source::{
 
 /// One probe case as supplied by the test driver.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Input {
     /// Label echoed back in the result so a failing case stays identifiable.
     name: String,

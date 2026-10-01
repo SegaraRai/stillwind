@@ -42,8 +42,8 @@ fn cli_rebases_js_resources_from_the_source_directory() {
     );
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["diagnostics"], serde_json::json!([]));
-    assert_eq!(value["lint_settings"]["macro-argument-mutation"], "deny");
-    assert_eq!(value["lint_settings"]["ambiguous-base-order"], "warn");
+    assert_eq!(value["lintSettings"]["macro-argument-mutation"], "deny");
+    assert_eq!(value["lintSettings"]["ambiguous-base-order"], "warn");
     let css = value["css"].as_str().unwrap();
     assert!(css.contains("nested/icon.svg"), "{css}");
     assert!(!css.contains("__stillwind_"), "{css}");

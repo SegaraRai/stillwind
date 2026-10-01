@@ -32,7 +32,7 @@ use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput, Bindin
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::semantic::{NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe};
 use crate::source_input::{
-    NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind, PreparedSource,
+    HostPreparedSource, NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind,
 };
 
 /// A Node binding input, setup, or diagnostic serialization error.
@@ -302,7 +302,7 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
 /// Returns an error for invalid options or sources, exhausted file IDs, or an
 /// unresolved module edge.
 pub fn compile_project_input(
-    input: &[PreparedSource],
+    input: &[HostPreparedSource],
     css: &CompileCssInput,
     options: &CompilerOptions,
 ) -> Result<ProjectBindingOutput, BindingApiError> {
@@ -378,7 +378,7 @@ pub fn compile_project_input(
 /// Rejects malformed input and projection failures before checker queries are issued.
 #[napi(strict)]
 pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSummary> {
-    let source = PreparedSource::try_from(source)?;
+    let source = HostPreparedSource::try_from(source)?;
     let mut registry = SourceRegistry::default();
     let scan = OxcSourceAnalyzer.scan_input(source.input(&mut registry)?);
     if let Some(error) = scan.diagnostics.iter().find(|error| {
@@ -418,7 +418,7 @@ pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSum
                 .map(|specifier| (specifier.start, specifier.end)),
         )
         .collect();
-    let index = CoordinateIndex::new(&scan.input.code);
+    let index = CoordinateIndex::new(scan.input.parser_source());
     for mapped in scan.provenance {
         if !wanted.contains(&(mapped.original.start.0, mapped.original.end.0)) {
             continue;
@@ -569,7 +569,7 @@ pub fn compile_project(
     let sources = sources
         .into_iter()
         .map(TryInto::try_into)
-        .collect::<napi::Result<Vec<PreparedSource>>>()?;
+        .collect::<napi::Result<Vec<HostPreparedSource>>>()?;
     compile_project_input(&sources, &css.try_into()?, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }

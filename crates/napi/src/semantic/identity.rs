@@ -7,9 +7,9 @@ use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::ModuleId;
 
 /// Asset kinds as the host names them.
-#[napi(string_enum = "kebab-case")]
+#[napi(string_enum = "camelCase")]
 #[derive(Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum NativeAssetKind {
     /// A `style(...)` call's payload.
     Style,
@@ -46,6 +46,7 @@ impl From<AssetKind> for NativeAssetKind {
 /// Identity of a declaration site.
 #[napi(object)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeIdentity {
     /// Kind of declaration this identity names.
     pub kind: NativeAssetKind,

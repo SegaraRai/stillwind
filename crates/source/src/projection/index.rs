@@ -55,7 +55,11 @@ pub enum ProjectionError {
 /// coordinates, Volar entries are intervals in UTF-16 coordinates. Neither variant is
 /// normalized into the other.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ProjectionMap {
     /// A source map v3 document plus the source name that identifies the
     /// original file.
@@ -79,6 +83,7 @@ pub enum ProjectionMap {
 /// omit synthetic text, including receiver prefixes, from the projected envelope.
 /// Public construction and deserialization do not validate this correspondence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceProvenance {
     /// The span that was asked about, in the generated (shadow) source.
     pub projected: Span,

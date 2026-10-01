@@ -47,6 +47,7 @@ pub enum TransformError {
 /// All edits share one original coordinate space; application order never rebases
 /// their source spans. Use `render_transforms` to validate and apply a complete plan.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceTransform {
     /// Half-open UTF-8 range in the original source; an empty span denotes insertion.
     pub call_span: Span,
@@ -166,6 +167,7 @@ impl SourceTransform {
 /// Correspondence for one retained occurrence inside a generated replacement.
 /// The owner orders these by generated position; source order need not match.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExpressionMapping {
     /// Inclusive UTF-8 byte offset in the replacement; a scalar boundary less than `end`.
     pub start: usize,
@@ -182,6 +184,7 @@ pub struct ExpressionMapping {
 /// Intervals between edits remain exact; replacement gaps without expression mappings
 /// use `original_start` as their fallback location.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TransformMapping {
     /// Inclusive absolute UTF-16 offset in the original source; equals end for insertion.
     pub original_start: u32,
@@ -199,6 +202,7 @@ pub struct TransformMapping {
 /// A retained expression's source correspondence after byte-to-UTF-16 conversion.
 /// Used inside a replacement mapping to distinguish exact text from encoded anchors.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExpressionTransformMapping {
     /// Inclusive absolute UTF-16 offset in the original buffer.
     pub original_start: u32,

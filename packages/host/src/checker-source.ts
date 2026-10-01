@@ -46,10 +46,10 @@ interface ShadowEdit {
 export function identityKey(identity: NativeAssetRecord["identity"]): string {
   const serialized = JSON.stringify({
     kind: identity.kind,
-    module_id: identity.moduleId,
+    moduleId: identity.moduleId,
     start: identity.start,
     end: identity.end,
-    binding_name: identity.bindingName,
+    bindingName: identity.bindingName,
   });
   return `stillwind-identity/v1:${Buffer.from(serialized).toString("base64url")}`;
 }

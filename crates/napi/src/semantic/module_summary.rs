@@ -14,6 +14,7 @@ use super::values::NativeExportedValue;
 /// User-facing metadata of a produced asset.
 #[napi(object, object_from_js = false, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeAssetMetadata {
     /// Optional label the user gave the declaration.
     pub label: Option<String>,
@@ -22,6 +23,7 @@ pub struct NativeAssetMetadata {
 /// A produced asset as reported in a module summary.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeAssetRecord {
     /// Identity of the declaration site.
     pub identity: NativeIdentity,
@@ -49,6 +51,7 @@ impl From<AssetRecord> for NativeAssetRecord {
 /// One import binding of a module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeImportBinding {
     /// Local name in the importing module.
     pub local: String,
@@ -71,6 +74,7 @@ impl From<ImportBinding> for NativeImportBinding {
 /// One re-export of a module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeReExport {
     /// Name the module exports.
     pub exported: String,
@@ -93,6 +97,7 @@ impl From<ReExport> for NativeReExport {
 /// An import or export specifier with its location.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeModuleSpecifier {
     /// Authored specifier text.
     pub source: String,
@@ -115,6 +120,7 @@ impl From<ModuleSpecifier> for NativeModuleSpecifier {
 /// Expression range queried for lowering or optional macro recognition.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeTypeProbe {
     /// True when the query only identifies whether a receiver is a Stillwind macro asset.
     /// Resolving a fact is optional: without one, the receiver is treated as ordinary
@@ -131,6 +137,7 @@ pub struct NativeTypeProbe {
 /// One named entry of a summary map.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeExport {
     /// Export name, possibly `__proto__`.
     pub name: String,
@@ -141,6 +148,7 @@ pub struct NativeExport {
 /// Imports reachable from one export of a module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeExportImports {
     /// Export name.
     pub name: String,
@@ -151,6 +159,7 @@ pub struct NativeExportImports {
 /// Validated correspondence used only to locate checker AST nodes.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeCheckerSpan {
     /// Inclusive original UTF-8 byte offset.
     pub start: u32,
@@ -165,6 +174,7 @@ pub struct NativeCheckerSpan {
 /// Versioned cross-module summary of one module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeModuleSummary {
     /// Original-to-projected expression/import correspondences; empty for plain inputs.
     pub checker_spans: Vec<NativeCheckerSpan>,

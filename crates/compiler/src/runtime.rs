@@ -112,9 +112,8 @@ impl<'a> RuntimeBindings<'a> {
         Self {
             regions: module
                 .input
-                .projection
-                .as_ref()
-                .map_or(&[], |projection| projection.regions.as_slice()),
+                .projection()
+                .map_or(&[], |projection| projection.editable_regions()),
             reserved: module.ir.imports.reserved_names.iter().cloned().collect(),
             names: BTreeMap::new(),
             uses: Vec::new(),
@@ -315,11 +314,11 @@ fn contains(outer: Span, inner: Span) -> bool {
 
 /// Finds the macro import statement that owns `at`'s import realm.
 ///
-/// The realm chain is followed outward only when a realm holds no macro import of its
-/// own. A cycle, a duplicated realm id, or a missing parent is invalid metadata: the
-/// caller gets an error instead of an arbitrary anchor.
+/// Follows parent realms when a realm contains no macro import. Returns a missing
+/// runtime anchor diagnostic when no editable region contains `at` or no realm in its
+/// chain contains a macro import.
 fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileError> {
-    let Some(projection) = &module.input.projection else {
+    let Some(projection) = module.input.projection() else {
         return if module.ir.imports.macros.is_empty() {
             Err(CompileError::new(
                 CompileDiagnostic::MissingRuntimeAnchor { span: at },
@@ -332,37 +331,7 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
     let region = projection_region(module, at)?.ok_or_else(|| {
         CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
     })?;
-    module.source.slice(region.source).map_err(|error| {
-        CompileError::new(
-            CompileDiagnostic::import_source_failure(&error),
-            module.source.full_span(),
-        )
-    })?;
-    let mut visited = BTreeSet::new();
-    let mut id = region.import_realm;
-    loop {
-        if !visited.insert(id) {
-            return Err(CompileError::new(
-                CompileDiagnostic::InvalidImportMetadata { span: at },
-                at,
-            ));
-        }
-        let mut realms = projection.realms.iter().filter(|realm| realm.id == id);
-        let realm = realms.next().ok_or_else(|| {
-            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
-        })?;
-        if realms.next().is_some() {
-            return Err(CompileError::new(
-                CompileDiagnostic::InvalidImportMetadata { span: at },
-                at,
-            ));
-        }
-        module.source.slice(realm.source).map_err(|error| {
-            CompileError::new(
-                CompileDiagnostic::import_source_failure(&error),
-                module.source.full_span(),
-            )
-        })?;
+    for realm in projection.realm_chain(region.import_realm) {
         if let Some(anchor) = module
             .ir
             .imports
@@ -372,38 +341,33 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
         {
             return Ok(anchor);
         }
-        id = realm.parent.ok_or_else(|| {
-            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
-        })?;
     }
+    Err(CompileError::new(
+        CompileDiagnostic::MissingRuntimeAnchor { span: at },
+        at,
+    ))
 }
 
-/// The innermost projection region containing `at`, if the module has a projection.
+/// Returns the editable region containing `at`, or `None` for direct input.
 ///
 /// # Errors
 ///
-/// Returns invalid metadata when no region contains the span or when two regions do,
-/// because overlapping regions would make the lookup order-dependent.
+/// Returns a missing runtime anchor diagnostic when projected input has no region
+/// containing `at`.
 fn projection_region(
     module: &ModuleAnalysis,
     at: Span,
 ) -> Result<Option<&ProjectionRegion>, CompileError> {
-    let Some(projection) = &module.input.projection else {
+    let Some(projection) = module.input.projection() else {
         return Ok(None);
     };
-    let mut regions = projection
-        .regions
+    let region = projection
+        .editable_regions()
         .iter()
-        .filter(|region| contains(region.source, at));
-    let region = regions.next().ok_or_else(|| {
-        CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
-    })?;
-    if regions.next().is_some() {
-        return Err(CompileError::new(
-            CompileDiagnostic::InvalidImportMetadata { span: at },
-            at,
-        ));
-    }
+        .find(|region| contains(region.source, at))
+        .ok_or_else(|| {
+            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
+        })?;
     Ok(Some(region))
 }
 
@@ -420,9 +384,9 @@ fn projection_region(
 ///
 /// # Errors
 ///
-/// Returns invalid metadata when regions cannot be resolved unambiguously or a quoted
-/// region is not delimited by its recorded quote. Earlier edits may already be encoded;
-/// the caller discards the plan on failure.
+/// Returns a missing runtime anchor diagnostic when no region contains an edit. Returns
+/// invalid metadata when a quoted region is not delimited by its recorded quote.
+/// Earlier edits may already be encoded; the caller discards the plan on failure.
 ///
 /// # Panics
 ///
@@ -473,11 +437,12 @@ mod runtime_anchor_tests {
     use std::sync::Arc;
 
     use stillwind_ir::{
-        ConverterIdentity, FrameworkProjection, ImportRealm, ModuleAnalysis, ProjectionRegion,
-        ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
+        ConverterIdentity, ImportRealm, ModuleAnalysis, PreparedSource, ProjectedSource,
+        ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax, SourceAnalyzer,
+        SourceDocument, SourceFormat, SourceInput, SourceInputError, SourceProjection,
     };
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile};
+    use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile, VolarMapping};
 
     use super::*;
 
@@ -511,39 +476,64 @@ mod runtime_anchor_tests {
         ));
     }
 
-    /// One analyzed module whose input carries a framework projection with the given
-    /// realms and regions. The macro import lives at the start of the buffer.
-    fn projected(realms: Vec<ImportRealm>, regions: Vec<ProjectionRegion>) -> ModuleAnalysis {
-        let source = Arc::new(
-            SourceFile::new(
-                FileId(1),
-                None,
-                None,
-                "import { style } from 'stillwind/vue'; const x = style('flex');",
-            )
-            .unwrap(),
-        );
-        let mut analysis = OxcSourceAnalyzer.finalize(
-            OxcSourceAnalyzer.scan(
-                source.clone(),
-                ModuleId::from("test.tsx"),
-                ScriptLanguage::Tsx,
-                ScriptModuleKind::Unambiguous,
-            ),
+    fn projected_input(
+        realms: Vec<ImportRealm>,
+        regions: Vec<ProjectionRegion>,
+    ) -> Result<SourceInput, SourceInputError> {
+        let text = "import { style } from 'stillwind/vue'; const x = style('flex');";
+        let document = SourceDocument::new(
+            Arc::new(SourceFile::new(FileId(1), None, None, text).unwrap()),
+            SourceFormat::Vue,
             None,
         );
-        analysis.input.projection = Some(FrameworkProjection {
-            original: source.clone(),
-            map: ProjectionMap::Volar { mappings: vec![] },
-            converter: ConverterIdentity {
+        let code = Arc::new(SourceFile::new(FileId(2), None, None, text).unwrap());
+        let projection = SourceProjection::try_new(
+            code,
+            ScriptSyntax::new(ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous),
+            ProjectionMap::Volar {
+                mappings: vec![VolarMapping {
+                    source_offsets: vec![0],
+                    generated_offsets: vec![0],
+                    lengths: vec![u32::try_from(text.len()).unwrap()],
+                    generated_lengths: None,
+                }],
+            },
+            ConverterIdentity {
                 name: "test-converter".to_owned(),
                 version: "0".to_owned(),
                 options_fingerprint: "none".to_owned(),
             },
-            analysis_id: FileId(2),
+            FileId(3),
             realms,
             regions,
-        });
+        )?;
+        let projected = ProjectedSource::try_new(document, projection)?;
+        Ok(SourceInput::new(
+            ModuleId::from("test.vue"),
+            PreparedSource::Projected(projected),
+        ))
+    }
+
+    fn projected(realms: Vec<ImportRealm>, regions: Vec<ProjectionRegion>) -> ModuleAnalysis {
+        let analysis = OxcSourceAnalyzer.finalize(
+            OxcSourceAnalyzer.scan_input(projected_input(realms, regions).unwrap()),
+            None,
+        );
+        assert!(
+            analysis.diagnostics.is_empty(),
+            "{:?}",
+            analysis.diagnostics
+        );
+        assert_eq!(analysis.source.id(), FileId(1));
+        assert_eq!(analysis.input.parser_source().id(), FileId(2));
+        assert_eq!(
+            analysis.input.projection().unwrap().analysis_id(),
+            FileId(3)
+        );
+        assert!(!analysis.provenance.is_empty());
+        assert!(analysis.provenance.iter().all(|entry| {
+            entry.original.file == FileId(1) && entry.projected.file == FileId(2)
+        }));
         analysis
     }
 
@@ -583,54 +573,58 @@ mod runtime_anchor_tests {
         ));
     }
 
-    /// A realm cycle and a duplicated realm id are invalid metadata rather than an
-    /// arbitrary anchor.
     #[test]
-    fn runtime_anchor_rejects_cycles_and_duplicate_realm_ids() {
-        let cycle = projected(
-            vec![realm(1, 45, 60, Some(2)), realm(2, 45, 60, Some(1))],
-            vec![region(1, 45, 60)],
-        );
+    fn projected_input_rejects_invalid_realm_metadata() {
         assert!(matches!(
-            runtime_anchor(&cycle, Span::new(FileId(1), 50, 55)),
-            Err(CompileError {
-                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
-                ..
-            })
+            projected_input(
+                vec![realm(1, 45, 60, Some(2)), realm(2, 45, 60, Some(1))],
+                vec![region(1, 45, 60)],
+            ),
+            Err(SourceInputError::ImportRealmCycle { .. })
         ));
-        let duplicated = projected(
-            vec![realm(1, 0, 44, None), realm(1, 0, 44, None)],
-            vec![region(1, 50, 55)],
-        );
         assert!(matches!(
-            runtime_anchor(&duplicated, Span::new(FileId(1), 52, 53)),
-            Err(CompileError {
-                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
-                ..
-            })
+            projected_input(
+                vec![realm(1, 0, 44, None), realm(1, 0, 44, None)],
+                vec![region(1, 50, 55)],
+            ),
+            Err(SourceInputError::DuplicateImportRealm { .. })
+        ));
+        assert!(matches!(
+            projected_input(vec![realm(1, 45, 60, Some(2))], vec![region(1, 45, 60)]),
+            Err(SourceInputError::MissingImportRealmParent { .. })
+        ));
+        assert!(matches!(
+            projected_input(vec![realm(1, 45, 60, None)], vec![region(2, 45, 60)]),
+            Err(SourceInputError::MissingRegionImportRealm { .. })
         ));
     }
 
-    /// A query outside every region, and a query inside two regions, are reported
-    /// instead of picking an order-dependent anchor.
     #[test]
-    fn runtime_anchor_reports_queries_outside_or_between_regions() {
+    fn projected_input_rejects_invalid_spans_and_overlapping_regions() {
+        assert!(matches!(
+            projected_input(vec![realm(1, 0, 100, None)], vec![region(1, 45, 60)]),
+            Err(SourceInputError::InvalidImportRealmSpan { .. })
+        ));
+        assert!(matches!(
+            projected_input(vec![realm(1, 0, 60, None)], vec![region(1, 45, 100)]),
+            Err(SourceInputError::InvalidEditableRegionSpan { .. })
+        ));
+        assert!(matches!(
+            projected_input(
+                vec![realm(1, 45, 60, None)],
+                vec![region(1, 45, 60), region(1, 50, 55)],
+            ),
+            Err(SourceInputError::OverlappingEditableRegions { .. })
+        ));
+    }
+
+    #[test]
+    fn runtime_anchor_reports_queries_outside_regions() {
         let single = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
         assert!(matches!(
-            runtime_anchor(&single, Span::new(FileId(1), 0, 5)),
+            runtime_anchor(&single, single.ir.style_calls[0].span),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
-                ..
-            })
-        ));
-        let overlapping = projected(
-            vec![realm(1, 45, 60, None)],
-            vec![region(1, 45, 60), region(1, 50, 55)],
-        );
-        assert!(matches!(
-            runtime_anchor(&overlapping, Span::new(FileId(1), 52, 53)),
-            Err(CompileError {
-                diagnostic: CompileDiagnostic::InvalidImportMetadata { .. },
                 ..
             })
         ));

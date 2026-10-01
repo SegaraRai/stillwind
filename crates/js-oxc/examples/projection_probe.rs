@@ -18,14 +18,16 @@ use serde::Deserialize;
 use serde_json::json;
 
 use stillwind_ir::{
-    AdapterKind, ConverterIdentity, FrameworkProjection, ScriptLanguage, ScriptModuleKind,
-    SourceAnalyzer, SourceFormat, SourceInput,
+    AdapterKind, ConverterIdentity, PreparedSource, ProjectedSource, ScriptLanguage,
+    ScriptModuleKind, ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput,
+    SourceProjection,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile};
 
 /// One converter-output case as supplied by the test driver.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Input {
     /// Label echoed back in the result so a failing case stays identifiable.
     name: String,
@@ -74,34 +76,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        let scan = OxcSourceAnalyzer.scan_input(SourceInput {
-            code: Arc::new(generated.clone()),
-            module_id: ModuleId::from(input.name.as_str()),
-            language: ScriptLanguage::Tsx,
-            module_kind: ScriptModuleKind::Unambiguous,
-            framework: Some(input.framework),
-            source_format: match input.framework {
-                AdapterKind::Astro => SourceFormat::Astro,
-                AdapterKind::Svelte => SourceFormat::Svelte,
-                AdapterKind::Vue => SourceFormat::Vue,
-                _ => SourceFormat::Script,
+        let format = match input.framework {
+            AdapterKind::Astro => SourceFormat::Astro,
+            AdapterKind::Svelte => SourceFormat::Svelte,
+            AdapterKind::Vue => SourceFormat::Vue,
+            _ => {
+                results.push(json!({
+                    "name": input.name,
+                    "error": "projected inputs require a component adapter",
+                }));
+                continue;
+            }
+        };
+        let projection = match SourceProjection::try_new(
+            Arc::new(generated.clone()),
+            ScriptSyntax::new(ScriptLanguage::Tsx, ScriptModuleKind::Unambiguous),
+            input.map.clone(),
+            ConverterIdentity {
+                name: "real-converter-fixture".into(),
+                version: "pinned".into(),
+                options_fingerprint: "research".into(),
             },
-            upstream_map: None,
-            stylesheet_imports: Vec::new(),
-            module_css_import: None,
-            projection: Some(FrameworkProjection {
-                original: Arc::new(original.clone()),
-                map: input.map.clone(),
-                converter: ConverterIdentity {
-                    name: "real-converter-fixture".into(),
-                    version: "pinned".into(),
-                    options_fingerprint: "research".into(),
-                },
-                analysis_id: FileId(3),
-                realms: Vec::new(),
-                regions: Vec::new(),
-            }),
-        });
+            FileId(3),
+            Vec::new(),
+            Vec::new(),
+        )
+        .and_then(|projection| {
+            ProjectedSource::try_new(
+                SourceDocument::new(Arc::new(original.clone()), format, None),
+                projection,
+            )
+        }) {
+            Ok(projected) => projected,
+            Err(error) => {
+                results.push(json!({
+                    "name": input.name,
+                    "error": error.to_string(),
+                }));
+                continue;
+            }
+        };
+        let mut source = SourceInput::new(
+            ModuleId::from(input.name.as_str()),
+            PreparedSource::Projected(projection),
+        );
+        source.framework = Some(input.framework);
+        let scan = OxcSourceAnalyzer.scan_input(source);
         let analysis = OxcSourceAnalyzer.finalize(scan, None);
         match normalized.original_ir(&parsed.module) {
             Ok((ir, provenance)) => {

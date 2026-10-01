@@ -8,6 +8,7 @@ use stillwind_source::{Fingerprint, SourceFile, SourceRegistry, SourceRegistryEr
 
 /// One highlighted source range with an optional local explanation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Label {
     /// Half-open UTF-8 byte range in the identified reporting source. Producers must
     /// supply valid bounds; constructing a label does not validate them.
@@ -86,6 +87,7 @@ impl From<Labels> for Vec<Label> {
 
 /// An edit of one original document, bound to its exact content revision.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceEdit {
     /// Source snapshot and validated byte range to replace.
     pub range: SourceRange,
@@ -95,6 +97,7 @@ pub struct SourceEdit {
 
 /// One user-invoked fix consisting of one or more edits applied together.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FixAction {
     /// Title shown to the user.
     pub title: String,
@@ -104,6 +107,7 @@ pub struct FixAction {
 
 /// Shared source context and possible fixes attached to one typed diagnostic cause.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiagnosticInfo {
     /// The first label is the mandatory primary location.
     pub labels: Labels,
@@ -184,6 +188,7 @@ impl Eq for SourceRange {}
 impl Serialize for SourceRange {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
+
         let mut value = serializer.serialize_struct("SourceRange", 4)?;
         value.serialize_field("uri", &self.source.uri())?;
         value.serialize_field("revision", &Fingerprint::of(self.source.text()).0)?;

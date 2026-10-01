@@ -14,6 +14,7 @@ use crate::DiagnosticInfo;
 /// and notes separately.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, thiserror::Error)]
 #[error("{diagnostic}")]
+#[serde(rename_all = "camelCase")]
 pub struct CompileError {
     /// Typed cause; owns the message template and reporting code.
     #[source]
@@ -126,7 +127,7 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
         assert_eq!(finding.code(), "require-anchor-provider");
-        assert_eq!(value["diagnostic"]["MissingAnchor"]["name"], "対象");
+        assert_eq!(value["diagnostic"]["missingAnchor"]["name"], "対象");
         assert!(value.get("kind").is_none());
         assert_eq!(
             finding.to_string(),

@@ -10,9 +10,10 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{
-    AdapterKind, ClassExpression, ConverterIdentity, FrameworkProjection, GroupEntry,
-    RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
-    StyleInput, StyleVariant,
+    AdapterKind, ClassExpression, ConverterIdentity, DirectSource, GroupEntry, ImportRealm,
+    PreparedSource, ProjectedSource, RuleExpression, ScriptLanguage, ScriptModuleKind,
+    ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput, SourceInputError,
+    SourceProjection, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
 use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
@@ -77,36 +78,71 @@ fn projected_script(script: &str) -> SourceInput {
         )
         .unwrap(),
     );
-    SourceInput {
-        code: Arc::new(SourceFile::new(FileId(2), None, None, script).unwrap()),
-        module_id: ModuleId::from("Component.svelte"),
-        language: ScriptLanguage::Ts,
-        module_kind: ScriptModuleKind::Unambiguous,
-        source_format: SourceFormat::Svelte,
-        framework: Some(AdapterKind::Svelte),
-        upstream_map: None,
-        stylesheet_imports: Vec::new(),
-        module_css_import: None,
-        projection: Some(FrameworkProjection {
-            original,
-            map: ProjectionMap::Volar {
-                mappings: vec![VolarMapping {
-                    source_offsets: vec![8],
-                    generated_offsets: vec![0],
-                    lengths: vec![u32::try_from(script.encode_utf16().count()).unwrap()],
-                    generated_lengths: None,
-                }],
-            },
-            converter: ConverterIdentity {
-                name: "svelte2tsx".into(),
-                version: "0.7.61".into(),
-                options_fingerprint: "test".into(),
-            },
-            analysis_id: FileId(3),
-            realms: Vec::new(),
-            regions: Vec::new(),
-        }),
-    }
+    let projection = SourceProjection::try_new(
+        Arc::new(SourceFile::new(FileId(2), None, None, script).unwrap()),
+        ScriptSyntax::new(ScriptLanguage::Ts, ScriptModuleKind::Unambiguous),
+        ProjectionMap::Volar {
+            mappings: vec![VolarMapping {
+                source_offsets: vec![8],
+                generated_offsets: vec![0],
+                lengths: vec![u32::try_from(script.encode_utf16().count()).unwrap()],
+                generated_lengths: None,
+            }],
+        },
+        ConverterIdentity {
+            name: "svelte2tsx".into(),
+            version: "0.7.61".into(),
+            options_fingerprint: "test".into(),
+        },
+        FileId(3),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let prepared = ProjectedSource::try_new(
+        SourceDocument::new(original, SourceFormat::Svelte, None),
+        projection,
+    )
+    .unwrap();
+    let mut input = SourceInput::new(
+        ModuleId::from("Component.svelte"),
+        PreparedSource::Projected(prepared),
+    );
+    input.framework = Some(AdapterKind::Svelte);
+    input
+}
+
+fn rebuild_projection(
+    input: &SourceInput,
+    code: Arc<SourceFile>,
+    syntax: ScriptSyntax,
+    map: ProjectionMap,
+    converter: ConverterIdentity,
+) -> SourceInput {
+    let projection = input.projection().unwrap();
+    let projection = SourceProjection::try_new(
+        code,
+        syntax,
+        map,
+        converter,
+        projection.analysis_id(),
+        projection.import_realms().to_vec(),
+        projection.editable_regions().to_vec(),
+    )
+    .unwrap();
+    let projected = ProjectedSource::try_new(input.document().clone(), projection).unwrap();
+    let mut rebuilt = SourceInput::new(
+        input.module_id.clone(),
+        PreparedSource::Projected(projected),
+    );
+    rebuilt.framework = input.framework;
+    rebuilt
+        .stylesheet_imports
+        .clone_from(&input.stylesheet_imports);
+    rebuilt
+        .module_css_import
+        .clone_from(&input.module_css_import);
+    rebuilt
 }
 
 #[test]
@@ -114,7 +150,13 @@ fn original_component_format_reports_import_mismatch_without_adapter_conflict() 
     let mut input =
         projected_script("import { style } from 'stillwind/react'; const props = style('flex');");
     input.framework = None;
-    input.language = ScriptLanguage::Tsx;
+    input = rebuild_projection(
+        &input,
+        Arc::clone(input.parser_source()),
+        ScriptSyntax::new(ScriptLanguage::Tsx, input.syntax().module_kind()),
+        input.projection().unwrap().map().clone(),
+        input.projection().unwrap().converter().clone(),
+    );
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert_eq!(scan.diagnostics, []);
     assert_eq!(scan.local_ir.adapter, AdapterKind::React);
@@ -138,7 +180,7 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
           [...[/*😀*/ 'fl\u0065x']],
           {...{[`data-項目`]: /* retained value */ 前置}});",
     );
-    let original = input.projection.as_ref().unwrap().original.clone();
+    let original = Arc::clone(input.document().file());
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
     assert!(
         analysis.diagnostics.is_empty(),
@@ -178,7 +220,7 @@ fn animation_branch_spans_map_back_to_the_original_script() {
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const fade = style.keyframes({'motion-reduce:': {from:'opacity-0'}});",
     );
-    let original = input.projection.as_ref().unwrap().original.clone();
+    let original = Arc::clone(input.document().file());
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
     assert!(
         analysis.diagnostics.is_empty(),
@@ -203,7 +245,7 @@ fn contract_findings_map_to_original_framework_expression_spans() {
     let input = projected_script(
         "import {style} from 'stillwind/svelte'; const 状態 = 1; const props = style({'--x': 状態++});",
     );
-    let original = input.projection.as_ref().unwrap().original.clone();
+    let original = Arc::clone(input.document().file());
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
     let error = analysis
         .lint_findings
@@ -280,15 +322,25 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
 /// as unmapped on the specifier while the mapped references are kept.
 #[test]
 fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_macros() {
-    let mut input = projected();
-    input.code = Arc::new(
+    let input = projected();
+    let code = Arc::new(
         SourceFile::new(
-            input.code.id(),
+            input.parser_source().id(),
             None,
             None,
-            format!("{}\ntype Exposed = typeof style;", input.code.text()),
+            format!(
+                "{}\ntype Exposed = typeof style;",
+                input.parser_source().text()
+            ),
         )
         .unwrap(),
+    );
+    let input = rebuild_projection(
+        &input,
+        code,
+        input.syntax(),
+        input.projection().unwrap().map().clone(),
+        input.projection().unwrap().converter().clone(),
     );
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
@@ -308,7 +360,7 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
 #[test]
 fn projected_analysis_preserves_original_source_and_semantic_identity() {
     let input = projected();
-    let original = Arc::clone(input.edit_source());
+    let original = Arc::clone(input.document().file());
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
     assert!(Arc::ptr_eq(&scan.source, &original));
@@ -361,13 +413,15 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
 fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
     let input = projected();
     let revision = input.revision();
-    let mut changed = input.clone();
-    changed
-        .projection
-        .as_mut()
-        .unwrap()
-        .converter
-        .options_fingerprint = "different".into();
+    let mut converter = input.projection().unwrap().converter().clone();
+    converter.options_fingerprint = "different".into();
+    let changed = rebuild_projection(
+        &input,
+        Arc::clone(input.parser_source()),
+        input.syntax(),
+        input.projection().unwrap().map().clone(),
+        converter,
+    );
     assert_ne!(revision, changed.revision());
     let mut changed = input.clone();
     changed.framework = Some(AdapterKind::Vue);
@@ -379,10 +433,15 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
             .iter()
             .any(|error| error.diagnostic == CompileDiagnostic::FrameworkConflict)
     );
-    let mut changed = input;
-    changed.projection.as_mut().unwrap().map = ProjectionMap::Volar {
-        mappings: Vec::new(),
-    };
+    let changed = rebuild_projection(
+        &input,
+        Arc::clone(input.parser_source()),
+        input.syntax(),
+        ProjectionMap::Volar {
+            mappings: Vec::new(),
+        },
+        input.projection().unwrap().converter().clone(),
+    );
     let scan = OxcSourceAnalyzer.scan_input(changed);
     assert!(matches!(
         scan.diagnostics[0].diagnostic,
@@ -390,6 +449,125 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
     ));
     assert!(scan.local_ir.style_calls.is_empty());
     assert!(scan.local_ir.ref_definitions.is_empty());
+}
+
+#[test]
+fn incomplete_converter_identities_fail_during_projection_creation() {
+    let input = projected();
+    let projection = input.projection().unwrap();
+    for field in ["name", "version", "options_fingerprint"] {
+        for blank in ["", " \t"] {
+            let mut converter = projection.converter().clone();
+            match field {
+                "name" => converter.name = blank.into(),
+                "version" => converter.version = blank.into(),
+                _ => converter.options_fingerprint = blank.into(),
+            }
+            let error = SourceProjection::try_new(
+                Arc::clone(projection.code()),
+                projection.syntax(),
+                projection.map().clone(),
+                converter,
+                projection.analysis_id(),
+                projection.import_realms().to_vec(),
+                projection.editable_regions().to_vec(),
+            )
+            .unwrap_err();
+            assert!(
+                matches!(error, SourceInputError::IncompleteConverterIdentity { field: rejected } if rejected == field)
+            );
+        }
+    }
+}
+
+#[test]
+fn conflicting_analysis_file_ids_fail_during_source_creation() {
+    let input = projected();
+    let projection = input.projection().unwrap();
+    let error = SourceProjection::try_new(
+        Arc::clone(projection.code()),
+        projection.syntax(),
+        projection.map().clone(),
+        projection.converter().clone(),
+        projection.code().id(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, SourceInputError::DuplicateFileId { id } if id == projection.code().id())
+    );
+    let projection = SourceProjection::try_new(
+        Arc::clone(projection.code()),
+        projection.syntax(),
+        projection.map().clone(),
+        projection.converter().clone(),
+        input.document().file().id(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let error = ProjectedSource::try_new(input.document().clone(), projection).unwrap_err();
+    assert!(
+        matches!(error, SourceInputError::DuplicateFileId { id } if id == input.document().file().id())
+    );
+}
+
+#[test]
+fn source_constructors_reject_component_direct_and_script_projected_inputs() {
+    let input = projected();
+    assert!(matches!(
+        DirectSource::try_new(input.document().clone(), input.syntax()),
+        Err(SourceInputError::InvalidDirectFormat {
+            format: SourceFormat::Svelte
+        })
+    ));
+    let document = SourceDocument::new(
+        Arc::clone(input.document().file()),
+        SourceFormat::Script,
+        None,
+    );
+    assert!(matches!(
+        ProjectedSource::try_new(document, input.projection().unwrap().clone()),
+        Err(SourceInputError::InvalidProjectedFormat {
+            format: SourceFormat::Script
+        })
+    ));
+}
+
+#[test]
+fn parent_import_realms_can_occupy_separate_source_ranges() {
+    let input = projected();
+    let projection = input.projection().unwrap();
+    let file_id = input.document().file().id();
+    let projection = SourceProjection::try_new(
+        Arc::clone(projection.code()),
+        projection.syntax(),
+        projection.map().clone(),
+        projection.converter().clone(),
+        projection.analysis_id(),
+        vec![
+            ImportRealm {
+                id: 1,
+                source: Span::new(file_id, 8, 14),
+                parent: None,
+            },
+            ImportRealm {
+                id: 2,
+                source: Span::new(file_id, 15, 20),
+                parent: Some(1),
+            },
+        ],
+        Vec::new(),
+    )
+    .unwrap();
+    let projected = ProjectedSource::try_new(input.document().clone(), projection).unwrap();
+    let scan = OxcSourceAnalyzer.scan_input(SourceInput::new(
+        input.module_id,
+        PreparedSource::Projected(projected),
+    ));
+    assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
+    assert_eq!(scan.local_ir.style_calls.len(), 1);
 }
 
 /// An upstream map without a projection does not change the analysed source.
@@ -407,14 +585,16 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
         )
         .unwrap(),
     );
-    let mut input = SourceInput::normal(
-        Arc::clone(&source),
-        ModuleId::from("test.tsx"),
-        ScriptLanguage::Ts,
-        ScriptModuleKind::Unambiguous,
-    );
-    input.language = ScriptLanguage::Ts;
-    input.upstream_map = Some("{\"version\":3}".into());
+    let direct = DirectSource::try_new(
+        SourceDocument::new(
+            Arc::clone(&source),
+            SourceFormat::Script,
+            Some("{\"version\":3}".into()),
+        ),
+        ScriptSyntax::new(ScriptLanguage::Ts, ScriptModuleKind::Unambiguous),
+    )
+    .unwrap();
+    let input = SourceInput::new(ModuleId::from("test.tsx"), PreparedSource::Direct(direct));
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert!(scan.diagnostics.is_empty());
     assert!(Arc::ptr_eq(&scan.source, &source));

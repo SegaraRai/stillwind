@@ -90,7 +90,7 @@ pub enum IdentifierMode {
 /// The variant decides which pool the resulting name must be checked in and how a report
 /// spells the family. Serialized spelling is used only in reports, never as name content.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum IdentifierKind {
     /// A generated utility class, written to the class attribute and class selectors.
     UtilityClass,
@@ -152,7 +152,7 @@ impl IdentifierKind {
 /// Names in different pools do not interact, so the same spelling may appear in both;
 /// within one pool a spelling may only belong to one identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum IdentifierPool {
     /// Class tokens and class selectors: utility classes and attachment markers.
     ClassToken,

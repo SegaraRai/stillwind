@@ -326,7 +326,7 @@ export interface HostRegion {
 export declare function minifyCss(css: string, options?: NativeCssMinifyOptions | undefined | null): NativeMinifiedCss
 
 /** Asset kinds as the host names them. */
-export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'view-transition'
+export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition'
 
 /** User-facing metadata of a produced asset. */
 export interface NativeAssetMetadata {
@@ -588,7 +588,7 @@ export type NativeExportedValue =
   value: Array<NativeRefAlternative> }
   | { kind: 'keyframes'; /** Reachable keyframes identities. */
   value: NativeSymbolicValue }
-  | { kind: 'view-transitions'; /** Reachable transition identities. */
+  | { kind: 'viewTransitions'; /** Reachable transition identities. */
   value: NativeSymbolicValue }
 
 /** Imports reachable from one export of a module. */

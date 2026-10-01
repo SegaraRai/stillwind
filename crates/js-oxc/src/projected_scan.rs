@@ -1,7 +1,7 @@
 //! Scanning a converter's shadow module and answering in original coordinates.
 //!
-//! The pipeline is: build a [`SourceFile`] for the generated text, normalize it against
-//! the projection, parse the normalized source, map the IR back to the original file,
+//! The pipeline normalizes the converter buffer against the projection, parses the
+//! normalized source, maps the IR back to the original file,
 //! then rewrite every diagnostic label, lint label, module specifier, asset record and
 //! exported symbolic value into original spans. If required data cannot be mapped,
 //! parsing returns an error or reports a diagnostic. Optional recognition probes
@@ -9,9 +9,9 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_ir::SourceInput;
+use stillwind_ir::ProjectedSource;
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
-use stillwind_source::{ProjectionError, SourceFile, SourceProvenance, Span};
+use stillwind_source::{ModuleId, ProjectionError, SourceProvenance, Span};
 
 use crate::ParsedJavaScript;
 use crate::entry::parse_with_coordinates;
@@ -19,37 +19,29 @@ use crate::normalization::normalize_with_language;
 
 /// Parses a projected input and returns IR plus the provenance it collected.
 ///
-/// The converter identity must be complete (name, version, options fingerprint),
-/// because the cache key of the resulting artifact depends on it. Diagnostics whose
-/// labels cannot be mapped point at the start of the original file instead of at a
-/// generated offset.
+/// The validated source supplies the component format and converter metadata.
+/// `module_id` identifies the module for asset identities, and `facts` and `assets`
+/// supply checker results in original coordinates. Mapping failures return an error.
+/// Diagnostic labels that cannot be mapped use the original file span.
 pub(crate) fn parse_projected(
-    input: &SourceInput,
+    module_id: &ModuleId,
+    projected: &ProjectedSource,
     facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
 ) -> Result<(ParsedJavaScript, Vec<SourceProvenance>), ProjectionError> {
-    let projection = input
-        .projection
-        .as_ref()
-        .ok_or_else(|| ProjectionError::Map("missing projection".into()))?;
-    let framework = input.source_format.projection_adapter().ok_or_else(|| {
-        ProjectionError::Map("projected inputs require a component source format".into())
-    })?;
-    if projection.converter.name.is_empty()
-        || projection.converter.version.is_empty()
-        || projection.converter.options_fingerprint.is_empty()
-    {
-        return Err(ProjectionError::Map("incomplete converter identity".into()));
-    }
-    let generated = SourceFile::new(input.code.id(), None, None, input.code.text())?;
+    let projection = projected.projection();
+    let original = projected.document().file();
+    let syntax = projection.syntax();
+    let framework = projected.adapter();
+    let generated = projection.code();
     let normalized = normalize_with_language(
-        &generated,
-        &projection.original,
-        &projection.map,
+        generated,
+        original,
+        projection.map(),
         framework,
-        projection.analysis_id,
-        input.language,
-        input.module_kind,
+        projection.analysis_id(),
+        syntax.language(),
+        syntax.module_kind(),
     )?;
     let coordinates = |span| {
         normalized
@@ -59,12 +51,12 @@ pub(crate) fn parse_projected(
     };
     let mut parsed = parse_with_coordinates(
         &normalized.source,
-        &input.module_id,
+        module_id,
         facts,
         assets,
-        input.language,
-        input.module_kind,
-        &projection.original,
+        syntax.language(),
+        syntax.module_kind(),
+        original,
         &coordinates,
     );
     let (ir, mut provenance) = normalized.original_ir(&parsed.module)?;
@@ -95,12 +87,12 @@ pub(crate) fn parse_projected(
         .collect();
     for diagnostic in &mut parsed.diagnostics {
         for label in &mut diagnostic.labels {
-            label.span = map_span(label.span).unwrap_or(projection.original.full_span());
+            label.span = map_span(label.span).unwrap_or(original.full_span());
         }
     }
     for finding in &mut parsed.lint_findings {
         for label in &mut finding.labels {
-            label.span = map_span(label.span).unwrap_or(projection.original.full_span());
+            label.span = map_span(label.span).unwrap_or(original.full_span());
         }
     }
     let mut mapped_specifiers = Vec::new();

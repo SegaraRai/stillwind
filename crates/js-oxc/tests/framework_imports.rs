@@ -4,20 +4,48 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{
-    AdapterKind, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, SourceFormat, SourceInput,
+    AdapterKind, ConverterIdentity, DirectSource, PreparedSource, ProjectedSource, ScriptLanguage,
+    ScriptModuleKind, ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput,
+    SourceProjection,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{FileId, ModuleId, SourceFile};
+use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile, VolarMapping};
 
 fn input(source: &str, language: ScriptLanguage, format: SourceFormat) -> SourceInput {
-    let mut input = SourceInput::normal(
-        Arc::new(SourceFile::new(FileId(1), None, None, source).unwrap()),
-        ModuleId::from("opaque-module"),
-        language,
-        ScriptModuleKind::Module,
-    );
-    input.source_format = format;
-    input
+    let file = Arc::new(SourceFile::new(FileId(1), None, None, source).unwrap());
+    let syntax = ScriptSyntax::new(language, ScriptModuleKind::Module);
+    let prepared = if format.projection_adapter().is_some() {
+        let code = Arc::new(SourceFile::new(FileId(2), None, None, source).unwrap());
+        let projection = SourceProjection::try_new(
+            code,
+            syntax,
+            ProjectionMap::Volar {
+                mappings: vec![VolarMapping {
+                    source_offsets: vec![0],
+                    generated_offsets: vec![0],
+                    lengths: vec![u32::try_from(source.encode_utf16().count()).unwrap()],
+                    generated_lengths: None,
+                }],
+            },
+            ConverterIdentity {
+                name: "test-converter".into(),
+                version: "1".into(),
+                options_fingerprint: "test".into(),
+            },
+            FileId(3),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        PreparedSource::Projected(
+            ProjectedSource::try_new(SourceDocument::new(file, format, None), projection).unwrap(),
+        )
+    } else {
+        PreparedSource::Direct(
+            DirectSource::try_new(SourceDocument::new(file, format, None), syntax).unwrap(),
+        )
+    };
+    SourceInput::new(ModuleId::from("opaque-module"), prepared)
 }
 
 #[test]
@@ -76,12 +104,20 @@ fn plain_parser_dialects_supply_defaults_without_reading_module_names() {
         (ScriptLanguage::Jsx, true),
         (ScriptLanguage::Tsx, true),
     ] {
-        let mut source = input(
-            "import { style } from 'stillwind/astro';",
+        let source = SourceInput::normal(
+            Arc::new(
+                SourceFile::new(
+                    FileId(1),
+                    None,
+                    None,
+                    "import { style } from 'stillwind/astro';",
+                )
+                .unwrap(),
+            ),
+            ModuleId::from("opaque-module"),
             language,
-            SourceFormat::Script,
+            ScriptModuleKind::Module,
         );
-        source.source_format = SourceFormat::script(language);
         let scan = OxcSourceAnalyzer.scan_input(source);
         assert_eq!(scan.diagnostics, []);
         assert_eq!(scan.lint_findings.len(), usize::from(warning));

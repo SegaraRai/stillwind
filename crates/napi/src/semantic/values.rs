@@ -30,6 +30,7 @@ pub enum NativeCandidates {
 /// A value whose exact runtime identity may not be known statically.
 #[napi(object)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeSymbolicValue {
     /// Asset kind the value can hold.
     pub kind: NativeAssetKind,
@@ -71,6 +72,7 @@ impl From<SymbolicValue> for NativeSymbolicValue {
 /// The pair is a relationship, not a product: see [`stillwind_semantic::RefAlternative`].
 #[napi(object, use_nullable = true)]
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeRefAlternative {
     /// The ref identity.
     pub reference: NativeIdentity,
@@ -79,9 +81,9 @@ pub struct NativeRefAlternative {
 }
 
 /// A value an analyzed module can export.
-#[napi(discriminant = "kind", discriminant_case = "kebab-case")]
+#[napi(discriminant = "kind", discriminant_case = "camelCase")]
 #[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "camelCase")]
 pub enum NativeExportedValue {
     /// Exported `style(...)` payload.
     Styles {

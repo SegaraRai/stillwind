@@ -17,6 +17,7 @@ use crate::DiagnosticInfo;
 /// zero when no labels remain; it does not inspect notes or secondary highlights.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, thiserror::Error)]
 #[error("{diagnostic}")]
+#[serde(rename_all = "camelCase")]
 pub struct LintFinding {
     /// Typed cause; owns the message template and reporting code.
     #[source]

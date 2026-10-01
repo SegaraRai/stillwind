@@ -32,6 +32,7 @@ pub enum SymbolicError {
 
 /// What a symbolic value may denote.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum Candidates {
     /// A proven candidate set, deduplicated at construction.
     ///
@@ -50,6 +51,7 @@ pub enum Candidates {
 /// its identity. Public fields and derived deserialization can bypass those checks;
 /// consumers of externally constructed values must validate them.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SymbolicValue {
     /// Asset kind of every identity the value may contain.
     pub kind: AssetKind,
@@ -140,6 +142,7 @@ impl SymbolicValue {
 /// the boundaries of another would describe DOM relationships the source never denoted,
 /// so alternatives are never merged.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefAlternative {
     /// The ref identity; always [`AssetKind::Ref`].
     pub reference: IdentityId,
@@ -190,10 +193,10 @@ impl RefAlternative {
 
 /// What one exported name denotes.
 ///
-/// The serialized shape (`kind` plus `value`, kebab-case tags) is part of the host
+/// The serialized shape (`kind` plus `value`, camelCase tags) is part of the host
 /// protocol and must stay stable.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ExportedValue {
     /// Candidate set of `style()` call sites.
     Styles(SymbolicValue),

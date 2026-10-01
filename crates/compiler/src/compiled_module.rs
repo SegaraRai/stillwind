@@ -88,6 +88,7 @@ pub struct CompilationDependencies {
 /// same owner and decoded specifier share a placeholder; different owners are hashed
 /// separately.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleResourceReference {
     /// Token standing in for the URL in the emitted CSS, quoted or inside `url(...)`.
     pub placeholder: String,

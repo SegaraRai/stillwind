@@ -16,9 +16,9 @@ use stillwind_source::ModuleId;
 /// Which kind of Stillwind asset an identity denotes.
 ///
 /// The kind is part of the identity, so two assets declared at the same span stay
-/// distinct. Serialized in kebab-case; that spelling is part of the host protocol.
+/// distinct. Serialized in camelCase; that spelling is part of the host protocol.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum AssetKind {
     /// A `style()` call site; its span is the call itself.
     Style,
@@ -37,6 +37,7 @@ pub enum AssetKind {
 /// name) is used to sort and deduplicate candidate sets. It is not source order, so
 /// consumers must not present it as such.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IdentityId {
     /// Asset kind, which also separates namespaces of derived names.
     pub kind: AssetKind,

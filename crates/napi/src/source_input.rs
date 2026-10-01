@@ -1,18 +1,20 @@
 //! Host transport for editable documents and prepared parser buffers.
 //!
-//! [`PreparedSource::input`] converts direct script documents or projected component
-//! documents into analyzer input. Projection realms and editable regions arrive as
-//! UTF-16 offsets in the original document and become validated byte spans through
-//! [`CoordinateIndex`]. Surrogate interiors are rejected rather than rounded.
-//! Source maps and converter records are supplied by the host.
+//! [`HostPreparedSource::input`] converts direct script documents or projected
+//! component documents into analyzer input. Projection realms and editable regions
+//! arrive as UTF-16 offsets in the original document and become byte spans through
+//! [`CoordinateIndex`]. Surrogate interiors are rejected rather than rounded. Core
+//! constructors validate source formats and projection metadata. The host supplies
+//! source maps and converter records.
 
 use napi::Error;
 use napi_derive::napi;
 use serde::Deserialize;
 
 use stillwind_ir::{
-    AdapterKind, AttributeQuote, ConverterIdentity, FrameworkProjection, ImportRealm,
-    ProjectionRegion, ScriptLanguage, ScriptModuleKind, SourceFormat, SourceInput,
+    AdapterKind, AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, PreparedSource,
+    ProjectedSource, ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax,
+    SourceDocument, SourceFormat, SourceInput, SourceProjection,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{
@@ -182,7 +184,7 @@ pub enum NativePreparedSource {
     },
 }
 
-impl TryFrom<NativePreparedSource> for PreparedSource {
+impl TryFrom<NativePreparedSource> for HostPreparedSource {
     type Error = Error;
 
     fn try_from(value: NativePreparedSource) -> napi::Result<Self> {
@@ -248,7 +250,7 @@ pub struct NativeSourceDocument {
     pub source_map_source: Option<String>,
 }
 
-impl TryFrom<NativeSourceDocument> for SourceDocument {
+impl TryFrom<NativeSourceDocument> for HostSourceDocument {
     type Error = Error;
 
     fn try_from(value: NativeSourceDocument) -> napi::Result<Self> {
@@ -274,10 +276,7 @@ pub struct NativeScriptSyntax {
 
 impl From<NativeScriptSyntax> for ScriptSyntax {
     fn from(value: NativeScriptSyntax) -> Self {
-        Self {
-            language: value.language.into(),
-            module_kind: value.module_kind.into(),
-        }
+        Self::new(value.language.into(), value.module_kind.into())
     }
 }
 
@@ -298,7 +297,7 @@ pub struct NativeSourceProjection {
     pub editable_regions: Vec<HostRegion>,
 }
 
-impl From<NativeSourceProjection> for SourceProjection {
+impl From<NativeSourceProjection> for HostSourceProjection {
     fn from(value: NativeSourceProjection) -> Self {
         Self {
             code: value.code,
@@ -373,14 +372,18 @@ pub struct NativeConverterIdentity {
     pub options_fingerprint: String,
 }
 
-/// Prepared host input whose parser buffer is direct or projected.
+/// Host transport whose parser buffer is direct or projected.
 #[derive(Deserialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
-pub enum PreparedSource {
+#[serde(
+    tag = "kind",
+    rename_all = "lowercase",
+    rename_all_fields = "camelCase"
+)]
+pub enum HostPreparedSource {
     /// Parses an editable script or JSX document.
     Direct {
         /// Original editable document.
-        document: SourceDocument,
+        document: HostSourceDocument,
         /// Parser settings for the document's code.
         syntax: ScriptSyntax,
         /// Host-chosen identity of this module.
@@ -399,9 +402,9 @@ pub enum PreparedSource {
     /// Parses generated code while reporting and editing the component document.
     Projected {
         /// Original editable document.
-        document: SourceDocument,
+        document: HostSourceDocument,
         /// Generated parser buffer and its correspondence to the document.
-        projection: SourceProjection,
+        projection: HostSourceProjection,
         /// Host-chosen identity of this module.
         module_id: ModuleId,
         /// Facts the host produced for this module, empty when absent.
@@ -417,7 +420,7 @@ pub enum PreparedSource {
     },
 }
 
-impl PreparedSource {
+impl HostPreparedSource {
     /// Returns the host identity used for graph edges and duplicate checks.
     pub const fn module_id(&self) -> &ModuleId {
         match self {
@@ -437,13 +440,14 @@ impl PreparedSource {
     /// Projection regions and realms must use UTF-16 offsets in the document.
     /// Published spans refer to that document. A projected parser buffer has its own
     /// file ID, and its analysis buffer receives a reserved ID in `sources`.
-    /// Registration can remain in `sources` if a later coordinate conversion fails.
+    /// Projected inputs register the parser buffer first, the document second, and
+    /// reserve the analysis ID third. Registrations remain in `sources` on failure.
     ///
     /// # Errors
     ///
     /// Returns an error for a component document without a projection, a projected
-    /// script or JSX document, invalid UTF-16 coordinates, reversed ranges, or
-    /// exhausted file IDs.
+    /// script or JSX document, invalid UTF-16 coordinates, reversed ranges, exhausted
+    /// file IDs, or invalid projection metadata rejected by core constructors.
     pub fn input(&self, sources: &mut SourceRegistry) -> napi::Result<SourceInput> {
         let (
             document,
@@ -462,22 +466,15 @@ impl PreparedSource {
                 stylesheet_imports,
                 module_css_import,
                 ..
-            } => {
-                if document.format.projection_adapter().is_some() {
-                    return Err(Error::from_reason(
-                        "direct input requires a script or JSX document format",
-                    ));
-                }
-                (
-                    document,
-                    syntax,
-                    None,
-                    module_id,
-                    framework,
-                    stylesheet_imports,
-                    module_css_import,
-                )
-            }
+            } => (
+                document,
+                syntax,
+                None,
+                module_id,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+            ),
             Self::Projected {
                 document,
                 projection,
@@ -486,22 +483,15 @@ impl PreparedSource {
                 stylesheet_imports,
                 module_css_import,
                 ..
-            } => {
-                if document.format.projection_adapter().is_none() {
-                    return Err(Error::from_reason(
-                        "projected input requires a component document format",
-                    ));
-                }
-                (
-                    document,
-                    &projection.syntax,
-                    Some(projection),
-                    module_id,
-                    framework,
-                    stylesheet_imports,
-                    module_css_import,
-                )
-            }
+            } => (
+                document,
+                &projection.syntax,
+                Some(projection),
+                module_id,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+            ),
         };
         let code = sources
             .register(
@@ -520,27 +510,41 @@ impl PreparedSource {
                 }),
             )
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        let projection = projection
-            .map(|projection| projection.input(document, sources))
-            .transpose()?;
-        Ok(SourceInput {
-            module_id: module_id.clone(),
-            stylesheet_imports: stylesheet_imports.clone(),
-            module_css_import: module_css_import.clone(),
-            code,
-            language: syntax.language,
-            module_kind: syntax.module_kind,
-            source_format: document.format,
-            framework: *framework,
-            upstream_map: document.upstream_map.clone(),
-            projection,
-        })
+        let prepared = if let Some(projection) = projection {
+            let original = sources
+                .register(
+                    Some(document.uri.clone()),
+                    document.source_map_source.as_deref().map(Into::into),
+                    document.code.as_str(),
+                )
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            let projection = projection.input(code, &original, sources)?;
+            let document =
+                SourceDocument::new(original, document.format, document.upstream_map.clone());
+            PreparedSource::Projected(
+                ProjectedSource::try_new(document, projection)
+                    .map_err(|error| Error::from_reason(error.to_string()))?,
+            )
+        } else {
+            let document =
+                SourceDocument::new(code, document.format, document.upstream_map.clone());
+            PreparedSource::Direct(
+                DirectSource::try_new(document, *syntax)
+                    .map_err(|error| Error::from_reason(error.to_string()))?,
+            )
+        };
+        let mut input = SourceInput::new(module_id.clone(), prepared);
+        input.framework = *framework;
+        input.stylesheet_imports.clone_from(stylesheet_imports);
+        input.module_css_import.clone_from(module_css_import);
+        Ok(input)
     }
 }
 
-/// Original editable source and its optional upstream provenance.
+/// Host transport for an editable source and its optional upstream provenance.
 #[derive(Deserialize)]
-pub struct SourceDocument {
+#[serde(rename_all = "camelCase")]
+pub struct HostSourceDocument {
     /// Absolute URI of the editable document.
     pub uri: SourceUri,
     /// Editable text.
@@ -553,18 +557,10 @@ pub struct SourceDocument {
     pub source_map_source: Option<String>,
 }
 
-/// Parser dialect and module grammar for a script buffer.
+/// Host transport for generated parser code, mapping, and UTF-16 metadata.
 #[derive(Deserialize)]
-pub struct ScriptSyntax {
-    /// JavaScript or TypeScript dialect.
-    pub language: ScriptLanguage,
-    /// Module grammar; serde preserves `common-js`.
-    pub module_kind: ScriptModuleKind,
-}
-
-/// Generated parser code with required mapping and converter metadata.
-#[derive(Deserialize)]
-pub struct SourceProjection {
+#[serde(rename_all = "camelCase")]
+pub struct HostSourceProjection {
     /// Generated JavaScript or TypeScript code.
     pub code: String,
     /// Parser settings for the generated code.
@@ -579,32 +575,28 @@ pub struct SourceProjection {
     pub editable_regions: Vec<HostRegion>,
 }
 
-impl SourceProjection {
-    /// Registers `document` as the original buffer and reserves an analysis ID.
-    /// Returns a projection whose realm and region spans use original byte offsets.
+impl HostSourceProjection {
+    /// Converts UTF-16 realms and regions against `original` and constructs a core
+    /// projection. `code` must be the registered parser buffer, and `original` must be
+    /// its editable document. Reserves an analysis ID in `sources`; the reservation
+    /// remains on failure.
     ///
     /// # Errors
     ///
-    /// Returns an error for exhausted file IDs, invalid UTF-16 coordinates, or
-    /// reversed ranges. Successful registrations remain in `sources` on failure.
+    /// Returns an error for exhausted file IDs, invalid coordinates, or invalid core
+    /// metadata.
     fn input(
         &self,
-        document: &SourceDocument,
+        code: std::sync::Arc<SourceFile>,
+        original: &SourceFile,
         sources: &mut SourceRegistry,
-    ) -> napi::Result<FrameworkProjection> {
-        let original = sources
-            .register(
-                Some(document.uri.clone()),
-                document.source_map_source.as_deref().map(Into::into),
-                document.code.as_str(),
-            )
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+    ) -> napi::Result<SourceProjection> {
         let original_id = original.id();
         let analysis_id = sources
             .reserve_generated_id()
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        let index = CoordinateIndex::new(&original);
-        let span = |start, end| projection_span(&index, &original, original_id, start, end);
+        let index = CoordinateIndex::new(original);
+        let span = |start, end| projection_span(&index, original_id, start, end);
         let realms = self
             .import_realms
             .iter()
@@ -630,20 +622,23 @@ impl SourceProjection {
                 })
             })
             .collect::<napi::Result<Vec<_>>>()?;
-        Ok(FrameworkProjection {
-            original,
-            map: self.map.clone(),
-            converter: self.converter.clone(),
+        SourceProjection::try_new(
+            code,
+            self.syntax,
+            self.map.clone(),
+            self.converter.clone(),
             analysis_id,
             realms,
             regions,
-        })
+        )
+        .map_err(|error| Error::from_reason(error.to_string()))
     }
 }
 
 /// Source offsets in the host transport are UTF-16; native spans are bytes.
 #[napi(object, object_to_js = false)]
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HostRealm {
     /// Host-chosen realm identifier.
     pub id: u32,
@@ -658,6 +653,7 @@ pub struct HostRealm {
 /// Converted region of the original source, in UTF-16 offsets.
 #[napi(object, object_to_js = false)]
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HostRegion {
     /// UTF-16 start in the original source.
     pub start: u32,
@@ -669,14 +665,14 @@ pub struct HostRegion {
     pub attribute_quote: Option<NativeAttributeQuote>,
 }
 
-/// Converts one host region from original-source UTF-16 offsets to a validated span.
+/// Converts original-source UTF-16 offsets into a byte span for `original_id`.
+/// The core constructors validate the resulting span's ownership and ordering.
 ///
 /// # Errors
 ///
-/// Returns an error when either offset is invalid or the resulting span is reversed.
+/// Returns an error when either offset is invalid or lies inside a surrogate pair.
 fn projection_span(
     index: &CoordinateIndex,
-    original: &SourceFile,
     original_id: FileId,
     start: u32,
     end: u32,
@@ -687,9 +683,5 @@ fn projection_span(
     let end = index
         .byte(Utf16Offset(end))
         .map_err(|error| Error::from_reason(error.to_string()))?;
-    let span = Span::new(original_id, start.0, end.0);
-    original
-        .slice(span)
-        .map_err(|error| Error::from_reason(error.to_string()))?;
-    Ok(span)
+    Ok(Span::new(original_id, start.0, end.0))
 }

@@ -23,6 +23,7 @@ use super::symbolic::{Candidates, ExportedValue};
 
 /// One name bound by an `import` declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportBinding {
     /// Local name in the importing module.
     pub local: String,
@@ -35,6 +36,7 @@ pub struct ImportBinding {
 
 /// One name re-exported from another module by an `export ... from` declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ReExport {
     /// Name visible to importers of this module.
     pub exported: String,
@@ -50,6 +52,7 @@ pub struct ReExport {
 /// host find the literal it must rewrite when it substitutes a shadow module, so it
 /// covers the literal in the original source rather than any projected copy.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleSpecifier {
     /// Decoded string-literal value, without quotes or source escape spelling.
     pub source: String,
@@ -65,6 +68,7 @@ pub struct ModuleSpecifier {
 /// source order; assets are grouped by kind; exports are keyed by name. Demand import
 /// lists are sorted by `(source, imported, local)` by the Oxc frontend.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModuleSummary {
     /// String literals naming other modules, in source order.
     #[serde(default)]

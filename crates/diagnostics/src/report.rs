@@ -56,6 +56,7 @@ pub enum DiagnosticSeverity {
 
 /// A validated location in one original source revision.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedLocation {
     /// Host-supplied document identity.
     pub uri: SourceUri,
@@ -77,6 +78,7 @@ pub struct ResolvedLocation {
 
 /// One related highlight, possibly in another document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedLabel {
     /// Source and coordinates of this highlight.
     pub location: ResolvedLocation,
@@ -86,6 +88,7 @@ pub struct ResolvedLabel {
 
 /// One proposed replacement within a revision-pinned source.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedEdit {
     /// Document and range to replace.
     pub location: ResolvedLocation,
@@ -95,6 +98,7 @@ pub struct ResolvedEdit {
 
 /// One alternative user-invoked fix consisting of one or more edits.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedAction {
     /// Title shown by an editor.
     pub title: String,
@@ -124,6 +128,7 @@ impl ResolvedAction {
 
 /// One complete public diagnostic with its source locations and optional fixes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolvedDiagnostic {
     /// Stable reporting code or lint rule name.
     pub code: String,
@@ -181,6 +186,7 @@ impl ResolvedDiagnostic {
 
 /// Completed diagnostics from one reporting invocation.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiagnosticBatch {
     /// Diagnostics in report order, after suppression and severity policy.
     pub diagnostics: Vec<ResolvedDiagnostic>,
