@@ -5,18 +5,24 @@ import {
   compileSource,
   type NativeCompileCssInput,
   type NativeGeneratedClass,
-  type NativeProjectSource,
+  type NativePreparedSource,
 } from "@stillwind/native";
 
-export function fixtureProjectSource(source: string, moduleId: string): NativeProjectSource {
+export function fixturePreparedSource(source: string, moduleId: string): NativePreparedSource {
   const uri = pathToFileURL(path.resolve(moduleId)).href;
   return {
-    moduleId: moduleId,
-    uri,
-    sourceMapSource: uri,
-    language: moduleId.endsWith(".tsx") ? "tsx" : "ts",
-    moduleKind: "unambiguous",
-    source,
+    kind: "direct",
+    moduleId,
+    document: {
+      uri,
+      code: source,
+      format: moduleId.endsWith(".tsx") ? "jsx" : "script",
+      sourceMapSource: uri,
+    },
+    syntax: {
+      language: moduleId.endsWith(".tsx") ? "tsx" : "ts",
+      moduleKind: "unambiguous",
+    },
   };
 }
 
@@ -26,7 +32,16 @@ export function fixtureCss(content: string): NativeCompileCssInput {
 }
 
 export function compileFixtureSource(source: string, moduleId: string, css: string) {
-  return compileSource({ ...fixtureProjectSource(source, moduleId), css: fixtureCss(css) });
+  const uri = pathToFileURL(path.resolve(moduleId)).href;
+  return compileSource({
+    source,
+    moduleId,
+    uri,
+    sourceMapSource: uri,
+    language: moduleId.endsWith(".tsx") ? "tsx" : "ts",
+    moduleKind: "unambiguous",
+    css: fixtureCss(css),
+  });
 }
 
 export function comparableFixtureClasses(classes: NativeGeneratedClass[]) {

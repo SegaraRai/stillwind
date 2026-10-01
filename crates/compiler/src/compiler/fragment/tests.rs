@@ -352,7 +352,8 @@ fn folded_javascript_matches_runtime_materialization() {
         );
         let reference = render_plain(&value, &mut RuntimeBindings::new(&analysis)).unwrap();
         cases.push(serde_json::json!({
-            "framework": "react", "optimized": optimized.text,
+            "framework": "react",
+            "optimized": optimized.text,
             "reference": format!("stillwindMerge({{[stillwindClassKey]:stillwindClsx({})}})", reference.text),
         }));
     }

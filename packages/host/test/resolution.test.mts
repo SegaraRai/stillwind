@@ -86,7 +86,10 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
         },
         describe: (id) => ({
           ...fileModuleDescriptor(root, id),
-          uri: `untitled:${encodeURIComponent(id)}`,
+          document: {
+            ...fileModuleDescriptor(root, id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
         }),
         watch: () => {},
         warn: () => {},
@@ -137,7 +140,17 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
       resolverId: path.join(root, name),
       checkerFileName: path.join(root, name),
       moduleId: name,
-      source: text,
+      projectionFileName: path.join(root, name),
+      kind: "direct" as const,
+      document: {
+        uri: `untitled:${name}`,
+        code: text,
+        format: name.endsWith(".tsx") ? ("jsx" as const) : ("script" as const),
+      },
+      syntax: {
+        language: name.endsWith(".tsx") ? ("tsx" as const) : ("ts" as const),
+        moduleKind: "unambiguous" as const,
+      },
       probes: summary.typeProbes,
       assets: summary.assets,
     };
@@ -198,7 +211,10 @@ void test("external package runtime exports do not replace declaration resolutio
           assert.fail("external runtime implementation must not enter semantic inputs"),
         describe: (id) => ({
           ...fileModuleDescriptor(root, id),
-          uri: `untitled:${encodeURIComponent(id)}`,
+          document: {
+            ...fileModuleDescriptor(root, id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
         }),
         watch() {},
         warn() {},

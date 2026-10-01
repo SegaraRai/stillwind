@@ -17,9 +17,9 @@ use std::error::Error;
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_napi::{
-    BindingApiError, BindingRejectedIdentifier, CompileCssInput, CompileSourceInput, ProjectSource,
-    compile_project_input, compile_source_input, generate_vocabulary_types, render_stylesheet,
-    summarize_source_input,
+    BindingApiError, BindingRejectedIdentifier, CompileCssInput, CompileSourceInput,
+    PreparedSource, compile_project_input, compile_source_input, generate_vocabulary_types,
+    render_stylesheet, summarize_source_input,
 };
 use stillwind_source::{ModuleId, SourceUri};
 
@@ -50,7 +50,7 @@ fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
         "tailwindPrefix": "--compat-",
         "classNamespace": "application",
         "useCssIf": true,
-        "hashLength": 8
+        "hashLength": 8,
     }))
     .unwrap();
     assert_eq!(options.tailwind_prefix, "--compat-");
@@ -127,31 +127,39 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let b = a + first.len() + middle.len();
     let mut input = serde_json::json!({
         "module_id": "Component.svelte",
-        "source": format!("{first}\n{second}"),
-        "language": "ts",
-        "source_format": "svelte",
+        "kind": "projected",
+        "document": {
+            "code": original,
+            "format": "svelte",
+        },
         "framework": "svelte",
-        "fw_code": original,
-        "fw2js_map": {
-            "kind": "volar",
-            "mappings": [
-                { "sourceOffsets": [a], "generatedOffsets": [0], "lengths": [first.len()] },
-                { "sourceOffsets": [b], "generatedOffsets": [first.len() + 1], "lengths": [second.len()] },
+        "projection": {
+            "code": format!("{first}\n{second}"),
+            "syntax": {
+                "language": "ts",
+                "module_kind": "unambiguous",
+            },
+            "map": {
+                "kind": "volar",
+                "mappings": [
+                    { "sourceOffsets": [a], "generatedOffsets": [0], "lengths": [first.len()] },
+                    { "sourceOffsets": [b], "generatedOffsets": [first.len() + 1], "lengths": [second.len()] },
+                ],
+            },
+            "converter": {
+                "name": "svelte2tsx",
+                "version": "0.7.61",
+                "options_fingerprint": "realm-test"
+            },
+            "import_realms": [
+                { "id": 1, "start": a, "end": a + first.len() },
+                { "id": 2, "start": b, "end": b + second.len() },
+            ],
+            "editable_regions": [
+                { "import_realm": 1, "start": a,"end": a + first.len() },
+                { "import_realm": 2, "start": b,"end": b + second.len() },
             ],
         },
-        "converter": {
-            "name": "svelte2tsx",
-            "version": "0.7.61",
-            "options_fingerprint": "realm-test"
-        },
-        "import_realms": [
-            { "id": 1, "start": a, "end": a + first.len() },
-            { "id": 2, "start": b, "end": b + second.len() },
-        ],
-        "regions": [
-            { "import_realm": 1, "start": a,"end": a + first.len() },
-            { "import_realm": 2, "start": b,"end": b + second.len()},
-        ],
     });
     let compile = |input: &serde_json::Value| -> serde_json::Value {
         serde_json::to_value(
@@ -179,12 +187,15 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     assert!(code.ends_with(suffix));
     assert_eq!(code.matches("stillwind/svelte/runtime").count(), 2);
     assert!(!code.contains("style as"));
-    let duplicate = input["regions"][0].clone();
-    input["regions"].as_array_mut().unwrap().push(duplicate);
+    let duplicate = input["projection"]["editable_regions"][0].clone();
+    input["projection"]["editable_regions"]
+        .as_array_mut()
+        .unwrap()
+        .push(duplicate);
     let invalid = compile(&input);
     assert!(invalid["modules"][0]["code"].is_null());
     assert_eq!(invalid["modules"][0]["diagnostics"][0]["code"], "SW11008");
-    input["regions"] = serde_json::json!([]);
+    input["projection"]["editable_regions"] = serde_json::json!([]);
     let missing = compile(&input);
     assert!(missing["modules"][0]["code"].is_null());
     assert_eq!(missing["modules"][0]["diagnostics"][0]["code"], "SW11007");
@@ -198,34 +209,42 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
     let original = format!("{prefix}{script}{suffix}");
     let source = serde_json::json!({
         "module_id": "Component.svelte",
-        "source": script,
-        "language": "ts",
-        "source_format": "svelte",
+        "kind": "projected",
+        "document": {
+            "code": original,
+            "format": "svelte",
+        },
         "framework": "svelte",
-        "fw_code": original,
-        "fw2js_map": {
-            "kind": "volar",
-            "mappings": [{
-                "sourceOffsets": [prefix.encode_utf16().count()],
-                "generatedOffsets": [0],
-                "lengths": [script.len()],
+        "projection": {
+            "code": script,
+            "syntax": {
+                "language": "ts",
+                "module_kind": "unambiguous",
+            },
+            "map": {
+                "kind": "volar",
+                "mappings": [{
+                    "sourceOffsets": [prefix.encode_utf16().count()],
+                    "generatedOffsets": [0],
+                    "lengths": [script.len()],
+                }],
+            },
+            "converter": {
+                "name": "svelte2tsx",
+                "version": "0.7.61",
+                "options_fingerprint": "test",
+            },
+            "import_realms": [{
+                "id": 0,
+                "start": prefix.encode_utf16().count(),
+                "end": prefix.encode_utf16().count() + script.len(),
+            }],
+            "editable_regions": [{
+                "import_realm": 0,
+                "start": prefix.encode_utf16().count(),
+                "end": prefix.encode_utf16().count() + script.len(),
             }],
         },
-        "converter": {
-            "name": "svelte2tsx",
-            "version": "0.7.61",
-            "options_fingerprint": "test",
-        },
-        "import_realms": [{
-            "id": 0,
-            "start": prefix.encode_utf16().count(),
-            "end": prefix.encode_utf16().count() + script.len()
-        }],
-        "regions": [{
-            "import_realm": 0,
-            "start": prefix.encode_utf16().count(),
-            "end": prefix.encode_utf16().count() + script.len()
-        }],
     });
     let output = compile_project_input(
         &sources_from_value(serde_json::json!([source])),
@@ -347,16 +366,32 @@ fn requires_typescript_facts_for_cross_module_refs() {
     let sources = serde_json::json!([
         {
             "module_id": "src/Parent.tsx",
-            "source": r#"import { style } from "stillwind/react";
+            "kind": "direct",
+            "syntax": {
+                "language": "tsx",
+                "module_kind": "unambiguous",
+            },
+            "document": {
+                "format": "jsx",
+                "code": r#"import { style } from "stillwind/react";
 export const menu = style.ref("menu");
-export const parent = style(menu);"#
+export const parent = style(menu);"#,
+            }
         },
         {
             "module_id": "src/Child.tsx",
-            "source": r#"import { style } from "stillwind/react";
+            "kind": "direct",
+            "syntax": {
+                "language": "tsx",
+                "module_kind": "unambiguous",
+            },
+            "document": {
+                "format": "jsx",
+                "code": r#"import { style } from "stillwind/react";
 import { menu } from "./Parent";
-export const child = style({ [menu`hover:`]: "text-white" });"#
-        }
+export const child = style({ [menu`hover:`]: "text-white" });"#,
+            },
+        },
     ]);
     let output = compile_project_input(
         &sources_from_value(sources),
@@ -377,19 +412,43 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
     let sources = serde_json::json!([
         {
             "module_id": "src/One.tsx",
-            "source": r#"import { style } from "stillwind/react";
-    export const one = style("text-white");"#
+            "kind": "direct",
+            "syntax": {
+                "language": "tsx",
+                "module_kind": "unambiguous",
+            },
+            "document": {
+                "format": "jsx",
+                "code": r#"import { style } from "stillwind/react";
+    export const one = style("text-white");"#,
+            },
         },
         {
             "module_id": "src/Two.tsx",
-            "source": r#"import { style } from "stillwind/react";
-    export const two = style("bg-white");"#
+            "kind": "direct",
+            "syntax": {
+                "language": "tsx",
+                "module_kind": "unambiguous",
+            },
+            "document": {
+                "format": "jsx",
+                "code": r#"import { style } from "stillwind/react";
+    export const two = style("bg-white");"#,
+            },
         },
         {
             "module_id": "src/Duplicate.tsx",
-            "source": r#"import { style } from "stillwind/react";
-    export const duplicate = style("text-white");"#
-        }
+            "kind": "direct",
+            "syntax": {
+                "language": "tsx",
+                "module_kind": "unambiguous",
+            },
+            "document": {
+                "format": "jsx",
+                "code": r#"import { style } from "stillwind/react";
+    export const duplicate = style("text-white");"#,
+            },
+        },
     ]);
     let theme = css_fixture::with_defaults(
         r#"@import "stillwind";
@@ -487,16 +546,232 @@ fn project_api_preserves_configuration_errors() {
     assert!(error.source().is_some());
 }
 
-fn sources_from_value(mut value: serde_json::Value) -> Vec<ProjectSource> {
+fn sources_from_value(mut value: serde_json::Value) -> Vec<PreparedSource> {
     for source in value.as_array_mut().unwrap() {
         let path = source["module_id"].as_str().unwrap().to_owned();
         let uri = format!("test:///{path}");
-        source["uri"] = serde_json::Value::String(uri.clone());
-        source["source_map_source"] = serde_json::Value::String(uri);
-        if source["language"].is_null() {
-            source["language"] = serde_json::Value::String("tsx".into());
-        }
-        source["module_kind"] = serde_json::Value::String("unambiguous".into());
+        source["document"]["uri"] = serde_json::Value::String(uri.clone());
+        source["document"]["source_map_source"] = serde_json::Value::String(uri);
     }
     serde_json::from_value(value).unwrap()
+}
+
+fn direct_prepared_value() -> serde_json::Value {
+    serde_json::json!({
+        "kind": "direct",
+        "module_id": "entry.ts",
+        "document": {
+            "uri": "test:///entry.ts",
+            "code": "const value = 1;",
+            "format": "script",
+            "source_map_source": "entry.ts",
+        },
+        "syntax": {
+            "language": "ts",
+            "module_kind": "common-js",
+        },
+    })
+}
+
+fn projected_prepared_value() -> serde_json::Value {
+    serde_json::json!({
+        "kind": "projected",
+        "module_id": "entry.svelte",
+        "document": {
+            "uri": "test:///entry.svelte",
+            "code": "😀<script>const value = 1;</script>",
+            "format": "svelte",
+            "source_map_source": "entry.svelte",
+        },
+        "projection": {
+            "code": "const value = 1;",
+            "syntax": {
+                "language": "ts",
+                "module_kind": "module",
+            },
+            "map": {
+                "kind": "volar",
+                "mappings": [],
+            },
+            "converter": {
+                "name": "test",
+                "version": "1",
+                "options_fingerprint": "test",
+            },
+            "import_realms": [
+                { "id": 0, "start": 10, "end": 26 },
+            ],
+            "editable_regions": [
+                { "import_realm": 0, "start": 10, "end": 26 },
+            ],
+        }
+    })
+}
+
+#[test]
+fn prepared_source_requires_nested_document_syntax_and_projection_metadata() {
+    for (value, paths) in [
+        (
+            direct_prepared_value(),
+            vec![
+                vec!["kind"],
+                vec!["module_id"],
+                vec!["document"],
+                vec!["syntax"],
+                vec!["document", "uri"],
+                vec!["document", "code"],
+                vec!["document", "format"],
+                vec!["syntax", "language"],
+                vec!["syntax", "module_kind"],
+            ],
+        ),
+        (
+            projected_prepared_value(),
+            vec![
+                vec!["projection"],
+                vec!["projection", "code"],
+                vec!["projection", "syntax"],
+                vec!["projection", "map"],
+                vec!["projection", "converter"],
+                vec!["projection", "import_realms"],
+                vec!["projection", "editable_regions"],
+            ],
+        ),
+    ] {
+        assert!(serde_json::from_value::<PreparedSource>(value.clone()).is_ok());
+        for path in paths {
+            let mut missing = value.clone();
+            let (field, parents) = path.split_last().unwrap();
+            let parent = parents
+                .iter()
+                .fold(&mut missing, |object, field| &mut object[*field]);
+            parent.as_object_mut().unwrap().remove(*field);
+            assert!(
+                serde_json::from_value::<PreparedSource>(missing).is_err(),
+                "{path:?}"
+            );
+        }
+    }
+    assert!(
+        serde_json::from_value::<PreparedSource>(serde_json::json!({
+            "uri": "test:///entry.ts",
+            "module_id": "entry.ts",
+            "source": "",
+            "language": "ts",
+            "module_kind": "module",
+        }))
+        .is_err()
+    );
+}
+
+#[test]
+fn prepared_source_rejects_document_formats_without_matching_preparation() {
+    for format in ["astro", "svelte", "vue"] {
+        let mut value = direct_prepared_value();
+        value["document"]["format"] = format.into();
+        let source: PreparedSource = serde_json::from_value(value).unwrap();
+        let error = source
+            .input(&mut stillwind_source::SourceRegistry::default())
+            .err()
+            .unwrap();
+        assert!(error.reason.contains("direct input requires"));
+    }
+    for format in ["script", "jsx"] {
+        let mut value = projected_prepared_value();
+        value["document"]["format"] = format.into();
+        let source: PreparedSource = serde_json::from_value(value).unwrap();
+        let error = source
+            .input(&mut stillwind_source::SourceRegistry::default())
+            .err()
+            .unwrap();
+        assert!(error.reason.contains("projected input requires"));
+    }
+}
+
+#[test]
+fn prepared_documents_preserve_upstream_maps_source_names_and_parser_settings() {
+    let upstream = serde_json::json!({
+        "version": 3,
+        "sources": ["upstream.ts"],
+        "sourcesContent": ["const value = 1;"],
+        "names": [],
+        "mappings": "AAAA",
+    })
+    .to_string();
+    for mut value in [direct_prepared_value(), projected_prepared_value()] {
+        value["document"]["upstream_map"] = upstream.clone().into();
+        value["stylesheet_imports"] = serde_json::json!(["virtual:styles"]);
+        value["module_css_import"] = "virtual:module-css".into();
+        value["framework"] = "svelte".into();
+        let source: PreparedSource = serde_json::from_value(value.clone()).unwrap();
+        assert!(source.type_facts().is_empty());
+        let input = source
+            .input(&mut stillwind_source::SourceRegistry::default())
+            .unwrap();
+        assert_eq!(input.upstream_map.as_deref(), Some(upstream.as_str()));
+        assert_eq!(
+            input.module_id.as_str(),
+            value["module_id"].as_str().unwrap()
+        );
+        assert_eq!(input.stylesheet_imports, ["virtual:styles"]);
+        assert_eq!(
+            input.module_css_import.as_deref(),
+            Some("virtual:module-css")
+        );
+        assert_eq!(input.framework, Some(stillwind_ir::AdapterKind::Svelte));
+        assert_eq!(input.language, ScriptLanguage::Ts);
+        if let Some(projection) = input.projection {
+            assert_eq!(input.module_kind, ScriptModuleKind::Module);
+            assert_eq!(
+                input.code.text(),
+                value["projection"]["code"].as_str().unwrap()
+            );
+            assert!(input.code.uri().is_none());
+            assert!(input.code.source_map_source().is_none());
+            assert_ne!(input.code.id(), projection.original.id());
+            assert_ne!(projection.analysis_id, projection.original.id());
+            assert_ne!(projection.analysis_id, input.code.id());
+            assert_eq!(
+                projection.original.uri().unwrap().as_str(),
+                "test:///entry.svelte"
+            );
+            assert_eq!(
+                projection.original.source_map_source(),
+                Some("entry.svelte")
+            );
+            assert_eq!(
+                projection.original.text(),
+                value["document"]["code"].as_str().unwrap()
+            );
+            assert_eq!(projection.realms[0].source.start.0, 12);
+            assert_eq!(projection.realms[0].source.end.0, 28);
+            assert_eq!(projection.regions[0].source, projection.realms[0].source);
+        } else {
+            assert_eq!(input.module_kind, ScriptModuleKind::CommonJs);
+            assert_eq!(input.code.uri().unwrap().as_str(), "test:///entry.ts");
+            assert_eq!(input.code.source_map_source(), Some("entry.ts"));
+            assert_eq!(
+                input.code.text(),
+                value["document"]["code"].as_str().unwrap()
+            );
+        }
+    }
+}
+
+#[test]
+fn prepared_projection_rejects_surrogate_interiors_and_invalid_ranges() {
+    for field in ["import_realms", "editable_regions"] {
+        for (start, end) in [(1, 2), (26, 10), (10, 100)] {
+            let mut value = projected_prepared_value();
+            value["projection"][field][0]["start"] = start.into();
+            value["projection"][field][0]["end"] = end.into();
+            let source: PreparedSource = serde_json::from_value(value).unwrap();
+            assert!(
+                source
+                    .input(&mut stillwind_source::SourceRegistry::default())
+                    .is_err(),
+                "{field}: {start}..{end}"
+            );
+        }
+    }
 }

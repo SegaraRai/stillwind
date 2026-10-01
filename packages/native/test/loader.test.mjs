@@ -77,11 +77,14 @@ void test("native properties use camelCase and enum values follow their declared
   const { scanSource, NativeDesignSystemLoader } = await import(bindingSpecifier);
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     const summary = scanSource({
+      kind: "direct",
       moduleId: "contract.js",
-      uri: sourceUri("contract.js"),
-      source: "module.exports = 1;",
-      language: "js",
-      moduleKind: "commonjs",
+      document: {
+        uri: sourceUri("contract.js"),
+        code: "module.exports = 1;",
+        format: "script",
+      },
+      syntax: { language: "js", moduleKind: "commonjs" },
       framework,
     });
     assert.equal(summary.moduleId, "contract.js");
@@ -119,6 +122,52 @@ void test("lint settings preserve rule names and reporting levels across the nat
   }
 });
 
+void test("prepared documents require formats and keep document identity separate from module identity", async () => {
+  const { scanSource, compileProject, NativeDesignSystemLoader, NativeProjectSession } =
+    await import(bindingSpecifier);
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "root.css", "@stillwind-slot utilities;", sourceUri("root.css"));
+  const session = new NativeProjectSession(loader, true);
+  const input = {
+    kind: "direct",
+    moduleId: "opaque-module",
+    document: {
+      uri: "untitled:document.tsx",
+      code: "import {style} from 'stillwind/react';\nconst props = style('missing');",
+      format: "jsx",
+      sourceMapSource: "original/document.tsx",
+    },
+    syntax: { language: "tsx", moduleKind: "unambiguous" },
+  };
+  assert.equal(scanSource(input).moduleId, input.moduleId);
+  for (const compile of [
+    (source) => compileProject([source], cssInput("@stillwind-slot utilities;")).modules[0],
+    (source) => session.compile([source]).modules[0],
+  ]) {
+    const output = compile(input);
+    assert.deepEqual(output.diagnostics, []);
+    assert.equal(output.lintFindings[0].uri, input.document.uri);
+    assert.equal(output.lintFindings[0].startLine, 1);
+    assert.equal(output.moduleId, input.moduleId);
+  }
+  for (const consume of [
+    scanSource,
+    (source) => compileProject([source], cssInput("@stillwind-slot utilities;")),
+    (source) => session.compile([source]),
+  ]) {
+    for (const format of ["vue", "svelte", "astro"]) {
+      assert.throws(
+        () => consume({ ...input, document: { ...input.document, format } }),
+        /direct input requires a script or JSX document format/,
+      );
+    }
+    assert.throws(
+      () => consume({ ...input, document: { ...input.document, format: undefined } }),
+      /format/,
+    );
+  }
+});
+
 void test("failed compile transactions retain watch CSS but reject current plans", async () => {
   const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
   const loader = new NativeDesignSystemLoader();
@@ -129,12 +178,15 @@ void test("failed compile transactions retain watch CSS but reject current plans
     sourceUri("root.css"),
   );
   const source = (path, utility) => ({
+    kind: "direct",
     moduleId: path,
-    uri: sourceUri(path),
-    language: "tsx",
-    moduleKind: "unambiguous",
-    sourceMapSource: sourceUri(path),
-    source: `import {style} from 'stillwind/react';export const props=style(${utility});`,
+    document: {
+      uri: sourceUri(path),
+      code: `import {style} from 'stillwind/react';export const props=style(${utility});`,
+      format: "jsx",
+      sourceMapSource: sourceUri(path),
+    },
+    syntax: { language: "tsx", moduleKind: "unambiguous" },
   });
   for (const watch of [true, false]) {
     const session = new NativeProjectSession(loader, watch);
@@ -191,12 +243,15 @@ void test("native object transport returns typed values and rejects the former J
   assert.equal(typeof output.mappings[0].originalStart, "number");
   const sources = [
     {
+      kind: "direct",
       moduleId: "🧭.tsx",
-      uri: sourceUri("🧭.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("🧭.tsx"),
-      source,
+      document: {
+        uri: sourceUri("🧭.tsx"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("🧭.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ];
   assert.deepEqual(
@@ -229,7 +284,11 @@ void test("native object transport returns typed values and rejects the former J
   const session = new NativeProjectSession(loader, false);
   assert.deepEqual(session.compile(sources).modules[0].diagnostics, []);
   assert.throws(() => session.compile("[]"), /array/i);
-  assert.throws(() => session.compile([{ ...sources[0], language: "unknown" }]), /language/);
+  assert.throws(
+    () =>
+      session.compile([{ ...sources[0], syntax: { ...sources[0].syntax, language: "unknown" } }]),
+    /language/,
+  );
   assert.throws(
     () =>
       session.planStylesheet({ modules: [], coverage: { kind: "unknown" }, placement: "document" }),
@@ -267,20 +326,26 @@ void test("removal reports producer presence independently of shared CSS", async
   const source = "import {style} from 'stillwind/react'; export const props=style('flex');";
   session.compile([
     {
+      kind: "direct",
       moduleId: "a.ts",
-      uri: sourceUri("a.ts"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("a.ts"),
-      source,
+      document: {
+        uri: sourceUri("a.ts"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("a.ts"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
     {
+      kind: "direct",
       moduleId: "b.ts",
-      uri: sourceUri("b.ts"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("b.ts"),
-      source,
+      document: {
+        uri: sourceUri("b.ts"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("b.ts"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ]);
   const shared = session.css();
@@ -301,12 +366,15 @@ void test("native semantic unions validate nested asset kinds and candidate payl
     compileProject(
       [
         {
+          kind: "direct",
           moduleId: "facts.ts",
-          uri: sourceUri("facts.ts"),
-          language: "tsx",
-          moduleKind: "unambiguous",
-          sourceMapSource: sourceUri("facts.ts"),
-          source: "export {};",
+          document: {
+            uri: sourceUri("facts.ts"),
+            code: "export {};",
+            format: "jsx",
+            sourceMapSource: sourceUri("facts.ts"),
+          },
+          syntax: { language: "tsx", moduleKind: "unambiguous" },
           typeFacts: [{ start: 0, end: 0, value }],
         },
       ],
@@ -383,12 +451,15 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
   const session = new NativeProjectSession(loader, true);
   const result = session.compile([
     {
+      kind: "direct",
       moduleId: "button.tsx",
-      uri: sourceUri("button.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("button.tsx"),
-      source,
+      document: {
+        uri: sourceUri("button.tsx"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("button.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ]);
   assert.deepEqual(result.modules[0].diagnostics, []);
@@ -398,12 +469,15 @@ void test("stylesheet assembly errors belong to rendering APIs", async () => {
     compileProject(
       [
         {
+          kind: "direct",
           moduleId: "button.tsx",
-          uri: sourceUri("button.tsx"),
-          language: "tsx",
-          moduleKind: "unambiguous",
-          sourceMapSource: sourceUri("button.tsx"),
-          source,
+          document: {
+            uri: sourceUri("button.tsx"),
+            code: source,
+            format: "jsx",
+            sourceMapSource: sourceUri("button.tsx"),
+          },
+          syntax: { language: "tsx", moduleKind: "unambiguous" },
         },
       ],
       cssInput(css),
@@ -457,24 +531,30 @@ void test("projected session edits original SFC text and preserves watch recover
   const prefix = "<!-- 🧭 -->\n<script>";
   const suffix = "</script><div {...props}></div><style>/* preserved */</style>";
   const input = {
+    kind: "projected",
     moduleId: "Component.svelte",
-    uri: sourceUri("Component.svelte"),
-    moduleKind: "unambiguous",
-    sourceMapSource: sourceUri("Component.svelte"),
-    source,
-    language: "ts",
+    document: {
+      uri: sourceUri("Component.svelte"),
+      code: prefix + source + suffix,
+      format: "svelte",
+      sourceMapSource: sourceUri("Component.svelte"),
+    },
     framework: "svelte",
-    sourceFormat: "svelte",
-    fwCode: prefix + source + suffix,
-    fw2JsMap: {
-      kind: "volar",
-      mappings: [
-        { sourceOffsets: [prefix.length], generatedOffsets: [0], lengths: [source.length] },
+    projection: {
+      code: source,
+      syntax: { language: "ts", moduleKind: "unambiguous" },
+      map: {
+        kind: "volar",
+        mappings: [
+          { sourceOffsets: [prefix.length], generatedOffsets: [0], lengths: [source.length] },
+        ],
+      },
+      converter: { name: "svelte2tsx", version: "0.7.61", optionsFingerprint: "test" },
+      importRealms: [{ id: 0, start: prefix.length, end: prefix.length + source.length }],
+      editableRegions: [
+        { start: prefix.length, end: prefix.length + source.length, importRealm: 0 },
       ],
     },
-    converter: { name: "svelte2tsx", version: "0.7.61", optionsFingerprint: "test" },
-    importRealms: [{ id: 0, start: prefix.length, end: prefix.length + source.length }],
-    regions: [{ start: prefix.length, end: prefix.length + source.length, importRealm: 0 }],
   };
   const before = session.compile([input]).modules[0];
   assert.deepEqual(before.diagnostics, []);
@@ -488,24 +568,35 @@ void test("projected session edits original SFC text and preserves watch recover
   );
   assert(!before.code.includes("stillwind/svelte"));
   const css = session.css();
-  const missingRealm = session.compile([{ ...input, importRealms: [], regions: [] }]).modules[0];
+  const missingRealm = session.compile([
+    { ...input, projection: { ...input.projection, importRealms: [], editableRegions: [] } },
+  ]).modules[0];
   assert.equal(missingRealm.diagnostics[0].code, "SW11007");
   assert.equal(session.css(), css);
-  const invalid = { ...input, fw2JsMap: { kind: "volar", mappings: [] } };
+  const invalid = {
+    ...input,
+    projection: { ...input.projection, map: { kind: "volar", mappings: [] } },
+  };
   const failed = session.compile([invalid]).modules[0];
   assert.equal(failed.diagnostics[0].code, "SW10002");
   assert.equal(session.css(), css);
   const recovered = session.compile([input]).modules[0];
   assert.deepEqual(recovered.diagnostics, []);
   assert.equal(recovered.code, before.code);
-  assert.throws(() => session.compile([{ ...input, fw2JsMap: undefined }]), /fw2JsMap/);
+  for (const field of ["code", "syntax", "map", "converter", "importRealms", "editableRegions"]) {
+    assert.throws(
+      () =>
+        session.compile([{ ...input, projection: { ...input.projection, [field]: undefined } }]),
+      new RegExp(field),
+    );
+  }
   assert.throws(
-    () => session.compile([{ ...input, sourceFormat: undefined }]),
-    /component sourceFormat/,
+    () => session.compile([{ ...input, document: { ...input.document, format: undefined } }]),
+    /format/,
   );
   assert.throws(
-    () => session.compile([{ ...input, sourceFormat: "jsx" }]),
-    /component sourceFormat/,
+    () => session.compile([{ ...input, document: { ...input.document, format: "jsx" } }]),
+    /component|format/,
   );
   const inferredAdapter = session.compile([{ ...input, framework: undefined }]).modules[0];
   assert.deepEqual(inferredAdapter.diagnostics, []);
@@ -536,12 +627,15 @@ void test("session reload applies code generation options independently of CSS d
   const session = new NativeProjectSession(load("first"), true);
   const sources = [
     {
+      kind: "direct",
       moduleId: "button.tsx",
-      uri: sourceUri("button.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("button.tsx"),
-      source: "import { style } from 'stillwind/react'; const x = style('flex');",
+      document: {
+        uri: sourceUri("button.tsx"),
+        code: "import { style } from 'stillwind/react'; const x = style('flex');",
+        format: "jsx",
+        sourceMapSource: sourceUri("button.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ];
   const before = session.compile(sources);
@@ -579,20 +673,26 @@ void test("native sessions retain independent producer rules and replace CSS rev
   const source = "import { style } from 'stillwind/react'; const x = style('bg-brand');";
   const result = session.compile([
     {
+      kind: "direct",
       moduleId: "a.tsx",
-      uri: sourceUri("a.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("a.tsx"),
-      source,
+      document: {
+        uri: sourceUri("a.tsx"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("a.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
     {
+      kind: "direct",
       moduleId: "b.tsx",
-      uri: sourceUri("b.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("b.tsx"),
-      source,
+      document: {
+        uri: sourceUri("b.tsx"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("b.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ]);
   assert.equal(result.modules.length, 2);
@@ -676,12 +776,15 @@ void test("native watch reload reports compilation errors without publishing a p
     "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'brand' }); const x = style(motion(''));";
   const output = session.compile([
     {
+      kind: "direct",
       moduleId: "motion.tsx",
-      uri: sourceUri("motion.tsx"),
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: sourceUri("motion.tsx"),
-      source,
+      document: {
+        uri: sourceUri("motion.tsx"),
+        code: source,
+        format: "jsx",
+        sourceMapSource: sourceUri("motion.tsx"),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
     },
   ]);
   assert.deepEqual(output.modules[0].diagnostics, []);
@@ -717,24 +820,29 @@ void test("native sessions join supplied type facts with another module's asset 
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "theme", "", sourceUri("theme"));
   const producer = {
+    kind: "direct",
     moduleId: "producer.tsx",
-    uri: sourceUri("producer.tsx"),
-    language: "tsx",
-    moduleKind: "unambiguous",
-    sourceMapSource: sourceUri("producer.tsx"),
-    source: "import { style } from 'stillwind/react'; export const marker = style.ref('shared');",
+    document: {
+      uri: sourceUri("producer.tsx"),
+      code: "import { style } from 'stillwind/react'; export const marker = style.ref('shared');",
+      format: "jsx",
+      sourceMapSource: sourceUri("producer.tsx"),
+    },
+    syntax: { language: "tsx", moduleKind: "unambiguous" },
   };
   const consumer = {
+    kind: "direct",
     moduleId: "consumer.tsx",
-    uri: sourceUri("consumer.tsx"),
-    language: "tsx",
-    moduleKind: "unambiguous",
-    sourceMapSource: sourceUri("consumer.tsx"),
-    source:
-      "import { style } from 'stillwind/react'; import { marker } from './producer'; const props = style(marker);",
+    document: {
+      uri: sourceUri("consumer.tsx"),
+      code: "import { style } from 'stillwind/react'; import { marker } from './producer'; const props = style(marker);",
+      format: "jsx",
+      sourceMapSource: sourceUri("consumer.tsx"),
+    },
+    syntax: { language: "tsx", moduleKind: "unambiguous" },
   };
-  const summary = summarizeSource(producer.source, producer.moduleId, "tsx", "unambiguous");
-  const start = consumer.source.lastIndexOf("marker");
+  const summary = summarizeSource(producer.document.code, producer.moduleId, "tsx", "unambiguous");
+  const start = consumer.document.code.lastIndexOf("marker");
   const session = new NativeProjectSession(loader, true);
   const without = session.compile([consumer, producer]);
   assert.ok(without.modules[0].diagnostics.length > 0);

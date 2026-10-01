@@ -1,8 +1,14 @@
-import type { ProjectSource as FrameworkSource } from "@stillwind/projection";
+import type { PreparedSource as ProjectionPreparedSource } from "@stillwind/projection";
 
 import type { TypeFact } from "./type-facts.ts";
 
-export type { ProjectionMap } from "@stillwind/projection";
+export type {
+  ProjectInput,
+  ProjectionMap,
+  ScriptSyntax,
+  SourceDocument,
+  SourceProjection,
+} from "@stillwind/projection";
 
 export type {
   BindingOutput as CompilerOutput,
@@ -12,6 +18,6 @@ export type {
   ProjectBindingOutput as ProjectCompilerOutput,
 } from "@stillwind/native";
 
-export interface ProjectSource extends FrameworkSource {
+export type PreparedSource = ProjectionPreparedSource & {
   typeFacts?: TypeFact[];
-}
+};

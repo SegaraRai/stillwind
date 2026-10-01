@@ -12,7 +12,7 @@ import { transform } from "lightningcss";
 import {
   comparableFixtureClasses,
   compileFixtureSource,
-  fixtureProjectSource,
+  fixturePreparedSource,
 } from "./native-fixture-input.ts";
 
 // These are explicit harness contracts, not general CSS equivalences. See
@@ -235,7 +235,8 @@ export function compileParity(source: string, css: string) {
     entry = { session: new NativeProjectSession(loader, false), uses: 0 };
     sessions.set(css, entry);
   }
-  const module = entry.session.compile([fixtureProjectSource(source, "src/Parity.tsx")]).modules[0];
+  const module = entry.session.compile([fixturePreparedSource(source, "src/Parity.tsx")])
+    .modules[0];
   const output = { ...module, css: entry.session.css() };
   if (entry.uses++ % 250 === 0) {
     const direct = compileFixtureSource(source, "src/Parity.tsx", css);

@@ -5,7 +5,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
-import { projectFrameworkSource } from "../../packages/projection/dist/index.js";
+import { prepareSource } from "../../packages/projection/dist/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const local = createRequire(import.meta.url);
@@ -37,12 +37,12 @@ const visit = (node, fn) => {
 const lines = (text) => [0, ...[...text.matchAll(/\n/g)].map((m) => m.index + 1)];
 
 function projectionPoints(input) {
-  if (!input.fwCode) {
+  if (input.kind !== "projected") {
     return null;
   }
   const points = new Map();
-  if (input.fw2JsMap.kind === "volar") {
-    for (const m of input.fw2JsMap.mappings) {
+  if (input.projection.map.kind === "volar") {
+    for (const m of input.projection.map.mappings) {
       for (let i = 0; i < m.sourceOffsets.length; i++) {
         const length = m.lengths[i];
         const generatedLength = m.generatedLengths?.[i] ?? length;
@@ -55,9 +55,9 @@ function projectionPoints(input) {
       }
     }
   } else {
-    const map = new TraceMap(input.fw2JsMap.json);
-    const generatedLines = lines(input.source),
-      originalLines = lines(input.fwCode);
+    const map = new TraceMap(input.projection.map.json);
+    const generatedLines = lines(input.projection.code),
+      originalLines = lines(input.document.code);
     for (const [line, segments] of decodedMappings(map).entries()) {
       for (const s of segments) {
         if (s.length >= 4) {
@@ -179,19 +179,29 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
     visited.add(name);
     const original = originals.get(name);
     assert.ok(original !== undefined, name);
-    const projected = await projectFrameworkSource({
-      id: `${directory}/${name}`,
-      path: name,
-      source: original,
+    const projected = await prepareSource({
+      resolverId: `${directory}/${name}`,
+      checkerFileName: `${directory}/${name}`,
+      projectionFileName: name,
+      moduleId: name,
+      document: {
+        uri: pathToFileURL(`${directory}/${name}`).href,
+        code: original,
+        format: /\.(vue|svelte|astro)$/.exec(name)?.[1] ?? "script",
+      },
+      syntax: { language: "ts", moduleKind: "module" },
     });
+    const parserCode =
+      projected.kind === "projected" ? projected.projection.code : projected.document.code;
+    const syntax = projected.kind === "projected" ? projected.projection.syntax : projected.syntax;
     const points = projectionPoints(projected);
-    const virtual = `${directory}/${name}${projected.fwCode ? "." + projected.language : ""}`;
+    const virtual = `${directory}/${name}${projected.kind === "projected" ? "." + syntax.language : ""}`;
     const ast = ts.createSourceFile(
       virtual,
-      projected.source,
+      parserCode,
       ts.ScriptTarget.Latest,
       true,
-      projected.language === "tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+      syntax.language === "tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
     );
     const edits = [];
     visit(ast, (node) => {
@@ -258,7 +268,7 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
       });
     });
     edits.sort((a, b) => a.at - b.at);
-    let shadow = projected.source;
+    let shadow = parserCode;
     for (const e of [...edits].reverse()) {
       shadow = shadow.slice(0, e.at) + e.text + shadow.slice(e.end);
     }
@@ -557,14 +567,24 @@ async function astroClient(split) {
       clientCode.replace(/[^\r\n]/g, " ") +
       original.slice(base + clientCode.length)
     : original;
-  const projection = await projectFrameworkSource({
-    id: "Client.astro",
-    path: "Client.astro",
-    source: converterSource,
+  const projection = await prepareSource({
+    resolverId: `${p.directory}/Client.astro`,
+    checkerFileName: `${p.directory}/Client.astro`,
+    projectionFileName: "Client.astro",
+    moduleId: "Client.astro",
+    document: {
+      uri: pathToFileURL(`${p.directory}/Client.astro`).href,
+      code: converterSource,
+      format: "astro",
+    },
+    syntax: { language: "ts", moduleKind: "module" },
   });
-  const points = projectionPoints({ ...projection, fwCode: original });
+  const points = projectionPoints({
+    ...projection,
+    document: { ...projection.document, code: original },
+  });
   const virtual = `${p.directory}/Client.astro.tsx`;
-  const source = split ? clientCode : projection.source;
+  const source = split ? clientCode : projection.projection.code;
   const ast = ts.createSourceFile(
     "client.tsx",
     source,
@@ -603,7 +623,7 @@ async function astroClient(split) {
           name: "Client.astro",
           virtual,
           original,
-          shadow: projection.source,
+          shadow: projection.projection.code,
           mapPoint: (offset) => points.get(offset) ?? null,
         },
       ]

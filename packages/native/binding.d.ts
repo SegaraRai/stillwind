@@ -84,7 +84,7 @@ export declare class NativeProjectSession {
    * `producer` narrows the returned output to one module, but every supplied module
    * is still compiled: cross-module values need the whole set.
    */
-  compile(sources: Array<NativeProjectSource>, producer?: string | undefined | null): ProjectBindingOutput
+  compile(sources: Array<NativePreparedSource>, producer?: string | undefined | null): ProjectBindingOutput
 }
 
 /** One alternative fix offered for a diagnostic. */
@@ -262,7 +262,7 @@ export interface BindingReport {
  *
  * Returns a JavaScript error for invalid input or an unresolved graph edge.
  */
-export declare function compileProject(sources: Array<NativeProjectSource>, css: NativeCompileCssInput, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
+export declare function compileProject(sources: Array<NativePreparedSource>, css: NativeCompileCssInput, options?: NativeCompilerOptions | undefined | null): ProjectBindingOutput
 
 /**
  * Compiles one host-identified script and CSS source.
@@ -826,6 +826,25 @@ export interface NativeModuleSummary {
   exports: Array<NativeExport>
 }
 
+/** Host input with an editable document and explicit parser preparation. */
+export type NativePreparedSource =
+  | { kind: 'direct'; /** Editable source document. */
+    document: NativeSourceDocument; /** Parser settings for the document's code. */
+    syntax: NativeScriptSyntax; /** Host-chosen identity of this module. */
+    moduleId: string; /** Facts the host produced for this module, empty when absent. */
+    typeFacts?: Array<NativeTypeFact>; /** Explicit output adapter constraint; macro imports select it when absent. */
+    framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
+    stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
+  moduleCssImport?: string }
+  | { kind: 'projected'; /** Editable source document. */
+    document: NativeSourceDocument; /** Generated code and its correspondence to the document. */
+    projection: NativeSourceProjection; /** Host-chosen identity of this module. */
+    moduleId: string; /** Facts the host produced for this module, empty when absent. */
+    typeFacts?: Array<NativeTypeFact>; /** Explicit output adapter constraint; macro imports select it when absent. */
+    framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
+    stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
+  moduleCssImport?: string }
+
 /** Projection map in either supported encoding. */
 export type NativeProjectionMap =
   | { kind: 'v3'; /** Source-map JSON text. */
@@ -833,52 +852,6 @@ export type NativeProjectionMap =
   source: string }
   | { kind: 'volar'; /** Mapping entries, in generated order. */
   mappings: Array<NativeVolarMapping> }
-
-/** Plain JavaScript source input. Optional vectors default to empty in native code. */
-export interface NativeProjectSource {
-  /** Host-supplied absolute URI of the original editable document. */
-  uri: string
-  /** Host-chosen identity of this module. */
-  moduleId: string
-  /**
-   * Text the parser sees, and the buffer edits are applied to when there is no
-   * projection.
-   */
-  source: string
-  /** Facts the host produced for this module, empty when it has none. */
-  typeFacts?: Array<NativeTypeFact>
-  /** Parser dialect supplied by the host. */
-  language: NativeScriptLanguage
-  /** Module grammar, independent of the JavaScript or TypeScript dialect. */
-  moduleKind: NativeScriptModuleKind
-  /**
-   * Original format. Plain inputs default from language; projected inputs require
-   * an explicit component format independently of the adapter constraint.
-   */
-  sourceFormat?: NativeSourceFormat
-  /** Exact source name for generated stylesheet maps. */
-  sourceMapSource?: string
-  /** Explicit output adapter constraint; macro imports select it when absent. */
-  framework?: NativeFramework
-  /** Source map from `source` back to the file it was generated from. */
-  map?: string
-  /** Original framework source, present only for projected inputs. */
-  fwCode?: string
-  /** Mapping between [`Self::fw_code`] and [`Self::source`]. */
-  fw2JsMap?: NativeProjectionMap
-  /** Source map from [`Self::fw_code`] to its own upstream file. */
-  fwMap?: string
-  /** Converter that produced [`Self::source`], part of the input revision. */
-  converter?: NativeConverterIdentity
-  /** Import scopes of [`Self::fw_code`]. */
-  importRealms?: Array<HostRealm>
-  /** Converted regions of [`Self::fw_code`]. */
-  regions?: Array<HostRegion>
-  /** Host-allocated stylesheet modules to insert at the macro import. */
-  stylesheetImports?: Array<string>
-  /** Host-allocated module that exports this module's CSS value. */
-  moduleCssImport?: string
-}
 
 /** One re-export of a module. */
 export interface NativeReExport {
@@ -916,8 +889,46 @@ export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx' | 'dts'
 /** Module grammar supplied for the Oxc parser. */
 export type NativeScriptModuleKind = 'module' | 'commonjs' | 'script' | 'unambiguous'
 
+/** Parser dialect and module grammar for a script buffer. */
+export interface NativeScriptSyntax {
+  /** JavaScript or TypeScript dialect. */
+  language: NativeScriptLanguage
+  /** Module grammar, independent of the dialect. */
+  moduleKind: NativeScriptModuleKind
+}
+
+/** Original editable document, including its optional upstream source map. */
+export interface NativeSourceDocument {
+  /** Absolute URI of the editable document. */
+  uri: string
+  /** Editable text. */
+  code: string
+  /** Original file format, independent of the parser dialect. */
+  format: NativeSourceFormat
+  /** Source-map JSON from this document to its upstream source. */
+  upstreamMap?: string
+  /** Exact source name for generated stylesheet maps. */
+  sourceMapSource?: string
+}
+
 /** Format of the original editable source supplied by the host. */
 export type NativeSourceFormat = 'script' | 'jsx' | 'astro' | 'svelte' | 'vue'
+
+/** Generated parser buffer and required correspondence to the editable document. */
+export interface NativeSourceProjection {
+  /** Generated JavaScript or TypeScript code. */
+  code: string
+  /** Parser settings for the generated code. */
+  syntax: NativeScriptSyntax
+  /** Mapping from generated code to the editable document. */
+  map: NativeProjectionMap
+  /** Converter identity used for the source revision. */
+  converter: NativeConverterIdentity
+  /** Import scopes in the editable document, in UTF-16 coordinates. */
+  importRealms: Array<HostRealm>
+  /** Editable regions in the document, in UTF-16 coordinates. */
+  editableRegions: Array<HostRegion>
+}
 
 /** A byte span with an explicit file id. */
 export interface NativeSpan {
@@ -1136,7 +1147,7 @@ export declare function renderStylesheet(moduleCss: string, theme: string, optio
  *
  * Rejects malformed input and projection failures before checker queries are issued.
  */
-export declare function scanSource(source: NativeProjectSource): NativeModuleSummary
+export declare function scanSource(source: NativePreparedSource): NativeModuleSummary
 
 /**
  * Returns the versioned Stillwind module summary used for cross-module values.

@@ -2,9 +2,15 @@ import { relative } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { scanSource, type NativeProjectSession } from "@stillwind/native";
-import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
+import { checkerEnvironment, prepareSource } from "@stillwind/projection";
 
-import type { ModuleSummary, ProjectSource } from "./protocol.ts";
+import type {
+  ModuleSummary,
+  PreparedSource,
+  ProjectInput,
+  SourceDocument,
+  ScriptSyntax,
+} from "./protocol.ts";
 import { TypeFactsError, type TypeScriptFactsService, type TypeFact } from "./type-facts.ts";
 
 /**
@@ -16,16 +22,9 @@ export interface CompilerHost {
   describe(
     id: string,
   ): Pick<
-    ProjectSource,
-    | "moduleId"
-    | "uri"
-    | "checkerFileName"
-    | "projectionFileName"
-    | "language"
-    | "moduleKind"
-    | "sourceFormat"
-    | "framework"
-  >;
+    ProjectInput,
+    "moduleId" | "checkerFileName" | "projectionFileName" | "syntax" | "framework"
+  > & { document: Omit<SourceDocument, "code"> };
   resolve(
     specifier: string,
     importer: string,
@@ -60,12 +59,13 @@ export function compilerModuleId(root: string, id: string): string {
  * Returns parser metadata and the original format inferred from id's extension,
  * ignoring query and fragment suffixes. Leaves the output adapter undefined.
  */
-export function fileSourceKind(
-  id: string,
-): Pick<ProjectSource, "language" | "moduleKind" | "sourceFormat" | "framework"> {
+export function fileSourceKind(id: string): {
+  syntax: ScriptSyntax;
+  format: SourceDocument["format"];
+} {
   const name = cleanModuleId(id).toLowerCase();
   const extension = /\.[^.]+$/.exec(name)?.[0];
-  const sourceFormat =
+  const format =
     asRecord({
       ".jsx": "jsx",
       ".tsx": "jsx",
@@ -83,10 +83,11 @@ export function fileSourceKind(
         ".jsx": "jsx",
       })[extension ?? ""] ?? "js");
   return {
-    language,
-    moduleKind: "unambiguous",
-    sourceFormat,
-    framework: undefined,
+    syntax: {
+      language,
+      moduleKind: "unambiguous",
+    },
+    format,
   };
 }
 
@@ -96,12 +97,16 @@ export function fileModuleDescriptor(
   id: string,
 ): ReturnType<CompilerHost["describe"]> {
   const file = cleanModuleId(id);
+  const { syntax, format } = fileSourceKind(file);
   return {
     moduleId: compilerModuleId(root, file),
-    uri: pathToFileURL(file).href,
+    document: {
+      uri: pathToFileURL(file).href,
+      format,
+    },
     checkerFileName: file,
     projectionFileName: compilerModuleId(root, file),
-    ...fileSourceKind(file),
+    syntax,
   };
 }
 
@@ -162,10 +167,14 @@ export async function compileModule(
   } = {},
 ) {
   const entryId = id;
-  const entrySource = await projectFrameworkSource({
+  const entryDescriptor = host.describe(entryId);
+  const entrySource = await prepareSource({
     resolverId: entryId,
-    ...host.describe(entryId),
-    source: code,
+    ...entryDescriptor,
+    document: {
+      ...entryDescriptor.document,
+      code,
+    },
   });
   const entrySummary = scanSource(entrySource);
   const hasModuleCssImport = entrySummary.moduleCssImports > 0;
@@ -177,9 +186,9 @@ export async function compileModule(
   }
   const needsTypeFacts = entrySummary.typeProbes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
-  const sourcesByResolverId = new Map<string, ProjectSource>();
+  const sourcesByResolverId = new Map<string, PreparedSource>();
   const resolverIdsByModuleId = new Map<string, string>();
-  const registerSource = (source: ProjectSource) => {
+  const registerSource = (source: PreparedSource) => {
     const previous = resolverIdsByModuleId.get(source.moduleId);
     if (previous !== undefined && previous !== source.resolverId) {
       fail(`Module identity ${source.moduleId} is shared by ${previous} and ${source.resolverId}`);
@@ -195,7 +204,7 @@ export async function compileModule(
   registerSource(entrySource);
   const resolutions = new Map<string, Map<string, string>>();
   const visited = new Map<string, Set<string | null>>();
-  const pending: Array<{ source: ProjectSource; requested: string | null }> = [
+  const pending: Array<{ source: PreparedSource; requested: string | null }> = [
     {
       source: entrySource,
       requested: null,
@@ -244,10 +253,14 @@ export async function compileModule(
       host.watch(dependencyId);
       let dependencySource = sourcesByResolverId.get(dependencyId);
       if (!dependencySource) {
-        dependencySource = await projectFrameworkSource({
+        const descriptor = host.describe(dependencyId);
+        dependencySource = await prepareSource({
           resolverId: dependencyId,
-          ...host.describe(dependencyId),
-          source: await host.read(dependencyId),
+          ...descriptor,
+          document: {
+            ...descriptor.document,
+            code: await host.read(dependencyId),
+          },
         });
         registerSource(dependencySource);
       }
@@ -292,7 +305,7 @@ export async function compileModule(
       mappings: [],
       classes: [],
       symbols: [],
-      diagnostics: [error.diagnostic(source.fwCode ?? source.source, source.uri)],
+      diagnostics: [error.diagnostic(source.document.code, source.document.uri)],
       reports: [],
       rejectedNames: [],
       lintFindings: [],

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 import type { NativeAssetRecord } from "@stillwind/native";
-import type { ProjectSource, CheckerBuffer } from "@stillwind/projection";
+import type { PreparedSource, CheckerBuffer } from "@stillwind/projection";
 import { skipTrivia } from "typescript/unstable/ast";
 
 /** Original UTF-8 expression range and its validated projected UTF-16 range. */
@@ -14,9 +14,9 @@ export interface CheckerSpan {
 }
 
 /** Original-coordinate requests for one module and its optional parser projection. */
-export interface TypeFactSource extends ProjectSource {
+export type TypeFactSource = PreparedSource & {
   /**
-   * Half-open UTF-8 ranges in fwCode, or source for plain modules.
+   * Half-open UTF-8 ranges in document.code.
    * When `recognitionOnly` is true, the query only checks whether the receiver is
    * a Stillwind macro asset. A type that cannot be resolved produces no fact.
    * When false or omitted, the query follows the required-query policy for lowering.
@@ -31,7 +31,7 @@ export interface TypeFactSource extends ProjectSource {
   checkerTypes?: readonly string[];
   /** Original UTF-8 string-literal ranges and resolved original module ids. */
   resolutions?: readonly { start: number; end: number; id: string }[];
-}
+};
 
 /** Checker-only insertion/replacement in input-buffer UTF-16 coordinates. */
 interface ShadowEdit {
@@ -68,12 +68,10 @@ export function byteToUtf16(text: string, offset: number): number {
 }
 
 /** Checker file identity; the original module id remains unchanged outside the checker. */
-export function checkerId(
-  source: Pick<ProjectSource, "checkerFileName" | "language" | "fwCode">,
-): string {
-  return source.fwCode === undefined
+export function checkerId(source: PreparedSource): string {
+  return source.kind === "direct"
     ? source.checkerFileName
-    : `${source.checkerFileName}.${source.language}`;
+    : `${source.checkerFileName}.${source.projection.syntax.language}`;
 }
 
 /** Owns shadow edits and translates checker UTF-16 positions back to original bytes. */
@@ -101,7 +99,7 @@ export class CheckerSource {
     this.id = buffer.region
       ? `${source.checkerFileName}.stillwind-client-${index}.ts`
       : checkerId(source);
-    this.#original = source.fwCode ?? source.source;
+    this.#original = source.document.code;
     this.#points = projectionPoints(source);
     for (const asset of assets) {
       const targets = this.targets(asset.callStart, asset.callEnd);
@@ -118,8 +116,8 @@ export class CheckerSource {
           ? ""
           : ",";
         const identity = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
-        const javascript =
-          (source.fwCode === undefined && source.language === "js") || source.language === "jsx";
+        const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
+        const javascript = syntax.language === "js" || syntax.language === "jsx";
         const argument = javascript
           ? `/** @type {${identity}} */ (/** @type {unknown} */ (undefined))`
           : `undefined as unknown as ${identity}`;
@@ -180,7 +178,7 @@ export class CheckerSource {
     ) {
       return [];
     }
-    if (this.source.fwCode === undefined) {
+    if (this.source.kind === "direct") {
       return [[a, b]];
     }
     return [
@@ -223,7 +221,7 @@ export class CheckerSource {
     const generated = position - delta;
     const original = this.buffer.region
       ? generated + this.buffer.region.start
-      : this.source.fwCode === undefined
+      : this.source.kind === "direct"
         ? generated
         : this.#points.get(generated);
     return original === undefined || original === null
@@ -233,7 +231,7 @@ export class CheckerSource {
 }
 
 /** Exact mapped UTF-16 points for diagnostics; conflicting mappings stay unmapped. */
-function projectionPoints(source: ProjectSource): Map<number, number | null> {
+function projectionPoints(source: PreparedSource): Map<number, number | null> {
   const points = new Map<number, number | null>();
   const add = (generated: number, original: number) => {
     if (points.has(generated) && points.get(generated) !== original) {
@@ -242,10 +240,10 @@ function projectionPoints(source: ProjectSource): Map<number, number | null> {
       points.set(generated, original);
     }
   };
-  const map = source.fw2JsMap;
-  if (!map) {
+  if (source.kind === "direct") {
     return points;
   }
+  const map = source.projection.map;
   if (map.kind === "volar") {
     for (const entry of map.mappings) {
       for (let i = 0; i < entry.sourceOffsets.length; i++) {
@@ -263,8 +261,8 @@ function projectionPoints(source: ProjectSource): Map<number, number | null> {
       0,
       ...[...text.matchAll(/\n/g)].map((match) => match.index + 1),
     ];
-    const generated = lines(source.source),
-      original = lines(source.fwCode!);
+    const generated = lines(source.projection.code),
+      original = lines(source.document.code);
     const trace = new TraceMap(map.json);
     const selected = trace.sources.indexOf(map.source);
     for (const [line, segments] of decodedMappings(trace).entries()) {

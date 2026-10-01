@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { Plugin } from "vite-plus";
 
@@ -36,7 +36,8 @@ export function playground(css: string): Plugin {
                 output.diagnostics.push({
                   code: "SHPLAY001",
                   message: error instanceof Error ? error.message : String(error),
-                  file: "Play.tsx",
+                  uri: "untitled:Play.tsx",
+                  revision: createHash("sha256").update(source).digest("hex"),
                   start: 0,
                   end: 0,
                   startUtf16: 0,

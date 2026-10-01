@@ -30,7 +30,10 @@ function project(
       read,
       describe: (id) => ({
         ...fileModuleDescriptor(root, id),
-        uri: `untitled:${encodeURIComponent(id)}`,
+        document: {
+          ...fileModuleDescriptor(root, id).document,
+          uri: `untitled:${encodeURIComponent(id)}`,
+        },
       }),
       watch: () => {},
       warn: () => {},

@@ -1,47 +1,51 @@
-import type { ProjectSource } from "../protocol.ts";
-import type { ConvertedFramework } from "./common.ts";
+import type { PreparedSource, ProjectInput, SourceProjection } from "../protocol.ts";
 
 /**
- * Projects Vue, Svelte, or Astro input selected by sourceFormat, retaining its
- * original buffer in fwCode and moving its upstream map into fwMap.
- * The caller supplies the original format and projection filename. The returned copy
- * preserves framework and defaults sourceMapSource to uri for every input.
- * Already projected and other inputs retain their buffers without validation.
- * Rejects on converter loading or conversion errors; input is not mutated.
+ * Prepares the original document using its required format and projection filename.
+ * Direct documents retain the supplied syntax; component converters supply syntax
+ * for generated code. The returned document preserves original code, URI, and upstream
+ * mapping, and defaults sourceMapSource to its URI. Input objects are not mutated.
+ * Rejects if converter loading or conversion fails.
  */
-export async function projectFrameworkSource(input: ProjectSource): Promise<ProjectSource> {
-  if (input.fwCode !== undefined) {
-    return {
-      ...input,
-      sourceMapSource: input.sourceMapSource ?? input.uri,
-    };
-  }
-  let converted: ConvertedFramework;
-  // Load optional converter dependencies only for their source format.
-  switch (input.sourceFormat) {
+export async function prepareSource(input: ProjectInput): Promise<PreparedSource> {
+  const { document: original, syntax, ...metadata } = input;
+  const document = {
+    ...original,
+    sourceMapSource: original.sourceMapSource ?? original.uri,
+  };
+  let projection: SourceProjection;
+  // Load optional converter dependencies only for their document format.
+  switch (document.format) {
     case "astro":
-      converted = await (
+      projection = await (
         await import("./astro.ts")
-      ).convert(input.source, input.projectionFileName);
+      ).convert(document.code, input.projectionFileName);
       break;
     case "svelte":
-      converted = (await import("./svelte.ts")).convert(input.source, input.projectionFileName);
+      projection = (await import("./svelte.ts")).convert(document.code, input.projectionFileName);
       break;
     case "vue":
-      converted = (await import("./vue.ts")).convert(input.source, input.projectionFileName);
+      projection = (await import("./vue.ts")).convert(document.code, input.projectionFileName);
       break;
-    default:
+    case "script":
+    case "jsx":
       return {
-        ...input,
-        sourceMapSource: input.sourceMapSource ?? input.uri,
+        ...metadata,
+        kind: "direct",
+        document: {
+          ...document,
+          format: document.format,
+        },
+        syntax,
       };
   }
   return {
-    ...input,
-    ...converted,
-    sourceMapSource: input.sourceMapSource ?? input.uri,
-    fwCode: input.source,
-    fwMap: input.map,
-    map: undefined,
+    ...metadata,
+    kind: "projected",
+    document: {
+      ...document,
+      format: document.format,
+    },
+    projection,
   };
 }

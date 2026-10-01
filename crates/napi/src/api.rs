@@ -32,7 +32,7 @@ use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput, Bindin
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::semantic::{NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe};
 use crate::source_input::{
-    NativeProjectSource, NativeScriptLanguage, NativeScriptModuleKind, ProjectSource,
+    NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind, PreparedSource,
 };
 
 /// A Node binding input, setup, or diagnostic serialization error.
@@ -288,11 +288,10 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
 ///
 /// The source graph uses the same domain records as the typed Node adapter.
 ///
-/// Every input receives three file ids: the original source, the generated buffer, and
-/// the analysis buffer. The original of module `i` and the code of a projected module
-/// are different files even when their text matches, and only the original may appear
-/// in a published local span. Original file ids occupy the first range; generated
-/// and analysis ids follow it. Module identities themselves are host path strings.
+/// A direct input registers its editable document as the parser buffer. A projected
+/// input registers separate generated and original buffers and reserves an analysis
+/// file ID. Published spans refer to the editable document even when the generated
+/// buffer contains the same text. Module identities are chosen by the host.
 ///
 /// Rules shared by two modules are emitted once: the first module in input order keeps
 /// the rule and the later module's duplicate is dropped, because this output is one
@@ -303,7 +302,7 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
 /// Returns an error for invalid options or sources, exhausted file IDs, or an
 /// unresolved module edge.
 pub fn compile_project_input(
-    input: &[ProjectSource],
+    input: &[PreparedSource],
     css: &CompileCssInput,
     options: &CompilerOptions,
 ) -> Result<ProjectBindingOutput, BindingApiError> {
@@ -336,13 +335,13 @@ pub fn compile_project_input(
         .iter()
         .zip(input)
         .map(|(scan, source)| {
-            let type_facts = &source.type_facts;
+            let type_facts = source.type_facts();
             let facts = TypeFacts {
                 schema: TypeFacts::SCHEMA,
                 module_id: scan.module_id.clone(),
                 source_revision: scan.source_revision.clone(),
                 semantic_revision: Fingerprint::of(format!("{type_facts:?}{assets:?}")),
-                facts: type_facts.clone(),
+                facts: type_facts.to_vec(),
                 assets: assets.clone(),
             };
             compiler.compile(
@@ -378,8 +377,8 @@ pub fn compile_project_input(
 ///
 /// Rejects malformed input and projection failures before checker queries are issued.
 #[napi(strict)]
-pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSummary> {
-    let source = ProjectSource::try_from(source)?;
+pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSummary> {
+    let source = PreparedSource::try_from(source)?;
     let mut registry = SourceRegistry::default();
     let scan = OxcSourceAnalyzer.scan_input(source.input(&mut registry)?);
     if let Some(error) = scan.diagnostics.iter().find(|error| {
@@ -562,7 +561,7 @@ pub fn compile_source(
 #[napi(strict)]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn compile_project(
-    sources: Vec<NativeProjectSource>,
+    sources: Vec<NativePreparedSource>,
     css: NativeCompileCssInput,
     options: Option<NativeCompilerOptions>,
 ) -> napi::Result<ProjectBindingOutput> {
@@ -570,7 +569,7 @@ pub fn compile_project(
     let sources = sources
         .into_iter()
         .map(TryInto::try_into)
-        .collect::<napi::Result<Vec<ProjectSource>>>()?;
+        .collect::<napi::Result<Vec<PreparedSource>>>()?;
     compile_project_input(&sources, &css.try_into()?, &options)
         .map_err(|error| Error::from_reason(error.to_string()))
 }

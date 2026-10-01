@@ -3,9 +3,11 @@ import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 
-import type { ProjectSource } from "./protocol.ts";
+import type { PreparedSource } from "./protocol.ts";
 
-/** Checker input with optional independent original UTF-16 script region. */
+/**
+ * Checker input with optional independent original UTF-16 script region.
+ */
 export interface CheckerBuffer {
   source: string;
   language: "ts" | "tsx";
@@ -13,22 +15,22 @@ export interface CheckerBuffer {
 }
 
 /**
- * Returns checker declarations selected by sourceFormat for projected input.
+ * Returns checker declarations selected by document.format for projected input.
  * Astro client scripts become independent buffers while the main buffer keeps their
  * line positions. The caller supplies projection maps and original script ranges;
  * source is not mutated. Plain input requires no extra declarations or buffers.
  * Throws if declaration packages cannot be resolved or Astro script mappings are invalid.
  */
-export function checkerEnvironment(source: ProjectSource): {
+export function checkerEnvironment(source: PreparedSource): {
   checkerBuffers?: CheckerBuffer[];
   checkerTypes: string[];
 } {
-  if (source.fwCode === undefined) {
+  if (source.kind === "direct") {
     return { checkerTypes: [] };
   }
   const require = createRequire(import.meta.url);
   const userRequire = createRequire(path.resolve(source.checkerFileName));
-  if (source.sourceFormat === "svelte") {
+  if (source.document.format === "svelte") {
     return {
       checkerTypes: [
         require.resolve("svelte2tsx/svelte-shims-v4.d.ts"),
@@ -36,13 +38,13 @@ export function checkerEnvironment(source: ProjectSource): {
       ],
     };
   }
-  if (source.sourceFormat !== "astro") {
+  if (source.document.format !== "astro") {
     return { checkerTypes: [] };
   }
-  let main = source.source;
+  let main = source.projection.code;
   const buffers: CheckerBuffer[] = [];
-  for (const region of source.checkerScripts ?? []) {
-    const text = source.fwCode.slice(region.start, region.end);
+  for (const region of source.projection.checkerScriptRanges ?? []) {
+    const text = source.document.code.slice(region.start, region.end);
     const at = clientProjectionStart(source, region);
     main = main.slice(0, at) + text.replace(/[^\r\n]/g, " ") + main.slice(at + text.length);
     buffers.push({ source: text, language: "ts", region });
@@ -53,20 +55,22 @@ export function checkerEnvironment(source: ProjectSource): {
   };
 }
 
-/** Locates a client body using original/generated UTF-16 map points and exact text. */
+/**
+ * Locates a client body using original/generated UTF-16 map points and exact text.
+ */
 function clientProjectionStart(
-  source: ProjectSource,
+  source: Extract<PreparedSource, { kind: "projected" }>,
   region: { start: number; end: number },
 ): number {
-  if (source.fw2JsMap?.kind !== "v3") {
+  if (source.projection.map.kind !== "v3") {
     throw new Error("Astro client scripts require a source map");
   }
-  const trace = new TraceMap(source.fw2JsMap.json);
-  const selected = trace.sources.indexOf(source.fw2JsMap.source);
+  const trace = new TraceMap(source.projection.map.json);
+  const selected = trace.sources.indexOf(source.projection.map.source);
   const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
-  const generated = lines(source.source),
-    original = lines(source.fwCode!);
-  const text = source.fwCode!.slice(region.start, region.end);
+  const generated = lines(source.projection.code),
+    original = lines(source.document.code);
+  const text = source.document.code.slice(region.start, region.end);
   const candidates = new Set<number>();
   for (const [line, segments] of decodedMappings(trace).entries()) {
     for (const segment of segments) {
@@ -78,7 +82,7 @@ function clientProjectionStart(
         continue;
       }
       const start = generated[line] + segment[0] - (offset - region.start);
-      if (source.source.slice(start, start + text.length) === text) {
+      if (source.projection.code.slice(start, start + text.length) === text) {
         candidates.add(start);
       }
     }

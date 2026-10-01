@@ -56,11 +56,23 @@ function measure(name, operation, iterations = 9, warmup = 2) {
 }
 function loader(css) {
   const value = new native.NativeDesignSystemLoader(input(options));
-  output(value.provide(0, "root.css", css));
+  output(
+    legacyPath
+      ? value.provide(0, "root.css", css)
+      : value.provide(0, "root.css", css, "untitled:root.css", "untitled:root.css"),
+  );
   return value;
 }
 function compile(session, sources) {
-  return output(session.compile(input(sources)));
+  const prepared = legacyPath
+    ? sources
+    : sources.map(({ path: moduleId, source }) => ({
+        kind: "direct",
+        moduleId,
+        document: { uri: `untitled:${moduleId}`, code: source, format: "jsx" },
+        syntax: { language: "tsx", moduleKind: "unambiguous" },
+      }));
+  return output(session.compile(input(prepared)));
 }
 function sources(count, calls = 8) {
   return Array.from({ length: count }, (_, module) => ({
@@ -80,7 +92,26 @@ for (const [name, css] of [
   ["full-registry", full],
 ]) {
   const compiled = measure(`stateless/${name}/8-calls`, () =>
-    output(native.compileSource(representative.source, representative.path, css, input(options))),
+    output(
+      legacyPath
+        ? native.compileSource(representative.source, representative.path, css, input(options))
+        : native.compileSource(
+            {
+              source: representative.source,
+              moduleId: representative.path,
+              uri: `untitled:${representative.path}`,
+              language: "tsx",
+              moduleKind: "unambiguous",
+              css: {
+                content: css,
+                name: "root.css",
+                uri: "untitled:root.css",
+                sourceMapSource: "untitled:root.css",
+              },
+            },
+            options,
+          ),
+    ),
   );
   assert.equal(compiled.diagnostics.length, 0);
   assert.ok(compiled.code.includes("className"));
@@ -94,7 +125,11 @@ for (const calls of [1, 100, 1000]) {
   assert.ok(first.modules[0].mappings.length >= calls);
   measure(`session/unchanged/${calls}-calls`, () => compile(session, data));
   measure(`summary/${calls}-calls`, () =>
-    output(native.summarizeSource(data[0].source, data[0].path)),
+    output(
+      legacyPath
+        ? native.summarizeSource(data[0].source, data[0].path)
+        : native.summarizeSource(data[0].source, data[0].path, "tsx", "unambiguous"),
+    ),
   );
 }
 for (const count of [10, 100, 300, 1000]) {
@@ -108,7 +143,9 @@ for (const count of [10, 100, 300, 1000]) {
   assert.equal(first.modules.length, count);
   assert.ok(first.modules.every((module) => module.diagnostics.length === 0));
   fingerprints[`graph/${count}`] = hash(
-    JSON.stringify(first.modules.map(({ path, code, css }) => ({ path, code, css }))),
+    JSON.stringify(
+      first.modules.map(({ path, moduleId, code, css }) => ({ path: path ?? moduleId, code, css })),
+    ),
   );
   const session = new native.NativeProjectSession(minimalLoader, true);
   compile(session, data);

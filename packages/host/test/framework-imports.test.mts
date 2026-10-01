@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import { projectFrameworkSource } from "@stillwind/projection";
+import { prepareSource } from "@stillwind/projection";
 
 import * as vueRuntime from "../../core/src/runtime/vue.ts";
 import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import type { ProjectCompilerOutput, ProjectSource } from "../src/protocol.ts";
+import type { ProjectCompilerOutput, ProjectInput } from "../src/protocol.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const rule = "framework-import-mismatch";
@@ -19,14 +19,17 @@ const utilities = "@utility flex {display:flex;} @stillwind-slot utilities;";
 async function compileFixture(
   source: string,
   filename: string,
-  framework?: ProjectSource["framework"],
+  framework?: ProjectInput["framework"],
 ) {
   const id = path.join(root, filename);
-  const input = await projectFrameworkSource({
+  const input = await prepareSource({
     resolverId: id,
     ...fileModuleDescriptor(root, id),
     framework,
-    source,
+    document: {
+      ...fileModuleDescriptor(root, id).document,
+      code: source,
+    },
   });
   const output = compileProject([input], {
     content: utilities,
@@ -49,7 +52,10 @@ for (const adapter of ["svelte", "astro"]) {
     assert.equal(output.lintFindings.length, 1);
     const finding = output.lintFindings[0]!;
     assert.equal(finding.rule, rule);
-    assert.equal(finding.uri, fileModuleDescriptor(root, path.join(root, "NoJsx.tsx")).uri);
+    assert.equal(
+      finding.uri,
+      fileModuleDescriptor(root, path.join(root, "NoJsx.tsx")).document.uri,
+    );
     assert.equal(finding.start, Buffer.byteLength(source.slice(0, source.indexOf(literal))));
     assert.equal(finding.end, finding.start + Buffer.byteLength(literal));
     assert.equal(Buffer.from(source).subarray(finding.start, finding.end).toString(), literal);

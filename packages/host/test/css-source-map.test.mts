@@ -30,11 +30,17 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
   session.compile([
     {
       moduleId: "entry.tsx",
-      uri: "untitled:entry.tsx",
-      source,
-      language: "tsx",
-      moduleKind: "unambiguous",
-      sourceMapSource: pathToFileURL(path.resolve("entry.tsx")).href,
+      kind: "direct",
+      document: {
+        uri: "untitled:entry.tsx",
+        code: source,
+        format: "jsx",
+        sourceMapSource: pathToFileURL(path.resolve("entry.tsx")).href,
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     },
   ]);
   const output = session.planStylesheet({

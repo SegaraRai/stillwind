@@ -45,13 +45,21 @@ export const invalid=${expression};`;
         { moduleId: "consumption-producer.ts", source: producer },
         { moduleId: "consumption-consumer.ts", source: consumer },
       ].map((entry) => ({
-        ...entry,
-        uri: `untitled:${entry.moduleId}`,
-        sourceMapSource: `untitled:${entry.moduleId}`,
-        language: "ts" as const,
-        moduleKind: "unambiguous" as const,
+        moduleId: entry.moduleId,
+        kind: "direct" as const,
+        document: {
+          uri: `untitled:${entry.moduleId}`,
+          code: entry.source,
+          format: "script" as const,
+          sourceMapSource: `untitled:${entry.moduleId}`,
+        },
+        syntax: {
+          language: "ts" as const,
+          moduleKind: "unambiguous" as const,
+        },
         resolverId: path.join(root, entry.moduleId),
         checkerFileName: path.join(root, entry.moduleId),
+        projectionFileName: path.join(root, entry.moduleId),
         summary: summarizeSource(
           entry.source,
           entry.moduleId,

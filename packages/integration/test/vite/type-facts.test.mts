@@ -71,34 +71,39 @@ const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
     checkerFileName: path.join(fixtureRoot, name),
     projectionFileName: `src/${name}`,
     moduleId: `src/${name}`,
-    uri: `untitled:src/${name}`,
-    source: readFileSync(path.join(fixtureRoot, name), "utf8"),
-    language: "ts" as const,
-    moduleKind: "unambiguous" as const,
-    sourceMapSource: `untitled:src/${name}`,
+    kind: "direct" as const,
+    document: {
+      uri: `untitled:src/${name}`,
+      code: readFileSync(path.join(fixtureRoot, name), "utf8"),
+      format: "script" as const,
+      sourceMapSource: `untitled:src/${name}`,
+    },
+    syntax: {
+      language: "ts" as const,
+      moduleKind: "unambiguous" as const,
+    },
   }))
   .map((source) => ({
     ...source,
-    probes: (summarizeSource(source.source, source.moduleId, "tsx", "unambiguous") as ModuleSummary)
-      .typeProbes,
+    probes: (
+      summarizeSource(source.document.code, source.moduleId, "tsx", "unambiguous") as ModuleSummary
+    ).typeProbes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.moduleId,
-    summarizeSource(source.source, source.moduleId, "tsx", "unambiguous") as ModuleSummary,
+    summarizeSource(source.document.code, source.moduleId, "tsx", "unambiguous") as ModuleSummary,
   ]),
 );
 
 void test("TypeScript is required for cross-module conditional ref propagation", () => {
   const withoutFacts = compileProject(
-    sources.map(({ moduleId: sourcePath, source }) => ({
+    sources.map(({ moduleId: sourcePath, document, syntax }) => ({
+      kind: "direct",
       moduleId: sourcePath,
-      uri: `untitled:${sourcePath}`,
-      source,
-      language: "ts",
-      moduleKind: "unambiguous",
-      sourceMapSource: `untitled:${sourcePath}`,
+      document,
+      syntax,
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
   ) as { modules: Array<{ moduleId: string; diagnostics: Array<{ code: string }> }> };
@@ -115,7 +120,15 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   service.collect(sources, assets);
   const facts = service.collect(
     sources.map((source) =>
-      source.moduleId === "src/consumer.ts" ? { ...source, source: `${source.source}\n` } : source,
+      source.moduleId === "src/consumer.ts"
+        ? {
+            ...source,
+            document: {
+              ...source.document,
+              code: `${source.document.code}\n`,
+            },
+          }
+        : source,
     ),
     assets,
   );
@@ -130,13 +143,11 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   });
   service.close();
   const withFacts = compileProject(
-    sources.map(({ moduleId: sourcePath, source }) => ({
+    sources.map(({ moduleId: sourcePath, document, syntax }) => ({
+      kind: "direct",
       moduleId: sourcePath,
-      uri: `untitled:${sourcePath}`,
-      source,
-      language: "ts",
-      moduleKind: "unambiguous",
-      sourceMapSource: `untitled:${sourcePath}`,
+      document,
+      syntax,
       typeFacts: facts.get(sourcePath) ?? [],
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
@@ -233,10 +244,13 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   session.compile(
     sources.map((source) => ({
       ...source,
-      source:
-        source.moduleId === "src/producer.ts"
-          ? source.source.replaceAll("opacity-0", "opacity-5")
-          : source.source,
+      document: {
+        ...source.document,
+        code:
+          source.moduleId === "src/producer.ts"
+            ? source.document.code.replaceAll("opacity-0", "opacity-5")
+            : source.document.code,
+      },
       typeFacts: facts.get(source.moduleId) ?? [],
     })),
     "src/consumer.ts",

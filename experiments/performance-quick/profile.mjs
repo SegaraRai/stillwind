@@ -16,13 +16,21 @@ if (process.argv.includes("--worker")) {
     0,
     "root.css",
     "@utility flex {display:flex;} @utility red {color:red;} @stillwind-slot utilities;",
+    "untitled:root.css",
+    "untitled:root.css",
   );
   const session = new native.NativeProjectSession(loader, true);
   const sources = Array.from({ length: count }, (_, module) => ({
-    path: `module-${module}.tsx`,
-    source:
-      "import {style} from 'stillwind/react';\n" +
-      Array.from({ length: 8 }, (_, i) => `export const props${i}=style('flex red');`).join("\n"),
+    kind: "direct",
+    moduleId: `module-${module}.tsx`,
+    document: {
+      uri: `untitled:module-${module}.tsx`,
+      format: "jsx",
+      code:
+        "import {style} from 'stillwind/react';\n" +
+        Array.from({ length: 8 }, (_, i) => `export const props${i}=style('flex red');`).join("\n"),
+    },
+    syntax: { language: "tsx", moduleKind: "unambiguous" },
   }));
   const start = performance.now();
   const output = session.compile(sources);

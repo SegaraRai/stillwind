@@ -40,12 +40,21 @@ export const props = style(${expression});`;
         { moduleId: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
         { moduleId: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
       ].map((source) => ({
-        ...source,
-        language: "ts" as const,
-        moduleKind: "unambiguous" as const,
-        sourceMapSource: source.uri,
+        moduleId: source.moduleId,
+        kind: "direct" as const,
+        document: {
+          uri: `untitled:${source.moduleId}`,
+          code: source.source,
+          format: "script" as const,
+          sourceMapSource: `untitled:${source.moduleId}`,
+        },
+        syntax: {
+          language: "ts" as const,
+          moduleKind: "unambiguous" as const,
+        },
         resolverId: path.join(root, source.moduleId),
         checkerFileName: path.join(root, source.moduleId),
+        projectionFileName: path.join(root, source.moduleId),
         summary: summarizeSource(
           source.source,
           source.moduleId,

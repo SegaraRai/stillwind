@@ -39,7 +39,10 @@ async function compile(source: string, warnings: string[] = []) {
         },
         describe: (id) => ({
           ...fileModuleDescriptor(root, id),
-          uri: `untitled:${encodeURIComponent(id)}`,
+          document: {
+            ...fileModuleDescriptor(root, id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
         }),
         watch: () => {},
         warn: (message) => warnings.push(message),

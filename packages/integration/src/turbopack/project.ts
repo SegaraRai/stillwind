@@ -3,12 +3,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import {
-  cleanModuleId,
-  compilerModuleId,
-  fileModuleDescriptor,
-  loadCssGraph,
-} from "@stillwind/host";
+import { cleanModuleId, fileModuleDescriptor, loadCssGraph } from "@stillwind/host";
 import { nativeBindingPath, scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
@@ -119,21 +114,15 @@ export async function compileGraph(
     host.watch(id);
     const source = await host.read(id);
     revision.update(id).update("\0").update(source).update("\0");
+    const descriptor = fileModuleDescriptor(options.root, id);
     const summary = scanSource({
-      moduleId: compilerModuleId(options.root, id),
-      uri: pathToFileURL(id).href,
-      source,
-      language: /\.tsx(?:[?#]|$)/i.test(id)
-        ? "tsx"
-        : /\.jsx(?:[?#]|$)/i.test(id)
-          ? "jsx"
-          : /\.d\.[cm]?ts(?:[?#]|$)/i.test(id)
-            ? "dts"
-            : /\.[cm]?ts(?:[?#]|$)/i.test(id)
-              ? "ts"
-              : "js",
-      moduleKind: "unambiguous",
-      sourceMapSource: pathToFileURL(id).href,
+      kind: "direct",
+      moduleId: descriptor.moduleId,
+      document: {
+        ...descriptor.document,
+        code: source,
+      },
+      syntax: descriptor.syntax,
     });
     for (const { source: specifier } of summary.moduleSpecifiers) {
       if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {

@@ -5,7 +5,7 @@
     "strict": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "paths": { "vite": ["./node_modules/vite-plus"] },
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "react-jsx",

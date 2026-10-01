@@ -46,7 +46,10 @@ void test("a rejected generator name is reported through the host warnings", asy
       },
       describe: (id) => ({
         ...fileModuleDescriptor(process.cwd(), id),
-        uri: `untitled:${encodeURIComponent(id)}`,
+        document: {
+          ...fileModuleDescriptor(process.cwd(), id).document,
+          uri: `untitled:${encodeURIComponent(id)}`,
+        },
       }),
       watch: () => {},
       warn: (message) => warnings.push(message),

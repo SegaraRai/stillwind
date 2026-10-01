@@ -1,5 +1,6 @@
 import { readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { loadCssGraph, type CompilerOutput } from "@stillwind/host";
 import { NativeProjectSession } from "@stillwind/native";
@@ -24,6 +25,8 @@ export async function compilePlayground(
     {
       resolve: async (specifier, importer) => realpath(await resolveImport(specifier, importer)),
       read: (path) => readFile(path, "utf8"),
+      documentUri: (id) => pathToFileURL(id).href,
+      sourceMapSource: (id) => pathToFileURL(id).href,
       watch: () => {},
     },
     theme,
@@ -31,16 +34,24 @@ export async function compilePlayground(
   const session = new NativeProjectSession(loader, false);
   const project = session.compile([
     {
-      path: "Play.tsx",
-      uri: "untitled:Play.tsx",
-      // Preserve byte length for the Play shorthand's source positions.
-      source: source.replace(/\bexport App;/g, "export{App}"),
+      kind: "direct",
+      moduleId: "Play.tsx",
+      document: {
+        uri: "untitled:Play.tsx",
+        format: "jsx",
+        // Preserve byte length for the Play shorthand's source positions.
+        code: source.replace(/\bexport App;/g, "export{App}"),
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     },
   ]);
   const output = project.modules[0]!;
   output.css = session.css();
   for (const resource of resources) {
-    const file = await resolveImport(resource.specifier, resource.owner);
+    const file = await resolveImport(resource.specifier, resource.sourceName);
     const url = `/@fs/${file
       .replaceAll("\\", "/")
       .split("/")

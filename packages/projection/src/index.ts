@@ -1,4 +1,14 @@
-export { projectFrameworkSource } from "./frameworks/index.ts";
-export type { ProjectSource, ProjectionMap } from "./protocol.ts";
+export { prepareSource } from "./frameworks/index.ts";
+export type {
+  ConverterIdentity,
+  PreparedSource,
+  ProjectInput,
+  ProjectMetadata,
+  ProjectionMap,
+  ScriptSyntax,
+  SourceDocument,
+  SourceFormat,
+  SourceProjection,
+} from "./protocol.ts";
 export { checkerEnvironment } from "./checker.ts";
 export type { CheckerBuffer } from "./checker.ts";

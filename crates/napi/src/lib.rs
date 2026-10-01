@@ -43,4 +43,4 @@ pub use output::{
     BindingOutput, BindingRejectedIdentifier, ProjectBindingOutput, ProjectModuleOutput,
 };
 pub use session::NativeSessionError;
-pub use source_input::ProjectSource;
+pub use source_input::{PreparedSource, ScriptSyntax, SourceDocument, SourceProjection};

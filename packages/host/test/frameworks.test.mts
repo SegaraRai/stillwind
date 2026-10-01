@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { transform as compileAstro } from "@astrojs/compiler";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import { checkerEnvironment, projectFrameworkSource } from "@stillwind/projection";
+import { checkerEnvironment, prepareSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 
@@ -29,7 +29,7 @@ const examples = {
 };
 
 void test("filename inference describes input format without selecting an output adapter", () => {
-  for (const [name, language, sourceFormat] of [
+  for (const [name, language, format] of [
     ["Component.vue", "js", "vue"],
     ["Component.svelte", "js", "svelte"],
     ["Component.astro", "js", "astro"],
@@ -46,30 +46,31 @@ void test("filename inference describes input format without selecting an output
     ["module.d.cts", "dts", "script"],
   ]) {
     assert.deepEqual(fileSourceKind(name), {
-      language,
-      moduleKind: "unambiguous",
-      sourceFormat,
-      framework: undefined,
+      syntax: { language, moduleKind: "unambiguous" },
+      format,
     });
   }
 });
 
-void test("Vue output adapter leaves JSX and unspecified input formats unprojected", async () => {
+void test("Vue output adapter leaves JSX and script input formats direct", async () => {
   const source = `import {style} from 'stillwind/vue'; const view = <div {...style('flex')} />;`;
-  const input = {
-    resolverId: "/src/Component.tsx",
-    ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
-    framework: "vue" as const,
-    source,
-  };
-  for (const sourceFormat of ["jsx", undefined] as const) {
-    const projected = await projectFrameworkSource({ ...input, sourceFormat });
-    assert.equal(projected.source, source);
-    assert.equal(projected.sourceFormat, sourceFormat);
-    assert.equal(projected.framework, "vue");
-    assert.equal(projected.fwCode, undefined);
-    assert.equal(projected.converter, undefined);
-    assert.deepEqual(checkerEnvironment(projected), { checkerTypes: [] });
+  const descriptor = fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx"));
+  for (const format of ["jsx", "script"] as const) {
+    const prepared = await prepareSource({
+      resolverId: "/src/Component.tsx",
+      ...descriptor,
+      framework: "vue",
+      document: {
+        ...descriptor.document,
+        code: source,
+        format,
+      },
+    });
+    assert.equal(prepared.kind, "direct");
+    assert.equal(prepared.document.code, source);
+    assert.equal(prepared.document.format, format);
+    assert.equal(prepared.framework, "vue");
+    assert.deepEqual(checkerEnvironment(prepared), { checkerTypes: [] });
   }
 });
 
@@ -77,42 +78,52 @@ void test("SFC source formats select converters and preserve explicit output ada
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
   for (const [extension, source] of Object.entries(examples)) {
     const filename = path.join(root, `Component.${extension}`);
+    const descriptor = fileModuleDescriptor(root, filename);
     const input = {
       resolverId: filename,
-      ...fileModuleDescriptor(root, filename),
-      source,
-      map: "upstream map",
+      ...descriptor,
+      document: { ...descriptor.document, code: source, upstreamMap: "upstream map" },
     };
     for (const framework of [undefined, "react"] as const) {
-      const projected = await projectFrameworkSource({ ...input, framework });
-      assert.equal(projected.sourceFormat, extension);
+      const projected = await prepareSource({ ...input, framework });
+      assert.equal(projected.kind, "projected");
+      assert.ok(projected.kind === "projected");
+      assert.equal(projected.document.format, extension);
       assert.equal(projected.framework, framework);
-      assert.equal(projected.fwCode, source);
-      assert.ok(projected.converter?.version);
-      assert.ok(projected.fw2JsMap);
-      assert.equal(projected.fwMap, input.map);
-      assert.equal(projected.map, undefined);
+      assert.equal(projected.document.code, source);
+      assert.ok(projected.projection.converter.version);
+      assert.ok(projected.projection.map);
+      assert.equal(projected.document.upstreamMap, input.document.upstreamMap);
       const environment = checkerEnvironment(projected);
       assert.equal(
         environment.checkerTypes.length,
         extension === "svelte" ? 2 : extension === "astro" ? 1 : 0,
       );
-      assert.deepEqual(await projectFrameworkSource(projected), projected);
+      assert.deepEqual(projected.document, {
+        ...input.document,
+        sourceMapSource: input.document.uri,
+      });
+      assert.equal(input.document.sourceMapSource, undefined);
     }
-    assert.equal(input.source, source);
-    assert.equal(input.map, "upstream map");
+    assert.equal(input.document.code, source);
+    assert.equal(input.document.upstreamMap, "upstream map");
   }
 });
 
-void test("checker declarations follow projected source format instead of output adapter", () => {
-  const input = {
-    resolverId: "/src/Component.tsx",
-    ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
-    source: "const view = <div />;",
-    fwCode: "original buffer",
-  };
+void test("checker declarations follow prepared kind instead of output adapter", async () => {
+  const descriptor = fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx"));
   for (const framework of ["svelte", "astro"] as const) {
-    assert.deepEqual(checkerEnvironment({ ...input, framework }), { checkerTypes: [] });
+    const prepared = await prepareSource({
+      resolverId: "/src/Component.tsx",
+      ...descriptor,
+      document: {
+        ...descriptor.document,
+        code: "const view = <div />;",
+      },
+      framework,
+    });
+    assert.equal(prepared.kind, "direct");
+    assert.deepEqual(checkerEnvironment(prepared), { checkerTypes: [] });
   }
 });
 
@@ -136,7 +147,10 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
     },
     describe: (id) => ({
       ...fileModuleDescriptor(root, id),
-      uri: `untitled:${encodeURIComponent(id)}`,
+      document: {
+        ...fileModuleDescriptor(root, id).document,
+        uri: `untitled:${encodeURIComponent(id)}`,
+      },
     }),
     watch: () => {},
     warn: () => {},
@@ -162,7 +176,7 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
 });
 
 void test("SFC output fails on residual macros or mismatched attribute context", async () => {
-  const compile = (input: Awaited<ReturnType<typeof projectFrameworkSource>>) =>
+  const compile = (input: Awaited<ReturnType<typeof prepareSource>>) =>
     (
       compileProject(
         [input],
@@ -171,44 +185,56 @@ void test("SFC output fails on residual macros or mismatched attribute context",
         ),
       ) as ProjectCompilerOutput
     ).modules[0]!;
-  const input = await projectFrameworkSource({
+  const input = await prepareSource({
     resolverId: "/src/Bad.vue",
     checkerFileName: "/src/Bad.vue",
     projectionFileName: "/src/Bad.vue",
     moduleId: "/src/Bad.vue",
-    ...fileSourceKind("/src/Bad.vue"),
-    uri: "untitled:Bad.vue",
-    source: examples.vue,
+    syntax: fileSourceKind("/src/Bad.vue").syntax,
+    document: {
+      uri: "untitled:Bad.vue",
+      format: "vue",
+      code: examples.vue,
+    },
   });
-  const quoted = input.regions?.find((region) => region.attributeQuote === "double");
+  assert.ok(input.kind === "projected");
+  const quoted = input.projection.editableRegions.find(
+    (region) => region.attributeQuote === "double",
+  );
   assert.ok(quoted);
   quoted.attributeQuote = "single";
   const wrongQuote = compile(input);
   assert.equal(wrongQuote.code, null);
   assert.equal(wrongQuote.diagnostics[0]?.code, "SW11008");
-  const leaked = await projectFrameworkSource({
+  const leaked = await prepareSource({
     resolverId: "/src/Bad.vue",
     checkerFileName: "/src/Bad.vue",
     projectionFileName: "/src/Bad.vue",
     moduleId: "/src/Bad.vue",
-    ...fileSourceKind("/src/Bad.vue"),
-    uri: "untitled:Bad.vue",
-    source: examples.vue.replace("const active", "const leaked = style; const active"),
+    syntax: fileSourceKind("/src/Bad.vue").syntax,
+    document: {
+      uri: "untitled:Bad.vue",
+      format: "vue",
+      code: examples.vue.replace("const active", "const leaked = style; const active"),
+    },
   });
   const leftover = compile(leaked);
   assert.equal(leftover.code, null);
   assert.equal(leftover.diagnostics[0]?.code, "SW11010");
-  const missingTarget = await projectFrameworkSource({
+  const missingTarget = await prepareSource({
     resolverId: "/src/Bad.vue",
     checkerFileName: "/src/Bad.vue",
     projectionFileName: "/src/Bad.vue",
     moduleId: "/src/Bad.vue",
-    ...fileSourceKind("/src/Bad.vue"),
-    uri: "untitled:Bad.vue",
-    source: examples.vue.replace(
-      "import {style}",
-      "import css from 'stillwind/module-css'; import {style}",
-    ),
+    syntax: fileSourceKind("/src/Bad.vue").syntax,
+    document: {
+      uri: "untitled:Bad.vue",
+      format: "vue",
+      code: examples.vue.replace(
+        "import {style}",
+        "import css from 'stillwind/module-css'; import {style}",
+      ),
+    },
   });
   const noVirtualModule = compile(missingTarget);
   assert.equal(noVirtualModule.code, null);
@@ -295,23 +321,27 @@ for (const { extension, source, name, imports } of [
 ]) {
   void test(`${extension} ${name}: converter, native edits and framework compilation agree`, async () => {
     const filename = `/src/Component.${extension}`;
-    const projected = await projectFrameworkSource({
+    const projected = await prepareSource({
       resolverId: filename,
       checkerFileName: filename,
       projectionFileName: filename,
       moduleId: filename,
-      ...fileSourceKind(filename),
-      uri: `untitled:${filename}`,
-      source,
+      syntax: fileSourceKind(filename).syntax,
+      document: {
+        uri: `untitled:${filename}`,
+        format: fileSourceKind(filename).format,
+        code: source,
+      },
     });
     projected.stylesheetImports = [
       "virtual:stillwind.css",
       "virtual:stillwind/carrier.css?revision=1",
     ];
     projected.moduleCssImport = "virtual:stillwind/module-css?test=1";
-    assert.equal(projected.fwCode, source);
-    assert.ok(projected.converter?.version);
-    assert.ok(projected.importRealms?.length);
+    assert.ok(projected.kind === "projected");
+    assert.equal(projected.document.code, source);
+    assert.ok(projected.projection.converter.version);
+    assert.ok(projected.projection.importRealms.length);
     const output = compileProject(
       [projected],
       cssInput(

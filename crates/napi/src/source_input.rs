@@ -1,15 +1,10 @@
-//! Host transport for normal and projected source buffers.
+//! Host transport for editable documents and prepared parser buffers.
 //!
-//! The JavaScript side describes a module with two texts: the buffer a parser sees,
-//! and, when a converter produced it, the original buffer the user edits. Offsets
-//! arriving from JavaScript are UTF-16 code units, so projection records are translated
-//! through [`CoordinateIndex`] before they become spans; a surrogate interior is
-//! rejected rather than rounded.
-//!
-//! The conversion also enforces the pairing: a projected input must carry its map,
-//! converter identity, language, and component source format. A plain input must not
-//! carry projection metadata. This validation applies to transport conversion;
-//! domain records remain publicly constructible and need validation at use sites.
+//! [`PreparedSource::input`] converts direct script documents or projected component
+//! documents into analyzer input. Projection realms and editable regions arrive as
+//! UTF-16 offsets in the original document and become validated byte spans through
+//! [`CoordinateIndex`]. Surrogate interiors are rejected rather than rounded.
+//! Source maps and converter records are supplied by the host.
 
 use napi::Error;
 use napi_derive::napi;
@@ -144,47 +139,193 @@ pub enum NativeAttributeQuote {
     Double,
 }
 
-/// Plain JavaScript source input. Optional vectors default to empty in native code.
+/// Host input with an editable document and explicit parser preparation.
+#[napi(
+    discriminant = "kind",
+    discriminant_case = "lowercase",
+    object_to_js = false
+)]
+pub enum NativePreparedSource {
+    /// Parses the editable script or JSX document directly.
+    Direct {
+        /// Editable source document.
+        document: NativeSourceDocument,
+        /// Parser settings for the document's code.
+        syntax: NativeScriptSyntax,
+        /// Host-chosen identity of this module.
+        module_id: String,
+        /// Facts the host produced for this module, empty when absent.
+        type_facts: Option<Vec<NativeTypeFact>>,
+        /// Explicit output adapter constraint; macro imports select it when absent.
+        framework: Option<NativeFramework>,
+        /// Host-allocated stylesheet modules to insert at the macro import.
+        stylesheet_imports: Option<Vec<String>>,
+        /// Host-allocated module that exports this module's CSS value.
+        module_css_import: Option<String>,
+    },
+    /// Parses code produced from an editable component document.
+    Projected {
+        /// Editable source document.
+        document: NativeSourceDocument,
+        /// Generated code and its correspondence to the document.
+        projection: NativeSourceProjection,
+        /// Host-chosen identity of this module.
+        module_id: String,
+        /// Facts the host produced for this module, empty when absent.
+        type_facts: Option<Vec<NativeTypeFact>>,
+        /// Explicit output adapter constraint; macro imports select it when absent.
+        framework: Option<NativeFramework>,
+        /// Host-allocated stylesheet modules to insert at the macro import.
+        stylesheet_imports: Option<Vec<String>>,
+        /// Host-allocated module that exports this module's CSS value.
+        module_css_import: Option<String>,
+    },
+}
+
+impl TryFrom<NativePreparedSource> for PreparedSource {
+    type Error = Error;
+
+    fn try_from(value: NativePreparedSource) -> napi::Result<Self> {
+        match value {
+            NativePreparedSource::Direct {
+                document,
+                syntax,
+                module_id,
+                type_facts,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+            } => Ok(Self::Direct {
+                document: document.try_into()?,
+                syntax: syntax.into(),
+                module_id: module_id.into(),
+                type_facts: type_facts
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<napi::Result<_>>()?,
+                framework: framework.map(Into::into),
+                stylesheet_imports: stylesheet_imports.unwrap_or_default(),
+                module_css_import,
+            }),
+            NativePreparedSource::Projected {
+                document,
+                projection,
+                module_id,
+                type_facts,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+            } => Ok(Self::Projected {
+                document: document.try_into()?,
+                projection: projection.into(),
+                module_id: module_id.into(),
+                type_facts: type_facts
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<napi::Result<_>>()?,
+                framework: framework.map(Into::into),
+                stylesheet_imports: stylesheet_imports.unwrap_or_default(),
+                module_css_import,
+            }),
+        }
+    }
+}
+
+/// Original editable document, including its optional upstream source map.
 #[napi(object, object_to_js = false)]
-pub struct NativeProjectSource {
-    /// Host-supplied absolute URI of the original editable document.
+pub struct NativeSourceDocument {
+    /// Absolute URI of the editable document.
     pub uri: String,
-    /// Host-chosen identity of this module.
-    pub module_id: String,
-    /// Text the parser sees, and the buffer edits are applied to when there is no
-    /// projection.
-    pub source: String,
-    /// Facts the host produced for this module, empty when it has none.
-    pub type_facts: Option<Vec<NativeTypeFact>>,
-    /// Parser dialect supplied by the host.
-    pub language: NativeScriptLanguage,
-    /// Module grammar, independent of the JavaScript or TypeScript dialect.
-    pub module_kind: NativeScriptModuleKind,
-    /// Original format. Plain inputs default from language; projected inputs require
-    /// an explicit component format independently of the adapter constraint.
-    pub source_format: Option<NativeSourceFormat>,
+    /// Editable text.
+    pub code: String,
+    /// Original file format, independent of the parser dialect.
+    pub format: NativeSourceFormat,
+    /// Source-map JSON from this document to its upstream source.
+    pub upstream_map: Option<String>,
     /// Exact source name for generated stylesheet maps.
     pub source_map_source: Option<String>,
-    /// Explicit output adapter constraint; macro imports select it when absent.
-    pub framework: Option<NativeFramework>,
-    /// Source map from `source` back to the file it was generated from.
-    pub map: Option<String>,
-    /// Original framework source, present only for projected inputs.
-    pub fw_code: Option<String>,
-    /// Mapping between [`Self::fw_code`] and [`Self::source`].
-    pub fw2js_map: Option<NativeProjectionMap>,
-    /// Source map from [`Self::fw_code`] to its own upstream file.
-    pub fw_map: Option<String>,
-    /// Converter that produced [`Self::source`], part of the input revision.
-    pub converter: Option<NativeConverterIdentity>,
-    /// Import scopes of [`Self::fw_code`].
-    pub import_realms: Option<Vec<HostRealm>>,
-    /// Converted regions of [`Self::fw_code`].
-    pub regions: Option<Vec<HostRegion>>,
-    /// Host-allocated stylesheet modules to insert at the macro import.
-    pub stylesheet_imports: Option<Vec<String>>,
-    /// Host-allocated module that exports this module's CSS value.
-    pub module_css_import: Option<String>,
+}
+
+impl TryFrom<NativeSourceDocument> for SourceDocument {
+    type Error = Error;
+
+    fn try_from(value: NativeSourceDocument) -> napi::Result<Self> {
+        Ok(Self {
+            uri: SourceUri::parse(value.uri)
+                .map_err(|error| Error::from_reason(error.to_string()))?,
+            code: value.code,
+            format: value.format.into(),
+            upstream_map: value.upstream_map,
+            source_map_source: value.source_map_source,
+        })
+    }
+}
+
+/// Parser dialect and module grammar for a script buffer.
+#[napi(object, object_to_js = false)]
+pub struct NativeScriptSyntax {
+    /// JavaScript or TypeScript dialect.
+    pub language: NativeScriptLanguage,
+    /// Module grammar, independent of the dialect.
+    pub module_kind: NativeScriptModuleKind,
+}
+
+impl From<NativeScriptSyntax> for ScriptSyntax {
+    fn from(value: NativeScriptSyntax) -> Self {
+        Self {
+            language: value.language.into(),
+            module_kind: value.module_kind.into(),
+        }
+    }
+}
+
+/// Generated parser buffer and required correspondence to the editable document.
+#[napi(object, object_to_js = false)]
+pub struct NativeSourceProjection {
+    /// Generated JavaScript or TypeScript code.
+    pub code: String,
+    /// Parser settings for the generated code.
+    pub syntax: NativeScriptSyntax,
+    /// Mapping from generated code to the editable document.
+    pub map: NativeProjectionMap,
+    /// Converter identity used for the source revision.
+    pub converter: NativeConverterIdentity,
+    /// Import scopes in the editable document, in UTF-16 coordinates.
+    pub import_realms: Vec<HostRealm>,
+    /// Editable regions in the document, in UTF-16 coordinates.
+    pub editable_regions: Vec<HostRegion>,
+}
+
+impl From<NativeSourceProjection> for SourceProjection {
+    fn from(value: NativeSourceProjection) -> Self {
+        Self {
+            code: value.code,
+            syntax: value.syntax.into(),
+            map: match value.map {
+                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 { json, source },
+                NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
+                    mappings: mappings
+                        .into_iter()
+                        .map(|mapping| VolarMapping {
+                            source_offsets: mapping.source_offsets,
+                            generated_offsets: mapping.generated_offsets,
+                            lengths: mapping.lengths,
+                            generated_lengths: mapping.generated_lengths,
+                        })
+                        .collect(),
+                },
+            },
+            converter: ConverterIdentity {
+                name: value.converter.name,
+                version: value.converter.version,
+                options_fingerprint: value.converter.options_fingerprint,
+            },
+            import_realms: value.import_realms,
+            editable_regions: value.editable_regions,
+        }
+    }
 }
 
 /// Projection map in either supported encoding.
@@ -232,101 +373,272 @@ pub struct NativeConverterIdentity {
     pub options_fingerprint: String,
 }
 
-impl TryFrom<NativeProjectSource> for ProjectSource {
-    type Error = Error;
-    fn try_from(value: NativeProjectSource) -> napi::Result<Self> {
-        let language = value.language.into();
-        let module_kind = value.module_kind.into();
-        let framework = value.framework.map(Into::into);
-        Ok(Self {
-            uri: SourceUri::parse(value.uri)
-                .map_err(|error| Error::from_reason(error.to_string()))?,
-            module_id: ModuleId::from(value.module_id),
-            source: value.source,
-            type_facts: value
-                .type_facts
-                .unwrap_or_default()
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<napi::Result<_>>()?,
-            language,
-            module_kind,
-            source_format: value.source_format.map(Into::into),
-            source_map_source: value.source_map_source,
+/// Prepared host input whose parser buffer is direct or projected.
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum PreparedSource {
+    /// Parses an editable script or JSX document.
+    Direct {
+        /// Original editable document.
+        document: SourceDocument,
+        /// Parser settings for the document's code.
+        syntax: ScriptSyntax,
+        /// Host-chosen identity of this module.
+        module_id: ModuleId,
+        /// Facts the host produced for this module, empty when absent.
+        #[serde(default)]
+        type_facts: Vec<TypeFact>,
+        /// Explicit output adapter constraint; macro imports select it when absent.
+        framework: Option<AdapterKind>,
+        /// Host-allocated stylesheet modules.
+        #[serde(default)]
+        stylesheet_imports: Vec<String>,
+        /// Host-allocated module that exports this module's CSS value.
+        module_css_import: Option<String>,
+    },
+    /// Parses generated code while reporting and editing the component document.
+    Projected {
+        /// Original editable document.
+        document: SourceDocument,
+        /// Generated parser buffer and its correspondence to the document.
+        projection: SourceProjection,
+        /// Host-chosen identity of this module.
+        module_id: ModuleId,
+        /// Facts the host produced for this module, empty when absent.
+        #[serde(default)]
+        type_facts: Vec<TypeFact>,
+        /// Explicit output adapter constraint; macro imports select it when absent.
+        framework: Option<AdapterKind>,
+        /// Host-allocated stylesheet modules.
+        #[serde(default)]
+        stylesheet_imports: Vec<String>,
+        /// Host-allocated module that exports this module's CSS value.
+        module_css_import: Option<String>,
+    },
+}
+
+impl PreparedSource {
+    /// Returns the host identity used for graph edges and duplicate checks.
+    pub const fn module_id(&self) -> &ModuleId {
+        match self {
+            Self::Direct { module_id, .. } | Self::Projected { module_id, .. } => module_id,
+        }
+    }
+
+    /// Returns the host facts used to finalize this module's scan.
+    pub fn type_facts(&self) -> &[TypeFact] {
+        match self {
+            Self::Direct { type_facts, .. } | Self::Projected { type_facts, .. } => type_facts,
+        }
+    }
+
+    /// Registers the parser and editable buffers and returns the analyzer input.
+    ///
+    /// Projection regions and realms must use UTF-16 offsets in the document.
+    /// Published spans refer to that document. A projected parser buffer has its own
+    /// file ID, and its analysis buffer receives a reserved ID in `sources`.
+    /// Registration can remain in `sources` if a later coordinate conversion fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a component document without a projection, a projected
+    /// script or JSX document, invalid UTF-16 coordinates, reversed ranges, or
+    /// exhausted file IDs.
+    pub fn input(&self, sources: &mut SourceRegistry) -> napi::Result<SourceInput> {
+        let (
+            document,
+            syntax,
+            projection,
+            module_id,
             framework,
-            map: value.map,
-            fw_code: value.fw_code,
-            fw_map: value.fw_map,
-            fw2js_map: value.fw2js_map.map(|map| match map {
-                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 { json, source },
-                NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
-                    mappings: mappings
-                        .into_iter()
-                        .map(|mapping| VolarMapping {
-                            source_offsets: mapping.source_offsets,
-                            generated_offsets: mapping.generated_offsets,
-                            lengths: mapping.lengths,
-                            generated_lengths: mapping.generated_lengths,
-                        })
-                        .collect(),
+            stylesheet_imports,
+            module_css_import,
+        ) = match self {
+            Self::Direct {
+                document,
+                syntax,
+                module_id,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+                ..
+            } => {
+                if document.format.projection_adapter().is_some() {
+                    return Err(Error::from_reason(
+                        "direct input requires a script or JSX document format",
+                    ));
+                }
+                (
+                    document,
+                    syntax,
+                    None,
+                    module_id,
+                    framework,
+                    stylesheet_imports,
+                    module_css_import,
+                )
+            }
+            Self::Projected {
+                document,
+                projection,
+                module_id,
+                framework,
+                stylesheet_imports,
+                module_css_import,
+                ..
+            } => {
+                if document.format.projection_adapter().is_none() {
+                    return Err(Error::from_reason(
+                        "projected input requires a component document format",
+                    ));
+                }
+                (
+                    document,
+                    &projection.syntax,
+                    Some(projection),
+                    module_id,
+                    framework,
+                    stylesheet_imports,
+                    module_css_import,
+                )
+            }
+        };
+        let code = sources
+            .register(
+                if projection.is_some() {
+                    None
+                } else {
+                    Some(document.uri.clone())
                 },
-            }),
-            converter: value.converter.map(|converter| ConverterIdentity {
-                name: converter.name,
-                version: converter.version,
-                options_fingerprint: converter.options_fingerprint,
-            }),
-            import_realms: value.import_realms.unwrap_or_default(),
-            regions: value.regions.unwrap_or_default(),
-            stylesheet_imports: value.stylesheet_imports.unwrap_or_default(),
-            module_css_import: value.module_css_import,
+                if projection.is_some() {
+                    None
+                } else {
+                    document.source_map_source.as_deref().map(Into::into)
+                },
+                projection.map_or(document.code.as_str(), |projection| {
+                    projection.code.as_str()
+                }),
+            )
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let projection = projection
+            .map(|projection| projection.input(document, sources))
+            .transpose()?;
+        Ok(SourceInput {
+            module_id: module_id.clone(),
+            stylesheet_imports: stylesheet_imports.clone(),
+            module_css_import: module_css_import.clone(),
+            code,
+            language: syntax.language,
+            module_kind: syntax.module_kind,
+            source_format: document.format,
+            framework: *framework,
+            upstream_map: document.upstream_map.clone(),
+            projection,
         })
     }
 }
 
-/// Domain-side projection record deserialized from the host transport.
+/// Original editable source and its optional upstream provenance.
 #[derive(Deserialize)]
-pub struct ProjectSource {
-    /// Host-supplied identity of the original editable document.
+pub struct SourceDocument {
+    /// Absolute URI of the editable document.
     pub uri: SourceUri,
-    /// Host-chosen identity of this module.
-    pub module_id: ModuleId,
-    /// Text the parser sees.
-    pub source: String,
-    /// Facts the host produced for this module.
-    #[serde(default)]
-    pub type_facts: Vec<TypeFact>,
-    /// Parser dialect supplied by the host.
-    pub language: ScriptLanguage,
-    /// Module grammar supplied by the host.
-    pub module_kind: ScriptModuleKind,
-    /// Original format; required for projections, otherwise defaults from language.
-    pub source_format: Option<SourceFormat>,
+    /// Editable text.
+    pub code: String,
+    /// Original file format, independent of the parser dialect.
+    pub format: SourceFormat,
+    /// Source-map JSON from this document to its upstream source.
+    pub upstream_map: Option<String>,
     /// Exact source name for generated stylesheet maps.
     pub source_map_source: Option<String>,
-    /// Explicit output adapter constraint; macro imports select it when absent.
-    pub framework: Option<AdapterKind>,
-    /// Source map from `source` to its upstream file.
-    pub map: Option<String>,
-    /// Original framework source for a projected input.
-    pub fw_code: Option<String>,
-    /// Mapping between [`Self::fw_code`] and [`Self::source`].
-    pub fw2js_map: Option<ProjectionMap>,
-    /// Source map from [`Self::fw_code`] to its own upstream file.
-    pub fw_map: Option<String>,
-    /// Converter identity for a projected input.
-    pub converter: Option<ConverterIdentity>,
-    /// Import scopes of [`Self::fw_code`].
-    #[serde(default)]
+}
+
+/// Parser dialect and module grammar for a script buffer.
+#[derive(Deserialize)]
+pub struct ScriptSyntax {
+    /// JavaScript or TypeScript dialect.
+    pub language: ScriptLanguage,
+    /// Module grammar; serde preserves `common-js`.
+    pub module_kind: ScriptModuleKind,
+}
+
+/// Generated parser code with required mapping and converter metadata.
+#[derive(Deserialize)]
+pub struct SourceProjection {
+    /// Generated JavaScript or TypeScript code.
+    pub code: String,
+    /// Parser settings for the generated code.
+    pub syntax: ScriptSyntax,
+    /// Mapping from generated code to the editable document.
+    pub map: ProjectionMap,
+    /// Converter identity used for the source revision.
+    pub converter: ConverterIdentity,
+    /// Import scopes in the document, in UTF-16 coordinates.
     pub import_realms: Vec<HostRealm>,
-    /// Converted regions of [`Self::fw_code`].
-    #[serde(default)]
-    pub regions: Vec<HostRegion>,
-    /// Host-allocated stylesheet modules.
-    #[serde(default)]
-    pub stylesheet_imports: Vec<String>,
-    /// Host-allocated module that exports this module's CSS value.
-    pub module_css_import: Option<String>,
+    /// Editable regions in the document, in UTF-16 coordinates.
+    pub editable_regions: Vec<HostRegion>,
+}
+
+impl SourceProjection {
+    /// Registers `document` as the original buffer and reserves an analysis ID.
+    /// Returns a projection whose realm and region spans use original byte offsets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for exhausted file IDs, invalid UTF-16 coordinates, or
+    /// reversed ranges. Successful registrations remain in `sources` on failure.
+    fn input(
+        &self,
+        document: &SourceDocument,
+        sources: &mut SourceRegistry,
+    ) -> napi::Result<FrameworkProjection> {
+        let original = sources
+            .register(
+                Some(document.uri.clone()),
+                document.source_map_source.as_deref().map(Into::into),
+                document.code.as_str(),
+            )
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let original_id = original.id();
+        let analysis_id = sources
+            .reserve_generated_id()
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let index = CoordinateIndex::new(&original);
+        let span = |start, end| projection_span(&index, &original, original_id, start, end);
+        let realms = self
+            .import_realms
+            .iter()
+            .map(|realm| {
+                Ok(ImportRealm {
+                    id: realm.id,
+                    source: span(realm.start, realm.end)?,
+                    parent: realm.parent,
+                })
+            })
+            .collect::<napi::Result<Vec<_>>>()?;
+        let regions = self
+            .editable_regions
+            .iter()
+            .map(|region| {
+                Ok(ProjectionRegion {
+                    source: span(region.start, region.end)?,
+                    import_realm: region.import_realm,
+                    attribute_quote: region.attribute_quote.as_ref().map(|quote| match quote {
+                        NativeAttributeQuote::Single => AttributeQuote::Single,
+                        NativeAttributeQuote::Double => AttributeQuote::Double,
+                    }),
+                })
+            })
+            .collect::<napi::Result<Vec<_>>>()?;
+        Ok(FrameworkProjection {
+            original,
+            map: self.map.clone(),
+            converter: self.converter.clone(),
+            analysis_id,
+            realms,
+            regions,
+        })
+    }
 }
 
 /// Source offsets in the host transport are UTF-16; native spans are bytes.
@@ -355,138 +667,6 @@ pub struct HostRegion {
     pub import_realm: u32,
     /// Delimiter of the enclosing attribute, when there is one.
     pub attribute_quote: Option<NativeAttributeQuote>,
-}
-
-impl ProjectSource {
-    /// Builds the analyzer input, translating UTF-16 projection offsets into byte spans
-    /// and validating that the projection metadata is complete.
-    ///
-    /// The source registry issues IDs for the original, generated, and analysis buffers.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid source coordinates or incomplete projection
-    /// metadata.
-    #[allow(clippy::too_many_lines)]
-    pub fn input(&self, sources: &mut SourceRegistry) -> napi::Result<SourceInput> {
-        let original = self.fw_code.as_ref();
-        let language = self.language;
-        let module_kind = self.module_kind;
-        let source_format = self
-            .source_format
-            .unwrap_or_else(|| SourceFormat::script(language));
-        let code_uri = match original {
-            Some(_) => None,
-            None => Some(self.uri.clone()),
-        };
-        let code = sources
-            .register(
-                code_uri,
-                if original.is_some() {
-                    None
-                } else {
-                    self.source_map_source.as_deref().map(Into::into)
-                },
-                self.source.as_str(),
-            )
-            .map_err(|error| Error::from_reason(error.to_string()))?;
-        let projection = if let Some(original) = original {
-            let original = sources
-                .register(
-                    Some(self.uri.clone()),
-                    self.source_map_source.as_deref().map(Into::into),
-                    original.as_str(),
-                )
-                .map_err(|error| Error::from_reason(error.to_string()))?;
-            let original_id = original.id();
-            let analysis_id = sources
-                .reserve_generated_id()
-                .map_err(|error| Error::from_reason(error.to_string()))?;
-            let map = self
-                .fw2js_map
-                .clone()
-                .ok_or_else(|| Error::from_reason("fwCode requires fw2JsMap"))?;
-            let converter = self
-                .converter
-                .clone()
-                .ok_or_else(|| Error::from_reason("fwCode requires converter identity"))?;
-            if self
-                .source_format
-                .and_then(SourceFormat::projection_adapter)
-                .is_none()
-            {
-                return Err(Error::from_reason(
-                    "projected input requires a component sourceFormat",
-                ));
-            }
-            if self.map.is_some() {
-                return Err(Error::from_reason(
-                    "projected input uses fw_map instead of map",
-                ));
-            }
-            let index = CoordinateIndex::new(&original);
-            let span = |start, end| projection_span(&index, &original, original_id, start, end);
-            let realms = self
-                .import_realms
-                .iter()
-                .map(|realm| {
-                    Ok(ImportRealm {
-                        id: realm.id,
-                        source: span(realm.start, realm.end)?,
-                        parent: realm.parent,
-                    })
-                })
-                .collect::<napi::Result<Vec<_>>>()?;
-            let regions = self
-                .regions
-                .iter()
-                .map(|region| {
-                    Ok(ProjectionRegion {
-                        source: span(region.start, region.end)?,
-                        import_realm: region.import_realm,
-                        attribute_quote: region.attribute_quote.as_ref().map(|quote| match quote {
-                            NativeAttributeQuote::Single => AttributeQuote::Single,
-                            NativeAttributeQuote::Double => AttributeQuote::Double,
-                        }),
-                    })
-                })
-                .collect::<napi::Result<Vec<_>>>()?;
-            Some(FrameworkProjection {
-                original,
-                map,
-                converter,
-                analysis_id,
-                realms,
-                regions,
-            })
-        } else {
-            if self.fw2js_map.is_some()
-                || self.fw_map.is_some()
-                || self.converter.is_some()
-                || !self.import_realms.is_empty()
-                || !self.regions.is_empty()
-            {
-                return Err(Error::from_reason("projection metadata requires fwCode"));
-            }
-            None
-        };
-        Ok(SourceInput {
-            module_id: self.module_id.clone(),
-            stylesheet_imports: self.stylesheet_imports.clone(),
-            module_css_import: self.module_css_import.clone(),
-            code,
-            language,
-            module_kind,
-            source_format,
-            framework: self.framework,
-            upstream_map: if projection.is_some() {
-                self.fw_map.clone()
-            } else {
-                self.map.clone()
-            },
-            projection,
-        })
-    }
 }
 
 /// Converts one host region from original-source UTF-16 offsets to a validated span.

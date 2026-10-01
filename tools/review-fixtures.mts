@@ -9,7 +9,8 @@ import {
   renderStylesheet,
   summarizeSource,
   type NativeCompilerOptions,
-  type NativeProjectSource,
+  type NativePreparedSource,
+  type NativeScriptLanguage,
 } from "@stillwind/native";
 import { format } from "prettier";
 
@@ -88,29 +89,42 @@ function compileProject(root: string, manifest: Manifest) {
       sourcePath,
     );
     mkdirSync(path.dirname(id), { recursive: true });
-    const language: NativeProjectSource["language"] = sourcePath.endsWith(".tsx")
+    const language: NativeScriptLanguage = sourcePath.endsWith(".tsx")
       ? "tsx"
       : sourcePath.endsWith(".jsx")
         ? "jsx"
         : sourcePath.endsWith(".ts")
           ? "ts"
           : "js";
+    const uri = pathToFileURL(path.join(root, "input", sourcePath)).href;
     return {
+      kind: "direct" as const,
       resolverId: id,
       checkerFileName: id,
       projectionFileName: sourcePath,
-      uri: pathToFileURL(path.join(root, "input", sourcePath)).href,
       moduleId: sourcePath,
-      language,
-      moduleKind: "unambiguous" as const,
+      document: {
+        uri,
+        code: normalize(readFileSync(path.join(root, "input", sourcePath), "utf8")),
+        format: language === "tsx" || language === "jsx" ? ("jsx" as const) : ("script" as const),
+        sourceMapSource: uri,
+      },
+      syntax: {
+        language,
+        moduleKind: "unambiguous" as const,
+      },
       path: sourcePath,
-      source: normalize(readFileSync(path.join(root, "input", sourcePath), "utf8")),
     };
   });
   const summaries = new Map(
     sources.map((source) => [
       source.path,
-      summarizeSource(source.source, source.moduleId, source.language, source.moduleKind),
+      summarizeSource(
+        source.document.code,
+        source.moduleId,
+        source.syntax.language,
+        source.syntax.moduleKind,
+      ),
     ]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
@@ -130,13 +144,11 @@ function compileProject(root: string, manifest: Manifest) {
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
   const cssUri = pathToFileURL(path.join(root, manifest.theme)).href;
   const output = compileNativeProject(
-    sources.map(({ moduleId, uri, source, language, moduleKind }): NativeProjectSource => ({
+    sources.map(({ moduleId, document, syntax }): NativePreparedSource => ({
+      kind: "direct",
       moduleId,
-      uri,
-      source,
-      language,
-      moduleKind,
-      sourceMapSource: uri,
+      document,
+      syntax,
       typeFacts: facts.get(moduleId) ?? [],
     })),
     { content: theme, name: manifest.theme, uri: cssUri, sourceMapSource: cssUri },

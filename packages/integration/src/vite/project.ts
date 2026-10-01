@@ -329,7 +329,10 @@ export function createViteProject(options: StillwindOptions) {
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? `virtual:${encodeURIComponent(resolvedId)}`
                 : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
-            uri: documentUri(resolvedId),
+            document: {
+              uri: documentUri(resolvedId),
+              format: fileSourceKind(resolvedId).format,
+            },
             checkerFileName:
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? resolve(
@@ -342,7 +345,7 @@ export function createViteProject(options: StillwindOptions) {
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? `virtual/${createHash("sha256").update(resolvedId).digest("hex")}.ts`
                 : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
-            ...fileSourceKind(resolvedId),
+            syntax: fileSourceKind(resolvedId).syntax,
           }),
           watch: (id) => context.addWatchFile(id),
           warn: (message) => context.warn(message),

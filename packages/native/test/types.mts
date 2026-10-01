@@ -2,21 +2,28 @@ import {
   compileSource,
   compileProject,
   summarizeSource,
+  scanSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
 } from "../dist/index.js";
-import type { NativeProjectSource, NativeStylesheetSelection } from "../dist/index.js";
+import type { NativePreparedSource, NativeStylesheetSelection } from "../dist/index.js";
 
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {
-  const sources: NativeProjectSource[] = [
+  const sources: NativePreparedSource[] = [
     {
+      kind: "direct",
       moduleId: "x.ts",
-      uri: "untitled:x.ts",
-      source: "export {};",
-      language: "ts",
-      moduleKind: "unambiguous",
-      sourceMapSource: "untitled:x.ts",
+      document: {
+        uri: "untitled:x.ts",
+        code: "export {};",
+        format: "script",
+        sourceMapSource: "untitled:x.ts",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "unambiguous",
+      },
     },
   ];
   const output = compileSource(
@@ -44,6 +51,50 @@ export function verifyNativeTypes() {
     sourceMapSource: "untitled:root.css",
   });
   const moduleId: string = project.modules[0].moduleId;
+  scanSource(sources[0]);
+  const projected: NativePreparedSource = {
+    kind: "projected",
+    moduleId: "Component.vue",
+    document: {
+      uri: "untitled:Component.vue",
+      code: "<script>export {};</script>",
+      format: "vue",
+    },
+    projection: {
+      code: "export {};",
+      syntax: {
+        language: "js",
+        moduleKind: "module",
+      },
+      map: {
+        kind: "volar",
+        mappings: [
+          {
+            sourceOffsets: [8],
+            generatedOffsets: [0],
+            lengths: [10],
+          },
+        ],
+      },
+      converter: {
+        name: "test",
+        version: "1",
+        optionsFingerprint: "test",
+      },
+      importRealms: [],
+      editableRegions: [],
+    },
+  };
+  scanSource(projected);
+  const { map: _map, ...withoutMap } = projected.projection;
+  // @ts-expect-error A projected source requires its generated-to-original map.
+  scanSource({ ...projected, projection: withoutMap });
+  const { converter: _converter, ...withoutConverter } = projected.projection;
+  // @ts-expect-error A projected source requires the converter identity.
+  scanSource({ ...projected, projection: withoutConverter });
+  const { kind: _kind, ...unprepared } = sources[0];
+  // @ts-expect-error The scanner accepts only explicitly prepared sources.
+  scanSource(unprepared);
   const summary = summarizeSource("export {};", "x.ts", "ts", "unambiguous");
   const loader = new NativeDesignSystemLoader({ prefix: "--custom-" });
   const step = loader.provide(0, "root.css", "");

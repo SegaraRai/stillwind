@@ -38,7 +38,10 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
         },
         describe: (id) => ({
           ...fileModuleDescriptor(root, id),
-          uri: `untitled:${encodeURIComponent(id)}`,
+          document: {
+            ...fileModuleDescriptor(root, id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
         }),
         watch: () => {},
         warn: () => {},
@@ -243,7 +246,10 @@ void test("composition follows imported and re-exported style producers", async 
           read: async (id) => files.get(path.basename(id))!,
           describe: (id) => ({
             ...fileModuleDescriptor(root, id),
-            uri: `untitled:${encodeURIComponent(id)}`,
+            document: {
+              ...fileModuleDescriptor(root, id).document,
+              uri: `untitled:${encodeURIComponent(id)}`,
+            },
           }),
           watch: () => {},
           warn: () => {},

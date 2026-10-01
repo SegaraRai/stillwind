@@ -246,11 +246,12 @@ function prepareProject(
   const allIdentities = new Map<string, IdentityId>();
   const ids = new Map(sources.map((source) => [source.resolverId, checkerId(source)]));
   for (const source of sources) {
+    const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
     const buffers = source.checkerBuffers ?? [
       {
-        source: source.source,
+        source: source.kind === "direct" ? source.document.code : source.projection.code,
         language:
-          source.language === "tsx" || source.language === "jsx"
+          syntax.language === "tsx" || syntax.language === "jsx"
             ? ("tsx" as const)
             : ("ts" as const),
       },

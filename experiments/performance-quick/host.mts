@@ -3,7 +3,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileModule, TypeScriptFactsService } from "../../packages/host/dist/index.js";
+import {
+  compileModule,
+  fileModuleDescriptor,
+  TypeScriptFactsService,
+} from "../../packages/host/dist/index.js";
 import {
   NativeDesignSystemLoader,
   NativeProjectSession,
@@ -18,8 +22,11 @@ loader.provide(
   0,
   "root.css",
   "@utility flex {display:flex;} @utility red {color:red;} @utility blue {color:blue;} @stillwind-slot utilities;",
+  "untitled:root.css",
+  "untitled:root.css",
 );
 const host = {
+  describe: (id: string) => fileModuleDescriptor(root, id),
   resolve: async () => null,
   read: async () => {
     throw new Error("Unexpected dependency read");

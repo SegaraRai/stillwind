@@ -17,7 +17,7 @@ import { parseMarkdownFixtureCases } from "./lib/markdown-fixtures.ts";
 import {
   comparableFixtureClasses,
   compileFixtureSource,
-  fixtureProjectSource,
+  fixturePreparedSource,
 } from "./lib/native-fixture-input.ts";
 import { hasEquivalentDeclarationOrder } from "./lib/property-order-parity.ts";
 import { stillwindFixtureCss } from "./lib/stillwind-fixture-css.ts";
@@ -247,7 +247,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
       let resources: unknown[] = [];
       try {
         const native: ProjectModuleOutput = loaded.session.compile([
-          fixtureProjectSource(source, "src/Parity.tsx"),
+          fixturePreparedSource(source, "src/Parity.tsx"),
         ]).modules[0];
         actual = loaded.session.css();
         if (loaded.uses++ % 250 === 0) {

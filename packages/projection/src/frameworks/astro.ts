@@ -1,14 +1,9 @@
 import { convertToTSX, parse } from "@astrojs/compiler";
 
-import {
-  converterIdentity,
-  sourceMapV3,
-  sourceRegions,
-  type ConvertedFramework,
-  type ScriptRegion,
-} from "./common.ts";
+import type { SourceProjection } from "../protocol.ts";
+import { converterIdentity, sourceMapV3, sourceRegions, type ScriptRegion } from "./common.ts";
 
-export async function convert(source: string, filename: string): Promise<ConvertedFramework> {
+export async function convert(source: string, filename: string): Promise<SourceProjection> {
   const options = { includeScripts: true };
   const [result, parsed] = await Promise.all([
     convertToTSX(source, { ...options, filename }),
@@ -43,19 +38,21 @@ export async function convert(source: string, filename: string): Promise<Convert
     scripts.push({ id: scripts.length + 1, start, end });
   }
   return {
-    checkerScripts: (result.metaRanges.scripts ?? [])
+    checkerScriptRanges: (result.metaRanges.scripts ?? [])
       .filter(
         (script) =>
           ["processed-module", "module", "inline"].includes(script.type) &&
           script.content.length > 0,
       )
       .map((script) => ({ start: script.position.start, end: script.position.end })),
-    sourceFormat: "astro",
-    language: "tsx",
-    source: result.code,
-    fw2JsMap: sourceMapV3(result.map),
+    syntax: {
+      language: "tsx",
+      moduleKind: "module",
+    },
+    code: result.code,
+    map: sourceMapV3(result.map),
     converter: converterIdentity("@astrojs/compiler", options),
     importRealms: scripts,
-    regions: sourceRegions(source, scripts, frontmatter ? 0 : undefined),
+    editableRegions: sourceRegions(source, scripts, frontmatter ? 0 : undefined),
   };
 }

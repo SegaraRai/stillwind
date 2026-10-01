@@ -64,46 +64,55 @@ framework 記述が所有するもの:
 
 Rust の実装コードで `__VLS_ctx` などの固有名を使うのは当該 framework ファイルだけとする。テスト・文書・host の converter 呼び出しにはこの制約を適用しない。host に出力規則を重複実装しない。
 
-host は `sourceFormat` で原文形式を指定し、converter と投影の正規化を選択する。値として import した `style` は props と runtime の adapter を選択する。任意の `framework` は出力 adapter の明示的制約であり、import と衝突する場合はコンパイルエラーにする。通常入力／投影入力の区別と出力 adapter は独立した軸である。
+host は `document.format` で原文形式を指定し、converter と投影の正規化を選択する。値として import した `style` は props と runtime の adapter を選択する。任意の `framework` は出力 adapter の明示的制約であり、import と衝突する場合はコンパイルエラーにする。通常入力／投影入力の区別と出力 adapter は独立した軸である。
 
 ### 原文形式と macro import の Lint
 
 `framework-import-mismatch` は、原文形式に合わない `style` の値 import を、module specifier の文字列位置で警告する。
 
-| `sourceFormat` | 許容する macro import                                                     |
-| -------------- | ------------------------------------------------------------------------- |
-| `script`       | すべての FW                                                               |
-| `jsx`          | `stillwind/react`、`stillwind/preact`、`stillwind/solid`、`stillwind/vue` |
-| `vue`          | `stillwind/vue`                                                           |
-| `svelte`       | `stillwind/svelte`                                                        |
-| `astro`        | `stillwind/astro`                                                         |
+| `document.format` | 許容する macro import                                                     |
+| ----------------- | ------------------------------------------------------------------------- |
+| `script`          | すべての FW                                                               |
+| `jsx`             | `stillwind/react`、`stillwind/preact`、`stillwind/solid`、`stillwind/vue` |
+| `vue`             | `stillwind/vue`                                                           |
+| `svelte`          | `stillwind/svelte`                                                        |
+| `astro`           | `stillwind/astro`                                                         |
 
 host は `.jsx`・`.tsx` を `jsx` として扱う。JSX式や macro 呼び出しがなくても判定する。通常の JS/TS モジュールは各 FW 向けの style を定義・export できるため制限しない。型だけの import と、`style` 以外の import は対象外とする。tsconfig と JSX runtime の設定は読まず、React・Preact・Solid・Vue間の取り違えは判定しない。
 
 標準レベルは `warn`。CSS の `@stillwind { framework-import-mismatch: off; }` または `deny` と、既存の `swlint-disable` 指示で制御する。Lint は adapter を変更せず、自動修正を提供しない。異なる FW の macro を同一モジュールで混在させる場合は引き続きコンパイルエラーにする。
 
-Vue SFC と Vue JSX は `stillwind/vue` とその runtime を共用し、`class` と object 形式の `style` を生成する。`sourceFormat: "vue"` だけが SFC converter を選ぶ。`sourceFormat: "jsx"` に `framework: "vue"` を付けても SFC 変換は行わない。Volar補助コードの除去、原文への位置復元、script領域へのimport配置、template属性の引用符エスケープは、projection付き入力にだけ適用する。
+Vue SFC と Vue JSX は `stillwind/vue` とその runtime を共用し、`class` と object 形式の `style` を生成する。`document.format: "vue"` だけが SFC converter を選ぶ。`document.format: "jsx"` に `framework: "vue"` を付けても SFC 変換は行わない。Volar補助コードの除去、原文への位置復元、script領域へのimport配置、template属性の引用符エスケープは、projection付き入力にだけ適用する。
 
 ## 3. 入力と map の契約
 
+### 入力の準備
+
+ホストは `ProjectInput` に元文書と識別情報を渡し、`prepareSource` が `PreparedSource` を返す。`document` は元の編集対象を表す。`document.code`、`document.uri`、`document.format`、`document.upstreamMap` の意味は投影後も変わらない。コンパイラの scan / compile は準備済みの入力だけを受け取る。
+
 ### 通常入力
 
-`code, map?` を受け取る。`code` が OXC の解析対象かつ編集対象。`map` は入力 code から上流原本への map であり、存在しても編集対象を上流原本に切り替えない。
+`kind: "direct"` は `document.code` を解析し、同じ本文に編集を適用する。解析コードを別フィールドに複製しない。`syntax.language` と `syntax.moduleKind` はパーサーの設定を表す。`document.format` は `script` または `jsx` であり、未投影の component 文書は通常入力として受け付けない。
 
 ### 投影入力
 
-`code, fwCode, fw2JsMap, fwMap?` を受け取る。
+`kind: "projected"` は `projection.code` を解析し、`document.code` に編集を適用する。
 
-| フィールド | 意味                                                                           |
-| ---------- | ------------------------------------------------------------------------------ |
-| code       | OXC が解析する投影 JS/TS/JSX/TSX                                               |
-| fwCode     | 編集対象となる元 SFC                                                           |
-| fw2JsMap   | converter が SFC→JS 生成時に作る map。検索方向は生成 code の位置→fwCode の位置 |
-| fwMap      | fwCode→さらに上流の原本への任意 map                                            |
+| フィールド                       | 意味                                             |
+| -------------------------------- | ------------------------------------------------ |
+| `document.code`                  | 編集対象となる元 SFC                             |
+| `document.upstreamMap`           | 元文書から上流原本への任意 map                   |
+| `projection.code`                | OXC が解析する投影 JS/TS/JSX/TSX                 |
+| `projection.syntax`              | 投影コードを解析する言語と module kind           |
+| `projection.map`                 | 投影コードの位置から元文書の位置への対応         |
+| `projection.converter`           | converter の名前・version・設定 fingerprint      |
+| `projection.importRealms`        | 元文書上の import scope と親 realm               |
+| `projection.editableRegions`     | 元文書上で編集可能な範囲と realm・引用符         |
+| `projection.checkerScriptRanges` | checker が独立して解析する元文書上の script 範囲 |
 
-両モードとも module ID と parser source type を明示する。`sourceFormat` は原文形式を表し、投影入力では `vue`・`svelte`・`astro` の指定を必須とする。通常入力で省略すると parser dialect のJSX対応から `script` または `jsx` を選ぶ。投影入力には converter 名・version・設定 fingerprint を持たせ、対応パターンの検証と cache invalidation に利用する。必要な script region / import realm の対応情報は host が converter の結果から渡す。Rust で SFC タグを探して補完しない。
+両モードとも module ID と解析構文を明示する。投影入力の `document.format` は `vue`・`svelte`・`astro` のいずれかとする。`projection.map` と `projection.converter` は必須であり、通常入力は projection を持たない。converter identity は対応パターンの検証と cache invalidation に利用する。必要な script range / import realm の対応情報は host が converter の結果から渡す。Rust で SFC タグを探して補完しない。
 
-`fw2JsMap` は欠落不可。空・不正・異なる source の map は編集可能と見なさない。Volar mapping は v3 JSON と偽装せず、タグ付き mapping 入力として保持する。v3 と Volar を共通の位置／範囲検索インターフェースへ正規化する。Volar→v3 変換を使う場合は境界・未マップ区間・多対一対応を保持できることを先に検証する。
+空・不正・異なる source の `projection.map` は編集可能と見なさない。Volar mapping は v3 JSON と偽装せず、タグ付き mapping 入力として保持する。v3 と Volar を共通の位置／範囲検索インターフェースへ正規化する。Volar→v3 変換を使う場合は境界・未マップ区間・多対一対応を保持できることを先に検証する。
 
 OXC span は UTF-8 byte、source-map column と JS offset は UTF-16。型または明示的な変換関数で座標系を分離し、surrogate 内部・不正な UTF-8 境界・範囲外を拒否する。異なる source の同じ数値 offset を混同しない。
 
@@ -181,7 +190,7 @@ Svelte の import では排他的 end の map がずれるため、start/end を
 
 整列後は原文・置換文字列を前から一度走査し、code と map 対応情報を同時に生成する。目標計算量はソートを除き O(入力長＋出力長＋編集数)。元 SFC を再生成・pretty print しない。
 
-編集後 code→編集前 code、または編集後 SFC→fwCode の map を生成し、任意の上流 map と合成する。`fw2JsMap` は解析・診断・編集範囲の逆対応に使い、最終 SFC の出力 map に投影 JS の位置を混ぜない。
+編集後 code→編集前 code、または編集後 SFC→document.code の map を生成し、任意の上流 map と合成する。`projection.map` は解析・診断・編集範囲の逆対応に使い、最終 SFC の出力 map に投影 JS の位置を混ぜない。
 
 既存 map の exact/anchor/unmapped の方針を維持する。GLB だけでなく LUB、重複 segment、行末を比較する。oxc_sourcemap 採用と host での追加合成は独立した判断とし、採用を前提にしない。
 
@@ -199,7 +208,7 @@ CSS 更新・module 削除時は virtual module と CSS contribution を無効�
 
 実装済みの import 経路では、OXC の binding ごとの参照と native の成功した callee 置換を照合して macro specifier を削除する。runtime helper は lowering 時に列挙型で要求し、全 binding・未解決参照と衝突しないローカル名を割り当てる。投影入力では host の region→realm 対応を検証し、その script 内の import と一括置換する。helper 名の文字列検索と macro import の正規表現削除は host から除去した。realm 不明は `MissingRuntimeAnchor`、重複は `InvalidImportMetadata`、残存 macro 参照は `UntransformedMacroReference` または `UnmappedMacroReference` とし、native API は code と mapping を返さない。依存 asset の CSS だけを生成する内部経路は JavaScript を出力しないため、完全な module の import 編集を行わない。
 
-host converter は `@stillwind/projection` に配置し、各 framework を別ファイルにする。converter が必要とする TypeScript 6 の JavaScript SDK は、この package の通常依存とする。`@stillwind/host` の TypeScript 7 による型情報取得と依存ツリーを分け、両方を検証する。`projectFrameworkSource` は通常入力をそのまま返し、SFC では原文・map・converter identity・region を持つ入力を返す。Vue の属性引用符は host AST から region に記録し、native が原文の引用符を確認して置換文字列をエスケープする。複数 realm の helper 名も全体で衝突させない。
+host converter は `@stillwind/projection` に配置し、各 framework を別ファイルにする。converter が必要とする TypeScript 6 の JavaScript SDK は、この package の通常依存とする。`@stillwind/host` の TypeScript 7 による型情報取得と依存ツリーを分け、両方を検証する。`prepareSource` は通常入力を direct として返し、SFC では元文書を保持した projected を返す。投影コード・map・converter identity・region は projection にまとめる。Vue の属性引用符は host AST から region に記録し、native が原文の引用符を確認して置換文字列をエスケープする。複数 realm の helper 名も全体で衝突させない。
 
 `vp run @stillwind/host#test` は実 converter→native→framework compile を実行する。Vue の引用符2種・空白・複数 script、Svelte の複数 script、Astro の frontmatter と client script、明示 CSS import を含む。Vue normal→setup と Svelte module→instance は host が realm の `parent` を指定し、native が親の import を利用できる。Astro の client/server は独立のままとする。
 

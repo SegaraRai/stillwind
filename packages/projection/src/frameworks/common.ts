@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 
-import type { ProjectSource, ProjectionMap } from "../protocol.ts";
+import type { ConverterIdentity, ProjectionMap, SourceProjection } from "../protocol.ts";
 
 /**
  * An original-buffer script realm with half-open UTF-16 bounds. parent is a realm id.
@@ -13,21 +13,6 @@ export interface ScriptRegion {
   parent?: number;
 }
 
-/**
- * Projected parser input and metadata for mapping edits into the original SFC buffer.
- */
-export interface ConvertedFramework {
-  /** Independent checker script regions in original SFC UTF-16 code units. */
-  checkerScripts?: Array<{ start: number; end: number }>;
-  source: string;
-  language: "ts" | "tsx";
-  sourceFormat: Extract<ProjectSource["sourceFormat"], "vue" | "svelte" | "astro">;
-  fw2JsMap: ProjectionMap;
-  converter: NonNullable<ProjectSource["converter"]>;
-  importRealms: ScriptRegion[];
-  regions: NonNullable<ProjectSource["regions"]>;
-}
-
 const require = createRequire(import.meta.url);
 
 /**
@@ -36,7 +21,7 @@ const require = createRequire(import.meta.url);
  * Throws if package metadata cannot be loaded, version is missing, or options cannot
  * be serialized to a JSON string.
  */
-export function converterIdentity(name: string, options: unknown) {
+export function converterIdentity(name: string, options: unknown): ConverterIdentity {
   const metadata: unknown = require(`${name}/package.json`);
   if (
     !metadata ||
@@ -64,7 +49,7 @@ export function sourceRegions(
   scripts: ScriptRegion[],
   templateRealm: number | undefined,
 ) {
-  const regions: NonNullable<ProjectSource["regions"]> = [];
+  const regions: SourceProjection["editableRegions"] = [];
   let cursor = 0;
   for (const script of [...scripts].sort((a, b) => a.start - b.start)) {
     if (

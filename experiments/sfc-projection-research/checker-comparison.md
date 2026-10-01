@@ -17,7 +17,7 @@ vp run compare-checkers
 依存は既存の実験 workspace、`packages/host`、`packages/integration`、
 `packages/projection` のインストールを使用する。追加インストールは行っていない。
 
-- 本番の `projectFrameworkSource` で Vue / Svelte / Astro を投影する。
+- 本番の `prepareSource` で Vue / Svelte / Astro を投影する。
 - 本物の `stillwind/vue` / `stillwind/svelte` / `stillwind/astro` の型を使う。
 - 投影 AST の宣言 call に identity の隠し引数を注入する。
 - identity は元 SFC の UTF-8 宣言位置と binding 名から作る。

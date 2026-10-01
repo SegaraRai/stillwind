@@ -31,7 +31,10 @@ void test("contract defaults deny builds while warn and off remain configurable"
         },
         describe: (id) => ({
           ...fileModuleDescriptor(process.cwd(), id),
-          uri: `untitled:${encodeURIComponent(id)}`,
+          document: {
+            ...fileModuleDescriptor(process.cwd(), id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
         }),
         watch: () => {},
         warn: (message) => warnings.push(message),

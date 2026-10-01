@@ -37,7 +37,7 @@ use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{
     BindingReport, NativeDiagnosticBatch, ProjectBindingOutput, ProjectModuleOutput,
 };
-use crate::source_input::{NativeProjectSource, ProjectSource};
+use crate::source_input::{NativePreparedSource, PreparedSource};
 use crate::stylesheet::{
     NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
     NativeStylesheetOutput, NativeStylesheetPart, NativeStylesheetPlacement, NativeStylesheetPlan,
@@ -283,7 +283,7 @@ impl NativeDesignSystemLoader {
 /// the module and asset metadata the domain type requires.
 struct ProvidedTypeScriptFacts<'a> {
     /// Host sources in the same order as the scans passed to `update`.
-    sources: &'a [ProjectSource],
+    sources: &'a [PreparedSource],
 }
 
 impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
@@ -298,7 +298,7 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
             .zip(self.sources)
             .map(|(scan, source)| {
                 let semantic_revision =
-                    Fingerprint::of(format!("{:?}{assets:?}", source.type_facts));
+                    Fingerprint::of(format!("{:?}{assets:?}", source.type_facts()));
                 (
                     scan.module_id.clone(),
                     TypeFacts {
@@ -306,7 +306,7 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
                         module_id: scan.module_id.clone(),
                         source_revision: scan.source_revision.clone(),
                         semantic_revision,
-                        facts: source.type_facts.clone(),
+                        facts: source.type_facts().to_vec(),
                         assets: assets.clone(),
                     },
                 )
@@ -642,7 +642,7 @@ impl NativeProjectSession {
     pub fn compile(
         &mut self,
         env: Env,
-        sources: Vec<NativeProjectSource>,
+        sources: Vec<NativePreparedSource>,
         producer: Option<String>,
     ) -> napi::Result<ProjectBindingOutput> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
@@ -650,18 +650,18 @@ impl NativeProjectSession {
         let sources = sources
             .into_iter()
             .map(TryInto::try_into)
-            .collect::<napi::Result<Vec<ProjectSource>>>()?;
+            .collect::<napi::Result<Vec<PreparedSource>>>()?;
         let mut module_ids = BTreeSet::new();
         for source in &sources {
-            if !module_ids.insert(&source.module_id) {
+            if !module_ids.insert(source.module_id()) {
                 return Err(Error::from_reason(format!(
                     "Duplicate Stillwind module identity: {}",
-                    source.module_id
+                    source.module_id()
                 )));
             }
         }
         if let Some(producer) = &producer
-            && !sources.iter().any(|source| &source.module_id == producer)
+            && !sources.iter().any(|source| source.module_id() == producer)
         {
             return Err(Error::from_reason(format!(
                 "Unknown Stillwind producer: {producer}"

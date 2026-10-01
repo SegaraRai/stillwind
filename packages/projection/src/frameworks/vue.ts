@@ -4,14 +4,10 @@ import { parse } from "@vue/compiler-sfc";
 import * as vue from "@vue/language-core";
 import ts from "typescript";
 
-import {
-  converterIdentity,
-  sourceRegions,
-  type ConvertedFramework,
-  type ScriptRegion,
-} from "./common.ts";
+import type { SourceProjection } from "../protocol.ts";
+import { converterIdentity, sourceRegions, type ScriptRegion } from "./common.ts";
 
-export function convert(source: string, filename: string): ConvertedFramework {
+export function convert(source: string, filename: string): SourceProjection {
   const parsed = parse(source, { filename });
   if (parsed.errors.length) {
     throw new Error(parsed.errors.map(String).join("\n"));
@@ -47,10 +43,12 @@ export function convert(source: string, filename: string): ConvertedFramework {
       });
     }
     return {
-      sourceFormat: "vue",
-      language: service.extension === ".tsx" ? "tsx" : "ts",
-      source: service.code.snapshot.getText(0, service.code.snapshot.getLength()),
-      fw2JsMap: {
+      syntax: {
+        language: service.extension === ".tsx" ? "tsx" : "ts",
+        moduleKind: "module",
+      },
+      code: service.code.snapshot.getText(0, service.code.snapshot.getLength()),
+      map: {
         kind: "volar",
         mappings: service.code.mappings.map(
           ({ sourceOffsets, generatedOffsets, lengths, generatedLengths }) => ({
@@ -66,7 +64,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
         typescript: ts.version,
       }),
       importRealms: scripts,
-      regions: quotedRegions(
+      editableRegions: quotedRegions(
         source,
         parsed.descriptor.template?.ast,
         sourceRegions(source, scripts, scriptSetup ? 1 : script ? 0 : undefined),
@@ -80,7 +78,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
 function quotedRegions(
   source: string,
   root: RootNode | undefined,
-  regions: ConvertedFramework["regions"],
+  regions: SourceProjection["editableRegions"],
 ) {
   if (!root) {
     return regions;

@@ -2,15 +2,10 @@ import { parse } from "svelte/compiler";
 import { svelte2tsx } from "svelte2tsx";
 import ts from "typescript";
 
-import {
-  converterIdentity,
-  sourceMapV3,
-  sourceRegions,
-  type ConvertedFramework,
-  type ScriptRegion,
-} from "./common.ts";
+import type { SourceProjection } from "../protocol.ts";
+import { converterIdentity, sourceMapV3, sourceRegions, type ScriptRegion } from "./common.ts";
 
-export function convert(source: string, filename: string): ConvertedFramework {
+export function convert(source: string, filename: string): SourceProjection {
   const ast = parse(source, {
     modern: true,
     filename,
@@ -44,16 +39,18 @@ export function convert(source: string, filename: string): ConvertedFramework {
     });
   }
   return {
-    sourceFormat: "svelte",
-    language: "tsx",
-    source: result.code,
-    fw2JsMap: sourceMapV3(result.map),
+    syntax: {
+      language: "tsx",
+      moduleKind: "module",
+    },
+    code: result.code,
+    map: sourceMapV3(result.map),
     converter: converterIdentity("svelte2tsx", {
       ...options,
       svelte: converterIdentity("svelte", {}).version,
       typescript: ts.version,
     }),
     importRealms: scripts,
-    regions: sourceRegions(source, scripts, ast.instance ? 1 : ast.module ? 0 : undefined),
+    editableRegions: sourceRegions(source, scripts, ast.instance ? 1 : ast.module ? 0 : undefined),
   };
 }
