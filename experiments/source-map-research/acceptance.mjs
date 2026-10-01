@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 // Run the repository's actual four CSS/native/upstream acceptance tests against
 // both implementations without copying or modifying the tests on disk.
-const testUrl = new URL("../../packages/host/test/css-source-map.test.mts", import.meta.url);
+const testUrl = new URL("../../packages/host/tests/css-source-map.test.ts", import.meta.url);
 const results = [];
 for (const variant of ["baseline", "candidate"]) {
   let source = readFileSync(testUrl, "utf8");

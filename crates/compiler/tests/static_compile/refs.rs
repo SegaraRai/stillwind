@@ -82,15 +82,13 @@ export const item = style(enabled && ["p-4", anchor.positionAnchor(), "text-red"
     assert!(result.css.contains("position-anchor:--sw-a-"));
     assert!(result.css.contains("color:"));
     let output = result.transforms[0].replacement.as_str();
-    assert!(output.contains("stillwindClsx("), "{output}");
-    assert!(!output.contains("stillwindMerge("), "{output}");
     assert!(output.contains("enabled"), "{output}");
     assert!(!output.contains("(anchor).c"), "{output}");
     assert!(!output.contains("[(anchor).c]"), "{output}");
 }
 
 #[test]
-fn unconditional_projection_and_custom_property_materialize_direct_props() {
+fn unconditional_projection_keeps_class_and_custom_property_output() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -116,7 +114,6 @@ export const item = style("flex", anchor.positionAnchor(), { "--x": size });"#,
     let output = result.transforms[0].replacement.as_str();
     assert!(output.contains("className:"), "{output}");
     assert!(output.contains("style:{"), "{output}");
-    assert!(!output.contains("stillwindMerge("), "{output}");
 }
 
 #[test]

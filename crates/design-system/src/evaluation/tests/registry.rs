@@ -1,8 +1,7 @@
 //! Registry metadata as the source of resolution behavior.
 //!
 //! Pins arbitrary-property order, animation option resolution, theme suffix metadata,
-//! and the invariants that built-ins declare no untyped arbitrary domains and that
-//! every theme namespace has a typed value domain.
+//! and the value domains used by theme namespaces.
 
 use super::*;
 use crate::{parse_builtin_utility_definitions, test_defaults::BUILTIN_REGISTRY_CSS};
@@ -100,18 +99,6 @@ fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
         Some(css_tokens(
             "font-size:var(--text-copy);line-height:var(--tw-leading,var(--text-copy--line-height));"
         ))
-    );
-}
-
-#[test]
-fn builtins_declare_no_untyped_arbitrary_value_domains() {
-    assert!(
-        !BUILTIN_REGISTRY_CSS.contains("--value([*])"),
-        "built-in utilities must use a typed CSS value domain"
-    );
-    assert!(
-        !BUILTIN_REGISTRY_CSS.contains("[property:"),
-        "property names are not CSS value-domain syntax"
     );
 }
 

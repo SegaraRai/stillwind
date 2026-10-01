@@ -99,6 +99,6 @@ TS6 一本化には従来の同期 CompilerHost API を使え、SDK 系統を一
 TS7 を維持する。converter が TS7 SDK を扱えるようになれば projection 側を個別に移行できる。
 
 比較実験は [checker comparison](../experiments/sfc-projection-research/checker-comparison.md)。
-本番の結合テストは `packages/host/test/sfc-types.test.mts` にあり、推移的 import、
+本番の結合テストは `packages/host/tests/sfc-types.test.ts` にあり、推移的 import、
 Unicode 原文位置、編集後の snapshot、framework props / loops、各種 asset、型エラー、
 Astro client script を検証する。

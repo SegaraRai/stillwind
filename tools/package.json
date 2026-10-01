@@ -5,16 +5,19 @@
   "description": "Fixture and compatibility tooling for Stillwind",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    "./stillwind-css": "./support/stillwind-css.ts"
+  },
   "devDependencies": {
-    "@stillwind/integration": "workspace:*",
+    "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/css-tree": "^3.2.0",
     "@types/node": "catalog:",
-    "@webref/css": "^8.7.5",
+    "@webref/css": "8.7.3",
     "css-tree": "^3.2.1",
     "lightningcss": "^1.33.0",
     "prettier": "^3.9.9",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "4.3.3",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

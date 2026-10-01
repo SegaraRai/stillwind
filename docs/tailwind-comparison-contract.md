@@ -2,7 +2,7 @@
 
 StillwindはCSSの解釈を比較する。文字列の整形・minifyはコアの責務にしない。比較器は以下の明示した文脈を持つ。無条件のCSS同値性とは区別する。
 
-実装は`tools/lib/tailwind-parity-contract.ts`。境界テストは`tools/tailwind-parity-contract.test.mts`。
+実装は`tools/tailwind/comparison.ts`。境界テストは`tools/tailwind/comparison.test.ts`。
 
 ## 許容する契約差
 
@@ -74,6 +74,6 @@ local animationは生成時からkeyframes寄与として分離し、CSS文字�
 既存の`@source / @config / @plugin / @reference`を含む3入力ケースは引き続き別機能の対象。除外候補数は2であり、今回の不一致を除外して合格に変えたものではない。候補なしのCSSは出力を直接比較し、classがないだけで未解決と報告しない。
 
 ```powershell
-vp run --filter @stillwind/tools tailwind:contract:test
-vp run --filter @stillwind/tools tailwind:parity:analyze
+vp run @stillwind/tools#test
+vp run @stillwind/tools#tailwind:analyze
 ```

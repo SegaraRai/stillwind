@@ -1,6 +1,11 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    fileParallelism: false,
+    testTimeout: 60_000,
+  },
   pack: {
     entry: ["src/index.ts"],
     format: ["esm"],
@@ -19,7 +24,8 @@ export default defineConfig({
         dependsOn: ["@stillwind/native#build", "@stillwind/projection#build", "stillwind#build"],
       },
       test: {
-        command: "node --test test/*.test.mts",
+        command: "vp test --run",
+        cache: false,
         dependsOn: ["build"],
       },
     },

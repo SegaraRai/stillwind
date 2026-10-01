@@ -574,7 +574,9 @@ function factsForSource(
     if (!value) {
       // Recognition queries only identify Stillwind receivers for unconsumed-use diagnostics.
       // Missing facts leave the receiver as ordinary JavaScript without an error.
-      if (probe.recognitionOnly) continue;
+      if (probe.recognitionOnly) {
+        continue;
+      }
       const name = type && (type.getAliasSymbol() ?? type.getSymbol())?.name;
       if (
         !type ||

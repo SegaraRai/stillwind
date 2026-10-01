@@ -150,8 +150,8 @@ UTF-16 candidate 名比較の順に比較する。未知 property は順位列�
 プロパティ表と比較処理の出典は Tailwind `property-order.ts` / `compile.ts` / `utils/compare.ts`。
 `authored` の任意 property は従来の明示 property 順を使う。
 同一 candidate の複数ルールは resolver が返す順を保つ。`@apply` も同じ比較関数を使用する。
-`vp run @stillwind/tools#tailwind:utility-order` で Tailwind 本体による fixture 再照合と Rust 差分テストを実行する。
-`vp run @stillwind/tools#tailwind:utility-order:generate` は tools の tailwindcss 依存から
+`vp run @stillwind/tools#tailwind:order:check` で Tailwind 本体による fixture 再照合と Rust 差分テストを実行する。
+`vp run @stillwind/tools#tailwind:order:generate` は tools の tailwindcss 依存から
 `tailwind_property_order.rs` の静的配列と fixture を生成する。上流 checkout や実行時のテキスト解析は不要。
 既存の解決未対応14候補を固定して検出し、
 解決可能な候補の順位列・宣言数・全体の比較順を検証する。

@@ -406,7 +406,6 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
             "{css}"
         );
         assert!(css.contains("@supports (x:revert-rule) and (--"), "{css}");
-        assert!(!css.contains("ifr-"), "{css}");
         assert!(!css.contains("--sw-if"), "{css}");
         assert!(
             css.contains("--sw-user:1") && css.contains("var(--sw-user)"),

@@ -455,6 +455,9 @@ importers:
       '@rspack/core':
         specifier: ^2.2.7
         version: 2.2.7
+      '@stillwind/tools':
+        specifier: workspace:*
+        version: link:../../tools
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.1
         version: 7.3.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(terser@5.51.2)(typescript@6.0.3))(svelte@5.57.1)
@@ -595,9 +598,9 @@ importers:
 
   tools:
     devDependencies:
-      '@stillwind/integration':
+      '@stillwind/host':
         specifier: workspace:*
-        version: link:../packages/integration
+        version: link:../packages/host
       '@stillwind/native':
         specifier: workspace:*
         version: link:../packages/native
@@ -608,8 +611,8 @@ importers:
         specifier: 'catalog:'
         version: 26.4.0
       '@webref/css':
-        specifier: ^8.7.5
-        version: 8.7.5(css-tree@3.2.1)
+        specifier: 8.7.3
+        version: 8.7.3(css-tree@3.2.1)
       css-tree:
         specifier: ^3.2.1
         version: 3.2.1
@@ -620,7 +623,7 @@ importers:
         specifier: ^3.9.9
         version: 3.9.9
       tailwindcss:
-        specifier: ^4.3.3
+        specifier: 4.3.3
         version: 4.3.3
       typescript:
         specifier: 'catalog:'
@@ -2968,8 +2971,8 @@ packages:
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
 
-  '@webref/css@8.7.5':
-    resolution: {integrity: sha512-VQygoDH6OptDhYib3Uxo2e1uftOv2Tx9yddzUyAXOmsLquyrV46w5VzXla2kPAIK70+Lo56NzzrltKMqiBrrLg==}
+  '@webref/css@8.7.3':
+    resolution: {integrity: sha512-iQZOkW9TqVz7p3qnEyv0KsutpXmPh8Ey9oJKHLeo//kn4mrrdG+XLBhmx4IoSWSazlVyK5NTp/FqsvV3U1yc9w==}
     peerDependencies:
       css-tree: ^3.2.1
 
@@ -6468,7 +6471,7 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
-  '@webref/css@8.7.5(css-tree@3.2.1)':
+  '@webref/css@8.7.3(css-tree@3.2.1)':
     dependencies:
       css-tree: 3.2.1
 

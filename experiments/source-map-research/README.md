@@ -73,7 +73,7 @@ N-APIの計測とは別物であり、採用判断の速度比には用いてい
 - 実際のhost finalizerによるimport削除・runtime／CSS import追加を通す実験を別に実施。
 
 `sourcemap:acceptance` は本体nativeをrelease buildし、現在の
-`packages/host/test/css-source-map.test.mts` をbaselineとcandidateそれぞれに対して実行する。
+`packages/host/tests/css-source-map.test.ts` をbaselineとcandidateそれぞれに対して実行する。
 テストファイルは変更・複製保存せず、実行時にimport先だけ置き換える。4件×2、全成功。
 [results/acceptance.json](results/acceptance.json) に実行結果を保存する。
 

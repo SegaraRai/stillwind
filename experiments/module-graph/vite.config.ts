@@ -1,5 +1,9 @@
 import { defineConfig } from "vite-plus";
 export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["scripts/verify-source-map.test.ts"],
+  },
   run: {
     tasks: {
       "build:packages": {
@@ -7,7 +11,7 @@ export default defineConfig({
         cache: false,
       },
       "verify:source-map": {
-        command: "node --test scripts/verify-source-map.test.mjs",
+        command: "vp test --run",
         dependsOn: ["build:packages"],
         cache: false,
       },

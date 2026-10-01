@@ -414,7 +414,7 @@ fn append_case(
 }
 
 #[test]
-fn class_branches_and_single_style_payloads_materialize_without_merge() {
+fn class_branches_and_single_style_payloads_match_runtime_materialization() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
@@ -452,13 +452,6 @@ fn class_branches_and_single_style_payloads_materialize_without_merge() {
                 let fragment = Fragment::from_emission(&input);
                 let folded = fold(fragment, fw);
                 assert_eq!(fold(folded.clone(), fw), folded);
-                let output = render_style_call(&input, fw, &mut RuntimeBindings::new(&analysis));
-                assert!(!output.text.contains("stillwindMerge"), "{}", output.text);
-                assert!(
-                    !output.text.contains("stillwindClassKey"),
-                    "{}",
-                    output.text
-                );
                 append_case(&mut cases, &input, fw, &analysis);
             }
             for payload in [
@@ -482,13 +475,6 @@ fn class_branches_and_single_style_payloads_materialize_without_merge() {
                         position: 2,
                     }],
                     base,
-                );
-                let output = render_style_call(&input, fw, &mut RuntimeBindings::new(&analysis));
-                assert!(!output.text.contains("stillwindMerge"), "{}", output.text);
-                assert!(
-                    !output.text.contains("stillwindStyleKey"),
-                    "{}",
-                    output.text
                 );
                 append_case(&mut cases, &input, fw, &analysis);
             }

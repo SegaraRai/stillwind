@@ -12,4 +12,4 @@ packages/native/npm/wasm32-wasi/*.d.cts
 **/.napi-rs-filesystem-transaction.swp/
 **/stillwind.generated.d.ts
 packages/integration/.review-fixtures/
-packages/integration/.framework-test-*/
+**/.test-*/

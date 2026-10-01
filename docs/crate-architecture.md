@@ -46,10 +46,6 @@ napi and cli compose the services they need.
 depend on `compiler`. `css` must not depend on Stillwind's theme/registry model.
 Compiler tests may use the Oxc frontend as a dev dependency.
 
-`vp run crates:check` validates the workspace members and allowed
-production/build dependencies using Cargo metadata. It also runs as part of
-`vp run -r check`.
-
 ## Diagnostic contracts
 
 `stillwind-diagnostics` owns compilation errors and lint diagnostics. `CompileDiagnostic`
@@ -157,34 +153,8 @@ not a duplicate bundler or TypeScript graph.
 ## Validation
 
 ```sh
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-cargo fmt --all -- --check
-vp run -r build
-vp run -r typecheck
-vp run -r test
-vp run -r check
-vp run fixtures:check
+vp run verify
 ```
 
 Framework acceptance commands and platform-specific source-map limits are in
 [module graph implementation](module-graph-implementation.md).
-
-### Refactor verification on 2026-09-10
-
-- Rust workspace tests: 366 passed; the existing manual registry audit remains
-  ignored. All 362 pre-existing Rust test functions were retained, with three
-  regression tests added for generation settings, reloads, and changed frontend IR.
-- Workspace Clippy with warnings denied, Rust formatting, builds, type checks,
-  host/Vite tests, and package checks passed. All six review fixtures matched.
-- Real browser acceptance passed for Vite, Next/Turbopack, Next/webpack, Rspack,
-  Rsbuild, React Router, SolidStart, and both TanStack/Vite and TanStack/Rsbuild.
-- Four source-map verifier tests cover project-relative webpack URLs, query
-  hashes, file URLs, and rejection of a different source directory.
-
-Rspack initially failed its verifier because `webpack:///static.js?hash` was
-treated as a filesystem-relative name. The unchanged `3eeb5ef` native binding,
-built separately and injected only into the baseline test process, reproduced
-the failure. The verifier now resolves the URL against the project and checks
-the exact original file, line, column, and source content. Both baseline and
-refactored bindings passed the corrected probe; no compiler workaround was added.

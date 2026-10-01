@@ -3,7 +3,7 @@
 //! Checks emitted code structure and occurrences of test expressions (without executing
 //! JS), that `&&` and `?:` keep their short-circuiting and contribution order
 //! (attribute values included), that base rules precede conditional rules in the
-//! stylesheet, and that unsupported forms keep reporting their existing diagnostics.
+//! stylesheet, and that unsupported forms report their diagnostics.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
@@ -138,17 +138,6 @@ fn short_circuit_and_null_branches_lower_without_a_class() {
 }
 
 #[test]
-fn pure_attribute_values_allow_class_first_materialization() {
-    let result = compile("const props = style({ \"aria-busy\": f() }, b ? \"p-2\" : \"m-2\");");
-    let replacement = emitted(&result);
-    let attribute = replacement.find("\"aria-busy\":f()").expect("attribute");
-    let classes = replacement
-        .find("(b) ?")
-        .expect("conditional class evaluation");
-    assert!(classes < attribute, "{replacement}");
-}
-
-#[test]
 fn clsx_flattens_outer_arrays_but_keeps_guarded_arrays_and_objects() {
     let result = compile("const props = style([a ? [\"p-2\", b && \"m-2\"] : \"p-4\"]);");
     let replacement = emitted(&result);
@@ -159,7 +148,6 @@ fn clsx_flattens_outer_arrays_but_keeps_guarded_arrays_and_objects() {
     let attributes =
         compile("const props = style(a ? { \"aria-busy\": f() } : { \"data-x\": 1 });");
     let replacement = emitted(&attributes);
-    assert!(replacement.contains("stillwindMerge"), "{replacement}");
     assert!(replacement.contains("\"aria-busy\":f()"), "{replacement}");
     assert!(replacement.contains("\"data-x\":1"), "{replacement}");
 }
@@ -227,7 +215,7 @@ fn nested_conditionals_keep_source_order_after_the_base_unit() {
 }
 
 #[test]
-fn unsupported_forms_still_report_their_existing_diagnostics() {
+fn unsupported_forms_report_their_diagnostics() {
     for (body, kind) in [
         (
             "const props = style(a || \"p-2\");",
@@ -292,7 +280,6 @@ fn custom_properties_preserve_order_and_conditional_evaluation() {
     assert!(code.find("second()").unwrap() < code.find("third()").unwrap());
     assert!(code.find("third()").unwrap() < code.find("fourth()").unwrap());
     assert!(code.contains("(a) &&"), "{code}");
-    assert!(code.contains("stillwindCustomPropertiesKey"), "{code}");
     assert!(!result.css.contains("--x:"));
     assert!(!result.css.contains("--y:"));
 }

@@ -1,6 +1,9 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+  },
   pack: {
     entry: [
       "src/css.ts",
@@ -34,9 +37,10 @@ export default defineConfig({
         command: "tsc --noEmit",
         dependsOn: ["build"],
       },
-      check: {
-        command: "node --test test/*.test.mts",
-        dependsOn: ["typecheck", "build"],
+      test: {
+        command: "vp test --run",
+        cache: false,
+        dependsOn: ["build"],
       },
     },
   },

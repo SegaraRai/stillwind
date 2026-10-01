@@ -7,6 +7,19 @@
 - Within each source file, put error definitions first, then items of greatest interest to users, each followed by its supporting items;
   repeat this main-item/supporting-items grouping instead of collecting all helpers or types separately.
 
+## Tests and Verification
+
+- Test current behavior and caller contracts. Do not add tests that only require a previous API, name, file, or implementation to remain absent.
+- Put JS tests beside the module they exercise and use `.test.ts`. Use `.mts`, `.js`, or `.mjs` only when the test needs their module or execution semantics. A public API alone does not justify a separate test directory.
+- Use a dedicated `tests/` directory for integration tests that exercise several modules together. Keep Rust unit tests beside their implementation and Rust public-API integration tests in the owning crate's `tests/` directory.
+- Use project fixtures for representative generated JS, CSS, diagnostics, and source maps. Use integration tests for build-tool contracts and browser tests for behavior that requires a browser.
+- Use `vite-plus/test` for JS tests and declare `vp test --run` tasks in `vite.config.ts`. Include runtime tests in the package's TypeScript check. Keep compile-only type contracts under `typecheck`.
+- Use Vitest `expect` for assertions, including rejected promises and thrown errors. Use `expect.fail` for unexpected branches or mock calls. A mock may throw when the thrown error is an input to the behavior being tested.
+- Share test cases between native and WASM bindings, but run the bindings in separate processes. Give tests that write files or start servers independent temporary directories and clean up after them.
+- Run `vp run check`, `vp run test`, and `vp run fixtures:check` for full ordinary verification, or `vp run verify` for all three. Use `verify:compat`, `verify:browser`, and `verify:wasm` for the corresponding environments.
+- Fixture checks compare without updating tracked files. Run refresh or generation tasks explicitly and review their output. Do not cache checks that read untracked inputs from outside their package.
+- Add a test when it protects a distinct observable contract. Remove duplicate assertions that detect the same failure through the same interface.
+
 ## Writing Guidelines
 
 These rules apply to all prose, including comments, documentation, explanations, and status reports.

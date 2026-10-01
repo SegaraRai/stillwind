@@ -13,7 +13,7 @@ import {
   NativeProjectSession,
 } from "../../packages/native/dist/index.js";
 
-const root = fileURLToPath(new URL("../../packages/host/test/", import.meta.url));
+const root = fileURLToPath(new URL("../../packages/host/tests/", import.meta.url));
 const results = fileURLToPath(new URL("./results/", import.meta.url));
 const labelIndex = process.argv.indexOf("--label");
 const label = labelIndex < 0 ? "host" : process.argv[labelIndex + 1];

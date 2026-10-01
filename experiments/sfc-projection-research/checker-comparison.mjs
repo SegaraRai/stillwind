@@ -16,7 +16,7 @@ const { API } = await import(pathToFileURL(hostRequire.resolve("typescript/unsta
 const guards7 = await import(pathToFileURL(hostRequire.resolve("typescript/unstable/ast/is")));
 const { TraceMap, decodedMappings } = local("@jridgewell/trace-mapping");
 const norm = (p) => path.resolve(p).replaceAll("\\", "/");
-const workspace = norm(path.join(root, "packages/integration/test/.sfc-checker-virtual"));
+const workspace = norm(path.join(root, "packages/integration/tests/.sfc-checker-virtual"));
 const report = {
   versions: {
     ts6: ts.version,

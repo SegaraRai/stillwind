@@ -1,6 +1,17 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    fileParallelism: false,
+    testTimeout: 120_000,
+    server: {
+      deps: {
+        // Rspack loads built loaders through Node; the plugin must share their module state.
+        external: [/\/packages\/integration\/dist\//],
+      },
+    },
+  },
   pack: {
     entry: [
       "src/vite/index.ts",
@@ -38,29 +49,32 @@ export default defineConfig({
         command: "vp pack",
         dependsOn: ["@stillwind/host#build", "stillwind#build"],
       },
-      typecheck: { command: "tsc --noEmit", dependsOn: ["build"] },
+      typecheck: {
+        command: "tsc --noEmit",
+        dependsOn: ["build"],
+      },
       test: {
-        command: "node --test test/vite/*.test.mts test/webpack/*.test.mts test/*.test.mts",
-        dependsOn: ["typecheck"],
+        command: "vp test --run",
+        dependsOn: ["build"],
         cache: false,
       },
       "test:vite": {
-        command: "node --test test/vite/*.test.mts",
-        dependsOn: ["typecheck"],
+        command: "vp test --run tests/vite",
+        dependsOn: ["build"],
         cache: false,
       },
       "test:webpack": {
-        command: "node --test test/webpack/*.test.mts",
-        dependsOn: ["typecheck"],
+        command: "vp test --run tests/webpack",
+        dependsOn: ["build"],
         cache: false,
       },
       "test:frameworks": {
-        command: "node --test test/vite/framework-builds.mts",
-        dependsOn: ["typecheck"],
+        command: "vp test --run tests/vite/framework-builds.test.ts",
+        dependsOn: ["build"],
         cache: false,
       },
       "dev:frameworks": {
-        command: "node test/vite/framework-dev.mts",
+        command: "node tests/vite/framework-dev.ts",
         dependsOn: ["typecheck"],
         cache: false,
       },

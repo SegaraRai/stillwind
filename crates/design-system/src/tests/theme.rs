@@ -357,3 +357,38 @@ fn extracts_block_custom_variant() {
         theme.variants[0].body
     );
 }
+
+#[test]
+fn reset_tokens_are_absent_from_definition_fingerprints() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "@theme { --color-red:red; } @theme { --color-*:initial; --color-blue:blue; }",
+    )
+    .unwrap();
+    let snapshot = DesignSystemSnapshot::from_source(
+        &source,
+        CssSourceName::from("test.css"),
+        DesignSystemOptions::default(),
+    )
+    .unwrap();
+    assert!(
+        !snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-red")
+    );
+    assert!(
+        !snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-*")
+    );
+    assert!(
+        snapshot
+            .fingerprints()
+            .theme_tokens
+            .contains_key("--color-blue")
+    );
+}

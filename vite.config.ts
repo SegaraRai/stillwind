@@ -66,70 +66,109 @@ export default defineConfig({
         dependsOn: ["@stillwind/native#build"],
         cache: false,
       },
-      "crates:check": {
-        command: "",
-        dependsOn: ["@stillwind/tools#check"],
-      },
       fmt: {
         command: "vp fmt --check",
+        cache: false,
       },
       "fmt:write": {
         command: "vp fmt",
-      },
-      "webref:generate": {
-        command: "",
-        dependsOn: ["@stillwind/tools#webref:generate"],
-      },
-      "webref:check": {
-        command: "",
-        dependsOn: ["@stillwind/tools#webref:check"],
+        cache: false,
       },
       lint: {
         command: "vp lint",
         dependsOn: ["@stillwind/integration#build"],
+        cache: false,
+      },
+      "rust:fmt": {
+        command: "cargo fmt --all --check",
+        cache: false,
+      },
+      "rust:lint": {
+        command: "cargo clippy --workspace --all-targets -- -D warnings",
+        cache: false,
+      },
+      "rust:test": {
+        command: "cargo test --workspace",
+        cache: false,
       },
       check: {
-        command: "vp check",
-        dependsOn: ["@stillwind/integration#build"],
+        command: "",
+        dependsOn: [
+          "fmt",
+          "lint",
+          "rust:fmt",
+          "rust:lint",
+          "stillwind#typecheck",
+          "@stillwind/native#typecheck",
+          "@stillwind/host#typecheck",
+          "@stillwind/projection#typecheck",
+          "@stillwind/integration#typecheck",
+          "@stillwind/tools#typecheck",
+          "@stillwind/play#typecheck",
+          "@stillwind/logo-editor#check",
+          "@stillwind/fixtures-viewer#check",
+          "@stillwind/react-example#check",
+        ],
       },
-      "ts7-shadow:poc": {
-        command: "node experiments/ts7-shadow-checker/src/index.mjs",
+      test: {
+        command: "",
+        dependsOn: [
+          "rust:test",
+          "stillwind#test",
+          "@stillwind/native#test",
+          "@stillwind/host#test",
+          "@stillwind/integration#test",
+          "@stillwind/tools#test",
+          "@stillwind/play#test",
+          "@stillwind/logo-editor#test",
+        ],
       },
       "fixtures:refresh": {
         command: "",
-        dependsOn: ["@stillwind/tools#review:refresh"],
+        dependsOn: ["@stillwind/tools#projects:refresh"],
+        cache: false,
       },
       "fixtures:check": {
         command: "",
-        dependsOn: ["@stillwind/tools#review:check"],
+        dependsOn: [
+          "@stillwind/tools#projects:check",
+          "@stillwind/tools#tailwind:fixtures:check",
+          "@stillwind/tools#webref:check",
+          "@stillwind/tools#tailwind:order:check",
+        ],
+        cache: false,
       },
-      "tailwind:parity": {
+      verify: {
         command: "",
-        dependsOn: ["@stillwind/tools#tailwind:parity"],
+        dependsOn: ["check", "test", "fixtures:check"],
       },
-      "tailwind:parity:all": {
+      "verify:compat": {
         command: "",
-        dependsOn: ["@stillwind/tools#tailwind:parity:all"],
+        dependsOn: [
+          "@stillwind/tools#tailwind:parity",
+          "@stillwind/tools#tailwind:property-order",
+          "@stillwind/tools#tailwind:numeric-domains",
+        ],
+        cache: false,
       },
-      "tailwind:property-order": {
+      "verify:browser": {
         command: "",
-        dependsOn: ["@stillwind/tools#tailwind:property-order"],
+        dependsOn: ["@stillwind/tools#tailwind:browser"],
+        cache: false,
       },
-      "tailwind:property-order:test": {
+      "verify:wasm": {
         command: "",
-        dependsOn: ["@stillwind/tools#tailwind:property-order:test"],
+        dependsOn: ["@stillwind/native#test:wasm"],
+        cache: false,
       },
-      "tailwind:parity:analyze": {
+      "webref:generate": {
         command: "",
-        dependsOn: ["@stillwind/tools#tailwind:parity:analyze"],
+        dependsOn: ["@stillwind/tools#webref:generate"],
+        cache: false,
       },
-      "tailwind:numeric-domain-audit": {
-        command: "",
-        dependsOn: ["@stillwind/tools#tailwind:numeric-domain-audit"],
-      },
-      "tailwind:registry-audit": {
-        command: "",
-        dependsOn: ["@stillwind/tools#tailwind:registry-audit"],
+      "ts7-shadow:poc": {
+        command: "node experiments/ts7-shadow-checker/src/index.mjs",
+        cache: false,
       },
     },
   },

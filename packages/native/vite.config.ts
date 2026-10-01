@@ -15,7 +15,12 @@ if (!currentTarget) {
   throw new Error(`No Stillwind native target for ${process.platform}-${process.arch}`);
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  test: {
+    environment: "node",
+    pool: "forks",
+    include: [mode === "wasm" ? "tests/wasm.test.ts" : "tests/loader.test.ts"],
+  },
   pack: {
     entry: ["src/index.ts"],
     format: ["esm"],
@@ -39,16 +44,18 @@ export default defineConfig({
         command:
           "napi build --release --platform --no-js --no-const-enum --target wasm32-wasip1-threads --manifest-path ../../crates/napi/Cargo.toml --output-dir npm/wasm32-wasi --dts stillwind_native.wasi.d.cts --package-json-path package.json",
       },
-      "check:wasm": {
-        command: "node --test test/wasm.test.mjs",
+      "test:wasm": {
+        command: "vp test --run --mode wasm",
+        cache: false,
         dependsOn: ["build:wasm"],
       },
       typecheck: {
         command: "tsc --noEmit",
         dependsOn: ["build"],
       },
-      check: {
-        command: "node --test test/loader.test.mjs",
+      test: {
+        command: "vp test --run",
+        cache: false,
         dependsOn: ["typecheck"],
       },
       "prepare-publish": {
@@ -57,4 +64,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

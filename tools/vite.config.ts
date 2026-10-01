@@ -1,95 +1,89 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  test: {
+    include: ["tailwind/*.test.ts"],
+    exclude: ["tailwind/browser.test.ts"],
+    testTimeout: 30_000,
+  },
   run: {
     tasks: {
-      check: {
-        command: "node crate-boundaries.mts",
-      },
       typecheck: {
         command: "tsc --noEmit",
         dependsOn: ["@stillwind/host#build"],
       },
+      test: {
+        command: "vp test --run",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
       "webref:generate": {
-        command: "node generate-webref-css-domains.mts",
+        command: "node css/webref.ts",
+        cache: false,
       },
       "webref:check": {
-        command: "node generate-webref-css-domains.mts --check",
+        command: "node css/webref.ts --check",
+        cache: false,
       },
-      "review:refresh": {
-        command: "node review-fixtures.mts",
+      "projects:refresh": {
+        command: "node projects/fixtures.ts",
         dependsOn: ["@stillwind/host#build"],
+        cache: false,
       },
-      "review:check": {
-        command: "node review-fixtures.mts --check",
+      "projects:check": {
+        command: "node projects/fixtures.ts --check",
         dependsOn: ["@stillwind/host#build"],
+        cache: false,
       },
-      "fixtures:write": {
-        command: "node regenerate-tailwind-v4-fixtures.ts --write",
+      "tailwind:fixtures:refresh": {
+        command: "node tailwind/fixtures.ts --write",
+        cache: false,
       },
-      "fixtures:check": {
-        command: "node regenerate-tailwind-v4-fixtures.ts",
+      "tailwind:fixtures:check": {
+        command: "node tailwind/fixtures.ts",
+        cache: false,
       },
-      "tailwind:value-grammar": {
-        command: "node verify-tailwind-v4-value-grammar.ts",
+      "tailwind:order:generate": {
+        command: "node tailwind/utility-order.ts",
+        cache: false,
+      },
+      "tailwind:order:check": {
+        command: "node tailwind/utility-order.ts --check",
+        cache: false,
       },
       "tailwind:parity": {
-        command: "cargo test -p stillwind-compiler --test static_compile matches_tailwind_",
-      },
-      "tailwind:utility-order:generate": {
-        command: "node generate-utility-order-fixture.mts",
-        cache: false,
-      },
-      "tailwind:utility-order-fixture": {
-        command: "node generate-utility-order-fixture.mts --check",
-      },
-      "tailwind:utility-order": {
-        command: "cargo test -p stillwind-compiler --test utility_order",
-        cache: {
-          env: ["CARGO_INCREMENTAL"],
-        },
-        dependsOn: ["tailwind:utility-order-fixture"],
-      },
-      "tailwind:inventory": {
-        command: "node tailwind-inventory.mts",
+        command: "node tailwind/parity.ts",
         dependsOn: ["@stillwind/native#build"],
         cache: false,
-      },
-      "tailwind:parity:all": {
-        command: "node tailwind-parity.mts",
-        dependsOn: ["@stillwind/native#build"],
       },
       "tailwind:property-order": {
-        command: "node tailwind-property-order.mts",
-        dependsOn: ["@stillwind/native#build"],
-      },
-      "tailwind:property-order:test": {
-        command: "node --test property-order-parity.test.mts",
-        dependsOn: ["@stillwind/native#build"],
-      },
-      "tailwind:contract:test": {
-        command: "node --test tailwind-parity-contract.test.mts",
-        dependsOn: ["@stillwind/native#build"],
-      },
-      "tailwind:browser": {
-        command: "node tailwind-browser-contract.mts",
+        command: "node tailwind/check-property-order.ts",
         dependsOn: ["@stillwind/native#build"],
         cache: false,
       },
-      "tailwind:parity:analyze": {
-        command: "node tailwind-parity.mts --analyze --quiet --summary-only",
+      "tailwind:numeric-domains": {
+        command: "node tailwind/numeric-domains.ts",
         dependsOn: ["@stillwind/native#build"],
+        cache: false,
       },
-      "tailwind:registry-audit": {
-        command:
-          "cargo test -p stillwind-design-system audits_builtin_registry_reachability_from_parity_fixtures -- --ignored --nocapture",
-      },
-      "tailwind:numeric-domain-audit": {
-        command: "node tailwind-numeric-domain-audit.mts",
+      "tailwind:inventory": {
+        command: "node tailwind/inventory.ts",
         dependsOn: ["@stillwind/native#build"],
+        cache: false,
       },
-      "tailwind:extract": {
-        command: "node extract-tailwind-v4-registrations.ts",
+      "tailwind:analyze": {
+        command: "node tailwind/parity.ts --analyze --quiet --summary-only",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
+      },
+      "tailwind:registrations": {
+        command: "node tailwind/registrations.ts",
+        cache: false,
+      },
+      "tailwind:browser": {
+        command: "vp test --run --config browser.config.ts",
+        dependsOn: ["@stillwind/native#build"],
+        cache: false,
       },
     },
   },

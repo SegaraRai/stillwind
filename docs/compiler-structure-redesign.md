@@ -296,10 +296,10 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 
 ### 5.5 ドキュメントの追随
 
-`docs/panic-audit.md` と `docs/rust-unit-test-audit.md` のファイルパス、
+`docs/panic-audit.md` と `docs/test-inventory.md` のファイルパス、
 `docs/design-intent-improvement-plan.md` の `motion.rs` 参照、`docs/css-ordering.md` の L3-1 の
 語（definitions）を更新する。§3.2 の handle → ref に合わせた `docs/compiler-design.md`、
-`docs/golden-case.md`、`docs/review-fixtures.md`、`packages/integration/test/vite/type-facts.test.mts` の
+`docs/golden-case.md`、`docs/review-fixtures.md`、`packages/integration/tests/vite/type-facts.test.ts` の
 地の文は更新済み。
 
 ### 5.6 静的 ref projection を use-site の受信式に揃える（必須）

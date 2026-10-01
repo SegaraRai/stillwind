@@ -1,4 +1,4 @@
-//! Generated from tailwindcss 4.3.3 by tools/generate-utility-order-fixture.mts.
+//! Generated from tailwindcss 4.3.3 by tools/tailwind/utility-order.ts.
 //! Property indices used by the Tailwind utility comparator.
 
 pub(super) const PROPERTIES: &[&str] = &[

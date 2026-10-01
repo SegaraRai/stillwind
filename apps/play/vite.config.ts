@@ -10,6 +10,10 @@ const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   root: projectRoot,
+  test: {
+    include: ["src/**/*.test.ts", "server/**/*.test.ts"],
+    testTimeout: 60_000,
+  },
   plugins: [
     react(),
     playground("styles/default-theme.css"),
@@ -19,14 +23,23 @@ export default defineConfig({
   ],
   run: {
     tasks: {
-      dev: { command: "vp dev", dependsOn: ["@stillwind/integration#build"] },
-      build: { command: "vp build", dependsOn: ["@stillwind/integration#build"] },
+      dev: {
+        command: "vp dev",
+        dependsOn: ["@stillwind/integration#build"],
+      },
+      build: {
+        command: "vp build",
+        dependsOn: ["@stillwind/integration#build"],
+      },
       test: {
-        command: "node --test test/*.test.mts",
-        dependsOn: ["@stillwind/host#build", "stillwind#build"],
+        command: "vp test --run",
+        dependsOn: ["@stillwind/integration#build"],
         cache: false,
       },
-      check: { command: "tsc --noEmit", dependsOn: ["build"] },
+      typecheck: {
+        command: "tsc --noEmit",
+        dependsOn: ["@stillwind/integration#build"],
+      },
     },
   },
 });

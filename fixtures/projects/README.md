@@ -38,6 +38,6 @@ files whenever import, re-export, alias, or conditional identity propagation is
 part of the behavior under review.
 
 The older `fixtures/tailwind-v4` Markdown suite remains authoritative for CSS
-compatibility coverage, and package-local `test/fixtures` remain test harness
+compatibility coverage, and package-local `tests/fixtures` remain test harness
 inputs. Do not duplicate all of them here. Promote a small, representative case
 to this directory when reviewers benefit from seeing its before/after output.

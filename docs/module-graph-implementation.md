@@ -89,18 +89,13 @@ From the repository root:
 ```sh
 vp i --frozen-lockfile
 vp run -r build
-vp run -r typecheck
-vp run -r test
-vp run -r check
-vp run fixtures:check
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
+vp run verify
 ```
 
-`test` covers host/Vite suites; `check` additionally runs native/core package
-tests and application TypeScript checks. Build includes the React example,
-playground, fixture viewer and its six unchanged review fixtures. Each example's
-build/dev task first builds the host package and native dependency.
+`test` covers Rust and ordinary JS suites, including native bindings and framework
+production builds. `check` runs static checks, and `fixtures:check` verifies
+generated data and project outputs. Build includes the React example, playground,
+and fixture viewer. Each example's build/dev task first builds its compiler dependencies.
 
 From `experiments/module-graph` after building the repository:
 
@@ -116,18 +111,6 @@ vp run verify:solidstart
 vp run verify:tanstack-vite
 vp run verify:tanstack-rsbuild
 ```
-
-Workspace Rust tests, workspace Clippy, all package/application checks, twelve
-host tests, thirteen Vite tests, five native Node tests, six core Node tests and
-six review fixtures passed. One pre-existing ignored Rust registry audit remains
-ignored in the default workspace test command. Windows incremental-cache cleanup
-notes and playground bundle-size warnings are non-failing build output.
-
-A separate checkout with no native binary, Rust target directory or host/app
-build output passed frozen installation and a cache-disabled workspace build.
-After the final projection change, the same checkout passed cache-disabled
-`build`, `typecheck`, `test` and `check` tasks at `a66e9fe`. No tracked files were
-changed by installation or validation.
 
 ## Explicit limits
 

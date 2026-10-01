@@ -15,7 +15,7 @@ Existing fixtures stay where their test harnesses expect them:
 
 - `fixtures/tailwind-v4` remains the broad Markdown-driven CSS compatibility
   suite.
-- package and crate `test/fixtures` remain local inputs for their tests.
+- package and crate `tests/fixtures` remain local inputs for their tests.
 - `fixtures/projects` contains selected review narratives, including cases that
   span modules.
 

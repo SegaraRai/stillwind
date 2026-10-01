@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 
 import * as current from "../../packages/native/dist/index.js";
-import { resolveFixtureCss } from "../../tools/lib/stillwind-fixture-css.ts";
+import { resolveFixtureCss } from "../../tools/support/stillwind-css.ts";
 
 const args = process.argv.slice(2);
 const argument = (name, fallback) => {
