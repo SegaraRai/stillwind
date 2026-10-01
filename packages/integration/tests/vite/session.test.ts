@@ -6,6 +6,76 @@ import { stillwind } from "@stillwind/integration/vite";
 import { createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
+test("query modules retain independent CSS and deletion removes all derivatives of a file", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
+  const css = path.join(root, "root.css");
+  writeFileSync(
+    css,
+    "@import '../packages/core/index.css'; @utility first { width: 13px; } @utility second { width: 17px; } @utility third { width: 19px; }",
+  );
+  const plugin = stillwind({ css, types: false });
+  const server = await createServer({
+    configFile: false,
+    root,
+    plugins: [plugin],
+    logLevel: "silent",
+    optimizeDeps: { noDiscovery: true, include: [] },
+    server: { host: "127.0.0.1", port: 0, watch: null },
+  });
+  try {
+    await server.listen();
+    const transform =
+      typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
+    const remove = plugin.watchChange;
+    if (typeof transform !== "function" || typeof remove !== "function") {
+      expect.fail("expected transform and watchChange hooks");
+    }
+    const environment = server.environments.ssr;
+    await environment.pluginContainer.buildStart({});
+    const context = {
+      environment,
+      resolve: (specifier: string, importer: string) =>
+        environment.pluginContainer.resolveId(specifier, importer),
+      addWatchFile: () => {},
+      warn: () => {},
+    } as unknown as ThisParameterType<typeof transform> & ThisParameterType<typeof remove>;
+    const file = path.join(root, "button.tsx");
+    const code = (utility: string) =>
+      `import {style} from 'stillwind/react'; export const props = style('${utility}');`;
+    writeFileSync(file, code("first"));
+    await transform.call(context, code("first"), file);
+    await transform.call(context, code("second"), file + "?pick=default");
+    await transform.call(context, code("third"), file + "?tsr-shared=1");
+    const address = server.httpServer!.address();
+    if (!address || typeof address === "string") {
+      expect.fail("expected HTTP address");
+    }
+    const origin = `http://127.0.0.1:${address.port}`;
+    const selected = await fetch(`${origin}/__stillwind/style.css?module=button.tsx`);
+    expect(selected.status).toBe(200);
+    expect(selected.headers.get("content-type")).toBe("text/css; charset=utf-8");
+    expect(selected.headers.get("cache-control")).toBe("no-store");
+    const initial = await selected.text();
+    for (const width of [13, 17, 19]) {
+      expect(initial).toContain(`width: ${width}px`);
+    }
+    const omitted = await fetch(`${origin}/__stillwind/style.css?module=other.tsx`);
+    expect(await omitted.text()).not.toMatch(/width: (13|17|19)px/);
+    await transform.call(context, "export const props = {};", file + "?pick=default");
+    const current = await (await fetch(`${origin}/__stillwind/style.css`)).text();
+    expect(current).not.toContain("width: 17px");
+    expect(current).toContain("width: 13px");
+    expect(current).toContain("width: 19px");
+    await remove.call(context, file, { event: "delete" });
+    const deleted = await (await fetch(`${origin}/__stillwind/style.css`)).text();
+    expect(deleted).not.toMatch(/width: (13|17|19)px/);
+  } finally {
+    await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("Vite loads imported CSS and keeps a failed reload's last successful stylesheet", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));

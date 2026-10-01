@@ -21,6 +21,7 @@ import { cssEntrypoint, compilerOptions, writeVocabulary } from "../options.ts";
 import type { StillwindOptions as CommonOptions } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 import { finalizeModuleWithMap } from "./finalize.ts";
+import { sourceModuleId } from "./module-ids.ts";
 import { resourceUrl, resolvedFile, resolveResources } from "./resources.ts";
 
 export interface StillwindOptions extends CommonOptions {
@@ -189,9 +190,9 @@ export function createViteProject(options: StillwindOptions) {
     return "virtual:stillwind/fragment:" + key;
   };
   const producerSpecifier = (id: string) =>
-    `virtual:stillwind/producer:${Buffer.from(compilerModuleId(settings.projectRoot, cleanModuleId(id))).toString("base64url")}`;
+    `virtual:stillwind/producer:${Buffer.from(sourceModuleId(settings.projectRoot, id)).toString("base64url")}`;
   const valueSpecifier = (id: string) =>
-    `virtual:stillwind/value:${Buffer.from(cleanModuleId(id)).toString("base64url")}`;
+    `virtual:stillwind/value:${Buffer.from(id).toString("base64url")}`;
   const resolvePlan = async (
     state: EnvironmentState,
     modules: string[],
@@ -263,11 +264,13 @@ export function createViteProject(options: StillwindOptions) {
     name: string | undefined,
     context: Parameters<typeof resolvePlan>[2],
     complete = false,
+    selection?: readonly string[],
   ) => {
     const state = environmentState(name);
     await ensureSession(state, context);
     const modules = [...inputMap(name).values()]
       .filter((input) => !input.manual)
+      .filter((input) => !selection || selection.includes(cleanModuleId(input.moduleId)))
       .map((input) => input.moduleId);
     return resolvePlan(state, modules, context, complete);
   };
@@ -328,7 +331,7 @@ export function createViteProject(options: StillwindOptions) {
             moduleId:
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? `virtual:${encodeURIComponent(resolvedId)}`
-                : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
+                : sourceModuleId(settings.projectRoot, resolvedId),
             document: {
               uri: documentUri(resolvedId),
               format: fileSourceKind(resolvedId).format,
@@ -367,15 +370,15 @@ export function createViteProject(options: StillwindOptions) {
           ? ""
           : `\nimport ${JSON.stringify(producerSpecifier(id))};\n`;
       const javascript = finalized.code + suffix;
-      inputMap(name).set(cleanModuleId(id), {
-        projection: inputMap(name).get(cleanModuleId(id))?.projection,
+      inputMap(name).set(id, {
+        projection: inputMap(name).get(id)?.projection,
         upstream: context.getCombinedSourcemap
           ? {
               id: cleanModuleId(id),
               sourceMapSource: documentUri(id),
               map: JSON.stringify(context.getCombinedSourcemap()),
             }
-          : inputMap(name).get(cleanModuleId(id))?.upstream,
+          : inputMap(name).get(id)?.upstream,
         code,
         id,
         moduleId: output.moduleId,

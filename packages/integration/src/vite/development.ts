@@ -65,7 +65,7 @@ export function developmentHooks(
               ...(input.manual
                 ? [
                     this.environment.moduleGraph.getModuleById(
-                      valuePrefix + Buffer.from(cleanModuleId(input.id)).toString("base64url"),
+                      valuePrefix + Buffer.from(input.id).toString("base64url"),
                     ),
                   ].filter((module): module is NonNullable<typeof module> => Boolean(module))
                 : []),
@@ -90,6 +90,35 @@ export function developmentHooks(
     },
     configureServer(server: ViteDevServer) {
       settings.devServerRef = server;
+      server.middlewares.use("/__stillwind/style.css", (request, response) => {
+        const params = new URL(request.url ?? "", "http://stillwind.local").searchParams;
+        const name = params.get("environment") ?? "ssr";
+        const selection = params.getAll("module");
+        const environment = server.environments[name];
+        if (!environment) {
+          return sendJson(response, { error: "Unknown environment" }, 404);
+        }
+        void documentPlan(
+          name,
+          {
+            resolve: (specifier, importer) =>
+              environment.pluginContainer.resolveId(specifier, importer),
+            addWatchFile: (id) => {
+              server.watcher.add(id);
+            },
+          },
+          false,
+          selection.length ? selection : undefined,
+        )
+          .then((plan) => {
+            response.setHeader("Content-Type", "text/css; charset=utf-8");
+            response.setHeader("Cache-Control", "no-store");
+            response.end(plan.css);
+          })
+          .catch((error) => {
+            sendJson(response, { error: String(error) }, 500);
+          });
+      });
       server.middlewares.use("/__stillwind/css", (request, response) => {
         const name =
           new URL(request.url ?? "", "http://stillwind.local").searchParams.get("environment") ??
@@ -98,14 +127,13 @@ export function developmentHooks(
         if (!environment) {
           return sendJson(response, { error: "Unknown environment" }, 404);
         }
-        const host = {
+        void documentPlan(name, {
           resolve: (specifier: string, importer: string) =>
             environment.pluginContainer.resolveId(specifier, importer),
           addWatchFile: (id: string) => {
             server.watcher.add(id);
           },
-        };
-        void documentPlan(name, host)
+        })
           .then((plan) =>
             sendJson(response, {
               revision: plan.revision,
@@ -115,7 +143,9 @@ export function developmentHooks(
               ),
             }),
           )
-          .catch((error) => sendJson(response, { error: String(error) }, 500));
+          .catch((error) => {
+            sendJson(response, { error: String(error) }, 500);
+          });
       });
       server.httpServer?.once("close", closeTypeFacts);
     },

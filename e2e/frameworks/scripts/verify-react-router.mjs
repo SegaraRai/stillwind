@@ -49,13 +49,13 @@ await write(
   `import {defineConfig} from 'vite-plus';
 import {reactRouter} from '@react-router/dev/vite';
 import {stillwind} from ${JSON.stringify(path.join(repo, "packages/integration/dist/vite/index.js").replaceAll("\\", "/"))};
-export default defineConfig({plugins:[stillwind({css:'root.css',types:false}),reactRouter()],build:{sourcemap:true},server:{port:${port},strictPort:true}});`,
+export default defineConfig({plugins:[stillwind({css:'root.css',types:false,emission:'split'}),reactRouter()],build:{sourcemap:true},server:{port:${port},strictPort:true}});`,
 );
 await write("react-router.config.ts", "export default {ssr:true};");
 await write(
   "app/root.jsx",
   `import {Links,Meta,Outlet,Scripts,ScrollRestoration} from 'react-router';
-export default function Root(){return <html><head><link rel="icon" href="data:,"/><Meta/><Links/></head><body><Outlet/><ScrollRestoration/><Scripts/></body></html>}`,
+export default function Root(){return <html><head><link rel="icon" href="data:,"/><Meta/><Links/>{import.meta.env.DEV && <link rel="stylesheet" href="/__stillwind/style.css?environment=ssr&module=app/routes/home.jsx&module=app/server.server.js"/>}</head><body><Outlet/><ScrollRestoration/><Scripts/></body></html>}`,
 );
 await write(
   "app/routes.ts",

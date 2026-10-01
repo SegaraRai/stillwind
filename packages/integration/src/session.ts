@@ -41,7 +41,9 @@ export class IntegrationSession {
         onModule: (moduleId, resolverId) => {
           const previous = this.#resolverIdsByModuleId.get(moduleId);
           if (previous !== undefined && previous !== resolverId) {
-            throw new Error(`Module identity ${moduleId} changed resolver identity`);
+            throw new Error(
+              `Module identity ${moduleId} changed resolver identity from ${previous} to ${resolverId}`,
+            );
           }
           const priorModuleId =
             pendingByResolverId.get(resolverId) ?? this.#moduleIdsByResolverId.get(resolverId);

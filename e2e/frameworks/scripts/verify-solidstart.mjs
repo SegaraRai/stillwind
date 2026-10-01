@@ -36,7 +36,7 @@ await write(
   "vite.config.ts",
   `import {defineConfig} from 'vite-plus'; import {solidStart} from '@solidjs/start/config'; import {nitro} from 'nitro/vite';
 import {stillwind} from ${JSON.stringify(path.join(repo, "packages/integration/dist/vite/index.js").replaceAll("\\", "/"))};
-export default defineConfig({plugins:[stillwind({css:'root.css',types:false}),solidStart({devOverlay:false}),nitro()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
+export default defineConfig({plugins:[stillwind({css:'root.css',types:false,emission:'split'}),solidStart({devOverlay:false}),nitro()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
 );
 await write(
   "src/app.jsx",
@@ -48,7 +48,7 @@ await write(
 );
 await write(
   "src/entry-server.jsx",
-  "import {createHandler,StartServer} from '@solidjs/start/server'; function Document(props){return <html><head><link rel='icon' href='data:,'/>{props.assets}</head><body><div id='app'>{props.children}</div>{props.scripts}</body></html>} export default createHandler(()=><StartServer document={Document}/>);",
+  "import {createHandler,StartServer} from '@solidjs/start/server'; function Document(props){return <html><head><link rel='icon' href='data:,'/>{props.assets}{import.meta.env.DEV && <link rel='stylesheet' href='/__stillwind/style.css?environment=ssr&module=src/routes/index.jsx'/>}</head><body><div id='app'>{props.children}</div>{props.scripts}</body></html>} export default createHandler(()=><StartServer document={Document}/>);",
 );
 await write("src/routes/index.jsx", home);
 await write(

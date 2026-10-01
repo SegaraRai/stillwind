@@ -55,11 +55,20 @@ export function stillwind(options: StillwindOptions): Plugin {
       }
       const name = this.environment?.name;
       const state = environmentState(name);
-      if (!state.session || !inputMap(name).delete(cleanModuleId(id))) {
+      if (!state.session) {
         return;
       }
-      state.session.remove(compilerModuleId(settings.projectRoot, cleanModuleId(id)));
-      await publish(name, this);
+      let removed = false;
+      for (const [key, input] of inputMap(name)) {
+        if (cleanModuleId(input.id) === cleanModuleId(id)) {
+          inputMap(name).delete(key);
+          state.session.remove(input.moduleId);
+          removed = true;
+        }
+      }
+      if (removed) {
+        await publish(name, this);
+      }
     },
     transform: {
       order: "pre",
@@ -83,10 +92,10 @@ export function stillwind(options: StillwindOptions): Plugin {
           return;
         }
         if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
-          if (inputMap(name).delete(cleanModuleId(id))) {
-            environmentState(name).session?.remove(
-              compilerModuleId(settings.projectRoot, cleanModuleId(id)),
-            );
+          const input = inputMap(name).get(id);
+          if (input) {
+            inputMap(name).delete(id);
+            environmentState(name).session?.remove(input.moduleId);
             await publish(name, this);
           }
           return;

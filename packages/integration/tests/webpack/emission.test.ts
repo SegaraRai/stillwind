@@ -11,6 +11,76 @@ import webpack from "webpack";
 for (const backend of ["webpack", "rspack"] as const) {
   const { StillwindPlugin, stillwindRules } =
     backend === "webpack" ? webpackIntegration : rspackIntegration;
+  test(`${backend} keeps generated query producers distinct and reads their transformed dependencies without executing them`, async () => {
+    const root = mkdtempSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-query-"),
+    );
+    const put = (name: string, code: string) => writeFileSync(path.join(root, name), code);
+    put(
+      "root.css",
+      "@utility red{color:red}@utility blue{color:blue}@utility green{color:green}@stillwind-slot utilities;@stillwind-slot keyframes;",
+    );
+    put(
+      "variant.js",
+      "import {style} from 'stillwind/react'; export const token=style.keyframes({from:'green',to:'green'}); export const props=style('green'); throw new Error('application code executed during compilation');",
+    );
+    put(
+      "main.js",
+      "import {style} from 'stillwind/react'; import {props as first} from './variant.js?first'; import {props as second,token} from './variant.js?second'; globalThis.props=[first,second,style(token(''))];",
+    );
+    put(
+      "variant-loader.cjs",
+      "module.exports=function(source){const token=this.resourceQuery==='?first'?'red':this.resourceQuery==='?second'?'blue':'green';return source.replaceAll(\"'green'\", \"'\"+token+\"'\");};",
+    );
+    const factory = backend === "webpack" ? webpack : (rspack as unknown as typeof webpack);
+    const compiler = factory({
+      context: root,
+      mode: "production",
+      target: "web",
+      entry: "./main.js",
+      cache: true,
+      output: { path: path.join(root, "dist"), filename: "main.js" },
+      optimization: { minimize: false },
+      experiments: { css: true },
+      plugins: [new StillwindPlugin()],
+      module: {
+        rules: [
+          ...stillwindRules({ css: "./root.css", types: false }),
+          { test: /\.js$/, enforce: "pre", use: [path.join(root, "variant-loader.cjs")] },
+          { test: /\.css$/, type: "css" },
+        ],
+      },
+    });
+    const run = () =>
+      new Promise<void>((resolve, reject) =>
+        compiler.run((error, stats) => {
+          if (error) {
+            reject(error);
+          } else if (!stats || stats.hasErrors()) {
+            reject(new Error(stats?.toString({ all: false, errors: true, errorDetails: true })));
+          } else {
+            resolve();
+          }
+        }),
+      );
+    try {
+      for (let build = 0; build < 2; build++) {
+        await run();
+        const css = readdirSync(path.join(root, "dist"))
+          .filter((file) => file.endsWith(".css"))
+          .map((file) => readFileSync(path.join(root, "dist", file), "utf8"))
+          .join("");
+        expect(css).toMatch(/color:\s*red/);
+        expect(css).toMatch(/color:\s*blue/);
+        expect(css).not.toMatch(/color:\s*green/);
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        compiler.close((error) => (error ? reject(error) : resolve())),
+      );
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   test(`${backend} links lazy and cached producers and retracts removed modules`, async () => {
     const root = mkdtempSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-emission-"),

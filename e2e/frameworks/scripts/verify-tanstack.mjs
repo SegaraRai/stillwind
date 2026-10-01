@@ -15,7 +15,10 @@ assert.ok(["vite", "rsbuild"].includes(bundler));
 const dir = path.join(root, "output", `tanstack-${bundler}-${Date.now()}`);
 const port = bundler === "vite" ? 43178 : 43179;
 const url = `http://localhost:${port}`;
-const results = { framework: "TanStack Start", version: "1.168.50", bundler, checks: [] };
+const { version } = JSON.parse(
+  await fs.readFile(new URL(import.meta.resolve("@tanstack/react-start/package.json")), "utf8"),
+);
+const results = { framework: "TanStack Start", version, bundler, checks: [] };
 const write = async (name, text) => {
   const file = path.join(dir, name);
   await fs.mkdir(path.dirname(file), { recursive: true });
@@ -25,8 +28,8 @@ const theme = (color) =>
   `@import 'stillwind'; @utility brand {color:${color}} @utility active {color:rgb(70,80,90)} @utility lazy {color:rgb(90,80,70)} @utility server {color:rgb(20,40,60)}`;
 const home = `import {useEffect,useState} from 'react';
 import {createFileRoute,Link} from '@tanstack/react-router';
-import {createServerFn} from '@tanstack/react-start';
 import {style} from 'stillwind/react';
+import {createServerFn} from '@tanstack/react-start';
 import {serverProps} from '../server-style';
 import '../server-style.ts?stillwind.css';
 const serverValue=createServerFn({method:'GET'}).handler(()=>({props:{className:serverProps.className},message:'SERVER_FUNCTION_SENTINEL'}));
@@ -54,7 +57,7 @@ await write("root.css", theme("rgb(11,22,33)"));
 const local = (name) => JSON.stringify(pathToFileURL(path.join(repo, name)).href);
 await write(
   "vite.config.ts",
-  `import {defineConfig} from 'vite-plus';import {tanstackStart} from '@tanstack/react-start/plugin/vite';import react from '@vitejs/plugin-react';import {nitro} from 'nitro/vite';import {stillwind} from ${local("packages/integration/dist/vite/index.js")};export default defineConfig({plugins:[tanstackStart(),stillwind({css:'root.css',types:false}),nitro(),react()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
+  `import {defineConfig} from 'vite-plus';import {tanstackStart} from '@tanstack/react-start/plugin/vite';import react from '@vitejs/plugin-react';import {nitro} from 'nitro/vite';import {stillwind} from ${local("packages/integration/dist/vite/index.js")};export default defineConfig({plugins:[tanstackStart(),stillwind({css:'root.css',types:false,emission:'split'}),nitro(),react()],nitro:{preset:'node_server'},server:{port:${port},strictPort:true,fs:{allow:[${JSON.stringify(repo)}]}},build:{sourcemap:true}});`,
 );
 await write(
   "rsbuild.config.mjs",
@@ -66,7 +69,7 @@ await write(
 );
 await write(
   "src/routes/__root.tsx",
-  "import {createRootRoute,Outlet,HeadContent,Scripts} from '@tanstack/react-router';export const Route=createRootRoute({component:()=> <html><head><link rel='icon' href='data:,'/><HeadContent/></head><body><Outlet/><Scripts/></body></html>});",
+  "import {createRootRoute,Outlet,HeadContent,Scripts} from '@tanstack/react-router';export const Route=createRootRoute({component:()=> <html><head><link rel='icon' href='data:,'/><HeadContent/>{import.meta.env.DEV && <link rel='stylesheet' href='/__stillwind/style.css?environment=ssr&module=src/routes/index.tsx&module=src/server-style.ts'/>}</head><body><Outlet/><Scripts/></body></html>});",
 );
 await write(
   "src/server-style.ts",
@@ -164,7 +167,10 @@ async function verify(page, color) {
   await page.waitForFunction(
     () => getComputedStyle(document.querySelector("#lazy")).color === "rgb(90, 80, 70)",
   );
-  assert.ok(!initialCss.includes("." + (await page.locator("#lazy").getAttribute("class"))));
+  assert.equal(
+    initialCss.includes("." + (await page.locator("#lazy").getAttribute("class"))),
+    bundler === "rsbuild",
+  );
   assert.equal(await page.evaluate(() => window.__navigationSentinel), 42);
   await page.locator("#back").click();
   await page.locator("#static").waitFor();

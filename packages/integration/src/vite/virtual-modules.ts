@@ -35,8 +35,12 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
   return {
     async resolveId(id, importer) {
       if (id.endsWith("?stillwind.css")) {
+        // CSS projections do not expose server JavaScript to the client graph.
         const source = await this.resolve(id.slice(0, -"?stillwind.css".length), importer, {
           skipSelf: true,
+          custom: {
+            "react-router:dot-server": true,
+          },
         });
         if (!source || source.external) {
           this.error(`Cannot resolve Stillwind projection ${id}`);
@@ -87,14 +91,24 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
       }
       if (id.startsWith(projectionPrefix)) {
         const source = Buffer.from(id.slice(projectionPrefix.length), "base64url").toString("utf8");
-        this.addWatchFile(source);
-        const result = await compile(name, await readFile(source, "utf8"), source, this);
+        // Vite's addWatchFile also creates a JavaScript dependency during import analysis.
+        const context = settings.watching
+          ? {
+              resolve: this.resolve.bind(this),
+              warn: this.warn.bind(this),
+              addWatchFile: (id: string) => {
+                settings.devServerRef?.watcher.add(cleanModuleId(id));
+              },
+            }
+          : this;
+        context.addWatchFile(source);
+        const result = await compile(name, await readFile(source, "utf8"), source, context);
         const input = inputMap(name).get(source);
         if (input) {
           input.manual = false;
           input.projection = true;
         }
-        await publish(name, this);
+        await publish(name, context);
         return {
           code: `import ${JSON.stringify(producerSpecifier(source))};`,
           meta: { stillwind: { ...result?.meta.stillwind, projection: true } },
@@ -162,9 +176,9 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
       }
       if (id.startsWith(valuePrefix)) {
         const sourceId = Buffer.from(id.slice(valuePrefix.length), "base64url").toString("utf8");
-        this.addWatchFile(sourceId);
+        this.addWatchFile(cleanModuleId(sourceId));
         if (!inputMap(name).has(sourceId)) {
-          await compile(name, await readFile(sourceId, "utf8"), sourceId, this);
+          await compile(name, await readFile(cleanModuleId(sourceId), "utf8"), sourceId, this);
         }
         const input = inputMap(name).get(sourceId);
         if (!input) {
@@ -177,7 +191,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
           !settings.watching,
         );
         for (const producer of plan.producers) {
-          this.addWatchFile(resolve(settings.projectRoot, producer.module));
+          this.addWatchFile(resolve(settings.projectRoot, cleanModuleId(producer.module)));
         }
         for (const file of environmentState(name).cssFiles) {
           this.addWatchFile(file);

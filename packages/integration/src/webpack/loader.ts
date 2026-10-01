@@ -4,7 +4,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { fileModuleDescriptor } from "@stillwind/host";
+import { cleanModuleId } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
 import {
@@ -16,6 +16,7 @@ import {
 import { IntegrationSession } from "../session.ts";
 import { registerEmission } from "./emission.ts";
 import { loaderOptionsId } from "./rules.ts";
+import { sourceDescriptor } from "./sources.ts";
 
 const fingerprint = (source: string) => createHash("sha256").update(source).digest("hex");
 
@@ -32,15 +33,17 @@ export default function (
 ) {
   const callback = this.async();
   const text = String(source);
-  const prior = additionalData?.stillwind?.sourceTransform;
-  // Framework loaders can clone the same rule into a subrequest's chain.
-  // Skip only an identical output already produced for this resource.
-  if (prior?.resource === this.resourcePath && prior.fingerprint === fingerprint(text)) {
-    return callback(null, source, inputMap, additionalData);
-  }
   const projection = /[?&]stillwind\.css(?:&|$)/.test(this.resourceQuery ?? "");
   const cssValue = /[?&]stillwind-module-css(?:&|$)/.test(this.resourceQuery ?? "");
   const sfc = /\.(vue|svelte|astro)$/.test(this.resourcePath);
+  // SFC integrations re-enter the loader for blocks compiled from the original producer.
+  const id = this.resourcePath + (projection || cssValue || sfc ? "" : (this.resourceQuery ?? ""));
+  const prior = additionalData?.stillwind?.sourceTransform;
+  // Framework loaders can clone the same rule into a subrequest's chain.
+  // Skip only an identical output already produced for this resource.
+  if (prior?.resource === id && prior.fingerprint === fingerprint(text)) {
+    return callback(null, source, inputMap, additionalData);
+  }
   if (/[?&](?:raw|url)(?:[=&]|$)/.test(this.resourceQuery ?? "")) {
     return callback(null, source, inputMap);
   }
@@ -72,6 +75,25 @@ export default function (
     new Promise<string>((resolve, reject) =>
       this.fs.readFile(id, (error, value) => (error ? reject(error) : resolve(String(value)))),
     );
+  const dependencySources = new Map<string, Promise<{ source: string; map: unknown }>>();
+  const readDependency = async (dependency: string) => {
+    if (cleanModuleId(dependency) === dependency) {
+      return read(dependency);
+    }
+    let pending = dependencySources.get(dependency);
+    if (!pending) {
+      const capture = fileURLToPath(
+        new URL("./source-loader.js", import.meta.resolve("@stillwind/integration/webpack")),
+      );
+      const preceding = this.loaders.slice(this.loaderIndex + 1).map((loader) => loader.request);
+      pending = this.importModule(`!!${[capture, ...preceding, dependency].join("!")}`) as Promise<{
+        source: string;
+        map: unknown;
+      }>;
+      dependencySources.set(dependency, pending);
+    }
+    return (await pending).source;
+  };
   const resolver = (settings: Parameters<LoaderContext<StillwindOptions>["getResolve"]>[0]) => {
     const resolve = this.getResolve(settings);
     return (specifier: string, importer: string) =>
@@ -91,7 +113,9 @@ export default function (
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".cjs", ".json"],
   });
   const resolveAsset = resolver({});
-  const watch = (id: string) => this.addDependency(id);
+  const watch = (id: string) => {
+    this.addDependency(cleanModuleId(id));
+  };
   watch(import.meta.filename);
   void (async () => {
     const host = await import("@stillwind/host");
@@ -124,9 +148,9 @@ export default function (
     const session = compiler.native;
     const output = await compiler.compile(
       projection || cssValue ? await read(this.resourcePath) : text,
-      this.resourcePath,
+      projection || cssValue ? this.resourcePath : id,
       {
-        describe: (id) => fileModuleDescriptor(root, id),
+        describe: (id) => sourceDescriptor(root, id),
         resolve: async (specifier, importer) => {
           if (specifier.startsWith("node:") && isBuiltin(specifier)) {
             return { id: specifier, external: true };
@@ -141,9 +165,11 @@ export default function (
             throw error;
           }
         },
-        read,
+        read: readDependency,
         watch,
-        warn: (message) => this.emitWarning(new Error(message)),
+        warn: (message) => {
+          this.emitWarning(new Error(message));
+        },
       },
       {
         stylesheetImports:
@@ -220,10 +246,33 @@ export default function (
     if (automatic) {
       registerEmission(this, {
         source: text,
-        id: this.resourcePath,
+        id,
         root,
         options,
         manual: false,
+        upstream: inputMap
+          ? {
+              id: this.resourcePath,
+              sourceMapSource: sourceDescriptor(root, id).document.uri,
+              map: typeof inputMap === "string" ? inputMap : JSON.stringify(inputMap),
+            }
+          : undefined,
+        dependencies: await Promise.all(
+          [...dependencySources].map(async ([id, pending]) => {
+            const { source, map } = await pending;
+            return {
+              id,
+              source,
+              upstream: map
+                ? {
+                    id: cleanModuleId(id),
+                    sourceMapSource: sourceDescriptor(root, id).document.uri,
+                    map: typeof map === "string" ? map : JSON.stringify(map),
+                  }
+                : undefined,
+            };
+          }),
+        ),
       });
     }
     const cssImport = `import ${JSON.stringify(carrier + "?stillwind-document")};\n`;
@@ -249,7 +298,7 @@ export default function (
       (this.data as any).stillwindSourceTransform = {
         code,
         map: composedMap,
-        resource: this.resourcePath,
+        resource: id,
       };
     }
     callback(null, code, composedMap as Parameters<typeof callback>[2], {
@@ -258,7 +307,10 @@ export default function (
         coverage: plan.coverage,
         designSystem: plan.designSystem,
         producers: plan.producers,
-        sourceTransform: { resource: this.resourcePath, fingerprint: fingerprint(code) },
+        sourceTransform: {
+          resource: id,
+          fingerprint: fingerprint(code),
+        },
       },
     });
   })()

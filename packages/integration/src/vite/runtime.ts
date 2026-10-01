@@ -53,10 +53,10 @@ export function register(id){state.active.add(id);render();}
 export function unregister(id){state.active.delete(id);render();}
 export async function synchronize(revision){
   if(typeof document==="undefined")return;
-  while(state.revision<revision){
+  do{
     state.pending??=fetch(${JSON.stringify(endpoint)}).then(response=>{if(!response.ok)throw new Error("Stillwind stylesheet synchronization failed");return response.json();}).then(apply).finally(()=>{state.pending=undefined;});
     await state.pending;
-  }
+  }while(state.revision<revision);
 }
 function apply(update){if(update.revision<state.revision)return;state.revision=update.revision;state.snapshot=update;render();}
 apply(${JSON.stringify(snapshot)});

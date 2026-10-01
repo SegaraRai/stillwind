@@ -136,7 +136,7 @@ try {
     { timeout: 20000 },
   );
   record("dev-nested-conditional-content-reload");
-  assert.equal(await page.evaluate(() => window.classes), before);
+  assert.notEqual(await page.evaluate(() => window.classes), before);
   // Restore the original branch content before the SSR/hydration check so the
   // server and client renders must agree on the same classes.
   await put("flow.ts", flowSource(4));

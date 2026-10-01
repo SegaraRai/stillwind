@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { fileModuleDescriptor } from "@stillwind/host";
+import { cleanModuleId, type CssUpstreamMap } from "@stillwind/host";
 
 import {
   compilerOptions,
@@ -11,6 +11,7 @@ import {
   type StillwindOptions,
 } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
+import { sourceDescriptor } from "./sources.ts";
 
 interface ProducerInput {
   source: string;
@@ -18,6 +19,12 @@ interface ProducerInput {
   root: string;
   options: StillwindOptions;
   manual: boolean;
+  upstream?: CssUpstreamMap;
+  dependencies?: {
+    id: string;
+    source: string;
+    upstream?: CssUpstreamMap;
+  }[];
 }
 
 const installed = new WeakSet();
@@ -64,12 +71,29 @@ function registerEmission(context: any, input?: ProducerInput) {
         return;
       }
       const host = await import("@stillwind/host");
+      const sources = new Map<string, string>();
+      for (const producer of producers) {
+        const input = producer.buildInfo.stillwind as ProducerInput;
+        sources.set(input.id, input.source);
+        for (const dependency of input.dependencies ?? []) {
+          sources.set(dependency.id, dependency.source);
+        }
+      }
       const read = (id: string) =>
         new Promise<string>((resolve, reject) =>
-          filesystem.readFile(id, (error: Error | null, value: unknown) =>
+          filesystem.readFile(cleanModuleId(id), (error: Error | null, value: unknown) =>
             error ? reject(error) : resolve(String(value)),
           ),
         );
+      const readDependency = (id: string) => {
+        if (sources.has(id)) {
+          return Promise.resolve(sources.get(id)!);
+        }
+        if (cleanModuleId(id) !== id) {
+          return Promise.reject(new Error(`No transformed source captured for ${id}`));
+        }
+        return read(id);
+      };
       const resolver = (resolve: any) => {
         return (specifier: string, importer: string) =>
           new Promise<string>((done, reject) =>
@@ -113,15 +137,21 @@ function registerEmission(context: any, input?: ProducerInput) {
             input.source,
             input.id,
             {
-              describe: (id) => fileModuleDescriptor(root, id),
+              describe: (id) => sourceDescriptor(root, id),
               resolve: async (specifier, importer) => ({
                 id: await resolveJs(specifier, importer),
               }),
-              read,
-              watch: (id) => compilation.fileDependencies.add(id),
-              warn: (message) => compilation.warnings.push(new Error(message)),
+              read: readDependency,
+              watch: (id) => {
+                compilation.fileDependencies.add(cleanModuleId(id));
+              },
+              warn: (message) => {
+                compilation.warnings.push(new Error(message));
+              },
             },
-            { moduleCssImport: "stillwind/module-css" },
+            {
+              moduleCssImport: "stillwind/module-css",
+            },
           );
           if (output && !input.manual) {
             selection.push(output.moduleId);
@@ -152,7 +182,19 @@ function registerEmission(context: any, input?: ProducerInput) {
           }
           replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
         }
-        compilation.__stillwindCss = host.cssWithSourceMap(plan, replacements);
+        compilation.__stillwindCss = host.cssWithSourceMap(
+          plan,
+          replacements,
+          producers.flatMap((producer) =>
+            [
+              producer.buildInfo.stillwind.upstream,
+              ...(producer.buildInfo.stillwind.dependencies ?? []).map(
+                (dependency: NonNullable<ProducerInput["dependencies"]>[number]) =>
+                  dependency.upstream,
+              ),
+            ].filter((upstream): upstream is CssUpstreamMap => Boolean(upstream)),
+          ),
+        );
         for (const carrier of carriers) {
           await new Promise<void>((resolve, reject) =>
             compilation.rebuildModule(carrier, (error: Error | null) =>

@@ -28,6 +28,9 @@ test("the Vite adapter exposes CSS delivery without application preview endpoint
     const css = await fetch(`${origin}/__stillwind/css?environment=missing`);
     expect(css.status).toBe(404);
     expect(await css.json()).toStrictEqual({ error: "Unknown environment" });
+    const stylesheet = await fetch(`${origin}/__stillwind/style.css?environment=missing`);
+    expect(stylesheet.status).toBe(404);
+    expect(await stylesheet.json()).toStrictEqual({ error: "Unknown environment" });
     expect((await fetch(`${origin}/__stillwind/compile`, { method: "POST" })).status).toBe(404);
     for (const path of ["preview", "preview-script"]) {
       expect((await fetch(`${origin}/__stillwind/${path}?id=missing`)).status).toBe(404);

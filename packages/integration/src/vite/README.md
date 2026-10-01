@@ -11,10 +11,21 @@ activates producer dependencies in reference order and retracts pruned contribut
 CSS-only edits whose generated JavaScript stays unchanged update styles without
 invalidating producer JavaScript. Framework HMR still handles JavaScript changes.
 
+For development SSR with JavaScript disabled, include a stylesheet link to
+`/__stillwind/style.css?environment=ssr` in the document head, under Vite's public
+base. This endpoint returns the selected environment's observed CSS without caching.
+Repeat `module` parameters to select root-relative producer files, for example
+`&module=src/routes/index.tsx&module=src/server-style.ts`. Each file includes its
+framework-generated query modules and required style dependencies. Without these
+parameters, the response includes every observed automatic producer, including
+routes a framework scans before navigation.
+
 Production defaults to one optimized stylesheet after the full graph, including lazy
 modules, is known. Set `emission: "split"` for reusable producer partitions and an
 ordered `stillwind-manifest.json`. SSR selects links with `stylesheetLinks` from
 `stillwind/css`; the client uses the same manifest when adding selections.
+Split CSS assets also participate in Vite's chunk metadata so framework SSR asset
+manifests can include them in document links.
 
 ```ts
 stillwind({ css: "./root.css", emission: "split" });

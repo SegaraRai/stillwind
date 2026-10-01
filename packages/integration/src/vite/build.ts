@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { posix } from "node:path";
 
-import { cleanModuleId, cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
+import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
 import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
@@ -32,14 +32,11 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
       // from graph metadata before making a complete-coverage claim.
       for (const id of this.getModuleIds()) {
         const metadata = this.getModuleInfo(id)?.meta.stillwind;
-        if (
-          metadata?.input !== undefined &&
-          !inputMap(name).has(cleanModuleId(metadata.id ?? id))
-        ) {
+        if (metadata?.input !== undefined && !inputMap(name).has(metadata.id ?? id)) {
           await compile(name, metadata.input, metadata.id ?? id, this);
         }
         if (metadata?.projection) {
-          const input = inputMap(name).get(cleanModuleId(metadata.id ?? id));
+          const input = inputMap(name).get(metadata.id ?? id);
           if (input) {
             input.projection = true;
           }
@@ -206,6 +203,20 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
     },
     renderChunk(_code, chunk) {
       const { manifest, buildCss } = environmentState(this.environment?.name);
+      const metadata = chunk as typeof chunk & {
+        viteMetadata?: {
+          importedCss: Set<string>;
+          importedAssets: Set<string>;
+        };
+      };
+      const attachCss = (file: string) => {
+        metadata.viteMetadata ??= {
+          importedCss: new Set(),
+          importedAssets: new Set(),
+          __modules: new Set(),
+        };
+        metadata.viteMetadata.importedCss.add(file);
+      };
       if (options.emission === "split" && manifest) {
         const graph = new Set(Object.keys(chunk.modules));
         if (chunk.facadeModuleId) {
@@ -220,7 +231,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
           [...graph].flatMap(
             (id) =>
               manifest!.modules[
-                inputMap(this.environment?.name).get(cleanModuleId(id))?.moduleId ??
+                inputMap(this.environment?.name).get(id)?.moduleId ??
                   this.getModuleInfo(id)?.meta.stillwind?.moduleId ??
                   (id.startsWith(producerPrefix)
                     ? Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8")
@@ -243,6 +254,9 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
                 : part.href,
           }));
         if (parts.length) {
+          for (const part of manifest.parts.filter((part) => ids.has(part.id))) {
+            attachCss(part.href.slice(settings.publicBase.length));
+          }
           return {
             code: `${_code}\nif(typeof document!=="undefined"){for(const p of ${JSON.stringify(parts)}){const links=[...document.querySelectorAll('link[data-stillwind-part]')];if(links.some(l=>l.dataset.stillwindPart===p.id))continue;const l=document.createElement('link');l.rel='stylesheet';l.href=p.relative?new URL(p.href,import.meta.url).href:p.href;l.dataset.stillwindPart=p.id;l.dataset.stillwindOrder=String(p.order);document.head.insertBefore(l,links.find(e=>Number(e.dataset.stillwindOrder)>p.order)??null);}}`,
             map: null,
@@ -250,18 +264,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         }
       }
       if (buildCss) {
-        const metadata = chunk as typeof chunk & {
-          viteMetadata?: {
-            importedCss: Set<string>;
-            importedAssets: Set<string>;
-          };
-        };
-        metadata.viteMetadata ??= {
-          importedCss: new Set(),
-          importedAssets: new Set(),
-          __modules: new Set(),
-        };
-        metadata.viteMetadata.importedCss.add(this.getFileName(buildCss));
+        attachCss(this.getFileName(buildCss));
       }
       return null;
     },
