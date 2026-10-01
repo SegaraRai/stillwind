@@ -10,12 +10,13 @@
 
 use std::collections::BTreeSet;
 
-use super::values::theme::theme_arbitrary_types;
-use super::*;
-use crate::{ThemeIndex, ThemeNamespace};
 use stillwind_css::ValueType;
 use stillwind_source::{FileId, SourceFile};
 use stillwind_syntax::parse_candidate;
+
+use super::values::theme::theme_arbitrary_types;
+use super::*;
+use crate::{ThemeIndex, ThemeNamespace};
 
 fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
     super::resolve_utility(raw, theme).unwrap()
