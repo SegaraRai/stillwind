@@ -163,9 +163,9 @@ void test("default error contracts retain editable output and previous success",
   assert.equal(result.previousSuccess?.version, 1);
   assert.equal(result.output?.diagnostics.length, 0);
   assert.ok(result.output?.code);
-  assert.equal(result.output?.lint_settings["macro-argument-mutation"], "deny");
+  assert.equal(result.output?.lintSettings["macro-argument-mutation"], "deny");
   assert.ok(
-    result.output?.lint_findings.some((finding) => finding.rule === "macro-argument-mutation"),
+    result.output?.lintFindings.some((finding) => finding.rule === "macro-argument-mutation"),
   );
 });
 
@@ -183,9 +183,9 @@ void test("independent bases that share a property are reported", async () => {
     "success",
     result.error ?? JSON.stringify(result.output?.diagnostics),
   );
-  assert.equal(result.output?.lint_settings["ambiguous-base-order"], "warn");
+  assert.equal(result.output?.lintSettings["ambiguous-base-order"], "warn");
   assert.ok(
-    result.output?.lint_findings.some((finding) => finding.rule === "ambiguous-base-order"),
-    JSON.stringify(result.output?.lint_findings),
+    result.output?.lintFindings.some((finding) => finding.rule === "ambiguous-base-order"),
+    JSON.stringify(result.output?.lintFindings),
   );
 });

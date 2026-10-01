@@ -39,12 +39,12 @@ export function playground(css: string): Plugin {
                   file: "Play.tsx",
                   start: 0,
                   end: 0,
-                  start_utf16: 0,
-                  end_utf16: 0,
-                  start_line: 0,
-                  start_column: 0,
-                  end_line: 0,
-                  end_column: 0,
+                  startUtf16: 0,
+                  endUtf16: 0,
+                  startLine: 0,
+                  startColumn: 0,
+                  endLine: 0,
+                  endColumn: 0,
                   notes: [],
                 });
               }

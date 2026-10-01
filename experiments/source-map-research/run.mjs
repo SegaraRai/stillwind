@@ -143,10 +143,10 @@ function jsCase(source, ranges, prefix = "") {
     const start = compiled.length;
     compiled += text;
     mappings.push({
-      original_start: a,
-      original_end: b,
-      generated_start: start,
-      generated_end: compiled.length,
+      originalStart: a,
+      originalEnd: b,
+      generatedStart: start,
+      generatedEnd: compiled.length,
     });
     cursor = b;
   }
@@ -359,10 +359,10 @@ for (const kind of ["js", "css"]) {
       "input.tsx",
       [
         {
-          original_start: start,
-          original_end: end,
-          generated_start: start,
-          generated_end: start + replacement.length,
+          originalStart: start,
+          originalEnd: end,
+          generatedStart: start,
+          generatedEnd: start + replacement.length,
         },
       ],
       [],
@@ -477,18 +477,18 @@ for (const count of [0, 1, 25, 1000]) {
     const prefix = "// 日本語 🧭\r\nconst x = ";
     source += prefix;
     compiled += prefix;
-    const original_start = source.length,
+    const originalStart = source.length,
       byteStart = Buffer.byteLength(source);
     source += 'style("red")';
     const replacement = ["", '({\nclassName:"🧭"\n})', '"x"'][i % 3];
     edits.push([byteStart, Buffer.byteLength(source), replacement]);
-    const generated_start = compiled.length;
+    const generatedStart = compiled.length;
     compiled += replacement;
     mappings.push({
-      original_start,
-      original_end: source.length,
-      generated_start,
-      generated_end: compiled.length,
+      originalStart,
+      originalEnd: source.length,
+      generatedStart,
+      generatedEnd: compiled.length,
     });
     source += ";\n";
     compiled += ";\n";
@@ -525,10 +525,10 @@ const finalCompiled =
   finalSource.slice(0, finalStart) + finalReplacement + finalSource.slice(finalEnd);
 const finalEdits = [
   {
-    original_start: finalStart,
-    original_end: finalEnd,
-    generated_start: finalStart,
-    generated_end: finalStart + finalReplacement.length,
+    originalStart: finalStart,
+    originalEnd: finalEnd,
+    generatedStart: finalStart,
+    generatedEnd: finalStart + finalReplacement.length,
   },
 ];
 const finalized = finalizeModuleWithMap(finalCompiled, "./carrier.css");

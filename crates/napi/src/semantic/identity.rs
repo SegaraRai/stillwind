@@ -50,7 +50,6 @@ pub struct NativeIdentity {
     /// Kind of declaration this identity names.
     pub kind: NativeAssetKind,
     /// Module identity of the declaring module.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Byte start of the declaration identity: binding-name span for named assets,
     /// call span for styles.
@@ -58,7 +57,6 @@ pub struct NativeIdentity {
     /// Exclusive byte end of the declaration identity span.
     pub end: u32,
     /// Lexical binding name, or the empty string for anonymous calls.
-    #[napi(js_name = "binding_name")]
     pub binding_name: String,
 }
 

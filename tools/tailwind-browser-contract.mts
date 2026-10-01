@@ -95,7 +95,7 @@ for (const entry of cases) {
     expected,
     actual: native.css,
     expectedClass: entry.candidates.join(" "),
-    actualClass: native.classes[0].class_name,
+    actualClass: native.classes[0].className,
   });
 }
 const html = `<!doctype html><body><script>

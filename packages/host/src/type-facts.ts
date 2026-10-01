@@ -32,13 +32,13 @@ export type { TypeFactSource } from "./checker-source.ts";
 
 /** A failed checker contract, reported at original UTF-8 coordinates. */
 export class TypeFactsError extends Error {
-  readonly module_id: string;
+  readonly moduleId: string;
   readonly start: number;
   readonly end: number;
   readonly code: string;
   constructor(moduleId: string, start: number, end: number, code: string, message: string) {
     super(`${code}: ${message} (${moduleId}:${start})`);
-    this.module_id = moduleId;
+    this.moduleId = moduleId;
     this.start = start;
     this.end = end;
     this.code = code;
@@ -64,12 +64,12 @@ export class TypeFactsError extends Error {
       revision: createHash("sha256").update(source).digest("hex"),
       start: this.start,
       end: this.end,
-      start_utf16: start.utf16,
-      end_utf16: end.utf16,
-      start_line: start.line,
-      end_line: end.line,
-      start_column: start.column,
-      end_column: end.column,
+      startUtf16: start.utf16,
+      endUtf16: end.utf16,
+      startLine: start.line,
+      endLine: end.line,
+      startColumn: start.column,
+      endColumn: end.column,
       notes: [],
     };
   }
@@ -172,7 +172,7 @@ function typeFactValue(
       for (const reference of references) {
         refs.push({
           reference,
-          permitted_boundaries:
+          permittedBoundaries:
             permittedBoundaries.length === 0 ? null : symbolic("ref", permittedBoundaries),
         });
       }
@@ -244,9 +244,9 @@ function prepareProject(
   const virtualFiles = new Map<string, string>();
   const mappings: CheckerSource[] = [];
   const allIdentities = new Map<string, IdentityId>();
-  const ids = new Map(sources.map((source) => [source.resolver_id, checkerId(source)]));
+  const ids = new Map(sources.map((source) => [source.resolverId, checkerId(source)]));
   for (const source of sources) {
-    const buffers = source.checker_buffers ?? [
+    const buffers = source.checkerBuffers ?? [
       {
         source: source.source,
         language:
@@ -260,7 +260,7 @@ function prepareProject(
         source,
         buffer,
         index,
-        assetsByModuleId.get(source.module_id) ?? [],
+        assetsByModuleId.get(source.moduleId) ?? [],
         ids,
       );
       virtualFiles.set(normalize(shadow.id), shadow.text);
@@ -280,7 +280,7 @@ function prepareProject(
         )
       ) {
         throw new TypeFactsError(
-          source.module_id,
+          source.moduleId,
           probe.start,
           probe.end,
           "SHTS003",
@@ -307,7 +307,7 @@ function prepareProject(
       },
       files: [
         ...mappings.map((mapping) => mapping.id),
-        ...new Set(sources.flatMap((source) => source.checker_types ?? [])),
+        ...new Set(sources.flatMap((source) => source.checkerTypes ?? [])),
       ],
     }),
   );
@@ -461,7 +461,7 @@ export class TypeScriptFactsService {
             "declaration identity",
           );
           throw new TypeFactsError(
-            mapping.source.module_id,
+            mapping.source.moduleId,
             start,
             end,
             "SHTS002",
@@ -469,14 +469,14 @@ export class TypeScriptFactsService {
           );
         }
         const facts = factsForSource(project.checker, sourceFile, mapping, prepared.identities);
-        const previous = result.get(mapping.source.module_id) ?? [];
+        const previous = result.get(mapping.source.moduleId) ?? [];
         for (const fact of facts) {
           const existing = previous.find(
             (value) => value.start === fact.start && value.end === fact.end,
           );
           if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value)) {
             throw new TypeFactsError(
-              mapping.source.module_id,
+              mapping.source.moduleId,
               fact.start,
               fact.end,
               "SHTS003",
@@ -487,7 +487,7 @@ export class TypeScriptFactsService {
             previous.push(fact);
           }
         }
-        result.set(mapping.source.module_id, previous);
+        result.set(mapping.source.moduleId, previous);
       }
       return result;
     } finally {
@@ -547,7 +547,7 @@ function factsForSource(
   for (const [key, probe] of mapping.probes) {
     if (!matched.has(key)) {
       throw new TypeFactsError(
-        mapping.source.module_id,
+        mapping.source.moduleId,
         probe.start,
         probe.end,
         "SHTS003",
@@ -564,7 +564,7 @@ function factsForSource(
     if (!value) {
       // Recognition queries only identify Stillwind receivers for unconsumed-use diagnostics.
       // Missing facts leave the receiver as ordinary JavaScript without an error.
-      if (probe.recognition_only) continue;
+      if (probe.recognitionOnly) continue;
       const name = type && (type.getAliasSymbol() ?? type.getSymbol())?.name;
       if (
         !type ||
@@ -584,7 +584,7 @@ function factsForSource(
             ))
       ) {
         throw new TypeFactsError(
-          mapping.source.module_id,
+          mapping.source.moduleId,
           probe.start,
           probe.end,
           "SHTS003",

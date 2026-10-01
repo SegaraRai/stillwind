@@ -13,43 +13,43 @@ export interface CheckerBuffer {
 }
 
 /**
- * Returns checker declarations selected by source_format for projected input.
+ * Returns checker declarations selected by sourceFormat for projected input.
  * Astro client scripts become independent buffers while the main buffer keeps their
  * line positions. The caller supplies projection maps and original script ranges;
  * source is not mutated. Plain input requires no extra declarations or buffers.
  * Throws if declaration packages cannot be resolved or Astro script mappings are invalid.
  */
 export function checkerEnvironment(source: ProjectSource): {
-  checker_buffers?: CheckerBuffer[];
-  checker_types: string[];
+  checkerBuffers?: CheckerBuffer[];
+  checkerTypes: string[];
 } {
-  if (source.fw_code === undefined) {
-    return { checker_types: [] };
+  if (source.fwCode === undefined) {
+    return { checkerTypes: [] };
   }
   const require = createRequire(import.meta.url);
-  const userRequire = createRequire(path.resolve(source.checker_file_name));
-  if (source.source_format === "svelte") {
+  const userRequire = createRequire(path.resolve(source.checkerFileName));
+  if (source.sourceFormat === "svelte") {
     return {
-      checker_types: [
+      checkerTypes: [
         require.resolve("svelte2tsx/svelte-shims-v4.d.ts"),
         require.resolve("svelte2tsx/svelte-jsx-v4.d.ts"),
       ],
     };
   }
-  if (source.source_format !== "astro") {
-    return { checker_types: [] };
+  if (source.sourceFormat !== "astro") {
+    return { checkerTypes: [] };
   }
   let main = source.source;
   const buffers: CheckerBuffer[] = [];
-  for (const region of source.checker_scripts ?? []) {
-    const text = source.fw_code.slice(region.start, region.end);
+  for (const region of source.checkerScripts ?? []) {
+    const text = source.fwCode.slice(region.start, region.end);
     const at = clientProjectionStart(source, region);
     main = main.slice(0, at) + text.replace(/[^\r\n]/g, " ") + main.slice(at + text.length);
     buffers.push({ source: text, language: "ts", region });
   }
   return {
-    checker_buffers: [{ source: main, language: "tsx" }, ...buffers],
-    checker_types: [path.join(path.dirname(userRequire.resolve("astro/package.json")), "env.d.ts")],
+    checkerBuffers: [{ source: main, language: "tsx" }, ...buffers],
+    checkerTypes: [path.join(path.dirname(userRequire.resolve("astro/package.json")), "env.d.ts")],
   };
 }
 
@@ -58,15 +58,15 @@ function clientProjectionStart(
   source: ProjectSource,
   region: { start: number; end: number },
 ): number {
-  if (source.fw2js_map?.kind !== "v3") {
+  if (source.fw2JsMap?.kind !== "v3") {
     throw new Error("Astro client scripts require a source map");
   }
-  const trace = new TraceMap(source.fw2js_map.json);
-  const selected = trace.sources.indexOf(source.fw2js_map.source);
+  const trace = new TraceMap(source.fw2JsMap.json);
+  const selected = trace.sources.indexOf(source.fw2JsMap.source);
   const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
   const generated = lines(source.source),
-    original = lines(source.fw_code!);
-  const text = source.fw_code!.slice(region.start, region.end);
+    original = lines(source.fwCode!);
+  const text = source.fwCode!.slice(region.start, region.end);
   const candidates = new Set<number>();
   for (const [line, segments] of decodedMappings(trace).entries()) {
     for (const segment of segments) {
@@ -84,7 +84,7 @@ function clientProjectionStart(
     }
   }
   if (candidates.size !== 1) {
-    throw new Error(`Cannot map Astro client script in ${source.module_id}`);
+    throw new Error(`Cannot map Astro client script in ${source.moduleId}`);
   }
   return [...candidates][0];
 }

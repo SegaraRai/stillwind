@@ -28,10 +28,8 @@ pub struct NativeAssetRecord {
     /// Metadata carried with the asset.
     pub metadata: NativeAssetMetadata,
     /// Inclusive original UTF-8 byte offset of the producing call.
-    #[napi(js_name = "call_start")]
     pub call_start: u32,
     /// Exclusive original UTF-8 byte offset of the producing call.
-    #[napi(js_name = "call_end")]
     pub call_end: u32,
 }
 
@@ -122,7 +120,6 @@ pub struct NativeTypeProbe {
     /// Resolving a fact is optional: without one, the receiver is treated as ordinary
     /// JavaScript and this query produces no error. Recognized assets can be used to
     /// diagnose unconsumed macro syntax.
-    #[napi(js_name = "recognition_only")]
     pub recognition_only: bool,
     /// Inclusive original UTF-8 byte offset of the expression.
     pub start: u32,
@@ -174,30 +171,22 @@ pub struct NativeModuleSummary {
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,
     /// Module this summary describes.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Number of explicit module CSS imports.
-    #[napi(js_name = "module_css_imports")]
     pub module_css_imports: u32,
     /// Number of framework macro import statements.
-    #[napi(js_name = "macro_imports")]
     pub macro_imports: u32,
     /// Every import or export specifier, in source order.
-    #[napi(js_name = "module_specifiers")]
     pub module_specifiers: Vec<NativeModuleSpecifier>,
     /// Expressions the host should resolve.
-    #[napi(js_name = "type_probes")]
     pub type_probes: Vec<NativeTypeProbe>,
     /// Import bindings, in source order.
     pub imports: Vec<NativeImportBinding>,
     /// Re-exports, in source order.
-    #[napi(js_name = "re_exports")]
     pub re_exports: Vec<NativeReExport>,
     /// Imports referenced by at least one probe.
-    #[napi(js_name = "probe_imports")]
     pub probe_imports: Vec<NativeImportBinding>,
     /// Imports each export depends on.
-    #[napi(js_name = "export_imports")]
     pub export_imports: Vec<NativeExportImports>,
     /// Assets declared by this module.
     pub assets: Vec<NativeAssetRecord>,

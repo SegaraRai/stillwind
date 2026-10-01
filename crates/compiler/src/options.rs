@@ -19,10 +19,11 @@ use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
 /// Knobs a host may set per compilation.
 ///
-/// Serialized in camel case with `#[serde(default)]`, so adding a field is compatible
-/// with previously written configuration; defaults match the built-in `stillwind`
-/// package and an unnamespaced project. Runtime-condition output strategy applies
-/// to utilities and authored CSS, independently of design-system prefix resolution.
+/// Serialized with camelCase fields and `#[serde(default)]`, so adding a field is
+/// compatible with previously written configuration; defaults match the built-in
+/// `stillwind` package and an unnamespaced project. Runtime-condition output strategy
+/// applies to utilities and authored CSS, independently of design-system prefix
+/// resolution.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {

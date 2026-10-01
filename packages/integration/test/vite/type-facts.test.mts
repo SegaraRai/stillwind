@@ -24,7 +24,7 @@ const cssInput = (content: string) => ({
   content,
   name: "root.css",
   uri: "untitled:root.css",
-  source_map_source: "untitled:root.css",
+  sourceMapSource: "untitled:root.css",
 });
 
 void test("Vite aliases select the same asset in the host and checker", async () => {
@@ -67,44 +67,43 @@ void test("Vite aliases select the same asset in the host and checker", async ()
 
 const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   .map((name) => ({
-    resolver_id: path.join(fixtureRoot, name),
-    checker_file_name: path.join(fixtureRoot, name),
-    projection_file_name: `src/${name}`,
-    module_id: `src/${name}`,
+    resolverId: path.join(fixtureRoot, name),
+    checkerFileName: path.join(fixtureRoot, name),
+    projectionFileName: `src/${name}`,
+    moduleId: `src/${name}`,
     uri: `untitled:src/${name}`,
     source: readFileSync(path.join(fixtureRoot, name), "utf8"),
     language: "ts" as const,
-    module_kind: "unambiguous" as const,
-    source_map_source: `untitled:src/${name}`,
+    moduleKind: "unambiguous" as const,
+    sourceMapSource: `untitled:src/${name}`,
   }))
   .map((source) => ({
     ...source,
-    probes: (
-      summarizeSource(source.source, source.module_id, "tsx", "unambiguous") as ModuleSummary
-    ).type_probes,
+    probes: (summarizeSource(source.source, source.moduleId, "tsx", "unambiguous") as ModuleSummary)
+      .typeProbes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
-    source.module_id,
-    summarizeSource(source.source, source.module_id, "tsx", "unambiguous") as ModuleSummary,
+    source.moduleId,
+    summarizeSource(source.source, source.moduleId, "tsx", "unambiguous") as ModuleSummary,
   ]),
 );
 
 void test("TypeScript is required for cross-module conditional ref propagation", () => {
   const withoutFacts = compileProject(
-    sources.map(({ module_id: sourcePath, source }) => ({
-      module_id: sourcePath,
+    sources.map(({ moduleId: sourcePath, source }) => ({
+      moduleId: sourcePath,
       uri: `untitled:${sourcePath}`,
       source,
       language: "ts",
-      module_kind: "unambiguous",
-      source_map_source: `untitled:${sourcePath}`,
+      moduleKind: "unambiguous",
+      sourceMapSource: `untitled:${sourcePath}`,
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
-  ) as { modules: Array<{ module_id: string; diagnostics: Array<{ code: string }> }> };
+  ) as { modules: Array<{ moduleId: string; diagnostics: Array<{ code: string }> }> };
   assert(
-    withoutFacts.modules.find((module) => module.module_id === "src/consumer.ts")?.diagnostics
+    withoutFacts.modules.find((module) => module.moduleId === "src/consumer.ts")?.diagnostics
       .length,
     "native compilation must not implement cross-module propagation on its own",
   );
@@ -116,7 +115,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   service.collect(sources, assets);
   const facts = service.collect(
     sources.map((source) =>
-      source.module_id === "src/consumer.ts" ? { ...source, source: `${source.source}\n` } : source,
+      source.moduleId === "src/consumer.ts" ? { ...source, source: `${source.source}\n` } : source,
     ),
     assets,
   );
@@ -131,25 +130,25 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   });
   service.close();
   const withFacts = compileProject(
-    sources.map(({ module_id: sourcePath, source }) => ({
-      module_id: sourcePath,
+    sources.map(({ moduleId: sourcePath, source }) => ({
+      moduleId: sourcePath,
       uri: `untitled:${sourcePath}`,
       source,
       language: "ts",
-      module_kind: "unambiguous",
-      source_map_source: `untitled:${sourcePath}`,
-      type_facts: facts.get(sourcePath) ?? [],
+      moduleKind: "unambiguous",
+      sourceMapSource: `untitled:${sourcePath}`,
+      typeFacts: facts.get(sourcePath) ?? [],
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
   ) as {
     modules: Array<{
-      module_id: string;
+      moduleId: string;
       code: string;
       css: string;
       diagnostics: Array<{ code: string }>;
     }>;
   };
-  const consumer = withFacts.modules.find((module) => module.module_id === "src/consumer.ts");
+  const consumer = withFacts.modules.find((module) => module.moduleId === "src/consumer.ts");
   assert(consumer);
   assert.deepEqual(consumer.diagnostics, []);
   assert.match(consumer.code, /\(\(selected\)\.c\)/);
@@ -184,12 +183,12 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   const selected = session.compile(
     sources.map((source) => ({
       ...source,
-      type_facts: facts.get(source.module_id) ?? [],
+      typeFacts: facts.get(source.moduleId) ?? [],
     })),
     "src/consumer.ts",
   ) as typeof withFacts;
   assert.deepEqual(
-    selected.modules.map((module) => module.module_id),
+    selected.modules.map((module) => module.moduleId),
     ["src/consumer.ts"],
   );
   assert.deepEqual(selected.modules[0].diagnostics, []);
@@ -200,7 +199,7 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     placement: "carrier",
   };
   const plan = session.planStylesheet(selection) as {
-    resources: { module_id: string; specifier: string }[];
+    resources: { moduleId: string; specifier: string }[];
     css: string;
     coverage: typeof selection.coverage;
     producers: { module: string; sourceRevision: string; semanticRevision: string }[];
@@ -212,8 +211,8 @@ void test("TypeScript is required for cross-module conditional ref propagation",
   assert.equal(plan.css.match(/@keyframes /g)?.length, 2);
   assert.doesNotMatch(plan.css, /display:flex/);
   assert.deepEqual(
-    plan.resources.map(({ module_id, specifier }) => ({ module_id, specifier })),
-    [{ module_id: "src/producer.ts", specifier: "./support.svg" }],
+    plan.resources.map(({ moduleId, specifier }) => ({ moduleId, specifier })),
+    [{ moduleId: "src/producer.ts", specifier: "./support.svg" }],
   );
   assert.deepEqual(plan.coverage, selection.coverage);
   assert.deepEqual(
@@ -235,10 +234,10 @@ void test("TypeScript is required for cross-module conditional ref propagation",
     sources.map((source) => ({
       ...source,
       source:
-        source.module_id === "src/producer.ts"
+        source.moduleId === "src/producer.ts"
           ? source.source.replaceAll("opacity-0", "opacity-5")
           : source.source,
-      type_facts: facts.get(source.module_id) ?? [],
+      typeFacts: facts.get(source.moduleId) ?? [],
     })),
     "src/consumer.ts",
   );

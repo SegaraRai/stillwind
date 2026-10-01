@@ -12,10 +12,22 @@ import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/test");
 
 void test("checker declaration identity has its own namespace", () => {
-  assert.match(
-    identityKey({ kind: "ref", module_id: "src/a.tsx", start: 2, end: 6, binding_name: "item" }),
-    /^stillwind-identity\/v1:/,
+  const key = identityKey({
+    kind: "ref",
+    moduleId: "src/a.tsx",
+    start: 2,
+    end: 6,
+    bindingName: "item",
+  });
+  assert.equal(
+    Buffer.from(key.slice("stillwind-identity/v1:".length), "base64url").toString(),
+    '{"kind":"ref","module_id":"src/a.tsx","start":2,"end":6,"binding_name":"item"}',
   );
+  assert.equal(
+    identityKey({ bindingName: "item", end: 6, start: 2, moduleId: "src/a.tsx", kind: "ref" }),
+    key,
+  );
+  assert.match(key, /^stillwind-identity\/v1:/);
 });
 
 function wrap(ext: string, script: string, template = "", module = false) {
@@ -88,7 +100,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     assert.deepEqual(first.diagnostics, []);
     assert.equal(first.composition.length, 1);
     const base = first.composition[0].base;
-    assert.equal(base.module_id, producer);
+    assert.equal(base.moduleId, producer);
     assert.equal(
       Buffer.from(files[producer]).subarray(base.start, base.end).toString(),
       "style('red')",
@@ -114,7 +126,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     await assert.rejects(harness(t, files, entry).compile(), (error: unknown) => {
       assert.ok(error instanceof TypeFactsError);
       assert.equal(error.code, "SHTS002");
-      assert.equal(error.module_id, entry);
+      assert.equal(error.moduleId, entry);
       assert.equal(
         Buffer.from(files[entry]).subarray(error.start, error.end).toString(),
         "selected",
@@ -184,10 +196,10 @@ for (const ext of ["vue", "svelte", "astro"]) {
     assert.ok(result?.code);
     assert.deepEqual(result.diagnostics, []);
     const assets = result.symbols.filter(
-      (symbol) => symbol.source_kind === "module" && symbol.source_id === producer,
+      (symbol) => symbol.sourceKind === "module" && symbol.sourceId === producer,
     );
     for (const symbol of assets) {
-      assert.equal(symbol.source_id, producer);
+      assert.equal(symbol.sourceId, producer);
       assert.ok(
         ["r", "k", "v"].includes(
           Buffer.from(files[producer]).subarray(symbol.start, symbol.end).toString(),
@@ -222,7 +234,7 @@ import {style} from 'stillwind/vue';const a=style('red'),b=style('green');let se
   assert.equal(result.code, null);
   const error = result.diagnostics[0];
   assert.equal(error.code, "SHTS002");
-  assert.equal(source.slice(error.start_utf16, error.end_utf16), "selected");
+  assert.equal(source.slice(error.startUtf16, error.endUtf16), "selected");
   assert.equal(Buffer.from(source).subarray(error.start, error.end).toString(), "selected");
-  assert.equal(error.start_line, 2);
+  assert.equal(error.startLine, 2);
 });

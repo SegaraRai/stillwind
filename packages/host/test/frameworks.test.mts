@@ -19,7 +19,7 @@ const cssInput = (content: string) => ({
   content,
   name: "root.css",
   uri: "untitled:root.css",
-  source_map_source: "untitled:root.css",
+  sourceMapSource: "untitled:root.css",
 });
 
 const examples = {
@@ -29,7 +29,7 @@ const examples = {
 };
 
 void test("filename inference describes input format without selecting an output adapter", () => {
-  for (const [name, language, source_format] of [
+  for (const [name, language, sourceFormat] of [
     ["Component.vue", "js", "vue"],
     ["Component.svelte", "js", "svelte"],
     ["Component.astro", "js", "astro"],
@@ -47,8 +47,8 @@ void test("filename inference describes input format without selecting an output
   ]) {
     assert.deepEqual(fileSourceKind(name), {
       language,
-      module_kind: "unambiguous",
-      source_format,
+      moduleKind: "unambiguous",
+      sourceFormat,
       framework: undefined,
     });
   }
@@ -57,19 +57,19 @@ void test("filename inference describes input format without selecting an output
 void test("Vue output adapter leaves JSX and unspecified input formats unprojected", async () => {
   const source = `import {style} from 'stillwind/vue'; const view = <div {...style('flex')} />;`;
   const input = {
-    resolver_id: "/src/Component.tsx",
+    resolverId: "/src/Component.tsx",
     ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
-    framework: "Vue" as const,
+    framework: "vue" as const,
     source,
   };
-  for (const source_format of ["jsx", undefined] as const) {
-    const projected = await projectFrameworkSource({ ...input, source_format });
+  for (const sourceFormat of ["jsx", undefined] as const) {
+    const projected = await projectFrameworkSource({ ...input, sourceFormat });
     assert.equal(projected.source, source);
-    assert.equal(projected.source_format, source_format);
-    assert.equal(projected.framework, "Vue");
-    assert.equal(projected.fw_code, undefined);
+    assert.equal(projected.sourceFormat, sourceFormat);
+    assert.equal(projected.framework, "vue");
+    assert.equal(projected.fwCode, undefined);
     assert.equal(projected.converter, undefined);
-    assert.deepEqual(checkerEnvironment(projected), { checker_types: [] });
+    assert.deepEqual(checkerEnvironment(projected), { checkerTypes: [] });
   }
 });
 
@@ -78,23 +78,23 @@ void test("SFC source formats select converters and preserve explicit output ada
   for (const [extension, source] of Object.entries(examples)) {
     const filename = path.join(root, `Component.${extension}`);
     const input = {
-      resolver_id: filename,
+      resolverId: filename,
       ...fileModuleDescriptor(root, filename),
       source,
       map: "upstream map",
     };
-    for (const framework of [undefined, "React"] as const) {
+    for (const framework of [undefined, "react"] as const) {
       const projected = await projectFrameworkSource({ ...input, framework });
-      assert.equal(projected.source_format, extension);
+      assert.equal(projected.sourceFormat, extension);
       assert.equal(projected.framework, framework);
-      assert.equal(projected.fw_code, source);
+      assert.equal(projected.fwCode, source);
       assert.ok(projected.converter?.version);
-      assert.ok(projected.fw2js_map);
-      assert.equal(projected.fw_map, input.map);
+      assert.ok(projected.fw2JsMap);
+      assert.equal(projected.fwMap, input.map);
       assert.equal(projected.map, undefined);
       const environment = checkerEnvironment(projected);
       assert.equal(
-        environment.checker_types.length,
+        environment.checkerTypes.length,
         extension === "svelte" ? 2 : extension === "astro" ? 1 : 0,
       );
       assert.deepEqual(await projectFrameworkSource(projected), projected);
@@ -106,13 +106,13 @@ void test("SFC source formats select converters and preserve explicit output ada
 
 void test("checker declarations follow projected source format instead of output adapter", () => {
   const input = {
-    resolver_id: "/src/Component.tsx",
+    resolverId: "/src/Component.tsx",
     ...fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx")),
     source: "const view = <div />;",
-    fw_code: "original buffer",
+    fwCode: "original buffer",
   };
-  for (const framework of ["Svelte", "Astro"] as const) {
-    assert.deepEqual(checkerEnvironment({ ...input, framework }), { checker_types: [] });
+  for (const framework of ["svelte", "astro"] as const) {
+    assert.deepEqual(checkerEnvironment({ ...input, framework }), { checkerTypes: [] });
   }
 });
 
@@ -146,7 +146,7 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
     const output = await compileModule(session, () => facts, source, id, root, host);
     assert.ok(output?.code?.includes(`<${extension === "astro" ? "div" : "script"}`));
     assert.deepEqual(output.diagnostics, []);
-    assert.match(session.moduleCss(output.module_id), /display:\s*flex/);
+    assert.match(session.moduleCss(output.moduleId), /display:\s*flex/);
     const edited = await compileModule(
       session,
       () => facts,
@@ -156,8 +156,8 @@ void test("host compiles raw SFCs and updates session CSS after edits", async (t
       host,
     );
     assert.ok(edited?.code);
-    assert.doesNotMatch(session.moduleCss(output.module_id), /display:\s*flex/);
-    assert.match(session.moduleCss(output.module_id), /display:\s*grid/);
+    assert.doesNotMatch(session.moduleCss(output.moduleId), /display:\s*flex/);
+    assert.match(session.moduleCss(output.moduleId), /display:\s*grid/);
   }
 });
 
@@ -172,25 +172,25 @@ void test("SFC output fails on residual macros or mismatched attribute context",
       ) as ProjectCompilerOutput
     ).modules[0]!;
   const input = await projectFrameworkSource({
-    resolver_id: "/src/Bad.vue",
-    checker_file_name: "/src/Bad.vue",
-    projection_file_name: "/src/Bad.vue",
-    module_id: "/src/Bad.vue",
+    resolverId: "/src/Bad.vue",
+    checkerFileName: "/src/Bad.vue",
+    projectionFileName: "/src/Bad.vue",
+    moduleId: "/src/Bad.vue",
     ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue,
   });
-  const quoted = input.regions?.find((region) => region.attribute_quote === "double");
+  const quoted = input.regions?.find((region) => region.attributeQuote === "double");
   assert.ok(quoted);
-  quoted.attribute_quote = "single";
+  quoted.attributeQuote = "single";
   const wrongQuote = compile(input);
   assert.equal(wrongQuote.code, null);
   assert.equal(wrongQuote.diagnostics[0]?.code, "SW11008");
   const leaked = await projectFrameworkSource({
-    resolver_id: "/src/Bad.vue",
-    checker_file_name: "/src/Bad.vue",
-    projection_file_name: "/src/Bad.vue",
-    module_id: "/src/Bad.vue",
+    resolverId: "/src/Bad.vue",
+    checkerFileName: "/src/Bad.vue",
+    projectionFileName: "/src/Bad.vue",
+    moduleId: "/src/Bad.vue",
     ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue.replace("const active", "const leaked = style; const active"),
@@ -199,10 +199,10 @@ void test("SFC output fails on residual macros or mismatched attribute context",
   assert.equal(leftover.code, null);
   assert.equal(leftover.diagnostics[0]?.code, "SW11010");
   const missingTarget = await projectFrameworkSource({
-    resolver_id: "/src/Bad.vue",
-    checker_file_name: "/src/Bad.vue",
-    projection_file_name: "/src/Bad.vue",
-    module_id: "/src/Bad.vue",
+    resolverId: "/src/Bad.vue",
+    checkerFileName: "/src/Bad.vue",
+    projectionFileName: "/src/Bad.vue",
+    moduleId: "/src/Bad.vue",
     ...fileSourceKind("/src/Bad.vue"),
     uri: "untitled:Bad.vue",
     source: examples.vue.replace(
@@ -296,22 +296,22 @@ for (const { extension, source, name, imports } of [
   void test(`${extension} ${name}: converter, native edits and framework compilation agree`, async () => {
     const filename = `/src/Component.${extension}`;
     const projected = await projectFrameworkSource({
-      resolver_id: filename,
-      checker_file_name: filename,
-      projection_file_name: filename,
-      module_id: filename,
+      resolverId: filename,
+      checkerFileName: filename,
+      projectionFileName: filename,
+      moduleId: filename,
       ...fileSourceKind(filename),
       uri: `untitled:${filename}`,
       source,
     });
-    projected.stylesheet_imports = [
+    projected.stylesheetImports = [
       "virtual:stillwind.css",
       "virtual:stillwind/carrier.css?revision=1",
     ];
-    projected.module_css_import = "virtual:stillwind/module-css?test=1";
-    assert.equal(projected.fw_code, source);
+    projected.moduleCssImport = "virtual:stillwind/module-css?test=1";
+    assert.equal(projected.fwCode, source);
     assert.ok(projected.converter?.version);
-    assert.ok(projected.import_realms?.length);
+    assert.ok(projected.importRealms?.length);
     const output = compileProject(
       [projected],
       cssInput(
@@ -334,22 +334,22 @@ for (const { extension, source, name, imports } of [
       moduleSourceMap(source, module.code, filename, module.mappings, [], ""),
     );
     for (const expression of module.mappings.flatMap((mapping) => mapping.expressions)) {
-      const generated = module.code.slice(expression.generated_start, expression.generated_end);
-      const original = source.slice(expression.original_start, expression.original_end);
+      const generated = module.code.slice(expression.generatedStart, expression.generatedEnd);
+      const original = source.slice(expression.originalStart, expression.originalEnd);
       if (expression.exact) {
         assert.equal(generated, original);
       }
       const origin = originalPositionFor(map, {
-        line: module.code.slice(0, expression.generated_start).split("\n").length,
+        line: module.code.slice(0, expression.generatedStart).split("\n").length,
         column:
-          expression.generated_start -
-          module.code.lastIndexOf("\n", expression.generated_start - 1) -
+          expression.generatedStart -
+          module.code.lastIndexOf("\n", expression.generatedStart - 1) -
           1,
       });
-      assert.equal(origin.line, source.slice(0, expression.original_start).split("\n").length);
+      assert.equal(origin.line, source.slice(0, expression.originalStart).split("\n").length);
       assert.equal(
         origin.column,
-        expression.original_start - source.lastIndexOf("\n", expression.original_start - 1) - 1,
+        expression.originalStart - source.lastIndexOf("\n", expression.originalStart - 1) - 1,
       );
     }
     const explicit = source.includes("stillwind/module-css");

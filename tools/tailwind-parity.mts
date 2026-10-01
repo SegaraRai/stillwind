@@ -301,7 +301,7 @@ for (const file of readdirSync(caseRoot)
       const expected = comparisonCss(tailwind, frames);
       let native: {
         css: string;
-        classes: Array<{ class_name: string }>;
+        classes: Array<{ className: string }>;
         diagnostics: unknown[];
       };
       try {
@@ -334,7 +334,7 @@ for (const file of readdirSync(caseRoot)
         }
         continue;
       }
-      const actual = native.css.replaceAll(native.classes[0].class_name, selector(utility));
+      const actual = native.css.replaceAll(native.classes[0].className, selector(utility));
       const received = minify(actual);
       if (expected === "@layer utilities;" && received === "") {
         continue;

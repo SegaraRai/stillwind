@@ -59,7 +59,7 @@ export function developmentHooks(
           await publish(name, host);
           const changed = new Set(update.transformedModules);
           const modules = [...inputMap(name).values()]
-            .filter((input) => input.manual || changed.has(input.module_id))
+            .filter((input) => input.manual || changed.has(input.moduleId))
             .flatMap((input) => [
               ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(input.id)) ?? []),
               ...(input.manual
@@ -111,7 +111,7 @@ export function developmentHooks(
               revision: plan.revision,
               parts: plan.parts,
               dependencies: Object.fromEntries(
-                [...inputMap(name).values()].map((input) => [input.module_id, input.dependencies]),
+                [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
               ),
             }),
           )

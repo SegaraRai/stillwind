@@ -12,7 +12,7 @@ const cssInput = (content: string) => ({
   content,
   name: "root.css",
   uri: "untitled:root.css",
-  source_map_source: "untitled:root.css",
+  sourceMapSource: "untitled:root.css",
 });
 
 void test("direct ref variants preserve imported conditional ref/boundary pairs", () => {
@@ -37,36 +37,36 @@ declare const enabled: boolean;
 const selected = enabled ? a : b;
 export const props = style(${expression});`;
       const sources = [
-        { module_id: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
-        { module_id: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
+        { moduleId: "ref-producer.ts", uri: "untitled:ref-producer.ts", source: producer },
+        { moduleId: "ref-consumer.ts", uri: "untitled:ref-consumer.ts", source: consumer },
       ].map((source) => ({
         ...source,
         language: "ts" as const,
-        module_kind: "unambiguous" as const,
-        source_map_source: source.uri,
-        resolver_id: path.join(root, source.module_id),
-        checker_file_name: path.join(root, source.module_id),
+        moduleKind: "unambiguous" as const,
+        sourceMapSource: source.uri,
+        resolverId: path.join(root, source.moduleId),
+        checkerFileName: path.join(root, source.moduleId),
         summary: summarizeSource(
           source.source,
-          source.module_id,
+          source.moduleId,
           "tsx",
           "unambiguous",
         ) as ModuleSummary,
       }));
       const facts = service.collect(
-        sources.map((source) => ({ ...source, probes: source.summary.type_probes })),
-        new Map(sources.map((source) => [source.module_id, source.summary.assets])),
+        sources.map((source) => ({ ...source, probes: source.summary.typeProbes })),
+        new Map(sources.map((source) => [source.moduleId, source.summary.assets])),
       );
       const result = compileProject(
-        sources.map((source) => ({ ...source, type_facts: facts.get(source.module_id) ?? [] })),
+        sources.map((source) => ({ ...source, typeFacts: facts.get(source.moduleId) ?? [] })),
         cssInput(`@variant hover { @media (hover:hover) { &:hover { @slot; } } }
 @variant active { &:active { @slot; } }
 @utility accent { color:red; }
 @stillwind-slot utilities;`),
       ) as {
-        modules: Array<{ module_id: string; code: string; css: string; diagnostics: unknown[] }>;
+        modules: Array<{ moduleId: string; code: string; css: string; diagnostics: unknown[] }>;
       };
-      const output = result.modules.find((module) => module.module_id === "ref-consumer.ts");
+      const output = result.modules.find((module) => module.moduleId === "ref-consumer.ts");
       assert.ok(output);
       assert.deepEqual(output.diagnostics, []);
       if (expression.includes(".at")) {

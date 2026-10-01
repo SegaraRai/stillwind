@@ -26,7 +26,7 @@ void test("distinct resolver identities cannot share a module identity", async (
       entry,
       root,
       {
-        describe: (id) => ({ ...fileModuleDescriptor(root, id), module_id: "shared.ts" }),
+        describe: (id) => ({ ...fileModuleDescriptor(root, id), moduleId: "shared.ts" }),
         resolve: async () => ({ id: dependency }),
         read: async () => "export const token = 'red';",
         watch: () => {},
@@ -98,8 +98,7 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
     assert.deepEqual(reads, [barrel, token]);
     assert.ok(
       output.symbols.some(
-        (symbol) =>
-          symbol.source_kind === "module" && symbol.source_id === "aliased/actual-token.ts",
+        (symbol) => symbol.sourceKind === "module" && symbol.sourceId === "aliased/actual-token.ts",
       ),
     );
     selected = changedToken;
@@ -109,7 +108,7 @@ void test("checker follows per-importer host aliases and barrel resolutions", as
     assert.doesNotMatch(updated.css, /color:red/);
     assert.ok(
       updated.symbols.some(
-        (symbol) => symbol.source_kind === "module" && symbol.source_id === "changed.ts",
+        (symbol) => symbol.sourceKind === "module" && symbol.sourceId === "changed.ts",
       ),
     );
     assert.equal(facts.stats.incrementalSnapshots, 1);
@@ -135,11 +134,11 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
     );
     writeFileSync(path.join(root, name), text);
     return {
-      resolver_id: path.join(root, name),
-      checker_file_name: path.join(root, name),
-      module_id: name,
+      resolverId: path.join(root, name),
+      checkerFileName: path.join(root, name),
+      moduleId: name,
       source: text,
-      probes: summary.type_probes,
+      probes: summary.typeProbes,
       assets: summary.assets,
     };
   };
@@ -150,7 +149,7 @@ void test("disk dependencies gain and lose semantic overlays across snapshots", 
     const collect = (includeToken: boolean) => {
       const sources = includeToken ? [entry, token] : [entry];
       return service
-        .collect(sources, new Map(sources.map((source) => [source.module_id, source.assets])))
+        .collect(sources, new Map(sources.map((source) => [source.moduleId, source.assets])))
         .get("entry.ts")!;
     };
     assert.throws(() => collect(false), /SHTS003/);

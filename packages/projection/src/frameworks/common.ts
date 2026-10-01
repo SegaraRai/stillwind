@@ -18,13 +18,13 @@ export interface ScriptRegion {
  */
 export interface ConvertedFramework {
   /** Independent checker script regions in original SFC UTF-16 code units. */
-  checker_scripts?: Array<{ start: number; end: number }>;
+  checkerScripts?: Array<{ start: number; end: number }>;
   source: string;
   language: "ts" | "tsx";
-  source_format: Extract<ProjectSource["source_format"], "vue" | "svelte" | "astro">;
-  fw2js_map: ProjectionMap;
+  sourceFormat: Extract<ProjectSource["sourceFormat"], "vue" | "svelte" | "astro">;
+  fw2JsMap: ProjectionMap;
   converter: NonNullable<ProjectSource["converter"]>;
-  import_realms: ScriptRegion[];
+  importRealms: ScriptRegion[];
   regions: NonNullable<ProjectSource["regions"]>;
 }
 
@@ -49,7 +49,7 @@ export function converterIdentity(name: string, options: unknown) {
   return {
     name,
     version: metadata.version,
-    options_fingerprint: createHash("sha256").update(JSON.stringify(options)).digest("hex"),
+    optionsFingerprint: createHash("sha256").update(JSON.stringify(options)).digest("hex"),
   };
 }
 
@@ -80,14 +80,14 @@ export function sourceRegions(
       regions.push({
         start: cursor,
         end: script.start,
-        import_realm: templateRealm,
+        importRealm: templateRealm,
       });
     }
     if (script.start < script.end) {
       regions.push({
         start: script.start,
         end: script.end,
-        import_realm: script.id,
+        importRealm: script.id,
       });
     }
     cursor = script.end;
@@ -96,7 +96,7 @@ export function sourceRegions(
     regions.push({
       start: cursor,
       end: source.length,
-      import_realm: templateRealm,
+      importRealm: templateRealm,
     });
   }
   return regions;

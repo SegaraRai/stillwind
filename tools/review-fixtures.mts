@@ -36,10 +36,10 @@ type ModuleOutput = {
   code: string | null;
   css: string;
   mappings: Array<{
-    original_start: number;
-    original_end: number;
-    generated_start: number;
-    generated_end: number;
+    originalStart: number;
+    originalEnd: number;
+    generatedStart: number;
+    generatedEnd: number;
   }>;
   diagnostics: Array<{ code: string; message: string }>;
 };
@@ -96,13 +96,13 @@ function compileProject(root: string, manifest: Manifest) {
           ? "ts"
           : "js";
     return {
-      resolver_id: id,
-      checker_file_name: id,
-      projection_file_name: sourcePath,
+      resolverId: id,
+      checkerFileName: id,
+      projectionFileName: sourcePath,
       uri: pathToFileURL(path.join(root, "input", sourcePath)).href,
-      module_id: sourcePath,
+      moduleId: sourcePath,
       language,
-      module_kind: "unambiguous" as const,
+      moduleKind: "unambiguous" as const,
       path: sourcePath,
       source: normalize(readFileSync(path.join(root, "input", sourcePath), "utf8")),
     };
@@ -110,7 +110,7 @@ function compileProject(root: string, manifest: Manifest) {
   const summaries = new Map(
     sources.map((source) => [
       source.path,
-      summarizeSource(source.source, source.module_id, source.language, source.module_kind),
+      summarizeSource(source.source, source.moduleId, source.language, source.moduleKind),
     ]),
   );
   const service = new TypeScriptFactsService(repositoryRoot);
@@ -122,7 +122,7 @@ function compileProject(root: string, manifest: Manifest) {
   // available after the initial graph has opened.
   const probeSources = sources.map((source) => ({
     ...source,
-    probes: summaries.get(source.path)!.type_probes,
+    probes: summaries.get(source.path)!.typeProbes,
   }));
   service.collect(probeSources, assets);
   const facts = service.collect(probeSources, assets);
@@ -130,21 +130,21 @@ function compileProject(root: string, manifest: Manifest) {
   const theme = resolveFixtureCss(normalize(readFileSync(path.join(root, manifest.theme), "utf8")));
   const cssUri = pathToFileURL(path.join(root, manifest.theme)).href;
   const output = compileNativeProject(
-    sources.map(({ module_id, uri, source, language, module_kind }): NativeProjectSource => ({
-      module_id,
+    sources.map(({ moduleId, uri, source, language, moduleKind }): NativeProjectSource => ({
+      moduleId,
       uri,
       source,
       language,
-      module_kind,
-      source_map_source: uri,
-      type_facts: facts.get(module_id) ?? [],
+      moduleKind,
+      sourceMapSource: uri,
+      typeFacts: facts.get(moduleId) ?? [],
     })),
-    { content: theme, name: manifest.theme, uri: cssUri, source_map_source: cssUri },
+    { content: theme, name: manifest.theme, uri: cssUri, sourceMapSource: cssUri },
     manifest.compilerOptions,
   );
   const modules: ModuleOutput[] = output.modules.map((module) => ({
     ...module,
-    path: module.module_id,
+    path: module.moduleId,
   }));
   const diagnostics = modules.flatMap((module) =>
     module.diagnostics.map(
@@ -229,10 +229,10 @@ function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: Finaliz
   }
   for (const mapping of module.mappings) {
     changes.push({
-      fromA: mapping.original_start,
-      toA: mapping.original_end,
-      fromB: finalizedPosition(mapping.generated_start, prefix, removed),
-      toB: finalizedPosition(mapping.generated_end, prefix, removed),
+      fromA: mapping.originalStart,
+      toA: mapping.originalEnd,
+      fromB: finalizedPosition(mapping.generatedStart, prefix, removed),
+      toB: finalizedPosition(mapping.generatedEnd, prefix, removed),
     });
   }
   return changes.sort((left, right) => left.fromA - right.fromA || left.fromB - right.fromB);

@@ -100,7 +100,7 @@ export function createViteProject(options: StillwindOptions) {
     );
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
-      const resolved = await resolveImport(resource.specifier, resource.source_name);
+      const resolved = await resolveImport(resource.specifier, resource.sourceName);
       const url = resourceUrl(resolved);
       references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
       dependencies.add(cleanModuleId(resolved));
@@ -163,7 +163,7 @@ export function createViteProject(options: StillwindOptions) {
     upstream?: CssUpstreamMap;
     code: string;
     id: string;
-    module_id: string;
+    moduleId: string;
     manual: boolean;
     javascript: string;
     dependencies: string[];
@@ -221,7 +221,7 @@ export function createViteProject(options: StillwindOptions) {
     for (const resource of plan.resources) {
       const resolved = await context.resolve(
         resource.specifier,
-        state.compiler!.resolverId(resource.module_id),
+        state.compiler!.resolverId(resource.moduleId),
         { skipSelf: true },
       );
       const file = resolvedFile(resolved, `Stillwind resource ${resource.specifier}`);
@@ -268,7 +268,7 @@ export function createViteProject(options: StillwindOptions) {
     await ensureSession(state, context);
     const modules = [...inputMap(name).values()]
       .filter((input) => !input.manual)
-      .map((input) => input.module_id);
+      .map((input) => input.moduleId);
     return resolvePlan(state, modules, context, complete);
   };
   const publish = async (name: string | undefined, context: Parameters<typeof resolvePlan>[2]) => {
@@ -286,7 +286,7 @@ export function createViteProject(options: StillwindOptions) {
           revision,
           parts: plan.parts,
           dependencies: Object.fromEntries(
-            [...inputMap(name).values()].map((input) => [input.module_id, input.dependencies]),
+            [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
           ),
         },
       });
@@ -325,12 +325,12 @@ export function createViteProject(options: StillwindOptions) {
             context.resolve(specifier, importer, { skipSelf: true }),
           read: (id) => readFile(cleanModuleId(id), "utf8"),
           describe: (resolvedId) => ({
-            module_id:
+            moduleId:
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? `virtual:${encodeURIComponent(resolvedId)}`
                 : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
             uri: documentUri(resolvedId),
-            checker_file_name:
+            checkerFileName:
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? resolve(
                     settings.projectRoot,
@@ -338,7 +338,7 @@ export function createViteProject(options: StillwindOptions) {
                     `${createHash("sha256").update(resolvedId).digest("hex")}.ts`,
                   )
                 : cleanModuleId(resolvedId),
-            projection_file_name:
+            projectionFileName:
               resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
                 ? `virtual/${createHash("sha256").update(resolvedId).digest("hex")}.ts`
                 : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
@@ -375,7 +375,7 @@ export function createViteProject(options: StillwindOptions) {
           : inputMap(name).get(cleanModuleId(id))?.upstream,
         code,
         id,
-        module_id: output.module_id,
+        moduleId: output.moduleId,
         manual: output.hasModuleCssImport || options.automatic === false,
         javascript,
         dependencies: output.compositionModules,
@@ -396,7 +396,7 @@ export function createViteProject(options: StillwindOptions) {
           stillwind: {
             input: code,
             id,
-            module_id: output.module_id,
+            moduleId: output.moduleId,
             manual: output.hasModuleCssImport,
           },
         },

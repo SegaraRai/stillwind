@@ -23,7 +23,7 @@ async function compileFixture(
 ) {
   const id = path.join(root, filename);
   const input = await projectFrameworkSource({
-    resolver_id: id,
+    resolverId: id,
     ...fileModuleDescriptor(root, id),
     framework,
     source,
@@ -32,7 +32,7 @@ async function compileFixture(
     content: utilities,
     name: "framework-imports.css",
     uri: "untitled:framework-imports.css",
-    source_map_source: "untitled:framework-imports.css",
+    sourceMapSource: "untitled:framework-imports.css",
   }) as ProjectCompilerOutput;
   assert.equal(output.modules.length, 1);
   return output.modules[0]!;
@@ -45,16 +45,16 @@ for (const adapter of ["svelte", "astro"]) {
     const output = await compileFixture(source, "NoJsx.tsx");
     assert.deepEqual(output.diagnostics, []);
     assert.ok(output.code);
-    assert.equal(output.lint_settings[rule], "warn");
-    assert.equal(output.lint_findings.length, 1);
-    const finding = output.lint_findings[0]!;
+    assert.equal(output.lintSettings[rule], "warn");
+    assert.equal(output.lintFindings.length, 1);
+    const finding = output.lintFindings[0]!;
     assert.equal(finding.rule, rule);
     assert.equal(finding.uri, fileModuleDescriptor(root, path.join(root, "NoJsx.tsx")).uri);
     assert.equal(finding.start, Buffer.byteLength(source.slice(0, source.indexOf(literal))));
     assert.equal(finding.end, finding.start + Buffer.byteLength(literal));
     assert.equal(Buffer.from(source).subarray(finding.start, finding.end).toString(), literal);
-    assert.equal(finding.start_line, 1);
-    assert.equal(finding.start_column, source.split("\n")[1]!.indexOf(literal));
+    assert.equal(finding.startLine, 1);
+    assert.equal(finding.startColumn, source.split("\n")[1]!.indexOf(literal));
   });
 }
 
@@ -65,7 +65,7 @@ void test("plain TypeScript allows each macro adapter without a format warning",
       "Adapter.ts",
     );
     assert.deepEqual(output.diagnostics, [], adapter);
-    assert.deepEqual(output.lint_findings, [], adapter);
+    assert.deepEqual(output.lintFindings, [], adapter);
     assert.ok(output.code, adapter);
     assert.match(output.css, /display:\s*flex/, adapter);
   }
@@ -78,9 +78,9 @@ void test("Vue JSX compiles to class and style object props with an explicit Vue
     "const props = style('flex', {'--progress': amount});",
     "const view = <div {...props} />;",
   ].join("\n");
-  const output = await compileFixture(source, "VueJsx.tsx", "Vue");
+  const output = await compileFixture(source, "VueJsx.tsx", "vue");
   assert.deepEqual(output.diagnostics, []);
-  assert.deepEqual(output.lint_findings, []);
+  assert.deepEqual(output.lintFindings, []);
   assert.ok(output.code);
   assert.match(output.code, /const view = <div \{\.\.\.props\} \/>;/);
   assert.doesNotMatch(output.code, /className|__VLS_ctx|style\('flex'/);
@@ -105,23 +105,23 @@ void test("Vue SFC with a React macro warns in original coordinates without a fr
   assert.ok(!output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001"));
   assert.deepEqual(output.diagnostics, []);
   assert.ok(output.code);
-  assert.equal(output.lint_findings.length, 1);
-  const finding = output.lint_findings[0]!;
+  assert.equal(output.lintFindings.length, 1);
+  const finding = output.lintFindings[0]!;
   assert.equal(finding.rule, rule);
   assert.equal(finding.start, Buffer.byteLength(source.slice(0, source.indexOf(literal))));
   assert.equal(Buffer.from(source).subarray(finding.start, finding.end).toString(), literal);
-  assert.equal(finding.start_line, 2);
+  assert.equal(finding.startLine, 2);
 });
 
 void test("explicit framework constraints remain fatal even for an otherwise allowed input", async () => {
   const output = await compileFixture(
     "import {style} from 'stillwind/vue'; export const props = style('flex');",
     "Constraint.ts",
-    "React",
+    "react",
   );
   assert.equal(output.code, null);
   assert.ok(output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001"));
-  assert.deepEqual(output.lint_findings, []);
+  assert.deepEqual(output.lintFindings, []);
 });
 
 void test("CSS configures framework import warn, off, and deny with next-line suppression", async () => {
@@ -167,12 +167,12 @@ void test("CSS configures framework import warn, off, and deny with next-line su
         const output = await compile();
         assert.ok(output?.code);
         assert.deepEqual(output.diagnostics, []);
-        assert.equal(output.lint_settings[rule], level ?? "warn");
+        assert.equal(output.lintSettings[rule], level ?? "warn");
         const active = !suppressed && level !== "off";
-        assert.equal(output.lint_findings.length, active ? 1 : 0);
+        assert.equal(output.lintFindings.length, active ? 1 : 0);
         assert.equal(warnings.length, active ? 1 : 0);
         if (active) {
-          assert.equal(output.lint_findings[0]!.rule, rule);
+          assert.equal(output.lintFindings[0]!.rule, rule);
           assert.match(warnings[0]!, /framework-import-mismatch/);
         }
       }

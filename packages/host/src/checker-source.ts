@@ -16,19 +16,19 @@ export interface CheckerSpan {
 /** Original-coordinate requests for one module and its optional parser projection. */
 export interface TypeFactSource extends ProjectSource {
   /**
-   * Half-open UTF-8 ranges in fw_code, or source for plain modules.
-   * When `recognition_only` is true, the query only checks whether the receiver is
+   * Half-open UTF-8 ranges in fwCode, or source for plain modules.
+   * When `recognitionOnly` is true, the query only checks whether the receiver is
    * a Stillwind macro asset. A type that cannot be resolved produces no fact.
    * When false or omitted, the query follows the required-query policy for lowering.
    * Every probe must still match an expression in the checker AST.
    */
-  probes: readonly { start: number; end: number; recognition_only?: boolean }[];
+  probes: readonly { start: number; end: number; recognitionOnly?: boolean }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
-  checker_spans?: readonly CheckerSpan[];
+  checkerSpans?: readonly CheckerSpan[];
   /** Alternative checker buffers, including independent Astro client modules. */
-  checker_buffers?: readonly CheckerBuffer[];
+  checkerBuffers?: readonly CheckerBuffer[];
   /** Absolute framework declaration files included in the checker project. */
-  checker_types?: readonly string[];
+  checkerTypes?: readonly string[];
   /** Original UTF-8 string-literal ranges and resolved original module ids. */
   resolutions?: readonly { start: number; end: number; id: string }[];
 }
@@ -44,7 +44,14 @@ interface ShadowEdit {
 
 /** Stable encoding of a declaration's original-coordinate identity. */
 export function identityKey(identity: NativeAssetRecord["identity"]): string {
-  return `stillwind-identity/v1:${Buffer.from(JSON.stringify(identity)).toString("base64url")}`;
+  const serialized = JSON.stringify({
+    kind: identity.kind,
+    module_id: identity.moduleId,
+    start: identity.start,
+    end: identity.end,
+    binding_name: identity.bindingName,
+  });
+  return `stillwind-identity/v1:${Buffer.from(serialized).toString("base64url")}`;
 }
 
 /** Converts a validated original UTF-8 byte boundary to a UTF-16 offset. */
@@ -62,11 +69,11 @@ export function byteToUtf16(text: string, offset: number): number {
 
 /** Checker file identity; the original module id remains unchanged outside the checker. */
 export function checkerId(
-  source: Pick<ProjectSource, "checker_file_name" | "language" | "fw_code">,
+  source: Pick<ProjectSource, "checkerFileName" | "language" | "fwCode">,
 ): string {
-  return source.fw_code === undefined
-    ? source.checker_file_name
-    : `${source.checker_file_name}.${source.language}`;
+  return source.fwCode === undefined
+    ? source.checkerFileName
+    : `${source.checkerFileName}.${source.language}`;
 }
 
 /** Owns shadow edits and translates checker UTF-16 positions back to original bytes. */
@@ -77,7 +84,7 @@ export class CheckerSource {
   readonly id: string;
   readonly identities = new Map<string, NativeAssetRecord["identity"]>();
   /** Shadow UTF-16 AST ranges keyed to original UTF-8 probe ranges. */
-  readonly probes = new Map<string, { start: number; end: number; recognition_only?: boolean }>();
+  readonly probes = new Map<string, { start: number; end: number; recognitionOnly?: boolean }>();
   readonly #edits: ShadowEdit[] = [];
   readonly #original: string;
   readonly #points: Map<number, number | null>;
@@ -92,18 +99,18 @@ export class CheckerSource {
     this.source = source;
     this.buffer = buffer;
     this.id = buffer.region
-      ? `${source.checker_file_name}.stillwind-client-${index}.ts`
+      ? `${source.checkerFileName}.stillwind-client-${index}.ts`
       : checkerId(source);
-    this.#original = source.fw_code ?? source.source;
+    this.#original = source.fwCode ?? source.source;
     this.#points = projectionPoints(source);
     for (const asset of assets) {
-      const targets = this.targets(asset.call_start, asset.call_end);
+      const targets = this.targets(asset.callStart, asset.callEnd);
       const key = identityKey(asset.identity);
       this.identities.set(key, asset.identity);
       for (const [start, end] of targets) {
         const call = buffer.source.slice(start, end);
         if (!call.endsWith(")")) {
-          throw new Error(`Cannot locate producer in ${source.module_id}`);
+          throw new Error(`Cannot locate producer in ${source.moduleId}`);
         }
         const separator = [...call.matchAll(/[,(]/g)].some(
           (match) => skipTrivia(call, match.index + 1) === call.length - 1,
@@ -112,14 +119,14 @@ export class CheckerSource {
           : ",";
         const identity = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
         const javascript =
-          (source.fw_code === undefined && source.language === "js") || source.language === "jsx";
+          (source.fwCode === undefined && source.language === "js") || source.language === "jsx";
         const argument = javascript
           ? `/** @type {${identity}} */ (/** @type {unknown} */ (undefined))`
           : `undefined as unknown as ${identity}`;
         this.#edits.push({
           at: end - 1,
           end: end - 1,
-          original: { start: asset.call_start, end: asset.call_end },
+          original: { start: asset.callStart, end: asset.callEnd },
           text: `${separator}${argument}`,
         });
       }
@@ -142,7 +149,7 @@ export class CheckerSource {
         this.#edits[i].at < this.#edits[i - 1].end ||
         this.#edits[i].at === this.#edits[i - 1].at
       ) {
-        throw new Error(`Overlapping checker edits in ${source.module_id}`);
+        throw new Error(`Overlapping checker edits in ${source.moduleId}`);
       }
     }
     for (const probe of source.probes) {
@@ -167,18 +174,18 @@ export class CheckerSource {
         : [];
     }
     if (
-      this.source.checker_buffers?.some(
+      this.source.checkerBuffers?.some(
         (buffer) => buffer.region && a >= buffer.region.start && b <= buffer.region.end,
       )
     ) {
       return [];
     }
-    if (this.source.fw_code === undefined) {
+    if (this.source.fwCode === undefined) {
       return [[a, b]];
     }
     return [
       ...new Map(
-        (this.source.checker_spans ?? [])
+        (this.source.checkerSpans ?? [])
           .filter((span) => span.start === start && span.end === end)
           .map((span) => [
             `${span.projectedStart}:${span.projectedEnd}`,
@@ -216,7 +223,7 @@ export class CheckerSource {
     const generated = position - delta;
     const original = this.buffer.region
       ? generated + this.buffer.region.start
-      : this.source.fw_code === undefined
+      : this.source.fwCode === undefined
         ? generated
         : this.#points.get(generated);
     return original === undefined || original === null
@@ -235,7 +242,7 @@ function projectionPoints(source: ProjectSource): Map<number, number | null> {
       points.set(generated, original);
     }
   };
-  const map = source.fw2js_map;
+  const map = source.fw2JsMap;
   if (!map) {
     return points;
   }
@@ -257,7 +264,7 @@ function projectionPoints(source: ProjectSource): Map<number, number | null> {
       ...[...text.matchAll(/\n/g)].map((match) => match.index + 1),
     ];
     const generated = lines(source.source),
-      original = lines(source.fw_code!);
+      original = lines(source.fwCode!);
     const trace = new TraceMap(map.json);
     const selected = trace.sources.indexOf(map.source);
     for (const [line, segments] of decodedMappings(trace).entries()) {

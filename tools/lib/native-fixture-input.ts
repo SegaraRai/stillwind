@@ -11,18 +11,18 @@ import {
 export function fixtureProjectSource(source: string, moduleId: string): NativeProjectSource {
   const uri = pathToFileURL(path.resolve(moduleId)).href;
   return {
-    module_id: moduleId,
+    moduleId: moduleId,
     uri,
-    source_map_source: uri,
+    sourceMapSource: uri,
     language: moduleId.endsWith(".tsx") ? "tsx" : "ts",
-    module_kind: "unambiguous",
+    moduleKind: "unambiguous",
     source,
   };
 }
 
 export function fixtureCss(content: string): NativeCompileCssInput {
   const uri = pathToFileURL(path.resolve("stillwind.css")).href;
-  return { content, name: "stillwind.css", uri, source_map_source: uri };
+  return { content, name: "stillwind.css", uri, sourceMapSource: uri };
 }
 
 export function compileFixtureSource(source: string, moduleId: string, css: string) {
@@ -30,10 +30,10 @@ export function compileFixtureSource(source: string, moduleId: string, css: stri
 }
 
 export function comparableFixtureClasses(classes: NativeGeneratedClass[]) {
-  return classes.map(({ call_span, guard_path, ...generated }) => ({
+  return classes.map(({ callSpan, guardPath, ...generated }) => ({
     ...generated,
-    call_span: { start: call_span.start, end: call_span.end },
-    guard_path: guard_path.map(({ test, ...guard }) => ({
+    callSpan: { start: callSpan.start, end: callSpan.end },
+    guardPath: guardPath.map(({ test, ...guard }) => ({
       ...guard,
       test: { start: test.start, end: test.end },
     })),

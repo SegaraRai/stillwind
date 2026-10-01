@@ -157,7 +157,7 @@ export default function (
       return callback(null, projection ? "" : source, projection ? null : inputMap);
     }
     const plan = session.planStylesheet({
-      modules: [output.module_id],
+      modules: [output.moduleId],
       coverage: { kind: "observed" },
       placement: "document",
     });
@@ -165,7 +165,7 @@ export default function (
     const valueResources: { placeholder: string; id: string; request: string }[] = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const owner =
-        "module_id" in resource ? compiler.resolverId(resource.module_id) : resource.source_name;
+        "moduleId" in resource ? compiler.resolverId(resource.moduleId) : resource.sourceName;
       const resolved = await resolveAsset(resource.specifier, owner);
       if (!resolved) {
         throw new Error(`Cannot resolve Stillwind resource ${resource.specifier} from ${owner}`);

@@ -57,7 +57,6 @@ pub struct NativeCssResource {
     /// Placeholder left in the CSS that the host must substitute.
     pub placeholder: String,
     /// Opaque name of the source that owns the reference.
-    #[napi(js_name = "source_name")]
     pub source_name: String,
     /// Authored `url()` specifier.
     pub specifier: String,
@@ -77,7 +76,7 @@ pub struct NativeReload {
 }
 
 /// Completeness claim attached to a host selection.
-#[napi(discriminant = "kind", discriminant_case = "camelCase")]
+#[napi(discriminant = "kind", discriminant_case = "lowercase")]
 pub enum NativeCoverage {
     /// Only what this session has seen; no claim about unvisited modules.
     Observed,
@@ -223,7 +222,7 @@ pub(crate) fn stylesheet_locations(
     let mut entries = Vec::with_capacity(mappings.len());
     for mapping in mappings {
         let source_map_source = mapping.source.source_map_source().ok_or_else(|| {
-            napi::Error::from_reason("Stylesheet source is missing source_map_source")
+            napi::Error::from_reason("Stylesheet source is missing sourceMapSource")
         })?;
         let offset = |value| {
             u32::try_from(value)

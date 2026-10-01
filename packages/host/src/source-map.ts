@@ -64,30 +64,30 @@ export function composeModuleSourceMap(
 /**
  * One compiler replacement before host prefix insertion or import removal.
  * All offsets are absolute UTF-16 code units in the original and compiled buffers.
- * Replacement gaps without expression intervals map to `original_start`.
+ * Replacement gaps without expression intervals map to `originalStart`.
  */
 export interface CompilerMapping {
   /** Inclusive original offset; equals end for insertion. */
-  original_start: number;
+  originalStart: number;
   /** Exclusive original offset, at or after start. */
-  original_end: number;
+  originalEnd: number;
   /** Inclusive offset in the complete compiled buffer. */
-  generated_start: number;
+  generatedStart: number;
   /** Exclusive compiled offset; equals start for deletion. */
-  generated_end: number;
+  generatedEnd: number;
   /**
    * Nonempty, nonoverlapping intervals contained in this replacement, sorted by
    * generated start. Source order may differ. Missing/empty means anchor-only mapping.
    */
   expressions?: Array<{
     /** Inclusive original offset; the anchor for a nonexact interval. */
-    original_start: number;
+    originalStart: number;
     /** Exclusive original offset of the expression or encoded character. */
-    original_end: number;
+    originalEnd: number;
     /** Inclusive compiled offset, before host edits. */
-    generated_start: number;
+    generatedStart: number;
     /** Exclusive compiled offset, strictly greater than start. */
-    generated_end: number;
+    generatedEnd: number;
     /** True requires identical text/equal lengths; false anchors all units at original start. */
     exact: boolean;
   }>;
@@ -136,25 +136,25 @@ export function moduleSourceMap(
     if (removedIndex < removed.length && removed[removedIndex].from <= index) {
       continue;
     }
-    while (editIndex < mappings.length && mappings[editIndex].generated_end <= index) {
+    while (editIndex < mappings.length && mappings[editIndex].generatedEnd <= index) {
       const edit = mappings[editIndex++];
-      delta = edit.original_end - edit.generated_end;
+      delta = edit.originalEnd - edit.generatedEnd;
       expressionIndex = 0;
     }
     const edit = mappings[editIndex];
     const expressions = edit?.expressions ?? [];
     while (
       expressionIndex < expressions.length &&
-      expressions[expressionIndex].generated_end <= index
+      expressions[expressionIndex].generatedEnd <= index
     ) {
       expressionIndex++;
     }
     const expression = expressions[expressionIndex];
     const original =
-      expression && expression.generated_start <= index
-        ? expression.original_start + (expression.exact ? index - expression.generated_start : 0)
-        : edit && edit.generated_start <= index
-          ? edit.original_start
+      expression && expression.generatedStart <= index
+        ? expression.originalStart + (expression.exact ? index - expression.generatedStart : 0)
+        : edit && edit.generatedStart <= index
+          ? edit.originalStart
           : index + delta;
     // A folded record can jump backwards between distant source lines.
     if (

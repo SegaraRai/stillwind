@@ -2,9 +2,9 @@
 //!
 //! The binding itself is a thin conversion layer, so these tests drive
 //! `compile_source_*`, [`summarize_source_input`], [`render_stylesheet`], and
-//! [`generate_vocabulary_types`] directly and serialize the result the way a JavaScript
-//! caller would see it. They pin the transport contract that is easy to break without a
-//! JavaScript test: projected runtime imports stay inside their verified script realms,
+//! [`generate_vocabulary_types`] directly and serialize results through serde. JSON
+//! fields use snake case; native JavaScript objects use camel case. These tests check
+//! that projected runtime imports stay inside their verified script realms,
 //! invalid projection metadata fails the compile instead of producing partial code, and
 //! options are validated rather than defaulted silently.
 
@@ -42,6 +42,47 @@ fn css_input(content: &str) -> CompileCssInput {
         uri: SourceUri::parse("stillwind-input:theme").unwrap(),
         source_map_source: Some("stillwind.css".into()),
     }
+}
+
+#[test]
+fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
+    let options: CompilerOptions = serde_json::from_value(serde_json::json!({
+        "tailwindPrefix": "--compat-",
+        "classNamespace": "application",
+        "useCssIf": true,
+        "hashLength": 8
+    }))
+    .unwrap();
+    assert_eq!(options.tailwind_prefix, "--compat-");
+    assert_eq!(options.class_namespace, "application");
+    assert!(options.use_css_if);
+    assert_eq!(options.hash_length, 8);
+    let json = serde_json::to_value(&options).unwrap();
+    assert_eq!(json["tailwindPrefix"], "--compat-");
+    assert!(json.get("tailwind_prefix").is_none());
+    let design = serde_json::to_value(options.design_system()).unwrap();
+    assert_eq!(design["tailwindPrefix"], "--compat-");
+    assert!(design.get("tailwind_prefix").is_none());
+    assert_eq!(
+        serde_json::to_value(ScriptModuleKind::CommonJs).unwrap(),
+        "common-js"
+    );
+    assert_eq!(
+        serde_json::from_value::<ScriptModuleKind>(serde_json::json!("common-js")).unwrap(),
+        ScriptModuleKind::CommonJs
+    );
+    assert_eq!(
+        serde_json::to_value(stillwind_ir::AdapterKind::Vue).unwrap(),
+        "vue"
+    );
+    assert_eq!(
+        serde_json::to_value(stillwind_diagnostics::VariantInputErrorKind::CustomProperty).unwrap(),
+        "customProperty"
+    );
+    assert_eq!(
+        serde_json::to_value(stillwind_diagnostics::CompileDiagnostic::FrameworkConflict).unwrap(),
+        "frameworkConflict"
+    );
 }
 
 /// Malformed sources are reported through the same schema a host reads.
@@ -89,7 +130,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
         "source": format!("{first}\n{second}"),
         "language": "ts",
         "source_format": "svelte",
-        "framework": "Svelte",
+        "framework": "svelte",
         "fw_code": original,
         "fw2js_map": {
             "kind": "volar",
@@ -160,7 +201,7 @@ fn projected_project_input_edits_the_sfc_and_reports_original_coordinates() {
         "source": script,
         "language": "ts",
         "source_format": "svelte",
-        "framework": "Svelte",
+        "framework": "svelte",
         "fw_code": original,
         "fw2js_map": {
             "kind": "volar",

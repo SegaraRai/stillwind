@@ -124,7 +124,7 @@ function registerEmission(context: any, input?: ProducerInput) {
             { moduleCssImport: "stillwind/module-css" },
           );
           if (output && !input.manual) {
-            selection.push(output.module_id);
+            selection.push(output.moduleId);
           }
         }
         const revision = createHash("sha256")
@@ -138,9 +138,7 @@ function registerEmission(context: any, input?: ProducerInput) {
         const replacements = new Map();
         for (const resource of [...loaded.resources, ...plan.resources]) {
           const owner =
-            "module_id" in resource
-              ? compiler.resolverId(resource.module_id)
-              : resource.source_name;
+            "moduleId" in resource ? compiler.resolverId(resource.moduleId) : resource.sourceName;
           const file = await resolveAsset(resource.specifier, owner);
           compilation.fileDependencies.add(file);
           let request = path

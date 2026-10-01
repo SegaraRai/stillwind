@@ -54,16 +54,11 @@ pub struct BindingOutput {
     /// These are not lint findings: a rejected name comes from the generator rather than
     /// from the source, so the entry carries the family, the request hash, and the reason
     /// instead of a source span.
-    #[napi(js_name = "rejected_names")]
     pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Non-fatal findings.
-    #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
-    #[napi(
-        js_name = "lint_settings",
-        ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
-    )]
+    #[napi(ts_type = "Record<string, 'warn' | 'deny' | 'off'>")]
     pub lint_settings: BTreeMap<String, String>,
 }
 
@@ -137,22 +132,16 @@ pub struct BindingLocation {
     /// Exclusive UTF-8 byte offset.
     pub end: u32,
     /// Zero-based UTF-16 offset from the document start.
-    #[napi(js_name = "start_utf16")]
     pub start_utf16: u32,
     /// Zero-based UTF-16 offset from the document start.
-    #[napi(js_name = "end_utf16")]
     pub end_utf16: u32,
     /// Zero-based start line.
-    #[napi(js_name = "start_line")]
     pub start_line: u32,
     /// Zero-based UTF-16 column on `start_line`.
-    #[napi(js_name = "start_column")]
     pub start_column: u32,
     /// Zero-based end line.
-    #[napi(js_name = "end_line")]
     pub end_line: u32,
     /// Zero-based UTF-16 column on `end_line`.
-    #[napi(js_name = "end_column")]
     pub end_column: u32,
 }
 
@@ -247,22 +236,16 @@ pub struct BindingDiagnostic {
     /// Byte end of the primary label.
     pub end: u32,
     /// UTF-16 offset of the primary label start.
-    #[napi(js_name = "start_utf16")]
     pub start_utf16: u32,
     /// UTF-16 offset of the primary label end.
-    #[napi(js_name = "end_utf16")]
     pub end_utf16: u32,
     /// Zero-based line of the primary label start.
-    #[napi(js_name = "start_line")]
     pub start_line: u32,
     /// Zero-based UTF-16 column of the primary label start.
-    #[napi(js_name = "start_column")]
     pub start_column: u32,
     /// Zero-based line of the primary label end.
-    #[napi(js_name = "end_line")]
     pub end_line: u32,
     /// Zero-based UTF-16 column of the primary label end.
-    #[napi(js_name = "end_column")]
     pub end_column: u32,
     /// Additional explanation lines.
     pub notes: Vec<String>,
@@ -285,16 +268,12 @@ pub struct BindingLintFinding {
     /// Byte end of the finding.
     pub end: u32,
     /// Zero-based line of the primary range start.
-    #[napi(js_name = "start_line")]
     pub start_line: u32,
     /// Zero-based UTF-16 column of the primary range start.
-    #[napi(js_name = "start_column")]
     pub start_column: u32,
     /// Zero-based line of the primary range end.
-    #[napi(js_name = "end_line")]
     pub end_line: u32,
     /// Zero-based UTF-16 column of the primary range end.
-    #[napi(js_name = "end_column")]
     pub end_column: u32,
     /// Additional explanation lines.
     pub notes: Vec<String>,
@@ -307,7 +286,6 @@ pub struct NativeModuleResource {
     /// Placeholder left in the generated CSS.
     pub placeholder: String,
     /// Module that owns the reference.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Authored specifier.
     pub specifier: String,
@@ -330,16 +308,12 @@ impl From<ModuleResourceReference> for NativeModuleResource {
 #[derive(Serialize)]
 pub struct NativeTransformMapping {
     /// Inclusive original offset; may equal `original_end` for insertion.
-    #[napi(js_name = "original_start")]
     pub original_start: u32,
     /// Exclusive original offset, at or after `original_start`.
-    #[napi(js_name = "original_end")]
     pub original_end: u32,
     /// Inclusive generated offset in the complete compiled buffer.
-    #[napi(js_name = "generated_start")]
     pub generated_start: u32,
     /// Exclusive generated offset; may equal `generated_start` for deletion.
-    #[napi(js_name = "generated_end")]
     pub generated_end: u32,
     /// Nonoverlapping intervals contained in this replacement, ordered by generated start.
     /// Original positions may repeat or move backwards; an empty array means anchor-only mapping.
@@ -366,16 +340,12 @@ impl From<TransformMapping> for NativeTransformMapping {
 #[derive(Serialize)]
 pub struct NativeExpressionMapping {
     /// Inclusive original UTF-16 offset; the anchor when `exact` is false.
-    #[napi(js_name = "original_start")]
     pub original_start: u32,
     /// Exclusive original UTF-16 offset of the expression or encoded character.
-    #[napi(js_name = "original_end")]
     pub original_end: u32,
     /// Inclusive generated UTF-16 offset within the enclosing replacement.
-    #[napi(js_name = "generated_start")]
     pub generated_start: u32,
     /// Exclusive generated UTF-16 offset, strictly greater than `generated_start`.
-    #[napi(js_name = "generated_end")]
     pub generated_end: u32,
     /// `true` means identical text and equal interval lengths; `false` maps every
     /// generated code unit to `original_start`, as for an HTML entity.
@@ -424,7 +394,6 @@ pub struct NativeGuardStep {
     /// The guard expression, which the runtime evaluates as written.
     pub test: NativeSpan,
     /// Whether the class applies when the guard holds.
-    #[napi(js_name = "when_true")]
     pub when_true: bool,
 }
 
@@ -442,13 +411,10 @@ impl From<GuardStep> for NativeGuardStep {
 #[derive(Serialize)]
 pub struct NativeGeneratedClass {
     /// The generated class.
-    #[napi(js_name = "class_name")]
     pub class_name: String,
     /// Span of the call the class belongs to.
-    #[napi(js_name = "call_span")]
     pub call_span: NativeSpan,
     /// Outermost to innermost conditional tests that select this class.
-    #[napi(js_name = "guard_path")]
     pub guard_path: Vec<NativeGuardStep>,
 }
 
@@ -473,10 +439,8 @@ pub struct NativeGeneratedSymbol {
     /// Owner identity used to distinguish name reuse from a collision.
     pub identity: String,
     /// Domain of the source that owns this name: `module` or `stylesheet`.
-    #[napi(js_name = "source_kind")]
     pub source_kind: String,
     /// Identity within `source_kind`.
-    #[napi(js_name = "source_id")]
     pub source_id: String,
     /// Byte start of the declaration, absent for a name that declares nothing itself.
     pub start: Option<u32>,
@@ -555,7 +519,6 @@ pub struct ProjectModuleOutput {
     /// Composition edges of this module.
     pub composition: Vec<NativeStyleDependency>,
     /// Host-chosen identity of this module.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Assets and resources this module references.
     pub resources: Vec<NativeModuleResource>,
@@ -574,16 +537,11 @@ pub struct ProjectModuleOutput {
     /// Source-resolved diagnostics for this module.
     pub reports: Vec<BindingReport>,
     /// Names a host-generated identifier was rejected for, which the host may warn about.
-    #[napi(js_name = "rejected_names")]
     pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Non-fatal findings.
-    #[napi(js_name = "lint_findings")]
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
-    #[napi(
-        js_name = "lint_settings",
-        ts_type = "Record<string, 'warn' | 'deny' | 'off'>"
-    )]
+    #[napi(ts_type = "Record<string, 'warn' | 'deny' | 'off'>")]
     pub lint_settings: BTreeMap<String, String>,
 }
 

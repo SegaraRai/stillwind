@@ -8,6 +8,7 @@ use super::SourceFailureContext;
 
 /// The reason a style input cannot be transformed by a CSS variant.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[serde(rename_all = "camelCase")]
 pub enum VariantInputErrorKind {
     /// Element attribute supplied by an object entry.
     #[error("element attribute")]
@@ -35,6 +36,7 @@ pub enum VariantInputErrorKind {
 /// message template; [`super::CompileError`] supplies the
 /// reporting location, optional source name, and notes. Match variants to inspect causes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[serde(rename_all = "camelCase")]
 pub enum CompileDiagnostic {
     /// The host-selected framework disagrees with the imported macro entry point.
     #[error("explicit framework conflicts with the imported style macro")]

@@ -14,16 +14,16 @@ void test("compiled custom properties preserve evaluation order and inactive bra
   const result = compileSource({
     source: `import {style} from "stillwind/react";
     const props = style({"--x": next("first")}, active && {"--x": next("second"), "data-x": next("third")}, {"--y": next("last")});`,
-    module_id: "src/custom.ts",
+    moduleId: "src/custom.ts",
     uri: "untitled:src/custom.ts",
-    source_map_source: "untitled:src/custom.ts",
+    sourceMapSource: "untitled:src/custom.ts",
     language: "ts",
-    module_kind: "unambiguous",
+    moduleKind: "unambiguous",
     css: {
       content: "@stillwind-slot utilities;",
       name: "root.css",
       uri: "untitled:root.css",
-      source_map_source: "untitled:root.css",
+      sourceMapSource: "untitled:root.css",
     },
   });
   assert.deepEqual(result.diagnostics, []);

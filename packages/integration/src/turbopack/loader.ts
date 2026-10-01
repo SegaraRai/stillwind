@@ -27,7 +27,7 @@ export default function (
       }
       if (new URLSearchParams(this.resourceQuery).has("stillwind-module-css")) {
         const plan = project.compiler.native.planStylesheet({
-          modules: [output.module_id],
+          modules: [output.moduleId],
           coverage: { kind: "observed" },
           placement: "document",
         });
@@ -36,9 +36,9 @@ export default function (
         for (const resource of [...project.loaded.resources, ...plan.resources]) {
           const file = await project.resolveAsset(
             resource.specifier,
-            "module_id" in resource
-              ? project.compiler.resolverId(resource.module_id)
-              : resource.source_name,
+            "moduleId" in resource
+              ? project.compiler.resolverId(resource.moduleId)
+              : resource.sourceName,
           );
           project.host.watch(file);
           let request = path.relative(path.dirname(this.resourcePath), file).replaceAll("\\", "/");

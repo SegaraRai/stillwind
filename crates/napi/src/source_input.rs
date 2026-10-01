@@ -81,7 +81,7 @@ impl From<NativeScriptLanguage> for ScriptLanguage {
 }
 
 /// Module grammar supplied for the Oxc parser.
-#[napi(string_enum = "camelCase")]
+#[napi(string_enum = "lowercase")]
 pub enum NativeScriptModuleKind {
     /// ECMAScript module.
     Module,
@@ -105,7 +105,7 @@ impl From<NativeScriptModuleKind> for ScriptModuleKind {
 }
 
 /// Framework adapter requested by the host.
-#[napi(string_enum)]
+#[napi(string_enum = "lowercase")]
 pub enum NativeFramework {
     /// React.
     React,
@@ -150,50 +150,39 @@ pub struct NativeProjectSource {
     /// Host-supplied absolute URI of the original editable document.
     pub uri: String,
     /// Host-chosen identity of this module.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Text the parser sees, and the buffer edits are applied to when there is no
     /// projection.
     pub source: String,
     /// Facts the host produced for this module, empty when it has none.
-    #[napi(js_name = "type_facts")]
     pub type_facts: Option<Vec<NativeTypeFact>>,
     /// Parser dialect supplied by the host.
     pub language: NativeScriptLanguage,
     /// Module grammar, independent of the JavaScript or TypeScript dialect.
-    #[napi(js_name = "module_kind")]
     pub module_kind: NativeScriptModuleKind,
     /// Original format. Plain inputs default from language; projected inputs require
     /// an explicit component format independently of the adapter constraint.
-    #[napi(js_name = "source_format")]
     pub source_format: Option<NativeSourceFormat>,
     /// Exact source name for generated stylesheet maps.
-    #[napi(js_name = "source_map_source")]
     pub source_map_source: Option<String>,
     /// Explicit output adapter constraint; macro imports select it when absent.
     pub framework: Option<NativeFramework>,
     /// Source map from `source` back to the file it was generated from.
     pub map: Option<String>,
     /// Original framework source, present only for projected inputs.
-    #[napi(js_name = "fw_code")]
     pub fw_code: Option<String>,
     /// Mapping between [`Self::fw_code`] and [`Self::source`].
-    #[napi(js_name = "fw2js_map")]
     pub fw2js_map: Option<NativeProjectionMap>,
     /// Source map from [`Self::fw_code`] to its own upstream file.
-    #[napi(js_name = "fw_map")]
     pub fw_map: Option<String>,
     /// Converter that produced [`Self::source`], part of the input revision.
     pub converter: Option<NativeConverterIdentity>,
     /// Import scopes of [`Self::fw_code`].
-    #[napi(js_name = "import_realms")]
     pub import_realms: Option<Vec<HostRealm>>,
     /// Converted regions of [`Self::fw_code`].
     pub regions: Option<Vec<HostRegion>>,
-    #[napi(js_name = "stylesheet_imports")]
     /// Host-allocated stylesheet modules to insert at the macro import.
     pub stylesheet_imports: Option<Vec<String>>,
-    #[napi(js_name = "module_css_import")]
     /// Host-allocated module that exports this module's CSS value.
     pub module_css_import: Option<String>,
 }
@@ -240,7 +229,6 @@ pub struct NativeConverterIdentity {
     /// Tool version.
     pub version: String,
     /// Fingerprint of the converter settings that produced the mapping.
-    #[napi(js_name = "options_fingerprint")]
     pub options_fingerprint: String,
 }
 
@@ -364,10 +352,8 @@ pub struct HostRegion {
     /// UTF-16 end in the original source.
     pub end: u32,
     /// Realm whose imports are visible inside this region.
-    #[napi(js_name = "import_realm")]
     pub import_realm: u32,
     /// Delimiter of the enclosing attribute, when there is one.
-    #[napi(js_name = "attribute_quote")]
     pub attribute_quote: Option<NativeAttributeQuote>,
 }
 
@@ -419,18 +405,18 @@ impl ProjectSource {
             let map = self
                 .fw2js_map
                 .clone()
-                .ok_or_else(|| Error::from_reason("fw_code requires fw2js_map"))?;
+                .ok_or_else(|| Error::from_reason("fwCode requires fw2JsMap"))?;
             let converter = self
                 .converter
                 .clone()
-                .ok_or_else(|| Error::from_reason("fw_code requires converter identity"))?;
+                .ok_or_else(|| Error::from_reason("fwCode requires converter identity"))?;
             if self
                 .source_format
                 .and_then(SourceFormat::projection_adapter)
                 .is_none()
             {
                 return Err(Error::from_reason(
-                    "projected input requires a component source_format",
+                    "projected input requires a component sourceFormat",
                 ));
             }
             if self.map.is_some() {
@@ -480,7 +466,7 @@ impl ProjectSource {
                 || !self.import_realms.is_empty()
                 || !self.regions.is_empty()
             {
-                return Err(Error::from_reason("projection metadata requires fw_code"));
+                return Err(Error::from_reason("projection metadata requires fwCode"));
             }
             None
         };

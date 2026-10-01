@@ -11,8 +11,8 @@ use stillwind_diagnostics::CompileDiagnostic;
 
 /// The `--sw-` and `--tw-` namespaces used by generated custom properties.
 ///
-/// Deserialization is camelCase and fills omitted fields from [`Default`], so a host
-/// may send only the prefix it changes.
+/// Deserialization uses camelCase fields and fills omitted fields from [`Default`], so
+/// a host may send only the prefix it changes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DesignSystemOptions {

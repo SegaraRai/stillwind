@@ -44,16 +44,16 @@ export function convert(source: string, filename: string): ConvertedFramework {
     });
   }
   return {
-    source_format: "svelte",
+    sourceFormat: "svelte",
     language: "tsx",
     source: result.code,
-    fw2js_map: sourceMapV3(result.map),
+    fw2JsMap: sourceMapV3(result.map),
     converter: converterIdentity("svelte2tsx", {
       ...options,
       svelte: converterIdentity("svelte", {}).version,
       typescript: ts.version,
     }),
-    import_realms: scripts,
+    importRealms: scripts,
     regions: sourceRegions(source, scripts, ast.instance ? 1 : ast.module ? 0 : undefined),
   };
 }

@@ -42,37 +42,37 @@ declare const enabled:boolean; declare const key:string;
 const selected=enabled ? a : b;
 export const invalid=${expression};`;
       const sources = [
-        { module_id: "consumption-producer.ts", source: producer },
-        { module_id: "consumption-consumer.ts", source: consumer },
+        { moduleId: "consumption-producer.ts", source: producer },
+        { moduleId: "consumption-consumer.ts", source: consumer },
       ].map((entry) => ({
         ...entry,
-        uri: `untitled:${entry.module_id}`,
-        source_map_source: `untitled:${entry.module_id}`,
+        uri: `untitled:${entry.moduleId}`,
+        sourceMapSource: `untitled:${entry.moduleId}`,
         language: "ts" as const,
-        module_kind: "unambiguous" as const,
-        resolver_id: path.join(root, entry.module_id),
-        checker_file_name: path.join(root, entry.module_id),
+        moduleKind: "unambiguous" as const,
+        resolverId: path.join(root, entry.moduleId),
+        checkerFileName: path.join(root, entry.moduleId),
         summary: summarizeSource(
           entry.source,
-          entry.module_id,
+          entry.moduleId,
           "ts",
           "unambiguous",
         ) as ModuleSummary,
       }));
       const facts = service.collect(
-        sources.map((entry) => ({ ...entry, probes: entry.summary.type_probes })),
-        new Map(sources.map((entry) => [entry.module_id, entry.summary.assets])),
+        sources.map((entry) => ({ ...entry, probes: entry.summary.typeProbes })),
+        new Map(sources.map((entry) => [entry.moduleId, entry.summary.assets])),
       );
       const result = compileProject(
-        sources.map((entry) => ({ ...entry, type_facts: facts.get(entry.module_id) ?? [] })),
+        sources.map((entry) => ({ ...entry, typeFacts: facts.get(entry.moduleId) ?? [] })),
         {
           content: "@utility opacity-0 { opacity:0; } @stillwind-slot utilities;",
           name: "root.css",
           uri: "untitled:root.css",
-          source_map_source: "untitled:root.css",
+          sourceMapSource: "untitled:root.css",
         },
       );
-      const output = result.modules.find((entry) => entry.module_id === "consumption-consumer.ts");
+      const output = result.modules.find((entry) => entry.moduleId === "consumption-consumer.ts");
       assert.ok(output);
       const code = expression.startsWith("frames(") ? "SW04002" : "SW01011";
       assert.ok(

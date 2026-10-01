@@ -37,7 +37,7 @@ interface ClassRule {
 }
 
 interface NativeOutput {
-  classes: Array<{ class_name: string }>;
+  classes: Array<{ className: string }>;
   css: string;
   diagnostics: unknown[];
 }
@@ -440,7 +440,7 @@ export function verifyPropertyOrderParity(
           `${file} ${fixtureCase.name}: combined compilation failed: ${JSON.stringify(native.diagnostics)}`,
         );
       }
-      const generatedClass = native.classes[0].class_name;
+      const generatedClass = native.classes[0].className;
       const actualRules = classRules(native.css, new Set([generatedClass])).get(generatedClass);
       if (!actualRules) {
         throw new Error(`${file} ${fixtureCase.name}: generated base class rule was not found`);

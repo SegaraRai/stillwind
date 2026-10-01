@@ -85,7 +85,7 @@ impl SourceFormat {
 
 /// JavaScript or TypeScript dialect of a parsed source buffer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum ScriptLanguage {
     /// Plain JavaScript.
     Js,
@@ -101,7 +101,7 @@ pub enum ScriptLanguage {
 
 /// Module grammar used when parsing a JavaScript or TypeScript buffer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum ScriptModuleKind {
     /// Parse as an ECMAScript module.
     Module,
@@ -157,7 +157,7 @@ pub struct ProjectionRegion {
 
 /// Quote character that delimited a converted attribute value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum AttributeQuote {
     /// The region was written inside single quotes.
     Single,

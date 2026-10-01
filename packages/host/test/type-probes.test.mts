@@ -30,11 +30,11 @@ export const props = style(selected('infinite'));`;
       .collect(
         [
           {
-            resolver_id: id,
-            checker_file_name: id,
-            module_id: "probe-document.ts",
+            resolverId: id,
+            checkerFileName: id,
+            moduleId: "probe-document.ts",
             source,
-            probes: summary.type_probes,
+            probes: summary.typeProbes,
           },
         ],
         new Map([["probe-document.ts", summary.assets]]),
@@ -43,16 +43,16 @@ export const props = style(selected('infinite'));`;
     assert.ok(facts.length > 0);
     for (const fact of facts) {
       assert.ok(
-        summary.type_probes.some((probe) => probe.start === fact.start && probe.end === fact.end),
+        summary.typeProbes.some((probe) => probe.start === fact.start && probe.end === fact.end),
       );
     }
     assert.equal(service.stats.restarts, 0);
     const noProbes = service.collect(
       [
         {
-          resolver_id: id,
-          checker_file_name: id,
-          module_id: "probe-document.ts",
+          resolverId: id,
+          checkerFileName: id,
+          moduleId: "probe-document.ts",
           source,
           probes: [],
         },

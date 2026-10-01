@@ -47,10 +47,10 @@ export function convert(source: string, filename: string): ConvertedFramework {
       });
     }
     return {
-      source_format: "vue",
+      sourceFormat: "vue",
       language: service.extension === ".tsx" ? "tsx" : "ts",
       source: service.code.snapshot.getText(0, service.code.snapshot.getLength()),
-      fw2js_map: {
+      fw2JsMap: {
         kind: "volar",
         mappings: service.code.mappings.map(
           ({ sourceOffsets, generatedOffsets, lengths, generatedLengths }) => ({
@@ -65,7 +65,7 @@ export function convert(source: string, filename: string): ConvertedFramework {
         options,
         typescript: ts.version,
       }),
-      import_realms: scripts,
+      importRealms: scripts,
       regions: quotedRegions(
         source,
         parsed.descriptor.template?.ast,
@@ -88,7 +88,7 @@ function quotedRegions(
   const quotes: Array<{
     start: number;
     end: number;
-    attribute_quote: "single" | "double";
+    attributeQuote: "single" | "double";
   }> = [];
 
   function visit(node: RootNode | TemplateChildNode) {
@@ -104,7 +104,7 @@ function quotedRegions(
           quotes.push({
             start,
             end,
-            attribute_quote: quote === '"' ? "double" : "single",
+            attributeQuote: quote === '"' ? "double" : "single",
           });
         }
       }

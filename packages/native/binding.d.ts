@@ -110,17 +110,17 @@ export interface BindingDiagnostic {
   /** Byte end of the primary label. */
   end: number
   /** UTF-16 offset of the primary label start. */
-  start_utf16: number
+  startUtf16: number
   /** UTF-16 offset of the primary label end. */
-  end_utf16: number
+  endUtf16: number
   /** Zero-based line of the primary label start. */
-  start_line: number
+  startLine: number
   /** Zero-based UTF-16 column of the primary label start. */
-  start_column: number
+  startColumn: number
   /** Zero-based line of the primary label end. */
-  end_line: number
+  endLine: number
   /** Zero-based UTF-16 column of the primary label end. */
-  end_column: number
+  endColumn: number
   /** Additional explanation lines. */
   notes: Array<string>
 }
@@ -156,13 +156,13 @@ export interface BindingLintFinding {
   /** Byte end of the finding. */
   end: number
   /** Zero-based line of the primary range start. */
-  start_line: number
+  startLine: number
   /** Zero-based UTF-16 column of the primary range start. */
-  start_column: number
+  startColumn: number
   /** Zero-based line of the primary range end. */
-  end_line: number
+  endLine: number
   /** Zero-based UTF-16 column of the primary range end. */
-  end_column: number
+  endColumn: number
   /** Additional explanation lines. */
   notes: Array<string>
 }
@@ -178,17 +178,17 @@ export interface BindingLocation {
   /** Exclusive UTF-8 byte offset. */
   end: number
   /** Zero-based UTF-16 offset from the document start. */
-  start_utf16: number
+  startUtf16: number
   /** Zero-based UTF-16 offset from the document start. */
-  end_utf16: number
+  endUtf16: number
   /** Zero-based start line. */
-  start_line: number
+  startLine: number
   /** Zero-based UTF-16 column on `start_line`. */
-  start_column: number
+  startColumn: number
   /** Zero-based end line. */
-  end_line: number
+  endLine: number
   /** Zero-based UTF-16 column on `end_line`. */
-  end_column: number
+  endColumn: number
 }
 
 /** Result of compiling one module. */
@@ -218,11 +218,11 @@ export interface BindingOutput {
    * from the source, so the entry carries the family, the request hash, and the reason
    * instead of a source span.
    */
-  rejected_names: Array<BindingRejectedIdentifier>
+  rejectedNames: Array<BindingRejectedIdentifier>
   /** Non-fatal findings. */
-  lint_findings: Array<BindingLintFinding>
+  lintFindings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
-  lint_settings: Record<string, 'warn' | 'deny' | 'off'>
+  lintSettings: Record<string, 'warn' | 'deny' | 'off'>
 }
 
 /** One rejected generated name, reported for a host that supplies its own generators. */
@@ -309,9 +309,9 @@ export interface HostRegion {
   /** UTF-16 end in the original source. */
   end: number
   /** Realm whose imports are visible inside this region. */
-  import_realm: number
+  importRealm: number
   /** Delimiter of the enclosing attribute, when there is one. */
-  attribute_quote?: NativeAttributeQuote
+  attributeQuote?: NativeAttributeQuote
 }
 
 /**
@@ -341,9 +341,9 @@ export interface NativeAssetRecord {
   /** Metadata carried with the asset. */
   metadata: NativeAssetMetadata
   /** Inclusive original UTF-8 byte offset of the producing call. */
-  call_start: number
+  callStart: number
   /** Exclusive original UTF-8 byte offset of the producing call. */
-  call_end: number
+  callEnd: number
 }
 
 /** Quote character that delimited a converted attribute value. */
@@ -388,7 +388,7 @@ export interface NativeCompileCssInput {
   /** Absolute URI of the editable CSS document. */
   uri: string
   /** Exact source name for generated CSS maps. */
-  source_map_source?: string
+  sourceMapSource?: string
 }
 
 /**
@@ -428,15 +428,15 @@ export interface NativeCompileSourceInput {
   /** Parser input text. */
   source: string
   /** Module identity used for generated names and semantic references. */
-  module_id: string
+  moduleId: string
   /** Absolute URI of the editable script document. */
   uri: string
   /** Exact source name for generated CSS maps. */
-  source_map_source?: string
+  sourceMapSource?: string
   /** Parser dialect chosen by the host. */
   language: NativeScriptLanguage
   /** Module grammar chosen by the host. */
-  module_kind: NativeScriptModuleKind
+  moduleKind: NativeScriptModuleKind
   /** CSS source and its identities. */
   css: NativeCompileCssInput
 }
@@ -459,7 +459,7 @@ export interface NativeConverterIdentity {
   /** Tool version. */
   version: string
   /** Fingerprint of the converter settings that produced the mapping. */
-  options_fingerprint: string
+  optionsFingerprint: string
 }
 
 /** Completeness claim attached to a host selection. */
@@ -538,7 +538,7 @@ export interface NativeCssResource {
   /** Placeholder left in the CSS that the host must substitute. */
   placeholder: string
   /** Opaque name of the source that owns the reference. */
-  source_name: string
+  sourceName: string
   /** Authored `url()` specifier. */
   specifier: string
   /** Byte start of the complete authored resource expression in the owning source. */
@@ -606,13 +606,13 @@ export interface NativeExportImports {
  */
 export interface NativeExpressionMapping {
   /** Inclusive original UTF-16 offset; the anchor when `exact` is false. */
-  original_start: number
+  originalStart: number
   /** Exclusive original UTF-16 offset of the expression or encoded character. */
-  original_end: number
+  originalEnd: number
   /** Inclusive generated UTF-16 offset within the enclosing replacement. */
-  generated_start: number
+  generatedStart: number
   /** Exclusive generated UTF-16 offset, strictly greater than `generated_start`. */
-  generated_end: number
+  generatedEnd: number
   /**
    * `true` means identical text and equal interval lengths; `false` maps every
    * generated code unit to `original_start`, as for an HTML entity.
@@ -621,16 +621,16 @@ export interface NativeExpressionMapping {
 }
 
 /** Framework adapter requested by the host. */
-export type NativeFramework = 'React' | 'Preact' | 'Solid' | 'Vue' | 'Svelte' | 'Astro'
+export type NativeFramework = 'react' | 'preact' | 'solid' | 'vue' | 'svelte' | 'astro'
 
 /** A class name generated for one utility literal. */
 export interface NativeGeneratedClass {
   /** The generated class. */
-  class_name: string
+  className: string
   /** Span of the call the class belongs to. */
-  call_span: NativeSpan
+  callSpan: NativeSpan
   /** Outermost to innermost conditional tests that select this class. */
-  guard_path: Array<NativeGuardStep>
+  guardPath: Array<NativeGuardStep>
 }
 
 /** A generated identifier that host tooling must treat as reserved. */
@@ -642,9 +642,9 @@ export interface NativeGeneratedSymbol {
   /** Owner identity used to distinguish name reuse from a collision. */
   identity: string
   /** Domain of the source that owns this name: `module` or `stylesheet`. */
-  source_kind: string
+  sourceKind: string
   /** Identity within `source_kind`. */
-  source_id: string
+  sourceId: string
   /** Byte start of the declaration, absent for a name that declares nothing itself. */
   start?: number
   /** Byte end of the declaration, absent for a name that declares nothing itself. */
@@ -656,7 +656,7 @@ export interface NativeGuardStep {
   /** The guard expression, which the runtime evaluates as written. */
   test: NativeSpan
   /** Whether the class applies when the guard holds. */
-  when_true: boolean
+  whenTrue: boolean
 }
 
 /** One host generator function per family, all optional. */
@@ -695,7 +695,7 @@ export interface NativeIdentity {
   /** Kind of declaration this identity names. */
   kind: NativeAssetKind
   /** Module identity of the declaring module. */
-  module_id: string
+  moduleId: string
   /**
    * Byte start of the declaration identity: binding-name span for named assets,
    * call span for styles.
@@ -704,7 +704,7 @@ export interface NativeIdentity {
   /** Exclusive byte end of the declaration identity span. */
   end: number
   /** Lexical binding name, or the empty string for anonymous calls. */
-  binding_name: string
+  bindingName: string
 }
 
 /** One import binding of a module. */
@@ -781,7 +781,7 @@ export interface NativeModuleResource {
   /** Placeholder left in the generated CSS. */
   placeholder: string
   /** Module that owns the reference. */
-  module_id: string
+  moduleId: string
   /** Authored specifier. */
   specifier: string
 }
@@ -803,23 +803,23 @@ export interface NativeModuleSummary {
   /** Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`]. */
   schema: number
   /** Module this summary describes. */
-  module_id: string
+  moduleId: string
   /** Number of explicit module CSS imports. */
-  module_css_imports: number
+  moduleCssImports: number
   /** Number of framework macro import statements. */
-  macro_imports: number
+  macroImports: number
   /** Every import or export specifier, in source order. */
-  module_specifiers: Array<NativeModuleSpecifier>
+  moduleSpecifiers: Array<NativeModuleSpecifier>
   /** Expressions the host should resolve. */
-  type_probes: Array<NativeTypeProbe>
+  typeProbes: Array<NativeTypeProbe>
   /** Import bindings, in source order. */
   imports: Array<NativeImportBinding>
   /** Re-exports, in source order. */
-  re_exports: Array<NativeReExport>
+  reExports: Array<NativeReExport>
   /** Imports referenced by at least one probe. */
-  probe_imports: Array<NativeImportBinding>
+  probeImports: Array<NativeImportBinding>
   /** Imports each export depends on. */
-  export_imports: Array<NativeExportImports>
+  exportImports: Array<NativeExportImports>
   /** Assets declared by this module. */
   assets: Array<NativeAssetRecord>
   /** Values this module exports. */
@@ -839,45 +839,45 @@ export interface NativeProjectSource {
   /** Host-supplied absolute URI of the original editable document. */
   uri: string
   /** Host-chosen identity of this module. */
-  module_id: string
+  moduleId: string
   /**
    * Text the parser sees, and the buffer edits are applied to when there is no
    * projection.
    */
   source: string
   /** Facts the host produced for this module, empty when it has none. */
-  type_facts?: Array<NativeTypeFact>
+  typeFacts?: Array<NativeTypeFact>
   /** Parser dialect supplied by the host. */
   language: NativeScriptLanguage
   /** Module grammar, independent of the JavaScript or TypeScript dialect. */
-  module_kind: NativeScriptModuleKind
+  moduleKind: NativeScriptModuleKind
   /**
    * Original format. Plain inputs default from language; projected inputs require
    * an explicit component format independently of the adapter constraint.
    */
-  source_format?: NativeSourceFormat
+  sourceFormat?: NativeSourceFormat
   /** Exact source name for generated stylesheet maps. */
-  source_map_source?: string
+  sourceMapSource?: string
   /** Explicit output adapter constraint; macro imports select it when absent. */
   framework?: NativeFramework
   /** Source map from `source` back to the file it was generated from. */
   map?: string
   /** Original framework source, present only for projected inputs. */
-  fw_code?: string
+  fwCode?: string
   /** Mapping between [`Self::fw_code`] and [`Self::source`]. */
-  fw2js_map?: NativeProjectionMap
+  fw2JsMap?: NativeProjectionMap
   /** Source map from [`Self::fw_code`] to its own upstream file. */
-  fw_map?: string
+  fwMap?: string
   /** Converter that produced [`Self::source`], part of the input revision. */
   converter?: NativeConverterIdentity
   /** Import scopes of [`Self::fw_code`]. */
-  import_realms?: Array<HostRealm>
+  importRealms?: Array<HostRealm>
   /** Converted regions of [`Self::fw_code`]. */
   regions?: Array<HostRegion>
   /** Host-allocated stylesheet modules to insert at the macro import. */
-  stylesheet_imports?: Array<string>
+  stylesheetImports?: Array<string>
   /** Host-allocated module that exports this module's CSS value. */
-  module_css_import?: string
+  moduleCssImport?: string
 }
 
 /** One re-export of a module. */
@@ -899,7 +899,7 @@ export interface NativeRefAlternative {
   /** The ref identity. */
   reference: NativeIdentity
   /** Boundary refs this ref may be bounded by, or `None` when unconstrained. */
-  permitted_boundaries: NativeSymbolicValue | null
+  permittedBoundaries: NativeSymbolicValue | null
 }
 
 /** What changed after publishing a reloaded design system. */
@@ -914,7 +914,7 @@ export interface NativeReload {
 export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx' | 'dts'
 
 /** Module grammar supplied for the Oxc parser. */
-export type NativeScriptModuleKind = 'module' | 'commonJs' | 'script' | 'unambiguous'
+export type NativeScriptModuleKind = 'module' | 'commonjs' | 'script' | 'unambiguous'
 
 /** Format of the original editable source supplied by the host. */
 export type NativeSourceFormat = 'script' | 'jsx' | 'astro' | 'svelte' | 'vue'
@@ -1033,13 +1033,13 @@ export interface NativeSymbolicValue {
  */
 export interface NativeTransformMapping {
   /** Inclusive original offset; may equal `original_end` for insertion. */
-  original_start: number
+  originalStart: number
   /** Exclusive original offset, at or after `original_start`. */
-  original_end: number
+  originalEnd: number
   /** Inclusive generated offset in the complete compiled buffer. */
-  generated_start: number
+  generatedStart: number
   /** Exclusive generated offset; may equal `generated_start` for deletion. */
-  generated_end: number
+  generatedEnd: number
   /**
    * Nonoverlapping intervals contained in this replacement, ordered by generated start.
    * Original positions may repeat or move backwards; an empty array means anchor-only mapping.
@@ -1065,7 +1065,7 @@ export interface NativeTypeProbe {
    * JavaScript and this query produces no error. Recognized assets can be used to
    * diagnose unconsumed macro syntax.
    */
-  recognition_only: boolean
+  recognitionOnly: boolean
   /** Inclusive original UTF-8 byte offset of the expression. */
   start: number
   /** Exclusive original UTF-8 byte offset of the expression. */
@@ -1095,7 +1095,7 @@ export interface ProjectModuleOutput {
   /** Composition edges of this module. */
   composition: Array<NativeStyleDependency>
   /** Host-chosen identity of this module. */
-  module_id: string
+  moduleId: string
   /** Assets and resources this module references. */
   resources: Array<NativeModuleResource>
   /** Generated CSS. Rules shared with an earlier module are already removed. */
@@ -1113,11 +1113,11 @@ export interface ProjectModuleOutput {
   /** Source-resolved diagnostics for this module. */
   reports: Array<BindingReport>
   /** Names a host-generated identifier was rejected for, which the host may warn about. */
-  rejected_names: Array<BindingRejectedIdentifier>
+  rejectedNames: Array<BindingRejectedIdentifier>
   /** Non-fatal findings. */
-  lint_findings: Array<BindingLintFinding>
+  lintFindings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
-  lint_settings: Record<string, 'warn' | 'deny' | 'off'>
+  lintSettings: Record<string, 'warn' | 'deny' | 'off'>
 }
 
 /**

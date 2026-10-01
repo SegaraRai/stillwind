@@ -14,13 +14,13 @@ void test("a rejected generator name is reported through the host warnings", asy
     compile: () => ({
       modules: [
         {
-          module_id: "rejected.tsx",
+          moduleId: "rejected.tsx",
           code: "export const x = undefined;",
           diagnostics: [],
-          lint_findings: [],
+          lintFindings: [],
           lint_policy: {},
           composition: [],
-          rejected_names: [
+          rejectedNames: [
             {
               kind: "class",
               hash: "a".repeat(64),

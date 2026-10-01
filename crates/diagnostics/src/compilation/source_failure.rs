@@ -8,6 +8,7 @@ use super::CompileDiagnostic;
 
 /// Operation that encountered a source-coordinate failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SourceFailureContext {
     /// Utility tokenization.
     Utility,

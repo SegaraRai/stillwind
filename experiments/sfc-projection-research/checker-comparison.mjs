@@ -37,12 +37,12 @@ const visit = (node, fn) => {
 const lines = (text) => [0, ...[...text.matchAll(/\n/g)].map((m) => m.index + 1)];
 
 function projectionPoints(input) {
-  if (!input.fw_code) {
+  if (!input.fwCode) {
     return null;
   }
   const points = new Map();
-  if (input.fw2js_map.kind === "volar") {
-    for (const m of input.fw2js_map.mappings) {
+  if (input.fw2JsMap.kind === "volar") {
+    for (const m of input.fw2JsMap.mappings) {
       for (let i = 0; i < m.sourceOffsets.length; i++) {
         const length = m.lengths[i];
         const generatedLength = m.generatedLengths?.[i] ?? length;
@@ -55,9 +55,9 @@ function projectionPoints(input) {
       }
     }
   } else {
-    const map = new TraceMap(input.fw2js_map.json);
+    const map = new TraceMap(input.fw2JsMap.json);
     const generatedLines = lines(input.source),
-      originalLines = lines(input.fw_code);
+      originalLines = lines(input.fwCode);
     for (const [line, segments] of decodedMappings(map).entries()) {
       for (const s of segments) {
         if (s.length >= 4) {
@@ -185,7 +185,7 @@ async function prepare(framework, variant, stripTemplateSymbols = false) {
       source: original,
     });
     const points = projectionPoints(projected);
-    const virtual = `${directory}/${name}${projected.fw_code ? "." + projected.language : ""}`;
+    const virtual = `${directory}/${name}${projected.fwCode ? "." + projected.language : ""}`;
     const ast = ts.createSourceFile(
       virtual,
       projected.source,
@@ -562,7 +562,7 @@ async function astroClient(split) {
     path: "Client.astro",
     source: converterSource,
   });
-  const points = projectionPoints({ ...projection, fw_code: original });
+  const points = projectionPoints({ ...projection, fwCode: original });
   const virtual = `${p.directory}/Client.astro.tsx`;
   const source = split ? clientCode : projection.source;
   const ast = ts.createSourceFile(

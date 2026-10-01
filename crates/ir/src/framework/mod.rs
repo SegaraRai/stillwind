@@ -35,6 +35,7 @@ pub const FRAMEWORKS: &[&FrameworkSpec] = &[
 
 /// Identifies the framework adapter a module is compiled for.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AdapterKind {
     /// React.
     React,
@@ -96,6 +97,7 @@ pub struct FrameworkSpec {
 
 /// How a framework runtime accepts generated custom CSS properties.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum StyleFormat {
     /// React, Preact, Solid, and Vue receive custom CSS properties as an object.
     Object,

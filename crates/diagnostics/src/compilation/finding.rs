@@ -106,7 +106,7 @@ mod tests {
         );
         assert_eq!(error.code(), CompileErrorCode::GeneratedIdentifierCollision);
         assert_eq!(
-            value["diagnostic"]["GeneratedIdentifierCollision"]["name"],
+            value["diagnostic"]["generatedIdentifierCollision"]["name"],
             "衝突"
         );
         assert!(value.get("kind").is_none());

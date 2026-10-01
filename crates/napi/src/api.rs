@@ -377,7 +377,7 @@ pub fn compile_project_input(
 /// # Errors
 ///
 /// Rejects malformed input and projection failures before checker queries are issued.
-#[napi(js_name = "scanSource", strict)]
+#[napi(strict)]
 pub fn scan_source(source: NativeProjectSource) -> napi::Result<NativeModuleSummary> {
     let source = ProjectSource::try_from(source)?;
     let mut registry = SourceRegistry::default();
@@ -494,7 +494,6 @@ pub struct NativeCompileCssInput {
     /// Absolute URI of the editable CSS document.
     pub uri: String,
     /// Exact source name for generated CSS maps.
-    #[napi(js_name = "source_map_source")]
     pub source_map_source: Option<String>,
 }
 
@@ -518,17 +517,14 @@ pub struct NativeCompileSourceInput {
     /// Parser input text.
     pub source: String,
     /// Module identity used for generated names and semantic references.
-    #[napi(js_name = "module_id")]
     pub module_id: String,
     /// Absolute URI of the editable script document.
     pub uri: String,
     /// Exact source name for generated CSS maps.
-    #[napi(js_name = "source_map_source")]
     pub source_map_source: Option<String>,
     /// Parser dialect chosen by the host.
     pub language: NativeScriptLanguage,
     /// Module grammar chosen by the host.
-    #[napi(js_name = "module_kind")]
     pub module_kind: NativeScriptModuleKind,
     /// CSS source and its identities.
     pub css: NativeCompileCssInput,
@@ -539,7 +535,7 @@ pub struct NativeCompileSourceInput {
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid URIs, sources, or options.
-#[napi(js_name = "compileSource", strict)]
+#[napi(strict)]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn compile_source(
     input: NativeCompileSourceInput,
@@ -563,7 +559,7 @@ pub fn compile_source(
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid input or an unresolved graph edge.
-#[napi(js_name = "compileProject", strict)]
+#[napi(strict)]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn compile_project(
     sources: Vec<NativeProjectSource>,
@@ -584,7 +580,7 @@ pub fn compile_project(
 /// # Errors
 ///
 /// Returns a JavaScript error when the theme or compiler options are invalid.
-#[napi(js_name = "renderStylesheet", strict)]
+#[napi(strict)]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn render_stylesheet(
     module_css: String,
@@ -607,7 +603,7 @@ pub fn render_stylesheet(
 /// # Errors
 ///
 /// Returns a JavaScript error for invalid source coordinates.
-#[napi(js_name = "summarizeSource")]
+#[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn summarize_source(
     source: String,
@@ -629,7 +625,7 @@ pub fn summarize_source(
 /// # Errors
 ///
 /// Returns a JavaScript error when the theme is invalid or vocabulary generation fails.
-#[napi(js_name = "generateVocabularyTypes")]
+#[napi]
 pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
     let source = SourceFile::new(FileId(2), None, None, theme).map_err(BindingApiError::from)?;
     Compiler::generate_vocabulary_types(&source, &CssSourceName::from("stillwind.css"))
@@ -640,7 +636,7 @@ pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
 /// Exposed so parity and integration tools compare both compilers after the same
 /// semantic normalization. Expressions that do not parse, or that nest values deeper
 /// than the calculator accepts, are retained byte-for-byte.
-#[napi(js_name = "foldCalcExpressions")]
+#[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn fold_calc_expressions(css: String, zero_unit: Option<String>) -> String {
     stillwind_css::fold_calc_expressions(&css, zero_unit.as_deref())

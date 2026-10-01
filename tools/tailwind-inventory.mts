@@ -269,7 +269,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         received = minify(
           native.classes.length
             ? resolvedCss.replaceAll(
-                native.classes[0].class_name,
+                native.classes[0].className,
                 selector(adapted.candidate(candidate)),
               )
             : resolvedCss,

@@ -13,5 +13,5 @@ export type {
 } from "@stillwind/native";
 
 export interface ProjectSource extends FrameworkSource {
-  type_facts?: TypeFact[];
+  typeFacts?: TypeFact[];
 }

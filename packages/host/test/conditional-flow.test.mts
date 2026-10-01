@@ -548,18 +548,18 @@ void test("folded expressions map to distinct original occurrences through nativ
       assert.ok(expressions.length > 0);
       for (const expression of expressions) {
         assert.equal(expression.exact, true);
-        const originalText = fullSource.slice(expression.original_start, expression.original_end);
+        const originalText = fullSource.slice(expression.originalStart, expression.originalEnd);
         assert.equal(
-          output.code!.slice(expression.generated_start, expression.generated_end),
+          output.code!.slice(expression.generatedStart, expression.generatedEnd),
           originalText,
         );
         // Every UTF-16 code unit, including surrogate interiors and line breaks.
         for (let offset = 0; offset < originalText.length; offset++) {
           const actual = originalPositionFor(
             map,
-            position(output.code!, expression.generated_start + offset),
+            position(output.code!, expression.generatedStart + offset),
           );
-          const expected = position(fullSource, expression.original_start + offset);
+          const expected = position(fullSource, expression.originalStart + offset);
           assert.deepEqual(
             { line: actual.line, column: actual.column },
             expected,
@@ -570,14 +570,14 @@ void test("folded expressions map to distinct original occurrences through nativ
       if (call.includes("same")) {
         const occurrences = expressions.filter(
           (expression) =>
-            fullSource.slice(expression.original_start, expression.original_end) === "same",
+            fullSource.slice(expression.originalStart, expression.originalEnd) === "same",
         );
         assert.equal(occurrences.length, 2);
-        assert.notEqual(occurrences[0].original_start, occurrences[1].original_start);
+        assert.notEqual(occurrences[0].originalStart, occurrences[1].originalStart);
         assert.ok(
           expressions.some(
             (expression, index) =>
-              index > 0 && expression.original_start < expressions[index - 1].original_start,
+              index > 0 && expression.originalStart < expressions[index - 1].originalStart,
           ),
         );
       }
@@ -585,7 +585,7 @@ void test("folded expressions map to distinct original occurrences through nativ
         assert.ok(
           expressions.every(
             (expression) =>
-              fullSource.slice(expression.original_start, expression.original_end) !== "flag",
+              fullSource.slice(expression.originalStart, expression.originalEnd) !== "flag",
           ),
         );
       }

@@ -98,10 +98,10 @@ void test("maps replacements and untouched UTF-16 positions after removed and in
       "/src/a.tsx",
       [
         {
-          original_start: start,
-          original_end: start + 13,
-          generated_start: start,
-          generated_end: start + replacement.length,
+          originalStart: start,
+          originalEnd: start + 13,
+          generatedStart: start,
+          generatedEnd: start + replacement.length,
         },
       ],
       [{ from: 0, to: macro.length }],

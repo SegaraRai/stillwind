@@ -14,9 +14,9 @@ use stillwind_semantic::{
 use super::identity::{NativeAssetKind, NativeIdentity};
 
 /// The candidate set of a symbolic value.
-#[napi(discriminant = "kind", discriminant_case = "camelCase")]
+#[napi(discriminant = "kind", discriminant_case = "lowercase")]
 #[derive(Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", rename_all = "lowercase")]
 pub enum NativeCandidates {
     /// Every identity of the kind is reachable.
     Universe,
@@ -75,7 +75,6 @@ pub struct NativeRefAlternative {
     /// The ref identity.
     pub reference: NativeIdentity,
     /// Boundary refs this ref may be bounded by, or `None` when unconstrained.
-    #[napi(js_name = "permitted_boundaries")]
     pub permitted_boundaries: Option<NativeSymbolicValue>,
 }
 

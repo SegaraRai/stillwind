@@ -129,8 +129,8 @@ export class EditorProject {
       );
       assertActive();
       result.output = output;
-      const denied = output?.lint_findings.some(
-        (finding) => output.lint_settings[finding.rule] === "deny",
+      const denied = output?.lintFindings.some(
+        (finding) => output.lintSettings[finding.rule] === "deny",
       );
       if (output?.code != null && output.diagnostics.length === 0 && !denied) {
         result.status = "success";

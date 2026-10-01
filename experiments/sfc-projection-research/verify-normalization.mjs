@@ -73,7 +73,7 @@ for (const fixture of [...fixtures, ...dynamicFixtures]) {
     name: `${fixture.language}/${fixture.name}`,
     original,
     generated: result.code,
-    framework: { astro: "Astro", svelte: "Svelte", vue: "Vue" }[fixture.language],
+    framework: { astro: "astro", svelte: "svelte", vue: "vue" }[fixture.language],
     map: rawMap
       ? { kind: "v3", json: JSON.stringify(rawMap), source: rawMap.sources[0] }
       : { kind: "volar", mappings: result.mappings },

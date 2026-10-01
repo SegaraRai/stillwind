@@ -43,19 +43,19 @@ export async function convert(source: string, filename: string): Promise<Convert
     scripts.push({ id: scripts.length + 1, start, end });
   }
   return {
-    checker_scripts: (result.metaRanges.scripts ?? [])
+    checkerScripts: (result.metaRanges.scripts ?? [])
       .filter(
         (script) =>
           ["processed-module", "module", "inline"].includes(script.type) &&
           script.content.length > 0,
       )
       .map((script) => ({ start: script.position.start, end: script.position.end })),
-    source_format: "astro",
+    sourceFormat: "astro",
     language: "tsx",
     source: result.code,
-    fw2js_map: sourceMapV3(result.map),
+    fw2JsMap: sourceMapV3(result.map),
     converter: converterIdentity("@astrojs/compiler", options),
-    import_realms: scripts,
+    importRealms: scripts,
     regions: sourceRegions(source, scripts, frontmatter ? 0 : undefined),
   };
 }

@@ -120,7 +120,7 @@ export async function compileGraph(
     const source = await host.read(id);
     revision.update(id).update("\0").update(source).update("\0");
     const summary = scanSource({
-      module_id: compilerModuleId(options.root, id),
+      moduleId: compilerModuleId(options.root, id),
       uri: pathToFileURL(id).href,
       source,
       language: /\.tsx(?:[?#]|$)/i.test(id)
@@ -132,10 +132,10 @@ export async function compileGraph(
             : /\.[cm]?ts(?:[?#]|$)/i.test(id)
               ? "ts"
               : "js",
-      module_kind: "unambiguous",
-      source_map_source: pathToFileURL(id).href,
+      moduleKind: "unambiguous",
+      sourceMapSource: pathToFileURL(id).href,
     });
-    for (const { source: specifier } of summary.module_specifiers) {
+    for (const { source: specifier } of summary.moduleSpecifiers) {
       if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {
         continue;
       }
@@ -149,14 +149,14 @@ export async function compileGraph(
         pending.push(file);
       }
     }
-    if (!summary.macro_imports && !summary.module_css_imports) {
+    if (!summary.macroImports && !summary.moduleCssImports) {
       continue;
     }
     const output = await compiler.compile(source, id, host, {
       moduleCssImport: "stillwind/module-css",
     });
     if (output && !output.hasModuleCssImport) {
-      selection.push(output.module_id);
+      selection.push(output.moduleId);
     }
   }
   return compiler.native.planStylesheet({

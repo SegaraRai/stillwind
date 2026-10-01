@@ -29,12 +29,12 @@ void test("CSS maps retain imported authored text, theme tokens and macro origin
     "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props = style('red');";
   session.compile([
     {
-      module_id: "entry.tsx",
+      moduleId: "entry.tsx",
       uri: "untitled:entry.tsx",
       source,
       language: "tsx",
-      module_kind: "unambiguous",
-      source_map_source: pathToFileURL(path.resolve("entry.tsx")).href,
+      moduleKind: "unambiguous",
+      sourceMapSource: pathToFileURL(path.resolve("entry.tsx")).href,
     },
   ]);
   const output = session.planStylesheet({
@@ -144,10 +144,10 @@ void test("loader composition traces native replacements through an upstream fra
     id,
     [
       {
-        original_start: start,
-        original_end: input.length - 1,
-        generated_start: start,
-        generated_end: compiled.length - 1,
+        originalStart: start,
+        originalEnd: input.length - 1,
+        generatedStart: start,
+        generatedEnd: compiled.length - 1,
       },
     ],
     [],

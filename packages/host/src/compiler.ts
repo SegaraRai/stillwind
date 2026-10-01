@@ -17,13 +17,13 @@ export interface CompilerHost {
     id: string,
   ): Pick<
     ProjectSource,
-    | "module_id"
+    | "moduleId"
     | "uri"
-    | "checker_file_name"
-    | "projection_file_name"
+    | "checkerFileName"
+    | "projectionFileName"
     | "language"
-    | "module_kind"
-    | "source_format"
+    | "moduleKind"
+    | "sourceFormat"
     | "framework"
   >;
   resolve(
@@ -62,10 +62,10 @@ export function compilerModuleId(root: string, id: string): string {
  */
 export function fileSourceKind(
   id: string,
-): Pick<ProjectSource, "language" | "module_kind" | "source_format" | "framework"> {
+): Pick<ProjectSource, "language" | "moduleKind" | "sourceFormat" | "framework"> {
   const name = cleanModuleId(id).toLowerCase();
   const extension = /\.[^.]+$/.exec(name)?.[0];
-  const source_format =
+  const sourceFormat =
     asRecord({
       ".jsx": "jsx",
       ".tsx": "jsx",
@@ -84,8 +84,8 @@ export function fileSourceKind(
       })[extension ?? ""] ?? "js");
   return {
     language,
-    module_kind: "unambiguous",
-    source_format,
+    moduleKind: "unambiguous",
+    sourceFormat,
     framework: undefined,
   };
 }
@@ -97,10 +97,10 @@ export function fileModuleDescriptor(
 ): ReturnType<CompilerHost["describe"]> {
   const file = cleanModuleId(id);
   return {
-    module_id: compilerModuleId(root, file),
+    moduleId: compilerModuleId(root, file),
     uri: pathToFileURL(file).href,
-    checker_file_name: file,
-    projection_file_name: compilerModuleId(root, file),
+    checkerFileName: file,
+    projectionFileName: compilerModuleId(root, file),
     ...fileSourceKind(file),
   };
 }
@@ -117,13 +117,13 @@ export function cleanModuleId(id: string): string {
 
 function semanticDependencies(summary: ModuleSummary, requested: string | null) {
   if (requested === null) {
-    return summary.probe_imports;
+    return summary.probeImports;
   }
-  const selected = summary.export_imports.find((entry) => entry.name === requested);
+  const selected = summary.exportImports.find((entry) => entry.name === requested);
   if (requested !== "*" && selected) {
     return selected.imports;
   }
-  const reExports = summary.re_exports.filter(
+  const reExports = summary.reExports.filter(
     (entry) => requested === "*" || entry.exported === requested || entry.exported === "*",
   );
   if (requested !== "*" && reExports.length > 0) {
@@ -133,7 +133,7 @@ function semanticDependencies(summary: ModuleSummary, requested: string | null) 
     }));
   }
   // Namespace imports and exports without a declaration slice remain conservative.
-  return [...summary.imports, ...summary.re_exports];
+  return [...summary.imports, ...summary.reExports];
 }
 
 /**
@@ -163,36 +163,34 @@ export async function compileModule(
 ) {
   const entryId = id;
   const entrySource = await projectFrameworkSource({
-    resolver_id: entryId,
+    resolverId: entryId,
     ...host.describe(entryId),
     source: code,
   });
   const entrySummary = scanSource(entrySource);
-  const hasModuleCssImport = entrySummary.module_css_imports > 0;
-  if (entrySummary.macro_imports > 0) {
-    entrySource.stylesheet_imports = options.stylesheetImports;
+  const hasModuleCssImport = entrySummary.moduleCssImports > 0;
+  if (entrySummary.macroImports > 0) {
+    entrySource.stylesheetImports = options.stylesheetImports;
   }
   if (hasModuleCssImport) {
-    entrySource.module_css_import = options.moduleCssImport;
+    entrySource.moduleCssImport = options.moduleCssImport;
   }
-  const needsTypeFacts = entrySummary.type_probes.length > 0;
+  const needsTypeFacts = entrySummary.typeProbes.length > 0;
   const summaries = new Map<string, ModuleSummary>();
   const sourcesByResolverId = new Map<string, ProjectSource>();
   const resolverIdsByModuleId = new Map<string, string>();
   const registerSource = (source: ProjectSource) => {
-    const previous = resolverIdsByModuleId.get(source.module_id);
-    if (previous !== undefined && previous !== source.resolver_id) {
-      fail(
-        `Module identity ${source.module_id} is shared by ${previous} and ${source.resolver_id}`,
-      );
+    const previous = resolverIdsByModuleId.get(source.moduleId);
+    if (previous !== undefined && previous !== source.resolverId) {
+      fail(`Module identity ${source.moduleId} is shared by ${previous} and ${source.resolverId}`);
     }
-    const existing = sourcesByResolverId.get(source.resolver_id);
-    if (existing !== undefined && existing.module_id !== source.module_id) {
-      fail(`Resolver identity ${source.resolver_id} changed module identity`);
+    const existing = sourcesByResolverId.get(source.resolverId);
+    if (existing !== undefined && existing.moduleId !== source.moduleId) {
+      fail(`Resolver identity ${source.resolverId} changed module identity`);
     }
-    resolverIdsByModuleId.set(source.module_id, source.resolver_id);
-    sourcesByResolverId.set(source.resolver_id, source);
-    host.onModule?.(source.module_id, source.resolver_id);
+    resolverIdsByModuleId.set(source.moduleId, source.resolverId);
+    sourcesByResolverId.set(source.resolverId, source);
+    host.onModule?.(source.moduleId, source.resolverId);
   };
   registerSource(entrySource);
   const resolutions = new Map<string, Map<string, string>>();
@@ -205,24 +203,24 @@ export async function compileModule(
   ];
   while (pending.length > 0) {
     const { source, requested } = pending.pop()!;
-    const demands = visited.get(source.resolver_id) ?? new Set<string | null>();
+    const demands = visited.get(source.resolverId) ?? new Set<string | null>();
     if (demands.has(requested)) {
       continue;
     }
     demands.add(requested);
-    visited.set(source.resolver_id, demands);
+    visited.set(source.resolverId, demands);
     const summary =
-      summaries.get(source.module_id) ??
-      (source.resolver_id === entryId ? entrySummary : scanSource(source));
-    if (summary.module_id !== source.module_id) {
-      fail(`Scanner changed module identity for ${source.resolver_id}`);
+      summaries.get(source.moduleId) ??
+      (source.resolverId === entryId ? entrySummary : scanSource(source));
+    if (summary.moduleId !== source.moduleId) {
+      fail(`Scanner changed module identity for ${source.resolverId}`);
     }
-    summaries.set(source.module_id, summary);
+    summaries.set(source.moduleId, summary);
     if (!needsTypeFacts) {
       continue;
     }
     for (const dependency of semanticDependencies(summary, requested)) {
-      const resolved = await host.resolve(dependency.source, source.resolver_id, {
+      const resolved = await host.resolve(dependency.source, source.resolverId, {
         skipSelf: true,
       });
       if (!resolved || resolved.external) {
@@ -238,16 +236,16 @@ export async function compileModule(
       if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyName)) {
         continue;
       }
-      let sourceResolutions = resolutions.get(source.resolver_id);
+      let sourceResolutions = resolutions.get(source.resolverId);
       if (!sourceResolutions) {
-        resolutions.set(source.resolver_id, (sourceResolutions = new Map()));
+        resolutions.set(source.resolverId, (sourceResolutions = new Map()));
       }
       sourceResolutions.set(dependency.source, dependencyId);
       host.watch(dependencyId);
       let dependencySource = sourcesByResolverId.get(dependencyId);
       if (!dependencySource) {
         dependencySource = await projectFrameworkSource({
-          resolver_id: dependencyId,
+          resolverId: dependencyId,
           ...host.describe(dependencyId),
           source: await host.read(dependencyId),
         });
@@ -266,14 +264,14 @@ export async function compileModule(
     typeFacts = needsTypeFacts
       ? factsService().collect(
           sources.map((source) => {
-            const summary = summaries.get(source.module_id)!;
+            const summary = summaries.get(source.moduleId)!;
             return {
               ...source,
               ...checkerEnvironment(source),
-              checker_spans: summary.checkerSpans,
-              probes: summary.type_probes,
-              resolutions: summary.module_specifiers.flatMap((specifier) => {
-                const id = resolutions.get(source.resolver_id)?.get(specifier.source);
+              checkerSpans: summary.checkerSpans,
+              probes: summary.typeProbes,
+              resolutions: summary.moduleSpecifiers.flatMap((specifier) => {
+                const id = resolutions.get(source.resolverId)?.get(specifier.source);
                 return id ? [{ start: specifier.start, end: specifier.end, id }] : [];
               }),
             };
@@ -285,20 +283,20 @@ export async function compileModule(
     if (!(error instanceof TypeFactsError) || options.diagnostics !== "collect") {
       throw error;
     }
-    const source = sources.find((source) => source.module_id === error.module_id)!;
+    const source = sources.find((source) => source.moduleId === error.moduleId)!;
     return {
-      module_id: entrySource.module_id,
+      moduleId: entrySource.moduleId,
       code: null,
       css: "",
       resources: [],
       mappings: [],
       classes: [],
       symbols: [],
-      diagnostics: [error.diagnostic(source.fw_code ?? source.source, source.uri)],
+      diagnostics: [error.diagnostic(source.fwCode ?? source.source, source.uri)],
       reports: [],
-      rejected_names: [],
-      lint_findings: [],
-      lint_settings: {} as Record<string, "off" | "warn" | "deny">,
+      rejectedNames: [],
+      lintFindings: [],
+      lintSettings: {} as Record<string, "off" | "warn" | "deny">,
       composition: [],
       hasModuleCssImport,
       compositionModules: [],
@@ -307,23 +305,23 @@ export async function compileModule(
   }
   const typedSources = sources.map((source) => ({
     ...source,
-    module_css_import:
-      source.resolver_id === entryId ? source.module_css_import : "stillwind/module-css",
-    type_facts: typeFacts.get(source.module_id) ?? [],
+    moduleCssImport:
+      source.resolverId === entryId ? source.moduleCssImport : "stillwind/module-css",
+    typeFacts: typeFacts.get(source.moduleId) ?? [],
   }));
-  const projectOutput = session.compile(typedSources, entrySource.module_id);
+  const projectOutput = session.compile(typedSources, entrySource.moduleId);
   for (const output of projectOutput.modules) {
-    const resolverId = resolverIdsByModuleId.get(output.module_id);
+    const resolverId = resolverIdsByModuleId.get(output.moduleId);
     if (resolverId === undefined) {
-      fail(`Stillwind returned an unknown module: ${output.module_id}`);
+      fail(`Stillwind returned an unknown module: ${output.moduleId}`);
     }
     if (output.diagnostics.length > 0 && options.diagnostics !== "collect") {
       const diagnostic = output.diagnostics[0];
       fail(`${diagnostic.code}: ${diagnostic.message} (${diagnostic.uri}:${diagnostic.start})`);
     }
     const deniedFindings: string[] = [];
-    for (const finding of output.lint_findings ?? []) {
-      const level = output.lint_settings?.[finding.rule] ?? "warn";
+    for (const finding of output.lintFindings ?? []) {
+      const level = output.lintSettings?.[finding.rule] ?? "warn";
       if (level === "off") {
         continue;
       }
@@ -341,24 +339,24 @@ export async function compileModule(
     // A rejected name comes from the host's own generator rather than from the source, so it
     // carries no position: it is reported over the warning channel, and the compilation has
     // already substituted the built-in name.
-    for (const rejected of output.rejected_names ?? []) {
+    for (const rejected of output.rejectedNames ?? []) {
       host.warn(
         `stillwind: the ${rejected.kind} name for ${rejected.hash} was rejected: ${rejected.reason}`,
       );
     }
   }
   const output = projectOutput.modules.find(
-    (candidate) => candidate.module_id === entrySource.module_id,
+    (candidate) => candidate.moduleId === entrySource.moduleId,
   );
   const composition = output?.composition ?? [];
-  const compositionModules = [...new Set(composition.map(({ base }) => base.module_id))].filter(
-    (module) => module !== entrySource.module_id,
+  const compositionModules = [...new Set(composition.map(({ base }) => base.moduleId))].filter(
+    (module) => module !== entrySource.moduleId,
   );
   const compositionTopology = JSON.stringify(
     composition
       .map(({ derived, base }) => [
-        `${derived.module_id}:${derived.start}`,
-        `${base.module_id}:${base.start}`,
+        `${derived.moduleId}:${derived.start}`,
+        `${base.moduleId}:${base.start}`,
       ])
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1])),
   );

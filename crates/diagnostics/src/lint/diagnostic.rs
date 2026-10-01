@@ -224,6 +224,7 @@ impl LintDiagnostic {
 
 /// Syntax classification of an unresolved utility or candidate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum UtilityFailure {
     /// Candidate syntax is malformed (`invalid-utility`).
     Invalid,

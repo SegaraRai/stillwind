@@ -64,7 +64,7 @@ pub struct NativeMinifiedCss {
 /// # Errors
 ///
 /// Reports invalid options, CSS processing failures, and source-map failures.
-#[napi(js_name = "minifyCss", strict)]
+#[napi(strict)]
 #[allow(clippy::needless_pass_by_value)]
 pub fn minify_css(
     css: String,
