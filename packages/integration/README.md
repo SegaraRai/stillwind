@@ -96,7 +96,7 @@ uses directory dependencies. Compiler options are shared with other adapters,
 except naming callbacks cannot be serialized. `mode` can explicitly select
 `development` or `release`; otherwise it follows `NODE_ENV`.
 
-`vp run verify:turbopack` in `experiments/module-graph` exercises these public rules
+`vp run browser:next-standalone` in `e2e/frameworks` exercises these public rules
 directly, without `withStillwind`, using Next as the Turbopack test host. It covers
 development updates and cold/warm production. Other Turbopack hosts are not covered
 by that fixture.
@@ -167,8 +167,8 @@ only its stylesheet and does not ship its JavaScript.
 The TanStack Start/Rsbuild experiment covers SSR without JavaScript, lazy route CSS,
 server functions, editing, and cold/warm production. On Windows it pins a patch for `@tanstack/start-plugin-core`
 1.171.40: its Rsbuild manifest must normalize backslashes before matching
-route paths. The patch and frozen lockfile are in `experiments/module-graph`.
-Run `vp run verify:tanstack-rsbuild` there to reproduce on port 43179.
+route paths. The patch and frozen lockfile are in `e2e/frameworks`.
+Run `vp run browser:tanstack-rsbuild` there to reproduce on port 43179.
 
 ## Transport and verification
 
@@ -186,18 +186,18 @@ files, the host implementation and the native binary are build dependencies.
 Class identity defaults to the module path relative to the application root;
 set `root` explicitly when different build environments use different roots.
 
-Run these from `experiments/module-graph` after `vp i --frozen-lockfile`:
+Run these from `e2e/frameworks` after `vp i --frozen-lockfile`:
 
 ```sh
-vp run verify:adapters
-vp run verify:webpack
-vp run verify:rspack
-vp run verify:rsbuild
+vp run browser:next-turbopack
+vp run browser:next-webpack
+vp run browser:rspack
+vp run browser:rsbuild
 ```
 
 The probes use the real compiler and Chrome. The package test suite checks current
 webpack and Rspack builds for React, Preact, Solid, Vue and Svelte. The broader
-experiment probes are separate acceptance checks: Next checks dev CSS edits, macro
+browser probes are separate acceptance checks: Next checks dev CSS edits, macro
 removal/restoration, hydration, navigation, prefetch and cold/warm production
 output. Rspack/Rsbuild check native or extracted CSS chunks, relative images,
 persistent-cache reuse, CSS changes, unreachable producers and macro removal.

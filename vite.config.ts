@@ -5,8 +5,6 @@ export default defineConfig({
     ignorePatterns: [
       "fixtures/projects/*/expected/**",
       "apps/fixtures-viewer/public/fixtures.json",
-      "experiments/sfc-projection-research/fixtures/**",
-      "experiments/sfc-projection-research/results/**",
       "packages/native/binding.d.ts",
     ],
     options: {
@@ -17,53 +15,30 @@ export default defineConfig({
     },
   },
   fmt: {
-    // Raw converter output and offset-sensitive inputs are research evidence.
-    ignorePatterns: [
-      "experiments/sfc-projection-research/fixtures/**",
-      "experiments/sfc-projection-research/results/**",
-      "packages/native/binding.d.ts",
-    ],
+    ignorePatterns: ["packages/native/binding.d.ts"],
     sortImports: true,
     sortPackageJson: true,
   },
   run: {
     tasks: {
-      "perf:quick": {
-        command: "node experiments/performance-quick/run.mjs",
-        dependsOn: ["@stillwind/native#build"],
+      "bench:compiler": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#compiler"],
         cache: false,
       },
-      "perf:host": {
-        command: "node experiments/performance-quick/host.mts",
-        dependsOn: ["@stillwind/host#build"],
+      "bench:host": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#host"],
         cache: false,
       },
-      "perf:profile": {
-        command: "node experiments/performance-quick/profile.mjs",
+      "bench:source-map": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#source-map"],
         cache: false,
       },
-      "perf:summarize": {
-        command: "node experiments/performance-quick/summarize.mjs",
-        cache: false,
-      },
-      "sourcemap:build": {
-        command:
-          "cargo build --manifest-path experiments/source-map-research/native/Cargo.toml --release --locked",
-        cache: false,
-      },
-      "sourcemap:native-test": {
-        command:
-          "cargo test --manifest-path experiments/source-map-research/native/Cargo.toml --release --locked --bin stillwind-sourcemap-research",
-        cache: false,
-      },
-      "sourcemap:research": {
-        command: "node experiments/source-map-research/run.mjs",
-        dependsOn: ["sourcemap:build"],
-        cache: false,
-      },
-      "sourcemap:acceptance": {
-        command: "node experiments/source-map-research/acceptance.mjs",
-        dependsOn: ["@stillwind/native#build"],
+      "verify:e2e": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-frameworks#browser"],
         cache: false,
       },
       fmt: {
@@ -104,6 +79,8 @@ export default defineConfig({
           "@stillwind/projection#typecheck",
           "@stillwind/integration#typecheck",
           "@stillwind/tools#typecheck",
+          "@stillwind/benchmarks#typecheck",
+          "@stillwind/e2e-frameworks#typecheck",
           "@stillwind/play#typecheck",
           "@stillwind/logo-editor#check",
           "@stillwind/fixtures-viewer#check",
@@ -119,6 +96,8 @@ export default defineConfig({
           "@stillwind/host#test",
           "@stillwind/integration#test",
           "@stillwind/tools#test",
+          "@stillwind/benchmarks#test",
+          "@stillwind/e2e-frameworks#test",
           "@stillwind/play#test",
           "@stillwind/logo-editor#test",
         ],
@@ -164,10 +143,6 @@ export default defineConfig({
       "webref:generate": {
         command: "",
         dependsOn: ["@stillwind/tools#webref:generate"],
-        cache: false,
-      },
-      "ts7-shadow:poc": {
-        command: "node experiments/ts7-shadow-checker/src/index.mjs",
         cache: false,
       },
     },

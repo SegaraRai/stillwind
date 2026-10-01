@@ -15,7 +15,3 @@ stillwind-ir = { path = "../ir" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 oxc.workspace = true
-
-[dev-dependencies]
-serde.workspace = true
-serde_json.workspace = true

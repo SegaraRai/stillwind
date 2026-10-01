@@ -108,9 +108,8 @@ should fall back to. Custom minifier pipelines must preserve distinct support
 queries. Value conditionals alone do not need `revert-rule`
 unless a branch explicitly requests it.
 
-Run `vp run --filter stillwind-module-graph-experiment verify:runtime-if` from the repository
-after building the native addon, or run
-`node experiments/module-graph/scripts/verify-runtime-if.mjs` directly. The
+Run `vp -C e2e/frameworks run browser:runtime-if` from the repository. The task builds
+its compiler dependencies. The
 acceptance script checks both strategies after a minified Vite production build
 in installed Chrome and reports the browser version and required feature support.
 

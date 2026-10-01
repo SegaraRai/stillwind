@@ -61,13 +61,10 @@ On 2026-09-11 (JST), the final implementation passed:
 - `vp run @stillwind/integration#test:vite`: 15 tests; `vp run @stillwind/integration#test:webpack`: 10 production builds.
 - `vp run stillwind#check`: framework type entrypoints and 6 runtime/CSS tests.
 - `vp run fixtures:check`, `vp fmt --check`, and `vp lint`.
-- In `experiments/sfc-projection-research`, `vp run verify-normalization`: 32 real converter cases. `vp run verify-native` separately checks the strict raw-span mapper: 77 accepted spans and 7 expected Vue receiver rejections before normalization.
 
-`vp run sourcemap:research` reruns the existing small/large edit benchmark, N-API JSON roundtrips, host map work, and isolated-process memory probes. The current [raw measurements](../experiments/source-map-research/results/timings.json) record the tested revision and source hashes. At 1,000 edits, the measured native map emission was 0.50 ms, its N-API JSON roundtrip 1.52 ms, and host map generation 1.24 ms. The renderer comparison at 100/1,000/5,000 edits measured 0.17/0.17/0.39 ms for the linear implementation versus 0.48/15.37/330.32 ms for repeated scanning. These component measurements do not include full framework compilation and are not application speedup claims.
+Current SFC conversion and normalization are checked by the host framework tests, including original receivers, template shadowing, nested expressions, Svelte stores and runes. Rust source-coordinate tests cover Unicode and CRLF boundaries. The current tasks are `vp run @stillwind/host#test` and `vp run rust:test`.
 
-The separate CSS-map research candidate used 86,236 KiB peak RSS versus 269,760 KiB for its baseline on the 2.1 MB probe. This is an experimental comparison, not a claimed production change. The map-codec/finalization replacement remains separate: additional composition still changes 29 LUB lookups, so that alternative was not adopted. `vp run sourcemap:acceptance` passed all four upstream/CSS map checks for both research variants.
-
-Raw converter fixtures and results are excluded from formatting/linting because their bytes and offsets are evidence. Authored research scripts remain checked. Review fixtures were refreshed only for import edit endpoints; their compiled code and CSS stayed unchanged.
+Use `vp run bench:source-map` for the current production CSS-map implementation and its benchmark candidate. Results are generated locally under `benchmarks/results/`. These measurements do not include full framework compilation or claim application speedups.
 
 ## Remaining scope
 

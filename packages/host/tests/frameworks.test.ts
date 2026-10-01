@@ -252,6 +252,36 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
 });
 
 const extra = [
+  {
+    extension: "vue",
+    name: "nested template expressions",
+    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const active=true,label='hello',suffix='!',names=['a'];</script><template><div v-bind="style(active ? 'flex' : 'grid', {class:names.map(name => name + suffix), 'aria-label':JSON.stringify({label}), 'data-note':'__VLS_ctx.label'})" /></template>`,
+    imports: 1,
+  },
+  {
+    extension: "vue",
+    name: "authored receiver",
+    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const __VLS_ctx={active:true,style:(s:string)=>({class:s})};</script><template><div v-bind="style(__VLS_ctx.active ? 'flex' : 'grid')" /><div v-bind="__VLS_ctx.style('untouched')" /></template>`,
+    imports: 1,
+  },
+  {
+    extension: "vue",
+    name: "template bindings shadow script bindings",
+    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const active=true;</script><template><div v-for="style in [() => ({})]" v-bind="style()" /><div v-for="active in [false]" v-bind="style(active ? 'flex' : 'grid')" /></template>`,
+    imports: 1,
+  },
+  {
+    extension: "svelte",
+    name: "store and reactive expressions",
+    source: `<script lang="ts">import {style} from 'stillwind/svelte';import {writable} from 'svelte/store';const enabled=writable(true);let label='hello';$:external=label+'!';</script><div {...style($enabled ? 'flex' : 'grid',{class:external,'aria-label':label})}></div>`,
+    imports: 1,
+  },
+  {
+    extension: "svelte",
+    name: "rune expressions",
+    source: `<script lang="ts">import {style} from 'stillwind/svelte';let active=$state(true);let external=$derived(active ? 'a' : 'b');</script><div {...style(active ? 'flex' : 'grid',{class:external})}></div>`,
+    imports: 1,
+  },
   ...Object.entries(examples).map(([extension, source]) => ({
     extension,
     name: "local composition",
@@ -402,7 +432,11 @@ for (const { extension, source, name, imports } of [
     expect(module.code!, module.code!).toContain(`stillwind/${extension}/runtime`);
     expect(module.code!, module.code!).not.toContain("import {style}");
     expect(module.code!, module.code!).not.toContain("style(active");
-    expect(module.code!, module.code!).not.toContain("__VLS_ctx");
+    if (source.includes("__VLS_ctx")) {
+      expect(module.code).toContain("__VLS_ctx");
+    } else {
+      expect(module.code!, module.code!).not.toContain("__VLS_ctx");
+    }
     expect(module.code!.match(/\/runtime/g)?.length, module.code!).toBe(imports);
     if (extension === "vue") {
       const parsed = parseVue(module.code!, { filename });

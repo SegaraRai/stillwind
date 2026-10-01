@@ -296,3 +296,5 @@ with the same name.
 Tailwind v4 documents this CSS-first model, its `@theme` namespaces, and its
 layer order in its [theme documentation](https://tailwindcss.com/docs/theme)
 and [functions/directives reference](https://tailwindcss.com/docs/functions-and-directives).
+
+Browser framework acceptance lives in [e2e/frameworks](./e2e/frameworks/README.md) and runs with `vp run verify:e2e`. Synthetic performance measurements live in [benchmarks](./benchmarks/README.md).

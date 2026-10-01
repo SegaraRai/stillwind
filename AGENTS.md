@@ -17,6 +17,7 @@
 - Use Vitest `expect` for assertions, including rejected promises and thrown errors. Use `expect.fail` for unexpected branches or mock calls. A mock may throw when the thrown error is an input to the behavior being tested.
 - Share test cases between native and WASM bindings, but run the bindings in separate processes. Give tests that write files or start servers independent temporary directories and clean up after them.
 - Run `vp run check`, `vp run test`, and `vp run fixtures:check` for full ordinary verification, or `vp run verify` for all three. Use `verify:compat`, `verify:browser`, and `verify:wasm` for the corresponding environments.
+- Keep framework browser acceptance under `e2e/` and performance measurements under `benchmarks/`. Run browser acceptance with `vp run verify:e2e`; run benchmarks explicitly with `bench:compiler`, `bench:host`, or `bench:source-map`.
 - Fixture checks compare without updating tracked files. Run refresh or generation tasks explicitly and review their output. Do not cache checks that read untracked inputs from outside their package.
 - Add a test when it protects a distinct observable contract. Remove duplicate assertions that detect the same failure through the same interface.
 

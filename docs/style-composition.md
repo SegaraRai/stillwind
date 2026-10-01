@@ -104,6 +104,6 @@ CSS never participates.
 
 ## Verification
 
-The repeatable browser probe is `vp run verify:emission` inside
-`experiments/module-graph`.
+The repeatable browser probe is `vp run browser:emission` inside
+`e2e/frameworks`.
 It compares computed styles across development, single/split builds, SSR and Shadow DOM.

@@ -2042,8 +2042,6 @@ name = "stillwind-js-oxc"
 version = "0.0.0"
 dependencies = [
  "oxc",
- "serde",
- "serde_json",
  "stillwind-diagnostics",
  "stillwind-ir",
  "stillwind-semantic",

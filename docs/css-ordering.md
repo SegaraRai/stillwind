@@ -306,8 +306,8 @@ Practical guidance:
 - Variant generation order is compared against fixtures generated from Tailwind
   v4 whose candidates are deliberately spelled out of canonical order, so the
   check cannot pass by preserving the input order.
-- `vp run verify:emission` (inside `experiments/module-graph`) drives a real
+- `vp run browser:emission` (inside `e2e/frameworks`) drives a real
   browser through development, production, reverse lazy-route order, and
   JavaScript-disabled SSR and Shadow DOM, and checks equivalent computed styles.
-- `vp run verify:conditional` covers nested conditions, SSR/hydration class
+- `vp run browser:conditional` covers nested conditions, SSR/hydration class
   equality, and content reload.

@@ -6,6 +6,8 @@ transport and framework results describe that snapshot. The current transport,
 complete-graph linker and verification commands are specified in
 [CSS emission](css-emission.md) and the [Vite adapter](../packages/integration/src/vite/README.md).
 Framework-specific results below require revalidation against that implementation.
+The original reports are available in Git history. Current browser runs write reports
+under ignored `e2e/frameworks/results/`.
 
 ## Implemented boundaries
 
@@ -40,7 +42,7 @@ complete utility strings.
 
 All listed probes use the actual compiler and Chrome. The original 18 transport
 experiments remain separate surrogate evidence. Results and generated fixture
-instructions are in [the experiment workspace](../experiments/module-graph/README.md).
+instructions are in [the browser acceptance workspace](../e2e/frameworks/README.md).
 
 | Target                            | Verified behavior                                                                                                                                                              | Final JavaScript map                        | Final CSS map                                                                                                                            |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -97,19 +99,19 @@ production builds. `check` runs static checks, and `fixtures:check` verifies
 generated data and project outputs. Build includes the React example, playground,
 and fixture viewer. Each example's build/dev task first builds its compiler dependencies.
 
-From `experiments/module-graph` after building the repository:
+From `e2e/frameworks` after building the repository:
 
 ```sh
 vp i --frozen-lockfile
-vp run verify:stillwind
-vp run verify:adapters
-vp run verify:webpack
-vp run verify:rspack
-vp run verify:rsbuild
-vp run verify:react-router
-vp run verify:solidstart
-vp run verify:tanstack-vite
-vp run verify:tanstack-rsbuild
+vp run browser:composition
+vp run browser:next-turbopack
+vp run browser:next-webpack
+vp run browser:rspack
+vp run browser:rsbuild
+vp run browser:react-router
+vp run browser:solidstart
+vp run browser:tanstack-vite
+vp run browser:tanstack-rsbuild
 ```
 
 ## Explicit limits

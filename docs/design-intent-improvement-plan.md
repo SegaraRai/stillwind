@@ -279,7 +279,7 @@ compiler の `style_variants.rs` / `variants.rs` / `definitions/keyframes.rs`、
 
 検証: workspace 全テスト、rustdoc（warnings を error）、host 全54テスト、Chrome の実動作を確認。
 Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
-`experiments/module-graph` で `vp run verify:animation`。通常 `0 → 1`、reduced motion で
+`e2e/frameworks` で `vp run browser:animation`。通常 `0 → 1`、reduced motion で
 省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
 
 #### ref 定義の boundary 契約
