@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { rspack } from "@rspack/core";
 import { stillwind, type StillwindOptions } from "@stillwind/integration/vite";
 import { StillwindPlugin, stillwindRules } from "@stillwind/integration/webpack";
-import { build } from "vite-plus";
+import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 import webpack from "webpack";
 

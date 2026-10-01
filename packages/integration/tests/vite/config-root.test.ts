@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveConfig } from "vite-plus";
+import { resolveConfig } from "vite";
 import { expect, test } from "vite-plus/test";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");

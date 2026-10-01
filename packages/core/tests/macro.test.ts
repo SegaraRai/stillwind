@@ -9,7 +9,7 @@ for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) 
       () => style.keyframes({ from: "opacity-0" }),
       () => style.viewTransition({ old: "opacity-0" }),
     ]) {
-      expect(call).toThrowError(
+      expect(call).toThrow(
         /Stillwind style(?:\.(?:ref|keyframes|viewTransition))?\(\) is a compile-time macro/,
       );
     }

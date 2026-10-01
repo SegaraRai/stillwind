@@ -15,6 +15,7 @@ const css =
 const literal = "import { style } from 'stillwind/react'; export const props = style('red');";
 const imported =
   "import { style } from 'stillwind/react'; import { token } from './tokens'; export const props = style(token(''));";
+
 function project(
   read: (id: string) => Promise<string> = async () => {
     expect.fail("Unexpected disk read");

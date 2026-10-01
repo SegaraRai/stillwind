@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { moduleSourceMap } from "@stillwind/host";
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite-plus";
+import { createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("Vite development composes linked CSS maps through framework preprocessing", async () => {

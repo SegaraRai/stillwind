@@ -11,7 +11,10 @@ test("manifest selections preserve occurrence positions across reverse requests"
       { id: "blue", href: "/blue.css" },
       { id: "red:last", href: "/red.css" },
     ],
-    modules: { a: ["red:first", "red:last"], b: ["blue"] },
+    modules: {
+      a: ["red:first", "red:last"],
+      b: ["blue"],
+    },
   };
   expect(stylesheetLinks(manifest, ["b", "a"])).toStrictEqual(
     manifest.parts.map((part, order) => ({ ...part, order })),

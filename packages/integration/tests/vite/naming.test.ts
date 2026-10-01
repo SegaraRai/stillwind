@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { build } from "vite-plus";
+import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("a configured generator names the classes the plugin emits", async () => {

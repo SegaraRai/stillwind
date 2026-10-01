@@ -12,7 +12,7 @@ import {
   NativeProjectSession,
 } from "@stillwind/native";
 import { resolveFixtureCss } from "@stillwind/tools/stillwind-css";
-import { build } from "vite-plus";
+import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 
 import { finalizeModule } from "../../src/vite/finalize.ts";

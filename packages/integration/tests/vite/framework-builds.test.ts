@@ -7,7 +7,7 @@ import { stillwind } from "@stillwind/integration/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import vue from "@vitejs/plugin-vue";
 import { build as astroBuild } from "astro";
-import { build, type PluginOption } from "vite-plus";
+import { build, type PluginOption } from "vite";
 import { expect, test } from "vite-plus/test";
 
 import { writeFrameworkFixture, type Framework } from "../shared/framework-fixtures.ts";
@@ -44,13 +44,21 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
         .replace("style('red',", "style(pass(red),"),
     );
     try {
-      const plugin = stillwind({ css: path.join(root, "root.css"), types: false });
+      const plugin = stillwind({
+        css: path.join(root, "root.css"),
+        types: false,
+      });
       if (framework === "astro") {
         const config: Parameters<typeof astroBuild>[0] = {
           root,
           configFile: false,
           logLevel: "silent",
-          integrations: [astroIntegration({ css: path.join(root, "root.css"), types: false })],
+          integrations: [
+            astroIntegration({
+              css: path.join(root, "root.css"),
+              types: false,
+            }),
+          ],
           build: { inlineStylesheets: "never" },
         };
         await astroBuild(config);

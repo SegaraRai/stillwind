@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite-plus";
+import { createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("the Vite adapter exposes CSS delivery without application preview endpoints", async () => {

@@ -1,14 +1,17 @@
+import * as astro from "stillwind/astro/runtime";
+import * as react from "stillwind/react/runtime";
+import * as svelte from "stillwind/svelte/runtime";
 import { expect, test } from "vite-plus/test";
 
-import * as astro from "../dist/runtime/astro.js";
-import * as react from "../dist/runtime/react.js";
-import * as svelte from "../dist/runtime/svelte.js";
 import { createFragmentRuntime } from "../src/runtime/fragment.ts";
 
 test("react merges fragments, arrays, and falsy values in argument order", () => {
   const frozenBase = Object.freeze({ className: "a" });
   const frozenNext = Object.freeze({ className: "b" });
-  const delta = Object.freeze({ [react.stillwindClassKey]: "own", "data-state": "ready" });
+  const delta = Object.freeze({
+    [react.stillwindClassKey]: "own",
+    "data-state": "ready",
+  });
   expect(
     react.stillwindMerge(
       react.stillwindToFragment(frozenBase),
@@ -47,17 +50,29 @@ test("later props and style payloads win without leaking symbol keys", () => {
       [react.stillwindStyleKey]: { "--x": "1", "--y": "1" },
       title: "a",
     },
-    { [react.stillwindStyleKey]: { "--y": "2" }, title: "b" },
+    {
+      [react.stillwindStyleKey]: { "--y": "2" },
+      title: "b",
+    },
   );
-  expect(merged).toStrictEqual({ className: "_a", title: "b", style: { "--y": "2" } });
+  expect(merged).toStrictEqual({
+    className: "_a",
+    title: "b",
+    style: { "--y": "2" },
+  });
   expect(Object.getOwnPropertySymbols(merged)).toStrictEqual([]);
 });
 
 test("string-style frameworks serialize the payload and pass strings through", () => {
   expect(
     svelte.stillwindMerge(
-      { [svelte.stillwindClassKey]: "_a", [svelte.stillwindStyleKey]: { "--x": "1", "--y": "2" } },
-      { [svelte.stillwindStyleKey]: "--y:3" },
+      {
+        [svelte.stillwindClassKey]: "_a",
+        [svelte.stillwindStyleKey]: { "--x": "1", "--y": "2" },
+      },
+      {
+        [svelte.stillwindStyleKey]: "--y:3",
+      },
     ),
   ).toStrictEqual({ class: "_a", style: "--y:3" });
   expect(
@@ -83,13 +98,19 @@ test("toFragment converts materialized bases and is idempotent", () => {
     "data-a": "1",
     style: { "--x": "1" },
   });
-  const svelteFragment = svelte.stillwindToFragment({ class: "_base", style: "--x:1" });
+  const svelteFragment = svelte.stillwindToFragment({
+    class: "_base",
+    style: "--x:1",
+  });
   expect(svelteFragment[svelte.stillwindClassKey]).toBe("_base");
   expect(svelteFragment[svelte.stillwindStyleKey]).toBe("--x:1");
 });
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
-  const foreign = createFragmentRuntime({ classProperty: "className", styleFormat: "object" });
+  const foreign = createFragmentRuntime({
+    classProperty: "className",
+    styleFormat: "object",
+  });
   expect(() => react.stillwindMerge({ [foreign.stillwindClassKey]: "_x" })).toThrow(
     /different runtime instance/,
   );
@@ -104,25 +125,48 @@ test("class concatenation keeps falsy and non-string fragments empty", () => {
       { [react.stillwindClassKey]: undefined },
     ),
   ).toStrictEqual({});
-  expect(react.stillwindMerge({ title: "only" })).toStrictEqual({ title: "only" });
+  expect(react.stillwindMerge({ title: "only" })).toStrictEqual({
+    title: "only",
+  });
 });
 
 test("custom properties merge independently and coexist with generated styles", () => {
   for (const runtime of [react, svelte, astro]) {
     const key = runtime.stillwindCustomPropertiesKey;
     const result = runtime.stillwindMerge(
-      { [key]: { "--progress": "0", "--image": "url(image.png)" } },
+      {
+        [key]: {
+          "--progress": "0",
+          "--image": "url(image.png)",
+        },
+      },
       false,
-      [{ [key]: { "--progress": "0.5" } }],
-      { [runtime.stillwindStyleKey]: { "view-transition-name": "card" } },
+      [
+        {
+          [key]: {
+            "--progress": "0.5",
+          },
+        },
+      ],
+      {
+        [runtime.stillwindStyleKey]: {
+          "view-transition-name": "card",
+        },
+      },
     );
     expect(result.style).toStrictEqual(
       runtime === react
-        ? { "view-transition-name": "card", "--progress": "0.5", "--image": "url(image.png)" }
+        ? {
+            "view-transition-name": "card",
+            "--progress": "0.5",
+            "--image": "url(image.png)",
+          }
         : "view-transition-name:card;--progress:0.5;--image:url(image.png)",
     );
     expect(Object.getOwnPropertySymbols(result)).toStrictEqual([]);
-    const fragment = { [key]: { "--x": "1" } };
+    const fragment = {
+      [key]: { "--x": "1" },
+    };
     expect(runtime.stillwindToFragment(fragment)).toBe(fragment);
   }
 });
@@ -142,11 +186,15 @@ test("boolean switches retain whitespace and initial in framework style props", 
     for (const enabled of [true, false]) {
       const value = runtime.stillwindCssValue(enabled);
       const props = runtime.stillwindMerge({
-        [runtime.stillwindCustomPropertiesKey]: { "--enabled": value },
+        [runtime.stillwindCustomPropertiesKey]: {
+          "--enabled": value,
+        },
       });
       expect(props.style).toStrictEqual(
         runtime === react
-          ? { "--enabled": enabled ? " " : "initial" }
+          ? {
+              "--enabled": enabled ? " " : "initial",
+            }
           : enabled
             ? "--enabled: "
             : "--enabled:initial",

@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 import { stillwind } from "@stillwind/integration/vite";
 import { compileSource } from "@stillwind/native";
 import * as runtime from "stillwind/react/runtime";
-import { build } from "vite-plus";
+import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("compiled custom properties preserve evaluation order and inactive branches", () => {
@@ -40,7 +40,10 @@ test("compiled custom properties preserve evaluation order and inactive branches
       },
     });
     expect(calls).toStrictEqual(active ? ["first", "second", "third", "last"] : ["first", "last"]);
-    expect(props.style).toStrictEqual({ "--x": active ? "second" : "first", "--y": "last" });
+    expect(props.style).toStrictEqual({
+      "--x": active ? "second" : "first",
+      "--y": "last",
+    });
     expect(props["data-x"]).toBe(active ? "third" : undefined);
   }
 });
@@ -68,7 +71,12 @@ test("Vite owns imported image URLs passed through inline custom properties", as
       base: "./",
       logLevel: "silent",
       plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        assetsInlineLimit: 0,
+      },
     });
     if (!("output" in result)) {
       expect.fail('Unexpected value: "output" in result');
