@@ -11,6 +11,7 @@ StillwindはCSSの解釈を比較する。文字列の整形・minifyはコア�
 3. **prefix移行**：Stillwindは生成したクラス名を管理するため、Tailwindの`prefix(tw)`付きfixtureは入力修飾子と候補の`tw:`を両コンパイラーへの投入前に対応付ける。これは移行後utilityの比較であり、StillwindがTailwindのprefix構文を受理するという保証ではない。異なるprefixの混在やprefixが欠けた候補は拒否する。
 4. **明示候補とsource(none)**：fixtureは候補を明示的に渡すので、このimport修飾子を取り除いても候補集合は変わらない。自動ソース検出はこの比較の対象外。その他の未知のimport修飾子を黙って無視しない。
 5. **ホスト資源参照**：nativeの`resources`に記録されたplaceholderのみをspecifierへ解決する。fixtureではCSSとJSの資源参照に共通の仮想基準を与える。実際のowner相対パス、出力URL、sourcemapはホスト統合テストで検証する。未知のplaceholderを消したり任意のURLを同一視したりしない。
+6. **backgroundの対応判定**：`@supports`条件内では、同じ値を持つ`background-image`と`background`を比較上同一視する。Stillwindは短い`background`を生成できる。値、条件の論理構造、ルール本体の差は保持する。通常のスタイル宣言はこの例外の対象外。
 
 空custom propertyの前後空白はCSSの空値として同一視する。空値、未定義、guaranteed-invalid valueは区別する。その他の表記は比較側のCSS parser・calc評価・Lightning CSSで正規化する。壊れたCSSをerror recoveryで合格させない。
 

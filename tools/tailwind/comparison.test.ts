@@ -8,6 +8,36 @@ test("reserved layers and empty custom-property whitespace are explicit equivale
   );
 });
 
+test("background image and shorthand supports queries share the comparison contract", () => {
+  for (const condition of [
+    "(background-image:linear-gradient(in lab,red,red))",
+    "not (background-image:linear-gradient(in lab,red,red))",
+    "(display:grid) and (background-image:linear-gradient(in lab,red,red))",
+  ]) {
+    expect(comparisonCss(`@media screen{@supports ${condition}{.x{color:red}}}`)).toBe(
+      comparisonCss(
+        `@media screen{@supports ${condition.replace("background-image", "background")}{.x{color:red}}}`,
+      ),
+    );
+  }
+});
+
+test("supports query values, bodies and ordinary background declarations stay strict", () => {
+  const query = "@supports (background-image:linear-gradient(in lab,red,red))";
+  const css = `${query}{.x{color:red}}`;
+  for (const other of [
+    css.replace("in lab", "in oklab"),
+    css.replace("color:red", "color:blue"),
+    css.replace("background-image", "mask-image"),
+    css.replace("@supports (", "@supports not ("),
+  ]) {
+    expect(comparisonCss(css)).not.toBe(comparisonCss(other));
+  }
+  expect(comparisonCss(`${query}{.x{background-image:linear-gradient(red,blue)}}`)).not.toBe(
+    comparisonCss(`${query}{.x{background:linear-gradient(red,blue)}}`),
+  );
+});
+
 test("layer bodies, registration semantics, fallbacks and interfering order stay strict", () => {
   for (const [a, b] of [
     ["@layer theme{.x{color:red}}", ".x{color:red}"],

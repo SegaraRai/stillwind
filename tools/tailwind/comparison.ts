@@ -129,7 +129,7 @@ export function fixtureThemeKeyframes(input: string): Set<string> {
 }
 
 /**
- * Normalizes CSS under the documented fixture layer and serialization contracts.
+ * Normalizes CSS under the documented fixture layer, supports-query and serialization contracts.
  * Pass tailwindThemeFrames only for expected Tailwind output: matching top-level
  * keyframes are placed in the theme layer. Stillwind output must omit that argument
  * so an incorrect placement remains visible.
@@ -144,6 +144,21 @@ export function comparisonCss(
   if (ast.type !== "StyleSheet") {
     throw new Error("expected stylesheet");
   }
+  walk(ast, {
+    visit: "Atrule",
+    enter(node) {
+      if (node.name === "supports" && node.prelude) {
+        walk(node.prelude, {
+          visit: "SupportsDeclaration",
+          enter(query) {
+            if (query.declaration.property === "background-image") {
+              query.declaration.property = "background";
+            }
+          },
+        });
+      }
+    },
+  });
   const relocated: CssNode[] = [];
   ast.children.forEach((node, item, list) => {
     // Tailwind hoists @theme keyframes. The Stillwind preset intentionally places
