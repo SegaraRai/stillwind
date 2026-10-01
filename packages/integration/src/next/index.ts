@@ -39,7 +39,10 @@ function withStillwind(config: any = {}, options?: StillwindOptions) {
           enforce: "pre",
           use: [{ loader, options: loaderOptions }],
         },
-        { test: /stillwind-turbopack\.css$/, use: [{ loader: cssLoader, options: loaderOptions }] },
+        {
+          test: /stillwind-turbopack\.css$/,
+          use: [{ loader: cssLoader, options: loaderOptions }],
+        },
       );
       return result;
     },

@@ -201,7 +201,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         source: JSON.stringify(state.manifest, null, 2),
       });
     },
-    renderChunk(_code, chunk) {
+    renderChunk(code, chunk) {
       const { manifest, buildCss } = environmentState(this.environment?.name);
       const metadata = chunk as typeof chunk & {
         viteMetadata?: {
@@ -258,7 +258,24 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
             attachCss(part.href.slice(settings.publicBase.length));
           }
           return {
-            code: `${_code}\nif(typeof document!=="undefined"){for(const p of ${JSON.stringify(parts)}){const links=[...document.querySelectorAll('link[data-stillwind-part]')];if(links.some(l=>l.dataset.stillwindPart===p.id))continue;const l=document.createElement('link');l.rel='stylesheet';l.href=p.relative?new URL(p.href,import.meta.url).href:p.href;l.dataset.stillwindPart=p.id;l.dataset.stillwindOrder=String(p.order);document.head.insertBefore(l,links.find(e=>Number(e.dataset.stillwindOrder)>p.order)??null);}}`,
+            code: `${code}
+
+/* Stillwind CSS Loader */
+if (typeof document !== "undefined") {
+  for (const p of ${JSON.stringify(parts)}) {
+    const links = [...document.querySelectorAll("link[data-stillwind-part]")];
+    if (links.some((l) => l.dataset.stillwindPart === p.id)) {
+      continue;
+    }
+    const l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = p.relative ? new URL(p.href, import.meta.url).href : p.href;
+    l.dataset.stillwindPart = p.id;
+    l.dataset.stillwindOrder = String(p.order);
+    document.head.insertBefore(l, links.find((e) => Number(e.dataset.stillwindOrder) > p.order) ?? null);
+  }
+}
+`,
             map: null,
           };
         }

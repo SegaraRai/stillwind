@@ -91,7 +91,7 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
         .filter((file) => file.endsWith(".js"))
         .map((file) => readFileSync(path.join(dist, file), "utf8"))
         .join("\n");
-      expect(js).not.toMatch(/stillwind\/(?:vue|svelte|astro)["']/);
+      expect(js).not.toMatch(/stillwind\/(?:astro|svelte|vue)["']/);
       expect(js).not.toMatch(/requires a Stillwind compiler integration/);
       expect(framework === "astro" ? html : js).toMatch(/(?:17,\s*155,\s*44|#119b2c)/i);
       if (process.env.STILLWIND_KEEP_FRAMEWORK_FIXTURES) {

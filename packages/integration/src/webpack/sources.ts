@@ -16,7 +16,10 @@ export function sourceDescriptor(root: string, id: string) {
   return {
     ...descriptor,
     moduleId: descriptor.moduleId + suffix,
-    document: { ...descriptor.document, uri: descriptor.document.uri + suffix },
+    document: {
+      ...descriptor.document,
+      uri: descriptor.document.uri + suffix,
+    },
     checkerFileName: path.join(root, ".stillwind-checker", key + extension),
     projectionFileName: descriptor.projectionFileName + suffix,
   };

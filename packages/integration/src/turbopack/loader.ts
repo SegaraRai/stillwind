@@ -12,7 +12,7 @@ export default function (
   inputMap: any,
 ) {
   const callback = this.async();
-  if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(source)) {
+  if (!/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(source)) {
     return callback(null, source, inputMap);
   }
   void (async () => {
@@ -46,14 +46,21 @@ export default function (
             request = `./${request}`;
           }
           const binding = `asset${imports.length}`;
-          imports.push(`import ${binding} from ${JSON.stringify(request)};`);
+          imports.push(`import ${binding} from ${JSON.stringify(request)};\n`);
           replacements.push(
-            `.replaceAll(${JSON.stringify(resource.placeholder)},JSON.stringify(typeof ${binding}==='string'?${binding}:${binding}.src).slice(1,-1))`,
+            `.replaceAll(${JSON.stringify(resource.placeholder)}, JSON.stringify(typeof ${binding} === "string" ? ${binding} : ${binding}.src).slice(1, -1))`,
           );
         }
         return callback(
           null,
-          `${imports.join("\n")}\nexport const parts=${JSON.stringify(plan.parts.map(({ key, css }) => ({ key, css })))}.map(part=>({...part,css:part.css${replacements.join("")}}));export const css=parts.map(part=>part.css).join("");export default css;`,
+          [
+            "// Stillwind CSS value (turbopack)\n",
+            ...imports,
+            "\n",
+            `export const parts = ${JSON.stringify(plan.parts.map(({ key, css }) => ({ key, css })))}.map((part) => ({ ...part, css: part.css${replacements.join("")} }));\n`,
+            'export const css = parts.map((part) => part.css).join("");\n',
+            "export default css;\n",
+          ].join(""),
         );
       }
       let code = output.code;

@@ -45,7 +45,7 @@ export function stillwind(options: StillwindOptions): Plugin {
     },
     shouldTransformCachedModule({ id }) {
       return (
-        /\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(cleanModuleId(id)) &&
+        /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(cleanModuleId(id)) &&
         !id.includes("node_modules")
       );
     },
@@ -84,14 +84,14 @@ export function stillwind(options: StillwindOptions): Plugin {
           return;
         }
         if (
-          !/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(cleanModuleId(id)) ||
+          !/\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(cleanModuleId(id)) ||
           id.includes("node_modules") ||
           id.startsWith("\0") ||
           /[?&](?:raw|url|type)(?:[=&]|$)/.test(id)
         ) {
           return;
         }
-        if (!/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(code)) {
+        if (!/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(code)) {
           const input = inputMap(name).get(id);
           if (input) {
             inputMap(name).delete(id);

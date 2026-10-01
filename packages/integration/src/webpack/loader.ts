@@ -35,7 +35,7 @@ export default function (
   const text = String(source);
   const projection = /[?&]stillwind\.css(?:&|$)/.test(this.resourceQuery ?? "");
   const cssValue = /[?&]stillwind-module-css(?:&|$)/.test(this.resourceQuery ?? "");
-  const sfc = /\.(vue|svelte|astro)$/.test(this.resourcePath);
+  const sfc = /\.(?:astro|svelte|vue)$/.test(this.resourcePath);
   // SFC integrations re-enter the loader for blocks compiled from the original producer.
   const id = this.resourcePath + (projection || cssValue || sfc ? "" : (this.resourceQuery ?? ""));
   const prior = additionalData?.stillwind?.sourceTransform;
@@ -50,7 +50,7 @@ export default function (
   if (
     !projection &&
     !cssValue &&
-    !/stillwind\/(?:react|preact|solid|vue|svelte|astro|module-css)/.test(text)
+    !/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(text)
   ) {
     return callback(null, source, inputMap);
   }
@@ -153,14 +153,20 @@ export default function (
         describe: (id) => sourceDescriptor(root, id),
         resolve: async (specifier, importer) => {
           if (specifier.startsWith("node:") && isBuiltin(specifier)) {
-            return { id: specifier, external: true };
+            return {
+              id: specifier,
+              external: true,
+            };
           }
           try {
             const id = await resolveJs(specifier, importer);
             return id ? { id } : null;
           } catch (error) {
             if (isBuiltin(specifier)) {
-              return { id: specifier, external: true };
+              return {
+                id: specifier,
+                external: true,
+              };
             }
             throw error;
           }
@@ -188,7 +194,11 @@ export default function (
       placement: "document",
     });
 
-    const valueResources: { placeholder: string; id: string; request: string }[] = [];
+    const valueResources: {
+      placeholder: string;
+      id: string;
+      request: string;
+    }[] = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const owner =
         "moduleId" in resource ? compiler.resolverId(resource.moduleId) : resource.sourceName;
@@ -212,33 +222,35 @@ export default function (
       ),
     );
     if (cssValue) {
-      const imports = plan.parts
-        .map((part, index) => {
-          const payload = Buffer.from(
-            JSON.stringify({
-              css: part.css,
-              resources: valueResources.filter((resource) =>
-                part.css.includes(resource.placeholder),
-              ),
-            }),
-          ).toString("base64url");
-          const request = `!!${fileURLToPath(
-            new URL("./fragment-loader.js", import.meta.resolve("@stillwind/integration/webpack")),
-          )}!${fileURLToPath(
-            new URL(
-              "./stillwind-fragment.js",
-              import.meta.resolve("@stillwind/integration/webpack"),
-            ),
-          )}?css=${payload}`;
-          return `import {css as p${index}} from ${JSON.stringify(request)};`;
-        })
-        .join("\n");
-      const parts = plan.parts
-        .map((part, index) => `{key:${JSON.stringify(part.key)},css:p${index}}`)
-        .join(",");
+      const imports = plan.parts.map((part, index) => {
+        const payload = Buffer.from(
+          JSON.stringify({
+            css: part.css,
+            resources: valueResources.filter((resource) => part.css.includes(resource.placeholder)),
+          }),
+        ).toString("base64url");
+        const request = `!!${fileURLToPath(
+          new URL("./fragment-loader.js", import.meta.resolve("@stillwind/integration/webpack")),
+        )}!${fileURLToPath(
+          new URL("./stillwind-fragment.js", import.meta.resolve("@stillwind/integration/webpack")),
+        )}?css=${payload}`;
+        return `import { css as p${index} } from ${JSON.stringify(request)};\n`;
+      });
+      const parts = plan.parts.map(
+        (part, index) => `  { key: ${JSON.stringify(part.key)}, css: p${index} },\n`,
+      );
       return callback(
         null,
-        `${imports}\nexport const parts=[${parts}];\nexport const css=parts.map(part=>part.css).join("");\nexport default css;`,
+        [
+          "// Stillwind CSS value (webpack)\n",
+          ...imports,
+          "\n",
+          "export const parts = [\n",
+          ...parts,
+          "];\n",
+          'export const css = parts.map((part) => part.css).join("");\n',
+          "export default css;\n",
+        ].join(""),
         null,
       );
     }

@@ -31,7 +31,7 @@ function stillwindRules(options: StillwindOptions): StillwindRule[] {
       ],
     },
     {
-      test: /\.(vue|svelte|astro)$/,
+      test: /\.(?:astro|svelte|vue)$/,
       exclude: /node_modules/,
       enforce: "pre",
       use: [
@@ -53,7 +53,7 @@ function stillwindRules(options: StillwindOptions): StillwindRule[] {
       ],
     },
     {
-      test: /\.(vue|svelte|astro)$/,
+      test: /\.(?:astro|svelte|vue)$/,
       exclude: /node_modules/,
       enforce: "post",
       use: [

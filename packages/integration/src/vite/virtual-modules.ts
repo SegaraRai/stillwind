@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { cleanModuleId, cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
-import { build, transform as transformCss } from "esbuild";
+import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
 import {
@@ -16,7 +16,13 @@ import {
   virtualCssId,
 } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
-import { developmentRuntime } from "./runtime.ts";
+
+const runtimeEntry = "virtual:stillwind/runtime-entry";
+const sourceMapEntry = "virtual:stillwind/runtime-source-map";
+
+function runtimeFile(file: string) {
+  return fileURLToPath(new URL(`./${file}.js`, import.meta.resolve("@stillwind/integration/vite")));
+}
 
 export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveId" | "load"> {
   const {
@@ -34,6 +40,12 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
   } = project;
   return {
     async resolveId(id, importer) {
+      if (id === runtimeEntry) {
+        return runtimeFile("runtime");
+      }
+      if (id === sourceMapEntry) {
+        return runtimeFile("runtime-source-map");
+      }
       if (id.endsWith("?stillwind.css")) {
         // CSS projections do not expose server JavaScript to the client graph.
         const source = await this.resolve(id.slice(0, -"?stillwind.css".length), importer, {
@@ -84,10 +96,20 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
       }
       if (id.startsWith(producerPrefix)) {
         if (!settings.watching) {
-          return "export {};";
+          return "// Stillwind producer (vite)\nexport {};\n";
         }
         const producer = Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8");
-        return `import {register,unregister,synchronize} from ${JSON.stringify(runtimeSpecifier)}; await synchronize(${environmentState(name).revision}); register(${JSON.stringify(producer)}); if(import.meta.hot) import.meta.hot.prune(()=>unregister(${JSON.stringify(producer)}));`;
+        return `// Stillwind producer (vite)
+import { register, synchronize, unregister } from ${JSON.stringify(runtimeSpecifier)};
+
+await synchronize(${environmentState(name).revision});
+register(${JSON.stringify(producer)});
+if (import.meta.hot) {
+  import.meta.hot.prune(() => {
+    unregister(${JSON.stringify(producer)});
+  });
+}
+`;
       }
       if (id.startsWith(projectionPrefix)) {
         const source = Buffer.from(id.slice(projectionPrefix.length), "base64url").toString("utf8");
@@ -110,41 +132,51 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         }
         await publish(name, context);
         return {
-          code: `import ${JSON.stringify(producerSpecifier(source))};`,
-          meta: { stillwind: { ...result?.meta.stillwind, projection: true } },
+          code: `// Stillwind projection\nimport ${JSON.stringify(producerSpecifier(source))};\n`,
+          meta: {
+            stillwind: {
+              ...result?.meta.stillwind,
+              projection: true,
+            },
+          },
         };
       }
       if (id === runtimeId) {
         if (!settings.watching) {
-          return "export {};";
+          return "// Stillwind runtime (vite)\nexport {};\n";
         }
         const plan = await documentPlan(name, this);
         const revision = environmentState(name).revision;
-        const code = developmentRuntime(
-          {
-            revision,
-            parts: plan.parts,
-            dependencies: Object.fromEntries(
-              [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
-            ),
-          },
-          settings.devSourceMaps,
-          `${settings.publicBase}__stillwind/css?environment=${encodeURIComponent(name ?? "client")}`,
-        );
-        if (!settings.devSourceMaps) {
-          return code;
-        }
-        const bundled = await build({
-          stdin: {
-            contents: code,
-            resolveDir: dirname(fileURLToPath(import.meta.url)),
-          },
-          bundle: true,
-          write: false,
-          format: "esm",
-          platform: "browser",
-        });
-        return bundled.outputFiles[0].text;
+        const snapshot = {
+          revision,
+          parts: plan.parts,
+          dependencies: Object.fromEntries(
+            [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
+          ),
+        };
+        const endpoint = `${settings.publicBase}__stillwind/css?environment=${encodeURIComponent(name ?? "client")}`;
+        return `// Stillwind runtime (vite)
+import { createDevelopmentRuntime } from ${JSON.stringify(runtimeEntry)};
+${settings.devSourceMaps ? `import { renderCssWithSourceMap } from ${JSON.stringify(sourceMapEntry)};` : ""}
+
+const runtime = createDevelopmentRuntime({
+  snapshot: ${JSON.stringify(snapshot)},
+  endpoint: ${JSON.stringify(endpoint)},
+  ${settings.devSourceMaps ? "renderCss: renderCssWithSourceMap," : ""}
+});
+
+export const register = runtime.register;
+export const unregister = runtime.unregister;
+export const synchronize = runtime.synchronize;
+
+if (import.meta.hot) {
+  import.meta.hot.on("stillwind:css", runtime.apply);
+  import.meta.hot.accept();
+  import.meta.hot.dispose(() => {
+    import.meta.hot.off("stillwind:css", runtime.apply);
+  });
+}
+`;
       }
       if (id.startsWith(fragmentPrefix)) {
         const key = id.slice(fragmentPrefix.length);
@@ -160,19 +192,22 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         const files = [
           ...new Set([...css.matchAll(/\/@fs\/([^"'\s)]+)/g)].map((match) => match[1])),
         ];
-        const imports = files
-          .map(
-            (file, index) =>
-              `import asset${index} from ${JSON.stringify(decodeURIComponent(file) + "?url")};`,
-          )
-          .join("\n");
+        const imports = files.map(
+          (file, index) =>
+            `import asset${index} from ${JSON.stringify(decodeURIComponent(file) + "?url")};\n`,
+        );
         const replacements = files
           .map(
             (file, index) =>
-              `.replaceAll(${JSON.stringify(`/@fs/${file}`)}, JSON.stringify(asset${index}).slice(1,-1))`,
+              `.replaceAll(${JSON.stringify(`/@fs/${file}`)}, JSON.stringify(asset${index}).slice(1, -1))`,
           )
           .join("");
-        return `${imports}\nexport const css = ${JSON.stringify(css)}${replacements};`;
+        return [
+          "// Stillwind CSS fragment (vite)\n",
+          ...imports,
+          "\n",
+          `export const css = ${JSON.stringify(css)}${replacements};\n`,
+        ].join("");
       }
       if (id.startsWith(valuePrefix)) {
         const sourceId = Buffer.from(id.slice(valuePrefix.length), "base64url").toString("utf8");
@@ -196,13 +231,22 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         for (const file of environmentState(name).cssFiles) {
           this.addWatchFile(file);
         }
-        const imports = plan.parts
-          .map(
-            (part, index) =>
-              `import { css as p${index} } from ${JSON.stringify(fragmentSpecifier(part.css))};`,
-          )
-          .join("\n");
-        return `${imports}\nexport const parts = [${plan.parts.map((part, index) => `{key:${JSON.stringify(part.key)},css:p${index}}`).join(",")}];\nexport const css = parts.map(part => part.css).join("");\nexport default css;`;
+        const imports = plan.parts.map(
+          (part, index) =>
+            `import { css as p${index} } from ${JSON.stringify(fragmentSpecifier(part.css))};\n`,
+        );
+        return [
+          "// Stillwind CSS value (vite)\n",
+          ...imports,
+          "\n",
+          "export const parts = [",
+          ...plan.parts.map(
+            (part, index) => `  { key: ${JSON.stringify(part.key)}, css: p${index} },\n`,
+          ),
+          "];\n",
+          'export const css = parts.map((part) => part.css).join("");\n',
+          "export default css;\n",
+        ].join("");
       }
       return undefined;
     },

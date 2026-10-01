@@ -23,6 +23,8 @@ export default defineConfig({
       "src/turbopack/index.ts",
       "src/turbopack/loader.ts",
       "src/vite/index.ts",
+      "src/vite/runtime.ts",
+      "src/vite/runtime-source-map.ts",
       "src/webpack/css-loader.ts",
       "src/webpack/css-map-loader.ts",
       "src/webpack/fragment-loader.ts",
@@ -37,6 +39,12 @@ export default defineConfig({
     dts: true,
     deps: {
       neverBundle: ["webpack"],
+      alwaysBundle: [
+        "@jridgewell/gen-mapping",
+        "@jridgewell/trace-mapping",
+        "@jridgewell/sourcemap-codec",
+        "@jridgewell/resolve-uri",
+      ],
     },
     sourcemap: true,
     copy: [

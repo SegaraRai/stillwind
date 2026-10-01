@@ -64,6 +64,9 @@ export function createRules(
       condition: { not: "foreign" },
       loaders: [{ loader: loaderPath("loader.js"), options }],
     },
-    "stillwind-turbopack.css": { loaders: [{ loader: cssLoader, options }], as: "*.css" },
+    "stillwind-turbopack.css": {
+      loaders: [{ loader: cssLoader, options }],
+      as: "*.css",
+    },
   };
 }

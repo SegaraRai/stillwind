@@ -24,7 +24,9 @@ export interface TurbopackLoaderOptions {
 
 export async function createProject(context: LoaderContext<TurbopackLoaderOptions>) {
   const options = context.getOptions();
-  const watch = (id: string) => context.addDependency(id);
+  const watch = (id: string) => {
+    context.addDependency(id);
+  };
   watch(nativeBindingPath);
   for (const name of ["@stillwind/host", "@stillwind/native"]) {
     watch(fileURLToPath(import.meta.resolve(name)));
@@ -90,14 +92,22 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
       isBuiltin(specifier)
         ? { id: specifier, external: true }
         : { id: await resolveJs(specifier, importer) },
-    warn: (message: string) => context.emitWarning(new Error(message)),
+    warn: (message: string) => {
+      context.emitWarning(new Error(message));
+    },
   };
-  return { options, compiler, host, loaded, resolveAsset };
+  return {
+    options,
+    compiler,
+    host,
+    loaded,
+    resolveAsset,
+  };
 }
 
 /** Reconstructs all entry-reachable producers before requesting one document plan. */
 export async function compileGraph(
-  entries: string[],
+  entries: readonly string[],
   project: Awaited<ReturnType<typeof createProject>>,
 ) {
   const { options, compiler, host } = project;
@@ -150,7 +160,11 @@ export async function compileGraph(
   }
   return compiler.native.planStylesheet({
     modules: selection,
-    coverage: { kind: "complete", target: "entry-graph", revision: revision.digest("hex") },
+    coverage: {
+      kind: "complete",
+      target: "entry-graph",
+      revision: revision.digest("hex"),
+    },
     placement: "document",
   });
 }

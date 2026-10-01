@@ -119,7 +119,7 @@ export function developmentHooks(
             sendJson(response, { error: String(error) }, 500);
           });
       });
-      server.middlewares.use("/__stillwind/css", (request, response) => {
+      server.middlewares.use(`${settings.publicBase}__stillwind/css`, (request, response) => {
         const name =
           new URL(request.url ?? "", "http://stillwind.local").searchParams.get("environment") ??
           "client";

@@ -242,7 +242,7 @@ export async function compileModule(
       if (/(?:^|[\\/])node_modules[\\/]/.test(dependencyName)) {
         continue;
       }
-      if (!/\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(dependencyName)) {
+      if (!/\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(dependencyName)) {
         continue;
       }
       let sourceResolutions = resolutions.get(source.resolverId);

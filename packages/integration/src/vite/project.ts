@@ -313,7 +313,7 @@ export function createViteProject(options: StillwindOptions) {
     await previous;
     try {
       await ensureSession(state, context);
-      const sfc = /\.(vue|svelte|astro)$/.test(cleanModuleId(id));
+      const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
       const documentUri = (id: string) => {
         const clean = cleanModuleId(id);
         return clean.startsWith("\0") || clean.startsWith("virtual:")

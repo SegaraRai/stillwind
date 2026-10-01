@@ -10,7 +10,11 @@ export function stillwind(options: StillwindOptions): AstroIntegration {
     name: "@stillwind/integration",
     hooks: {
       "astro:config:setup"({ updateConfig }) {
-        updateConfig({ vite: { plugins: [vitePlugin(options)] } });
+        updateConfig({
+          vite: {
+            plugins: [vitePlugin(options)],
+          },
+        });
       },
     },
   };
