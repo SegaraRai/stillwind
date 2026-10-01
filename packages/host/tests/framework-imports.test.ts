@@ -43,7 +43,7 @@ async function compileFixture(
 for (const adapter of ["svelte", "astro"]) {
   test(`TSX without JSX warns at the stillwind/${adapter} source literal`, async () => {
     const literal = `'stillwind/${adapter}'`;
-    const source = `// 🧭\nimport {style} from ${literal};\nexport const props = style('flex');`;
+    const source = `// 🧭\nimport { style } from ${literal};\nexport const props = style("flex");`;
     const output = await compileFixture(source, "NoJsx.tsx");
     expect(output.diagnostics).toStrictEqual([]);
     expect(output.code).toBeTruthy();
@@ -63,7 +63,7 @@ for (const adapter of ["svelte", "astro"]) {
 test("plain TypeScript allows each macro adapter without a format warning", async () => {
   for (const adapter of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     const output = await compileFixture(
-      `import {style} from 'stillwind/${adapter}'; export const props = style('flex');`,
+      `import { style } from "stillwind/${adapter}"; export const props = style("flex");`,
       "Adapter.ts",
     );
     expect(output.diagnostics, adapter).toStrictEqual([]);
@@ -75,9 +75,9 @@ test("plain TypeScript allows each macro adapter without a format warning", asyn
 
 test("Vue JSX compiles to class and style object props with an explicit Vue adapter", async () => {
   const source = [
-    "import {style} from 'stillwind/vue';",
+    'import { style } from "stillwind/vue";',
     "const amount = 2;",
-    "const props = style('flex', {'--progress': amount});",
+    'const props = style("flex", { "--progress": amount });',
     "const view = <div {...props} />;",
   ].join("\n");
   const output = await compileFixture(source, "VueJsx.tsx", "vue");
@@ -102,7 +102,7 @@ test("Vue JSX compiles to class and style object props with an explicit Vue adap
 
 test("Vue SFC with a React macro warns in original coordinates without a framework conflict", async () => {
   const literal = "'stillwind/react'";
-  const source = `<script setup>\n// 🧭\nimport {style} from ${literal};\nconst props = style('flex');\n</script><template><div v-bind="props" /></template>`;
+  const source = `<script setup>\n// 🧭\nimport {style} from ${literal};\nconst props = style("flex");\n</script><template><div v-bind="props" /></template>`;
   const output = await compileFixture(source, "WrongMacro.vue");
   expect(!output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001")).toBeTruthy();
   expect(output.diagnostics).toStrictEqual([]);
@@ -117,7 +117,7 @@ test("Vue SFC with a React macro warns in original coordinates without a framewo
 
 test("explicit framework constraints remain fatal even for an otherwise allowed input", async () => {
   const output = await compileFixture(
-    "import {style} from 'stillwind/vue'; export const props = style('flex');",
+    'import { style } from "stillwind/vue"; export const props = style("flex");',
     "Constraint.ts",
     "react",
   );
@@ -139,8 +139,8 @@ test("CSS configures framework import warn, off, and deny with next-line suppres
       const warnings: string[] = [];
       const source = [
         ...(suppressed ? [`// swlint-disable-next-line ${rule}`] : []),
-        "import {style} from 'stillwind/svelte';",
-        "export const props = style('flex');",
+        'import { style } from "stillwind/svelte";',
+        'export const props = style("flex");',
       ].join("\n");
       const id = path.join(root, "Policy.tsx");
       const compile = () =>

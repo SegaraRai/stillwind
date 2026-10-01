@@ -17,7 +17,7 @@ const location = (text: string, offset: number) => {
 test("CSS maps retain imported authored text, theme tokens and macro origins", () => {
   const loader = new NativeDesignSystemLoader();
   const root =
-    "@import 'child.css';\n@theme static { --color-brand: red; } :root,:host { @stillwind-slot theme; }\n@utility red {color:red;}\n@stillwind-slot utilities;";
+    '@import "child.css";\n@theme static { --color-brand: red; } :root, :host { @stillwind-slot theme; }\n@utility red { color: red; }\n@stillwind-slot utilities;';
   const child = "/* 日本語 🧭 */\n.authored { color: blue; }";
   const designUri = pathToFileURL(path.resolve("design.css")).href;
   const childUri = pathToFileURL(path.resolve("child.css")).href;
@@ -29,7 +29,7 @@ test("CSS maps retain imported authored text, theme tokens and macro origins", (
   loader.provide(step.requests[0].id, "child.css", child, childUri, childUri);
   const session = new NativeProjectSession(loader, false);
   const source =
-    "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props = style('red');";
+    'import { style } from "stillwind/react";\n// 日本語 🧭\nexport const props = style("red");';
   session.compile([
     {
       moduleId: "entry.tsx",
@@ -61,10 +61,10 @@ test("CSS maps retain imported authored text, theme tokens and macro origins", (
   for (const [needle, original, file, text] of [
     ["color: blue", child.indexOf("color: blue"), "child.css", child],
     ["--color-brand", root.indexOf("--color-brand"), "design.css", root],
-    ["color:red", source.indexOf("style('red')"), "entry.tsx", source],
+    ["color: red", source.indexOf('style("red")'), "entry.tsx", source],
   ] as const) {
-    expect(decoded.code, decoded.code).toContain(needle);
-    const actual = originalPositionFor(map, location(decoded.code, decoded.code.indexOf(needle)));
+    expect(decoded.code).toContain(needle);
+    const actual = originalPositionFor(map, location(decoded.code, decoded.code.search(needle)));
     expect(actual).toStrictEqual({
       source: pathToFileURL(path.resolve(file)).href,
       ...location(text, original),
@@ -74,7 +74,7 @@ test("CSS maps retain imported authored text, theme tokens and macro origins", (
 });
 
 test("resource URL length edits preserve following non-ASCII CSS columns", () => {
-  const css = "/* 🧭 */ .x { background:url(PLACEHOLDER); color:red; }";
+  const css = "/* 🧭 */ .x { background: url(PLACEHOLDER); color: red; }";
   const output = {
     css,
     sourceMap: {
@@ -103,8 +103,8 @@ test("resource URL length edits preserve following non-ASCII CSS columns", () =>
 
 test("CSS origins compose through framework preprocessing to original source", () => {
   const id = path.resolve("route.tsx");
-  const original = "// 日本語 🧭\nexport const x = style('red');";
-  const processed = "// framework\n// helper\nexport const x = style('red');";
+  const original = '// 日本語 🧭\nexport const x = style("red");';
+  const processed = '// framework\n// helper\nexport const x = style("red");';
   const previous = new GenMapping({ file: id });
   setSourceContent(previous, id, original);
   addSegment(previous, 2, 17, id, 1, 17);
@@ -139,8 +139,8 @@ test("CSS origins compose through framework preprocessing to original source", (
 
 test("loader composition traces native replacements through an upstream framework transform", () => {
   const id = path.resolve("route.tsx");
-  const original = "// original route\nexport const props = style('red');";
-  const input = "// framework helper\nexport const props = style('red');";
+  const original = '// original route\nexport const props = style("red");';
+  const input = '// framework helper\nexport const props = style("red");';
   const upstream = new GenMapping({ file: id });
   setSourceContent(upstream, id, original);
   addSegment(upstream, 1, 21, id, 1, 21);

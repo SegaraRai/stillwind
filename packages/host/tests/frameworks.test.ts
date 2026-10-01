@@ -22,9 +22,9 @@ const cssInput = (content: string) => ({
 });
 
 const examples = {
-  vue: `<script setup lang="ts">\nimport {style} from 'stillwind/vue';\nconst active = true, external = 'extra';\n</script>\n<template><div v-bind="style(active ? 'flex' : 'grid', {class: external})" /></template>`,
-  svelte: `<script lang="ts">\nimport {style} from 'stillwind/svelte';\nconst active = true, external = 'extra';\n</script>\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
-  astro: `---\n// 🧭\nimport {style} from 'stillwind/astro';\nconst active = true, external = 'extra';\n---\n<div {...style(active ? 'flex' : 'grid', {class: external})}></div>`,
+  vue: `<script setup lang="ts">\nimport { style } from "stillwind/vue";\nconst active = true, external = "extra";\n</script>\n<template><div v-bind="style(active ? 'flex' : 'grid', { class: external })" /></template>`,
+  svelte: `<script lang="ts">\nimport { style } from "stillwind/svelte";\nconst active = true, external = "extra";\n</script>\n<div {...style(active ? "flex" : "grid", { class: external })}></div>`,
+  astro: `---\n// 🧭\nimport { style } from "stillwind/astro";\nconst active = true, external = "extra";\n---\n<div {...style(active ? "flex" : "grid", { class: external })}></div>`,
 };
 
 test("filename inference describes input format without selecting an output adapter", () => {
@@ -52,7 +52,7 @@ test("filename inference describes input format without selecting an output adap
 });
 
 test("Vue output adapter leaves JSX and script input formats direct", async () => {
-  const source = `import {style} from 'stillwind/vue'; const view = <div {...style('flex')} />;`;
+  const source = 'import { style } from "stillwind/vue"; const view = <div {...style("flex")} />;';
   const descriptor = fileModuleDescriptor(path.resolve("/src"), path.resolve("/src/Component.tsx"));
   for (const format of ["jsx", "script"] as const) {
     const prepared = await prepareSource({
@@ -141,7 +141,7 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
   loader.provide(
     0,
     "/theme.css",
-    "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+    "@utility flex { display: flex; } @utility grid { display: grid; } @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, true);
   const host = {
@@ -171,7 +171,7 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
     const edited = await compileModule(
       session,
       () => facts,
-      source.replace("'flex'", "'grid'"),
+      source.replace('"flex"', '"grid"').replace("'flex'", "'grid'"),
       id,
       root,
       host,
@@ -188,7 +188,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
       compileProject(
         [input],
         cssInput(
-          "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+          "@utility flex { display: flex; } @utility grid { display: grid; } @stillwind-slot utilities;",
         ),
       ) as ProjectCompilerOutput
     ).modules[0]!;
@@ -240,8 +240,8 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
       uri: "untitled:Bad.vue",
       format: "vue",
       code: examples.vue.replace(
-        "import {style}",
-        "import css from 'stillwind/module-css'; import {style}",
+        "import { style }",
+        'import css from "stillwind/module-css"; import { style }',
       ),
     },
   });
@@ -255,38 +255,38 @@ const extra = [
   {
     extension: "vue",
     name: "nested template expressions",
-    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const active=true,label='hello',suffix='!',names=['a'];</script><template><div v-bind="style(active ? 'flex' : 'grid', {class:names.map(name => name + suffix), 'aria-label':JSON.stringify({label}), 'data-note':'__VLS_ctx.label'})" /></template>`,
+    source: `<script setup lang="ts">import { style } from "stillwind/vue"; const active = true, label = "hello", suffix="!", names=["a"];</script><template><div v-bind="style(active ? 'flex' : 'grid', { class: names.map(name => name + suffix), 'aria-label': JSON.stringify({ label }), 'data-note': '__VLS_ctx.label' })" /></template>`,
     imports: 1,
   },
   {
     extension: "vue",
     name: "authored receiver",
-    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const __VLS_ctx={active:true,style:(s:string)=>({class:s})};</script><template><div v-bind="style(__VLS_ctx.active ? 'flex' : 'grid')" /><div v-bind="__VLS_ctx.style('untouched')" /></template>`,
+    source: `<script setup lang="ts">import { style } from "stillwind/vue"; const __VLS_ctx = { active: true, style: (s: string) => ({ class: s }) };</script><template><div v-bind="style(__VLS_ctx.active ? 'flex' : 'grid')" /><div v-bind="__VLS_ctx.style('untouched')" /></template>`,
     imports: 1,
   },
   {
     extension: "vue",
     name: "template bindings shadow script bindings",
-    source: `<script setup lang="ts">import {style} from 'stillwind/vue';const active=true;</script><template><div v-for="style in [() => ({})]" v-bind="style()" /><div v-for="active in [false]" v-bind="style(active ? 'flex' : 'grid')" /></template>`,
+    source: `<script setup lang="ts">import { style } from "stillwind/vue"; const active = true;</script><template><div v-for="style in [() => ({})]" v-bind="style()" /><div v-for="active in [false]" v-bind="style(active ? 'flex' : 'grid')" /></template>`,
     imports: 1,
   },
   {
     extension: "svelte",
     name: "store and reactive expressions",
-    source: `<script lang="ts">import {style} from 'stillwind/svelte';import {writable} from 'svelte/store';const enabled=writable(true);let label='hello';$:external=label+'!';</script><div {...style($enabled ? 'flex' : 'grid',{class:external,'aria-label':label})}></div>`,
+    source: `<script lang="ts">import { style } from "stillwind/svelte"; import {writable} from "svelte/store"; const enabled = writable(true); let label = "hello"; $: external = label + "!";</script><div {...style($enabled ? "flex" : "grid", { class: external, "aria-label": label })}></div>`,
     imports: 1,
   },
   {
     extension: "svelte",
     name: "rune expressions",
-    source: `<script lang="ts">import {style} from 'stillwind/svelte';let active=$state(true);let external=$derived(active ? 'a' : 'b');</script><div {...style(active ? 'flex' : 'grid',{class:external})}></div>`,
+    source: `<script lang="ts">import { style } from "stillwind/svelte"; let active = $state(true); let external = $derived(active ? "a" : "b");</script><div {...style(active ? "flex" : "grid",{ class: external })}></div>`,
     imports: 1,
   },
   ...Object.entries(examples).map(([extension, source]) => ({
     extension,
     name: "local composition",
     source: source
-      .replace("const active", "const base=style('flex'); const active")
+      .replace("const active", 'const base = style("flex"); const active')
       .replace("style(active", "style(base, active"),
     imports: 1,
   })),
@@ -294,57 +294,57 @@ const extra = [
     extension,
     name: "explicit module CSS",
     source: source.replace(
-      "import {style}",
-      "import css from 'stillwind/module-css'; console.log(css); import {style}",
+      "import { style }",
+      'import css from "stillwind/module-css"; console.log(css); import { style }',
     ),
     imports: 1,
   })),
   {
     extension: "vue",
     name: "shared normal-script import",
-    source: `<script>import {style} from 'stillwind/vue';</script><script setup>const external='extra';</script><template><div v-bind="style('flex', {class: external})"/></template>`,
+    source: `<script>import { style } from "stillwind/vue";</script><script setup>const external='extra';</script><template><div v-bind="style('flex', { class: external })"/></template>`,
     imports: 1,
   },
   {
     extension: "svelte",
     name: "shared module-script import",
-    source: `<script module>import {style} from 'stillwind/svelte';</script><script>const external='extra';</script><div {...style('flex', {class: external})}></div>`,
+    source: `<script module>import { style } from "stillwind/svelte";</script><script>const external='extra';</script><div {...style("flex", { class: external })}></div>`,
     imports: 1,
   },
   {
     extension: "vue",
     name: "single quoted attribute",
-    source: `<script setup>import {style} from 'stillwind/vue'; const external='extra';</script><template><div v-bind='style("flex", {class: external})'/></template>`,
+    source: `<script setup>import { style } from "stillwind/vue"; const external = "extra";</script><template><div v-bind='style("flex", { class: external })'/></template>`,
     imports: 1,
   },
   {
     extension: "vue",
     name: "attribute whitespace",
-    source: `<script setup>import {style} from 'stillwind/vue'; const external='extra';</script><template><div v-bind="  style('flex', {class: external})  "/></template>`,
+    source: `<script setup>import { style } from "stillwind/vue"; const external="extra";</script><template><div v-bind="  style('flex', { class: external })  "/></template>`,
     imports: 1,
   },
   {
     extension: "vue",
     name: "two scripts",
-    source: `<script>import {style as sm} from 'stillwind/vue'; export const a=sm('flex', {class: 'module'});</script><script setup>import {style} from 'stillwind/vue'; const b=style('grid', {class: 'instance'});</script><template><div v-bind="b"/></template>`,
+    source: `<script>import { style as sm } from "stillwind/vue"; export const a = sm("flex", { class: "module" });</script><script setup>import { style } from "stillwind/vue"; const b = style("grid", { class: "instance" });</script><template><div v-bind="b"/></template>`,
     imports: 2,
   },
   {
     extension: "svelte",
     name: "two scripts",
-    source: `<script module>import {style as sm} from 'stillwind/svelte'; export const a=sm('flex', {class: 'module'});</script><script>import {style} from 'stillwind/svelte'; const b=style('grid', {class: 'instance'});</script><div {...b}></div>`,
+    source: `<script module>import { style as sm } from "stillwind/svelte"; export const a=sm("flex", { class: "module" });</script><script>import { style } from "stillwind/svelte"; const b = style("grid", { class: "instance" });</script><div {...b}></div>`,
     imports: 2,
   },
   {
     extension: "astro",
     name: "client script",
-    source: `<script>import {style} from 'stillwind/astro'; console.log(style('flex', {class:'client'}));</script><div>🧭</div>`,
+    source: `<script>import { style } from "stillwind/astro"; console.log(style("flex", { class: "client" }));</script><div>🧭</div>`,
     imports: 1,
   },
   {
     extension: "astro",
     name: "server and client scripts",
-    source: `---\nimport {style} from 'stillwind/astro'; const a=style('flex', {class:'server'});\n---\n<div {...a}></div><script>import {style as sc} from 'stillwind/astro'; console.log(sc('grid', {class:'client'}));</script>`,
+    source: `---\nimport { style } from "stillwind/astro"; const a=style("flex", { class: "server" });\n---\n<div {...a}></div><script>import { style as sc } from "stillwind/astro"; console.log(sc("grid", { class: "client" }));</script>`,
     imports: 2,
   },
 ];
@@ -386,18 +386,18 @@ for (const { extension, source, name, imports } of [
     const output = compileProject(
       [projected],
       cssInput(
-        "@utility flex {display:flex;} @utility grid {display:grid;} @stillwind-slot utilities;",
+        "@utility flex { display: flex; } @utility grid { display: grid; } @stillwind-slot utilities;",
       ),
     ) as ProjectCompilerOutput;
     const module = output.modules[0]!;
     expect(module.diagnostics).toStrictEqual([]);
-    if (source.includes("const base=style")) {
+    if (source.includes("const base = style")) {
       expect(module.composition.length).toBe(1);
       expect(
         Buffer.from(source)
           .subarray(module.composition[0].base.start, module.composition[0].base.end)
           .toString("utf8"),
-      ).toBe("style('flex')");
+      ).toBe('style("flex")');
     }
     expect(module.code).toBeTruthy();
     const map = new TraceMap(
@@ -430,7 +430,7 @@ for (const { extension, source, name, imports } of [
       expect(module.code).toMatch(/import css from "virtual:stillwind\/module-css\?test=1"/);
     }
     expect(module.code!, module.code!).toContain(`stillwind/${extension}/runtime`);
-    expect(module.code!, module.code!).not.toContain("import {style}");
+    expect(module.code!, module.code!).not.toContain("import { style }");
     expect(module.code!, module.code!).not.toContain("style(active");
     if (source.includes("__VLS_ctx")) {
       expect(module.code).toContain("__VLS_ctx");

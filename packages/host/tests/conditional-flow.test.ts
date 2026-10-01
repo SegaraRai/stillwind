@@ -18,7 +18,7 @@ async function compile(source: string, warnings: string[] = []) {
   loader.provide(
     0,
     "design.css",
-    "@utility red {color:red} @utility blue {color:blue} @utility green {color:green} @stillwind-slot utilities;",
+    "@utility red { color: red } @utility blue { color: blue } @utility green { color: green } @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, false);
   const facts = new TypeScriptFactsService(root);
@@ -66,12 +66,13 @@ function evaluate(code: string, context: Record<string, unknown>) {
 test("guarded view transitions preserve short-circuiting through type collection", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
+      'import {style} from "stillwind/react";',
+      "const events = [];",
       "const enabled = Boolean(globalThis.enabled);",
-      "const selected = style.viewTransition({old: 'red', new: 'blue'});",
-      "const base = style.viewTransition({old: 'green'});",
-      "const key = () => { events.push('key'); return 'guarded'; };",
-      "const props = style('red', enabled && selected.for(key()), base.for('base'));",
+      'const selected = style.viewTransition({old: "red", new: "blue"});',
+      'const base = style.viewTransition({old: "green"});',
+      'const key = () => { events.push("key"); return "guarded"; };',
+      'const props = style("red", enabled && selected.for(key()), base.for("base"));',
     ].join("\n"),
   );
   const disabled = evaluate(output.code!, { enabled: false });
@@ -88,37 +89,37 @@ test("guarded view transitions preserve short-circuiting through type collection
 test("conditional transition trees select only the active class and key", async () => {
   const cases: Array<[string, (enabled: boolean, outer: boolean) => string | null]> = [
     ["enabled ? a : b", () => "literal"],
-    ["enabled ? a : b.for(key('b'))", (enabled) => (enabled ? "literal" : "b")],
-    ["(enabled ? a.for('a') : b.for('b'))", () => "literal"],
-    ["enabled ? a.for(key('a')) : b.for(key('b'))", (enabled) => (enabled ? "a" : "b")],
-    ["enabled ? a.for('a') : b.for(key('b'))", (enabled) => (enabled ? "literal" : "b")],
+    ['enabled ? a : b.for(key("b"))', (enabled) => (enabled ? "literal" : "b")],
+    ['(enabled ? a.for("a") : b.for("b"))', () => "literal"],
+    ['enabled ? a.for(key("a")) : b.for(key("b"))', (enabled) => (enabled ? "a" : "b")],
+    ['enabled ? a.for("a") : b.for(key("b"))', (enabled) => (enabled ? "literal" : "b")],
     [
-      "outer && (enabled ? a.for(key('a')) : b.for(key('b')))",
+      'outer && (enabled ? a.for(key("a")) : b.for(key("b")))',
       (enabled, outer) => (outer ? (enabled ? "a" : "b") : null),
     ],
     [
-      "outer ? (enabled ? a.for(key('a')) : b.for(key('b'))) : a.for(key('c'))",
+      'outer ? (enabled ? a.for(key("a")) : b.for(key("b"))) : a.for(key("c"))',
       (enabled, outer) => (outer ? (enabled ? "a" : "b") : "c"),
     ],
     [
-      "outer ? a.for(key('a')) : (enabled ? b.for(key('b')) : a.for(key('c')))",
+      'outer ? a.for(key("a")) : (enabled ? b.for(key("b")) : a.for(key("c")))',
       (enabled, outer) => (outer ? "a" : enabled ? "b" : "c"),
     ],
-    ["(enabled ? a : b).for(key('selected'))", () => "selected"],
-    ["(outer ? (enabled ? a : b) : a).for(key('selected'))", () => "selected"],
+    ['(enabled ? a : b).for(key("selected"))', () => "selected"],
+    ['(outer ? (enabled ? a : b) : a).for(key("selected"))', () => "selected"],
     [
-      "(outer ? enabled : !enabled) && a.for(key('a'))",
+      '(outer ? enabled : !enabled) && a.for(key("a"))',
       (enabled, outer) => ((outer ? enabled : !enabled) ? "a" : null),
     ],
     [
-      "outer ? (enabled && a.for(key('a'))) : b.for(key('b'))",
+      'outer ? (enabled && a.for(key("a"))) : b.for(key("b"))',
       (enabled, outer) => (outer ? (enabled ? "a" : null) : "b"),
     ],
     ...["false", "null", "undefined"].flatMap(
       (empty) =>
         [
-          [`enabled ? (a.for(key('a'))) : ${empty}`, (enabled: boolean) => (enabled ? "a" : null)],
-          [`enabled ? ${empty} : (b.for(key('b')))`, (enabled: boolean) => (enabled ? null : "b")],
+          [`enabled ? (a.for(key("a"))) : ${empty}`, (enabled: boolean) => (enabled ? "a" : null)],
+          [`enabled ? ${empty} : (b.for(key("b")))`, (enabled: boolean) => (enabled ? null : "b")],
         ] as Array<[string, (enabled: boolean, outer: boolean) => string | null]>,
     ),
   ];
@@ -126,12 +127,13 @@ test("conditional transition trees select only the active class and key", async 
     const warnings: string[] = [];
     const output = await compile(
       [
-        "import {style} from 'stillwind/react'; const events = [];",
+        'import { style } from "stillwind/react";',
+        "const events = [];",
         "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
-        "const a = style.viewTransition({old: 'red'});",
-        "const b = style.viewTransition({old: 'blue'});",
+        'const a = style.viewTransition({ old: "red" });',
+        'const b = style.viewTransition({ old: "blue" });',
         "const key = value => { events.push(value); return value; };",
-        `const props = style('green', ${expression});`,
+        `const props = style("green", ${expression});`,
       ].join("\n"),
       warnings,
     );
@@ -161,18 +163,19 @@ test("conditional transition trees select only the active class and key", async 
 
 test("conditional ref and keyframes receivers retain finite candidates", async () => {
   for (const [declarations, expression] of [
-    ["const a = style.ref('a'), b = style.ref('b');", "enabled ? a : b"],
+    ['const a = style.ref("a"), b = style.ref("b");', "enabled ? a : b"],
     [
-      "const a = style.keyframes({from:'red'}), b = style.keyframes({from:'blue'});",
-      "(enabled ? a : b)('')",
+      'const a = style.keyframes({ from: "red" }), b = style.keyframes({ from: "blue" });',
+      '(enabled ? a : b)("")',
     ],
   ]) {
     const output = await compile(
       [
-        "import {style} from 'stillwind/react'; const events = [];",
+        'import { style } from "stillwind/react";',
+        "const events = [];",
         "const enabled = Boolean(globalThis.enabled);",
         declarations,
-        `const props = style('green', ${expression});`,
+        `const props = style("green", ${expression});`,
       ].join("\n"),
     );
     const enabled = evaluate(output.code!, { enabled: true }).props;
@@ -187,10 +190,11 @@ test("a separate name still conflicts with a conditional transition name", async
   const warnings: string[] = [];
   await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
+      'import {style} from "stillwind/react";',
+      "const events = [];",
       "const enabled = Boolean(globalThis.enabled);",
-      "const a = style.viewTransition({old: 'red'}), b = style.viewTransition({old: 'blue'});",
-      "const props = style(a.for('base'), enabled ? a.for('a') : b.for('b'));",
+      'const a = style.viewTransition({ old: "red" }), b = style.viewTransition({ old: "blue" });',
+      'const props = style(a.for("base"), enabled ? a.for("a") : b.for("b"));',
     ].join("\n"),
     warnings,
   );
@@ -215,17 +219,22 @@ test("inactive transition payloads preserve preceding styles in both formats", a
       ] as const) {
         const output = await compile(
           [
-            `import {style} from 'stillwind/${framework}'; const events = [];`,
+            `import { style } from "stillwind/${framework}";`,
+            "const events = [];",
             "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
-            "const a = style.viewTransition({old:'red'}), b = style.viewTransition({old:'blue'});",
-            "const baseKey = 'base', optionalKey = 'optional';",
-            `const props = style('green', ${withBase ? "a.for(baseKey)," : ""} ${expression});`,
+            'const a = style.viewTransition({ old: "red" }), b = style.viewTransition({ old: "blue" });',
+            'const baseKey = "base", optionalKey = "optional";',
+            `const props = style("green", ${withBase ? "a.for(baseKey)," : ""} ${expression});`,
           ].join("\n"),
         );
         for (const enabled of [false, true]) {
           for (const outer of [false, true]) {
             const context = framework === "svelte" ? svelteRuntime : runtime;
-            const { props } = evaluate(output.code!, { ...context, enabled, outer });
+            const { props } = evaluate(output.code!, {
+              ...context,
+              enabled,
+              outer,
+            });
             const suffix = active(enabled, outer) ? "optional" : withBase ? "base" : null;
             if (suffix === null) {
               expect(Object.hasOwn(props, "style"), expression).toBe(false);
@@ -235,7 +244,15 @@ test("inactive transition payloads preserve preceding styles in both formats", a
                   ? props.style
                   : (props.style as Record<string, unknown>)?.["view-transition-name"];
               if (!(typeof style === "string" && style.endsWith("-" + suffix))) {
-                expect.fail(JSON.stringify({ framework, expression, enabled, outer, props }));
+                expect.fail(
+                  JSON.stringify({
+                    framework,
+                    expression,
+                    enabled,
+                    outer,
+                    props,
+                  }),
+                );
               }
             }
           }
@@ -249,11 +266,12 @@ test("common input branches select transitions, props, refs, and composed styles
   for (const framework of ["react", "svelte"]) {
     const output = await compile(
       [
-        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        `import {style} from "stillwind/${framework}";`,
+        "const events = [];",
         "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
-        "const transition = style.viewTransition({old:'red'}); const key = 'selected';",
-        "const ref = style.ref('target'); const base = style('blue');",
-        "const props = style('green', enabled ? transition.for(key) : {'data-state':'off','--progress':'1'}, outer && (enabled ? ref : base));",
+        'const transition = style.viewTransition({ old: "red" }); const key = "selected";',
+        'const ref = style.ref("target"); const base = style("blue");',
+        'const props = style("green", enabled ? transition.for(key) : { "data-state": "off", "--progress": "1" }, outer && (enabled ? ref : base));',
       ].join("\n"),
     );
     for (const enabled of [false, true]) {
@@ -287,10 +305,11 @@ test("utility and transition names share branch exclusivity for linting", async 
   const warnings: string[] = [];
   await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
+      'import {style} from "stillwind/react";',
+      "const events = [];",
       "const enabled = Boolean(globalThis.enabled);",
-      "const a = style.viewTransition({old:'red'});",
-      "const props = style(a, enabled ? '[view-transition-name:first]' : '[view-transition-name:second]');",
+      'const a = style.viewTransition({ old: "red" });',
+      'const props = style(a, enabled ? "[view-transition-name:first]" : "[view-transition-name:second]");',
     ].join("\n"),
     warnings,
   );
@@ -303,9 +322,10 @@ test("utility and transition names share branch exclusivity for linting", async 
 test("pure conditional calls select one class branch", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react';",
-      "const first = () => enabled; const events = [];",
-      "const props = style('red', first() ? 'blue' : 'green');",
+      'import { style } from "stillwind/react";',
+      "const first = () => enabled;",
+      "const events = [];",
+      'const props = style("red", first() ? "blue" : "green");',
     ].join("\n"),
   );
   const yes = evaluate(output.code!, { enabled: true }).props;
@@ -318,8 +338,9 @@ test("pure conditional calls select one class branch", async () => {
 test("short-circuiting leaves an unselected nested value unread", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
-      "const props = style('red', enabled && (second() ? 'blue' : 'green'));",
+      'import { style } from "stillwind/react";',
+      "const events = [];",
+      'const props = style("red", enabled && (second() ? "blue" : "green"));',
     ].join("\n"),
   );
   const disabled = evaluate(output.code!, { enabled: false });
@@ -331,9 +352,10 @@ test("short-circuiting leaves an unselected nested value unread", async () => {
 test("pure attribute and guard calls materialize directly", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
+      'import { style } from "stillwind/react";',
+      "const events = [];",
       "const read = (value) => value;",
-      "const props = style({ 'aria-busy': read(true) }, read(enabled) ? 'blue' : 'green');",
+      'const props = style({ "aria-busy": read(true) }, read(enabled) ? "blue" : "green");',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/stillwindMerge/);
@@ -345,17 +367,17 @@ test("pure attribute and guard calls materialize directly", async () => {
 test("direct props and fragment materialization produce the same classes", async () => {
   const direct = await compile(
     [
-      "import {style} from 'stillwind/react';",
+      'import { style } from "stillwind/react";',
       "const events = [];",
-      "const props = style('red', enabled && (nested ? 'blue' : 'green'));",
+      'const props = style("red", enabled && (nested ? "blue" : "green"));',
     ].join("\n"),
   );
   const fragment = await compile(
     [
-      "import {style} from 'stillwind/react';",
-      "const base = style('red');",
+      'import { style } from "stillwind/react";',
+      'const base = style("red");',
       "const events = [];",
-      "const props = style(base, enabled && (nested ? 'blue' : 'green'));",
+      'const props = style(base, enabled && (nested ? "blue" : "green"));',
     ].join("\n"),
   );
   expect(direct.code!).not.toMatch(/stillwindMerge/);
@@ -384,9 +406,9 @@ test("direct props and fragment materialization produce the same classes", async
 test("fragments stay inside the call expression", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react';",
+      'import {style} from "stillwind/react";',
       "const events = [];",
-      "const props = style({ 'aria-busy': true }, enabled ? 'blue' : 'green', nested && 'red');",
+      'const props = style({ "aria-busy": true }, enabled ? "blue" : "green", nested && "red");',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/Symbol\(/);
@@ -408,9 +430,9 @@ test("custom-property folding materializes object and string framework props", a
   ] as const) {
     const output = await compile(
       [
-        `import {style} from 'stillwind/${framework}';`,
+        `import { style } from "stillwind/${framework}";`,
         "const events = [];",
-        "const props = style('red', { '--progress': (events.push('value'), progress) });",
+        'const props = style("red", { "--progress": (events.push("value"), progress) });',
       ].join("\n"),
     );
     expect(output.code!).not.toMatch(
@@ -422,7 +444,10 @@ test("custom-property folding materializes object and string framework props", a
       [false, "initial"],
       ["calc(1 + 2)", "calc(1 + 2)"],
     ] as const) {
-      const { props, events } = evaluate(output.code!, { ...helpers, progress });
+      const { props, events } = evaluate(output.code!, {
+        ...helpers,
+        progress,
+      });
       expect(Array.from(events)).toStrictEqual(["value"]);
       expect(Object.keys(props)).toStrictEqual([
         framework === "react" ? "className" : "class",
@@ -440,9 +465,10 @@ test("custom-property folding materializes object and string framework props", a
 test("interleaved pure calls fold into one property record", async () => {
   const output = await compile(
     [
-      "import {style} from 'stillwind/react'; const events = [];",
+      'import { style } from "stillwind/react";',
+      "const events = [];",
       "const read = (value) => value;",
-      "const props = style({ '--x': read(1) }, { 'data-value': read(2) }, { '--y': read(3) });",
+      'const props = style({ "--x": read(1) }, { "data-value": read(2) }, { "--y": read(3) });',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/stillwindMerge/);
@@ -462,7 +488,8 @@ test("empty branches omit calls while nonempty branches keep guards", async () =
   ]) {
     const output = await compile(
       [
-        "import {style} from 'stillwind/react'; const events = [];",
+        'import { style } from "stillwind/react";',
+        "const events = [];",
         `const props = style(${branch});`,
       ].join("\n"),
     );
@@ -484,9 +511,9 @@ test("pure folding and empty-branch removal preserve materialized values", async
   ] as const) {
     const output = await compile(
       [
-        `import {style} from 'stillwind/${framework}';`,
+        `import { style } from \"stillwind/${framework}\";`,
         "const events = []; const read = (value) => value;",
-        "const props = style({ '--x': read(x) }, { 'data-value': x }, { '--y': x + 1 }, enabled && [], 'red');",
+        'const props = style({ "--x": read(x) }, { "data-value": x }, { "--y": x + 1 }, enabled && [], "red");',
       ].join("\n"),
     );
     expect(output.code!).not.toMatch(/stillwindMerge|enabled/);
@@ -516,8 +543,9 @@ test("macro mutations and execution boundaries fail builds by default", async ()
     await expect(
       compile(
         [
-          "import {style} from 'stillwind/react'; const events = []; let value = 1;",
-          `const props = style({ '--x': ${expression} });`,
+          'import { style } from "stillwind/react"; ',
+          "const events = []; let value = 1;",
+          `const props = style({ "--x": ${expression} });`,
         ].join("\n"),
       ),
     ).rejects.toThrow(new RegExp(code));
@@ -531,14 +559,14 @@ test("folded expressions map to distinct original occurrences through native out
   });
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     for (const call of [
-      "style({ '--x': same },\r\n { 'data-value': other },\r\n { '--y': same }, 'red')",
-      "style({ '--x': other }, { class: [same, [,, '😀日本', same]] }, 'red')",
-      "style(check() ? { '--x': first() } : { '--y': last() })",
-      "style('red', enabled && 'blue', { class: extra })",
-      "style({ '--x': `😀${value}\n日本語` })",
-      "style(flag && [], { '--x': remaining })",
+      'style({ "--x": same },\r\n { "data-value": other },\r\n { "--y": same }, "red")',
+      'style({ "--x": other }, { class: [same, [,, "😀日本", same]] }, "red")',
+      'style(check() ? { "--x": first() } : { "--y": last() })',
+      'style("red", enabled && "blue", { class: extra })',
+      'style({ "--x": `😀${value}\n日本語` })',
+      'style(flag && [], { "--x": remaining })',
     ]) {
-      const source = `import {style} from 'stillwind/${framework}';\r\n// 😀 日本語\r\nconst events = [];\r\nconst props = ${call};`;
+      const source = `import {style} from "stillwind/${framework}";\r\n// 😀 日本語\r\nconst events = [];\r\nconst props = ${call};`;
       const fullSource = `${source}\nglobalThis.result = { props, events };`;
       const output = await compile(source);
       const map = new TraceMap(
@@ -601,7 +629,7 @@ test("external class arrays flatten while spread keeps iterable semantics", asyn
     ["[[], [,,]]", undefined],
   ] as const) {
     const output = await compile(
-      `import {style} from 'stillwind/react'; const events = []; const props = style({class: ${expression}});`,
+      `import {style} from "stillwind/react"; const events = []; const props = style({class: ${expression}});`,
     );
     expect(evaluate(output.code!, { enabled: true }).props.className, output.code!).toBe(expected);
   }
@@ -612,10 +640,10 @@ test("transition class branches and complete style payloads avoid fragment merge
     for (const input of ["enabled && a", "enabled ? a : b", "a.for(key)"]) {
       const output = await compile(
         [
-          `import {style} from 'stillwind/${framework}'; const events = [];`,
+          `import {style} from "stillwind/${framework}"; const events = [];`,
           "const enabled = Boolean(globalThis.enabled), key = globalThis.key;",
-          "const a = style.viewTransition({old:'red'}), b = style.viewTransition({old:'blue'});",
-          `const props = style('green', ${input});`,
+          'const a = style.viewTransition({ old: "red" }), b = style.viewTransition({ old: "blue" });',
+          `const props = style("green", ${input});`,
         ].join("\n"),
       );
       expect(output.code!).not.toMatch(/stillwindMerge|stillwindClassKey|stillwindStyleKey/);
@@ -641,9 +669,10 @@ test("style strings fold static segments and convert only dynamic values", async
   for (const framework of ["svelte", "astro"]) {
     const output = await compile(
       [
-        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        `import { style } from "stillwind/${framework}";`,
+        "const events = [];",
         "const amount = globalThis.amount;",
-        "const props = style({'--static':'foo','--dynamic':amount,'--tail':'bar','--end':false});",
+        'const props = style({ "--static": "foo", "--dynamic": amount, "--tail": "bar", "--end": false });',
       ].join("\n"),
     );
     expect(output.code!).toMatch(
@@ -658,8 +687,9 @@ test("style strings fold static segments and convert only dynamic values", async
     }
     const literal = await compile(
       [
-        `import {style} from 'stillwind/${framework}'; const events = [];`,
-        "const props = style({'--foo':'bar','--bar':`baz`,'--tiny':1e-7,'--large':1e21,'--negative':-2,'--flag':true});",
+        `import { style } from "stillwind/${framework}";`,
+        "const events = [];",
+        'const props = style({ "--foo": "bar", "--bar": `baz`, "--tiny": 1e-7, "--large": 1e21, "--negative": -2, "--flag": true });',
       ].join("\n"),
     );
     expect(literal.code!).toMatch(
@@ -673,13 +703,17 @@ test("class-only conditional props use the framework field even when empty", asy
   for (const framework of ["react", "svelte"]) {
     const output = await compile(
       [
-        `import {style} from 'stillwind/${framework}'; const events = [];`,
+        `import { style } from "stillwind/${framework}";`,
+        "const events = [];",
         "const enabled = Boolean(globalThis.enabled);",
-        "const props = style(enabled && 'red');",
+        'const props = style(enabled && "red");',
       ].join("\n"),
     );
     expect(output.code!).not.toMatch(/stillwindClassProps|stillwindMerge/);
-    const { props } = evaluate(output.code!, { ...svelteRuntime, enabled: false });
+    const { props } = evaluate(output.code!, {
+      ...svelteRuntime,
+      enabled: false,
+    });
     const key = framework === "react" ? "className" : "class";
     expect(Object.hasOwn(props, key)).toBeTruthy();
     expect(props[key]).toBe("");

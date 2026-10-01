@@ -12,9 +12,9 @@ const entry = path.join(root, "document.tsx");
 const dependency = path.join(root, "tokens.ts");
 const css =
   "@utility red { color: red; } @utility blue { color: blue; } @stillwind-slot utilities;";
-const literal = "import { style } from 'stillwind/react'; export const props = style('red');";
+const literal = 'import { style } from "stillwind/react"; export const props = style("red");';
 const imported =
-  "import { style } from 'stillwind/react'; import { token } from './tokens'; export const props = style(token(''));";
+  'import { style } from "stillwind/react"; import { token } from "./tokens"; export const props = style(token(""));';
 
 function project(
   read: (id: string) => Promise<string> = async () => {
@@ -76,7 +76,7 @@ test("dependency overlays are used and removing an import stops dependency reads
     id: dependency,
     version: 1,
     source:
-      "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'red', to: 'red' });",
+      'import { style } from "stillwind/react"; export const token = style.keyframes({ from: "red", to: "red" });',
   });
   editor.update({ id: entry, version: 1, source: imported });
   const first = await editor.analyze(entry);
@@ -87,7 +87,7 @@ test("dependency overlays are used and removing an import stops dependency reads
     id: dependency,
     version: 2,
     source:
-      "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'blue', to: 'blue' });",
+      'import { style } from "stillwind/react"; export const token = style.keyframes({ from: "blue", to: "blue" });',
   });
   const next = await editor.analyze(entry);
   expect(next.status).toBe("success");
@@ -114,7 +114,7 @@ test("late dependency reads and cancellation cannot publish or replace the last 
   editor.update({ id: entry, version: 2, source: literal });
   expect((await editor.analyze(entry)).status).toBe("success");
   release(
-    "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'blue', to: 'blue' });",
+    'import { style } from "stillwind/react"; export const token = style.keyframes({ from: "blue", to: "blue" });',
   );
   const stale = await old;
   expect(stale.status).toBe("stale");
@@ -130,10 +130,10 @@ test("semantic reads select a barrel export and exclude unrelated runtime import
   const editor = project(async (id) => {
     reads.push(id);
     if (id === barrel) {
-      return "export { token } from './tokens'; export { lazy } from './unvisited';";
+      return 'export { token } from "./tokens"; export { lazy } from "./unvisited";';
     }
     if (id === dependency) {
-      return "import { style } from 'stillwind/react'; export const token = style.keyframes({ from: 'red', to: 'red' });";
+      return 'import { style } from "stillwind/react"; export const token = style.keyframes({ from: "red", to: "red" });';
     }
     expect.fail(`Unrelated source was read: ${id}`);
   });
@@ -141,7 +141,7 @@ test("semantic reads select a barrel export and exclude unrelated runtime import
     id: entry,
     version: 1,
     source:
-      "import { style } from 'stillwind/react'; import { token } from './barrel'; import { route } from './unvisited'; const unused = route; const alias = token; export const props = style(alias(''));",
+      'import { style } from "stillwind/react"; import { token } from "./barrel"; import { route } from "./unvisited"; const unused = route; const alias = token; export const props = style(alias(""));',
   });
   const result = await editor.analyze(entry);
   expect(result.status, result.error ?? JSON.stringify(result.output?.diagnostics)).toBe("success");
@@ -159,7 +159,7 @@ test("default error contracts retain editable output and previous success", asyn
     id: entry,
     version: 2,
     source:
-      "import {style} from 'stillwind/react'; let n = 0; export const props = style({'--x': n++});",
+      'import { style } from "stillwind/react"; let n = 0; export const props = style({ "--x": n++ });',
   });
   const result = await editor.analyze(entry);
   expect(result.status).toBe("partial");
@@ -178,7 +178,7 @@ test("independent bases that share a property are reported", async () => {
     id: entry,
     version: 1,
     source:
-      "import {style} from 'stillwind/react'; const a = style('red'); const b = style('blue'); export const props = style(a, b);",
+      'import { style } from "stillwind/react"; const a = style("red"); const b = style("blue"); export const props = style(a, b);',
   });
   const result = await editor.analyze(entry);
   expect(result.status, result.error ?? JSON.stringify(result.output?.diagnostics)).toBe("success");

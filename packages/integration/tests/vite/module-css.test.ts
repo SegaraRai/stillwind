@@ -172,12 +172,15 @@ test("relative JS resources preserve distinct producer origins", async () => {
   mkdirSync(path.join(root, "b"));
   put("index.html", '<script type="module" src="/main.ts"></script>');
   put("root.css", '@import "../packages/core/index.css";');
-  put("main.ts", 'import {a} from "./a/style"; import {b} from "./b/style"; console.log(a,b);');
+  put(
+    "main.ts",
+    'import { a } from "./a/style"; import { b } from "./b/style"; console.log(a,  b);',
+  );
   for (const name of ["a", "b"]) {
     put(`${name}/icon.svg`, `<svg xmlns="http://www.w3.org/2000/svg"><text>${name}</text></svg>`);
     put(
       `${name}/style.ts`,
-      `import {style} from "stillwind/react"; export const ${name}=style("bg-[url(./icon.svg)]");`,
+      `import { style } from "stillwind/react"; export const ${name} = style("bg-[url(./icon.svg)]");`,
     );
   }
   try {

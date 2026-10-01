@@ -21,7 +21,7 @@ test("host name generators decide the names the compiler writes", async () => {
   const output = await compileModule(
     session,
     () => ({}) as TypeScriptFactsService,
-    "import { style } from 'stillwind/react'; export const x = style('flex');",
+    'import { style } from "stillwind/react"; export const x = style("flex");',
     entry,
     process.cwd(),
     {
@@ -62,7 +62,7 @@ test("a generator that fails only warns while the session is in development", as
   const output = await compileModule(
     session,
     () => ({}) as TypeScriptFactsService,
-    "import { style } from 'stillwind/react'; export const x = style('flex');",
+    'import { style } from "stillwind/react"; export const x = style("flex");',
     path.resolve("throwing.tsx"),
     process.cwd(),
     {
