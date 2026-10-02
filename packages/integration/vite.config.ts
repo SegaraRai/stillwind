@@ -15,16 +15,19 @@ export default defineConfig({
   pack: {
     entry: [
       "src/astro/index.ts",
+      "src/astro/middleware.ts",
       "src/next/css-loader.ts",
       "src/next/index.ts",
+      "src/nuxt/index.ts",
+      "src/sveltekit/handle.ts",
       "src/rsbuild/index.ts",
       "src/rspack/index.ts",
       "src/turbopack/css-loader.ts",
       "src/turbopack/index.ts",
       "src/turbopack/loader.ts",
       "src/vite/index.ts",
-      "src/vite/runtime.ts",
       "src/vite/runtime-source-map.ts",
+      "src/vite/runtime.ts",
       "src/webpack/css-loader.ts",
       "src/webpack/css-map-loader.ts",
       "src/webpack/fragment-loader.ts",
@@ -38,7 +41,7 @@ export default defineConfig({
     fixedExtension: false,
     dts: true,
     deps: {
-      neverBundle: ["webpack"],
+      neverBundle: ["webpack", "astro:middleware", "virtual:stillwind/astro-styles", "$app/paths"],
       alwaysBundle: [
         "@jridgewell/gen-mapping",
         "@jridgewell/trace-mapping",
@@ -48,8 +51,14 @@ export default defineConfig({
     },
     sourcemap: true,
     copy: [
-      { from: "src/turbopack/stillwind-turbopack.css", to: "dist/turbopack" },
-      { from: "src/webpack/stillwind-webpack.css", to: "dist/webpack" },
+      {
+        from: "src/turbopack/stillwind-turbopack.css",
+        to: "dist/turbopack",
+      },
+      {
+        from: "src/webpack/stillwind-webpack.css",
+        to: "dist/webpack",
+      },
     ],
   },
   run: {

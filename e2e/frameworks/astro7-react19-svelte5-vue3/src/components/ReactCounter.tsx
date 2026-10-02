@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { css } from "stillwind/module-css";
 import { style } from "stillwind/react";
 
 import { probeComposed, probeDiamond } from "./semantics-react";
-
-export { css };
 
 export default function ReactCounter() {
   useEffect(() => {

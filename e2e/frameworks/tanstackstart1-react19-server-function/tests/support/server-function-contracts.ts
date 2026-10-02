@@ -75,7 +75,7 @@ export async function expectMacroRetraction(app: ServerFunctionApplication): Pro
   await expectClassName(app.page, "#static", "");
   await app.write(
     "src/server-style.ts",
-    'import { style } from "stillwind/react";export const serverProps=style("server");',
+    'import { style } from "stillwind/react";\nexport const serverProps = style("server");\n',
   );
   await app.write("src/routes/index.tsx", app.home);
   await expectCss(app.page, "#static", { color: "rgb(11, 22, 33)" });
@@ -88,10 +88,19 @@ export async function expectMacroRetraction(app: ServerFunctionApplication): Pro
 export async function expectServerProjectionEdit(app: ServerFunctionApplication): Promise<void> {
   await app.write(
     "src/server-style.ts",
-    'import { style } from "stillwind/react";export const serverProps=style("[color:rgb(30,50,70)]");',
+    'import { style } from "stillwind/react";\nexport const serverProps = style("[color:rgb(30,50,70)]");\n',
   );
-  await app.page.reload();
-  await expectCss(app.page, "#server", { color: "rgb(30, 50, 70)" });
+  await app.page.evaluate(() => (window.__navigationSentinel = 42));
+  await expect
+    .poll(
+      async () => {
+        await app.page.locator("#refresh").click();
+        return app.page.locator("#server").evaluate((element) => getComputedStyle(element).color);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("rgb(30, 50, 70)");
+  expect(await app.page.evaluate(() => window.__navigationSentinel)).toBe(42);
   app.results.checks.push({
     name: "dev-server-css-projection-edit",
     passed: true,
@@ -106,7 +115,7 @@ export async function expectProduction(
   await app.stop();
   await app.write(
     "src/server-style.ts",
-    'import { style } from "stillwind/react";export const serverProps=style("server");',
+    'import { style } from "stillwind/react";\nexport const serverProps = style("server");\n',
   );
   await app.build(temperature);
   const clientDir = path.join(app.dir, app.bundler === "vite" ? ".output/public" : "dist/client");
@@ -146,4 +155,28 @@ export async function expectProduction(
   });
   await app.page.goto("about:blank");
   await app.stop();
+}
+
+export async function expectFreshServerProjection(app: ServerFunctionApplication): Promise<void> {
+  await app.write(
+    "src/server-style.ts",
+    'import { style } from "stillwind/react";\nexport const serverProps = style("[color:rgb(30,50,70)]");\n',
+  );
+  await expect
+    .poll(
+      async () => {
+        await app.page.locator("#rpc").click();
+        return app.page.locator("#server").evaluate((element) => getComputedStyle(element).color);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("rgb(30, 50, 70)");
+  const context = await app.browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.goto(app.url);
+    await expectCss(page, "#server", { color: "rgb(30, 50, 70)" });
+  } finally {
+    await context.close();
+  }
 }

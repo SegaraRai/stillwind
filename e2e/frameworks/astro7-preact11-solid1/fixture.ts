@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "astro7-preact11-solid1",
+  support: { tier: "primary" },
   semantics: [
     { id: "preact", interactive: true },
     { id: "solid", interactive: true },
@@ -48,6 +49,26 @@ export default defineFixture({
   hydration: true,
   prerender: true,
   edits: {
+    preactIsland: {
+      file: "src/components/preact/Counter.tsx",
+      from: 'style("text-probe")',
+      to: 'style("text-[#d23456]")',
+      target: '[data-testid="preact-counter"]',
+      css: { color: "rgb(210, 52, 86)" },
+      document: "preserve",
+      state: "preserve",
+      counters: ['[data-testid="preact-counter"]'],
+    },
+    solidIsland: {
+      file: "src/components/solid/Counter.tsx",
+      from: 'style("text-probe")',
+      to: 'style("text-[#d23456]")',
+      target: '[data-testid="solid-counter"]',
+      css: { color: "rgb(210, 52, 86)" },
+      document: "preserve",
+      state: "reset",
+      counters: ['[data-testid="solid-counter"]'],
+    },
     theme: {
       file: "src/styles.css",
       from: "--color-probe: #123456",
@@ -55,8 +76,8 @@ export default defineFixture({
       css: {
         color: "rgb(101, 67, 33)",
       },
-      document: "reload",
-      state: "reset",
+      document: "preserve",
+      state: "preserve",
     },
     component: {
       file: "src/pages/index.astro",

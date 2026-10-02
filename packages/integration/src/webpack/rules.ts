@@ -53,7 +53,8 @@ function stillwindRules(options: StillwindOptions): StillwindRule[] {
       ],
     },
     {
-      test: /\.(?:astro|svelte|vue)$/,
+      // Vue inline match resources select script rules with a synthetic .vue.ts suffix.
+      test: /\.(?:astro|svelte|vue)(?:\.[cm]?[jt]sx?)?$/,
       exclude: /node_modules/,
       enforce: "post",
       use: [

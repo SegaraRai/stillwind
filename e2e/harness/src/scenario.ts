@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { cp, mkdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { afterAll, beforeAll, beforeEach, describe } from "vite-plus/test";
 
+import { fixtureSupport, type FixtureManifest } from "./fixture.ts";
+import { contractPolicy } from "./policy.ts";
 import { fullCaseName } from "./suite.ts";
 import { createWorkspace, fixturePath } from "./workspace.ts";
 
@@ -52,9 +54,22 @@ export function registerScenario(
       args,
       logs: [],
     };
+    let support = "independent";
     const checks: { name: string; status: string }[] = [];
 
     beforeAll(async () => {
+      try {
+        await readFile(join(root, "fixture.ts"));
+        const manifest: FixtureManifest = (
+          await import(pathToFileURL(join(root, "fixture.ts")).href)
+        ).default;
+        const profile = name.split("/").at(-1)!;
+        support = fixtureSupport(manifest, profile);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
+      }
       workspace = await createWorkspace(root);
       await mkdir(results, { recursive: true });
       await mkdir(join(workspace.directory, "output"), { recursive: true });
@@ -65,7 +80,12 @@ export function registerScenario(
       onTestFinished(() => {
         checks.push({
           name: fullCaseName(task),
-          status: task.result?.state === "pass" ? "passed" : "failed",
+          status:
+            task.result?.state === (task.fails ? "fail" : "pass")
+              ? task.fails
+                ? "expected-failure"
+                : "passed"
+              : "failed",
         });
       });
     });
@@ -79,6 +99,10 @@ export function registerScenario(
         }
         await writeFile(join(results, "runner.log"), context.logs.join(""));
         await writeFile(join(results, "cases.json"), JSON.stringify(checks, null, 2));
+        await writeFile(
+          join(results, "policy.json"),
+          JSON.stringify({ support, contracts: contractPolicy }, null, 2),
+        );
       } finally {
         await workspace?.dispose();
       }

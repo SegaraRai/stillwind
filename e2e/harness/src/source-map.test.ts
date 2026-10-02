@@ -71,3 +71,30 @@ test("limits argument mappings to the requested JS call span and keeps CSS posit
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("uses the bundle footer rather than a dependency source-map directive", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "stillwind-bundle-map-"));
+  try {
+    await writeFile(
+      path.join(directory, "main.js"),
+      '// # dependency\n//# sourceMappingURL=missing.js.map\n"sw_abc"\n//# sourceMappingURL=main.js.map\n',
+    );
+    await writeFile(
+      path.join(directory, "main.js.map"),
+      JSON.stringify({
+        version: 3,
+        sources: ["../src/app.ts"],
+        names: [],
+        mappings: ";;CAAA",
+      }),
+    );
+    await expect(
+      verifyMacroSourceMap(directory, "src/app.ts", 'style("x")', 'style("x")'),
+    ).resolves.toMatchObject({
+      line: 1,
+      column: 0,
+    });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

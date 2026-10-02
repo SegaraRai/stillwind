@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { moduleSourceMap } from "@stillwind/host";
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { build, createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("Vite development composes linked CSS maps through framework preprocessing", async () => {
@@ -134,4 +135,56 @@ test("maps replacements and untouched UTF-16 positions after removed and inserte
     name: null,
   });
   expect(map.sourcesContent?.[0]).toBe(source);
+});
+
+test("Vue production inline templates map generated classes to their original macro", async () => {
+  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const root = mkdtempSync(path.join(repo, ".test-session-"));
+  const source = `<script setup lang="ts">
+import { style } from 'stillwind/vue';
+</script>
+<template>
+  <p v-bind="style('red')">日本語 🧭</p>
+</template>`;
+  writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
+  writeFileSync(path.join(root, "Component.vue"), source);
+  try {
+    const output = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [stillwind({ css: path.join(root, "root.css"), types: false }), vue()],
+      build: {
+        write: false,
+        sourcemap: true,
+        minify: false,
+        lib: { entry: path.join(root, "Component.vue"), formats: ["es"] },
+        rollupOptions: { external: ["vue"] },
+      },
+    });
+    const bundle = Array.isArray(output) ? output[0] : output;
+    if (!("output" in bundle)) {
+      expect.fail("Expected a completed build without a watcher");
+    }
+    const positions = bundle.output.flatMap((chunk) => {
+      if (chunk.type !== "chunk" || !chunk.map) {
+        return [];
+      }
+      const map = new TraceMap(chunk.map.toString());
+      return [...chunk.code.matchAll(/sw_[0-9a-z]+/g)].map((match) =>
+        originalPositionFor(map, {
+          line: chunk.code.slice(0, match.index).split("\n").length,
+          column: match.index! - chunk.code.lastIndexOf("\n", match.index! - 1) - 1,
+        }),
+      );
+    });
+    expect(positions).toContainEqual({
+      source: expect.stringMatching(/Component\.vue$/),
+      line: 5,
+      column: 13,
+      name: null,
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

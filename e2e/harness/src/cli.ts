@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -103,14 +103,45 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
         compiler.run(
           (
             error: Error | null,
-            stats: { hasErrors(): boolean; toString(): string } | undefined,
+            stats:
+              | {
+                  hasErrors(): boolean;
+                  toString(): string;
+                  toJson(options: object): unknown;
+                }
+              | undefined,
           ) => {
-            compiler.close((closeError: Error | null) =>
-              error || closeError || !stats || stats.hasErrors()
-                ? reject(
-                    error || closeError || new Error(stats?.toString() || "Missing build stats"),
+            const evidence =
+              stats && !stats.hasErrors()
+                ? writeFile(
+                    join(root, "build-stats.json"),
+                    JSON.stringify(
+                      stats.toJson({
+                        all: false,
+                        modules: true,
+                        cachedModules: true,
+                        nestedModules: true,
+                        orphanModules: true,
+                        groupModulesByAttributes: false,
+                        groupModulesByCacheStatus: false,
+                        modulesSpace: 100_000,
+                        nestedModulesSpace: 100_000,
+                      }),
+                    ),
                   )
-                : resolve(),
+                : Promise.resolve();
+            void evidence.then(
+              () =>
+                compiler.close((closeError: Error | null) =>
+                  error || closeError || !stats || stats.hasErrors()
+                    ? reject(
+                        error ||
+                          closeError ||
+                          new Error(stats?.toString() || "Missing build stats"),
+                      )
+                    : resolve(),
+                ),
+              reject,
             );
           },
         ),
@@ -140,14 +171,22 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
   } else if (mode === "dev") {
     const server = await vite.createServer({
       root,
-      server: { port, strictPort: true, host: "localhost" },
+      server: {
+        port,
+        strictPort: true,
+        host: "localhost",
+      },
     });
     await server.listen();
     server.printUrls();
   } else if (mode === "serve") {
     const server = await vite.preview({
       root,
-      preview: { port, strictPort: true, host: "localhost" },
+      preview: {
+        port,
+        strictPort: true,
+        host: "localhost",
+      },
     });
     server.printUrls();
   } else {

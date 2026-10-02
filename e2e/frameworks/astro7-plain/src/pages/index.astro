@@ -1,6 +1,5 @@
 ---
 import { style } from "stillwind/astro";
-import css from "stillwind/module-css";
 
 import { shared } from "../shared-style";
 import { probeComposed, probeDiamond } from "../semantics-main";
@@ -11,7 +10,6 @@ const phase = 0;
 <html lang="en">
   <head>
     <link rel="icon" href="data:," />
-    <style is:inline set:html={css}></style>
     <title>Stillwind Astro acceptance</title>
   </head>
   <body>

@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "solidstart2-solid1",
+  support: { tier: "primary" },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["@solidjs/start", "solid-js"],

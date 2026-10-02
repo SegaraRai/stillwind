@@ -1,10 +1,7 @@
 import { createSignal, onMount } from "solid-js";
-import { css } from "stillwind/module-css";
 import { style } from "stillwind/solid";
 
 import { probeComposed, probeDiamond } from "./semantics-solid";
-
-export { css };
 
 export default function Counter() {
   onMount(() => {

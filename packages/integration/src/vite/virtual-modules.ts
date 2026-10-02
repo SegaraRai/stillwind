@@ -135,7 +135,7 @@ if (import.meta.hot) {
         }
         await publish(name, context);
         return {
-          code: `// Stillwind projection\nimport ${JSON.stringify(producerSpecifier(source))};\n`,
+          code: `// Stillwind projection (vite)\nimport ${JSON.stringify(producerSpecifier(source))};\n`,
           meta: {
             stillwind: {
               ...result?.meta.stillwind,

@@ -3,21 +3,18 @@ import { resolve } from "node:path";
 import { cleanModuleId } from "@stillwind/host";
 import type { Plugin, ViteDevServer } from "vite";
 
-import { writeVocabulary } from "../options.ts";
 import { sendJson } from "./http.ts";
 import { valuePrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
-import { resolvedFile } from "./resources.ts";
 
 export function developmentHooks(
   project: ViteProject,
 ): Pick<Plugin, "hotUpdate" | "configureServer"> {
   const {
-    options,
     settings,
     environmentState,
     closeTypeFacts,
-    loadDesignSystem,
+    refreshDesignSystem,
     inputMap,
     documentPlan,
     publish,
@@ -40,24 +37,10 @@ export function developmentHooks(
       };
       try {
         if (state.cssFiles.has(context.file) || state.cssFiles.has(resolve(context.file))) {
-          const revision = ++state.loadRevision;
-          const dependencies = new Set<string>();
-          const { loader, resources } = await loadDesignSystem(
-            async (specifier, importer) =>
-              resolvedFile(await host.resolve(specifier, importer), `CSS ${specifier}`),
-            dependencies,
-            state.session,
-          );
-          if (revision !== state.loadRevision) {
-            return [];
-          }
-          const update = state.session!.reload(loader);
-          state.resources = resources;
-          state.cssFiles = dependencies;
-          context.server.watcher.add([...dependencies]);
-          writeVocabulary(loader, settings.projectRoot, options);
+          await refreshDesignSystem(state, host);
           await publish(name, host);
-          const changed = new Set(update.transformedModules);
+          const changed = new Set(state.themeChanges);
+          state.themeChanges.clear();
           const modules = [...inputMap(name).values()]
             .filter((input) => input.manual || changed.has(input.moduleId))
             .flatMap((input) => [

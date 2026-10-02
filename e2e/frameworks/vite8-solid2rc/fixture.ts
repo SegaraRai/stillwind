@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "vite8-solid2rc",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["vite-plus", "solid-js", "@solidjs/web"],

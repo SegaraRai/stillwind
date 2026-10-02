@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { ScenarioContext } from "@stillwind/e2e-harness/script";
+import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium, type Browser, type Page } from "playwright";
 import { build, createServer, preview, type InlineConfig } from "vite-plus";
@@ -16,18 +16,22 @@ export default function register(context: ScenarioContext): void {
     await fs.writeFile(file, text);
   };
   const put = write;
+
   let flow!: string;
   const flowSource = (nested: number) => flow.replace('"m-4"', '"m-' + nested + '"');
+
   const writeSsrHtml = (html: string) =>
     put(
       "ssr.html",
       `<div id="root">${html}</div><script type="module" src="/hydrate.ts"></script>`,
     );
+
   const ssrClass = (html: string) => {
     const match = html.match(/id="sample"[^>]*class="([^"]+)"/);
     expect(match, `server html carries the sample class: ${html}`).toBeTruthy();
     return match![1];
   };
+
   const config = (): InlineConfig => ({
     configFile: false,
     root: dir,
@@ -40,22 +44,36 @@ export default function register(context: ScenarioContext): void {
     ],
     logLevel: "silent",
   });
+
   const results = {
-    checks: [] as { name: string; passed: boolean; [key: string]: unknown }[],
+    checks: [] as {
+      name: string;
+      passed: boolean;
+      [key: string]: unknown;
+    }[],
     directory: dir,
   };
   const record = (name: string) => {
     results.checks.push({ name, passed: true });
     console.log(name);
   };
+
   const states: [{ enabled: boolean; nested: boolean }, string][] = [
     [{ enabled: false, nested: false }, "40px"],
     [{ enabled: true, nested: false }, "24px"],
     [{ enabled: true, nested: true }, "16px"],
   ];
-  async function applyState(page: Page, state: { enabled: boolean; nested: boolean }) {
+
+  async function applyState(
+    page: Page,
+    state: {
+      enabled: boolean;
+      nested: boolean;
+    },
+  ) {
     await page.evaluate((next) => window.setState(next), state);
   }
+
   let browser!: Browser;
   let server:
     | Awaited<ReturnType<typeof createServer>>

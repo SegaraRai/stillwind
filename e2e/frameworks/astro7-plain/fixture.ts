@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "astro7-plain",
+  support: { tier: "primary" },
   semantics: [{ id: "main", interactive: false }],
   driver: "astro",
   versions: ["vite-plus", "astro"],
@@ -34,7 +35,7 @@ export default defineFixture({
       css: {
         color: "rgb(101, 67, 33)",
       },
-      document: "reload",
+      document: "preserve",
       state: "not-applicable",
     },
     component: {

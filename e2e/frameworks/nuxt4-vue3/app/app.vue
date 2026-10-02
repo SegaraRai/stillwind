@@ -7,11 +7,8 @@ import { probeComposed, probeDiamond } from "./semantics-main";
 
 const count = ref(0);
 const phase = ref(0);
-const ssrHead = import.meta.env.DEV
-  ? useHead({ link: [{ key: "stillwind-ssr", rel: "stylesheet", href: "/e2e-ssr.css" }] })
-  : undefined;
+
 onMounted(() => {
-  ssrHead?.dispose();
   document.documentElement.dataset.hydrated = "yes";
 });
 </script>

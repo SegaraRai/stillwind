@@ -10,6 +10,16 @@ const root = process.cwd();
 
 export default {
   context: root,
+  cache: {
+    type: "persistent",
+    storage: {
+      type: "filesystem",
+      directory: path.join(root, "cache"),
+    },
+  },
+  optimization: {
+    minimize: process.env.STILLWIND_E2E_PROFILE === "unminified" ? false : undefined,
+  },
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: "./src/main.tsx",
   devtool: "source-map",

@@ -25,7 +25,9 @@ import { sourceModuleId } from "./module-ids.ts";
 import { resourceUrl, resolvedFile, resolveResources } from "./resources.ts";
 
 export interface StillwindOptions extends CommonOptions {
-  /** Build transport using the ordered stylesheet plan. */
+  /**
+   * Build transport using the ordered stylesheet plan.
+   */
   emission?: "single" | "split";
 }
 
@@ -43,11 +45,13 @@ export function createViteProject(options: StillwindOptions) {
   };
   type EnvironmentState = {
     work: Promise<void>;
-    loadRevision: number;
     session?: NativeProjectSession;
     initializing?: Promise<void>;
     resources: Map<string, string>;
     cssFiles: Set<string>;
+    cssVersion?: string;
+    themeChanges: Set<string>;
+    refreshing?: Promise<void>;
     compiler?: IntegrationSession;
     revision: number;
     buildCss?: string;
@@ -64,9 +68,9 @@ export function createViteProject(options: StillwindOptions) {
     if (!state) {
       state = {
         work: Promise.resolve(),
-        loadRevision: 0,
         resources: new Map(),
         cssFiles: new Set(),
+        themeChanges: new Set(),
         revision: 0,
       };
       environments.set(name, state);
@@ -147,6 +151,7 @@ export function createViteProject(options: StillwindOptions) {
         state.session = state.compiler.native;
         state.resources = resources;
         state.cssFiles = dependencies;
+        state.cssVersion = await designSystemVersion(dependencies);
         for (const path of dependencies) {
           context.addWatchFile(path);
         }
@@ -159,10 +164,96 @@ export function createViteProject(options: StillwindOptions) {
     await state.initializing;
   };
 
+  const designSystemVersion = async (files: Set<string>) => {
+    const hash = createHash("sha256");
+    for (const file of [...files].sort()) {
+      hash.update(file).update("\0");
+      try {
+        hash.update(await readFile(file));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
+        hash.update("\0missing");
+      }
+      hash.update("\0");
+    }
+    return hash.digest("hex");
+  };
+
+  const refreshDesignSystem = async (
+    state: EnvironmentState,
+    context: Parameters<typeof ensureSession>[1],
+  ) => {
+    await ensureSession(state, context);
+    if (!settings.watching) {
+      return;
+    }
+    if (state.refreshing) {
+      return state.refreshing;
+    }
+    const refresh = async () => {
+      while (true) {
+        const version = await designSystemVersion(state.cssFiles);
+        if (version === state.cssVersion) {
+          return;
+        }
+        const dependencies = new Set<string>();
+        const { loader, resources } = await loadDesignSystem(
+          async (specifier, importer) =>
+            resolvedFile(
+              await context.resolve(specifier, importer, { skipSelf: true }),
+              `CSS ${specifier}`,
+            ),
+          dependencies,
+          state.session,
+        );
+        if (version !== (await designSystemVersion(state.cssFiles))) {
+          continue;
+        }
+        const update = state.session!.reload(loader);
+        const name = [...environments].find(([, candidate]) => candidate === state)?.[0];
+        for (const module of update.transformedModules) {
+          state.themeChanges.add(module);
+        }
+        const graph =
+          name === "client"
+            ? undefined
+            : settings.devServerRef?.environments[name ?? "client"]?.moduleGraph;
+        for (const input of inputMap(name).values()) {
+          if (update.transformedModules.includes(input.moduleId)) {
+            for (const module of graph?.getModulesByFile(cleanModuleId(input.id)) ?? []) {
+              graph!.invalidateModule(module);
+            }
+          }
+        }
+        state.resources = resources;
+        state.cssFiles = dependencies;
+        state.cssVersion = await designSystemVersion(dependencies);
+        for (const file of dependencies) {
+          context.addWatchFile(file);
+        }
+        writeVocabulary(loader, settings.projectRoot, options);
+        return;
+      }
+    };
+    state.refreshing = refresh()
+      .catch((error) => {
+        settings.devServerRef?.config.logger.warn(
+          `Stillwind update failed; retaining published styles: ${String(error)}`,
+        );
+      })
+      .finally(() => {
+        state.refreshing = undefined;
+      });
+    await state.refreshing;
+  };
+
   type Input = {
     projection?: boolean;
     upstream?: CssUpstreamMap;
     code: string;
+    sourceMap?: ReturnType<typeof moduleSourceMap>;
     id: string;
     moduleId: string;
     manual: boolean;
@@ -267,7 +358,7 @@ export function createViteProject(options: StillwindOptions) {
     selection?: readonly string[],
   ) => {
     const state = environmentState(name);
-    await ensureSession(state, context);
+    await refreshDesignSystem(state, context);
     const modules = [...inputMap(name).values()]
       .filter((input) => !input.manual)
       .filter((input) => !selection || selection.includes(cleanModuleId(input.moduleId)))
@@ -312,7 +403,7 @@ export function createViteProject(options: StillwindOptions) {
     });
     await previous;
     try {
-      await ensureSession(state, context);
+      await refreshDesignSystem(state, context);
       const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
       const documentUri = (id: string) => {
         const clean = cleanModuleId(id);
@@ -370,7 +461,16 @@ export function createViteProject(options: StillwindOptions) {
           ? ""
           : `\nimport ${JSON.stringify(producerSpecifier(id))};\n`;
       const javascript = finalized.code + suffix;
+      const sourceMap = moduleSourceMap(
+        code,
+        output.code,
+        id,
+        output.mappings,
+        finalized.removed,
+        finalized.prefix,
+      );
       inputMap(name).set(id, {
+        sourceMap,
         projection: inputMap(name).get(id)?.projection,
         upstream: context.getCombinedSourcemap
           ? {
@@ -419,6 +519,7 @@ export function createViteProject(options: StillwindOptions) {
     closeTypeFacts,
     loadDesignSystem,
     ensureSession,
+    refreshDesignSystem,
     inputMap,
     includeSourceContent,
     fragments,

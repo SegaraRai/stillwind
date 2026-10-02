@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "rsbuild2-preact11",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "rsbuild",
   versions: ["vite-plus", "preact"],

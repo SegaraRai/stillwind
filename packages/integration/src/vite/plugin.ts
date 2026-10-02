@@ -5,14 +5,26 @@ import type { Plugin } from "vite";
 
 import { buildHooks } from "./build.ts";
 import { developmentHooks } from "./development.ts";
-import { createViteProject, type StillwindOptions } from "./project.ts";
+import { createViteProject, type StillwindOptions, type ViteProject } from "./project.ts";
+import { attachVueSourceMaps } from "./source-maps.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
 
 export type { StillwindOptions } from "./project.ts";
 
-/** Compiles producers and links their styles for each Vite environment. */
+/**
+ * Compiles producers and links their styles for each Vite environment.
+ */
 export function stillwind(options: StillwindOptions): Plugin {
-  const project = createViteProject(options);
+  return compilerPlugin(createViteProject(options));
+}
+
+/**
+ * Builds hooks for the supplied project, which the framework adapter also owns.
+ *
+ * @internal
+ */
+export function compilerPlugin(project: ViteProject): Plugin {
+  const { options } = project;
   const { settings, environmentState, closeTypeFacts, ensureSession, inputMap, publish, compile } =
     project;
   return {
@@ -32,6 +44,7 @@ export function stillwind(options: StillwindOptions): Plugin {
       settings.minifyCss = config.build.cssMinify !== false;
       settings.watching = config.command === "serve";
       settings.compilerMode = settings.watching ? "development" : "release";
+      attachVueSourceMaps(config.plugins, project);
       closeTypeFacts();
     },
     async buildStart() {

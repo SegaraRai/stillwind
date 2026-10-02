@@ -19,8 +19,10 @@ for (const profile of fixtureProfiles(fixture)) {
           contract.expectRendering(app));
         test("updates CSS after editing the theme", () => contract.expectThemeUpdate(app));
         test("removes and restores macro CSS", () => contract.expectMacroRetraction(app));
-        test("updates projected CSS after editing a server module", () =>
+        test("updates projected CSS after refetching edited route data", () =>
           contract.expectServerProjectionEdit(app));
+        test("supplies matching CSS for fresh RPC and SSR results after a server edit", () =>
+          contract.expectFreshServerProjection(app));
       });
       for (const temperature of ["cold", "warm"] as const) {
         test(`${temperature} production: SSR, hydration, navigation and source maps`, () =>

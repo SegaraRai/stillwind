@@ -1,10 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { css } from "stillwind/module-css";
 import { style } from "stillwind/preact";
 
 import { probeComposed, probeDiamond } from "./semantics-preact";
-
-export { css };
 
 export default function Counter() {
   const [count, setCount] = useState(0);

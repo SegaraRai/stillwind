@@ -1,3 +1,50 @@
+export type SupportTier = "primary" | "compatibility";
+
+/** A profile override describes a different host or integration within the same application. */
+export interface Support {
+  tier: SupportTier;
+  profiles?: Record<string, SupportTier>;
+}
+
+export interface FixtureManifest {
+  id: string;
+  profiles: readonly string[];
+  support: Support;
+}
+
+export interface ExpectedFailure {
+  reason: string;
+  issue?: string;
+}
+
+/** Returns the declared support tier for a profile; rejects unknown profiles and tiers. */
+export function fixtureSupport(fixture: FixtureManifest, profile: string): SupportTier {
+  if (!fixture.profiles.includes(profile)) {
+    throw new Error(`Unknown profile ${profile} for ${fixture.id}`);
+  }
+  for (const name of Object.keys(fixture.support.profiles ?? {})) {
+    if (!fixture.profiles.includes(name)) {
+      throw new Error(`Unknown support profile ${name} for ${fixture.id}`);
+    }
+  }
+  const tier = fixture.support.profiles?.[profile] ?? fixture.support.tier;
+  if (tier !== "primary" && tier !== "compatibility") {
+    throw new Error(`Invalid support tier: ${String(tier)}`);
+  }
+  return tier;
+}
+
+/** Validates a known limitation and returns its explanation for case names. */
+export function failureReason(failure: ExpectedFailure): string {
+  if (!failure.reason.trim()) {
+    throw new Error("An expected failure requires a reason");
+  }
+  if (failure.issue !== undefined && !failure.issue.trim()) {
+    throw new Error("An expected failure issue must not be empty");
+  }
+  return failure.reason;
+}
+
 /**
  * Commands are resolved from the fixture's own dependencies.
  */
@@ -22,6 +69,8 @@ export interface Edit {
   css: Record<string, string>;
   document: "preserve" | "reload";
   state: "preserve" | "reset" | "not-applicable";
+  counters?: string[];
+  expectedFailure?: ExpectedFailure;
 }
 
 /**
@@ -32,7 +81,7 @@ export type Capability = true | { status: "not-applicable"; reason: string };
 /**
  * Describes the application and the observable contracts shared by its profiles.
  */
-export interface Fixture {
+export interface Fixture extends FixtureManifest {
   id: string;
   driver: Driver;
   versions: string[];
@@ -64,6 +113,16 @@ export interface Fixture {
     document: "preserve" | "reload";
   };
   production?: boolean;
+  cachedProducer?: string;
+  sourceMaps?: {
+    file: string;
+    macro: string;
+    kind: "javascript" | "css";
+    development?: {
+      expectedFailure?: ExpectedFailure;
+    };
+    expectedFailure?: ExpectedFailure | Record<string, ExpectedFailure>;
+  }[];
   semantics?: {
     id: string;
     interactive: boolean;
@@ -100,6 +159,9 @@ export function defineFixture(fixture: Fixture): Fixture {
     if (!edit.from || edit.from === edit.to) {
       throw new Error(`Edit ${name} must change a nonempty literal`);
     }
+    if (edit.expectedFailure) {
+      failureReason(edit.expectedFailure);
+    }
     if (!Object.keys(edit.css).length) {
       throw new Error(`Edit ${name} requires a CSS expectation`);
     }
@@ -107,19 +169,45 @@ export function defineFixture(fixture: Fixture): Fixture {
       throw new Error(`Edit ${name} requires a counter`);
     }
   }
+  for (const mapping of fixture.sourceMaps ?? []) {
+    if (mapping.development && mapping.kind !== "javascript") {
+      throw new Error("Development source map checks require a JavaScript mapping");
+    }
+    if (mapping.development?.expectedFailure) {
+      failureReason(mapping.development.expectedFailure);
+    }
+    if (mapping.expectedFailure) {
+      if ("reason" in mapping.expectedFailure) {
+        failureReason(mapping.expectedFailure as ExpectedFailure);
+      } else {
+        for (const [profile, failure] of Object.entries(mapping.expectedFailure)) {
+          if (!fixture.profiles.includes(profile)) {
+            throw new Error(`Unknown failure profile ${profile}`);
+          }
+          failureReason(failure);
+        }
+      }
+    }
+  }
+  for (const profile of fixture.profiles) {
+    fixtureSupport(fixture, profile);
+  }
   return fixture;
 }
 
 /**
  * Selects a declared profile from the environment and rejects unknown profile names.
  */
-export function fixtureProfiles(fixture: {
-  id: string;
-  profiles: readonly string[];
-}): readonly string[] {
+export function fixtureProfiles(fixture: FixtureManifest): readonly string[] {
   const selected = process.env.STILLWIND_E2E_PROFILE;
   if (selected && !fixture.profiles.includes(selected)) {
     throw new Error(`Unknown profile ${selected} for ${fixture.id}`);
   }
-  return selected ? [selected] : fixture.profiles;
+  const tier = process.env.STILLWIND_E2E_SUPPORT;
+  if (tier && tier !== "primary" && tier !== "compatibility") {
+    throw new Error(`Invalid support tier: ${String(tier)}`);
+  }
+  return (selected ? [selected] : fixture.profiles).filter(
+    (profile) => !tier || fixtureSupport(fixture, profile) === tier,
+  );
 }

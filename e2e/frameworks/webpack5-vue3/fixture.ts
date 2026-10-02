@@ -2,10 +2,27 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "webpack5-vue3",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "webpack",
   versions: ["vite-plus", "vue"],
-  profiles: ["default"],
+  profiles: ["default", "unminified"],
+  cachedProducer: "src/App.vue",
+  sourceMaps: [
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "javascript",
+    },
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "css",
+      expectedFailure: {
+        default: { reason: "webpack CSS minification loses selector mappings" },
+      },
+    },
+  ],
   page: {
     path: "/",
     ready: '[data-testid="styled"]',

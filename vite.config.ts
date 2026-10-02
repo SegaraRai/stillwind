@@ -42,6 +42,16 @@ export default defineConfig({
         dependsOn: ["@stillwind/e2e-harness#e2e"],
         cache: false,
       },
+      "verify:e2e:primary": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-harness#e2e:primary"],
+        cache: false,
+      },
+      "verify:e2e:compatibility": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-harness#e2e:compatibility"],
+        cache: false,
+      },
       fmt: {
         command: "vp fmt --check",
         cache: false,

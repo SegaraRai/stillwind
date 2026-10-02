@@ -17,7 +17,9 @@ const excluded = new Set([
   ".vite-plus",
 ]);
 
-/** Resolves a fixture-relative path and rejects paths outside its work directory. */
+/**
+ * Resolves a fixture-relative path and rejects paths outside its work directory.
+ */
 export function fixturePath(root: string, file: string): string {
   const resolved = resolve(root, file);
   const local = relative(resolve(root), resolved);
@@ -33,7 +35,9 @@ export function fixturePath(root: string, file: string): string {
   return resolved;
 }
 
-/** Copies application files below their package so dependency resolution uses that package. */
+/**
+ * Copies application files below their package so dependency resolution uses that package.
+ */
 export async function createWorkspace(packageRoot: string) {
   const root = resolve(packageRoot);
   await mkdir(join(root, ".e2e"), { recursive: true });
@@ -78,7 +82,9 @@ export async function createWorkspace(packageRoot: string) {
   };
 }
 
-/** Changes exactly one literal and returns a function that restores the original bytes. */
+/**
+ * Changes exactly one literal and returns a function that restores the original bytes.
+ */
 export async function editFile(root: string, edit: { file: string; from: string; to: string }) {
   const file = fixturePath(root, edit.file);
   const original = await readFile(file);

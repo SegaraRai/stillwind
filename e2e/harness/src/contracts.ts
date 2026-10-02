@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { Page } from "playwright";
@@ -13,6 +15,7 @@ import {
   verifyHover,
   verifyConditionBranches,
 } from "./semantics.ts";
+import { verifyMacroSourceMap } from "./source-map.ts";
 import { editFile } from "./workspace.ts";
 
 type Probe = NonNullable<Fixture["semantics"]>[number];
@@ -51,6 +54,73 @@ export function fixtureContracts(app: FixtureApplication) {
       }
       await app.captureHtml(page);
     },
+    classAgreement: async () => {
+      const server = await app.open(false);
+      const classes = (page: Page) =>
+        page.locator('[class*="sw_"]').evaluateAll((elements) =>
+          elements
+            .map((element) => ({
+              tag: element.tagName,
+              id: element.getAttribute("data-testid") ?? element.id,
+              classes: [...element.classList].filter((name) => name.startsWith("sw_")).sort(),
+            }))
+            .filter((element) => element.classes.length),
+        );
+      const expected = await classes(server);
+      await app.closeCase(false);
+      const client = await interactivePage();
+      await initialCss(client);
+      await expect.poll(() => classes(client)).toEqual(expected);
+    },
+    freshServerRendering: async (edit: Edit) => {
+      const page = await app.open(false);
+      await initialCss(page);
+      const restore = await editFile(app.directory, edit);
+      try {
+        await expect
+          .poll(
+            async () => {
+              await app.navigateHome(page);
+              return page
+                .locator(edit.target || fixture.page.target)
+                .evaluate(
+                  (element, properties) =>
+                    Object.fromEntries(
+                      properties.map((property) => [
+                        property,
+                        getComputedStyle(element)[property as keyof CSSStyleDeclaration],
+                      ]),
+                    ),
+                  Object.keys(edit.css),
+                );
+            },
+            { timeout: 30_000 },
+          )
+          .toEqual(edit.css);
+      } finally {
+        await restore();
+        await expect
+          .poll(
+            async () => {
+              await app.navigateHome(page);
+              return page
+                .locator(fixture.page.target)
+                .evaluate(
+                  (element, properties) =>
+                    Object.fromEntries(
+                      properties.map((property) => [
+                        property,
+                        getComputedStyle(element)[property as keyof CSSStyleDeclaration],
+                      ]),
+                    ),
+                  Object.keys(fixture.page.css),
+                );
+            },
+            { timeout: 30_000 },
+          )
+          .toEqual(fixture.page.css);
+      }
+    },
     interactions: async () => {
       const page = await interactivePage();
       await clickCounters(page);
@@ -70,6 +140,71 @@ export function fixtureContracts(app: FixtureApplication) {
       await page.locator(navigation.back).click();
       await initialCss(page);
     },
+    cachedProducer: async () => {
+      type Module = { name?: string; identifier?: string; built?: boolean; modules?: Module[] };
+      const stats = JSON.parse(await readFile(join(app.directory, "build-stats.json"), "utf8")) as {
+        modules: Module[];
+      };
+      const flatten = (modules: Module[]): Module[] =>
+        modules.flatMap((module) => [module, ...flatten(module.modules ?? [])]);
+      const producers = [
+        ...new Map(
+          flatten(stats.modules)
+            .filter((module) =>
+              module.name?.replaceAll("\\", "/").endsWith(fixture.cachedProducer!),
+            )
+            .map((module) => [module.identifier ?? module.name, module]),
+        ).values(),
+      ];
+      expect(producers, "The selected producer must appear in build stats").toHaveLength(1);
+      expect(producers[0].built, JSON.stringify(producers)).toBe(false);
+    },
+    developmentSourceMap: async (mapping: NonNullable<Fixture["sourceMaps"]>[number]) => {
+      const page = await app.open();
+      await initialCss(page);
+      const directory = join(app.directory, ".development-maps");
+      await mkdir(directory, { recursive: true });
+      const scripts = await page
+        .locator("script[src]")
+        .evaluateAll((elements) => elements.map((element) => (element as HTMLScriptElement).src));
+      for (const url of scripts) {
+        const response = await page.request.get(url);
+        expect(response.ok(), url).toBe(true);
+        const code = await response.text();
+        const reference = [...code.matchAll(/^[ \t]*\/\/[#@] sourceMappingURL=([^\s]+)/gm)].at(
+          -1,
+        )?.[1];
+        if (!reference || reference.startsWith("data:")) {
+          continue;
+        }
+        const map = await page.request.get(new URL(reference, url).href);
+        expect(map.ok(), reference).toBe(true);
+        await writeFile(join(directory, basename(new URL(url).pathname)), code);
+        await writeFile(join(directory, basename(reference)), await map.body());
+      }
+      const source = await readFile(join(app.directory, mapping.file), "utf8");
+      await verifyMacroSourceMap(directory, mapping.file, source, mapping.macro);
+    },
+    sourceMap: async (mapping: NonNullable<Fixture["sourceMaps"]>[number]) => {
+      const source = await readFile(join(app.directory, mapping.file), "utf8");
+      await verifyMacroSourceMap(
+        join(app.directory, "dist"),
+        mapping.file,
+        source,
+        mapping.macro,
+        mapping.kind === "css",
+      );
+    },
+    rebuiltCss: async (edit: Edit) => {
+      await app.stop();
+      const restore = await editFile(app.directory, edit);
+      try {
+        await app.build("warm");
+        await expectCss(await app.open(), edit.target || fixture.page.target, edit.css);
+      } finally {
+        await restore();
+      }
+    },
     sourceEdit: async (edit: Edit) => {
       const page = await interactivePage();
       await initialCss(page);
@@ -82,10 +217,11 @@ export function fixtureContracts(app: FixtureApplication) {
         await expectDocument(page, marker, edit.document);
         if (edit.state !== "not-applicable") {
           for (const counter of fixture.page.counters) {
+            const edited = !edit.counters || edit.counters.includes(counter.selector);
             await expectText(
               page,
               counter.selector,
-              edit.state === "preserve" ? counter.clicked : counter.initial,
+              !edited || edit.state === "preserve" ? counter.clicked : counter.initial,
             );
           }
         }

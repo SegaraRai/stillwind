@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "rspack2-svelte5",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "rspack",
   versions: ["vite-plus", "svelte"],

@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
 import { expect } from "vite-plus/test";
 
-import type { Fixture } from "./fixture.ts";
+import { fixtureSupport, type Fixture } from "./fixture.ts";
+import { casePolicy, type CasePolicy } from "./policy.ts";
 import { startNode, waitForServer } from "./process.ts";
 import { createWorkspace } from "./workspace.ts";
 
@@ -31,6 +32,7 @@ export class FixtureApplication {
     name: string;
     status: string;
     artifacts: string;
+    policy?: ReturnType<typeof casePolicy>;
   }[] = [];
   readonly #versions: Record<string, string> = {};
   readonly #results: string;
@@ -86,12 +88,15 @@ export class FixtureApplication {
 
   /**
    * Records the completed result after Vitest has run the case and its cleanup hooks.
+   * `expectedFailure` identifies a `test.fails` case; `passed` must account for that expectation.
+   * Uses the artifact label established by beginCase for this case.
    */
-  recordCase(name: string, passed: boolean): void {
+  recordCase(name: string, passed: boolean, expectedFailure = false, policy?: CasePolicy): void {
     this.#checks.push({
       name,
-      status: passed ? "passed" : "failed",
+      status: passed ? (expectedFailure ? "expected-failure" : "passed") : "failed",
       artifacts: this.#caseLabel,
+      policy: policy && casePolicy(policy),
     });
   }
 
@@ -237,6 +242,7 @@ export class FixtureApplication {
           {
             fixture: this.fixture.id,
             profile: this.profile,
+            support: fixtureSupport(this.fixture, this.profile),
             versions: this.#versions,
             checks: this.#checks,
           },

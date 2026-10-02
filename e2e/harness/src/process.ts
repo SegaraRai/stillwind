@@ -1,7 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
-/** Stops a runner and its descendants, including framework CLI processes on Windows. */
+/**
+ * Stops a runner and its descendants, including framework CLI processes on Windows.
+ */
 export async function stopProcess(child: ChildProcess): Promise<void> {
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
     return;
@@ -30,7 +32,9 @@ export async function stopProcess(child: ChildProcess): Promise<void> {
   }
 }
 
-/** Runs Node with bounded output and a deadline; callers must stop long-lived servers. */
+/**
+ * Runs Node with bounded output and a deadline; callers must stop long-lived servers.
+ */
 export function startNode(
   args: string[],
   cwd: string,
@@ -70,7 +74,9 @@ export function startNode(
   return { child, done, logs: () => output, stop: () => stopProcess(child) };
 }
 
-/** Waits for a successful HTTP response and fails promptly when the server exits. */
+/**
+ * Waits for a successful HTTP response and fails promptly when the server exits.
+ */
 export async function waitForServer(
   url: string,
   processHandle: ReturnType<typeof startNode>,

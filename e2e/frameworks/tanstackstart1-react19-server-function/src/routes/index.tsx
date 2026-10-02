@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { style } from "stillwind/react";
@@ -20,6 +20,8 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const data = Route.useLoaderData();
+  const router = useRouter();
+  const [rpc, setRpc] = useState<typeof data>();
   const [n, setN] = useState(0);
   useEffect(() => {
     document.documentElement.dataset.hydrated = "yes";
@@ -30,7 +32,7 @@ function Home() {
       <p id="static" {...style("brand")}>
         SSR
       </p>
-      <p id="server" {...data.props}>
+      <p id="server" {...(rpc ?? data).props} data-rpc={rpc?.message}>
         Server
       </p>
       <button id="client" {...style(n > 0 ? "active" : "brand")} onClick={() => setN(n + 1)}>
@@ -39,11 +41,13 @@ function Home() {
       <button
         id="rpc"
         onClick={async () => {
-          const data = await serverValue();
-          document.querySelector("#server").dataset.rpc = data.message;
+          setRpc(await serverValue());
         }}
       >
         RPC
+      </button>
+      <button id="refresh" onClick={() => router.invalidate()}>
+        Refresh route data
       </button>
       <Link id="link" to="/details" preload={false}>
         Lazy

@@ -59,7 +59,9 @@ export async function verifyMacroSourceMap(
     }
     const target = path.join(directory, file);
     const code = await fs.readFile(target, "utf8");
-    const reference = code.match(/[#@] sourceMappingURL=([^\s*]+)/)?.[1];
+    const reference = [
+      ...code.matchAll(/^[ \t]*(?:\/\/[#@]|\/\*[#@]) sourceMappingURL=([^\s*]+)/gm),
+    ].at(-1)?.[1];
     const mapPath = reference ? path.resolve(path.dirname(target), reference) : target + ".map";
     let map;
     try {

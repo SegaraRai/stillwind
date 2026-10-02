@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "webpack5-react19",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "webpack",
   versions: ["vite-plus", "react", "react-dom"],

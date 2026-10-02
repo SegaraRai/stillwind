@@ -7,11 +7,13 @@ import { shared } from "./shared-style";
 
 const phase = ref(0);
 const count = ref(0);
+const scriptProps = style("p-[7px]");
 </script>
 
 <template>
   <main>
     <div data-testid="styled" v-bind="style(shared, 'text-probe p-[12px]')">Styled</div>
+    <span data-testid="script-style" v-bind="scriptProps">Script style</span>
     <button data-testid="counter" @click="count++">{{ count }}</button>
   </main>
   <div data-testid="main-composed" v-bind="style(probeComposed)">Composition</div>

@@ -2,10 +2,35 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "rsbuild2-vue3",
+  support: { tier: "compatibility" },
   semantics: [{ id: "main", interactive: true }],
   driver: "rsbuild",
   versions: ["vite-plus", "vue"],
-  profiles: ["default"],
+  profiles: ["default", "unminified"],
+  sourceMaps: [
+    {
+      file: "src/App.vue",
+      macro: "style('p-[7px]')",
+      kind: "javascript",
+      development: {
+        expectedFailure: {
+          reason:
+            "Vue script map composition remounts components on template edits; the bridge preserves HMR and leaves script maps unchanged",
+        },
+      },
+    },
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "javascript",
+      development: {},
+    },
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "css",
+    },
+  ],
   page: {
     path: "/",
     ready: '[data-testid="styled"]',

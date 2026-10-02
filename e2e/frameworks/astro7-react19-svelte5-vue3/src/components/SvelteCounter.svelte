@@ -1,9 +1,3 @@
-<script module lang="ts">
-  import { css } from "stillwind/module-css";
-
-  export { css };
-</script>
-
 <script lang="ts">
   import { style } from "stillwind/svelte";
   import { onMount } from "svelte";

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { ScenarioContext } from "@stillwind/e2e-harness/script";
+import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium, type Browser } from "playwright";
 import { build, createServer, preview, type InlineConfig } from "vite-plus";
@@ -16,23 +16,26 @@ export default function register(context: ScenarioContext): void {
     await fs.writeFile(file, text);
   };
   const put = write;
+
   const baseSource = (value: number) =>
-    'import { style } from "stillwind/react";export const base=style(\'m-' +
+    'import { style } from "stillwind/react";\nexport const base = style("m-' +
     value +
-    " hover:m-20');";
+    ' hover:m-20");';
   const routeSource = (base: string, delta: number) =>
-    'import { style } from "stillwind/react";import {' +
+    'import { style } from "stillwind/react";\nimport {' +
     base +
-    "} from './shared';export const props=style(" +
+    '} from "./shared";\nexport const props = style(' +
     base +
-    ",'m-" +
+    ', "m-' +
     delta +
-    "');";
+    '");\n';
+
   const writeSsrHtml = (html: string) =>
     put(
       "ssr.html",
       '<div id="root">' + html + '</div><script type="module" src="/hydrate.ts"></script>',
     );
+
   const config = (): InlineConfig => ({
     configFile: false,
     root: dir,
@@ -45,6 +48,7 @@ export default function register(context: ScenarioContext): void {
     ],
     logLevel: "silent",
   });
+
   const results = {
     checks: [] as { name: string; passed: boolean; [key: string]: unknown }[],
     directory: dir,
@@ -53,6 +57,7 @@ export default function register(context: ScenarioContext): void {
     results.checks.push({ name, passed: true });
     console.log(name);
   };
+
   let browser!: Browser;
   let server:
     | Awaited<ReturnType<typeof createServer>>

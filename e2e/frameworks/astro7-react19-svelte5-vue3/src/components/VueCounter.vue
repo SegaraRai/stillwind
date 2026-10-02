@@ -1,9 +1,3 @@
-<script lang="ts">
-import { css } from "stillwind/module-css";
-
-export { css };
-</script>
-
 <script setup lang="ts">
 import { style } from "stillwind/vue";
 import { ref, onMounted } from "vue";

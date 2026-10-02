@@ -2,6 +2,7 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "vite8-preact11",
+  support: { tier: "primary" },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["vite-plus", "preact"],

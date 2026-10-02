@@ -86,7 +86,7 @@ test("query modules retain independent CSS and deletion removes all derivatives 
   }
 });
 
-test("Vite loads imported CSS and keeps a failed reload's last successful stylesheet", async () => {
+test("Vite refreshes imported CSS, retains a failed reload and discards removed imports", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
   const css = path.join(root, "root.css");
@@ -144,11 +144,16 @@ test("Vite loads imported CSS and keeps a failed reload's last successful styles
     if (typeof load !== "function") {
       expect.fail("expected load hook");
     }
-    const context = server.pluginContainer as unknown as ThisParameterType<typeof load>;
+    const context = {
+      environment: server.environments.client,
+      resolve: (specifier: string, importer: string) =>
+        server.environments.client.pluginContainer.resolveId(specifier, importer),
+      addWatchFile: () => {},
+    } as unknown as ThisParameterType<typeof load>;
     const before = await load.call(context, "\0stillwind:snapshot.css");
-    // Pinning is observable even after the file changes, before the reload hook runs.
+    // Fresh stylesheet requests observe edits even when this environment has no HMR connection.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
-    expect(await load.call(context, "\0stillwind:snapshot.css")).toStrictEqual(before);
+    expect(await load.call(context, "\0stillwind:snapshot.css")).not.toStrictEqual(before);
     const hot = plugin.hotUpdate;
     if (typeof hot !== "function") {
       expect.fail("expected HMR hook");
@@ -181,6 +186,13 @@ test("Vite loads imported CSS and keeps a failed reload's last successful styles
       { ...hotContext, type: "update" },
     );
     expect(await load.call(context, "\0stillwind:snapshot.css")).toStrictEqual(after);
+    writeFileSync(css, ".base { color: green; } @stillwind-slot utilities;");
+    rmSync(tokens);
+    const withoutImport = await load.call(context, "\0stillwind:snapshot.css");
+    expect(withoutImport).not.toStrictEqual(after);
+    expect(typeof withoutImport === "string" ? withoutImport : withoutImport?.code).toContain(
+      "green",
+    );
   } finally {
     await server.close();
     rmSync(root, { recursive: true, force: true });
@@ -386,7 +398,12 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
     }
     const readCss = async (environment: typeof client) => {
       const css = await load!.call(
-        { environment } as ThisParameterType<typeof load>,
+        {
+          environment,
+          resolve: (specifier: string, importer: string) =>
+            environment.pluginContainer.resolveId(specifier, importer),
+          addWatchFile: () => {},
+        } as unknown as ThisParameterType<typeof load>,
         "\0stillwind:snapshot.css",
       );
       if (!(css && typeof css === "object" && css.map)) {
@@ -464,11 +481,19 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
           server,
         },
       );
+    writeFileSync(
+      clientCss,
+      ".environment { color: purple; } @stillwind-utility paint { color: purple; }",
+    );
     const older = reload();
     await started;
-    await reload();
+    writeFileSync(
+      clientCss,
+      ".environment { color: green; } @stillwind-utility paint { color: green; }",
+    );
+    const newer = reload();
     release(ssrCss);
-    await older;
+    await Promise.all([older, newer]);
     expect(String(await readCss(client))).toMatch(/color: green/);
   } finally {
     await server.close();

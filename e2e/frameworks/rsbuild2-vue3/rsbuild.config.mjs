@@ -22,6 +22,7 @@ export default {
     host: "localhost",
   },
   output: {
+    minify: process.env.STILLWIND_E2E_PROFILE === "unminified" ? false : undefined,
     sourceMap: {
       js: "source-map",
       css: true,

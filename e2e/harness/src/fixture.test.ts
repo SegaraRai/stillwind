@@ -4,20 +4,45 @@ import { defineFixture, fixtureProfiles, type Fixture } from "./fixture.ts";
 
 const fixture: Fixture = {
   id: "example",
+  support: {
+    tier: "primary",
+  },
   driver: "vite",
   versions: [],
   profiles: ["default", "split"],
-  page: { path: "/", ready: "#target", target: "#target", css: { color: "red" }, counters: [] },
-  ssr: { status: "not-applicable", reason: "Only a client entrypoint exists." },
-  hydration: { status: "not-applicable", reason: "Only a client entrypoint exists." },
+  page: {
+    path: "/",
+    ready: "#target",
+    target: "#target",
+    css: { color: "red" },
+    counters: [],
+  },
+  ssr: {
+    status: "not-applicable",
+    reason: "Only a client entrypoint exists.",
+  },
+  hydration: {
+    status: "not-applicable",
+    reason: "Only a client entrypoint exists.",
+  },
   edits: {},
 };
 
 afterEach(() => vi.unstubAllEnvs());
 
 test("rejects contradictory capabilities and incomplete edit expectations before a run", () => {
-  expect(() => defineFixture({ ...fixture, hydration: true })).toThrow("Hydration requires");
-  expect(() => defineFixture({ ...fixture, profiles: ["default", "default"] })).toThrow("unique");
+  expect(() =>
+    defineFixture({
+      ...fixture,
+      hydration: true,
+    }),
+  ).toThrow("Hydration requires");
+  expect(() =>
+    defineFixture({
+      ...fixture,
+      profiles: ["default", "default"],
+    }),
+  ).toThrow("unique");
   expect(() =>
     defineFixture({
       ...fixture,
@@ -34,7 +59,13 @@ test("rejects contradictory capabilities and incomplete edit expectations before
     }),
   ).toThrow("requires a counter");
   expect(() =>
-    defineFixture({ ...fixture, ssr: { status: "not-applicable", reason: " " } }),
+    defineFixture({
+      ...fixture,
+      ssr: {
+        status: "not-applicable",
+        reason: " ",
+      },
+    }),
   ).toThrow("requires a reason");
 });
 

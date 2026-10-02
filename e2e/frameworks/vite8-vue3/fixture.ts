@@ -2,10 +2,23 @@ import { defineFixture } from "@stillwind/e2e-harness";
 
 export default defineFixture({
   id: "vite8-vue3",
+  support: { tier: "primary" },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["vite-plus", "vue"],
-  profiles: ["default", "split"],
+  profiles: ["default", "split", "unminified"],
+  sourceMaps: [
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "javascript",
+    },
+    {
+      file: "src/App.vue",
+      macro: "style(shared, 'text-probe p-[12px]')",
+      kind: "css",
+    },
+  ],
   page: {
     path: "/",
     ready: '[data-testid="styled"]',
