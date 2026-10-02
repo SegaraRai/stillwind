@@ -1,4 +1,8 @@
-//! Explicit ref provider and consumer uses, finite scope lists,.
+//! Parses ref provider and consumer projections and finite anchor-scope lists.
+//!
+//! The extractor methods recognize uses in supported style positions, resolve finite
+//! ref candidates, and retain their original source coordinates in IR. They record
+//! consumed macro ranges and checker probes; lowered style analysis checks attachments.
 
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;

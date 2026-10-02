@@ -20,7 +20,8 @@ use crate::style_analysis::DeclarationValue;
 
 impl CallEmitter<'_> {
     /// Lowers one transition use with the conditions in `guard` and variants in
-    /// `wrappers`. It records definition dependencies and the properties the use supplies. `fold` allows its rules to join the base.
+    /// `wrappers`. It records definition and runtime dependencies, participation, and
+    /// name supplies. `fold` allows its rules to join the base when no region is pending.
     ///
     /// Returns the class expression together with any dynamic name. The name is written
     /// to inline style unless CSS wrappers require a custom property. The result can be
@@ -81,8 +82,8 @@ impl CallEmitter<'_> {
     }
 
     /// Lowers all possible receivers for the expression at `value`, with the conditions
-    /// in `guard` and variants in `wrappers`. It records dependencies and counts the
-    /// properties supplied by the use.
+    /// in `guard` and variants in `wrappers`. It records definition and runtime
+    /// dependencies and mutually exclusive participation and name supplies.
     ///
     /// The returned expression uses the receiver's `v` field to select a class and
     /// keeps any dynamic name alongside it. With one candidate, the rules may join the
@@ -309,6 +310,10 @@ fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option
     }
 }
 
+/// Returns the recorded value for a dynamic transition key, or `None` for other names.
+/// `slot` is an escaped custom-property name when a CSS wrapper controls the use;
+/// its value is recorded as `var(slot)`. Without a slot, the original key span
+/// identifies the inline value produced at runtime.
 fn runtime_name(name: &ViewTransitionName, slot: Option<&str>) -> Option<DeclarationValue> {
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Dynamic(expression)) => {

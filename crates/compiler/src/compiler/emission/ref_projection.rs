@@ -15,10 +15,9 @@ use super::super::symbols::{
 };
 use super::super::utilities::resolve::CompiledUtility;
 use super::CallEmitter;
-use crate::GeneratedSymbol;
 use crate::generated::Code;
-use crate::identifiers::{IdentifierContext, IdentifierPool};
 use crate::style_analysis::SupplyKind;
+use crate::{GeneratedSymbol, IdentifierContext, IdentifierPool};
 
 impl CallEmitter<'_> {
     /// Builds the CSS contribution for `projection` on `definition`.
@@ -178,10 +177,11 @@ impl CallEmitter<'_> {
     }
 }
 
-/// Builds one authored utility from `declaration` and the optional `selector`.
-/// The selector, when present, requires the receiver's marker. The function includes
-/// both strings and the variant `plan` in the canonical identity, then applies the
-/// plan to the utility. It does not allocate names.
+/// Returns an authored utility with `declaration`, an optional selector, and resolved variants.
+/// `declaration` contains complete CSS declarations. `selector` is a template with
+/// `&` for the generated class, or `None` to use that class directly. The caller must
+/// escape any generated identifiers in both strings. The returned contribution includes
+/// these strings and `plan` in its canonical identity and allocates no class or symbol.
 pub(super) fn rule_contribution(
     plan: &StyleVariantPlan,
     declaration: String,

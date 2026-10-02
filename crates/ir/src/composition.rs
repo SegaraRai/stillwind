@@ -9,8 +9,11 @@
 //! path, call span), so a re-export or a copy of a call does not inherit another call's
 //! identity.
 //!
-//! This module only reports whether an ordering exists and which one it is. Emitting
-//! the dependency's CSS and deciding ownership belong to `compiler` and `project`.
+//! `composition_dependencies` collects declaration edges for host planning.
+//! `validate_composition` checks cycles, available bases, and compatible class payloads.
+//! `ordered_style_calls` puts local bases before their consumers during lowering.
+//! The compiler resolves declaration supplies for lint checks, while the project layer
+//! chooses CSS ownership and requires selected base producers to be available.
 
 use std::collections::{BTreeMap, BTreeSet};
 

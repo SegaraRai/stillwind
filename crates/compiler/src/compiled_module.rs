@@ -107,7 +107,10 @@ pub struct ModuleResourceReference {
 /// diagnostics.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
-    /// Direct supplies and base references for each successful style call.
+    /// Direct contributions of this module's style calls; empty after compilation
+    /// failure. Records retain original source coordinates. Hosts combine current
+    /// artifacts with [`crate::StyleResolver`] and replace composition-dependent
+    /// findings when bases change.
     pub style_effects: Vec<StyleEffects>,
     /// Style dependencies the project layer must order this module after.
     pub composition: Vec<StyleDependency>,
@@ -162,6 +165,9 @@ impl CompiledModule {
     /// `css` and `module_css` are both the module's own rules here: the stylesheet
     /// renderer later replaces `css` with the assembled document stylesheet while
     /// leaving `module_css` addressable for a host that transports CSS per module.
+    /// `snapshot` must be the design-system revision recorded by this artifact. The
+    /// result clones direct style effects and existing findings without resolving bases
+    /// again. Callers must refresh composition findings when the graph changes.
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {

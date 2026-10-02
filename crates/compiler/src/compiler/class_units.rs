@@ -59,8 +59,9 @@ impl ViewTransitionClassUnit {
 
     /// The rules the unit owning the element class list writes.
     ///
-    /// Its own classes come first and each slot follows as a `var()` reference with an empty
-    /// fallback, so a slot no unit filled contributes nothing to the resolved list.
+    /// Its own classes come first and each slot follows as a `var()` reference with an
+    /// empty fallback, so a slot no unit filled contributes nothing to the resolved
+    /// list.
     fn class_rules(&self, selector: &str, slots: &[String]) -> String {
         let list = self.class_value(slots);
         let mut css = String::new();
@@ -74,7 +75,11 @@ impl ViewTransitionClassUnit {
         css
     }
 
-    /// Returns the token list and slot references written by this class unit.
+    /// Returns this unit's tokens followed by references to `slots` in their given
+    /// order. Slot names must be escaped CSS custom-property identifiers. Each
+    /// reference uses an empty fallback so an unfilled slot contributes no token.
+    /// Returns an empty string when the unit has no tokens and the caller provides no
+    /// slots.
     fn class_value(&self, slots: &[String]) -> String {
         let mut list = self.classes.join(" ");
         for slot in slots {
@@ -269,9 +274,9 @@ impl<'a> ClassUnits<'a> {
     ///
     /// Returns unconditional class names, generated class metadata, and the base
     /// transition class list including its slot references. An empty list writes no
-    /// transition-class declaration. The base name
-    /// comes before marker and external names. The base metadata comes before leaf
-    /// metadata, which follows traversal order.
+    /// transition-class declaration. The base name comes before marker and external
+    /// names. The base metadata comes before leaf metadata, which follows traversal
+    /// order.
     ///
     /// # Errors
     ///

@@ -633,10 +633,24 @@ impl NativeProjectSession {
         Err(NativeSessionError::AuthoredCssCollision { message }.into())
     }
 
-    /// Scans, finalizes, and publishes the given modules.
+    /// Scans and compiles `sources` against the current session snapshot in one
+    /// transaction. Sources must have distinct module identities and describe valid
+    /// editable or projected inputs. `env` provides the naming callback context. Every
+    /// source is compiled; `producer`, when present, selects its output after
+    /// successful publication.
     ///
-    /// `producer` narrows the returned output to one module, but every supplied module
-    /// is still compiled: cross-module values need the whole set.
+    /// Success publishes all artifacts and refreshes diagnostic batches for current
+    /// consumers. Returned outputs use the final graph, independently of source order.
+    /// A compilation failure records attempted analyses and reports, retains last good
+    /// watch artifacts, and returns outputs for every attempted source without
+    /// publishing the transaction. Consumer checks then exclude artifacts with stale
+    /// analyses.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid input conversion, duplicate identities, a producer
+    /// absent from the inputs, or unavailable diagnostic sources or transforms. Report
+    /// errors can occur after failed attempted analyses have been recorded.
     #[napi(strict)]
     #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
     pub fn compile(
@@ -749,11 +763,15 @@ impl NativeProjectSession {
 }
 
 impl NativeProjectSession {
-    /// Rebuilds reports for published artifacts after a graph or CSS state change.
+    /// Replaces diagnostic batches for artifacts matching `session`'s current analyses.
+    /// The caller must first update the graph and its composition findings. Last good
+    /// watch artifacts whose analyses changed are skipped, so attempted failure reports
+    /// remain available. Successful completion prunes unreferenced source snapshots.
     ///
     /// # Errors
     ///
-    /// Returns an error when a retained artifact has an unreportable source span.
+    /// Returns an error when a required source snapshot or diagnostic span cannot be
+    /// resolved, or source pruning fails. Batches published before an error remain.
     fn refresh_batches(session: &mut ProjectSession) -> napi::Result<()> {
         let snapshot = session.snapshot();
         let refreshed = session

@@ -1,4 +1,10 @@
-//! Records resolved contributions while their source uses and conditions are available.
+//! Records contributions before class-unit merging removes their source boundaries.
+//!
+//! `CallEmitter` records declarations from the same resolved utilities used for CSS
+//! emission, together with source guards, finite receiver choices, and ref
+//! requirements. The collector reads rendered utility fragments; it never reads
+//! published module CSS. Selector classification stays conservative when the subject
+//! occurs inside a function.
 
 use cssparser::{Parser, Token};
 
@@ -17,8 +23,18 @@ use crate::style_analysis::{
 };
 
 impl CallEmitter<'_> {
-    /// Records expanded declarations before contributions are merged into class units.
-    /// `gate` identifies a provider's required marker. `choice` selects a finite receiver.
+    /// Appends declarations from every resolved utility and nested rule in
+    /// `contribution`. `span` and `guard` must refer to the original module source.
+    /// `provider` marks ref-provider or anchor-scope writes, and `gate` identifies a
+    /// required ref marker. `choice` is a zero-based candidate index and the total
+    /// candidate count; all records for the same receiver span must share that count
+    /// and candidate order. Utilities retain their ordinal so CSS alternatives share
+    /// one name-supply origin. Rendering failures append diagnostics; callers must
+    /// discard failed compilation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a candidate index is not smaller than its count.
     pub(super) fn record_properties(
         &mut self,
         contribution: &LiteralContribution,
@@ -59,7 +75,15 @@ impl CallEmitter<'_> {
         }
     }
 
-    /// Adds supplies under the source guards and optional runtime candidate selection.
+    /// Appends `supplies` as contributions of ordinal zero at the original `span`.
+    /// `guard` lists enclosing source tests, and `choice` optionally selects one finite
+    /// receiver. The candidate index must be smaller than the shared candidate count.
+    /// The method preserves all enclosing conditions and changes only the effect
+    /// records.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a candidate index is not smaller than its count.
     pub(super) fn record_supplies(
         &mut self,
         span: Span,
@@ -70,6 +94,14 @@ impl CallEmitter<'_> {
         self.record_supplies_at(span, guard, supplies, choice, 0);
     }
 
+    /// Appends supplies with their source occurrence and resolved utility `ordinal`.
+    /// `choice` must use a valid index and a count consistent with the other records
+    /// at `span`. Unselected candidates supply nothing. `guard` encloses the whole
+    /// choice.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a candidate index is not smaller than its count.
     fn record_supplies_at(
         &mut self,
         span: Span,
@@ -105,7 +137,10 @@ impl CallEmitter<'_> {
         self.record_effect(node, guard);
     }
 
-    /// Appends an effect with the enclosing source conditions, without enumerating outcomes.
+    /// Appends `node` wrapped in every source test in `guard`, outermost test first.
+    /// Guard spans must address the original module source. Falsy uses receive an
+    /// empty truthy arm; truthy uses have no contribution on the falsy path. Repeated
+    /// test occurrences retain their identity so the resolver can compare decisions.
     pub(super) fn record_effect(&mut self, mut node: StyleEffect, guard: &[GuardStep]) {
         for step in guard.iter().rev() {
             let branches = if step.when_true {
@@ -129,7 +164,17 @@ impl CallEmitter<'_> {
         self.style_effects.push(node);
     }
 
-    /// Records transition participation and its name in the resolved CSS context.
+    /// Appends participation in `identity` and an optional name at the original `span`.
+    /// `contribution` must be the resolved contribution for this transition use;
+    /// its first transition plan supplies the emitted selector and at-rule contexts.
+    /// `name` contains the escaped CSS value or original runtime expression. An absent
+    /// name records participation alone. Contexts that fail to render are skipped;
+    /// ordinary emission diagnoses the same resolved plan. `guard` and `choice` have
+    /// the source and candidate contracts of `record_supplies`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a candidate index is not smaller than its count.
     pub(super) fn record_transition(
         &mut self,
         identity: &IdentityId,
@@ -195,6 +240,12 @@ impl CallEmitter<'_> {
     }
 }
 
+/// Appends declaration supplies from a rendered utility fragment in `css`.
+/// `selector` is the current expanded selector, or empty before the first rule.
+/// `at_rules` contains enclosing headers in outermost-first order. Nested selectors
+/// substitute that selector for `&`. Provider status and marker `gate` pass through.
+/// Decoded ordinary property names become lowercase; custom names retain their case.
+/// Malformed declarations are skipped. Values keep their CSS priority suffix.
 fn collect_declarations(
     css: &str,
     selector: &str,
@@ -259,7 +310,10 @@ fn collect_declarations(
     }
 }
 
-/// Finds a rule block while skipping strings and functional declaration values.
+/// Returns the byte offset of the first top-level rule block opening in `text`.
+/// Strings and functional values are skipped. Custom-property declarations return
+/// `None` because their values may contain brace blocks. The caller supplies one
+/// complete declaration or rule fragment from `declaration_ranges`.
 fn rule_open(text: &str) -> Option<usize> {
     let mut parser = Parser::new(text);
     if parser
@@ -278,8 +332,11 @@ fn rule_open(text: &str) -> Option<usize> {
     None
 }
 
-/// Identifies the final compound's nesting subject. Functional selectors whose
-/// subject is hidden inside an argument remain unknown; pseudo-elements are other subjects.
+/// Classifies the element receiving a rendered selector's declarations.
+/// `selector` uses `&` for the styled element. Every comma-separated alternative
+/// must end in a direct `&` compound to return `Target`. Descendant targets and
+/// pseudo-elements return `Other`. Mixed alternatives or subjects hidden inside
+/// functional arguments remain `Unknown`; the function does not prove CSS equivalence.
 fn subject(selector: &str) -> RuleSubject {
     if !selector_is_element_condition(selector, false) {
         return RuleSubject::Other;
@@ -331,5 +388,96 @@ fn subject(selector: &str) -> RuleSubject {
         RuleSubject::Other
     } else {
         RuleSubject::Unknown
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_semantic::AssetKind;
+    use stillwind_source::ModuleId;
+
+    use super::*;
+
+    #[test]
+    fn rule_blocks_skip_strings_functions_and_custom_property_values() {
+        assert_eq!(rule_open(r#"content: "{";"#), None);
+        assert_eq!(rule_open(r#"background: url("{image}");"#), None);
+        assert_eq!(rule_open("--blocks: { nested: value };"), None);
+        let rule = r#"&[data-value="{"] { color: red; }"#;
+        assert_eq!(rule_open(rule), rule.find(" { ").map(|offset| offset + 1));
+        assert!(rule_open("@media (width > 10px) { & { color:red; } }").is_some());
+    }
+
+    #[test]
+    fn declaration_collection_retains_nested_contexts_case_values_and_provider_gates() {
+        let gate = IdentityId::new(AssetKind::Ref, ModuleId::from("root"), 0, 10, "r");
+        let mut supplies = Vec::new();
+        collect_declarations(
+            "@media (width > 10px) { & { COLOR:red ! IMPORTANT; --Theme:{x:y}; &:hover { padding:1px; } } }",
+            "",
+            &[],
+            true,
+            Some(&gate),
+            &mut supplies,
+        );
+        assert_eq!(supplies.len(), 3);
+        let SupplyKind::Declaration {
+            property,
+            value,
+            important,
+            context,
+            provider,
+            gate: actual_gate,
+        } = &supplies[0]
+        else {
+            panic!("expected declaration");
+        };
+        assert_eq!(property, "color");
+        assert_eq!(value, &DeclarationValue::Css("red ! IMPORTANT".into()));
+        assert!(*important);
+        assert!(*provider);
+        assert_eq!(actual_gate.as_ref(), Some(&gate));
+        assert_eq!(context.selector, "&");
+        assert_eq!(context.at_rules, vec!["@media (width > 10px)"]);
+        assert!(
+            matches!(&supplies[1], SupplyKind::Declaration { property, value, .. } if property == "--Theme" && value == &DeclarationValue::Css("{x:y}".into()))
+        );
+        assert!(
+            matches!(&supplies[2], SupplyKind::Declaration { context, .. } if context.selector == "&:hover" && context.at_rules == vec!["@media (width > 10px)"])
+        );
+    }
+
+    #[test]
+    fn declaration_collection_decodes_names_and_skips_malformed_entries() {
+        let mut supplies = Vec::new();
+        collect_declarations(
+            r"& { broken; :bad; c\6flor:blue; }",
+            "",
+            &[],
+            false,
+            None,
+            &mut supplies,
+        );
+        assert_eq!(supplies.len(), 1);
+        assert!(
+            matches!(&supplies[0], SupplyKind::Declaration { property, important: false, context, .. } if property == "color" && context.subject == RuleSubject::Target)
+        );
+    }
+
+    #[test]
+    fn selector_subjects_distinguish_targets_descendants_pseudo_elements_and_uncertainty() {
+        for (selector, expected) in [
+            ("&", RuleSubject::Target),
+            (".enabled &:hover", RuleSubject::Target),
+            ("&:where(.marker)", RuleSubject::Target),
+            ("&:hover, &:active", RuleSubject::Target),
+            ("& > span", RuleSubject::Other),
+            ("& + span", RuleSubject::Other),
+            ("&::before", RuleSubject::Other),
+            ("&:hover, & > span", RuleSubject::Unknown),
+            (":is(&, span)", RuleSubject::Unknown),
+        ] {
+            assert_eq!(subject(selector), expected, "{selector}");
+        }
     }
 }

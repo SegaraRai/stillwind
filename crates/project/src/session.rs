@@ -352,12 +352,17 @@ impl ProjectSession {
     ///
     /// Generated identifiers are checked against every other module's symbols, not only
     /// this module's, because all artifacts share one document. A collision is reported
-    /// as `CompileDiagnostic::GeneratedIdentifierCollision` and prevents publication. Each CSS namespace is checked on its
-    /// own, so one spelling may appear in two pools without a conflict while two
-    /// identities inside one pool may not share a spelling.
+    /// as `CompileDiagnostic::GeneratedIdentifierCollision` and prevents publication.
+    /// Each CSS namespace is checked on its own, so one spelling may appear in two
+    /// pools without a conflict while two identities inside one pool may not share a
+    /// spelling.
     ///
-    /// On failure the behaviour follows [`SessionMode`]: watch keeps the last good
-    /// artifact, build removes it.
+    /// `analysis` must identify the producer and retain source coordinates for its
+    /// inputs. Returns whether generated transforms changed and any compilation errors.
+    /// Successful publication also recomputes composition findings in direct and
+    /// indirect consumers. On failure, watch mode keeps the last good artifact for
+    /// display and build mode removes it. Consumer lint checks use only artifacts
+    /// matching current analyses.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         if analysis.diagnostics.is_empty()
@@ -412,9 +417,12 @@ impl ProjectSession {
         update
     }
 
-    /// Records attempted analyses after a multi-module transaction fails.
-    /// Watch mode retains artifacts for display. Planning rejects artifacts whose keys
-    /// no longer match these analyses. Build mode retracts the affected artifacts.
+    /// Replaces the attempted analyses after a multi-module transaction fails.
+    /// `analyses` contains the producers attempted by that transaction. Watch mode
+    /// retains their last good artifacts for display; build mode removes them.
+    /// Planning and lint resolution exclude artifacts whose keys no longer match.
+    /// The method then recomputes composition findings in all transitive consumers;
+    /// the binding host must publish diagnostic batches after this state change.
     pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
         let mut dependents = BTreeSet::new();
         for analysis in analyses {
@@ -427,7 +435,9 @@ impl ProjectSession {
         self.refresh_style_lints(dependents);
     }
 
-    /// Removes one producer, returning whether it was registered.
+    /// Removes `module`'s analysis, artifact, stylesheet contributions, and report.
+    /// Returns whether its analysis was registered. Composition findings in all
+    /// transitive consumers are recomputed with this producer's records unavailable.
     pub fn remove_module(&mut self, module: &ModuleId) -> bool {
         let removed = self.analyses.remove(module).is_some();
         self.reported.remove(module);
@@ -437,10 +447,12 @@ impl ProjectSession {
         removed
     }
 
-    /// Recomputes the seven composition-aware lints of `modules` from current artifacts.
-    ///
-    /// A base published after its derived module changes the result too. Findings replace the
-    /// previous ones for the same rules, so a resolved overlap stops being reported.
+    /// Replaces composition-dependent findings for the requested module identities.
+    /// The caller must first publish or retract changed artifacts and analyses.
+    /// Only artifacts matching their current analyses enter the resolver. Modules
+    /// without a current artifact are skipped; compatible missing bases remain unknown.
+    /// Source suppression runs in each consuming module. Other lint findings remain,
+    /// and diagnostic batches are left for the binding host to refresh.
     fn refresh_style_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
         let mut resolver = StyleResolver::new(
             self.artifacts
@@ -456,7 +468,7 @@ impl ProjectSession {
                 let mut findings = artifact
                     .style_effects
                     .iter()
-                    .filter_map(|effects| resolver.resolve(&effects.identity))
+                    .filter_map(|effects| resolver.resolve(effects.identity()))
                     .flat_map(|style| check_style(&style))
                     .collect::<Vec<_>>();
                 filter_lint_findings(source, &mut findings);
@@ -473,7 +485,11 @@ impl ProjectSession {
         }
     }
 
-    /// All modules that directly or indirectly consume this producer's styles.
+    /// Returns every published module that directly or indirectly consumes `module`.
+    /// Traversal uses retained artifact edges, including last good watch artifacts.
+    /// The starting module is omitted, each consumer occurs once, and cycles terminate.
+    /// Ordering follows breadth-first traversal with module order among each producer's
+    /// consumers.
     fn composition_dependents(&self, module: &ModuleId) -> Vec<ModuleId> {
         let mut pending = vec![module.clone()];
         let mut seen = BTreeSet::from([module.clone()]);
@@ -623,8 +639,8 @@ impl ProjectSession {
 
     /// Reports the first collision among names a stylesheet render generated, if any.
     ///
-    /// Module artifacts are checked when they are published; this covers the names no declaration
-    /// reports, such as conditional helpers and anonymous layers.
+    /// Module artifacts are checked when they are published; this covers the names no
+    /// declaration reports, such as conditional helpers and anonymous layers.
     pub(crate) fn check_document_names(
         &self,
         symbols: &[GeneratedSymbol],
@@ -641,8 +657,8 @@ impl ProjectSession {
 
 /// Records every name one authored stylesheet already uses.
 ///
-/// An authored name owns its namespace before anything is generated, so it is recorded with an
-/// identity no generated name can have.
+/// An authored name owns its namespace before anything is generated, so it is recorded
+/// with an identity no generated name can have.
 fn insert_reserved<'a>(
     names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
     reserved: &'a ReservedNames,
@@ -665,7 +681,8 @@ fn insert_reserved<'a>(
     }
 }
 
-/// Records one generated name, reporting it when the namespace already holds another identity.
+/// Records one generated name, reporting it when the namespace already holds another
+/// identity.
 fn insert_document_name<'a>(
     names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
     symbol: &'a GeneratedSymbol,

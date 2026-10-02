@@ -75,7 +75,7 @@ pub use query::{
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use style_analysis::{
-    StyleEffect, StyleEffects, StyleResolver, check_style, is_style_analysis_lint,
+    ResolvedStyle, StyleEffects, StyleResolver, check_style, is_style_analysis_lint,
 };
 pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};
 pub use transforms::{

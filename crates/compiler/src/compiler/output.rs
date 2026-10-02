@@ -29,7 +29,9 @@ use crate::{ModuleResourceReference, RejectedIdentifier, StyleEffects};
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileResult {
-    /// Direct effects for composition analysis; omitted from host serialization.
+    /// Direct contributions with original source coordinates; empty after compilation
+    /// failure. Local composition checks use these records. Project hosts resolve them
+    /// again against current imported artifacts. Host serialization omits this field.
     #[serde(skip)]
     pub style_effects: Vec<StyleEffects>,
     /// Generated contributions in emission order, including placement and registration

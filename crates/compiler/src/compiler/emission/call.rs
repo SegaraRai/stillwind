@@ -65,8 +65,11 @@ impl<'a> CallEmitter<'a> {
         emitter.emit()
     }
 
-    /// Traverses top-level inputs and publishes accumulated class units on completion.
-    /// Stops on an input returning `None`; shared output destinations are not rolled back.
+    /// Traverses the call's inputs and finalizes classes, runtime parts, and direct
+    /// effects. The final unconditional transition-class list is recorded after class
+    /// units allocate slots. Input or class-unit failures return `None` and keep
+    /// accumulated diagnostics and shared allocations. The pipeline must discard failed
+    /// output.
     fn emit(mut self) -> Option<StyleEmission> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input, &mut Vec::new())?;
@@ -346,8 +349,8 @@ impl<'a> CallEmitter<'a> {
 
     /// Generates one definition's name and records it for pool validation.
     ///
-    /// A definition name is written by every use of its declaration, so the report keeps
-    /// one record per declaration and the pipeline drops later repeats.
+    /// A definition name is written by every use of its declaration, so the report
+    /// keeps one record per declaration and the pipeline drops later repeats.
     ///
     /// # Errors
     ///

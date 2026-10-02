@@ -194,6 +194,15 @@ impl ModuleCompiler {
     /// errors before any CSS is split, and the CSS artifact is empty as long as any
     /// diagnostic remains: a failed module must not hand half an artifact to the
     /// project layer.
+    ///
+    /// Successful artifacts retain this module's direct style effects; asset support
+    /// modules only supply declarations and do not add style-call effects.
+    ///
+    /// `module` must contain source spans for its editable source and valid support
+    /// records. `identifiers` supplies generation policy; this method creates a
+    /// separate naming context. The returned artifact carries diagnostics, and failure
+    /// clears direct effects as well as generated CSS, classes, symbols, and
+    /// transforms.
     pub fn compile(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompiledModule {
         let identifiers = identifiers.context(self.options.hash_length);
         let result = self.compile_support_closure(module, &identifiers);

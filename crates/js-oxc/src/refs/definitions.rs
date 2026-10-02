@@ -276,9 +276,12 @@ impl<'a> MacroExtractor<'a> {
 
     /// Recognizes a ref used as a `style()` argument.
     ///
-    /// Returns true when the expression was consumed as an attachment. Any finite set
-    /// other than one candidate, including an empty set, keeps the runtime attachment
-    /// expression.
+    /// `expression` must come from a supported input position in the current AST.
+    /// A finite ref value appends one attachment to `inputs` and returns `true`.
+    /// One candidate becomes a static attachment; multiple or zero candidates retain
+    /// the runtime receiver expression. Original source coordinates identify the use.
+    /// Unrelated expressions return `false` without appending an attachment. Receiver
+    /// resolution may still record checker probes and consumed macro expressions.
     pub(crate) fn collect_dynamic_ref_attachment(
         &mut self,
         expression: &Expression<'a>,

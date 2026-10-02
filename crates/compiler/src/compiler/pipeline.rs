@@ -4,11 +4,14 @@
 //! symbol for every declaration, then runs one [`CallEmitter`] per call in that order.
 //! Exported or referenced motion definitions are prepended to the emitted utility CSS.
 //! Source edits and helper imports are planned last, and prefix rewriting happens after
-//! all generated text exists. Rewriting applies to synthetic fragments while authored
-//! expression text and its original source mappings remain unchanged.
+//! all generated text exists. Successful calls retain direct contribution records;
+//! local composition checks run after emission, and hosts later resolve imported bases.
+//! Rewriting applies to synthetic fragments while authored expression text and its
+//! original source mappings remain unchanged.
 //!
-//! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes, symbols,
-//! and CSS are cleared, so a caller never receives a plan that describes half a compilation.
+//! Failure is all-or-nothing: once any diagnostic exists, the transforms, classes,
+//! symbols, and CSS are cleared, so a caller never receives a plan that describes half
+//! a compilation.
 
 use std::collections::BTreeSet;
 
@@ -80,16 +83,21 @@ impl Compiler {
         )
     }
 
-    /// Runs the shared pass sequence, returning emitted artifacts and accumulated findings.
-    /// `emit_source` selects whether source replacements and helper imports are retained.
+    /// Runs the shared pass sequence, returning emitted artifacts and accumulated
+    /// findings. `emit_source` selects whether source replacements and helper imports
+    /// are retained.
     ///
-    /// `parsed.ir` is cloned before ordering, because the call order is a property of the
-    /// compilation, not of the frontend's output, and the analysis may be reused.
-    /// `compiler_options` selects conditional lowering after rule construction and
-    /// before generated-prefix rewriting. Lowering errors join the diagnostics and
-    /// clear generated CSS, classes, symbols, and transforms transactionally.
-    /// `source` must be the original editable buffer described by `parsed`; source
-    /// expression mappings retain that coordinate space through prefix and attribute encoding.
+    /// `parsed.ir` is cloned before ordering, because the call order is a property of
+    /// the compilation, not of the frontend's output, and the analysis may be reused.
+    /// `snapshot` supplies the immutable utility and variant registry. `identifiers`
+    /// shares the naming context and can accumulate rejected names during emission.
+    /// Successful output retains direct effects and locally resolved composition
+    /// findings. `compiler_options` selects conditional lowering after rule
+    /// construction and before generated-prefix rewriting. Lowering errors join the
+    /// diagnostics and clear generated CSS, classes, symbols, transforms, and direct
+    /// effects transactionally. `source` must be the original editable buffer described
+    /// by `parsed`; source expression mappings retain that coordinate space through
+    /// prefix and attribute encoding.
     #[allow(clippy::too_many_lines)]
     fn compile_snapshot(
         source: &SourceFile,
@@ -357,9 +365,9 @@ impl Compiler {
             result.transforms.clear();
         }
 
-        // Names that belong to no declaration, such as conditional helpers, are reported after the
-        // declaration symbols so a consumer looking for a position finds one. A failed compilation
-        // reports nothing, like the cleared symbol list above.
+        // Names that belong to no declaration, such as conditional helpers, are reported
+        // after the declaration symbols so a consumer looking for a position finds one.
+        // A failed compilation reports nothing, like the cleared symbol list above.
         if result.diagnostics.is_empty() {
             result.symbols.extend(
                 identifiers
@@ -378,7 +386,7 @@ impl Compiler {
         if result.diagnostics.is_empty() {
             let mut resolver = StyleResolver::new(&result.style_effects);
             for effects in &result.style_effects {
-                if let Some(style) = resolver.resolve(&effects.identity) {
+                if let Some(style) = resolver.resolve(effects.identity()) {
                     result.lint_findings.extend(check_style(&style));
                 }
             }

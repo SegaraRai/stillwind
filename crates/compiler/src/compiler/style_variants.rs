@@ -262,9 +262,12 @@ impl StyleVariantPlan {
 
     /// Applies the plan to a utility the ordinary resolver already prefixed.
     ///
-    /// Reuses resolved wrapper applications and resolves the utility's remaining
-    /// variants once. Emission and composition analysis consume the same applications.
-    /// The parsed variant list retains the wrappers followed by the utility suffix.
+    /// `utility.variants` must begin with the ordinary variants already supplied by
+    /// this plan, and `theme` must be the registry used to resolve the plan. The method
+    /// retains the utility suffix, replaces its variants with the wrappers and suffix,
+    /// and stores applications for the shared CSS renderer and composition collector.
+    /// Suffix variants that do not resolve are skipped. Empty application paths remain
+    /// absent so a plain utility can still join the emitter's base declaration group.
     pub fn apply(&self, utility: &mut CompiledUtility, theme: &ThemeIndex) {
         // The utility resolver already parsed the ordinary wrapper prefixes.
         let suffix = utility
@@ -297,9 +300,10 @@ impl StyleVariantPlan {
         utility.variants = self.variants.iter().cloned().chain(suffix).collect();
     }
 
-    /// Copies resolved variants and correlated ref applications onto a rule
-    /// supplied directly by an asset or ref projection. The caller retains
-    /// ownership of that rule's declarations and canonical class identity.
+    /// Replaces `utility`'s variants and applications with this plan's resolved wrappers.
+    /// The utility must have no suffix variants that need to be retained. Its declarations
+    /// and canonical class identity stay unchanged. Empty paths leave applications absent
+    /// so an unwrapped rule can join the emitter's base declaration group.
     pub fn apply_rule(&self, utility: &mut CompiledUtility) {
         utility.variants.clone_from(&self.variants);
         if self.paths.iter().all(Vec::is_empty) {

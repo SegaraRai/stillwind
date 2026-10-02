@@ -14,7 +14,8 @@
 //! read the private fields while the rest of the compiler cannot. `call` runs the walk
 //! and dispatches one style input; `class_value` lowers class expressions;
 //! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
-//! contribution kind each. `style_analysis` records resolved supplies before their rules are merged into classes.
+//! contribution kind each. `style_analysis` records declarations, markers, and source
+//! decisions before class-unit merging removes their original use boundaries.
 
 mod call;
 mod class_value;
@@ -36,9 +37,8 @@ use super::class_units::ClassUnits;
 use super::literal::LiteralContribution;
 use super::props::StyleEmissionPart;
 use super::symbols::GeneratedSymbol;
-use crate::CompilerOptions;
-use crate::identifiers::IdentifierContext;
 use crate::style_analysis::StyleEffect;
+use crate::{CompilerOptions, IdentifierContext};
 
 /// Object key under which a compiled ref record carries its canonical marker token.
 pub(super) const CLASS_KEY: &str = "c";

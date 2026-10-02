@@ -293,6 +293,10 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
 /// file ID. Published spans refer to the editable document even when the generated
 /// buffer contains the same text. Module identities are chosen by the host.
 ///
+/// Composition findings are recomputed against all successful input artifacts before
+/// outputs are built, so a base may appear after its consumer in `input`. Source
+/// suppression runs in each consuming source; missing base records remain unknown.
+///
 /// Rules shared by two modules are emitted once: the first module in input order keeps
 /// the rule and the later module's duplicate is dropped, because this output is one
 /// document rather than one fragment per module.
@@ -300,7 +304,8 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
 /// # Errors
 ///
 /// Returns an error for invalid options or sources, exhausted file IDs, or an
-/// unresolved module edge.
+/// unresolved module edge, or a failure while resolving diagnostic sources or rendering
+/// source transforms. Module compilation errors are carried in the returned outputs.
 pub fn compile_project_input(
     input: &[HostPreparedSource],
     css: &CompileCssInput,
@@ -359,7 +364,7 @@ pub fn compile_project_input(
             let mut findings = artifact
                 .style_effects
                 .iter()
-                .filter_map(|effects| resolver.resolve(&effects.identity))
+                .filter_map(|effects| resolver.resolve(effects.identity()))
                 .flat_map(|style| check_style(&style))
                 .collect::<Vec<_>>();
             filter_lint_findings(&scan.source, &mut findings);

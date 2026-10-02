@@ -18,7 +18,9 @@
 //!
 //! `session` publishes revisions; `project_stylesheet` tracks shared rule ownership;
 //! `dependencies` indexes consumers; `stylesheet_plan` validates producer coverage;
-//! The compiler resolves composed style supplies and reports their lint findings.
+//! `reserved` tracks authored names. The session passes current style records to the
+//! compiler's composition checker and invalidates findings when a base producer
+//! changes.
 
 #![cfg_attr(
     not(test),
