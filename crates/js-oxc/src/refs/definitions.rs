@@ -57,8 +57,8 @@ impl<'a> MacroExtractor<'a> {
 
     /// Consumes a direct variant expression inside `style()`. Parses static ref calls
     /// and tags, optional outer scope calls, or a raw ref's container query. Records
-    /// identities, checker probes and JSX paths for later validation. Invalid syntax
-    /// returns `None` after adding a diagnostic and consuming its nested macro uses.
+    /// identities and checker probes. Invalid syntax returns `None` after adding a
+    /// diagnostic and consuming its nested macro uses.
     pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
         self.consume_ref_expression(expression);
         let mut receiver = expression.get_inner_expression();
@@ -96,40 +96,23 @@ impl<'a> MacroExtractor<'a> {
                 );
                 return None;
             }
-            return self.ref_container_variant(object, query, expression.span());
+            return self.ref_container_variant(object, query);
         }
         // Resolve every operand before returning on missing identities so the scan
         // records all checker probes needed by finalization.
         let condition = self.ref_condition(receiver, !scopes.is_empty());
         let scopes = scopes.into_iter().collect::<Option<Vec<_>>>()?;
         let condition = condition?;
-        for scope in &scopes {
-            for definition in &scope.refs {
-                self.record_ref_use(definition, RefUseKind::ScopeOperand, scope.prefix.span);
-            }
-        }
-        for definition in &condition.refs {
-            self.record_ref_use(
-                definition,
-                RefUseKind::SelectorVariant,
-                self.source_span(expression.span()),
-            );
-            if let Some(record) = self.ref_uses.last_mut() {
-                record.scopes.clone_from(&scopes);
-            }
-        }
         Some(StyleVariant::Ref { condition, scopes })
     }
 
-    /// Resolves a raw ref receiver and records its named container query use.
-    /// `query` contains static text and its content span. `span` covers the complete
-    /// use in the analysis buffer. Returns `None` with a diagnostic when the receiver
-    /// cannot resolve to finite ref identities.
+    /// Resolves a raw ref receiver into a named container query variant.
+    /// `query` contains static text and its content span. Returns `None` with a
+    /// diagnostic when the receiver cannot resolve to finite ref identities.
     fn ref_container_variant(
         &mut self,
         receiver: &Expression<'a>,
         query: Spanned<String>,
-        span: oxc::span::Span,
     ) -> Option<StyleVariant> {
         let Some(refs) = self.ref_references(receiver) else {
             self.ref_syntax_error(
@@ -138,13 +121,6 @@ impl<'a> MacroExtractor<'a> {
             );
             return None;
         };
-        for definition in &refs {
-            self.record_ref_use(
-                definition,
-                RefUseKind::ContainerQueryVariant,
-                self.source_span(span),
-            );
-        }
         Some(StyleVariant::Container { refs, query })
     }
 

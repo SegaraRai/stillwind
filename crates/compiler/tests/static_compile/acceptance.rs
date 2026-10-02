@@ -2,47 +2,16 @@
 //!
 //! Pins that a broad CSS-first Tailwind candidate set resolves, that gradient and mask
 //! utilities emit their expected declarations, that generated names derive from host
-//! module identities rather than process-local file ids, and that relationship
-//! selectors and conditional ref attachments are only accepted when the available facts
-//! prove them.
+//! module identities rather than process-local file ids, and that conditional ref
+//! attachments preserve their runtime selection.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
-
-#[test]
-fn validates_ref_selector_ancestry_when_jsx_placement_is_known() {
-    let component = SourceFile::new(
-        FileId(1), None, None,
-        r#"import { style } from "stillwind/react";
-const trigger = style.ref();
-export const Good = () => <div {...style(trigger, trigger.asAnchor())}><span {...style({ [trigger`hover:`]: "text-accent" })} /></div>;
-export const Bad = () => <><div {...style(trigger, trigger.asAnchor())} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
-    ).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
-
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-
-    assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|item| matches!(item.diagnostic, LintDiagnostic::MissingRefAncestor { .. }))
-    );
-}
 
 #[test]
 fn resolves_a_broader_css_first_tailwind_compatibility_slice() {

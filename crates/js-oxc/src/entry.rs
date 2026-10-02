@@ -130,7 +130,7 @@ pub(crate) fn parse_with_coordinates(
     );
     extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
-    extractor.validate_refs();
+    extractor.validate_ref_attachments();
     let mut summary = extractor.module_summary();
     crate::demand::collect(
         &result.program,

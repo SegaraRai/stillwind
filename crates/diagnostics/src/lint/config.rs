@@ -115,12 +115,6 @@ define_lint_rules! {
     ValidAnchorScope => ("valid-anchor-scope", None),
     RequireRefAttachment => ("require-ref-attachment", None),
     ConflictingProviderProperties => ("conflicting-provider-properties", None),
-    RequireAnchorProvider => ("require-anchor-provider", None),
-    RequireContainerProvider => ("require-container-provider", None),
-    ValidRefAncestry => ("valid-ref-ancestry", None),
-    UnattachedRefScope => ("unattached-ref-scope", None),
-    RefInScope => ("ref-in-scope", None),
-    TargetInRefScope => ("target-in-ref-scope", None),
     PreferTypedRelationships => ("prefer-typed-relationships", None),
     RequireElementScope => ("require-element-scope", Some(LintSeverity::Deny)),
     RequireViewTransitionName => ("require-view-transition-name", Some(LintSeverity::Warn)),
@@ -128,7 +122,6 @@ define_lint_rules! {
     SingleViewTransitionClass => ("single-view-transition-class", Some(LintSeverity::Warn)),
     AmbiguousBaseOrder => ("ambiguous-base-order", Some(LintSeverity::Warn)),
     ImportedBaseInterference => ("imported-base-interference", Some(LintSeverity::Warn)),
-    RejectedIdentifier => ("rejected-identifier", None),
     InvalidUtility => ("invalid-utility", None),
     UnknownUtility => ("unknown-utility", None),
 }
@@ -218,12 +211,12 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 22);
+        assert_eq!(names.len(), 15);
         for name in [
             "custom",
             "",
-            "RequireAnchorProvider",
-            "require-anchor-provider ",
+            "RequireRefAttachment",
+            "require-ref-attachment ",
         ] {
             assert_eq!(LintKind::from_name(name), None);
             assert!(serde_json::from_value::<LintKind>(serde_json::json!(name)).is_err());

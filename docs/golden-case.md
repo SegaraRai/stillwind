@@ -342,9 +342,9 @@ style({ [card.at("")]: "grid" });
 style({ [card.at``]: "grid" });
 ```
 
-The linter checks missing ref attachments and anchor/container providers. It
-does not infer relationships across component boundaries, portals, or arbitrary
-`children`.
+The linter checks whether each ref provider's `style()` call supplies its marker.
+Calls that contain composition suppress this warning because a base may supply
+the marker.
 
 ## Local animation, written with utilities
 

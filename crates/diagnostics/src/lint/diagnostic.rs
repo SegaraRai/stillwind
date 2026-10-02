@@ -44,8 +44,8 @@ pub enum LintDiagnostic {
         /// Empty-list or repeated-identity explanation.
         detail: String,
     },
-    /// A provider's marker gate cannot match a known attachment on its target.
-    #[error("ref `{name}` provider has no matching marker attachment on this element")]
+    /// A ref provider's style call supplies no matching marker attachment.
+    #[error("ref `{name}` provider has no matching marker attachment in this style() call")]
     MissingRefAttachment {
         /// Ref binding displayed to the user.
         name: String,
@@ -57,48 +57,6 @@ pub enum LintDiagnostic {
     ProviderConflict {
         /// Overlapping property names, including shorthand relationships.
         properties: String,
-    },
-    /// A ref uses positioning without a known anchor attachment.
-    #[error("ref `{name}` uses position without an asAnchor() provider")]
-    MissingAnchor {
-        /// Authored or inferred ref binding name used for reporting.
-        name: String,
-    },
-    /// A ref uses a container query without a known container attachment.
-    #[error("ref `{name}` uses a container query without an asContainer() provider")]
-    MissingContainer {
-        /// Authored or inferred ref binding name used for reporting.
-        name: String,
-    },
-    /// A selector has known ref attachments, but none is an ancestor in its JSX tree.
-    #[error("ref `{name}` selector has no known ancestor ref in this JSX tree")]
-    MissingRefAncestor {
-        /// Authored or inferred ref binding name used for reporting.
-        name: String,
-    },
-    /// A shared scope has no known marker attachment.
-    #[error("ref `{name}` uses scope `{scope}`, but no element attaches that scope")]
-    UnattachedRefScope {
-        /// Ref binding whose condition requires the scope.
-        name: String,
-        /// Required scope binding or finite alternative names.
-        scope: String,
-    },
-    /// Known attachments cannot place the referenced element inside its shared scope.
-    #[error("scope `{scope}` must contain ref `{name}`")]
-    RefOutsideScope {
-        /// Required scope binding or finite alternative names.
-        scope: String,
-        /// Ref binding whose condition requires the scope.
-        name: String,
-    },
-    /// A scoped selector targets an element outside every known shared scope attachment.
-    #[error("a selector using ref `{name}` must target an element within scope `{scope}`")]
-    TargetOutsideRefScope {
-        /// Ref binding whose condition requires the scope.
-        name: String,
-        /// Required scope binding or finite alternative names.
-        scope: String,
     },
     /// A Tailwind relationship utility violates the active typed-relationship policy.
     #[error(
@@ -151,14 +109,6 @@ pub enum LintDiagnostic {
         /// The competing declarations, as `property` or `property and property`.
         properties: String,
     },
-    /// A host generator failed or returned a body its write positions cannot hold.
-    #[error("identifier generator for {kind} was rejected: {detail}")]
-    RejectedIdentifier {
-        /// Identifier family the generator was asked for.
-        kind: String,
-        /// Generator failure message, or the body that failed validation.
-        detail: String,
-    },
     /// A utility literal is retained as an external class because resolution failed.
     #[error("unknown or unavailable utility `{utility}`")]
     UnresolvedUtility {
@@ -195,12 +145,6 @@ impl LintDiagnostic {
             Self::AnchorScopeList { .. } => LintKind::ValidAnchorScope,
             Self::MissingRefAttachment { .. } => LintKind::RequireRefAttachment,
             Self::ProviderConflict { .. } => LintKind::ConflictingProviderProperties,
-            Self::MissingAnchor { .. } => LintKind::RequireAnchorProvider,
-            Self::MissingContainer { .. } => LintKind::RequireContainerProvider,
-            Self::MissingRefAncestor { .. } => LintKind::ValidRefAncestry,
-            Self::UnattachedRefScope { .. } => LintKind::UnattachedRefScope,
-            Self::RefOutsideScope { .. } => LintKind::RefInScope,
-            Self::TargetOutsideRefScope { .. } => LintKind::TargetInRefScope,
             Self::PreferTypedRelationships { .. } => LintKind::PreferTypedRelationships,
             Self::DocumentScopedSelector { .. } => LintKind::RequireElementScope,
             Self::MissingViewTransitionName => LintKind::RequireViewTransitionName,
@@ -208,7 +152,6 @@ impl LintDiagnostic {
             Self::SplitViewTransitionClasses => LintKind::SingleViewTransitionClass,
             Self::AmbiguousBaseOrder { .. } => LintKind::AmbiguousBaseOrder,
             Self::ImportedBaseInterference { .. } => LintKind::ImportedBaseInterference,
-            Self::RejectedIdentifier { .. } => LintKind::RejectedIdentifier,
             Self::UnresolvedUtility { classification, .. }
             | Self::UnresolvedCandidate { classification, .. }
             | Self::InvalidCandidateCss { classification, .. } => classification.lint_kind(),

@@ -118,7 +118,7 @@ mod tests {
         );
 
         let finding = LintFinding::new(
-            LintDiagnostic::MissingAnchor {
+            LintDiagnostic::MissingRefAttachment {
                 name: "対象".into(),
             },
             span,
@@ -126,12 +126,12 @@ mod tests {
         let json = serde_json::to_string(&finding).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
-        assert_eq!(finding.code(), "require-anchor-provider");
-        assert_eq!(value["diagnostic"]["missingAnchor"]["name"], "対象");
+        assert_eq!(finding.code(), "require-ref-attachment");
+        assert_eq!(value["diagnostic"]["missingRefAttachment"]["name"], "対象");
         assert!(value.get("kind").is_none());
         assert_eq!(
             finding.to_string(),
-            "ref `対象` uses position without an asAnchor() provider"
+            "ref `対象` provider has no matching marker attachment in this style() call"
         );
     }
 

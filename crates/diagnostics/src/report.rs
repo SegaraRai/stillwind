@@ -524,7 +524,7 @@ mod tests {
         let first = document(&mut sources, "untitled:main", "a😀\r\nβ");
         let second = document(&mut sources, "untitled:other", "xy");
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingRefAttachment { name: "x".into() }),
             range(&sources, &first, 7, 9),
         );
         finding.related.push(LocatedLabel {
@@ -596,23 +596,23 @@ mod tests {
         let source = document(
             &mut sources,
             "untitled:lint",
-            "// swlint-disable-next-line require-anchor-provider\nx",
+            "// swlint-disable-next-line require-ref-attachment\nx",
         );
         let start = u32::try_from(source.text().len() - 1).unwrap();
         let finding = || {
             LocatedDiagnostic::new(
-                DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
+                DiagnosticCause::Lint(LintDiagnostic::MissingRefAttachment { name: "x".into() }),
                 range(&sources, &source, start, start + 1),
             )
         };
-        let kind = LintKind::RequireAnchorProvider;
+        let kind = LintKind::RequireRefAttachment;
         let mut reporter = Reporter::new(LintSettings::default());
         reporter.report(&finding()).unwrap();
         assert!(reporter.finish().diagnostics.is_empty());
         let plain = document(&mut sources, "untitled:plain", "x");
         let finding = || {
             LocatedDiagnostic::new(
-                DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
+                DiagnosticCause::Lint(LintDiagnostic::MissingRefAttachment { name: "x".into() }),
                 range(&sources, &plain, 0, 1),
             )
         };
@@ -641,7 +641,7 @@ mod tests {
         let source = document(&mut sources, "untitled:same", "abc");
         let changed = document(&mut sources, "untitled:same", "xyz");
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingRefAttachment { name: "x".into() }),
             range(&sources, &source, 0, 1),
         );
         finding.actions.push(FixAction {
@@ -663,7 +663,7 @@ mod tests {
             Err(ReportError::InvalidAction(_))
         ));
         let mut finding = LocatedDiagnostic::new(
-            DiagnosticCause::Lint(LintDiagnostic::MissingAnchor { name: "x".into() }),
+            DiagnosticCause::Lint(LintDiagnostic::MissingRefAttachment { name: "x".into() }),
             range(&sources, &source, 0, 1),
         );
         finding.actions.push(FixAction {

@@ -1,10 +1,9 @@
 //! The main AST visit that turns a program into [`stillwind_ir::ModuleIr`] and a
 //! summary.
 //!
-//! The visit records four kinds of fact: module structure (imports, re-exports,
+//! The visit records module structure (imports, re-exports,
 //! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! keyframes, view transitions), `style()` call sites, and the JSX ancestry of each
-//! visited element so ref ancestry and boundary containment can be checked later.
+//! keyframes, view transitions), and `style()` call sites.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
 //! [`ImportBinding`], because an import declaration is the only construct that can
@@ -13,7 +12,7 @@
 use oxc::ast::ast::{
     Argument, BindingPattern, CallExpression, Declaration, ExportAllDeclaration, ExportDeclaration,
     ExportFromDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration,
-    ImportDeclarationSpecifier, JSXElement, ModuleExportName, VariableDeclarator,
+    ImportDeclarationSpecifier, ModuleExportName, VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
 
@@ -30,18 +29,6 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_expression(&mut self, expression: &Expression<'a>) {
         self.report_unconsumed_expression(expression);
         walk::walk_expression(self, expression);
-    }
-
-    /// Tracks the JSX ancestor path and gives each element a stable index.
-    ///
-    /// Path indices are assigned in visit order, so a sibling comparison later uses the
-    /// same numbering the path was recorded with.
-    fn visit_jsx_element(&mut self, element: &JSXElement<'a>) {
-        let element_id = self.next_jsx_element;
-        self.next_jsx_element += 1;
-        self.jsx_path.push(element_id);
-        walk::walk_jsx_element(self, element);
-        self.jsx_path.pop();
     }
 
     /// Records module specifiers, macro imports and ordinary import bindings.

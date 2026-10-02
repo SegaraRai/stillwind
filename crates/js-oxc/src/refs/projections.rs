@@ -4,42 +4,20 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
-use stillwind_ir::{
-    AnchorScope, RefCondition, RefDefinition, RefProjection, RuleExpression, StyleInput,
-};
+use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
 use stillwind_semantic::IdentityId;
 use stillwind_source::Span;
 
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
-/// How a ref is used, so validation can check its provider, attachment, and ancestry.
+/// Whether a recorded use supplies a marker or requires one on its target.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum RefUseKind {
     /// `ref` itself.
     Marker,
-    /// `ref("hover:")` and `` ref`hover:` `` variants.
-    SelectorVariant,
-    /// A ref supplied as an element condition to `.in()`.
-    ScopeOperand,
-    /// `ref.asAnchor(...)`.
-    AsAnchor,
-    /// `ref.asContainer(...)`.
-    AsContainer,
-    /// `ref.positionAnchor()`.
-    PositionAnchor,
-    /// `ref.at(...)` variant.
-    ContainerQueryVariant,
-}
-
-impl<'a> From<&'a RefProjection> for RefUseKind {
-    fn from(value: &'a RefProjection) -> Self {
-        match value {
-            RefProjection::AsAnchor(_) => RefUseKind::AsAnchor,
-            RefProjection::AsContainer(_) => RefUseKind::AsContainer,
-            RefProjection::PositionAnchor => RefUseKind::PositionAnchor,
-        }
-    }
+    /// `ref.asAnchor(...)` or `ref.asContainer(...)`.
+    Provider,
 }
 
 /// A ref use linked to its declaration for validation within this module.
@@ -53,10 +31,6 @@ pub(crate) struct RefUse {
     pub(crate) projection: RefUseKind,
     /// Whole use expression in the current AST buffer.
     pub(crate) span: Span,
-    /// JSX ancestor path of the use, when it appeared inside JSX.
-    pub(crate) jsx_path: Option<Vec<usize>>,
-    /// Shared scope conditions for this selector use. Other uses leave this empty.
-    pub(crate) scopes: Vec<RefCondition>,
 }
 
 impl<'a> MacroExtractor<'a> {
@@ -145,9 +119,13 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
-        let kind = (&projection).into();
-        for definition in &refs {
-            self.record_ref_use(definition, kind, span);
+        if matches!(
+            projection,
+            RefProjection::AsAnchor(_) | RefProjection::AsContainer(_)
+        ) {
+            for definition in &refs {
+                self.record_ref_use(definition, RefUseKind::Provider, span);
+            }
         }
         let value = self.source_span(receiver.span());
         Some(StyleInput::Class(
@@ -284,8 +262,8 @@ impl<'a> MacroExtractor<'a> {
     /// `projection` describes how the ref is used. `span` covers the use expression in
     /// the current AST buffer.
     ///
-    /// The record keeps the declaration's original identity and a copy of the current
-    /// JSX path. Repeated occurrences get separate records.
+    /// The record keeps the declaration's original identity. Repeated occurrences get
+    /// separate records.
     pub(crate) fn record_ref_use(
         &mut self,
         definition: &RefDefinition,
@@ -297,8 +275,6 @@ impl<'a> MacroExtractor<'a> {
             identity: self.ref_identity(definition),
             projection,
             span,
-            jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
-            scopes: Vec::new(),
         });
     }
 }

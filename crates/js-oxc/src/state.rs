@@ -62,8 +62,6 @@ impl<'a> MacroExtractor<'a> {
             style_calls: Vec::new(),
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
-            jsx_path: Vec::new(),
-            next_jsx_element: 0,
             imports: Vec::new(),
             consumed_macro_uses: Vec::new(),
             module_specifiers: Vec::new(),
@@ -225,8 +223,7 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_symbols: HashSet<SymbolId>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
-    /// Every ref use, in source order, used for ancestry validation. An attachment also
-    /// supplies a containing element for shared scope conditions.
+    /// Marker and provider uses in source order, matched within each style call.
     pub(crate) ref_uses: Vec<RefUse>,
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,
@@ -251,10 +248,6 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) diagnostics: Vec<CompileError>,
     /// Advisory findings raised during extraction, in visit order.
     pub(crate) lint_findings: Vec<LintFinding>,
-    /// Element indices of the JSX ancestors of the node being visited.
-    pub(crate) jsx_path: Vec<usize>,
-    /// Counter that gives each visited JSX element a stable path index.
-    pub(crate) next_jsx_element: usize,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
     /// Ranges of parsed scope-only calls, used when removing their macro imports.

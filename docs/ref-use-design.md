@@ -301,7 +301,7 @@ gate、CSS variant、token 合成などに必要な経由は残し、共通 lowe
 - [LiteralContribution](../crates/compiler/src/compiler/literal.rs) は複数 transition token と name を region 内で保持する。
 - [ClassUnits](../crates/compiler/src/compiler/class_units.rs) は条件付き token の合成と CSS variant 内の slot を扱う。
 - [provider Lint](../crates/compiler/src/compiler/emission/provider_lints.rs) が供給プロパティと条件・gate を比較し、衝突する二箇所を示す。
-- [ref validation](../crates/js-oxc/src/refs/validation.rs) が attachment と provider の欠落を区別する。
+- [ref validation](../crates/js-oxc/src/refs/validation.rs) が同じ `style()` 内の provider と marker attachment を照合する。
 
 ## 旧 API からの移行
 
@@ -354,32 +354,20 @@ type ContainerTypeValue =
 
 ## 診断の契約
 
-selector scope の検査は `.in()` の使用箇所に属する。JSX で確認できる関係を使い、次の Lint を報告する。
+`require-ref-attachment` は、provider use と同じ `style()` に対応する ref marker の attachment があるかを検査する。
+`style(ref.asAnchor())` と `style(ref.asContainer())` は、同じ呼び出しに marker がなければ警告する。
+`style(ref, ref.asAnchor())` は必要な marker を供給する。
+別の `style()` が同じ JSX 要素に適用されていても、その attachment は照合しない。
 
-- `UnattachedRefScope` (`unattached-ref-scope`): 指定した scope の attachment を確認できない。
-- `RefInScope` (`ref-in-scope`): scope 要素が参照先の ref 要素を子孫として含まない。
-- `TargetInRefScope` (`target-in-ref-scope`): scope 要素が selector の対象要素を子孫として含まない。
-
-診断データでは包含関係の指定を `scope` と呼ぶ。独立した ref 宣言に `.in()` の関係を付けない。
-複数の `.in()` があれば、それぞれの scope と元の ref、対象要素を検査する。
-別コンポーネントや portal の関係を証明できない場合、任意の DOM 関係を仮定しない。
-
-provider use が要求する attachment の欠落を診断する。
-`style(ref.asAnchor())` に対して、同じ対象要素へ ref marker が供給されていないケースが該当する。
-`asContainer` も同様である。gate によりその CSS が適用されないことを利用者に伝える。
-
-consumer 側の設定漏れは別の診断である。`positionAnchor` に対する `asAnchor` の欠落、
-`ref.at` に対する `asContainer` の欠落は、attachment が存在するだけでは解消しない。
-[現行 ref validation](../crates/js-oxc/src/refs/validation.rs) にある provider 検査を新 API に合わせて更新する。
-両診断を一つの「ref がない」というメッセージへまとめない。
+composition を含む呼び出しでは、合成元が marker を供給する可能性があるため、attachment の欠落を警告しない。
+合成元を解析して attachment の有無を確認する検査は行わない。
 
 診断の実装では、次の境界を守る。
 
-- 単に同じ `style()` の引数に ref がないことだけでは欠落と断定しない。合成元の style や同じ対象要素への供給も考慮する。
 - gate が一致しない分岐を許容する。動的 attachment の全分岐で各 provider が有効であることは要求しない。
-- alias と有限候補を ref identity で照合する。異なる JSX 要素に同名 ref が登場することだけでは attachment の証拠にならない。
-- 別モジュールや実行時 DOM の関係を証明できない場合、確認できる範囲を超えた断定をしない。
+- alias と有限候補を ref identity で照合する。
 - `style.anchorScope` は receiver の attachment を要求しない。
+- selector と scope の DOM 包含関係、および consumer に必要な provider の存在は静的に検査しない。
 
 ## 出力順の設計
 
@@ -408,7 +396,7 @@ consumer 側の設定漏れは別の診断である。`positionAnchor` に対す
 - view transition の動的 key と、同時に有効な複数 class token の合成を保存する。
 - scope の省略と none、container-type の省略と normal を区別し、動的 scope の全候補を保持する。
 - provider gate、consumer と scope-only use の gate 不要性、排他的 provider と同時供給の競合を検証する。
-- attachment の欠落と consumer に対する provider の欠落を区別して診断する。
+- provider と同じ `style()` 内の marker attachment を照合し、composition を含む場合は欠落の警告を抑制する。
 - selector scope の状態、繰り返す `.in()` の AND 条件と順序の非依存性、raw ref の `.at()` との明示合成を検証する。
 - scope operand に入れ子の `.in()` / `.at()` を受け付けず、call/tag を保存して使う入力を拒否する。
 - utility と provider use の衝突警告を、静的・動的・条件付き・CSS variant 付きの各経路で検証する。

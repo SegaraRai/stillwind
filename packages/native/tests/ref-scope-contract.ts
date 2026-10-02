@@ -85,43 +85,29 @@ export const props = style({
     );
   });
 
-  test("scope ancestry lints use the configured rule names and levels", async () => {
-    const selector = "<span {...style({[trigger('hover').in(menu)]: 'accent'})} />";
-    for (const [rule, jsx] of [
-      ["unattached-ref-scope", `<section><button {...style(trigger)} />${selector}</section>`],
-      [
-        "ref-in-scope",
-        `<section><button {...style(trigger)} /><div {...style(menu)}>${selector}</div></section>`,
-      ],
-      [
-        "target-in-ref-scope",
-        `<section><div {...style(menu)}><button {...style(trigger)} /></div>${selector}</section>`,
-      ],
-    ]) {
-      for (const severity of ["warn", "deny", "off"]) {
-        const output = await compile(
-          `export function Example() { return ${jsx}; }`,
-          `${theme}\n@stillwind { ${rule}: ${severity}; }`,
-        );
-        expect(output.diagnostics).toStrictEqual([]);
-        expect(output.lintSettings[rule]).toBe(severity);
-        const findings = output.lintFindings.filter(
-          (finding: { rule: string }) => finding.rule === rule,
-        );
-        expect(findings).toHaveLength(severity === "off" ? 0 : 1);
-        if (severity !== "off") {
-          expect(
-            output.reports.some(
-              (report: { severity: string }) =>
-                report.severity === (severity === "deny" ? "error" : "warning"),
-            ),
-          ).toBe(true);
-        }
+  test("provider attachment findings honor configured reporting levels", async () => {
+    const rule = "require-ref-attachment";
+    for (const severity of ["warn", "deny", "off"]) {
+      const output = await compile(
+        "export const props = style(menu.asAnchor());",
+        `${theme}\n@stillwind { ${rule}: ${severity}; }`,
+      );
+      expect(output.diagnostics).toStrictEqual([]);
+      expect(output.lintSettings[rule]).toBe(severity);
+      const findings = output.lintFindings.filter(
+        (finding: { rule: string }) => finding.rule === rule,
+      );
+      expect(findings).toHaveLength(severity === "off" ? 0 : 1);
+      if (severity !== "off") {
+        expect(
+          output.reports.some(
+            (report: { severity: string }) =>
+              report.severity === (severity === "deny" ? "error" : "warning"),
+          ),
+        ).toBe(true);
       }
     }
-    const valid = await compile(`export function Example() {
-  return <section {...style(menu)}><button {...style(trigger)} />${selector}</section>;
-}`);
+    const valid = await compile("export const props = style(menu, menu.asAnchor());");
     expect(valid.diagnostics).toStrictEqual([]);
     expect(valid.lintFindings).toStrictEqual([]);
   });

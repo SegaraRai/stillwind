@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
         let directives = collect_lint_directives(
-            "'// swlint-disable fake'\n// swlint-disable-next-line require-anchor-provider,require-container-provider -- reason\nx\n/* swlint-enable require-anchor-provider */",
+            "'// swlint-disable fake'\n// swlint-disable-next-line require-ref-attachment,valid-anchor-scope -- reason\nx\n/* swlint-enable require-ref-attachment */",
         );
         assert_eq!(directives.len(), 2);
         assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
@@ -245,11 +245,7 @@ mod tests {
         assert_eq!(
             directives[0].rules,
             LintDirectiveRules::Named(
-                [
-                    LintKind::RequireAnchorProvider,
-                    LintKind::RequireContainerProvider
-                ]
-                .into()
+                [LintKind::RequireRefAttachment, LintKind::ValidAnchorScope].into()
             )
         );
         assert_eq!(directives[1].kind, LintDirectiveKind::Enable);
@@ -267,7 +263,7 @@ mod tests {
             let start = u32::try_from(source.text().find('x').unwrap()).unwrap();
             let span = Span::new(FileId(1), start, start + 1);
             let mut findings = vec![LintFinding::new(
-                LintDiagnostic::MissingAnchor { name: "x".into() },
+                LintDiagnostic::MissingRefAttachment { name: "x".into() },
                 span,
             )];
             let directives = collect_lint_directives(source.text());
@@ -279,11 +275,11 @@ mod tests {
             assert_eq!(findings.len(), 1);
         }
         let directives = collect_lint_directives(
-            "// swlint-disable unknown-rule,require-anchor-provider\n// swlint-enable unknown-rule,*",
+            "// swlint-disable unknown-rule,require-ref-attachment\n// swlint-enable unknown-rule,*",
         );
         assert_eq!(
             directives[0].rules,
-            LintDirectiveRules::Named([LintKind::RequireAnchorProvider].into())
+            LintDirectiveRules::Named([LintKind::RequireRefAttachment].into())
         );
         assert_eq!(directives[1].rules, LintDirectiveRules::All);
     }
@@ -294,28 +290,28 @@ mod tests {
             FileId(1),
             None,
             None,
-            "// swlint-disable-next-line require-anchor-provider\nx\ny",
+            "// swlint-disable-next-line require-ref-attachment\nx\ny",
         )
         .unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![
             LintFinding::new(
-                LintDiagnostic::MissingAnchor { name: "x".into() },
+                LintDiagnostic::MissingRefAttachment { name: "x".into() },
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
-                LintDiagnostic::MissingContainer { name: "x".into() },
+                LintDiagnostic::AnchorScopeList { detail: "x".into() },
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
-                LintDiagnostic::MissingAnchor { name: "x".into() },
+                LintDiagnostic::MissingRefAttachment { name: "x".into() },
                 Span::new(FileId(1), x + 2, x + 3),
             ),
         ];
         filter_lint_findings(&source, &mut findings);
         assert_eq!(
             findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
-            vec!["require-container-provider", "require-anchor-provider"]
+            vec!["valid-anchor-scope", "require-ref-attachment"]
         );
     }
 
@@ -323,23 +319,23 @@ mod tests {
     fn disable_enable_and_same_line_directives_have_bounded_effects() {
         for (text, expected) in [
             (
-                "// swlint-disable require-anchor-provider\nx\n// swlint-enable require-anchor-provider\ny",
+                "// swlint-disable require-ref-attachment\nx\n// swlint-enable require-ref-attachment\ny",
                 vec![
-                    "require-container-provider",
-                    "require-anchor-provider",
-                    "require-container-provider",
+                    "valid-anchor-scope",
+                    "require-ref-attachment",
+                    "valid-anchor-scope",
                 ],
             ),
             (
                 "// swlint-disable *\nx\n// swlint-enable\ny",
-                vec!["require-anchor-provider", "require-container-provider"],
+                vec!["require-ref-attachment", "valid-anchor-scope"],
             ),
             (
-                "x // swlint-disable-line require-anchor-provider\ny",
+                "x // swlint-disable-line require-ref-attachment\ny",
                 vec![
-                    "require-container-provider",
-                    "require-anchor-provider",
-                    "require-container-provider",
+                    "valid-anchor-scope",
+                    "require-ref-attachment",
+                    "valid-anchor-scope",
                 ],
             ),
         ] {
@@ -348,12 +344,12 @@ mod tests {
                 .into_iter()
                 .flat_map(|c| {
                     let start = u32::try_from(text.find(c).unwrap()).unwrap();
-                    ["require-anchor-provider", "require-container-provider"].map(|rule| {
+                    ["require-ref-attachment", "valid-anchor-scope"].map(|rule| {
                         LintFinding::new(
-                            if rule == "require-anchor-provider" {
-                                LintDiagnostic::MissingAnchor { name: "x".into() }
+                            if rule == "require-ref-attachment" {
+                                LintDiagnostic::MissingRefAttachment { name: "x".into() }
                             } else {
-                                LintDiagnostic::MissingContainer { name: "x".into() }
+                                LintDiagnostic::AnchorScopeList { detail: "x".into() }
                             },
                             Span::new(FileId(1), start, start + 1),
                         )
@@ -377,20 +373,22 @@ mod tests {
             FileId(1),
             None,
             None,
-            "// swlint-disable-next-line require-anchor-provider\nx\ny",
+            "// swlint-disable-next-line require-ref-attachment\nx\ny",
         )
         .unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let primary = Span::new(source.id(), x, x + 1);
         let secondary = Span::new(source.id(), x + 2, x + 3);
-        let mut suppressed =
-            LintFinding::new(LintDiagnostic::MissingAnchor { name: "a".into() }, primary);
+        let mut suppressed = LintFinding::new(
+            LintDiagnostic::MissingRefAttachment { name: "a".into() },
+            primary,
+        );
         suppressed.labels.push(Label {
             span: secondary,
             message: None,
         });
         let retained = LintFinding::new(
-            LintDiagnostic::MissingContainer { name: "a".into() },
+            LintDiagnostic::AnchorScopeList { detail: "a".into() },
             primary,
         );
         let mut findings = vec![suppressed, retained.clone()];

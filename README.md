@@ -199,15 +199,14 @@ token vocabulary for editor completion.
 Tailwind's `container` / `@container`, `group`, and `peer` spellings are accepted
 for migration compatibility, including named markers and responsive container
 variants. Stillwind's `style.ref()` declares independent element identities, and
-`ref("hover").in(parent)` constrains a selector at its use site. These local
-relationships can be checked structurally.
+`ref("hover").in(parent)` constrains a selector at its use site.
 Projects that want to enforce that model can set
 `forbidTailwindRelationships: true` in the Vite plugin options; compatibility
-syntax then emits the blocking `SHLINT001` diagnostic.
+syntax then emits the `prefer-typed-relationships` lint finding.
 
-The JSX linter checks ref selectors, scope ancestry, and container providers whenever
-both sides are visible in the same JSX tree. It deliberately does not infer
-relationships across component boundaries, `children`, or portals. Vue, Svelte,
+Ref provider checks match marker attachments within the same `style()` call.
+Calls that contain composition suppress missing-attachment warnings because a
+base may supply the marker. Vue, Svelte,
 Astro, a full formatter, and full Tailwind candidate compatibility remain
 separate frontend/grammar work.
 

@@ -7,7 +7,6 @@
 //! selector.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::LintDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -300,32 +299,5 @@ const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } }
         result.css.contains_css("animation-duration:120ms;"),
         "{}",
         result.css
-    );
-}
-
-#[test]
-fn an_inline_scoped_ref_keeps_the_ancestry_check() {
-    let source = SourceFile::new(FileId(1), None, None, r#"import {style} from "stillwind/react";
-const menu = style.ref("menu");
-const trigger = style.ref("trigger");
-export const View = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style(`${trigger`hover`.in(menu)}:text-accent`)} /></>;"#).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-    assert!(
-        result.lint_findings.iter().any(|finding| matches!(
-            finding.diagnostic,
-            LintDiagnostic::TargetOutsideRefScope { .. }
-        )),
-        "{:?}",
-        result.lint_findings
     );
 }

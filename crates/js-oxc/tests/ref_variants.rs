@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintKind};
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleIr, RefCondition, RuleExpression, ScriptLanguage,
     ScriptModuleKind, StyleInput, StyleVariant,
@@ -423,74 +423,5 @@ fn container_queries_and_projections_cannot_supply_ref_variant_receivers_or_scop
             "{expression}: {:?}",
             parsed.diagnostics
         );
-    }
-}
-
-#[test]
-fn scope_lints_report_the_reference_and_required_scope() {
-    for (view, expected, kind) in [
-        (
-            "const x=style({[item().in(parent)]: 'block'});",
-            LintDiagnostic::UnattachedRefScope {
-                name: "item".into(),
-                scope: "parent".into(),
-            },
-            LintKind::UnattachedRefScope,
-        ),
-        (
-            "const View=()=> <><section {...style(parent)}><span {...style({[item().in(parent)]: 'block'})}/></section><button {...style(item)}/></>;",
-            LintDiagnostic::RefOutsideScope {
-                name: "item".into(),
-                scope: "parent".into(),
-            },
-            LintKind::RefInScope,
-        ),
-        (
-            "const View=()=> <><section {...style(parent)}><button {...style(item)}/></section><span {...style({[item().in(parent)]: 'block'})}/></>;",
-            LintDiagnostic::TargetOutsideRefScope {
-                name: "item".into(),
-                scope: "parent".into(),
-            },
-            LintKind::TargetInRefScope,
-        ),
-        (
-            "const View=()=> <section {...style(parent, {[item().in(parent)]: 'block'})}><button {...style(item)}/></section>;",
-            LintDiagnostic::TargetOutsideRefScope {
-                name: "item".into(),
-                scope: "parent".into(),
-            },
-            LintKind::TargetInRefScope,
-        ),
-        (
-            "const View=()=> <><section {...style(parent)}><button {...style(item)}/></section><section {...style(parent)}><span {...style({[item().in(parent)]: 'block'})}/></section></>;",
-            LintDiagnostic::RefOutsideScope {
-                name: "item".into(),
-                scope: "parent".into(),
-            },
-            LintKind::RefInScope,
-        ),
-    ] {
-        let source = SourceFile::new(FileId(1), None, None, format!(
-            "import {{style}} from 'stillwind/react'; const parent=style.ref(); const item=style.ref(); {view}"
-        )).unwrap();
-        let parsed = parse(
-            &source,
-            &ModuleId::from("test.tsx"),
-            &[],
-            &BTreeMap::new(),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous,
-        );
-        assert!(
-            parsed.diagnostics.is_empty(),
-            "{view}: {:?}",
-            parsed.diagnostics
-        );
-        let finding = parsed
-            .lint_findings
-            .iter()
-            .find(|finding| finding.diagnostic == expected)
-            .unwrap_or_else(|| panic!("{view}: {:?}", parsed.lint_findings));
-        assert_eq!(finding.diagnostic.kind(), kind);
     }
 }

@@ -202,7 +202,7 @@ This is the boundary that keeps future framework support sane:
 
 | File type                    | Initial parser              | What it contributes                             |
 | ---------------------------- | --------------------------- | ----------------------------------------------- |
-| `.js`, `.ts`, `.jsx`, `.tsx` | Oxc                         | macro calls, bindings, JSX ancestry facts       |
+| `.js`, `.ts`, `.jsx`, `.tsx` | Oxc                         | macro calls, bindings, asset uses               |
 | `.vue`                       | Vue compiler/parser adapter | script calls plus template placement facts      |
 | `.svelte`                    | Svelte parser adapter       | script calls plus template placement facts      |
 | `.astro`                     | Astro parser adapter        | frontmatter calls plus template placement facts |
@@ -504,10 +504,7 @@ Initial checks:
 - unknown utility, token, variant, breakpoint, attribute state, or selector
   pseudo;
 - invalid animation keyframe frame or animation option;
-- invalid ref projection (`position` without a corresponding `anchor`,
-  `at()` without `container()`);
-- scope attachment that is missing, or cannot contain the referenced element or target;
-- selector relationship impossible in locally visible JSX/template ancestry;
+- a ref provider whose style call supplies no matching marker attachment;
 - a static view transition used in a repeated render;
 - duplicate or contradictory declarations at the same selector/guard level;
 

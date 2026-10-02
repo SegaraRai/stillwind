@@ -2,11 +2,9 @@
 //!
 //! Pins that one declaration projects into anchor, position-anchor, anchor-scope, and
 //! container names sharing one identity, that named container queries emit rules for
-//! the ref's target, that scope refs get readable marker names, and that a selector
-//! which cannot hold the required ancestry is rejected.
+//! the ref's target, and that scope refs get readable marker names.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::LintDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -179,39 +177,6 @@ const panel = style(popover.positionAnchor(), "absolute");"#,
     );
     assert!(!transformed.contains("(popover).c"), "{transformed}");
     assert!(!transformed.contains("})[(popover).c]"), "{transformed}");
-}
-
-#[test]
-fn reports_a_position_anchor_use_without_an_anchor_provider() {
-    let component = SourceFile::new(
-        FileId(1),
-        None,
-        None,
-        r#"import { style } from "stillwind/react";
-const popover = style.ref();
-const panel = style(popover.positionAnchor());"#,
-    )
-    .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
-
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-
-    assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|item| matches!(item.diagnostic, LintDiagnostic::MissingAnchor { .. }))
-    );
-    assert!(!result.css.is_empty());
 }
 
 #[test]
@@ -426,73 +391,6 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
         result.css
     );
     assert!(result.css.contains(":hover)) *)"), "{}", result.css);
-}
-
-#[test]
-fn reports_a_selector_target_outside_its_ref_scope() {
-    let component = SourceFile::new(
-        FileId(1), None, None,
-        r#"import { style } from "stillwind/react";
-const menu = style.ref();
-const trigger = style.ref();
-export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`.in(menu)]: "text-accent" })} /></>;"#,
-    ).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
-
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-
-    assert!(
-        result.lint_findings.iter().any(|item| matches!(
-            item.diagnostic,
-            LintDiagnostic::TargetOutsideRefScope { .. }
-        )),
-        "{:#?}",
-        result.lint_findings
-    );
-}
-
-#[test]
-fn reports_a_ref_outside_its_selector_scope() {
-    let component = SourceFile::new(
-        FileId(1),
-        None,
-        None,
-        r#"import { style } from "stillwind/react";
-const menu = style.ref();
-const trigger = style.ref();
-export const Menu = () => <><section {...style(menu)}><span {...style({[trigger().in(menu)]: "block"})} /></section><button {...style(trigger)} /></>;"#,
-    )
-    .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
-
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-
-    assert!(
-        result
-            .lint_findings
-            .iter()
-            .any(|item| matches!(item.diagnostic, LintDiagnostic::RefOutsideScope { .. })),
-        "{:#?}",
-        result.lint_findings
-    );
 }
 
 #[test]

@@ -262,7 +262,7 @@ crates/js-oxc/src/
 - motion/mod.rs
 - motion/keyframes.rs        → animation.rs
 - motion/view_transition.rs  → view_transition.rs
-  refs/                        変更なし。ref は projection と JSX 祖先検証を共有する
+  refs/                        ref の projection と同じ style 呼び出し内の marker attachment 検査を扱う
 ```
 
 ## 5. 意味の変更を伴う項目（移動とは別コミット）
