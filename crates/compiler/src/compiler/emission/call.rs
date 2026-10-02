@@ -10,7 +10,7 @@ use stillwind_ir::{
     AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
     GroupEntry, StyleInput,
 };
-use stillwind_semantic::AssetKind;
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{SourceError, Span};
 
 use super::super::class_units::ClassUnits;
@@ -21,8 +21,11 @@ use super::CallEmitter;
 use super::CallEmitterInputs;
 use super::class_value::expression_position;
 use super::ref_projection::ref_class_read;
-use super::view_transition::TransitionNamePaths;
 use crate::generated::Code;
+use crate::style_analysis::{
+    DeclarationValue, RuleContext, RuleSubject, StyleEffect, StyleEffects, StyleSupply, SupplyKind,
+    UseId,
+};
 
 impl<'a> CallEmitter<'a> {
     /// Lowers one analyzed call into finalized class units and ordered contributions.
@@ -57,10 +60,7 @@ impl<'a> CallEmitter<'a> {
                 inputs.emitted_utility_classes,
             ),
             written_name_symbols: Vec::new(),
-            property_writes: Vec::new(),
-            attachment_sets: Vec::new(),
-            view_transition_classes: false,
-            view_transition_name_paths: TransitionNamePaths::default(),
+            style_effects: Vec::new(),
         };
         emitter.emit()
     }
@@ -71,18 +71,53 @@ impl<'a> CallEmitter<'a> {
         for input in self.call.inputs.clone() {
             self.emit_input(&input, &mut Vec::new())?;
         }
-        self.report_view_transition_names();
-        self.report_provider_conflicts();
+        let mut style_effects = StyleEffects {
+            identity: IdentityId::new(
+                AssetKind::Style,
+                self.module_id.clone(),
+                self.call.span.start.0,
+                self.call.span.end.0,
+                "",
+            ),
+            span: self.call.span,
+            root: StyleEffect::All(std::mem::take(&mut self.style_effects)),
+        };
         let parts = std::mem::take(&mut self.parts);
         let call_span = self.call.span;
         match self.units.finish() {
-            Ok((static_names, classes)) => Some(StyleEmission {
-                static_names,
-                parts,
-                classes,
-                call_span,
-                written_name_symbols: std::mem::take(&mut self.written_name_symbols),
-            }),
+            Ok((static_names, classes, transition_list)) => {
+                if !transition_list.is_empty()
+                    && let StyleEffect::All(nodes) = &mut style_effects.root
+                {
+                    nodes.push(StyleEffect::Supply(StyleSupply {
+                        site: UseId {
+                            module: self.module_id.clone(),
+                            span: call_span,
+                        },
+                        ordinal: 0,
+                        kind: SupplyKind::Declaration {
+                            property: "view-transition-class".into(),
+                            value: DeclarationValue::Css(transition_list),
+                            important: false,
+                            context: RuleContext {
+                                selector: "&".into(),
+                                at_rules: Vec::new(),
+                                subject: RuleSubject::Target,
+                            },
+                            provider: false,
+                            gate: None,
+                        },
+                    }));
+                }
+                Some(StyleEmission {
+                    static_names,
+                    style_effects,
+                    parts,
+                    classes,
+                    call_span,
+                    written_name_symbols: std::mem::take(&mut self.written_name_symbols),
+                })
+            }
             Err(failure) => {
                 self.diagnostics.push(CompileError::new(failure, call_span));
                 None
@@ -171,7 +206,26 @@ impl<'a> CallEmitter<'a> {
                 let position = expression_position(expression);
                 self.emit_item(expression, position, guard);
             }
-            StyleInput::Composition { value, .. } => {
+            StyleInput::Composition { value, candidates } => {
+                let bases = candidates
+                    .iter()
+                    .cloned()
+                    .map(StyleEffect::Base)
+                    .collect::<Vec<_>>();
+                let effect = if bases.is_empty() {
+                    StyleEffect::All(Vec::new())
+                } else if bases.len() == 1 {
+                    bases.into_iter().next()?
+                } else {
+                    StyleEffect::Choice {
+                        site: UseId {
+                            module: self.module_id.clone(),
+                            span: *value,
+                        },
+                        alternatives: bases,
+                    }
+                };
+                self.record_effect(effect, guard);
                 let expression = self.source_expression(*value)?;
                 self.parts.push(StyleEmissionPart::Base {
                     expression,
@@ -187,8 +241,12 @@ impl<'a> CallEmitter<'a> {
                     }
                 };
                 let marker = marker.as_str().to_owned();
-                self.attachment_sets
-                    .push((vec![marker.clone()], guard.clone()));
+                self.record_supplies(
+                    *value,
+                    guard,
+                    vec![SupplyKind::Marker(ref_identity(definition))],
+                    None,
+                );
                 if !guard.is_empty() {
                     self.parts.push(StyleEmissionPart::Class {
                         emitted: Emitted::Leaf {
@@ -210,16 +268,14 @@ impl<'a> CallEmitter<'a> {
             }
             StyleInput::DynamicRefAttachment { value, refs } => {
                 self.runtime_assets.extend(refs.iter().map(ref_identity));
-                self.attachment_sets.push((
-                    refs.iter()
-                        .filter_map(|definition| {
-                            ref_marker_name(self.identifiers, definition)
-                                .ok()
-                                .map(|name| name.as_str().to_owned())
-                        })
-                        .collect(),
-                    guard.clone(),
-                ));
+                for (index, definition) in refs.iter().enumerate() {
+                    self.record_supplies(
+                        *value,
+                        guard,
+                        vec![SupplyKind::Marker(ref_identity(definition))],
+                        Some((index, refs.len())),
+                    );
+                }
                 let expression = ref_class_read(self.source_expression(*value)?);
                 self.push_expression(expression, value.start.0);
             }

@@ -714,9 +714,26 @@ impl NativeProjectSession {
             modules.push(ProjectModuleOutput::new(scan.module_id, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
-            transaction
-                .prune_sources()
+            Self::refresh_batches(&mut transaction)?;
+            let final_sources = transaction
+                .diagnostic_sources()
                 .map_err(|error| Error::from_reason(error.to_string()))?;
+            modules = attempted
+                .iter()
+                .map(|analysis| {
+                    let artifact = transaction
+                        .current_artifact(&analysis.module_id)
+                        .ok_or_else(|| {
+                            Error::from_reason("Successful compilation has no current artifact")
+                        })?;
+                    let (output, _) = binding_output_with_batch(
+                        artifact.to_module_output(&snapshot),
+                        &analysis.source,
+                        &final_sources,
+                    )?;
+                    Ok(ProjectModuleOutput::new(analysis.module_id.clone(), output))
+                })
+                .collect::<napi::Result<Vec<_>>>()?;
             self.session = transaction;
             if let Some(producer) = &producer {
                 modules.retain(|module| module.module_id == producer.as_str());
@@ -725,9 +742,7 @@ impl NativeProjectSession {
             self.session.reject_updates(attempted);
             self.session.retain_attempted_sources(&transaction);
             self.session.retain_attempted_diagnostics(&transaction);
-            self.session
-                .prune_sources()
-                .map_err(|error| Error::from_reason(error.to_string()))?;
+            Self::refresh_batches(&mut self.session)?;
         }
         Ok(ProjectBindingOutput { modules })
     }

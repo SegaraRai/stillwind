@@ -18,6 +18,7 @@ use super::CallEmitter;
 use crate::GeneratedSymbol;
 use crate::generated::Code;
 use crate::identifiers::{IdentifierContext, IdentifierPool};
+use crate::style_analysis::SupplyKind;
 
 impl CallEmitter<'_> {
     /// Builds the CSS contribution for `projection` on `definition`.
@@ -76,14 +77,20 @@ impl CallEmitter<'_> {
         fold: bool,
     ) -> Option<Emitted> {
         let contribution = self.ref_contribution(definition, projection, wrappers)?;
-        let gate = if matches!(projection, RefProjection::PositionAnchor) {
-            None
-        } else {
-            ref_marker_name(self.identifiers, definition)
-                .ok()
-                .map(|marker| marker.as_str().to_owned())
-        };
-        self.record_property_writes(&contribution, gate.is_some(), span, guard, gate.as_deref());
+        let provider = !matches!(projection, RefProjection::PositionAnchor);
+        let gate = provider.then(|| ref_identity(definition));
+        if provider {
+            self.record_supplies(
+                span,
+                guard,
+                vec![SupplyKind::Provider {
+                    reference: ref_identity(definition),
+                    name: definition.binding.value.clone(),
+                }],
+                None,
+            );
+        }
+        self.record_properties(&contribution, provider, span, guard, gate.as_ref(), None);
         self.contribute_rule(contribution, guard, fold)
     }
 
@@ -103,7 +110,7 @@ impl CallEmitter<'_> {
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
         let mut candidates = Vec::new();
-        for definition in refs {
+        for (index, definition) in refs.iter().enumerate() {
             self.runtime_assets.insert(ref_identity(definition));
             let marker = match ref_marker_name(self.identifiers, definition) {
                 Ok(marker) => marker,
@@ -114,12 +121,24 @@ impl CallEmitter<'_> {
             };
             let contribution = self.ref_contribution(definition, projection, wrappers)?;
             let provider = !matches!(projection, RefProjection::PositionAnchor);
-            self.record_property_writes(
+            if provider {
+                self.record_supplies(
+                    *value,
+                    guard,
+                    vec![SupplyKind::Provider {
+                        reference: ref_identity(definition),
+                        name: definition.binding.value.clone(),
+                    }],
+                    Some((index, refs.len())),
+                );
+            }
+            self.record_properties(
                 &contribution,
                 provider,
                 *value,
                 guard,
-                provider.then_some(marker.as_str()),
+                provider.then(|| ref_identity(definition)).as_ref(),
+                Some((index, refs.len())),
             );
             candidates.push((marker.as_str().to_owned(), contribution));
         }
@@ -154,7 +173,7 @@ impl CallEmitter<'_> {
             return None;
         }
         let contribution = rule_contribution(&plan, declaration, None);
-        self.record_property_writes(&contribution, true, span, guard, None);
+        self.record_properties(&contribution, true, span, guard, None, None);
         self.contribute_rule(contribution, guard, fold)
     }
 }
@@ -163,7 +182,7 @@ impl CallEmitter<'_> {
 /// The selector, when present, requires the receiver's marker. The function includes
 /// both strings and the variant `plan` in the canonical identity, then applies the
 /// plan to the utility. It does not allocate names.
-fn rule_contribution(
+pub(super) fn rule_contribution(
     plan: &StyleVariantPlan,
     declaration: String,
     selector: Option<String>,

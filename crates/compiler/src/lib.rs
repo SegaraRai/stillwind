@@ -16,6 +16,7 @@
 //!
 //! The module compiler executes compilation; compiled module results own edit
 //! application; module CSS artifacts own rule identity and serialization.
+//! `style_analysis` resolves composed supplies and checks their properties and markers.
 //! `generated` composes JavaScript fragments with expression provenance; `transforms`
 //! converts their source ranges to UTF-16 mappings for host source-map generation.
 
@@ -43,6 +44,7 @@ mod options;
 mod query;
 mod renderer;
 mod runtime;
+mod style_analysis;
 mod stylesheet_map;
 mod transforms;
 
@@ -72,6 +74,9 @@ pub use query::{
     CandidateHover, CandidateResolution, CompletionInput, CompletionItem, DesignSystemQuery,
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
+pub use style_analysis::{
+    StyleEffect, StyleEffects, StyleResolver, check_style, is_style_analysis_lint,
+};
 pub use stylesheet_map::{MappedStylesheet, StylesheetMapping};
 pub use transforms::{
     ExpressionMapping, ExpressionTransformMapping, RenderedSource, SourceTransform, TransformError,

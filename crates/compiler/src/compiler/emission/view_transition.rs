@@ -5,9 +5,6 @@
 //! the fragment renderer chooses framework props, while definition emission owns the
 //! transition's pseudo-element rules.
 
-use std::collections::BTreeMap;
-
-use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceError, Span};
@@ -19,53 +16,11 @@ use super::super::style_variants::StyleVariantPlan;
 use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
-
-/// Conditional name supplies used to detect competing view-transition names in one
-/// style call. Each node represents a shared guard prefix. Test identity comes from
-/// source positions, so equivalent expressions at different positions remain
-/// independent for this analysis.
-#[derive(Default)]
-pub(super) struct TransitionNamePaths {
-    /// Supplies selected by this node's prefix without any further condition.
-    count: usize,
-    /// Keys are `(inclusive start byte, exclusive end byte)` of a source test. Each
-    /// value has the falsy arm at index 0 and truthy arm at index 1.
-    branches: BTreeMap<(u32, u32), [Self; 2]>,
-}
-
-impl TransitionNamePaths {
-    /// Adds `count` name supplies under an outermost-to-innermost guard path from this call's
-    /// source. An empty path adds an unconditional supply. Repeated insertion counts
-    /// another supply, even when the path matches an existing one.
-    pub(super) fn insert(&mut self, guard: &[GuardStep], count: usize) {
-        let mut node = self;
-        for step in guard {
-            node = &mut node
-                .branches
-                .entry((step.test.start.0, step.test.end.0))
-                .or_default()[usize::from(step.when_true)];
-        }
-        node.count += count;
-    }
-
-    /// Returns a conservative upper bound on simultaneous supplies below this guard
-    /// prefix. Opposite arms of a shared test contribute their larger count. Distinct
-    /// test ranges contribute additively, without checking correlations between their
-    /// runtime values.
-    fn maximum(&self) -> usize {
-        self.count
-            + self
-                .branches
-                .values()
-                .map(|arms| arms[0].maximum().max(arms[1].maximum()))
-                .sum::<usize>()
-    }
-}
+use crate::style_analysis::DeclarationValue;
 
 impl CallEmitter<'_> {
     /// Lowers one transition use with the conditions in `guard` and variants in
-    /// `wrappers`. It records definition and runtime dependencies, and counts how many
-    /// names the use supplies. `fold` allows its rules to join the base.
+    /// `wrappers`. It records definition dependencies and the properties the use supplies. `fold` allows its rules to join the base.
     ///
     /// Returns the class expression together with any dynamic name. The name is written
     /// to inline style unless CSS wrappers require a custom property. The result can be
@@ -83,10 +38,6 @@ impl CallEmitter<'_> {
         self.required_definitions
             .insert(transition.identity.clone());
         self.runtime_assets.insert(transition.identity.clone());
-        self.view_transition_classes = true;
-        if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard, 1);
-        }
         let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
             Ok(token) => token,
             Err(failure) => {
@@ -104,6 +55,20 @@ impl CallEmitter<'_> {
         };
         let contribution =
             self.transition_contribution(token, static_name, name_property.clone(), wrappers)?;
+        let analysis_name = contribution
+            .view_transitions
+            .first()
+            .and_then(|use_| use_.name.clone())
+            .map(DeclarationValue::Css)
+            .or_else(|| runtime_name(name, name_property.as_deref()));
+        self.record_transition(
+            &transition.identity,
+            transition.span,
+            guard,
+            &contribution,
+            analysis_name.as_ref(),
+            None,
+        );
         let class = self
             .contribute_rule(contribution, guard, fold)
             .unwrap_or(Emitted::Leaf { names: Vec::new() });
@@ -117,7 +82,7 @@ impl CallEmitter<'_> {
 
     /// Lowers all possible receivers for the expression at `value`, with the conditions
     /// in `guard` and variants in `wrappers`. It records dependencies and counts the
-    /// names supplied by the use.
+    /// properties supplied by the use.
     ///
     /// The returned expression uses the receiver's `v` field to select a class and
     /// keeps any dynamic name alongside it. With one candidate, the rules may join the
@@ -135,10 +100,6 @@ impl CallEmitter<'_> {
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
-        self.view_transition_classes = true;
-        if !matches!(name, ViewTransitionName::None) {
-            self.view_transition_name_paths.insert(guard, 1);
-        }
         let name_value = self.checked_view_transition_name_value(name, None, *value)?;
         let name_property = if wrappers.is_empty() || name_value.is_none() {
             None
@@ -146,7 +107,7 @@ impl CallEmitter<'_> {
             Some(self.view_transition_name_property(value.start.0)?)
         };
         let mut candidates = Vec::new();
-        for transition in transitions {
+        for (index, transition) in transitions.iter().enumerate() {
             self.runtime_assets.insert(transition.identity.clone());
             self.required_definitions
                 .insert(transition.identity.clone());
@@ -164,6 +125,20 @@ impl CallEmitter<'_> {
                 name_property.clone(),
                 wrappers,
             )?;
+            let analysis_name = contribution
+                .view_transitions
+                .first()
+                .and_then(|use_| use_.name.clone())
+                .map(DeclarationValue::Css)
+                .or_else(|| runtime_name(name, name_property.as_deref()));
+            self.record_transition(
+                &transition.identity,
+                *value,
+                guard,
+                &contribution,
+                analysis_name.as_ref(),
+                Some((index, transitions.len())),
+            );
             candidates.push((token, contribution));
         }
         let class = self
@@ -318,29 +293,6 @@ impl CallEmitter<'_> {
             }
         }
     }
-
-    /// Reports a call whose view-transition name supply is missing or duplicated.
-    ///
-    /// Participation needs exactly one name per element, and the compiler sees only the
-    /// supplies the call itself states: a name another call, a stylesheet, or a user
-    /// inline style supplies stays invisible, so the finding is advisory rather than
-    /// fatal.
-    pub(super) fn report_view_transition_names(&mut self) {
-        // TODO: report a repeated render or an unstable key. The call alone cannot show
-        // it: a literal name inside `items.map((item) => …)` marks every element
-        // identically, so the finding needs the loop or callback the frontend sees,
-        // which the IR does not carry.
-        if !self.view_transition_classes {
-            return;
-        }
-        let kind = match self.view_transition_name_paths.maximum() {
-            0 => LintDiagnostic::MissingViewTransitionName,
-            1 => return,
-            count => LintDiagnostic::DuplicateViewTransitionName { count },
-        };
-        self.lint_findings
-            .push(LintFinding::new(kind, self.call.span));
-    }
 }
 
 /// The static name one view-transition use declares for a class token, if it declares
@@ -354,5 +306,16 @@ fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option
             Some(view_transition_name(token, key))
         }
         ViewTransitionName::None | ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)) => None,
+    }
+}
+
+fn runtime_name(name: &ViewTransitionName, slot: Option<&str>) -> Option<DeclarationValue> {
+    match name {
+        ViewTransitionName::Key(ViewTransitionKey::Dynamic(expression)) => {
+            Some(slot.map_or(DeclarationValue::Runtime(*expression), |slot| {
+                DeclarationValue::Css(format!("var({slot})"))
+            }))
+        }
+        _ => None,
     }
 }

@@ -1,46 +1,23 @@
-//! Explicit ref provider and consumer uses, finite scope lists, and recorded attachments.
+//! Explicit ref provider and consumer uses, finite scope lists,.
 
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
-use stillwind_semantic::IdentityId;
 use stillwind_source::Span;
 
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
-
-/// Whether a recorded use supplies a marker or requires one on its target.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum RefUseKind {
-    /// `ref` itself.
-    Marker,
-    /// `ref.asAnchor(...)` or `ref.asContainer(...)`.
-    Provider,
-}
-
-/// A ref use linked to its declaration for validation within this module.
-#[derive(Clone, Debug)]
-pub(crate) struct RefUse {
-    /// The binding name at the declaration, used in diagnostics.
-    pub(crate) name: String,
-    /// Declaration-site identity in original UTF-8 coordinates.
-    pub(crate) identity: IdentityId,
-    /// Use kind.
-    pub(crate) projection: RefUseKind,
-    /// Whole use expression in the current AST buffer.
-    pub(crate) span: Span,
-}
 
 impl<'a> MacroExtractor<'a> {
     /// Parses an expression into a ref rule. The caller must pass an expression from
     /// a supported style input position.
     ///
     /// The parser resolves receivers and scope members to finite sets of declarations.
-    /// It records uses and checker probes, and marks recognized syntax as consumed
-    /// before validating its arguments. Successful scope-only calls also record the
-    /// ranges needed to remove their macro imports.
+    /// It records checker probes, and marks recognized syntax as consumed before
+    /// validating its arguments. Successful scope-only calls also record the ranges
+    /// needed to remove their macro imports.
     ///
     /// Returns `None` for unrelated syntax or invalid uses. An invalid use adds a
     /// diagnostic. The extractor may have changed even when the result is `None`.
@@ -119,14 +96,6 @@ impl<'a> MacroExtractor<'a> {
             ));
             return None;
         };
-        if matches!(
-            projection,
-            RefProjection::AsAnchor(_) | RefProjection::AsContainer(_)
-        ) {
-            for definition in &refs {
-                self.record_ref_use(definition, RefUseKind::Provider, span);
-            }
-        }
         let value = self.source_span(receiver.span());
         Some(StyleInput::Class(
             if let [definition] = refs.as_slice() {
@@ -256,26 +225,6 @@ impl<'a> MacroExtractor<'a> {
                 None
             }
         }
-    }
-
-    /// Records a use of `definition` for later validation in this module.
-    /// `projection` describes how the ref is used. `span` covers the use expression in
-    /// the current AST buffer.
-    ///
-    /// The record keeps the declaration's original identity. Repeated occurrences get
-    /// separate records.
-    pub(crate) fn record_ref_use(
-        &mut self,
-        definition: &RefDefinition,
-        projection: RefUseKind,
-        span: Span,
-    ) {
-        self.ref_uses.push(RefUse {
-            name: definition.binding.value.clone(),
-            identity: self.ref_identity(definition),
-            projection,
-            span,
-        });
     }
 }
 

@@ -15,8 +15,7 @@ use std::collections::BTreeSet;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, filter_lint_findings};
 use stillwind_ir::{
-    ModuleAnalysis, composition_dependencies, ordered_style_calls, split_view_transition_classes,
-    validate_composition,
+    ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -39,7 +38,7 @@ use super::{Compiler, CssContribution};
 use crate::identifiers::IdentifierContext;
 use crate::runtime::{RuntimeBindings, encode_projected_edits};
 use crate::transforms::SourceTransform;
-use crate::{CompilerOptions, GeneratedSymbol, SymbolOrigin};
+use crate::{CompilerOptions, GeneratedSymbol, StyleResolver, SymbolOrigin, check_style};
 
 impl Compiler {
     /// Compiles a module that owns source edits, including its runtime imports.
@@ -118,9 +117,6 @@ impl Compiler {
         result.lint_settings.clone_from(&theme.config.lint_settings);
         filter_lint_findings(source, &mut result.lint_findings);
         result
-            .lint_findings
-            .extend(split_view_transition_classes(parsed));
-        result
             .diagnostics
             .extend(validate_composition(&[parsed], source.full_span(), false));
 
@@ -197,6 +193,7 @@ impl Compiler {
             }) else {
                 continue;
             };
+            result.style_effects.push(emission.style_effects.clone());
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
             let replacement = render_style_call(&emission, module.adapter.spec(), &mut runtime);
@@ -378,6 +375,16 @@ impl Compiler {
             symbol.name = options.rewrite_generated(&symbol.name);
         }
 
+        if result.diagnostics.is_empty() {
+            let mut resolver = StyleResolver::new(&result.style_effects);
+            for effects in &result.style_effects {
+                if let Some(style) = resolver.resolve(&effects.identity) {
+                    result.lint_findings.extend(check_style(&style));
+                }
+            }
+        } else {
+            result.style_effects.clear();
+        }
         filter_lint_findings(source, &mut result.lint_findings);
 
         result

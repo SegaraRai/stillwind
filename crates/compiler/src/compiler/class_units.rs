@@ -62,15 +62,7 @@ impl ViewTransitionClassUnit {
     /// Its own classes come first and each slot follows as a `var()` reference with an empty
     /// fallback, so a slot no unit filled contributes nothing to the resolved list.
     fn class_rules(&self, selector: &str, slots: &[String]) -> String {
-        let mut list = self.classes.join(" ");
-        for slot in slots {
-            if !list.is_empty() {
-                list.push(' ');
-            }
-            list.push_str("var(");
-            list.push_str(slot);
-            list.push_str(",)");
-        }
+        let list = self.class_value(slots);
         let mut css = String::new();
         if !list.is_empty() {
             css.push_str(selector);
@@ -80,6 +72,20 @@ impl ViewTransitionClassUnit {
         }
         css.push_str(&self.name_rules(selector));
         css
+    }
+
+    /// Returns the token list and slot references written by this class unit.
+    fn class_value(&self, slots: &[String]) -> String {
+        let mut list = self.classes.join(" ");
+        for slot in slots {
+            if !list.is_empty() {
+                list.push(' ');
+            }
+            list.push_str("var(");
+            list.push_str(slot);
+            list.push_str(",)");
+        }
+        list
     }
 
     /// The static view-transition-name declarations this unit writes.
@@ -261,7 +267,9 @@ impl<'a> ClassUnits<'a> {
     /// Leaves are published in traversal order. Transition slots can require a base
     /// class even when there are no ordinary base utilities.
     ///
-    /// Returns unconditional class names and generated class metadata. The base name
+    /// Returns unconditional class names, generated class metadata, and the base
+    /// transition class list including its slot references. An empty list writes no
+    /// transition-class declaration. The base name
     /// comes before marker and external names. The base metadata comes before leaf
     /// metadata, which follows traversal order.
     ///
@@ -272,7 +280,7 @@ impl<'a> ClassUnits<'a> {
     /// changed. CSS is appended to the destination only after rendering succeeds.
     pub(super) fn finish(
         mut self,
-    ) -> Result<(Vec<String>, Vec<GeneratedClass>), CompileDiagnostic> {
+    ) -> Result<(Vec<String>, Vec<GeneratedClass>, String), CompileDiagnostic> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
         let base_branch = format!("0:{}", self.base.canonical);
@@ -289,6 +297,8 @@ impl<'a> ClassUnits<'a> {
                 .iter()
                 .skip(1)
                 .any(|unit| !unit.slots.is_empty());
+        let transition_list =
+            self.view_transition_classes[0].class_value(&self.view_transition_slots());
         if !self.base.utilities.is_empty() || base_declares {
             let branch = format!("0:{}", self.base.canonical);
             let definitions = std::mem::take(&mut self.base.utilities);
@@ -338,6 +348,7 @@ impl<'a> ClassUnits<'a> {
         Ok((
             names,
             self.classes.into_iter().map(|(_, class)| class).collect(),
+            transition_list,
         ))
     }
 

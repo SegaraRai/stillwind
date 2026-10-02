@@ -228,7 +228,6 @@ impl CallEmitter<'_> {
                     self.theme,
                     self.diagnostics,
                 )?;
-                let mut name_supplies = 0;
                 let contribution = LiteralContribution::resolve(
                     value,
                     &plan,
@@ -236,12 +235,8 @@ impl CallEmitter<'_> {
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,
-                    &mut name_supplies,
                 );
-                self.record_property_writes(&contribution, false, value.span, guard, None);
-                if name_supplies > 0 {
-                    self.view_transition_name_paths.insert(guard, name_supplies);
-                }
+                self.record_properties(&contribution, false, value.span, guard, None, None);
                 self.contribute_rule(contribution, guard, fold)
             }
             RuleExpression::Array(elements) => {

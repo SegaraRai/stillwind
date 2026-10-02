@@ -257,6 +257,11 @@ impl ModuleCompiler {
         };
         let success = diagnostics.is_empty();
         CompiledModule {
+            style_effects: if success {
+                result.style_effects
+            } else {
+                Vec::new()
+            },
             composition: result.composition,
             resources: result.resources,
             key: self.key_for(module),

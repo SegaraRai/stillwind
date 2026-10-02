@@ -8,17 +8,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_compiler::{
     CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers, ModuleCompiler,
-    StylesheetRenderer,
+    StyleResolver, StylesheetRenderer, check_style, is_style_analysis_lint,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, DiagnosticBatch, LintKind, filter_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticBatch, filter_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceRegistry, SourceRegistryError, Span};
 
 use crate::ReservedNames;
-use crate::composition_lint::composition_lints;
 use crate::{DependencyIndex, ProjectStylesheet};
 
 /// Why a design-system reload could not be applied.
@@ -58,14 +57,6 @@ pub struct ModuleUpdate {
     pub transformed: bool,
     /// Errors from this update. Non-empty means nothing was published.
     pub diagnostics: Vec<CompileError>,
-}
-
-/// Whether one finding comes from the composition-order comparison.
-fn is_composition_order_lint(kind: LintKind) -> bool {
-    matches!(
-        kind,
-        LintKind::AmbiguousBaseOrder | LintKind::ImportedBaseInterference
-    )
 }
 
 /// What changed after a design-system reload.
@@ -409,12 +400,14 @@ impl ProjectSession {
             self.stylesheet.replace(module_id.clone(), &compiled.css);
             let dependents = self.composition_dependents(&module_id);
             self.artifacts.insert(module_id.clone(), compiled);
-            self.refresh_composition_lints(std::iter::once(module_id).chain(dependents));
+            self.refresh_style_lints(std::iter::once(module_id).chain(dependents));
         } else {
             update.diagnostics = compiled.diagnostics;
+            let dependents = self.composition_dependents(&module_id);
             if self.mode == SessionMode::Build {
                 self.remove_artifact(&module_id);
             }
+            self.refresh_style_lints(dependents);
         }
         update
     }
@@ -423,12 +416,15 @@ impl ProjectSession {
     /// Watch mode retains artifacts for display. Planning rejects artifacts whose keys
     /// no longer match these analyses. Build mode retracts the affected artifacts.
     pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
+        let mut dependents = BTreeSet::new();
         for analysis in analyses {
+            dependents.extend(self.composition_dependents(&analysis.module_id));
             if self.mode == SessionMode::Build {
                 self.remove_artifact(&analysis.module_id);
             }
             self.analyses.insert(analysis.module_id.clone(), analysis);
         }
+        self.refresh_style_lints(dependents);
     }
 
     /// Removes one producer, returning whether it was registered.
@@ -437,49 +433,65 @@ impl ProjectSession {
         self.reported.remove(module);
         let dependents = self.composition_dependents(module);
         self.remove_artifact(module);
-        self.refresh_composition_lints(dependents);
+        self.refresh_style_lints(dependents);
         removed
     }
 
-    /// Recomputes the composition-order lints of `modules` from published artifacts.
+    /// Recomputes the seven composition-aware lints of `modules` from current artifacts.
     ///
-    /// The comparison spans modules, so it runs here rather than during compilation: a base
-    /// published after its derived module changes the result too. Findings replace the
+    /// A base published after its derived module changes the result too. Findings replace the
     /// previous ones for the same rules, so a resolved overlap stops being reported.
-    fn refresh_composition_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
-        for module in modules {
-            let Some(source) = self
-                .analyses
-                .get(&module)
-                .map(|analysis| analysis.source.clone())
-            else {
-                continue;
-            };
-            let mut findings = composition_lints(&self.artifacts, &module);
-            filter_lint_findings(&source, &mut findings);
-            let Some(artifact) = self.artifacts.get_mut(&module) else {
-                continue;
-            };
-            artifact
-                .lint_findings
-                .retain(|finding| !is_composition_order_lint(finding.kind()));
-            artifact.lint_findings.extend(findings);
+    fn refresh_style_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
+        let mut resolver = StyleResolver::new(
+            self.artifacts
+                .keys()
+                .filter_map(|module| self.current_artifact(module))
+                .flat_map(|artifact| &artifact.style_effects),
+        );
+        let updates: Vec<_> = modules
+            .into_iter()
+            .filter_map(|module| {
+                let source = &self.analyses.get(&module)?.source;
+                let artifact = self.current_artifact(&module)?;
+                let mut findings = artifact
+                    .style_effects
+                    .iter()
+                    .filter_map(|effects| resolver.resolve(&effects.identity))
+                    .flat_map(|style| check_style(&style))
+                    .collect::<Vec<_>>();
+                filter_lint_findings(source, &mut findings);
+                Some((module, findings))
+            })
+            .collect();
+        for (module, findings) in updates {
+            if let Some(artifact) = self.artifacts.get_mut(&module) {
+                artifact
+                    .lint_findings
+                    .retain(|finding| !is_style_analysis_lint(finding.kind()));
+                artifact.lint_findings.extend(findings);
+            }
         }
     }
 
-    /// Modules whose composition edges consume `module` as a base.
+    /// All modules that directly or indirectly consume this producer's styles.
     fn composition_dependents(&self, module: &ModuleId) -> Vec<ModuleId> {
-        self.artifacts
-            .iter()
-            .filter(|(id, artifact)| {
-                *id != module
-                    && artifact
-                        .composition
-                        .iter()
-                        .any(|edge| edge.base.module_id == *module)
-            })
-            .map(|(id, _)| id.clone())
-            .collect()
+        let mut pending = vec![module.clone()];
+        let mut seen = BTreeSet::from([module.clone()]);
+        let mut dependents = Vec::new();
+        while let Some(base) = pending.pop() {
+            for (id, artifact) in &self.artifacts {
+                if artifact
+                    .composition
+                    .iter()
+                    .any(|edge| edge.base.module_id == base)
+                    && seen.insert(id.clone())
+                {
+                    dependents.push(id.clone());
+                    pending.push(id.clone());
+                }
+            }
+        }
+        dependents
     }
 
     fn remove_artifact(&mut self, module: &ModuleId) {

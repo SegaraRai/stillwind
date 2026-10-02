@@ -11,13 +11,13 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompileResult, Compiler, CompilerOptions, Identifiers, ModuleCompiler, TransformError,
-    render_transforms,
+    CompileResult, Compiler, CompilerOptions, Identifiers, ModuleCompiler, StyleResolver,
+    TransformError, check_style, is_style_analysis_lint, render_transforms,
 };
 use stillwind_design_system::{DesignSystemError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
     AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, Reporter, ResolvedDiagnostic,
-    SourceFailureContext,
+    SourceFailureContext, filter_lint_findings,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
@@ -350,6 +350,28 @@ pub fn compile_project_input(
             )
         })
         .collect::<Vec<_>>();
+    let mut resolver =
+        StyleResolver::new(results.iter().flat_map(|artifact| &artifact.style_effects));
+    let findings = results
+        .iter()
+        .zip(&scans)
+        .map(|(artifact, scan)| {
+            let mut findings = artifact
+                .style_effects
+                .iter()
+                .filter_map(|effects| resolver.resolve(&effects.identity))
+                .flat_map(|style| check_style(&style))
+                .collect::<Vec<_>>();
+            filter_lint_findings(&scan.source, &mut findings);
+            findings
+        })
+        .collect::<Vec<_>>();
+    for (artifact, findings) in results.iter_mut().zip(findings) {
+        artifact
+            .lint_findings
+            .retain(|finding| !is_style_analysis_lint(finding.kind()));
+        artifact.lint_findings.extend(findings);
+    }
     let mut emitted_css_rules = BTreeSet::new();
     for result in &mut results {
         result

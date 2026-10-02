@@ -10,8 +10,8 @@ use stillwind_ir::ConditionalBranches;
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property};
-use crate::GeneratedSymbol;
 use crate::generated::Code;
+use crate::{GeneratedSymbol, StyleEffects};
 
 /// One conditional step of a class contribution's guard path.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -86,6 +86,8 @@ pub(crate) enum StyleEmissionPart {
 /// Fragment construction consumes these records to choose a JavaScript representation
 /// without reallocating class identities or changing CSS order.
 pub(crate) struct StyleEmission {
+    /// Direct semantic supplies retained for composition-aware checks.
+    pub(crate) style_effects: StyleEffects,
     /// Unquoted unconditional class names in concatenation order; may be empty.
     pub(crate) static_names: Vec<String>,
     /// Parts in traversal order; fragment construction stably sorts their source positions.

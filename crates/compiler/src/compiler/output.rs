@@ -18,10 +18,8 @@ use stillwind_source::SourceFile;
 
 use super::props::GeneratedClass;
 use super::symbols::GeneratedSymbol;
-use crate::{
-    ModuleResourceReference, RejectedIdentifier,
-    transforms::{SourceTransform, TransformError, apply_transforms},
-};
+use crate::transforms::{SourceTransform, TransformError, apply_transforms};
+use crate::{ModuleResourceReference, RejectedIdentifier, StyleEffects};
 
 /// Everything one compilation produced.
 ///
@@ -31,6 +29,9 @@ use crate::{
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompileResult {
+    /// Direct effects for composition analysis; omitted from host serialization.
+    #[serde(skip)]
+    pub style_effects: Vec<StyleEffects>,
     /// Generated contributions in emission order, including placement and registration
     /// dependencies required for artifact construction.
     #[serde(skip)]

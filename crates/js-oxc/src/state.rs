@@ -26,7 +26,6 @@ use stillwind_semantic::{
 use stillwind_source::{ModuleId, SourceFile, Span, Spanned};
 
 use crate::local_span::LocalSpan;
-use crate::refs::RefUse;
 
 impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
@@ -51,7 +50,6 @@ impl<'a> MacroExtractor<'a> {
             style_symbols: HashSet::new(),
             adapter: None,
             ref_symbols: HashMap::new(),
-            ref_uses: Vec::new(),
             ref_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),
             keyframes_declarations: Vec::new(),
@@ -224,7 +222,6 @@ pub(crate) struct MacroExtractor<'a> {
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
     /// Marker and provider uses in source order, matched within each style call.
-    pub(crate) ref_uses: Vec<RefUse>,
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,
     /// Symbols bound to an keyframes declaration, with their names.

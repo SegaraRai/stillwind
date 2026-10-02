@@ -11,7 +11,6 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{RefCondition, RefDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
-use super::RefUseKind;
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 use crate::uses::literal_member;
@@ -286,13 +285,6 @@ impl<'a> MacroExtractor<'a> {
         inputs: &mut Vec<StyleInput>,
     ) -> bool {
         if let Some(refs) = self.ref_references(expression) {
-            for definition in &refs {
-                self.record_ref_use(
-                    definition,
-                    RefUseKind::Marker,
-                    self.source_span(expression.span()),
-                );
-            }
             if refs.len() == 1 {
                 inputs.push(StyleInput::RefAttachment {
                     definition: refs[0].clone(),

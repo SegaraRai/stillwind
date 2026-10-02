@@ -17,7 +17,7 @@ use stillwind_source::{Fingerprint, ModuleId, SourceFile};
 use crate::transforms::apply_transforms;
 use crate::{
     CompileResult, CssContribution, GeneratedClass, GeneratedSymbol, ModuleCssArtifact,
-    RejectedIdentifier, SourceTransform, TransformError,
+    RejectedIdentifier, SourceTransform, StyleEffects, TransformError,
 };
 
 /// A source-transform failure as reported by [`CompiledModule::apply_to_source`].
@@ -107,6 +107,8 @@ pub struct ModuleResourceReference {
 /// diagnostics.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
+    /// Direct supplies and base references for each successful style call.
+    pub style_effects: Vec<StyleEffects>,
     /// Style dependencies the project layer must order this module after.
     pub composition: Vec<StyleDependency>,
     /// URLs found in `css`, replaced there by their placeholders.
@@ -163,6 +165,7 @@ impl CompiledModule {
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {
+            style_effects: self.style_effects.clone(),
             contributions: self
                 .css
                 .rules

@@ -14,14 +14,13 @@
 //! read the private fields while the rest of the compiler cannot. `call` runs the walk
 //! and dispatches one style input; `class_value` lowers class expressions;
 //! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
-//! contribution kind each. `provider_lints` compares properties from individual uses
-//! before their rules are merged into classes.
+//! contribution kind each. `style_analysis` records resolved supplies before their rules are merged into classes.
 
 mod call;
 mod class_value;
 mod keyframes_use;
-mod provider_lints;
 mod ref_projection;
+mod style_analysis;
 mod view_transition;
 
 use std::collections::BTreeSet;
@@ -35,13 +34,11 @@ use stillwind_source::{ModuleId, SourceFile};
 use super::CssContribution;
 use super::class_units::ClassUnits;
 use super::literal::LiteralContribution;
-use super::props::{GuardStep, StyleEmissionPart};
+use super::props::StyleEmissionPart;
 use super::symbols::GeneratedSymbol;
 use crate::CompilerOptions;
 use crate::identifiers::IdentifierContext;
-
-use provider_lints::PropertyWrite;
-use view_transition::TransitionNamePaths;
+use crate::style_analysis::StyleEffect;
 
 /// Object key under which a compiled ref record carries its canonical marker token.
 pub(super) const CLASS_KEY: &str = "c";
@@ -92,17 +89,8 @@ pub(super) struct CallEmitter<'a> {
     units: ClassUnits<'a>,
     /// Anchor and container names this call wrote, reported with the class symbols.
     written_name_symbols: Vec<GeneratedSymbol>,
-    /// Properties recorded for each use, kept until provider conflicts are checked.
-    property_writes: Vec<PropertyWrite>,
-    /// Each entry contains one attachment site's possible marker tokens and enclosing
-    /// JavaScript conditions. One site selects at most one marker. Separate sites can
-    /// attach multiple markers to the element.
-    attachment_sets: Vec<(Vec<String>, Vec<GuardStep>)>,
-    /// Whether the call marks participants with a view-transition class.
-    view_transition_classes: bool,
-    /// Name supplies from utilities and transition uses, grouped by their shared guard
-    /// paths. The maximum simultaneous count drives duplicate-name linting.
-    view_transition_name_paths: TransitionNamePaths,
+    /// Direct contributions with their conditions and base references.
+    style_effects: Vec<StyleEffect>,
 }
 
 /// CSS rules gathered between JavaScript condition boundaries before one class identity

@@ -17,6 +17,9 @@ mod provenance;
 #[path = "compilation_contracts/refs.rs"]
 mod refs;
 
+#[path = "compilation_contracts/style_analysis.rs"]
+mod style_analysis;
+
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),

@@ -1,8 +1,4 @@
-//! The one composition-order lint case that needs cross-module checker facts.
-//!
-//! The rule itself and the same-module session wiring are covered by the unit tests in
-//! `composition_lint`; a frontend-only analysis cannot supply facts for a base that
-//! lives in another module, so this stays an integration target.
+//! Composition ordering and suppression through a project session.
 
 #[path = "../../test-support/css.rs"]
 mod css_fixture;
@@ -76,8 +72,7 @@ export const derived = style(base, 'p-4');
     );
 }
 
-/// A logical and a physical member of one property group interfere. The synthetic
-/// artifacts above cannot express this because their bodies encode one property each.
+/// A logical and a physical member of one property group interfere.
 #[test]
 fn a_logical_base_and_a_physical_base_are_reported() {
     let mut session = session();

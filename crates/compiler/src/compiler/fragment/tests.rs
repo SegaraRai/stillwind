@@ -10,6 +10,7 @@ use stillwind_ir::{
     ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
@@ -18,6 +19,7 @@ use super::render::{render_reference, render_style_call};
 use crate::compiler::expression_render::render_plain;
 use crate::compiler::props::{StyleEmission, StyleEmissionPart};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
+use crate::style_analysis::{StyleEffect, StyleEffects};
 
 /// Returns the selected operator's branch shape for both differential test cases. The
 /// alternate fixture is unused for logical conjunction.
@@ -63,6 +65,11 @@ fn attribute(name: &str, index: u32) -> StyleEmissionPart {
 /// Builds a finalized call fixture with an optional static class and no allocated CSS records.
 fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
+        style_effects: StyleEffects {
+            identity: IdentityId::new(AssetKind::Style, ModuleId::from("test"), 0, 0, ""),
+            span: Span::new(FileId(1), 0, 0),
+            root: StyleEffect::All(Vec::new()),
+        },
         static_names: if base { vec!["_base".into()] } else { vec![] },
         parts,
         classes: vec![],

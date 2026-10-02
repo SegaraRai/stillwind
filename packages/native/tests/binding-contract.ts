@@ -8,6 +8,150 @@ import { expect, test } from "vite-plus/test";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("composition analysis agrees across bindings and refreshes transitive dependents", async () => {
+    const {
+      compileSource,
+      compileProject,
+      NativeDesignSystemLoader,
+      NativeProjectSession,
+      summarizeSource,
+    } = await import(bindingSpecifier);
+    const css =
+      "@utility pad { padding:1px; } @utility alt { padding:2px; } @utility ink { color:red; } @stillwind-slot utilities;";
+    const prepared = (code: string, moduleId: string) => ({
+      kind: "direct",
+      moduleId,
+      document: {
+        uri: sourceUri(moduleId),
+        code,
+        format: "jsx",
+        sourceMapSource: sourceUri(moduleId),
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
+    });
+    const directCode =
+      "import {style} from 'stillwind/react'; const a=style('pad',flag&&'ink'); const b=style('alt'); export const x=style(a,b);";
+    const loader = new NativeDesignSystemLoader();
+    expect(loader.provide(0, "root", css, sourceUri("root")).kind).toBe("complete");
+    const session = new NativeProjectSession(loader, true);
+    const codes = (output: import("../binding.js").BindingOutput) =>
+      output.lintFindings.map((finding) => finding.rule);
+    const direct = prepared(directCode, "direct.tsx");
+    const outputs = [
+      compileSource(oneShotInput(directCode, direct.moduleId, css)),
+      compileProject([direct], cssInput(css)).modules[0],
+      session.compile([direct]).modules[0],
+    ];
+    for (const output of outputs) {
+      expect(output.diagnostics).toStrictEqual([]);
+      expect(codes(output)).toStrictEqual(["ambiguous-base-order"]);
+    }
+    const baseCode = "import {style} from 'stillwind/react'; export const base=style('pad');";
+    const middleCode =
+      "import {style} from 'stillwind/react'; import {base} from './base'; export const middle=style(base);";
+    const appCode =
+      "import {style} from 'stillwind/react'; import {middle} from './middle'; export const x=style(middle,'alt');";
+    const exported = (code: string, module: string, name: string) => {
+      const entry = summarizeSource(code, module, "tsx", "unambiguous").exports.find(
+        (entry: import("../binding.js").NativeExport) => entry.name === name,
+      );
+      expect(entry).toBeDefined();
+      return entry.value;
+    };
+    const withBase = (code: string, module: string, binding: string, value: unknown) => ({
+      ...prepared(code, module),
+      typeFacts: [
+        {
+          start: code.lastIndexOf(binding),
+          end: code.lastIndexOf(binding) + binding.length,
+          value,
+        },
+      ],
+    });
+    const base = prepared(baseCode, "base.tsx");
+    const middle = withBase(
+      middleCode,
+      "middle.tsx",
+      "base",
+      exported(baseCode, base.moduleId, "base"),
+    );
+    const app = withBase(
+      appCode,
+      "app.tsx",
+      "middle",
+      exported(middleCode, middle.moduleId, "middle"),
+    );
+    for (const output of [
+      compileProject([base, middle, app], cssInput(css)),
+      compileProject([app, middle, base], cssInput(css)),
+      session.compile([base, middle, app]),
+      new NativeProjectSession(loader, true).compile([app, middle, base]),
+    ]) {
+      for (const module of output.modules) {
+        expect(module.diagnostics).toStrictEqual([]);
+      }
+      expect(
+        codes(
+          output.modules.find(
+            (module: import("../binding.js").ProjectModuleOutput) =>
+              module.moduleId === app.moduleId,
+          ),
+        ),
+      ).toStrictEqual(["imported-base-interference"]);
+    }
+    expect(
+      JSON.stringify(
+        session
+          .diagnosticBatches()
+          .find(
+            (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
+          ),
+      ),
+    ).toContain("imported-base-interference");
+    expect(
+      session.compile([prepared(`${baseCode}}`, base.moduleId)]).modules[0].diagnostics,
+    ).not.toStrictEqual([]);
+    expect(
+      JSON.stringify(
+        session
+          .diagnosticBatches()
+          .find(
+            (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
+          ),
+      ),
+    ).not.toContain("imported-base-interference");
+    expect(session.compile([base]).modules[0].diagnostics).toStrictEqual([]);
+    expect(
+      JSON.stringify(
+        session
+          .diagnosticBatches()
+          .find(
+            (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
+          ),
+      ),
+    ).toContain("imported-base-interference");
+    expect(
+      session.compile([prepared(baseCode.replace("'pad'", "'ink'"), base.moduleId)]).modules[0]
+        .diagnostics,
+    ).toStrictEqual([]);
+    const batches = session.diagnosticBatches();
+    const appBatch = batches.find(
+      (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
+    );
+    expect(appBatch).toBeDefined();
+    expect(JSON.stringify(appBatch)).not.toContain("imported-base-interference");
+    expect(session.remove(base.moduleId)).toBe(true);
+    expect(
+      JSON.stringify(
+        session
+          .diagnosticBatches()
+          .find(
+            (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
+          ),
+      ),
+    ).not.toContain("imported-base-interference");
+  });
+
   test("minifyCss exposes final CSS processing and separate source maps", async () => {
     const { minifyCss } = await import(bindingSpecifier);
     const result = minifyCss(".a { color: red; &:hover { color: blue } } .unused { width: 1px }", {

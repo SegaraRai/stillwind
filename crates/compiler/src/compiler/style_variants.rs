@@ -262,9 +262,9 @@ impl StyleVariantPlan {
 
     /// Applies the plan to a utility the ordinary resolver already prefixed.
     ///
-    /// The ordinary count is skipped, so only the wrappers the string resolver could
-    /// not express are converted into applications; the utility's own variant list is
-    /// rebuilt from the ref wrappers plus that suffix.
+    /// Reuses resolved wrapper applications and resolves the utility's remaining
+    /// variants once. Emission and composition analysis consume the same applications.
+    /// The parsed variant list retains the wrappers followed by the utility suffix.
     pub fn apply(&self, utility: &mut CompiledUtility, theme: &ThemeIndex) {
         // The utility resolver already parsed the ordinary wrapper prefixes.
         let suffix = utility
@@ -273,25 +273,28 @@ impl StyleVariantPlan {
             .skip(self.ordinary_count)
             .cloned()
             .collect::<Vec<_>>();
-        if self.has_refs {
-            let applications = suffix
-                .iter()
-                .filter_map(|variant| resolve_variant(variant, theme))
-                .collect::<Vec<_>>();
-            utility.variant_applications = self
-                .paths
-                .iter()
-                .map(|path| {
-                    path[..self.ordinary_count]
-                        .iter()
-                        .cloned()
-                        .chain(applications.iter().cloned())
-                        .chain(path[self.ordinary_count..].iter().cloned())
-                        .collect()
-                })
-                .collect();
-            utility.variants = self.variants.iter().cloned().chain(suffix).collect();
-        }
+        let applications = suffix
+            .iter()
+            .filter_map(|variant| resolve_variant(variant, theme))
+            .collect::<Vec<_>>();
+        let paths: Vec<Vec<_>> = self
+            .paths
+            .iter()
+            .map(|path| {
+                path[..self.ordinary_count]
+                    .iter()
+                    .cloned()
+                    .chain(applications.iter().cloned())
+                    .chain(path[self.ordinary_count..].iter().cloned())
+                    .collect()
+            })
+            .collect();
+        utility.variant_applications = if paths.iter().all(Vec::is_empty) {
+            Vec::new()
+        } else {
+            paths
+        };
+        utility.variants = self.variants.iter().cloned().chain(suffix).collect();
     }
 
     /// Copies resolved variants and correlated ref applications onto a rule
@@ -299,7 +302,9 @@ impl StyleVariantPlan {
     /// ownership of that rule's declarations and canonical class identity.
     pub fn apply_rule(&self, utility: &mut CompiledUtility) {
         utility.variants.clone_from(&self.variants);
-        if self.has_refs {
+        if self.paths.iter().all(Vec::is_empty) {
+            utility.variant_applications.clear();
+        } else {
             utility.variant_applications.clone_from(&self.paths);
         }
     }
