@@ -1,7 +1,6 @@
 export default {
   id: "rspack2-plain",
   profiles: ["rspack"],
-  script: "scripts/acceptance.ts",
   contracts: [
     "rendering",
     "production",

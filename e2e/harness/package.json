@@ -10,8 +10,10 @@
     "./process": "./src/process.ts",
     "./config": "./src/config.ts",
     "./acceptance-config": "./src/acceptance-config.ts",
-    "./script": "./src/script.ts",
-    "./source-map": "./src/source-map.ts"
+    "./source-map": "./src/source-map.ts",
+    "./scenario": "./src/scenario.ts",
+    "./source": "./src/source.ts",
+    "./browser": "./src/browser.ts"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",

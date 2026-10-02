@@ -1,7 +1,6 @@
 export default {
   id: "tanstackstart1-react19-server-function",
   profiles: ["vite", "rsbuild"],
-  script: "scripts/acceptance.ts",
   contracts: [
     "rendering",
     "production",

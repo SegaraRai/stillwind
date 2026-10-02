@@ -5,7 +5,6 @@ export default defineFixture({
   scenarios: [
     {
       name: "composition",
-      script: "scripts/composition.ts",
       directory: "scenarios/composition",
       contracts: [
         "lazy-module-order",
@@ -18,7 +17,6 @@ export default defineFixture({
     },
     {
       name: "conditional",
-      script: "scripts/conditional.ts",
       directory: "scenarios/conditional",
       contracts: [
         "nested-runtime-branches",

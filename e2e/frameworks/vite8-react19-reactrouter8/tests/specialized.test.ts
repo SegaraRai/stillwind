@@ -1,13 +1,41 @@
 import { fixtureProfiles } from "@stillwind/e2e-harness";
-import { registerScript } from "@stillwind/e2e-harness/script";
+import { registerScenario } from "@stillwind/e2e-harness/scenario";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, test } from "vite-plus/test";
 
 import fixture from "../fixture.ts";
+import { createApplication } from "./support/react-router-application.ts";
+import * as contract from "./support/react-router-contracts.ts";
 
 for (const profile of fixtureProfiles(fixture)) {
-  registerScript(
-    fixture.id + "-" + profile,
+  registerScenario(
+    fixture.id + "/" + profile,
     new URL("../", import.meta.url),
-    fixture.specialized!.script,
+    (context) => {
+      const app = createApplication(context);
+      beforeAll(() => app.initialize(), 600_000);
+      describe("development", () => {
+        beforeEach(() => app.prepareDevelopmentCase());
+        test("renders SSR CSS, hydrates, and loads CSS during navigation", () =>
+          contract.expectRendering(app));
+        test("updates CSS after editing the theme", () => contract.expectThemeUpdate(app));
+        test("removes and restores macro CSS", () => contract.expectMacroRetraction(app));
+        test("updates projected CSS after editing a server module", () =>
+          contract.expectServerProjectionEdit(app));
+      });
+      for (const temperature of ["cold", "warm"] as const) {
+        test(`${temperature} production: SSR, hydration, navigation and source maps`, () =>
+          contract.expectProduction(app, temperature));
+      }
+      afterEach(() => app.assertNoBrowserErrors());
+      afterAll(() => app.dispose());
+    },
     [profile],
   );
+}
+
+declare global {
+  interface Window {
+    __navigationSentinel: number | undefined;
+    __stillwindServerMarker: unknown;
+  }
 }

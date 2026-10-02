@@ -1,7 +1,6 @@
 export default {
   id: "rsbuild2-plain",
   profiles: ["rsbuild"],
-  script: "scripts/acceptance.ts",
   contracts: [
     "rendering",
     "production",

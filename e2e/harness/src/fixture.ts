@@ -1,4 +1,6 @@
-/** Commands are resolved from the fixture's own dependencies. */
+/**
+ * Commands are resolved from the fixture's own dependencies.
+ */
 export type Driver =
   | "vite"
   | "nuxt"
@@ -9,7 +11,9 @@ export type Driver =
   | "rspack"
   | "rsbuild";
 
-/** Expected behavior for one edit after its CSS has reached the browser. */
+/**
+ * Expected behavior for one edit after its CSS has reached the browser.
+ */
 export interface Edit {
   file: string;
   from: string;
@@ -20,10 +24,14 @@ export interface Edit {
   state: "preserve" | "reset" | "not-applicable";
 }
 
-/** A reason is required when a rendering contract does not apply. */
+/**
+ * A reason is required when a rendering contract does not apply.
+ */
 export type Capability = true | { status: "not-applicable"; reason: string };
 
-/** Describes the application and the observable contracts shared by its profiles. */
+/**
+ * Describes the application and the observable contracts shared by its profiles.
+ */
 export interface Fixture {
   id: string;
   driver: Driver;
@@ -34,8 +42,15 @@ export interface Fixture {
     ready: string;
     target: string;
     css: Record<string, string>;
-    styles?: { selector: string; css: Record<string, string> }[];
-    counters: { selector: string; initial: string; clicked: string }[];
+    styles?: {
+      selector: string;
+      css: Record<string, string>;
+    }[];
+    counters: {
+      selector: string;
+      initial: string;
+      clicked: string;
+    }[];
   };
   ssr: Capability;
   hydration: Capability;
@@ -49,12 +64,23 @@ export interface Fixture {
     document: "preserve" | "reload";
   };
   production?: boolean;
-  semantics?: { id: string; interactive: boolean }[];
-  scenarios?: { name: string; script: string; directory: string; contracts: string[] }[];
-  specialized?: { script: string; contracts: string[] };
+  semantics?: {
+    id: string;
+    interactive: boolean;
+  }[];
+  scenarios?: {
+    name: string;
+    directory: string;
+    contracts: string[];
+  }[];
+  specialized?: {
+    contracts: string[];
+  };
 }
 
-/** Validates a manifest before any process starts or source file changes. */
+/**
+ * Validates a manifest before any process starts or source file changes.
+ */
 export function defineFixture(fixture: Fixture): Fixture {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(fixture.id)) {
     throw new Error(`Invalid fixture id: ${fixture.id}`);
@@ -84,7 +110,9 @@ export function defineFixture(fixture: Fixture): Fixture {
   return fixture;
 }
 
-/** Selects a declared profile from the environment and rejects unknown profile names. */
+/**
+ * Selects a declared profile from the environment and rejects unknown profile names.
+ */
 export function fixtureProfiles(fixture: {
   id: string;
   profiles: readonly string[];

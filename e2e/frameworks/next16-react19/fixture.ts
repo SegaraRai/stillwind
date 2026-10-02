@@ -37,7 +37,6 @@ export default defineFixture({
   },
   production: false,
   specialized: {
-    script: "scripts/acceptance.ts",
     contracts: [
       "rendering",
       "rsc-flight",

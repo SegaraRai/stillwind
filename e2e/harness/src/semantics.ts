@@ -1,12 +1,23 @@
 import type { Page } from "playwright";
 import { expect } from "vite-plus/test";
 
+import { expectCss } from "./browser.ts";
 import type { Fixture } from "./fixture.ts";
 
 type Probe = NonNullable<Fixture["semantics"]>[number];
 
-/** Checks composed declarations and the initial condition branches, including HTML without JavaScript. */
+/**
+ * Checks composed declarations and the initial condition branches, including HTML without JavaScript.
+ */
 export async function verifyInitialSemantics(page: Page, probes: Probe[] = []): Promise<void> {
+  await verifyComposition(page, probes);
+  await verifyInitialConditions(page, probes);
+}
+
+/**
+ * Checks composed declarations and diamond dependencies for the supplied probes.
+ */
+export async function verifyComposition(page: Page, probes: Probe[]): Promise<void> {
   for (const { id } of probes) {
     await css(page, `${id}-composed`, { marginTop: "12px", paddingTop: "7px" });
     await css(page, `${id}-diamond`, {
@@ -15,18 +26,36 @@ export async function verifyInitialSemantics(page: Page, probes: Probe[] = []): 
       color: "rgb(18, 52, 86)",
       backgroundColor: "rgb(171, 205, 239)",
     });
+  }
+}
+
+/**
+ * Checks both initial condition branches for the supplied probes.
+ */
+export async function verifyInitialConditions(page: Page, probes: Probe[]): Promise<void> {
+  for (const { id } of probes) {
     await css(page, `${id}-conditional`, { marginTop: "40px" });
     await css(page, `${id}-conditional-active`, { marginTop: "16px" });
   }
 }
 
-/** Checks inherited hover rules and all runtime branches; each interactive probe ends in its initial state. */
-export async function verifySemanticInteractions(page: Page, probes: Probe[] = []): Promise<void> {
-  for (const { id, interactive } of probes) {
+/**
+ * Checks inherited hover rules and restores the pointer to its initial position.
+ */
+export async function verifyHover(page: Page, probes: Probe[]): Promise<void> {
+  for (const { id } of probes) {
     await page.getByTestId(`${id}-composed`).hover();
     await css(page, `${id}-composed`, { marginTop: "20px" });
     await page.mouse.move(0, 0);
     await css(page, `${id}-composed`, { marginTop: "12px" });
+  }
+}
+
+/**
+ * Checks every runtime condition branch and restores each probe's initial state.
+ */
+export async function verifyConditionBranches(page: Page, probes: Probe[]): Promise<void> {
+  for (const { id, interactive } of probes) {
     if (!interactive) {
       continue;
     }
@@ -45,16 +74,5 @@ export async function verifySemanticInteractions(page: Page, probes: Probe[] = [
 }
 
 async function css(page: Page, id: string, expected: Record<string, string>) {
-  await expect
-    .poll(
-      () =>
-        page.getByTestId(id).evaluate((element, properties) => {
-          const actual = getComputedStyle(element);
-          return Object.fromEntries(
-            properties.map((property) => [property, actual[property as keyof CSSStyleDeclaration]]),
-          );
-        }, Object.keys(expected)),
-      { timeout: 30_000 },
-    )
-    .toEqual(expected);
+  await expectCss(page, `[data-testid="${id}"]`, expected);
 }
