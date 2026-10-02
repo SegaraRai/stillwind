@@ -142,7 +142,7 @@ function typeFactValue(
   identities: ReadonlyMap<string, IdentityId>,
 ): NativeExportedValue | null {
   const constituents = type.isUnionType() ? type.getTypes() : [type];
-  const refs = [];
+  const refs: IdentityId[] = [];
   const keyframes: IdentityId[] = [];
   const viewTransitions: IdentityId[] = [];
   const styles: IdentityId[] = [];
@@ -163,19 +163,7 @@ function typeFactValue(
       if (!references) {
         return null;
       }
-      const boundaryText = args[1] ? checker.typeToString(args[1]) : "never";
-      const permittedBoundaries =
-        boundaryText === "never" ? [] : knownIdentities(args[1], identities, "ref");
-      if (!permittedBoundaries) {
-        return null;
-      }
-      for (const reference of references) {
-        refs.push({
-          reference,
-          permittedBoundaries:
-            permittedBoundaries.length === 0 ? null : symbolic("ref", permittedBoundaries),
-        });
-      }
+      refs.push(...references);
       continue;
     }
     if (symbol?.name === "StyleKeyframes") {
@@ -212,7 +200,7 @@ function typeFactValue(
   if (refs.length > 0) {
     return {
       kind: "refs",
-      value: refs,
+      value: symbolic("ref", refs),
     };
   }
   if (keyframes.length > 0) {

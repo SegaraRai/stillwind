@@ -14,24 +14,23 @@ const cssInput = (content: string) => ({
   sourceMapSource: "untitled:root.css",
 });
 
-test("direct ref variants preserve imported conditional ref/boundary pairs", () => {
+test("direct ref variants preserve imported conditional refs with use-site scopes", () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const producer = `import {style} from 'stillwind/react';
-export const boundaryA = style.ref('boundaryA');
-export const boundaryB = style.ref('boundaryB');
-export const a = style.ref(boundaryA, 'a');
-export const b = style.ref(boundaryB, 'b');`;
+export const scope = style.ref('scope');
+export const a = style.ref('a');
+export const b = style.ref('b');`;
   const service = new TypeScriptFactsService(root);
   try {
     const outputs = [];
     for (const expression of [
-      "`${selected`hover:`}:active:accent`",
-      '{ [selected("hover")]: { "active:": "accent" } }',
+      "`${selected`hover:`.in(scope)}:active:accent`",
+      '{ [selected("hover").in(scope)]: { "active:": "accent" } }',
       '{ [selected.at("width > 40rem")]: { "active:": "accent" } }',
       "`${selected.at`width > 40rem`}:active:accent`",
     ]) {
       const consumer = `import {style} from 'stillwind/react';
-import {a, b} from './ref-producer';
+import {a, b, scope} from './ref-producer';
 declare const enabled: boolean;
 const selected = enabled ? a : b;
 export const props = style(${expression});`;
@@ -82,36 +81,27 @@ export const props = style(${expression});`;
         expect(output!.css).toMatch(/\(width > 40rem\)/);
         expect(output!.css).not.toMatch(/:has\(/);
       } else {
-        // The pairs are read from the compiled selectors: each boundary must bind to
-        // exactly one ref of the pair.
         const pairs = [
-          ...output!.css.matchAll(/:where\(\.(sw_\w+)\):has\(:where\(\.(sw_\w+)\):hover\)/g),
-        ].map((match) => ({ boundary: match[1], ref: match[2] }));
-        expect(pairs.length, output!.css).toBe(2);
-        const [first, second] = pairs;
-        expect(first.boundary).not.toBe(second.boundary);
-        expect(first.ref).not.toBe(second.ref);
-        expect(output!.css, output!.css).toContain(
-          `:where(.${first.boundary}):has(:where(.${first.ref}):hover)`,
-        );
-        expect(output!.css, output!.css).toContain(
-          `:where(.${second.boundary}):has(:where(.${second.ref}):hover)`,
-        );
-        expect(output!.css, output!.css).not.toContain(
-          `:where(.${first.boundary}):has(:where(.${second.ref}):`,
-        );
-        expect(output!.css, output!.css).not.toContain(
-          `:where(.${second.boundary}):has(:where(.${first.ref}):`,
-        );
+          ...output!.css.matchAll(
+            /:is\(:where\(\.(sw_\w+)\)\):has\(:is\(:where\(\.(sw_\w+)\):hover\)\)/g,
+          ),
+        ].map((match) => ({ scope: match[1], ref: match[2] }));
+        expect(pairs, output!.css).toHaveLength(2);
+        expect(new Set(pairs.map((pair) => pair.scope)).size).toBe(1);
+        expect(new Set(pairs.map((pair) => pair.ref)).size).toBe(2);
       }
-      expect(output!.css).toMatch(/:active\{color:red;/);
+      expect(output!.css).toMatch(/\.sw_\w+:active(?::is\([^{}]*\))?\{color:red;/);
       expect(output!.code).not.toMatch(/selected\(|selected`|selected\.at/);
       outputs.push(output);
     }
-    expect(outputs[0]!.css).toBe(outputs[1]!.css);
-    expect(outputs[0]!.code).toBe(outputs[1]!.code);
-    expect(outputs[2]!.css).toBe(outputs[3]!.css);
-    expect(outputs[2]!.code).toBe(outputs[3]!.code);
+    const normalizeTargetClasses = (text: string) => text.replace(/\bsw_[a-z0-9]+\b/g, "sw_target");
+    for (const [first, second] of [
+      [outputs[0]!, outputs[1]!],
+      [outputs[2]!, outputs[3]!],
+    ]) {
+      expect(normalizeTargetClasses(first.css)).toBe(normalizeTargetClasses(second.css));
+      expect(normalizeTargetClasses(first.code)).toBe(normalizeTargetClasses(second.code));
+    }
   } finally {
     service.close();
   }

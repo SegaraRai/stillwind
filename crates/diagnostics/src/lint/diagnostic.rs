@@ -76,35 +76,33 @@ pub enum LintDiagnostic {
         /// Authored or inferred ref binding name used for reporting.
         name: String,
     },
-    /// A bounded ref's boundary has no known JSX attachment.
-    #[error("ref `{name}` is bounded by `{boundary}`, but no element attaches that boundary")]
-    UnattachedBoundary {
-        /// Authored or inferred ref binding name used for reporting.
+    /// A shared scope has no known marker attachment.
+    #[error("ref `{name}` uses scope `{scope}`, but no element attaches that scope")]
+    UnattachedRefScope {
+        /// Ref binding whose condition requires the scope.
         name: String,
-        /// Authored name of the required boundary ref.
-        boundary: String,
+        /// Required scope binding or finite alternative names.
+        scope: String,
     },
-    /// A bounded ref is attached outside its boundary's ancestry.
-    #[error("the boundary `{boundary}` must be attached to an ancestor of ref `{name}`")]
-    MissingBoundaryAncestor {
-        /// Authored name of the required boundary ref.
-        boundary: String,
-        /// Authored or inferred ref binding name used for reporting.
+    /// Known attachments cannot place the referenced element inside its shared scope.
+    #[error("scope `{scope}` must contain ref `{name}`")]
+    RefOutsideScope {
+        /// Required scope binding or finite alternative names.
+        scope: String,
+        /// Ref binding whose condition requires the scope.
         name: String,
     },
-    /// A bounded selector targets an element outside its boundary's ancestry.
-    #[error(
-        "a selector using bounded ref `{name}` must target an element within boundary `{boundary}`"
-    )]
-    SelectorOutsideBoundary {
-        /// Authored or inferred ref binding name used for reporting.
+    /// A scoped selector targets an element outside every known shared scope attachment.
+    #[error("a selector using ref `{name}` must target an element within scope `{scope}`")]
+    TargetOutsideRefScope {
+        /// Ref binding whose condition requires the scope.
         name: String,
-        /// Authored name of the required boundary ref.
-        boundary: String,
+        /// Required scope binding or finite alternative names.
+        scope: String,
     },
     /// A Tailwind relationship utility violates the active typed-relationship policy.
     #[error(
-        "Tailwind relationship utility `{utility}` is forbidden; use style.ref(), optionally bounded by another ref"
+        "Tailwind relationship utility `{utility}` is forbidden; use style.ref() and specify shared scopes with in()"
     )]
     PreferTypedRelationships {
         /// Utility text as authored, including variants.
@@ -200,9 +198,9 @@ impl LintDiagnostic {
             Self::MissingAnchor { .. } => LintKind::RequireAnchorProvider,
             Self::MissingContainer { .. } => LintKind::RequireContainerProvider,
             Self::MissingRefAncestor { .. } => LintKind::ValidRefAncestry,
-            Self::UnattachedBoundary { .. } => LintKind::RequireBoundaryProvider,
-            Self::MissingBoundaryAncestor { .. } => LintKind::ValidBoundaryAncestry,
-            Self::SelectorOutsideBoundary { .. } => LintKind::BoundedSelectorInBoundary,
+            Self::UnattachedRefScope { .. } => LintKind::UnattachedRefScope,
+            Self::RefOutsideScope { .. } => LintKind::RefInScope,
+            Self::TargetOutsideRefScope { .. } => LintKind::TargetInRefScope,
             Self::PreferTypedRelationships { .. } => LintKind::PreferTypedRelationships,
             Self::DocumentScopedSelector { .. } => LintKind::RequireElementScope,
             Self::MissingViewTransitionName => LintKind::RequireViewTransitionName,

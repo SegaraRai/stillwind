@@ -15,13 +15,14 @@ mod css_fixture;
 use std::error::Error;
 
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
-use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
+use stillwind_ir::{AdapterKind, ScriptLanguage, ScriptModuleKind};
 use stillwind_napi::{
     BindingApiError, BindingRejectedIdentifier, CompileCssInput, CompileSourceInput,
     HostPreparedSource, compile_project_input, compile_source_input, generate_vocabulary_types,
     render_stylesheet, summarize_source_input,
 };
-use stillwind_source::{ModuleId, SourceUri};
+use stillwind_source::{ModuleId, SourceRegistry, SourceUri};
 
 fn compile_input(source: &str, module_id: &str, theme: &str) -> CompileSourceInput {
     CompileSourceInput {
@@ -71,16 +72,13 @@ fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
         serde_json::from_value::<ScriptModuleKind>(serde_json::json!("commonjs")).unwrap(),
         ScriptModuleKind::CommonJs
     );
+    assert_eq!(serde_json::to_value(AdapterKind::Vue).unwrap(), "vue");
     assert_eq!(
-        serde_json::to_value(stillwind_ir::AdapterKind::Vue).unwrap(),
-        "vue"
-    );
-    assert_eq!(
-        serde_json::to_value(stillwind_diagnostics::VariantInputErrorKind::CustomProperty).unwrap(),
+        serde_json::to_value(VariantInputErrorKind::CustomProperty).unwrap(),
         "customProperty"
     );
     assert_eq!(
-        serde_json::to_value(stillwind_diagnostics::CompileDiagnostic::FrameworkConflict).unwrap(),
+        serde_json::to_value(CompileDiagnostic::FrameworkConflict).unwrap(),
         "frameworkConflict"
     );
 }
@@ -343,7 +341,7 @@ fn serializes_cross_module_ref_summaries() {
     let output = summarize_source_input(
         r#"import { style } from "stillwind/react";
 export const menu = style.ref("menu");
-export const trigger = style.ref(menu, "trigger");"#,
+export const trigger = style.ref("trigger");"#,
         &ModuleId::from(r"src\Parent.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
@@ -351,22 +349,21 @@ export const trigger = style.ref(menu, "trigger");"#,
     .unwrap();
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
-    assert_eq!(value["schema"], 3);
+    assert_eq!(value["schema"], 4);
     assert_eq!(value["moduleId"], r"src\Parent.tsx");
     assert_eq!(value["exports"][0]["name"], "menu");
     assert_eq!(value["exports"][0]["value"]["kind"], "refs");
-    assert_eq!(
-        value["exports"][0]["value"]["value"][0]["permittedBoundaries"],
-        serde_json::Value::Null
-    );
     assert_eq!(value["exports"][1]["name"], "trigger");
-    assert_eq!(value["exports"][1]["value"]["kind"], "refs");
-    // The bounded ref keeps the boundary it was declared with, so a consumer can
-    // reconstruct the pair from the summary alone.
-    assert_eq!(
-        value["exports"][1]["value"]["value"][0]["permittedBoundaries"]["kind"],
-        "ref"
-    );
+    for (index, binding) in [(0, "menu"), (1, "trigger")] {
+        let exported = &value["exports"][index]["value"];
+        assert_eq!(exported["kind"], "refs");
+        assert_eq!(exported["value"]["kind"], "ref");
+        let candidates = &exported["value"]["candidates"];
+        assert_eq!(candidates["kind"], "finite");
+        assert_eq!(candidates["values"].as_array().unwrap().len(), 1);
+        assert_eq!(candidates["values"][0]["bindingName"], binding);
+        assert_eq!(candidates["values"][0]["moduleId"], r"src\Parent.tsx");
+    }
 }
 
 #[test]
@@ -678,10 +675,7 @@ fn prepared_source_rejects_document_formats_without_matching_preparation() {
         let mut value = direct_prepared_value();
         value["document"]["format"] = format.into();
         let source: HostPreparedSource = serde_json::from_value(value).unwrap();
-        let error = source
-            .input(&mut stillwind_source::SourceRegistry::default())
-            .err()
-            .unwrap();
+        let error = source.input(&mut SourceRegistry::default()).err().unwrap();
         assert_eq!(
             error.reason,
             format!("direct source requires script or JSX format, received {core_format}")
@@ -691,10 +685,7 @@ fn prepared_source_rejects_document_formats_without_matching_preparation() {
         let mut value = projected_prepared_value();
         value["document"]["format"] = format.into();
         let source: HostPreparedSource = serde_json::from_value(value).unwrap();
-        let error = source
-            .input(&mut stillwind_source::SourceRegistry::default())
-            .err()
-            .unwrap();
+        let error = source.input(&mut SourceRegistry::default()).err().unwrap();
         assert_eq!(
             error.reason,
             format!("projected source requires a component format, received {core_format}")
@@ -719,9 +710,7 @@ fn prepared_documents_preserve_upstream_maps_source_names_and_parser_settings() 
         value["framework"] = "svelte".into();
         let source: HostPreparedSource = serde_json::from_value(value.clone()).unwrap();
         assert!(source.type_facts().is_empty());
-        let input = source
-            .input(&mut stillwind_source::SourceRegistry::default())
-            .unwrap();
+        let input = source.input(&mut SourceRegistry::default()).unwrap();
         assert_eq!(input.document().upstream_map(), Some(upstream.as_str()));
         assert_eq!(
             input.module_id.as_str(),
@@ -732,7 +721,7 @@ fn prepared_documents_preserve_upstream_maps_source_names_and_parser_settings() 
             input.module_css_import.as_deref(),
             Some("virtual:module-css")
         );
-        assert_eq!(input.framework, Some(stillwind_ir::AdapterKind::Svelte));
+        assert_eq!(input.framework, Some(AdapterKind::Svelte));
         assert_eq!(input.syntax().language(), ScriptLanguage::Ts);
         if let Some(projection) = input.projection() {
             assert_eq!(input.syntax().module_kind(), ScriptModuleKind::Module);
@@ -787,9 +776,7 @@ fn prepared_projection_rejects_surrogate_interiors_and_invalid_ranges() {
             value["projection"][field][0]["end"] = end.into();
             let source: HostPreparedSource = serde_json::from_value(value).unwrap();
             assert!(
-                source
-                    .input(&mut stillwind_source::SourceRegistry::default())
-                    .is_err(),
+                source.input(&mut SourceRegistry::default()).is_err(),
                 "{field}: {start}..{end}"
             );
         }
@@ -818,17 +805,11 @@ fn host_projection_forwards_core_metadata_errors() {
         let mut value = projected_prepared_value();
         value["projection"][field] = replacement;
         let source: HostPreparedSource = serde_json::from_value(value).unwrap();
-        let error = source
-            .input(&mut stillwind_source::SourceRegistry::default())
-            .unwrap_err();
+        let error = source.input(&mut SourceRegistry::default()).unwrap_err();
         assert_eq!(error.reason, message);
     }
     let mut value = projected_prepared_value();
     value["projection"]["editableRegions"] = serde_json::json!([]);
     let source: HostPreparedSource = serde_json::from_value(value).unwrap();
-    assert!(
-        source
-            .input(&mut stillwind_source::SourceRegistry::default())
-            .is_ok()
-    );
+    assert!(source.input(&mut SourceRegistry::default()).is_ok());
 }

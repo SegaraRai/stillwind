@@ -30,13 +30,13 @@ Status: 2026-09-17 時点の実装。根拠は `packages/core/src`（マクロ�
 | マクロ               | 構文                                                                                          | 表すもの                                              | JS への lower                                                        | 生成する CSS                                                                           |
 | -------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | props                | `style(...inputs)`                                                                            | 要素の props 一式                                     | props object / `stillwindClsx` / `stillwindMerge`                    | utility class 規則（base unit → 条件付き unit）                                        |
-| ref 宣言             | `style.ref()`, `style.ref("label")`, `style.ref(boundary)`, `style.ref(boundary, "label")`    | DOM identity と境界                                   | `{c:"<marker>"}`（実行時参照が無ければ `undefined`）                 | なし（marker は class token のみ）                                                     |
+| ref 宣言             | `style.ref()`, `style.ref("label")`                                                           | 独立した DOM identity                                 | `{c:"<marker>"}`（実行時参照が無ければ `undefined`）                 | なし（marker は class token のみ）                                                     |
 | keyframes 宣言       | `style.keyframes({...})`                                                                      | アニメーション定義                                    | `{k:"<name>"}`（実行時参照が無ければ `undefined`）                   | `@keyframes <name>{...}`（条件分岐は media/supports で包む）                           |
 | keyframes use        | `<kf>("<options>")`                                                                           | animation の適用                                      | class token（静的）/ `({name:class})[value.k]`（動的）               | `.<class>{animation-name:<name>;<options>}`                                            |
 | view transition 宣言 | `style.viewTransition({...})`                                                                 | transition の定義                                     | `{v:"<class token>"}`（同左）                                        | `::view-transition-group \| old \| new \| image-pair(.<token>)`                        |
 | view transition use  | `style(vt)`, `style(vt.for(key))`                                                             | 参加要素のマークと名前                                | class token / `{v:...}[value.v]` 表引き / 動的 key の inline name    | `.<class>{view-transition-class:...}`、literal key は `view-transition-name` も        |
 | ref 射影             | `ref.asAnchor()`, `ref.positionAnchor()`, `style.anchorScope([ref])`, `ref.asContainer(type)` | anchor / container の宣言                             | `({"<marker>":"<class>"})[ref.c]`                                    | `anchor-name` / `position-anchor` / `anchor-scope` / `container-name`+`container-type` |
-| ref variant          | `` ref`hover:` ``, `ref()`, `ref("hover:")`, `ref.at("width >= 40rem")`                       | selector / container query の wrapper                 | JS には現れない（utility 側の class に吸収）                         | marker を参照する selector、`@container <name> (query)`                                |
+| ref variant          | `` ref`hover:` ``, `ref()`, `ref("hover:").in(scope)`, `ref.at("width >= 40rem")`             | selector scope / container query の wrapper           | JS には現れない（utility 側の class に吸収）                         | marker を参照する selector、`@container <name> (query)`                                |
 | 入力キー             | `{ class: … }`, `{ "--x": v }`, `{ "aria-x": v }`, `{ "hover:": … }`                          | 外部 class / custom property / 属性 / variant wrapper | `stillwindClsx` の引数 / style チャネル / そのままの prop / selector | variant は utility 規則へ、他は CSS なし                                               |
 
 ## 1. `style(...)`: props マクロ
@@ -106,8 +106,8 @@ export const buttonProps = {
 
 ## 2. `style.ref(...)`: ref 宣言
 
-引数は `()`、`("label")`、`(boundary)`、`(boundary, "label")`。boundary は静的に 1 つの
-ref identity へ解決できることが要件（`crates/js-oxc/src/refs/definitions.rs`）。
+引数は `()` または `("label")`。各宣言は独立した ref identity を作る。
+包含関係は selector の使用箇所で `.in(scope)` に指定する。
 
 | 状況                                            | lower                                     |
 | ----------------------------------------------- | ----------------------------------------- |
@@ -115,7 +115,8 @@ ref identity へ解決できることが要件（`crates/js-oxc/src/refs/definit
 | 値が実行時に不要（静的添付だけ）                | `const menu = undefined;`                 |
 
 marker は `sw_[label_]<hash>` の class token で、規則を持たない。要素の class 値に載り、
-selector 側（ref variant・boundary の `@container`・`:has()`）から参照される。
+selector 側の ref variant と `.in()` が marker を参照する。
+`ref.at()` は receiver の identity から生成した container 名を参照する。
 
 ## 3. `style.keyframes(...)` と use
 
@@ -221,24 +222,39 @@ marker は `style(ref)` のみが付ける。provider の CSS には `:where(.ma
 ## 6. ref variant
 
 tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()`）、literal 1 引数 call
-（`ref("hover:")`）が prefix を、`ref.at(query)` / `` ref.at`query` `` が container query を表す。
+（`ref("hover:")`）が prefix を、raw ref の `ref.at(query)` / `` ref.at`query` `` が container query を表す。
 補間を含む tag は `NonStaticRefVariant` で拒否する。
 
 - prefix は `prefix:` に正規化され、variant object のキーや utility 文字列の補間として使える。
-- selector は ref と boundary の marker を `:where()` で包み、boundary 付きは
-  `&:is(:where(<boundary>):has(:where(<ref>)<variant>) *)` の形で boundary の内側だけに限定する。
+- `ref(state)` は状態に一致する ref 要素を対象要素の祖先として要求する。
+- `ref(state).in(scope)` は ref と scope の marker を `:where()` で包み、
+  `&:is(:is(:where(<scope>)):has(:is(:where(<ref>)<variant>)) *)` の形で scope の子孫に限定する。
   specificity には対象側の selector と ref に適用した variant が寄与する。
+- scope operand は raw ref、または scope を付けていない ref call/tag。
+  `ref("hover").in(parent("focus"))` は parent 要素の focus 状態も要求する。
+- 繰り返す `.in()` は独立した AND 条件であり、順序は条件の意味に影響しない。
+  各 scope は元の ref の状態と対象要素の包含関係を検査する。
+- scope operand 内の `.in()` / `.at()` は不可。`.at()` は raw ref のみで使い、
+  selector scope とは `style()` の variant key の入れ子で合成する。
 - container query は `@container <container name> (query)` を生成する。
+  query の省略または空文字列では条件と括弧を省く。
+- call/tag と `.in()` は `style()` 内の計算キーか utility template 補間で直接消費する。
+  variant を変数に保存して後で使う入力は受け付けない。
+
+```tsx
+style({
+  [menu.at("width >= 40rem")]: {
+    [trigger("hover").in(menu)]: "text-accent",
+  },
+});
+```
 
 ```css
-@media (hover: hover) {
-  .sw_vr124:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_fnrq8):hover) *) {
-    color: var(--color-accent);
-  }
-}
-@container sw-c-trigger-fnrq8 (width >= 40rem) {
-  .sw_vr124 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@container sw-c-menu-qgtyh (width >= 40rem) {
+  @media (hover: hover) {
+    .sw_vr124:is(:is(:where(.sw_menu_qgtyh)):has(:is(:where(.sw_trigger_fnrq8):hover)) *) {
+      color: var(--color-accent);
+    }
   }
 }
 ```
@@ -279,7 +295,8 @@ tag 付きテンプレート（`` ref`hover:` ``）、引数無し call（`ref()
 プロジェクトは次の通り。
 
 - `utility-props-matrix`: utility・配列・条件・属性・custom property・外部 class。
-- `bounded-ref-layout`: ref marker、boundary、anchor 射影、container、ref variant。
+- [ref scope layout](../fixtures/projects/bounded-ref-layout/input/src/Popover.tsx): ref marker、selector scope、anchor provider、container。
+  [scope matrix](../fixtures/projects/bounded-ref-layout/input/src/Scopes.tsx) は状態付き scope、繰り返す scope の順序、明示的な `.at()` 合成を扱う。
 - `typed-ref-graph`: import 越しの ref の添付と射影。
 - `keyframes-matrix`: 静的 / 動的 keyframes use と条件分岐。
 - `view-transition-matrix`: 静的 / 動的 identity、literal / 式 key、完成 props の再利用と通常データからの use、

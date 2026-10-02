@@ -46,6 +46,9 @@ pub enum VariantApplication {
     SelectorSuffix(&'static str),
     /// A resolved selector template containing `&` for the utility selector.
     SelectorTemplate(String),
+    /// Adds a compound selector condition to the final element selected by a rule.
+    /// The renderer inserts it before that element's pseudo-elements, if present.
+    SelectorCondition(String),
     /// A selector template that also declares properties of its own.
     SelectorRule {
         /// Selector template for the wrapped utility.
@@ -85,7 +88,7 @@ impl VariantApplication {
     /// External container identities do not themselves require a subject selector.
     pub fn uses_subject(&self) -> bool {
         match self {
-            Self::Conditional(_) | Self::SelectorSuffix(_) => true,
+            Self::Conditional(_) | Self::SelectorSuffix(_) | Self::SelectorCondition(_) => true,
             Self::Compound(children) | Self::Sequence(children) => {
                 children.iter().any(Self::uses_subject)
             }
@@ -117,6 +120,7 @@ pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str
             (!selector_uses_subject(selector)).then_some(selector.as_str())
         }
         VariantApplication::Conditional(_)
+        | VariantApplication::SelectorCondition(_)
         | VariantApplication::SelectorSuffix(_)
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)

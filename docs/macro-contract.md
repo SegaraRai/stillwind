@@ -26,7 +26,7 @@ Stillwind のマクロは UI を記述するための宣言である。値を計
 - `ref.asAnchor(scope?)`、`ref.asContainer(type?)`、`ref.positionAnchor()`、
   `style.anchorScope(scope)`、`keyframes(options)`、`transition.for(key?)` は
   class/rule を供給できる入力位置に置く。対応する配列・条件分岐・variant value も含む。
-- `ref()`、`ref("hover:")`、ref タグ、`ref.at(query?)`、ref.at タグは
+- `ref()`、`ref("hover:")`、ref タグとその `.in(scope)`、`ref.at(query?)`、ref.at タグは
   variant object の計算キー、または対応する utility template 補間に置く。
 
 `style()` 内にあっても属性値、任意関数の引数などでは消費できない。
@@ -90,17 +90,27 @@ const props = style({ "--progress": value });
 | マクロ／入力                                                              | 引数の契約                                                                                                                                                                         |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `style.ref(name?)`                                                        | 名前は省略または任意の文字列リテラル。空白は `_` にし、CSS 出力時に記号を escape                                                                                                   |
-| `style.ref(boundary, name?)`                                              | boundary は静的に一つの ref identity に特定できること。名前は上の行と同じ制約                                                                                                      |
 | `style.keyframes(definition)`                                             | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object                                                                                                          |
 | `keyframes(options)`                                                      | options は文字列リテラル。receiver は有限の animation 候補。use は `style()` の class 入力としてのみ置ける                                                                         |
 | `style.viewTransition(definition)`                                        | 静的 object。`group` は animation option、`old` / `new` / `imagePair` は utility 文字列リテラル。条件 variant は 4 bucket とも media / supports のみ可。値は `{v:"<class token>"}` |
 | `transition.for(key?)`                                                    | receiver は有限の transition 候補。リテラル key はコンパイル時に畳み込み、式は実行時。名前は `serializeIdentifier(token + "-" + String(key))`                                      |
 | `ref.asAnchor(scope?)` / `.positionAnchor()` / `style.anchorScope(scope)` | ref は有限候補。receiver は純粋な選択式                                                                                                                                            |
 | `ref.asContainer(type?)`                                                  | type は省略可能。CSS container-type の有限 keyword union の文字列リテラル                                                                                                          |
-| `ref.at(query?)` / ref.at タグ                                            | ref は有限候補。query は静的文字列で variant を返す。省略または空文字列なら、条件と括弧を省いた `@container <container-name>` を生成する                                           |
+| `ref.at(query?)` / ref.at タグ                                            | receiver は raw ref の有限候補。query は静的文字列で variant を返す。省略または空文字列なら、条件と括弧を省いた `@container <container-name>` を生成する                           |
 | `ref()` / `ref("variant:")` / ref タグ                                    | prefix は静的。タグ内の補間は不可                                                                                                                                                  |
+| `ref(state).in(scope)`                                                    | scope は raw ref、または scope を付けていない ref call/tag。scope operand 内の `.in()` / `.at()` は不可。繰り返す `.in()` は元の ref と対象要素の包含条件を独立に AND で結合する   |
 | `style()` の utility / variant key                                        | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ                                                                                                               |
 | 配列・variant object                                                      | 対応する入力を再帰的に記述。literal spread と配列の穴に対応。getter・method は不可                                                                                                 |
+
+ref 宣言は独立した identity を作り、親を引数に取らない。
+`ref(state)` は状態に一致する ref 要素を対象要素の祖先として要求する。
+`ref(state).in(parent)` は parent が ref 要素と対象要素を子孫として含むことを要求する。
+`parent("focus")` を operand にすると、包含関係に加えて parent の focus 状態を検査する。
+複数の `.in()` の順序は条件の意味に影響しない。
+selector call/tag と `.in()` の結果には `.at()` を付けられない。
+container query と selector scope は `style()` の key の入れ子で合成する。
+call/tag、scope 付き variant、container query は `style()` 内で直接消費し、変数には保存しない。
+詳細は [ref use design](ref-use-design.md#selector-scope) を参照する。
 
 `style()` の variant value には utility、ref projection、view transition use、
 keyframes use と、それらの配列・条件分岐・variant object を置ける。

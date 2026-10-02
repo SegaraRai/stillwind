@@ -152,23 +152,11 @@ pub enum CompileDiagnostic {
     /// A view-transition label is not a literal string.
     #[error("a view transition label must be a literal string")]
     InvalidViewTransitionLabel,
-    /// A single ref argument is neither a literal label nor an expression that resolves
-    /// to exactly one ref identity.
-    #[error(
-        "style.ref() accepts an optional literal label or exactly one statically resolved ref identity"
-    )]
+    /// A ref label is not a literal string.
+    #[error("style.ref() accepts only an optional literal label")]
     InvalidRefArgument,
-    /// The first argument of a two-argument ref declaration does not resolve to exactly
-    /// one ref identity.
-    #[error(
-        "the boundary argument of style.ref() must resolve statically to exactly one ref identity"
-    )]
-    InvalidRefBoundary,
-    /// The second ref argument is not a literal label.
-    #[error("the second style.ref() argument must be a literal label")]
-    InvalidRefLabelArgument,
     /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts (), (label), (boundary), or (boundary, label)")]
+    #[error("style.ref() accepts () or (label)")]
     InvalidRefArguments,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
@@ -176,6 +164,17 @@ pub enum CompileDiagnostic {
     /// A variant receiver lacks the ref identity needed for selector generation.
     #[error("ref variants require a statically identified style.ref()")]
     UnidentifiedRefVariant,
+    /// A shared scope call has an unsupported argument count or optional call.
+    #[error("ref.in() requires exactly one ref or unscoped ref condition")]
+    InvalidRefScopeArguments,
+    /// A scope operand itself contains a shared scope call.
+    #[error("an in() argument cannot contain in(); chain in() calls outside the argument")]
+    NestedRefScope,
+    /// A ref variant or container query is used as an unsupported receiver or operand.
+    #[error(
+        "variant receivers must be ref declarations; scope operands must be refs or unscoped ref variants"
+    )]
+    InvalidRefVariantReceiver,
     /// A container projection does not supply a literal container type.
     #[error("ref.asContainer() requires a valid literal CSS container type")]
     InvalidContainerType,
@@ -185,7 +184,7 @@ pub enum CompileDiagnostic {
     /// A ref projection cannot be resolved locally without host checker facts.
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
-    /// A container query projection lacks its literal query and utility arguments.
+    /// A container query variant has an invalid argument or interpolated query.
     #[error("ref.at() accepts no arguments, one literal query, or a static template")]
     InvalidContainerQuery,
     /// A position-anchor use supplies arguments to a method that accepts none.

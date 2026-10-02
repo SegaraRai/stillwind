@@ -107,6 +107,7 @@ pub(crate) fn apply_nested_variant(
             condition,
         ),
         VariantApplication::Conditional(_)
+        | VariantApplication::SelectorCondition(_)
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)

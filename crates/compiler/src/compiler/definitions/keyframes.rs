@@ -115,7 +115,8 @@ fn collect_definitions<'a>(
 
 fn variant_span(variant: &StyleVariant) -> Span {
     match variant {
-        StyleVariant::Prefix(prefix) | StyleVariant::Ref { prefix, .. } => prefix.span,
+        StyleVariant::Prefix(prefix) => prefix.span,
+        StyleVariant::Ref { condition, .. } => condition.prefix.span,
         StyleVariant::Container { query, .. } => query.span,
     }
 }

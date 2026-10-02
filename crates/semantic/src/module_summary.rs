@@ -95,7 +95,7 @@ pub struct ModuleSummary {
 
 impl ModuleSummary {
     /// Schema version hosts must understand before reading a summary.
-    pub const SCHEMA: u32 = 3;
+    pub const SCHEMA: u32 = 4;
 
     /// Creates an empty summary for [`Self::module_id`], preserving the identity and
     /// stamping the current schema.
@@ -121,17 +121,8 @@ impl ModuleSummary {
         let mut identities = BTreeSet::new();
         for value in self.exports.values() {
             match value {
-                ExportedValue::Refs(alternatives) => {
-                    for alternative in alternatives {
-                        identities.insert(alternative.reference.clone());
-                        if let Some(boundaries) = &alternative.permitted_boundaries
-                            && let Candidates::Finite(boundaries) = &boundaries.candidates
-                        {
-                            identities.extend(boundaries.iter().cloned());
-                        }
-                    }
-                }
                 ExportedValue::Styles(value)
+                | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
                 | ExportedValue::ViewTransitions(value) => {
                     if let Candidates::Finite(candidates) = &value.candidates {
@@ -175,6 +166,38 @@ mod tests {
         assert_eq!(
             summary.export_reachable_identities(),
             BTreeSet::from([animation])
+        );
+    }
+
+    #[test]
+    fn ref_exports_retain_finite_candidates_and_universe_roots() {
+        let mut summary = ModuleSummary::new("x".into());
+        let owned_ref = IdentityId::new(AssetKind::Ref, "x".into(), 0, 1, "handle");
+        let imported_ref = IdentityId::new(AssetKind::Ref, "other".into(), 0, 1, "other");
+        let animation = IdentityId::new(AssetKind::Keyframes, "x".into(), 2, 3, "animation");
+        for identity in [owned_ref.clone(), animation] {
+            summary.assets.push(AssetRecord {
+                identity,
+                metadata: AssetMetadata { label: None },
+                call_start: 4,
+                call_end: 10,
+            });
+        }
+        summary.exports.insert(
+            "chosen".into(),
+            ExportedValue::Refs(SymbolicValue::exact(imported_ref.clone())),
+        );
+        assert_eq!(
+            summary.export_reachable_identities(),
+            BTreeSet::from([imported_ref.clone()])
+        );
+        summary.exports.insert(
+            "all".into(),
+            ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref)),
+        );
+        assert_eq!(
+            summary.export_reachable_identities(),
+            BTreeSet::from([owned_ref, imported_ref])
         );
     }
 }

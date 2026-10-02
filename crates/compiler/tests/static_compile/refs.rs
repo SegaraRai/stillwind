@@ -1,8 +1,8 @@
-//! Ref projection and boundaries.
+//! Ref projections and selector scopes.
 //!
 //! Pins that one declaration projects into anchor, position-anchor, anchor-scope, and
 //! container names sharing one identity, that named container queries emit rules for
-//! the ref's target, that boundary refs get readable marker names, and that a selector
+//! the ref's target, that scope refs get readable marker names, and that a selector
 //! which cannot hold the required ancestry is rejected.
 
 use stillwind_compiler::CompilerOptions;
@@ -372,17 +372,17 @@ const child = style({ [trigger`hover:`]: "text-accent" });"#,
     let marker = "sw_";
     assert!(result.transforms[0].replacement.contains(marker));
     assert!(result.css.contains(&format!(".{marker}")));
-    assert!(result.css.contains(":hover *)"));
+    assert!(result.css.contains(":hover) *)"));
 }
 
 #[test]
-fn boundaries_place_refs_across_siblings_and_use_readable_marker_names() {
+fn scopes_select_refs_across_siblings_and_use_readable_marker_names() {
     let component = SourceFile::new(
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref("menu");
-const trigger = style.ref(menu, "trigger");
-export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`]: "text-accent" })} /></section>;"#,
+const trigger = style.ref("trigger");
+export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`.in(menu)]: "text-accent" })} /></section>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
@@ -421,21 +421,21 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
         result.css
     );
     assert!(
-        result.css.contains(&format!(":has(:where(.{trigger}")),
+        result.css.contains(&format!(":has(:is(:where(.{trigger}")),
         "{}",
         result.css
     );
-    assert!(result.css.contains(":hover) *)"), "{}", result.css);
+    assert!(result.css.contains(":hover)) *)"), "{}", result.css);
 }
 
 #[test]
-fn rejects_a_bounded_ref_selector_target_outside_its_boundary() {
+fn reports_a_selector_target_outside_its_ref_scope() {
     let component = SourceFile::new(
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
-const trigger = style.ref(menu);
-export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`]: "text-accent" })} /></>;"#,
+const trigger = style.ref();
+export const Menu = () => <><section {...style(menu)}><button {...style(trigger)} /></section><span {...style({ [trigger`hover:`.in(menu)]: "text-accent" })} /></>;"#,
     ).unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
@@ -453,7 +453,7 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
     assert!(
         result.lint_findings.iter().any(|item| matches!(
             item.diagnostic,
-            LintDiagnostic::SelectorOutsideBoundary { .. }
+            LintDiagnostic::TargetOutsideRefScope { .. }
         )),
         "{:#?}",
         result.lint_findings
@@ -461,15 +461,15 @@ export const Menu = () => <><section {...style(menu)}><button {...style(trigger)
 }
 
 #[test]
-fn rejects_a_boundary_attached_outside_its_ref_ancestry() {
+fn reports_a_ref_outside_its_selector_scope() {
     let component = SourceFile::new(
         FileId(1),
         None,
         None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref();
-const trigger = style.ref(menu);
-export const Menu = () => <><section {...style(menu)} /><button {...style(trigger)} /></>;"#,
+const trigger = style.ref();
+export const Menu = () => <><section {...style(menu)}><span {...style({[trigger().in(menu)]: "block"})} /></section><button {...style(trigger)} /></>;"#,
     )
     .unwrap();
     let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
@@ -486,28 +486,28 @@ export const Menu = () => <><section {...style(menu)} /><button {...style(trigge
     );
 
     assert!(
-        result.lint_findings.iter().any(|item| matches!(
-            item.diagnostic,
-            LintDiagnostic::MissingBoundaryAncestor { .. }
-        )),
+        result
+            .lint_findings
+            .iter()
+            .any(|item| matches!(item.diagnostic, LintDiagnostic::RefOutsideScope { .. })),
         "{:#?}",
         result.lint_findings
     );
 }
 
 #[test]
-fn one_ref_is_both_a_selector_subject_and_a_boundary() {
+fn one_ref_is_both_a_selector_subject_and_a_scope() {
     let component = SourceFile::new(
         FileId(1),
         None,
         None,
         r#"import { style } from "stillwind/react";
 const menu = style.ref("menu");
-const trigger = style.ref(menu, "trigger");
+const trigger = style.ref("trigger");
 export const Menu = () => (
   <section {...style(menu)}>
     <button {...style(trigger)}>Open</button>
-    <div {...style({ [trigger`hover:`]: "block" })}>Menu</div>
+    <div {...style({ [trigger`hover:`.in(menu)]: "block" })}>Menu</div>
     <p {...style({ [menu`focus-within:`]: "ring-2" })}>Hint</p>
   </section>
 );"#,
@@ -532,32 +532,31 @@ export const Menu = () => (
         "{:#?}",
         result.lint_findings
     );
-    // The boundary element keeps the unbounded relation for its own ref: a target inside
-    // the boundary element matches by ancestry.
-    assert!(result.css.contains(":focus-within *)"), "{}", result.css);
-    // The bounded ref reads the boundary instead, so its target may be a sibling.
+    // The menu condition selects targets by ancestry.
+    assert!(result.css.contains(":focus-within) *)"), "{}", result.css);
+    // The trigger condition selects siblings within the menu scope.
     assert!(
-        result.css.contains(":has(:where(.sw_trigger_"),
+        result.css.contains(":has(:is(:where(.sw_trigger_"),
         "{}",
         result.css
     );
 }
 
 #[test]
-fn a_bounded_ref_can_bound_another_ref() {
+fn a_scope_ref_can_have_an_ancestor_scope() {
     let component = SourceFile::new(
         FileId(1),
         None,
         None,
         r#"import { style } from "stillwind/react";
 const outer = style.ref("outer");
-const inner = style.ref(outer, "inner");
-const leaf = style.ref(inner, "leaf");
+const inner = style.ref("inner");
+const leaf = style.ref("leaf");
 export const View = () => (
   <section {...style(outer)}>
     <div {...style(inner)}>
       <span {...style(leaf)} />
-      <b {...style({ [leaf`hover:`]: "block" })} />
+      <b {...style({ [leaf`hover:`.in(inner).in(outer)]: "block" })} />
     </div>
   </section>
 );"#,
@@ -582,11 +581,10 @@ export const View = () => (
         "{:#?}",
         result.lint_findings
     );
-    // The leaf is bounded by the inner ref, so its selector reads the inner marker as the
-    // boundary even though that marker is itself bounded by the outer ref.
+    // The leaf condition selects targets within the inner scope.
     assert!(result.css.contains(".sw_inner_"), "{}", result.css);
     assert!(
-        result.css.contains(":has(:where(.sw_leaf_"),
+        result.css.contains(":has(:is(:where(.sw_leaf_"),
         "{}",
         result.css
     );

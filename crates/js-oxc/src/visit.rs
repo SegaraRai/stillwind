@@ -20,8 +20,7 @@ use oxc::ast_visit::{Visit, walk};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{StyleCall, from_macro_import};
 use stillwind_semantic::{
-    AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, RefAlternative,
-    SymbolicValue,
+    AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, SymbolicValue,
 };
 use stillwind_source::Spanned;
 
@@ -253,15 +252,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             );
             if let Some(definition) = self.collect_ref_definition(name, call) {
                 self.ref_symbols.insert(symbol_id, definition.clone());
-                let boundaries = definition.boundary.as_ref().map(|boundary| {
-                    SymbolicValue::exact(self.identity(AssetKind::Ref, &boundary.binding))
-                });
                 self.local_values.insert(
                     symbol_id,
-                    ExportedValue::Refs(vec![RefAlternative {
-                        reference: self.identity(AssetKind::Ref, &definition.binding),
-                        permitted_boundaries: boundaries,
-                    }]),
+                    ExportedValue::Refs(SymbolicValue::exact(
+                        self.identity(AssetKind::Ref, &definition.binding),
+                    )),
                 );
                 self.ref_definitions.push(definition);
             }

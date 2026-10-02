@@ -7,7 +7,7 @@
 //! conditions combine by containment instead of being merged into one query. Resolved
 //! values are emitted without minification.
 
-use stillwind_css::instantiate_selector;
+use stillwind_css::{append_element_condition, instantiate_selector};
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
 };
@@ -147,6 +147,9 @@ fn render_utility_steps(
             }
             VariantStep::SelectorTemplate(template) => {
                 selector = instantiate_selector(template, &selector);
+            }
+            VariantStep::SelectorCondition(condition) => {
+                selector = append_element_condition(&selector, condition);
             }
             VariantStep::SelectorRule {
                 selector: template,

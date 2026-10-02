@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, CompileErrorCode, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, ModuleId, SourceFile};
@@ -213,6 +213,7 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
         "r.asAnchor",
         "r.asContainer",
         "r.at",
+        "r.in",
         "v.for",
         "style.anchorScope",
         r#"r["positionAnchor"]"#,
@@ -227,6 +228,10 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
         "r()",
         "r('hover:')",
         "r`hover:`",
+        "r.in(s)",
+        "r().in(s)",
+        "r('hover').in(s('focus'))",
+        "r`hover`.in(s`focus`)",
         "r.at('width > 1px')",
         "r.at`width > 1px`",
         "(enabled ? r : s).asAnchor()",
@@ -255,9 +260,9 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
                 ScriptModuleKind::Unambiguous,
             );
             let expected = if expression.starts_with("k(") {
-                stillwind_diagnostics::CompileErrorCode::KeyframesUseNotAClassInput
+                CompileErrorCode::KeyframesUseNotAClassInput
             } else {
-                stillwind_diagnostics::CompileErrorCode::UnconsumedMacroUse
+                CompileErrorCode::UnconsumedMacroUse
             };
             assert!(
                 parsed
@@ -293,17 +298,20 @@ const props = style(
         [r()]: 'block',
         [r('hover:')]: 'block',
         [r`focus:`]: 'block',
-        [r.at('width > 1px')]: 'block'
+        [r.at('width > 1px')]: 'block',
+        [r.in(r)]: 'block',
+        [r('hover').in(r('focus'))]: 'block',
     },
     `${r`hover:`}:block`,
-    `${r.at`width > 1px`}:block`
+    `${r.at`width > 1px`}:block`,
+    `${r`hover`.in(r`focus`)}:block`,
 );
 const ordinary = {
     asAnchor() {},
     asContainer() {},
     positionAnchor: 1,
     for() {},
-    at() {}
+    at() {},
 };
 const a = ordinary.asAnchor();
 const b = ordinary.asContainer();

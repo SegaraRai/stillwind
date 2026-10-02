@@ -45,7 +45,7 @@ impl TypeFacts {
     /// Schema version the frontend understands. Bump it whenever the shape or meaning
     /// of [`TypeFacts`] changes: hosts send payloads produced by an older schema, and
     /// those must be rejected rather than reinterpreted.
-    pub const SCHEMA: u32 = 3;
+    pub const SCHEMA: u32 = 4;
 }
 
 /// A problem the host hit while producing type facts for a module.

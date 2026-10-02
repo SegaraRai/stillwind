@@ -16,9 +16,9 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnchorScope, AssetReference, BoundaryRef, ClassExpression, ConditionalBranches, GroupEntry,
-    KeyframesBody, KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression,
-    StyleInput, StyleVariant, ViewTransitionKey, ViewTransitionName,
+    AnchorScope, AssetReference, ClassExpression, ConditionalBranches, GroupEntry, KeyframesBody,
+    KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression, StyleInput,
+    StyleVariant, ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -96,18 +96,6 @@ fn map_value<E>(
     Ok(())
 }
 
-fn map_boundary<E>(
-    boundary: &mut BoundaryRef,
-    map: &mut impl FnMut(Span) -> Result<Span, E>,
-) -> Result<(), E> {
-    map_value(&mut boundary.binding, map)?;
-    if let Some(label) = &mut boundary.label {
-        map_value(label, map)?;
-    }
-    boundary.call_span = map(boundary.call_span)?;
-    Ok(())
-}
-
 fn map_ref<E>(
     definition: &mut RefDefinition,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
@@ -115,9 +103,6 @@ fn map_ref<E>(
     map_value(&mut definition.binding, map)?;
     if let Some(label) = &mut definition.label {
         map_value(label, map)?;
-    }
-    if let Some(boundary) = &mut definition.boundary {
-        map_boundary(boundary, map)?;
     }
     definition.call_span = map(definition.call_span)?;
     Ok(())
@@ -182,7 +167,7 @@ fn map_projection<E>(
     Ok(())
 }
 
-/// Rewrites the declaration and boundary spans of each ref in `scope` in place.
+/// Rewrites the declaration spans of each ref in `scope` in place.
 ///
 /// `map` must handle the file identities and coordinate spaces of those declarations.
 /// Keyword scopes need no mapping.
@@ -470,8 +455,15 @@ fn map_variant<E>(
         StyleVariant::Prefix(prefix) => {
             map_value(prefix, map)?;
         }
-        StyleVariant::Ref { refs, prefix }
-        | StyleVariant::Container {
+        StyleVariant::Ref { condition, scopes } => {
+            for condition in std::iter::once(condition).chain(scopes) {
+                map_value(&mut condition.prefix, map)?;
+                for definition in &mut condition.refs {
+                    map_ref(definition, map)?;
+                }
+            }
+        }
+        StyleVariant::Container {
             refs,
             query: prefix,
         } => {

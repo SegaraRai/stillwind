@@ -129,28 +129,148 @@ impl<'a> MacroExtractor<'a> {
 /// Returns the receiver, member name, and expected asset kind when the member name
 /// matches known macro syntax.
 ///
-/// Accepts static members and computed members with literal string keys after
-/// unwrapping expressions. Other forms return `None`. The caller must resolve the
-/// receiver identity and request any checker probes.
+/// Accepts static members and computed members with literal string or expression-free
+/// template keys after unwrapping expressions. Other forms return `None`. The caller
+/// must resolve the receiver identity and request any checker probes.
 fn macro_member<'e, 'a>(
     expression: &'e Expression<'a>,
 ) -> Option<(&'e Expression<'a>, &'e str, AssetKind)> {
-    let (receiver, name) = match expression.get_inner_expression() {
-        Expression::StaticMemberExpression(member) => {
-            (&member.object, member.property.name.as_str())
-        }
-        Expression::ComputedMemberExpression(member) => {
-            let Expression::StringLiteral(name) = member.expression.get_inner_expression() else {
-                return None;
-            };
-            (&member.object, name.value.as_str())
-        }
-        _ => return None,
-    };
+    let (receiver, name, _) = literal_member(expression)?;
     let kind = match name {
-        "asAnchor" | "asContainer" | "positionAnchor" | "at" => AssetKind::Ref,
+        "asAnchor" | "asContainer" | "positionAnchor" | "at" | "in" => AssetKind::Ref,
         "for" => AssetKind::ViewTransition,
         _ => return None,
     };
     Some((receiver, name, kind))
+}
+
+/// Returns a member's receiver, decoded name, and optional-access flag.
+/// Static names, string literals, and expression-free templates are accepted after
+/// unwrapping expressions. Dynamic keys and templates without cooked text return
+/// `None`. Callers must check the optional-access flag when interpreting macro syntax.
+pub(crate) fn literal_member<'e, 'a>(
+    expression: &'e Expression<'a>,
+) -> Option<(&'e Expression<'a>, &'e str, bool)> {
+    match expression.get_inner_expression() {
+        Expression::StaticMemberExpression(member) => Some((
+            &member.object,
+            member.property.name.as_str(),
+            member.optional,
+        )),
+        Expression::ComputedMemberExpression(member) => {
+            let name = match member.expression.get_inner_expression() {
+                Expression::StringLiteral(name) => name.value.as_str(),
+                Expression::TemplateLiteral(template)
+                    if template.expressions.is_empty() && template.quasis.len() == 1 =>
+                {
+                    template.quasis[0].value.cooked.as_ref()?.as_str()
+                }
+                _ => return None,
+            };
+            Some((&member.object, name, member.optional))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use stillwind_diagnostics::CompileErrorCode;
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+    use stillwind_source::{FileId, ModuleId, SourceFile};
+
+    fn parse_saved_use(expression: &str) -> (SourceFile, crate::ParsedJavaScript) {
+        let code = format!(
+            "import {{style}} from 'stillwind/react';\n\
+             // 日本語 🧭\n\
+             const r = style.ref('r'); const s = style.ref('s');\n\
+             const transition = style.viewTransition({{old: 'opacity-0'}});\n\
+             const ordinary = {{in: (value) => value, at: () => 'plain'}};\n\
+             const saved = {expression};"
+        );
+        let source = SourceFile::new(FileId(1), None, None, code).unwrap();
+        let parsed = crate::parse(
+            &source,
+            &ModuleId::from("saved.ts"),
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        (source, parsed)
+    }
+
+    #[test]
+    fn saved_computed_macro_calls_and_tags_report_unconsumed_use() {
+        for expression in [
+            "r['in'](s)",
+            "r[`in`](s)",
+            r"r[`i\u006e`](s)",
+            "r()['in'](s)",
+            "r('hover')[`in`](s)",
+            "r`hover`[`in`](s)",
+            "r?.[`in`](s)",
+            "r[`in`]?.(s)",
+            "r['at']()",
+            "r[`at`]('width > 40rem')",
+            "r[`at`]`width > 40rem`",
+            "r?.[`at`]()",
+            "r[`at`]?.()",
+            "r[`asAnchor`]()",
+            "r[`asContainer`]()",
+            "r[`positionAnchor`]()",
+            "transition[`for`]('card')",
+        ] {
+            let (source, parsed) = parse_saved_use(expression);
+            assert!(
+                parsed.diagnostics.iter().any(|error| {
+                    error.code() == CompileErrorCode::UnconsumedMacroUse
+                        && error
+                            .labels
+                            .iter()
+                            .any(|label| expression.starts_with(source.slice(label.span).unwrap()))
+                }),
+                "{expression}: {:?}",
+                parsed.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn saved_computed_macro_members_report_unconsumed_use() {
+        for expression in [
+            "r['in']",
+            "r[`in`]",
+            "r[`at`]",
+            "r[`asAnchor`]",
+            "transition[`for`]",
+        ] {
+            let (source, parsed) = parse_saved_use(expression);
+            assert!(
+                parsed.diagnostics.iter().any(|error| {
+                    error.code() == CompileErrorCode::UnconsumedMacroUse
+                        && error
+                            .labels
+                            .iter()
+                            .any(|label| source.slice(label.span).unwrap() == expression)
+                }),
+                "{expression}: {:?}",
+                parsed.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn computed_macro_names_on_ordinary_receivers_are_not_macro_uses() {
+        for expression in ["ordinary[`in`](s)", "ordinary['at']()", "ordinary[`in`]"] {
+            let (_, parsed) = parse_saved_use(expression);
+            assert!(
+                parsed.diagnostics.is_empty(),
+                "{expression}: {:?}",
+                parsed.diagnostics
+            );
+        }
+    }
 }

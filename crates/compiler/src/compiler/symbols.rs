@@ -7,7 +7,7 @@
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_ir::{AssetReference, BoundaryRef, RefDefinition, RefProjection};
+use stillwind_ir::{AssetReference, RefDefinition, RefProjection};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
@@ -110,17 +110,6 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
     }
 }
 
-/// The declaration fields a boundary ref's marker is built from, including its label.
-pub(super) fn boundary_declaration_context(boundary: &BoundaryRef) -> DeclarationContext {
-    DeclarationContext {
-        module: boundary.module_id.clone(),
-        start: boundary.binding.span.start.0,
-        end: boundary.binding.span.end.0,
-        binding: boundary.binding.value.clone(),
-        label: declared_label(boundary.label.as_ref()),
-    }
-}
-
 /// The authored label of one declaration, normalized for name use.
 ///
 /// An empty label is no label: a declaration whose label cleans to nothing is named
@@ -139,18 +128,6 @@ pub(crate) fn ref_marker_name(
     definition: &RefDefinition,
 ) -> Result<RefMarker, CompileDiagnostic> {
     context.ref_marker_name(&ref_declaration_context(definition))
-}
-
-/// Generated marker class token for a boundary ref, without a leading dot.
-///
-/// # Errors
-///
-/// Returns the host generator's failure for the ref marker family.
-pub(crate) fn boundary_marker_name(
-    context: &IdentifierContext,
-    boundary: &BoundaryRef,
-) -> Result<RefMarker, CompileDiagnostic> {
-    context.ref_marker_name(&boundary_declaration_context(boundary))
 }
 
 /// Generated `anchor-name` for a ref declaration's identity.

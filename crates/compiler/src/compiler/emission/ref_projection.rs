@@ -299,11 +299,10 @@ fn render_ref_projection(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_ir::BoundaryRef;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
-    use crate::compiler::symbols::{boundary_marker_name, ref_marker_name};
+    use crate::compiler::symbols::ref_marker_name;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, IdentifierPool,
     };
@@ -317,13 +316,12 @@ mod tests {
     }
 
     #[test]
-    fn projections_share_identity_and_boundaries_name_their_own_declaration() {
+    fn projections_share_their_ref_identity() {
         let binding = Spanned::new("ref".to_owned(), Span::new(FileId(1), 0, 3));
         let mut definition = RefDefinition {
             module_id: ModuleId::from("x"),
             binding: binding.clone(),
             label: None,
-            boundary: None,
             call_span: binding.span,
         };
         let context = identifiers();
@@ -372,31 +370,6 @@ mod tests {
         assert_eq!(
             container_symbol.identity,
             identity_input_parts(&ref_context(&definition, None))
-        );
-        definition.boundary = Some(BoundaryRef {
-            module_id: ModuleId::from("x"),
-            binding: binding.clone(),
-            label: Some(binding.clone()),
-            call_span: binding.span,
-        });
-        let boundary =
-            boundary_marker_name(&context, definition.boundary.as_ref().unwrap()).unwrap();
-        // A boundary is a ref declaration, so the element carrying it wears that
-        // declaration's own marker class.
-        assert_eq!(
-            boundary.as_str(),
-            ref_marker_name(
-                &context,
-                &RefDefinition {
-                    module_id: ModuleId::from("x"),
-                    binding: binding.clone(),
-                    label: Some(binding.clone()),
-                    boundary: None,
-                    call_span: binding.span,
-                }
-            )
-            .unwrap()
-            .as_str()
         );
         definition.label = Some(binding);
         // A label is spelled into the name, so the same declaration wears a different

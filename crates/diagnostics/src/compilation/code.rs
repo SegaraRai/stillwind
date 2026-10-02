@@ -76,8 +76,6 @@ define_compile_codes! {
     // 03: refs and providers
     RefFactsRequired => "SW03001",
     InvalidRefArgument => "SW03002",
-    InvalidRefBoundary => "SW03003",
-    InvalidRefLabelArgument => "SW03004",
     InvalidRefArguments => "SW03005",
     NonStaticRefVariant => "SW03006",
     UnidentifiedRefVariant => "SW03007",
@@ -90,6 +88,9 @@ define_compile_codes! {
     InvalidVariantPrefix => "SW03014",
     UnavailableVariantPrefix => "SW03015",
     UnidentifiedRef => "SW03016",
+    InvalidRefScopeArguments => "SW03017",
+    NestedRefScope => "SW03018",
+    InvalidRefVariantReceiver => "SW03019",
     // 04: keyframes and animation
     InvalidKeyframesOptions => "SW04001",
     KeyframesUseNotAClassInput => "SW04002",

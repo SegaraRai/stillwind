@@ -223,6 +223,9 @@ pub(in crate::compiler) fn render_authored_variant_path(
                         VariantStep::SelectorSuffix(suffix) => {
                             Ok((format!("&{suffix}{{{body}}}"), gates))
                         }
+                        VariantStep::SelectorCondition(condition) => {
+                            Ok((format!("&{condition}{{{body}}}"), gates))
+                        }
                         VariantStep::SelectorTemplate(selector) => {
                             Ok((format!("{selector}{{{body}}}"), gates))
                         }

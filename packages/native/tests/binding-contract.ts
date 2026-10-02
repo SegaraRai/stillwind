@@ -272,12 +272,14 @@ export function registerBindingContract(bindingSpecifier: string) {
       "tsx",
       "unambiguous",
     );
+    expect(summary.schema).toBe(4);
     const handle = summary.exports.find(
       (entry: import("../binding.js").NativeExport) => entry.name === "handle",
     ).value;
     expect(handle.kind).toBe("refs");
-    expect(handle.value[0].reference.moduleId).toBe("🧭.tsx");
-    expect(handle.value[0].permittedBoundaries).toBe(null);
+    expect(handle.value.kind).toBe("ref");
+    expect(handle.value.candidates.kind).toBe("finite");
+    expect(handle.value.candidates.values[0].moduleId).toBe("🧭.tsx");
     const reserved = summarizeSource(
       "import {style} from 'stillwind/react'; export const __proto__=style.ref();",
       "reserved.ts",
@@ -406,54 +408,24 @@ export function registerBindingContract(bindingSpecifier: string) {
       end: 1,
       bindingName: "handle",
     };
-    const boundary = {
-      kind: "ref",
-      moduleId: "facts.ts",
-      start: 2,
-      end: 3,
-      bindingName: "menu",
-    };
     const symbolic = (kind: string) => ({ kind, candidates: { kind: "universe" } });
     const finite = (kind: string, values: unknown[]) => ({
       kind,
       candidates: { kind: "finite", values },
     });
     for (const value of [
-      { kind: "refs", value: [{ reference, permittedBoundaries: null }] },
-      { kind: "refs", value: [{ reference, permittedBoundaries: symbolic("ref") }] },
-      {
-        kind: "refs",
-        value: [{ reference, permittedBoundaries: finite("ref", [boundary]) }],
-      },
+      { kind: "refs", value: finite("ref", [reference]) },
+      { kind: "refs", value: finite("ref", []) },
+      { kind: "refs", value: symbolic("ref") },
       { kind: "keyframes", value: symbolic("keyframes") },
       { kind: "viewTransitions", value: symbolic("viewTransition") },
     ]) {
       expect(compile(value).modules[0].diagnostics).toStrictEqual([]);
     }
     for (const value of [
-      {
-        kind: "refs",
-        value: [{ reference: { ...reference, kind: "keyframes" }, permittedBoundaries: null }],
-      },
-      {
-        kind: "refs",
-        value: [{ reference, permittedBoundaries: symbolic("keyframes") }],
-      },
-      {
-        kind: "refs",
-        value: [
-          {
-            reference,
-            permittedBoundaries: finite("ref", [{ ...boundary, kind: "keyframes" }]),
-          },
-        ],
-      },
-      {
-        kind: "refs",
-        value: [
-          { reference, permittedBoundaries: { kind: "ref", candidates: { kind: "finite" } } },
-        ],
-      },
+      { kind: "refs", value: finite("ref", [{ ...reference, kind: "keyframes" }]) },
+      { kind: "refs", value: symbolic("keyframes") },
+      { kind: "refs", value: { kind: "ref", candidates: { kind: "finite" } } },
       { kind: "unknown", value: symbolic("ref") },
     ]) {
       expect(() => compile(value)).toThrow();

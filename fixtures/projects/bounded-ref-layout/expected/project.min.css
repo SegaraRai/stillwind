@@ -227,31 +227,61 @@
 }
 @layer components;
 @layer utilities {
-  .sw_gitix {
-    anchor-scope: --sw-a-trigger-w0wbm;
+  .sw_xrl2a {
+    anchor-scope: --sw-a-trigger-ya42g;
   }
-  .sw_gitix:where(.sw_container_gxe38) {
+  .sw_xrl2a:where(.sw_container_gxe38) {
     container: sw-c-container-gxe38/inline-size;
   }
-  .sw_2f4mf {
+  .sw_i6zgp {
     display: inline-flex;
     position: relative;
   }
-  .sw_2f4mf:where(.sw_trigger_w0wbm) {
-    anchor-name: --sw-a-trigger-w0wbm;
+  .sw_i6zgp:where(.sw_trigger_ya42g) {
+    anchor-name: --sw-a-trigger-ya42g;
   }
-  .sw_94u4o {
-    position-anchor: --sw-a-trigger-w0wbm;
+  .sw_o2uqu {
+    position-anchor: --sw-a-trigger-ya42g;
     position: absolute;
   }
   @container sw-c-container-gxe38 (width>=40rem) {
-    .sw_94u4o {
+    .sw_o2uqu {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (hover: hover) {
-    .sw_94u4o:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_w0wbm):hover) *) {
+    .sw_o2uqu:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_ya42g):hover) *) {
       color: var(--color-accent);
+    }
+  }
+  .sw_lc4mp:where(.sw_menu_ja0oq) {
+    container: sw-c-menu-ja0oq/inline-size;
+  }
+  @media (hover: hover) {
+    .sw_3fwti:is(:where(.sw_trigger_7z9al):hover *) {
+      color: var(--color-accent);
+    }
+  }
+  .sw_9v9ia:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al)) *) {
+    color: var(--color-accent);
+  }
+  @media (hover: hover) {
+    .sw_dqr19:is(:where(.sw_menu_ja0oq):focus:has(:where(.sw_trigger_7z9al):hover) *),
+    .sw_ux4n0:is(:where(.sw_menu_ja0oq):focus:has(:where(.sw_trigger_7z9al):hover) *),
+    .sw_anm5g:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al):hover) *):is(
+        :where(.sw_outer_mm2en):has(:where(.sw_trigger_7z9al):hover) *
+      ),
+    .sw_o646i:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al):hover) *):is(
+        :where(.sw_outer_mm2en):has(:where(.sw_trigger_7z9al):hover) *
+      ) {
+      color: var(--color-accent);
+    }
+  }
+  @container sw-c-menu-ja0oq (width>=40rem) {
+    @media (hover: hover) {
+      .sw_1ml1x:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al):hover) *) {
+        color: var(--color-accent);
+      }
     }
   }
 }

@@ -1,15 +1,12 @@
-//! Checked symbolic values, correlated ref alternatives, and host type facts.
+//! Checked symbolic candidate values and host type facts.
 //!
-//! Conversions reject inconsistent candidate kinds and invalid ref/boundary pairs.
-//! An absent boundary retains its domain meaning as an unbounded ref.
+//! Conversions validate that exported tags, value kinds, and candidate kinds agree.
 
 use napi::Error;
 use napi_derive::napi;
 use serde::Serialize;
 
-use stillwind_semantic::{
-    AssetKind, Candidates, ExportedValue, RefAlternative, SymbolicValue, TypeFact,
-};
+use stillwind_semantic::{AssetKind, Candidates, ExportedValue, SymbolicValue, TypeFact};
 
 use super::identity::{NativeAssetKind, NativeIdentity};
 
@@ -67,19 +64,6 @@ impl From<SymbolicValue> for NativeSymbolicValue {
     }
 }
 
-/// One ref candidate together with the boundaries it may be bounded by.
-///
-/// The pair is a relationship, not a product: see [`stillwind_semantic::RefAlternative`].
-#[napi(object, use_nullable = true)]
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativeRefAlternative {
-    /// The ref identity.
-    pub reference: NativeIdentity,
-    /// Boundary refs this ref may be bounded by, or `None` when unconstrained.
-    pub permitted_boundaries: Option<NativeSymbolicValue>,
-}
-
 /// A value an analyzed module can export.
 #[napi(discriminant = "kind", discriminant_case = "camelCase")]
 #[derive(Serialize)]
@@ -90,10 +74,10 @@ pub enum NativeExportedValue {
         /// Reachable style identities.
         value: NativeSymbolicValue,
     },
-    /// Exported ref, kept as alternatives so correlation is preserved.
+    /// Exported ref.
     Refs {
-        /// The correlated alternatives.
-        value: Vec<NativeRefAlternative>,
+        /// Reachable ref identities.
+        value: NativeSymbolicValue,
     },
     /// Exported keyframes.
     Keyframes {
@@ -122,28 +106,13 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                 Self::ViewTransitions(value.try_into()?),
                 AssetKind::ViewTransition,
             ),
-            NativeExportedValue::Refs { value } => {
-                return Ok(Self::Refs(
-                    value
-                        .into_iter()
-                        .map(|item| {
-                            RefAlternative::new(
-                                item.reference.into(),
-                                item.permitted_boundaries
-                                    .map(TryInto::try_into)
-                                    .transpose()?,
-                            )
-                            .map_err(|error| Error::from_reason(error.to_string()))
-                        })
-                        .collect::<napi::Result<_>>()?,
-                ));
-            }
+            NativeExportedValue::Refs { value } => (Self::Refs(value.try_into()?), AssetKind::Ref),
         };
         let actual = match &value {
-            Self::Styles(value) | Self::Keyframes(value) | Self::ViewTransitions(value) => {
-                value.kind
-            }
-            Self::Refs(_) => AssetKind::Ref,
+            Self::Styles(value)
+            | Self::Refs(value)
+            | Self::Keyframes(value)
+            | Self::ViewTransitions(value) => value.kind,
         };
         if actual != expected {
             return Err(Error::from_reason(
@@ -167,13 +136,7 @@ impl From<ExportedValue> for NativeExportedValue {
                 value: value.into(),
             },
             ExportedValue::Refs(value) => Self::Refs {
-                value: value
-                    .into_iter()
-                    .map(|item| NativeRefAlternative {
-                        reference: item.reference.into(),
-                        permitted_boundaries: item.permitted_boundaries.map(Into::into),
-                    })
-                    .collect(),
+                value: value.into(),
             },
         }
     }

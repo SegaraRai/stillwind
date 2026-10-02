@@ -1,9 +1,9 @@
-# ref の明示的な provider use と class unit の設計
+# ref の selector scope、明示的な provider use と class unit の設計
 
 ## 状態と適用範囲
 
-`ref.asAnchor()` / `ref.asContainer()` を採用する設計判断を記述する。
-これらの API は実装されている。使用例は公開 API を表す。
+`ref(...).in(scope)` と `ref.asAnchor()` / `ref.asContainer()` の設計を記述する。
+使用例は公開 API の契約を表す。
 「確定事項」は API 契約、「lowering の方向」は共通処理の構造を表す。
 
 ref attachment から `anchor-name` / `container-name` / `anchor-scope` を自動生成する案は採用しない。
@@ -20,8 +20,9 @@ ref identity の宣言は `style.ref()` に統一する。`style.anchor()` や
 
 | 操作                                         | 意味                                                               | marker の追加 |
 | -------------------------------------------- | ------------------------------------------------------------------ | ------------- |
-| `style.ref(...)`                             | ref identity と、指定されていれば bounding ref との関係を宣言する  | なし          |
+| `style.ref(label?)`                          | 独立した ref identity を宣言する                                   | なし          |
 | `style(ref)`                                 | 対象要素へ ref を attach する                                      | あり          |
+| `ref(state).in(scope)`                       | scope が ref と selector の対象要素を含む条件を追加する            | なし          |
 | `ref.asAnchor(...)` を `style()` に渡す      | receiver のアンカー名を供給する CSS use を作る。scope の詳細は後述 | なし          |
 | `ref.asContainer(...)` を `style()` に渡す   | receiver のコンテナー名と型設定を供給する CSS use を作る           | なし          |
 | `style.anchorScope(...)` を `style()` に渡す | 対象要素に scope だけを供給する CSS use を作る                     | なし          |
@@ -35,6 +36,78 @@ ref identity の宣言は `style.ref()` に統一する。`style.anchor()` や
 marker は ref をそのまま `style()` の入力にした attachment だけが追加する。
 各 ref の marker は一つの対象要素を指す、という利用上の設計意図を維持する。
 この意図は、DOM 全体の一意性をコンパイラが静的に証明・検証できるという保証を含まない。
+
+### selector scope
+
+ref 宣言は親や scope を保持しない。selector が必要とする包含関係は、使用箇所の
+`ref(state).in(scope)` で指定する。scope は CSS の `anchor-scope` と独立した条件である。
+
+```tsx
+const menu = style.ref("menu");
+const trigger = style.ref("trigger");
+
+<section {...style(menu)}>
+  <button {...style(trigger)}>Open</button>
+  <div {...style({ [trigger("hover").in(menu)]: "text-accent" })}>Menu</div>
+</section>;
+```
+
+`ref(state)` は、指定した状態の ref 要素を selector の対象要素の祖先として要求する。
+`ref()` は状態を指定せず、祖先に ref が存在することを要求する。
+`ref(state).in(parent)` は parent 要素が、指定した状態の ref 要素と対象要素の両方を
+子孫として含むことを要求する。ref 要素と対象要素は兄弟でもよい。
+parent 要素自身は、この selector の対象には含まれない。
+
+`.in()` の引数は raw ref、または scope を付けていない ref call/tag である。
+raw ref は状態なしの包含条件を表す。call/tag の状態は scope 要素を検査する。
+
+```tsx
+style({ [trigger("hover").in(menu)]: "text-accent" });
+style({ [trigger("hover").in(menu("focus"))]: "text-accent" });
+style({ [trigger`hover:`.in(menu`focus:`)]: "text-accent" });
+```
+
+最後の二つは同じ条件で、hover 状態の trigger と対象要素を含む menu が focus 状態であることを要求する。
+ref call/tag 内の状態は ref 要素を検査し、外側の variant は対象要素を検査する。
+
+`.in(a).in(b)` は独立した条件を AND で結合する。各 scope は元の ref の状態と対象要素の
+包含関係を検査する。後の `.in()` が前の scope を内包する関係にはしない。
+順序は条件の意味に影響しない。
+
+```tsx
+style({ [trigger("hover").in(menu).in(panel)]: "text-accent" });
+style({ [trigger("hover").in(panel).in(menu)]: "text-accent" });
+```
+
+この二つは、menu と panel がそれぞれ hover 状態の trigger と対象要素を含むことを要求する。
+menu と panel の間に特定の包含順序を指定しない。
+ref、scope とも alias や有限候補を使えるが、宣言値には scope を保存しない。
+
+`.in()` の operand 内では `.in()` と `.at()` を使えない。
+container query の `.at()` は raw ref のみが持ち、selector call/tag や `.in()` の結果には付けられない。
+複数の条件は `style()` の variant key で明示的に合成する。
+
+```tsx
+style({
+  [menu.at("width >= 40rem")]: {
+    [trigger("hover").in(menu)]: "text-accent",
+  },
+});
+```
+
+この形は menu の container query と selector scope を別々に指定する。
+ref variant と `.at()` の条件は、常に最終的な対象要素へかかる。
+これらの variant key の入れ子順は条件の意味に影響しない。
+`menu.asContainer("inline-size")` は menu 要素の `style(menu, ...)` に置く。
+`.in(menu)` から container provider や container query を補わない。
+`asAnchor()`、`asContainer()`、`positionAnchor()` も raw ref から生成する。
+
+call/tag と `.in()` は、`style()` 内の variant key または utility template 補間で直接消費する。
+完成した `style()` と raw ref 宣言は保存できるが、variant を変数に保存して後で使えない。
+
+```tsx
+style(`${trigger("hover").in(menu)}:text-accent`);
+```
 
 ### 想定する使用形
 
@@ -206,11 +279,11 @@ ref use / keyframes use / view transition use の共通経路にする。
 
 各 use の固有の意味論は、共通処理に渡す寄与の構築と合成規則に残す。
 
-| use             | 保持する固有の意味論                                                                            |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| ref             | provider と consumer の CSS プロパティ、明示 scope、ref と boundary の相関、attachment との分離 |
-| keyframes       | keyframes 定義への依存、animation options からの宣言生成                                        |
-| view transition | 複数 class token の合成、参加者の name、動的 key、variant 内の動的 name の slot、名前の診断     |
+| use             | 保持する固有の意味論                                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| ref             | provider と consumer の CSS プロパティ、anchor scope、使用箇所の selector scope、attachment との分離 |
+| keyframes       | keyframes 定義への依存、animation options からの宣言生成                                             |
+| view transition | 複数 class token の合成、参加者の name、動的 key、variant 内の動的 name の slot、名前の診断          |
 
 view transition の候補が一つでも key が動的なら、CSS 選択だけを縮約し、
 参加者の name に必要な runtime 値は残す。複数の条件が同時に成立した場合の
@@ -247,7 +320,7 @@ gate、CSS variant、token 合成などに必要な経由は残し、共通 lowe
 
 旧 `ref.anchorScope` を新しい `asAnchor([ref])` に機械置換すると、
 scope の供給に加えて anchor-name まで供給する可能性がある。両者を等価と見なさない。
-[bounded-ref-layout fixture](../fixtures/projects/bounded-ref-layout/input/src/Popover.tsx) のように
+[ref scope layout fixture](../fixtures/projects/bounded-ref-layout/input/src/Popover.tsx) のように
 scope と anchor が別要素にあるケースを移行の基準にする。
 
 ## container-type の値と型定義
@@ -280,6 +353,16 @@ type ContainerTypeValue =
 `var()` などの任意 CSS 式は有限 keyword union と別契約になるため、この案には含めない。
 
 ## 診断の契約
+
+selector scope の検査は `.in()` の使用箇所に属する。JSX で確認できる関係を使い、次の Lint を報告する。
+
+- `UnattachedRefScope` (`unattached-ref-scope`): 指定した scope の attachment を確認できない。
+- `RefInScope` (`ref-in-scope`): scope 要素が参照先の ref 要素を子孫として含まない。
+- `TargetInRefScope` (`target-in-ref-scope`): scope 要素が selector の対象要素を子孫として含まない。
+
+診断データでは包含関係の指定を `scope` と呼ぶ。独立した ref 宣言に `.in()` の関係を付けない。
+複数の `.in()` があれば、それぞれの scope と元の ref、対象要素を検査する。
+別コンポーネントや portal の関係を証明できない場合、任意の DOM 関係を仮定しない。
 
 provider use が要求する attachment の欠落を診断する。
 `style(ref.asAnchor())` に対して、同じ対象要素へ ref marker が供給されていないケースが該当する。
@@ -326,5 +409,7 @@ consumer 側の設定漏れは別の診断である。`positionAnchor` に対す
 - scope の省略と none、container-type の省略と normal を区別し、動的 scope の全候補を保持する。
 - provider gate、consumer と scope-only use の gate 不要性、排他的 provider と同時供給の競合を検証する。
 - attachment の欠落と consumer に対する provider の欠落を区別して診断する。
+- selector scope の状態、繰り返す `.in()` の AND 条件と順序の非依存性、raw ref の `.at()` との明示合成を検証する。
+- scope operand に入れ子の `.in()` / `.at()` を受け付けず、call/tag を保存して使う入力を拒否する。
 - utility と provider use の衝突警告を、静的・動的・条件付き・CSS variant 付きの各経路で検証する。
 - 動的 view-transition-name の直接 inline 出力と、custom property が必要な適用制御・合成を保持する。

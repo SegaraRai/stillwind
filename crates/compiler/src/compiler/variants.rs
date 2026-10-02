@@ -30,6 +30,11 @@ pub(super) enum VariantStep<'a> {
         /// CSS selector template with ampersands marking the current selector.
         &'a str,
     ),
+    /// Adds a compound selector condition to the final originating element.
+    SelectorCondition(
+        /// Selector fragment inserted before any pseudo-element in the final compound.
+        &'a str,
+    ),
     /// Applies a selector and contributes declarations.
     SelectorRule {
         /// CSS selector template with ampersand substitution sites, without braces.
@@ -95,6 +100,9 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::SelectorSuffix(suffix) => VariantStep::SelectorSuffix(suffix),
                 VariantApplication::SelectorTemplate(selector) => {
                     VariantStep::SelectorTemplate(selector)
+                }
+                VariantApplication::SelectorCondition(condition) => {
+                    VariantStep::SelectorCondition(condition)
                 }
                 VariantApplication::SelectorRule {
                     selector,

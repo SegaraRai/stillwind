@@ -11,8 +11,8 @@
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
-use stillwind_ir::{BoundaryRef, RefDefinition};
-use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, RefAlternative, SymbolicValue};
+use stillwind_ir::RefDefinition;
+use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
 use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
@@ -29,7 +29,10 @@ impl<'a> MacroExtractor<'a> {
             let alternate = self.ref_references(&conditional.alternate);
             let mut refs = consequent?;
             for definition in alternate? {
-                if !refs.contains(&definition) {
+                if !refs
+                    .iter()
+                    .any(|candidate| self.ref_identity(candidate) == self.ref_identity(&definition))
+                {
                     refs.push(definition);
                 }
             }
@@ -37,8 +40,8 @@ impl<'a> MacroExtractor<'a> {
         }
         let span = expression.span();
         self.record_type_probe(expression);
-        if let Some(ExportedValue::Refs(alternatives)) = self.type_fact(span) {
-            return self.refs_from_alternatives(alternatives);
+        if let Some(ExportedValue::Refs(value)) = self.type_fact(span) {
+            return self.refs_from_value(value);
         }
         let Expression::Identifier(identifier) = expression else {
             return None;
@@ -48,82 +51,46 @@ impl<'a> MacroExtractor<'a> {
         if let Some(definition) = self.ref_symbols.get(&symbol_id) {
             return Some(vec![definition.clone()]);
         }
-        let ExportedValue::Refs(alternatives) = self.local_values.get(&symbol_id)? else {
+        let ExportedValue::Refs(value) = self.local_values.get(&symbol_id)? else {
             return None;
         };
-        self.refs_from_alternatives(alternatives)
+        self.refs_from_value(value)
     }
 
-    /// Expands correlated alternatives into the ref definitions they denote.
+    /// Resolves finite ref candidates to their declaration definitions.
     ///
-    /// Each alternative keeps its own permitted boundary: an alternative with a finite
-    /// boundary set expands to one definition per boundary, while an alternative whose
-    /// boundary set is a universe yields `None`, because no single boundary could be
-    /// chosen without changing the selector's meaning. An empty finite boundary set
-    /// contributes no definitions and may leave the resulting vector empty.
-    pub(crate) fn refs_from_alternatives(
-        &self,
-        alternatives: &[RefAlternative],
-    ) -> Option<Vec<RefDefinition>> {
-        let mut refs = Vec::new();
-        for alternative in alternatives {
-            match &alternative.permitted_boundaries {
-                None => refs.push(self.imported_ref(alternative)?),
-                Some(boundaries) => {
-                    for boundary in boundaries.finite_candidates()? {
-                        let mut alternative = alternative.clone();
-                        alternative.permitted_boundaries =
-                            Some(SymbolicValue::exact(boundary.clone()));
-                        refs.push(self.imported_ref(&alternative)?);
-                    }
-                }
-            }
-        }
-        Some(refs)
-    }
-
-    /// Resolves an expression to exactly one boundary ref, or `None`.
-    ///
-    /// A boundary has to be statically identified: each candidate of a plural value
-    /// would need its own boundary in the selector, so several candidates are reported
-    /// by the caller instead of being narrowed to one.
-    pub(crate) fn boundary_reference(&self, expression: &Expression<'a>) -> Option<BoundaryRef> {
-        let refs = self.ref_references(expression)?;
-        let [definition] = refs.as_slice() else {
+    /// Returns `None` for a universe value, a non-ref kind, or a candidate of another
+    /// kind. An empty finite set returns an empty vector. Candidate order follows
+    /// `IdentityId` ordering, and local declaration metadata is reused when available.
+    pub(crate) fn refs_from_value(&self, value: &SymbolicValue) -> Option<Vec<RefDefinition>> {
+        if value.kind != AssetKind::Ref || value.validate().is_err() {
             return None;
-        };
-        Some(Self::boundary_of(definition))
-    }
-
-    /// The boundary view of one resolved ref declaration.
-    ///
-    /// A boundary carries no selector responsibilities of its own, so the
-    /// projection-free declaration fields are all a bounded ref keeps.
-    fn boundary_of(definition: &RefDefinition) -> BoundaryRef {
-        BoundaryRef {
-            module_id: definition.module_id.clone(),
-            binding: definition.binding.clone(),
-            label: definition.label.clone(),
-            call_span: definition.call_span,
         }
+        Some(
+            value
+                .finite_candidates()?
+                .iter()
+                .map(|identity| self.imported_ref(identity))
+                .collect(),
+        )
     }
 
-    /// Rebuilds a boundary from a ref identity declared elsewhere.
+    /// Resolves a ref identity to a local definition or reconstructs its metadata.
     ///
-    /// A locally declared ref is reused when the identity matches, so local and
-    /// imported boundaries compare equal; otherwise the boundary is synthesized with
-    /// the identity's declaration span and the host's metadata label.
-    pub(crate) fn imported_boundary(&self, identity: &IdentityId) -> BoundaryRef {
+    /// `identity` must identify a ref declaration. Local declarations retain their
+    /// spans and labels. For external declarations, the host label is retained and
+    /// spans use the declaration offsets in this module's source coordinate space.
+    pub(crate) fn imported_ref(&self, identity: &IdentityId) -> RefDefinition {
         if let Some(definition) = self
             .ref_definitions
             .iter()
-            .find(|definition| self.identity(AssetKind::Ref, &definition.binding) == *identity)
+            .find(|definition| self.ref_identity(definition) == *identity)
         {
-            return Self::boundary_of(definition);
+            return definition.clone();
         }
         let span = Span::new(self.original.id(), identity.start, identity.end);
         let metadata = self.imported_assets.get(identity);
-        BoundaryRef {
+        RefDefinition {
             module_id: identity.module_id.clone(),
             binding: Spanned::new(identity.binding_name.clone(), span),
             label: metadata
@@ -133,44 +100,158 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Rebuilds a ref definition from a correlated alternative.
+    /// Returns the ref's declaration identity in original UTF-8 coordinates.
     ///
-    /// Returns `None` when the alternative's permitted boundaries are not exactly one
-    /// finite candidate, because a ref definition carries at most one boundary.
-    pub(crate) fn imported_ref(&self, alternative: &RefAlternative) -> Option<RefDefinition> {
-        let span = Span::new(
-            self.original.id(),
-            alternative.reference.start,
-            alternative.reference.end,
-        );
-        let metadata = self.imported_assets.get(&alternative.reference);
-        let boundary = match &alternative.permitted_boundaries {
-            None => None,
-            Some(boundaries) => {
-                let candidates = boundaries.finite_candidates()?;
-                if candidates.len() != 1 {
-                    return None;
-                }
-                Some(self.imported_boundary(candidates.first()?))
-            }
+    /// Definitions collected from the analysis buffer need one projection mapping.
+    /// Definitions reconstructed from checker facts already carry original offsets,
+    /// so their spans are retained. The declaring module comes from `definition`.
+    pub(crate) fn ref_identity(&self, definition: &RefDefinition) -> IdentityId {
+        let binding = &definition.binding;
+        let span =
+            if binding.span.file == self.source.id() && self.source.id() != self.original.id() {
+                (self.coordinates)(binding.span).unwrap_or(self.original.full_span())
+            } else {
+                binding.span
+            };
+        IdentityId::new(
+            AssetKind::Ref,
+            definition.module_id.clone(),
+            span.start.0,
+            span.end.0,
+            binding.value.clone(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use oxc::semantic::Scoping;
+
+    use stillwind_semantic::{AssetMetadata, Candidates};
+    use stillwind_source::{FileId, ModuleId, SourceFile};
+
+    use super::*;
+
+    #[test]
+    fn ref_identity_maps_analysis_spans_once_and_preserves_original_modules() {
+        let source = SourceFile::new(FileId(3), None, None, "const item = style.ref();").unwrap();
+        let original =
+            SourceFile::new(FileId(1), None, None, "prefix const item = style.ref();").unwrap();
+        let module_id = ModuleId::from("local.ts");
+        let scoping = Scoping::default();
+        let metadata = BTreeMap::new();
+        let mappings = Cell::new(0);
+        let coordinates = |span: Span| {
+            assert_eq!(span.file, source.id());
+            mappings.set(mappings.get() + 1);
+            Some(Span::new(original.id(), span.start.0 + 7, span.end.0 + 7))
         };
-        let mut definition = self
-            .ref_definitions
-            .iter()
-            .find(|definition| {
-                self.identity(AssetKind::Ref, &definition.binding) == alternative.reference
-            })
-            .cloned()
-            .unwrap_or_else(|| RefDefinition {
-                module_id: alternative.reference.module_id.clone(),
-                binding: Spanned::new(alternative.reference.binding_name.clone(), span),
-                label: metadata
-                    .and_then(|metadata| metadata.label.clone())
-                    .map(|label| Spanned::new(label, span)),
-                boundary: None,
-                call_span: span,
-            });
-        definition.boundary = boundary;
-        Some(definition)
+        let mut extractor = MacroExtractor::new(
+            &source,
+            &module_id,
+            &scoping,
+            &[],
+            &metadata,
+            &original,
+            &coordinates,
+        );
+        let identity = IdentityId::new(AssetKind::Ref, module_id.clone(), 13, 17, "item");
+        let reconstructed = extractor.imported_ref(&identity);
+        assert_eq!(extractor.ref_identity(&reconstructed), identity);
+        assert_eq!(mappings.get(), 0);
+        let local = RefDefinition {
+            module_id: module_id.clone(),
+            binding: Spanned::new("item".into(), Span::new(source.id(), 6, 10)),
+            label: None,
+            call_span: Span::new(source.id(), 13, 24),
+        };
+        assert_eq!(extractor.ref_identity(&local), identity);
+        assert_eq!(mappings.get(), 1);
+        extractor.ref_definitions.push(local.clone());
+        assert_eq!(extractor.imported_ref(&identity), local);
+        let external = RefDefinition {
+            module_id: "external.ts".into(),
+            ..reconstructed
+        };
+        let mappings_before_external = mappings.get();
+        assert_eq!(
+            extractor.ref_identity(&external),
+            IdentityId::new(AssetKind::Ref, "external.ts".into(), 13, 17, "item"),
+        );
+        assert_eq!(mappings.get(), mappings_before_external);
+    }
+
+    #[test]
+    fn finite_ref_candidates_reuse_local_definitions_and_import_labels() {
+        let source = SourceFile::new(FileId(1), None, None, "const local = style.ref();").unwrap();
+        let module_id = ModuleId::from("local.ts");
+        let scoping = Scoping::default();
+        let imported = IdentityId::new(AssetKind::Ref, "other.ts".into(), 2, 10, "external");
+        let metadata = BTreeMap::from([(
+            imported.clone(),
+            AssetMetadata {
+                label: Some("label".into()),
+            },
+        )]);
+        let mut extractor = MacroExtractor::new(
+            &source,
+            &module_id,
+            &scoping,
+            &[],
+            &metadata,
+            &source,
+            &Some,
+        );
+        let local = RefDefinition {
+            module_id: module_id.clone(),
+            binding: Spanned::new("local".into(), Span::new(source.id(), 6, 11)),
+            label: None,
+            call_span: Span::new(source.id(), 14, 25),
+        };
+        let local_id = extractor.identity(AssetKind::Ref, &local.binding);
+        extractor.ref_definitions.push(local.clone());
+        let value = SymbolicValue::finite(AssetKind::Ref, [imported.clone(), local_id]).unwrap();
+        let refs = extractor.refs_from_value(&value).unwrap();
+        assert_eq!(refs[0], local);
+        assert_eq!(refs[1].module_id, imported.module_id);
+        assert_eq!(refs[1].binding.value, imported.binding_name);
+        assert_eq!(refs[1].label.as_ref().unwrap().value, "label");
+        assert_eq!(refs[1].call_span, Span::new(source.id(), 2, 10));
+    }
+
+    #[test]
+    fn ref_resolution_distinguishes_empty_universe_and_invalid_candidates() {
+        let source = SourceFile::new(FileId(1), None, None, "").unwrap();
+        let module_id = ModuleId::from("local.ts");
+        let scoping = Scoping::default();
+        let metadata = BTreeMap::new();
+        let extractor = MacroExtractor::new(
+            &source,
+            &module_id,
+            &scoping,
+            &[],
+            &metadata,
+            &source,
+            &Some,
+        );
+        let empty = SymbolicValue::finite(AssetKind::Ref, []).unwrap();
+        assert_eq!(extractor.refs_from_value(&empty), Some(Vec::new()));
+        assert_eq!(
+            extractor.refs_from_value(&SymbolicValue::universe(AssetKind::Ref)),
+            None
+        );
+        let wrong = IdentityId::new(AssetKind::Keyframes, "other.ts".into(), 0, 1, "frames");
+        assert_eq!(
+            extractor.refs_from_value(&SymbolicValue::exact(wrong.clone())),
+            None
+        );
+        let malformed = SymbolicValue {
+            kind: AssetKind::Ref,
+            candidates: Candidates::Finite(BTreeSet::from([wrong])),
+        };
+        assert_eq!(extractor.refs_from_value(&malformed), None);
     }
 }

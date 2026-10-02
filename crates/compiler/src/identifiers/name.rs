@@ -101,8 +101,6 @@ brand! {
     /// A generated utility class, written to a class attribute and to class selectors.
     UtilityClass, class_token;
     /// A ref marker class, written where a ref is attached.
-    ///
-    /// A bounded ref writes its boundary's token as the `:has()` root of its selectors.
     RefMarker, class_token;
     /// An `anchor-name` value, which names the element a ref anchors to.
     AnchorName, custom_ident;

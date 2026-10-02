@@ -198,8 +198,9 @@ token vocabulary for editor completion.
 
 Tailwind's `container` / `@container`, `group`, and `peer` spellings are accepted
 for migration compatibility, including named markers and responsive container
-variants. Stillwind's `style.ref()` and `style.scope()` remain the safer native
-model because their relationships are local and can be checked structurally.
+variants. Stillwind's `style.ref()` declares independent element identities, and
+`ref("hover").in(parent)` constrains a selector at its use site. These local
+relationships can be checked structurally.
 Projects that want to enforce that model can set
 `forbidTailwindRelationships: true` in the Vite plugin options; compatibility
 syntax then emits the blocking `SHLINT001` diagnostic.

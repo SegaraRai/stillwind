@@ -10,6 +10,7 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
 };
+use stillwind_source::Span;
 
 use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -429,7 +430,7 @@ impl CallEmitter<'_> {
     /// diagnostics to distinguish these outcomes.
     pub(super) fn emit_candidate_units(
         &mut self,
-        value: &stillwind_source::Span,
+        value: &Span,
         key: &str,
         candidates: Vec<(String, LiteralContribution)>,
         guard: &[GuardStep],
@@ -566,9 +567,10 @@ fn rule_position(expression: &RuleExpression) -> u32 {
         RuleExpression::Array(elements) => elements.first().map_or(0, rule_position),
         RuleExpression::Conditional { test, .. } => test.start.0,
         RuleExpression::Variant { variant, .. } => match variant {
-            StyleVariant::Prefix(prefix)
-            | StyleVariant::Ref { prefix, .. }
-            | StyleVariant::Container { query: prefix, .. } => prefix.span.start.0,
+            StyleVariant::Prefix(prefix) | StyleVariant::Container { query: prefix, .. } => {
+                prefix.span.start.0
+            }
+            StyleVariant::Ref { condition, .. } => condition.prefix.span.start.0,
         },
         RuleExpression::AnchorScope { span, .. } | RuleExpression::Group { span, .. } => {
             span.start.0

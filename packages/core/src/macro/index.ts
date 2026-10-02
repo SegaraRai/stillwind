@@ -76,6 +76,7 @@ export type StillwindClassValue =
 
 declare const refProjection: unique symbol;
 declare const refIdentity: unique symbol;
+declare const refVariantKind: unique symbol;
 declare const keyframesIdentity: unique symbol;
 declare const viewTransitionIdentity: unique symbol;
 
@@ -111,13 +112,12 @@ export type StillwindDeclarationIdentity<Id extends string> = {
  * It has no independently materialized value and cannot be stored, exported,
  * passed, or returned for later use. It does not attach a ref marker.
  */
-export type StyleRefProjection<RefId extends string = string, BoundaryId extends string = never> = {
+export type StyleRefProjection<RefId extends string = string> = {
   /** @internal */
   readonly [refProjection]: true;
   /** @internal */
   readonly [refIdentity]: {
     readonly ref: RefId;
-    readonly boundary: BoundaryId;
   };
 };
 
@@ -129,7 +129,7 @@ export type StyleRefProjection<RefId extends string = string, BoundaryId extends
  * Write the keyword or array directly in `asAnchor()` or `style.anchorScope()`.
  * A stored scope value does not satisfy the compiler's literal syntax contract.
  */
-export type AnchorScope = "all" | "none" | readonly StyleRef<string, string>[];
+export type AnchorScope = "all" | "none" | readonly StyleRef[];
 
 /**
  * CSS-wide keywords accepted as literal `container-type` values by `asContainer`.
@@ -163,17 +163,16 @@ export type ContainerType =
 /**
  * A DOM identity attached by passing the ref itself to `style()`.
  * `asAnchor` and `asContainer` add CSS that applies only when the same element has
- * this ref's marker. A ref declaration can also serve as the boundary for other refs.
+ * this ref's marker. A ref declaration can also supply a scope to `.in()`.
  * The declaration value may be stored, exported, passed, returned, and selected
  * conditionally. Its projection and variant calls must appear directly inside
- * `style()` and cannot be kept as separate values. `RefId` and `BoundaryId` carry
+ * `style()` and cannot be kept as separate values. `RefId` carries
  * compiler identity. Application code should let the checker infer them.
  */
-export type StyleRef<RefId extends string = string, BoundaryId extends string = never> = {
+export type StyleRef<RefId extends string = string> = {
   /** @internal */
   readonly [refIdentity]: {
     readonly ref: RefId;
-    readonly boundary: BoundaryId;
   };
 
   /**
@@ -187,7 +186,7 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * emits no scope declaration.
    * @returns Rule input that adds this ref's anchor-name when consumed by `style()`.
    */
-  asAnchor(scope?: AnchorScope): StyleRefProjection<RefId, BoundaryId>;
+  asAnchor(scope?: AnchorScope): StyleRefProjection<RefId>;
 
   /**
    * Adds this ref's container-name and, if provided, the literal container-type.
@@ -198,7 +197,7 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @param type - An optional string literal from {@link ContainerType}.
    * @returns Rule input that adds this ref's container-name and optional container-type.
    */
-  asContainer(type?: ContainerType): StyleRefProjection<RefId, BoundaryId>;
+  asContainer(type?: ContainerType): StyleRefProjection<RefId>;
 
   /**
    * Refers to this ref's generated anchor-name from the styled element.
@@ -208,7 +207,23 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    *
    * @returns Rule input that adds position-anchor to the styled element.
    */
-  positionAnchor(): StyleRefProjection<RefId, BoundaryId>;
+  positionAnchor(): StyleRefProjection<RefId>;
+
+  /**
+   * Tests this ref's presence within the supplied scope. This is shorthand for
+   * calling this ref without arguments and then applying `.in(scope)`.
+   * Use the complete chain directly as a computed variant key or a variant segment
+   * followed by `:` in a utility template inside `style()`.
+   *
+   * @param scope - A raw ref declaration or an unscoped ref call or static tag.
+   * The scope ref must be a strict ancestor of both this ref and the styled target.
+   * Any variants on the scope operand test that scope element.
+   * @returns Scoped selector syntax that accepts further `.in()` calls.
+   * The result cannot be stored or passed for later use.
+   */
+  in<const ScopeId extends string>(
+    scope: RefScope<ScopeId>,
+  ): ScopedRefVariant<RefId, readonly [ScopeId]>;
 
   /**
    * Selects this ref's named container without a query condition.
@@ -219,7 +234,7 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @returns Variant syntax that emits `@container <name>` without parentheses.
    * The result cannot be stored or passed as an independent value.
    */
-  at(): StyleRefVariant<RefId, BoundaryId>;
+  at(): ContainerVariant<RefId>;
 
   /**
    * Applies a literal CSS query to this ref's named container.
@@ -232,7 +247,7 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @returns Variant syntax for the named container query. The result cannot be
    * stored or passed as an independent value.
    */
-  at(query: string): StyleRefVariant<RefId, BoundaryId>;
+  at(query: string): ContainerVariant<RefId>;
 
   /**
    * Applies a static tagged query to this ref's named container.
@@ -245,7 +260,7 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @returns Variant syntax for the named container query. The result cannot be
    * stored or passed as an independent value.
    */
-  at(strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+  at(strings: TemplateStringsArray): ContainerVariant<RefId>;
 
   /**
    * Tests a static variant sequence on the referenced element.
@@ -258,18 +273,18 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @returns Ref variant syntax. The result cannot be stored or passed as an
    * independent value.
    */
-  (strings: TemplateStringsArray): StyleRefVariant<RefId, BoundaryId>;
+  (strings: TemplateStringsArray): RefVariant<RefId>;
 
   /**
-   * Tests ref presence without a state condition. An unbounded ref must be an
-   * ancestor of the target. A bounded ref and the target must be within its boundary.
+   * Tests ref presence without a state condition. Without `.in()`, this ref must
+   * be an ancestor of the styled target. `.in()` scopes the selector explicitly.
    * Use the call directly as a computed variant key or a complete variant segment
    * followed by `:` in a utility template inside `style()`.
    *
    * @returns Ref variant syntax. The result cannot be stored or passed as an
    * independent value.
    */
-  (): StyleRefVariant<RefId, BoundaryId>;
+  (): RefVariant<RefId>;
 
   /**
    * Tests a literal variant sequence on the referenced element.
@@ -282,26 +297,106 @@ export type StyleRef<RefId extends string = string, BoundaryId extends string = 
    * @returns Ref variant syntax. The result cannot be stored or passed as an
    * independent value.
    */
-  (variants: string): StyleRefVariant<RefId, BoundaryId>;
+  (variants: string): RefVariant<RefId>;
 };
 
 /**
- * Syntax for a ref selector or named container query inside `style()`.
- * Write its call or tag directly as a computed variant key or a complete variant
- * segment followed by `:` in a utility template. It has no independently
- * materialized value and cannot be stored, exported, passed, or returned for
- * later use, even though its type extends string.
+ * A scope operand for `.in()`: a raw ref declaration or an unscoped ref call or
+ * static tag. Scoped selectors and container queries cannot supply a scope.
+ * Declaration values may be reused. Calls and tags must appear directly in the
+ * `.in()` chain consumed by `style()`.
+ * `RefId` preserves the possible declaration identities of the scope operand.
  */
-export type StyleRefVariant<
-  RefId extends string = string,
-  BoundaryId extends string = never,
-> = string & {
-  /** @internal */
+export type RefScope<RefId extends string = string> = StyleRef<RefId> | RefVariant<RefId>;
+
+type StyleVariantKey = string & {
   readonly [refProjection]: true;
+  readonly at: never;
+};
+
+/**
+ * An unscoped ref selector returned by a ref call or static tag.
+ * Without `.in()`, the referenced element must be an ancestor of the styled target.
+ * Use the complete call, tag, or `.in()` chain directly as a computed variant key
+ * or a variant segment followed by `:` in a utility template inside `style()`.
+ * This syntax cannot be stored, exported, passed, or returned for later use.
+ * `RefId` preserves the possible identities of the referenced element.
+ */
+export type RefVariant<RefId extends string = string> = StyleVariantKey & {
+  /** @internal */
+  readonly [refVariantKind]: "unscoped";
   /** @internal */
   readonly [refIdentity]: {
     readonly ref: RefId;
-    readonly boundary: BoundaryId;
+  };
+
+  /**
+   * Scopes this selector to a strict ancestor of the referenced element and the
+   * styled target. Any variants on the scope operand test that scope element.
+   * Use the complete chain directly as a computed key or utility variant segment
+   * inside `style()`.
+   *
+   * @param scope - A raw ref declaration or an unscoped ref call or static tag.
+   * @returns Scoped selector syntax that accepts further `.in()` calls.
+   * The result cannot be stored or passed for later use.
+   */
+  in<const ScopeId extends string>(
+    scope: RefScope<ScopeId>,
+  ): ScopedRefVariant<RefId, readonly [ScopeId]>;
+};
+
+/**
+ * A ref selector with one or more explicit ancestor scopes.
+ * Each further `.in()` adds an independent condition that its scope contains both
+ * the referenced element and the styled target. The method may be chained any
+ * number of times. Use the complete chain directly as a computed
+ * key or a variant segment followed by `:` in a utility template inside `style()`.
+ * This syntax cannot be stored, exported, passed, or returned for later use.
+ * `RefId` preserves the referenced identities. `ScopeIds` preserves each scope's
+ * possible identities in the order of the `.in()` calls.
+ */
+export type ScopedRefVariant<
+  RefId extends string = string,
+  ScopeIds extends readonly string[] = readonly string[],
+> = StyleVariantKey & {
+  /** @internal */
+  readonly [refVariantKind]: "scoped";
+  /** @internal */
+  readonly [refIdentity]: {
+    readonly ref: RefId;
+    readonly scopes: ScopeIds;
+  };
+
+  /**
+   * Adds a scope that must be a strict ancestor of the referenced element and the
+   * styled target. Each scope condition applies independently. Any variants on
+   * the operand test that scope element.
+   * Use the complete chain directly as a computed key or utility variant segment
+   * inside `style()`.
+   *
+   * @param scope - A raw ref declaration or an unscoped ref call or static tag.
+   * @returns Scoped selector syntax that preserves the existing scopes and accepts
+   * further `.in()` calls. The result cannot be stored or passed for later use.
+   */
+  in<const ScopeId extends string>(
+    scope: RefScope<ScopeId>,
+  ): ScopedRefVariant<RefId, readonly [...ScopeIds, ScopeId]>;
+};
+
+/**
+ * A named container query returned by a raw ref's `.at()` call or static tag.
+ * Supply the container name with `.asContainer()` on an element carrying that ref.
+ * Use the call or tag directly as a computed key or a variant segment followed by
+ * `:` in a utility template inside `style()`. This syntax cannot be stored,
+ * exported, passed, or returned for later use. It accepts no further macro methods.
+ * `RefId` preserves the possible identities of the container provider.
+ */
+export type ContainerVariant<RefId extends string = string> = StyleVariantKey & {
+  /** @internal */
+  readonly [refVariantKind]: "container";
+  /** @internal */
+  readonly [refIdentity]: {
+    readonly ref: RefId;
   };
 };
 
@@ -447,7 +542,7 @@ export type StyleViewTransitionDefinition = {
  */
 export type StyleVariantValue =
   | UtilityString
-  | StyleRefProjection<string, string>
+  | StyleRefProjection
   | StyleViewTransition
   | StyleViewTransitionUse
   | StyleKeyframesUse
@@ -468,9 +563,10 @@ export interface StyleVariantObject {
    */
   readonly [variant: StyleVariant]: StyleVariantValue;
   /**
-   * Direct ref-variant calls or tags provide computed keys for the associated rules.
+   * Direct ref selectors, scope chains, and container queries provide computed keys
+   * for the associated rules.
    */
-  readonly [variant: StyleRefVariant<string, string>]: StyleVariantValue;
+  readonly [variant: StyleVariantKey]: StyleVariantValue;
 }
 
 /**
@@ -509,9 +605,9 @@ export type StyleArgument =
   | undefined
   | readonly StyleArgument[]
   | StyleObject
-  | StyleRef<string, string>
-  | StyleRefProjection<string, string>
-  | StyleRefVariant<string, string>
+  | StyleRef
+  | StyleRefProjection
+  | StyleVariantKey
   | StyleKeyframesUse
   | StyleViewTransition
   | StyleViewTransitionUse;
@@ -587,32 +683,6 @@ export type StyleMacro<Props = object> = {
   ref(label: string): StyleRef;
 
   /**
-   * Declares an unlabeled ref whose selectors use a structural boundary.
-   * Write the declaration in a binding initializer. Attach the boundary to a
-   * strict ancestor of the ref's element. Selector targets must be within it.
-   *
-   * @param boundary - A reusable ref value that the compiler can resolve to
-   * exactly one declaration identity. Several possible boundaries are rejected.
-   * @returns A reusable bounded ref declaration that may be stored, exported,
-   * passed, returned, or conditionally selected.
-   */
-  ref(boundary: StyleRef<string, string>): StyleRef;
-
-  /**
-   * Declares a labeled ref whose selectors use a structural boundary.
-   * Write the declaration in a binding initializer. Attach the boundary to a
-   * strict ancestor of the ref's element. Selector targets must be within it.
-   *
-   * @param boundary - A reusable ref value that the compiler can resolve to
-   * exactly one declaration identity. Several possible boundaries are rejected.
-   * @param label - A string literal used in generated names. Empty text omits the
-   * label. Labels do not determine declaration identity.
-   * @returns A reusable bounded ref declaration that may be stored, exported,
-   * passed, returned, or conditionally selected.
-   */
-  ref(boundary: StyleRef<string, string>, label: string): StyleRef;
-
-  /**
    * Internal use only. The checker supplies identity for an unlabeled ref declaration.
    * Application code must use `ref()` without this argument.
    * @internal
@@ -628,27 +698,6 @@ export type StyleMacro<Props = object> = {
     label: string,
     identity: StillwindDeclarationIdentity<Id>,
   ): StyleRef<Id>;
-
-  /**
-   * Internal use only. The checker supplies identity for an unlabeled bounded ref.
-   * Application code must use `ref(boundary)` without the identity argument.
-   * @internal
-   */
-  ref<const BoundaryId extends string, const Id extends string>(
-    boundary: StyleRef<BoundaryId, string>,
-    identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, BoundaryId>;
-
-  /**
-   * Internal use only. The checker supplies identity for a labeled bounded ref.
-   * Application code must use `ref(boundary, label)` without the identity argument.
-   * @internal
-   */
-  ref<const BoundaryId extends string, const Id extends string>(
-    boundary: StyleRef<BoundaryId, string>,
-    label: string,
-    identity: StillwindDeclarationIdentity<Id>,
-  ): StyleRef<Id, BoundaryId>;
 
   /**
    * Declares a local animation in a binding initializer and assigns its CSS name.
@@ -708,7 +757,7 @@ export type StyleMacro<Props = object> = {
    * produce lint findings.
    * @returns Rule input that supplies anchor-scope when consumed by `style()`.
    */
-  anchorScope(scope: AnchorScope): StyleRefProjection<string, string>;
+  anchorScope(scope: AnchorScope): StyleRefProjection;
 };
 
 /**

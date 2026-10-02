@@ -6,8 +6,8 @@
 //! exactly like the same candidate written as one token. A ref wrapper cannot be
 //! spelled as a string: the selector depends on which element declares the ref and
 //! where it sits relative to the target, so the wrapper is lowered into
-//! [`VariantApplication`] alternatives that carry the generated marker and boundary
-//! selectors.
+//! [`VariantApplication`] alternatives that carry the generated markers and shared scope
+//! conditions.
 //!
 //! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
 //! records the ref's generated identifiers and the authored prefix, independent of how
@@ -17,16 +17,16 @@
 
 use std::fmt::Write as _;
 
-use stillwind_css::instantiate_selector;
+use stillwind_css::{instantiate_selector, selector_is_element_condition, selector_uses_subject};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
-use stillwind_ir::{RefDefinition, StyleVariant};
+use stillwind_ir::{RefCondition, RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::symbols::{boundary_marker_name, ref_container_name, ref_marker_name};
+use super::symbols::{ref_container_name, ref_marker_name};
 use super::utilities::resolve::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 use crate::identifiers::{IdentifierContext, RefMarker};
@@ -63,7 +63,7 @@ impl StyleVariantPlan {
     /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
     ///
     /// A ref wrapper with no known ref identity is an error rather than a fallthrough
-    /// to a selector without a boundary, because that would silently target the wrong
+    /// to an unrelated selector, because that would silently target the wrong
     /// element.
     ///
     /// Returns `None` after pushing a diagnostic; the caller must abandon the
@@ -83,13 +83,26 @@ impl StyleVariantPlan {
             paths: vec![Vec::new()],
             ordinary_count: 0,
         };
-        for wrapper in wrappers {
+        for wrapper in wrappers
+            .iter()
+            .filter(|wrapper| matches!(wrapper, StyleVariant::Prefix(_)))
+        {
+            if let StyleVariant::Prefix(prefix) = wrapper {
+                plan.add_prefix(theme, prefix, diagnostics)?;
+            }
+        }
+        let mut independent = wrappers
+            .iter()
+            .filter(|wrapper| !matches!(wrapper, StyleVariant::Prefix(_)))
+            .collect::<Vec<_>>();
+        independent.sort_by_cached_key(|wrapper| independent_variant_key(wrapper));
+        for wrapper in independent {
             match wrapper {
                 StyleVariant::Prefix(prefix) => {
                     plan.add_prefix(theme, prefix, diagnostics)?;
                 }
-                StyleVariant::Ref { refs, prefix } => {
-                    plan.add_ref(context, theme, refs, prefix, diagnostics)?;
+                StyleVariant::Ref { condition, scopes } => {
+                    plan.add_ref(context, theme, condition, scopes, diagnostics)?;
                 }
                 StyleVariant::Container { refs, query } => {
                     plan.add_container(context, refs, query, diagnostics)?;
@@ -119,68 +132,64 @@ impl StyleVariantPlan {
         Some(())
     }
 
-    /// Applies one ref wrapper, expanding one alternative path per matched ref identity.
-    ///
-    /// Pushes a diagnostic and returns `None` for a ref without an identity and for a path
-    /// that carries a runtime condition, which a static selector cannot express.
+    /// Adds one condition over referenced elements and their optional shared scopes.
+    /// Every scope tests the original ref condition. Expands finite alternatives while
+    /// retaining the same reference for all scopes in one branch. Reports unresolved
+    /// identities or prefixes that cannot be used as element predicates.
     fn add_ref(
         &mut self,
         context: &IdentifierContext,
         theme: &ThemeIndex,
-        refs: &[RefDefinition],
-        prefix: &Spanned<String>,
+        condition: &RefCondition,
+        scopes: &[RefCondition],
         diagnostics: &mut Vec<CompileError>,
     ) -> Option<()> {
-        let (variants, applications) =
-            collect_variant_and_applications(theme, prefix, diagnostics)?;
-        if refs.is_empty() {
-            diagnostics.push(CompileError::new(
-                CompileDiagnostic::UnidentifiedRef,
-                prefix.span,
-            ));
-            return None;
-        }
-        self.has_refs = true;
-        let paths = variant_paths(&applications);
-        if paths
+        let references =
+            element_conditions(context, theme, condition, !scopes.is_empty(), diagnostics)?;
+        let mut ordered_scopes = scopes.iter().collect::<Vec<_>>();
+        ordered_scopes.sort_by_cached_key(|scope| condition_key(scope));
+        ordered_scopes.dedup_by(|a, b| condition_key(a) == condition_key(b));
+        let scope_conditions = ordered_scopes
             .iter()
-            .flatten()
-            .any(|step| matches!(step, VariantStep::Conditional(_)))
-        {
-            diagnostics.push(CompileError::new(
-                CompileDiagnostic::UnavailableVariantPrefix,
-                prefix.span,
-            ));
-            return None;
-        }
+            .map(|scope| element_conditions(context, theme, scope, false, diagnostics))
+            .collect::<Option<Vec<_>>>()?;
         let mut alternatives = Vec::new();
-        // The canonical spelling is hashed, so the pair keeps tokens as text: a branded
-        // name would otherwise contribute its type name to the hash.
-        let mut identities: Vec<(String, Option<String>)> = Vec::new();
-        for definition in refs {
-            let marker = match ref_marker_name(context, definition) {
-                Ok(marker) => marker,
-                Err(failure) => {
-                    diagnostics.push(CompileError::new(failure, definition.call_span));
-                    return None;
-                }
+        for reference in references {
+            let mut paths = if scope_conditions.is_empty() {
+                let mut path = reference.conditions.clone();
+                path.push(VariantApplication::SelectorCondition(format!(
+                    ":is({} *)",
+                    reference.selector
+                )));
+                vec![path]
+            } else {
+                vec![reference.conditions.clone()]
             };
-            let boundary = match definition.boundary.as_ref() {
-                Some(boundary) => match boundary_marker_name(context, boundary) {
-                    Ok(name) => Some(name.selector()),
-                    Err(failure) => {
-                        diagnostics.push(CompileError::new(failure, boundary.call_span));
-                        return None;
-                    }
-                },
-                None => None,
-            };
-            identities.push((marker.as_str().to_owned(), boundary.clone()));
-            for path in &paths {
-                alternatives.push(reference_path(&marker, boundary.as_deref(), path));
+            let reference_selector = &reference.selector;
+            for candidates in &scope_conditions {
+                paths = paths
+                    .into_iter()
+                    .flat_map(|path| {
+                        candidates.iter().map(move |scope| {
+                            let mut path = path.clone();
+                            path.extend(scope.conditions.clone());
+                            path.push(VariantApplication::SelectorCondition(format!(
+                                ":is({}:has({}) *)",
+                                scope.selector, reference_selector
+                            )));
+                            path
+                        })
+                    })
+                    .collect();
             }
+            alternatives.extend(paths);
         }
-        let _ = write!(self.canonical, "ref({identities:?})\0{}\0", prefix.value);
+        let mut canonical = alternatives
+            .iter()
+            .map(|path| format!("{path:?}"))
+            .collect::<Vec<_>>();
+        canonical.sort();
+        let _ = write!(self.canonical, "ref({canonical:?})\0");
         self.paths = self
             .paths
             .iter()
@@ -192,10 +201,17 @@ impl StyleVariantPlan {
                 })
             })
             .collect();
-        self.variants.extend(variants);
+        self.has_refs = true;
+        self.variants.extend(parse_prefix(&condition.prefix)?);
+        for scope in ordered_scopes {
+            self.variants.extend(parse_prefix(&scope.prefix)?);
+        }
         Some(())
     }
 
+    /// Adds an independent named container query evaluated for the final target.
+    /// Empty text emits the container name without a query condition. Reports missing
+    /// identities and identifier generation failures.
     fn add_container(
         &mut self,
         context: &IdentifierContext,
@@ -266,9 +282,12 @@ impl StyleVariantPlan {
                 .paths
                 .iter()
                 .map(|path| {
-                    let mut path = path.clone();
-                    path.extend(applications.clone());
-                    path
+                    path[..self.ordinary_count]
+                        .iter()
+                        .cloned()
+                        .chain(applications.iter().cloned())
+                        .chain(path[self.ordinary_count..].iter().cloned())
+                        .collect()
                 })
                 .collect();
             utility.variants = self.variants.iter().cloned().chain(suffix).collect();
@@ -284,6 +303,49 @@ impl StyleVariantPlan {
             utility.variant_applications.clone_from(&self.paths);
         }
     }
+}
+
+/// Orders independent target conditions using declaration identities and decoded
+/// predicate text. Source use spans do not change the generated condition order.
+fn independent_variant_key(variant: &StyleVariant) -> String {
+    match variant {
+        StyleVariant::Ref { condition, scopes } => {
+            let mut scopes = scopes.iter().map(condition_key).collect::<Vec<_>>();
+            scopes.sort();
+            format!("ref({:?},{scopes:?})", condition_key(condition))
+        }
+        StyleVariant::Container { refs, query } => {
+            format!("container({:?},{:?})", ref_keys(refs), query.value)
+        }
+        StyleVariant::Prefix(prefix) => format!("prefix({:?})", prefix.value),
+    }
+}
+
+fn condition_key(condition: &RefCondition) -> String {
+    format!(
+        "({:?},{:?})",
+        ref_keys(&condition.refs),
+        condition.prefix.value
+    )
+}
+
+fn ref_keys(refs: &[RefDefinition]) -> Vec<String> {
+    let mut identities = refs
+        .iter()
+        .map(|definition| {
+            format!(
+                "{:?}",
+                (
+                    &definition.module_id,
+                    &definition.binding.value,
+                    definition.binding.span,
+                    definition.label.as_ref().map(|label| &label.value),
+                )
+            )
+        })
+        .collect::<Vec<_>>();
+    identities.sort();
+    identities
 }
 
 /// Parses a wrapper prefix and resolves each of its variants.
@@ -337,156 +399,171 @@ pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
     Some(candidate.variants)
 }
 
-/// Builds the selector and conditions that make the utility apply under a ref variant.
-///
-/// The ref and boundary markers contribute no specificity. The ref's variants retain
-/// their specificity, while a bounded ref requires the boundary to contain the
-/// reference and the target.
+/// One resolved element predicate and its subject-independent environment guards.
+struct ElementCondition {
+    selector: String,
+    conditions: Vec<VariantApplication>,
+}
+
+/// Resolves all identity and prefix alternatives of one element condition. The caller
+/// supplies whether the selector will be inserted into `:has()`. Rejects target-only
+/// conditions, declaration effects, selectors that omit their subject, pseudo-elements
+/// and nested `:has()` selectors. Global media and support conditions remain guards.
+fn element_conditions(
+    context: &IdentifierContext,
+    theme: &ThemeIndex,
+    condition: &RefCondition,
+    inside_has: bool,
+    diagnostics: &mut Vec<CompileError>,
+) -> Option<Vec<ElementCondition>> {
+    let (_, applications) =
+        collect_variant_and_applications(theme, &condition.prefix, diagnostics)?;
+    if condition.refs.is_empty() {
+        diagnostics.push(CompileError::new(
+            CompileDiagnostic::UnidentifiedRef,
+            condition.prefix.span,
+        ));
+        return None;
+    }
+    let paths = variant_paths(&applications);
+    let mut alternatives = Vec::new();
+    for definition in &condition.refs {
+        let marker = match ref_marker_name(context, definition) {
+            Ok(marker) => marker,
+            Err(error) => {
+                diagnostics.push(CompileError::new(error, definition.call_span));
+                return None;
+            }
+        };
+        for path in &paths {
+            let Some(predicate) = reference_path(&marker, path, inside_has) else {
+                diagnostics.push(CompileError::new(
+                    CompileDiagnostic::UnavailableVariantPrefix,
+                    condition.prefix.span,
+                ));
+                return None;
+            };
+            alternatives.push(predicate);
+        }
+    }
+    alternatives.sort_by(|a, b| {
+        a.selector
+            .cmp(&b.selector)
+            .then_with(|| format!("{:?}", a.conditions).cmp(&format!("{:?}", b.conditions)))
+    });
+    Some(alternatives)
+}
+
+/// Builds an element selector from a marker and a resolved variant path. Returns
+/// `None` for steps whose meaning requires a styled target or declaration effects.
 fn reference_path(
     marker: &RefMarker,
-    boundary: Option<&str>,
     path: &[VariantStep<'_>],
-) -> Vec<VariantApplication> {
+    inside_has: bool,
+) -> Option<ElementCondition> {
     let mut reference = format!(":where({})", marker.selector());
     let mut conditions = Vec::new();
-    let mut declarations = Vec::new();
     for step in path {
         match step {
-            VariantStep::SelectorSuffix(suffix) => {
-                reference.push_str(suffix);
-            }
-            VariantStep::SelectorTemplate(template) => {
+            VariantStep::SelectorSuffix(suffix) => reference.push_str(suffix),
+            VariantStep::SelectorTemplate(template) if selector_uses_subject(template) => {
                 reference = instantiate_selector(template, &reference);
             }
             VariantStep::SelectorRule {
                 selector,
-                declarations: additions,
-            } => {
+                declarations,
+            } if declarations.is_empty() && selector_uses_subject(selector) => {
                 reference = instantiate_selector(selector, &reference);
-                declarations.extend_from_slice(additions);
             }
             VariantStep::SelectorMedia {
                 selector,
                 condition,
-            } => {
+            } if selector_uses_subject(selector) => {
                 reference = instantiate_selector(selector, &reference);
                 conditions.push(VariantApplication::Media((*condition).to_owned()));
             }
             VariantStep::SelectorMediaRule {
                 selector,
-                declarations: additions,
+                declarations,
                 condition,
-            } => {
+            } if declarations.is_empty() && selector_uses_subject(selector) => {
                 reference = instantiate_selector(selector, &reference);
-                declarations.extend_from_slice(additions);
                 conditions.push(VariantApplication::Media((*condition).to_owned()));
             }
             VariantStep::Media(condition) => {
                 conditions.push(VariantApplication::Media((*condition).to_owned()));
             }
-            VariantStep::Container(condition) => {
-                conditions.push(VariantApplication::Container((*condition).to_owned()));
-            }
             VariantStep::Supports(condition) => {
                 conditions.push(VariantApplication::Supports((*condition).to_owned()));
             }
-            VariantStep::Conditional(condition) => {
-                conditions.push(VariantApplication::Conditional((*condition).to_owned()));
-            }
-            VariantStep::StartingStyle => {
-                conditions.push(VariantApplication::StartingStyle);
-            }
+            _ => return None,
         }
     }
-    // A selector list must remain one condition before the descendant relation is added.
-    let reference = if reference.contains(',') {
-        format!(":is({reference})")
-    } else {
-        reference
-    };
-    let selector = match boundary {
-        Some(boundary) => format!("&:is(:where({boundary}):has({reference}) *)"),
-        None => format!("&:is({reference} *)"),
-    };
-    conditions.push(if declarations.is_empty() {
-        VariantApplication::SelectorTemplate(selector)
-    } else {
-        VariantApplication::SelectorRule {
-            selector,
-            declarations,
-        }
-    });
-    conditions
+    if !selector_is_element_condition(&reference, inside_has) {
+        return None;
+    }
+    // `:is` binds the full selector to one element before an ancestor or containment
+    // relation is added. Its ancestors may lie outside the containing scope.
+    Some(ElementCondition {
+        selector: format!(":is({reference})"),
+        conditions,
+    })
 }
 
 #[cfg(test)]
 mod reference_path_tests {
     use super::*;
 
-    /// Non-selector steps become their own applications in path order, and the last
-    /// application is the reference selector the target is combined with.
     #[test]
-    fn reference_path_collects_conditions_in_order() {
+    fn element_conditions_keep_global_guards_and_reject_target_conditions() {
         let marker = RefMarker::new("menu").unwrap();
         let path = [
             VariantStep::Media("(min-width: 40rem)"),
-            VariantStep::Container("(width > 10px)"),
             VariantStep::Supports("display:grid"),
-            VariantStep::StartingStyle,
         ];
-        let applications = reference_path(&marker, None, &path);
-        assert_eq!(applications.len(), 5, "{applications:?}");
-        assert!(matches!(applications[0], VariantApplication::Media(_)));
-        assert!(matches!(applications[1], VariantApplication::Container(_)));
-        assert!(matches!(applications[2], VariantApplication::Supports(_)));
-        assert!(matches!(applications[3], VariantApplication::StartingStyle));
+        let predicate = reference_path(&marker, &path, false).unwrap();
         assert_eq!(
-            applications[4],
-            VariantApplication::SelectorTemplate("&:is(:where(.menu) *)".to_owned())
+            predicate.conditions,
+            [
+                VariantApplication::Media("(min-width: 40rem)".into()),
+                VariantApplication::Supports("display:grid".into())
+            ]
         );
+        assert!(
+            reference_path(&marker, &[VariantStep::Container("(width > 10px)")], false).is_none()
+        );
+        assert!(reference_path(&marker, &[VariantStep::StartingStyle], false).is_none());
     }
 
-    /// Ref and boundary markers are zero-specificity while ref variants retain theirs.
     #[test]
-    fn reference_path_builds_the_marker_selector_and_boundary() {
+    fn element_predicates_preserve_complex_selectors_and_check_has_placement() {
         let marker = RefMarker::new("menu").unwrap();
+        let predicate = reference_path(
+            &marker,
+            &[VariantStep::SelectorTemplate(".a &, .b &")],
+            true,
+        )
+        .unwrap();
         assert_eq!(
-            reference_path(&marker, None, &[]),
-            [VariantApplication::SelectorTemplate(
-                "&:is(:where(.menu) *)".to_owned()
-            )]
+            predicate.selector,
+            ":is(.a :where(.menu), .b :where(.menu))"
         );
-        assert_eq!(
-            reference_path(&marker, None, &[VariantStep::SelectorSuffix(":hover")]),
-            [VariantApplication::SelectorTemplate(
-                "&:is(:where(.menu):hover *)".to_owned()
-            )]
+        assert!(
+            reference_path(&marker, &[VariantStep::SelectorSuffix(":has(.x)")], true).is_none()
         );
-        assert_eq!(
-            reference_path(&marker, None, &[VariantStep::SelectorSuffix(" > *")]),
-            [VariantApplication::SelectorTemplate(
-                "&:is(:where(.menu) > * *)".to_owned()
-            )]
+        assert!(
+            reference_path(&marker, &[VariantStep::SelectorSuffix(":has(.x)")], false).is_some()
         );
-        assert_eq!(
+        assert!(
+            reference_path(&marker, &[VariantStep::SelectorSuffix("::before")], false).is_none()
+        );
+        assert!(
             reference_path(
                 &marker,
-                Some(".b"),
-                &[VariantStep::SelectorSuffix(":hover")]
-            ),
-            [VariantApplication::SelectorTemplate(
-                "&:is(:where(.b):has(:where(.menu):hover) *)".to_owned()
-            )]
-        );
-        assert_eq!(
-            reference_path(
-                &marker,
-                Some(".b"),
-                &[VariantStep::SelectorTemplate(".a &, .b &")]
-            ),
-            [VariantApplication::SelectorTemplate(
-                "&:is(:where(.b):has(:is(.a :where(.menu), .b :where(.menu))) *)".to_owned()
-            )]
+                &[VariantStep::SelectorTemplate(".document")],
+                false
+            )
+            .is_none()
         );
     }
 }
@@ -527,7 +604,6 @@ mod add_ref_tests {
             module_id: module.into(),
             binding: Spanned::new(binding.to_owned(), Span::new(FileId(1), 0, 3)),
             label: None,
-            boundary: None,
             call_span: Span::new(FileId(1), call_start, call_start + 4),
         }
     }
@@ -566,8 +642,11 @@ mod add_ref_tests {
         let added = plan.add_ref(
             &context,
             &theme,
-            &[first.clone(), second.clone()],
-            &prefix(""),
+            &RefCondition {
+                refs: vec![first.clone(), second.clone()],
+                prefix: prefix(""),
+            },
+            &[],
             &mut diagnostics,
         );
         assert!(added.is_some(), "{diagnostics:?}");
@@ -575,22 +654,18 @@ mod add_ref_tests {
         assert!(plan.has_refs);
         let first_marker = ref_marker_name(&context, &first).unwrap();
         let second_marker = ref_marker_name(&context, &second).unwrap();
-        let identities = format!(
-            "[({:?}, None), ({:?}, None)]",
-            first_marker.as_str(),
-            second_marker.as_str()
-        );
-        assert_eq!(plan.canonical, format!("ref({identities})\0\0"));
         let expected = vec![
-            vec![VariantApplication::SelectorTemplate(format!(
-                "&:is(:where({}) *)",
+            vec![VariantApplication::SelectorCondition(format!(
+                ":is(:is(:where({})) *)",
                 first_marker.selector()
             ))],
-            vec![VariantApplication::SelectorTemplate(format!(
-                "&:is(:where({}) *)",
+            vec![VariantApplication::SelectorCondition(format!(
+                ":is(:is(:where({})) *)",
                 second_marker.selector()
             ))],
         ];
+        let mut expected = expected;
+        expected.sort_by_key(|path| format!("{path:?}"));
         assert_eq!(plan.applications(), expected.as_slice());
     }
 
@@ -604,8 +679,17 @@ mod add_ref_tests {
         let mut plan = plan();
         let prefix = prefix("");
         assert!(
-            plan.add_ref(&context, &theme, &[], &prefix, &mut diagnostics)
-                .is_none()
+            plan.add_ref(
+                &context,
+                &theme,
+                &RefCondition {
+                    refs: vec![],
+                    prefix: prefix.clone()
+                },
+                &[],
+                &mut diagnostics
+            )
+            .is_none()
         );
         assert!(!plan.has_refs);
         assert_eq!(diagnostics.len(), 1);
@@ -627,8 +711,11 @@ mod add_ref_tests {
             plan.add_ref(
                 &context,
                 &theme,
-                &[definition("src/a.tsx", "menu", 10)],
-                &prefix("hover"),
+                &RefCondition {
+                    refs: vec![definition("src/a.tsx", "menu", 10)],
+                    prefix: prefix("hover")
+                },
+                &[],
                 &mut diagnostics,
             )
             .is_none()
@@ -658,8 +745,11 @@ mod add_ref_tests {
             plan.add_ref(
                 &context,
                 &theme,
-                &[definition],
-                &prefix(""),
+                &RefCondition {
+                    refs: vec![definition],
+                    prefix: prefix("")
+                },
+                &[],
                 &mut diagnostics
             )
             .is_none()

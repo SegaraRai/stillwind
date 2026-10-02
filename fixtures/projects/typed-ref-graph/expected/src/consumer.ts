@@ -1,9 +1,13 @@
 import { stillwindClsx } from "stillwind/react/runtime";
 
-import { selectedBoundary, selectedRef } from "./barrel";
+import { selectedRef, selectedScope } from "./barrel";
 
 export const attachedRef = {className:((selectedRef).c)};
-export const anchorProvider = {className:stillwindClsx((selectedRef).c,({"sw_primary_z410i":"sw_vtk4c","sw_secondary_63olu":"sw_903dy"})[(selectedRef).c])};
-export const attachedBoundary = {className:((selectedBoundary).c)};
 
-export const anchorScope = {className:"sw_os9tg"};
+export const anchorProvider = {className:stillwindClsx((selectedRef).c,({"sw_primary_z410i":"sw_r3fvt","sw_secondary_63olu":"sw_6pcxl"})[(selectedRef).c])};
+
+export const attachedScope = {className:((selectedScope).c)};
+
+export const scopedSelector = {className:"sw_aadoi"};
+
+export const anchorScope = {className:"sw_l02zv"};

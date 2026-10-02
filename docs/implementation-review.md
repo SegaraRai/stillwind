@@ -252,9 +252,13 @@ docコメントと往復テストで検証済みなので、表現だけを現�
 
 ### B8: constructorと公開データ契約
 
-`SymbolicValue`/`RefAlternative`等は公開構造やserdeで構築でき、constructorの検証を全インスタンスの不変条件にはできない。`RefAlternative::new`もouter scope kindの検証を超えて、すべての内部candidateを再帰検証しているわけではない。`RuleKey`や`GeneratedRule`も公開フィールドを通してkeyと内容を不整合にできる。
+`SymbolicValue` は公開フィールドや serde のデシリアライズで構築でき、constructor の検証だけでは全インスタンスの不変条件を保証できない。`SymbolicValue::validate` は有限集合の各 candidate の種別を検証し、`ExportedValue::validate` は外側の asset 種別との一致も検証する。
 
-改善案: transport用の未検証型と内部の検証済み型を分離するか、入口でvalidateして以降は変更不可にする。公開APIの互換性と外部checkerの責任範囲を先に決める。任意の利用者構築値でも安全に動くことが既に保証されている、とは扱わない。
+ref の公開値は `ExportedValue::Refs(SymbolicValue)` である。`refs_from_value` は ref 種別と全 candidate の種別を検証し、不正な値や universe 値には `None` を返す。
+
+`RuleKey` と `GeneratedRule` は公開フィールドを通して key と内容を不整合にできる。`GeneratedRule::content_key` は現在の内容から key を計算するため、内容を変更した後は保存済みの `key` と区別する必要がある。
+
+改善案: 公開データを受け付ける各入口の検証範囲を確認し、検証後の変更を制限するか、変更後に再検証する契約を明示する。公開 API の互換性と外部 checker の責任範囲を先に決める。任意の利用者構築値でも安全に動くことが既に保証されている、とは扱わない。
 
 ### B9: デコード文字列と原本offset
 

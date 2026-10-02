@@ -264,8 +264,8 @@ style({ [ref.at`width > 40rem`]: { "hover:": "grid-cols-2" } });
       無条件に適用せず、runtime の選択と対応させる。
 - [x] API 型、抽出器、IR、compiler、runtime metadata、query と fixture を一貫して更新する。
       旧2引数 API の互換維持をこの計画の要件には追加しない。
-- [x] `style.ref(boundary)` の boundary は静的に一つの ref identity に特定されることを正式な契約とする。
-      ref 定義に複数の boundary 候補を保持する実装は行わない。
+- [x] `style.ref(label?)` は独立した ref identity を宣言する。
+      包含関係は selector の使用箇所の `.in(scope)` に指定する。
 - [x] animation 定義 object に variant key を追加し、その値を条件付き animation 定義として解析する。
       `from` / `to` / 百分率の値は variant なしの utility 文字列のままとする。
 - [x] animation の通常定義、条件付き定義、条件の同時成立、任意 variant、要素依存 variant の拒否を
@@ -282,12 +282,13 @@ Chrome 検証は root で `vp run @stillwind/native#build` を実行後、
 `e2e/css` で `vp run e2e`。通常 `0 → 1`、reduced motion で
 省略した `from` が要素の基礎値を使う `.25 → .5` を検証する。
 
-#### ref 定義の boundary 契約
+#### ref selector の scope 契約
 
-`style.ref(boundary)` / `style.ref(boundary, name)` は、boundary が静的に一つの ref identity に
-特定できる場合に限り受け付ける。alias や条件式でも候補が同一 identity に収束すればよい。
-異なる boundary の有限集合は compile error とする。この契約を未実装項目として扱わない。
-利用側で有限候補の ref を選択する既存の機能は維持する。
+`style.ref(label?)` は親を引数に取らない。`ref(state).in(scope)` の scope は raw ref、または
+scope を付けていない ref call/tag とする。alias と有限候補は identity で解決する。
+繰り返す `.in()` は元の ref predicate と対象要素に対する独立した AND 条件で、順序に依存しない。
+operand 内の `.in()` / `.at()` は拒否する。raw ref の `.at()` と selector scope は
+`style()` の key を通じて明示的に合成する。詳細は [ref use design](ref-use-design.md) を参照する。
 
 ### 7. D1 の拒否理由を固定する
 

@@ -13,7 +13,7 @@ use stillwind_ir::{
     ScriptModuleKind, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::parse;
-use stillwind_semantic::ExportedValue;
+use stillwind_semantic::{AssetKind, ExportedValue};
 use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 fn rule(expression: &ClassExpression) -> &RuleExpression {
@@ -381,24 +381,19 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
 }
 
-/// `style.ref()` argument forms map onto definition fields.
 #[test]
-fn parses_named_and_bounded_ref_declarations() {
+fn parses_anonymous_and_labeled_ref_declarations() {
     let source = SourceFile::new(
         FileId(1),
         None,
         None,
         r#"import { style } from "stillwind/react";
-const anonymousBoundary = style.ref();
-const menu = style.ref("menu");
 const anonymous = style.ref();
 const named = style.ref("trigger");
-const bounded = style.ref(menu);
-const boundedNamed = style.ref(menu, "item");
-export const Menu = () => <div {...style(menu)}><button {...style(bounded)} /></div>;"#,
+const punctuation = style.ref("項目 🧭 /:");
+const empty = style.ref("");"#,
     )
     .unwrap();
-
     let parsed = parse(
         &source,
         &ModuleId::from("test.tsx"),
@@ -407,47 +402,27 @@ export const Menu = () => <div {...style(menu)}><button {...style(bounded)} /></
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
-
     assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    assert_eq!(parsed.module.ref_definitions.len(), 6);
-    assert_eq!(parsed.module.ref_definitions[0].label, None);
-    assert_eq!(parsed.module.ref_definitions[0].boundary, None);
-    assert_eq!(
-        parsed.module.ref_definitions[1]
-            .label
-            .as_ref()
-            .map(|label| label.value.as_str()),
-        Some("menu")
-    );
-    assert_eq!(parsed.module.ref_definitions[2].boundary, None);
-    assert_eq!(
-        parsed.module.ref_definitions[3]
-            .label
-            .as_ref()
-            .map(|label| label.value.as_str()),
-        Some("trigger")
-    );
-    assert_eq!(
-        parsed.module.ref_definitions[4]
-            .boundary
-            .as_ref()
-            .map(|boundary| boundary.binding.value.as_str()),
-        Some("menu")
-    );
-    assert_eq!(
-        parsed.module.ref_definitions[5]
-            .label
-            .as_ref()
-            .map(|label| label.value.as_str()),
-        Some("item")
-    );
-    assert_eq!(
-        parsed.module.ref_definitions[5]
-            .boundary
-            .as_ref()
-            .map(|boundary| boundary.binding.value.as_str()),
-        Some("menu")
-    );
+    assert_eq!(parsed.module.ref_definitions.len(), 4);
+    for (definition, (binding, label)) in parsed.module.ref_definitions.iter().zip([
+        ("anonymous", None),
+        ("named", Some("trigger")),
+        ("punctuation", Some("項目 🧭 /:")),
+        ("empty", Some("")),
+    ]) {
+        assert_eq!(definition.binding.value, binding);
+        assert_eq!(
+            definition.label.as_ref().map(|label| label.value.as_str()),
+            label
+        );
+        assert_eq!(source.slice(definition.binding.span).unwrap(), binding);
+        assert!(
+            source
+                .slice(definition.call_span)
+                .unwrap()
+                .starts_with("style.ref(")
+        );
+    }
 }
 
 /// Exports and re-exports become summary entries with normalized paths.
@@ -460,7 +435,7 @@ fn summarizes_exported_assets_and_module_edges() {
         r#"import { style } from "stillwind/react";
 import { external as importedExternal } from "./external";
 export const menu = style.ref("menu");
-const trigger = style.ref(menu, "trigger");
+const trigger = style.ref("trigger");
 export { trigger as menuTrigger };
 export { sharedTransition as transition } from "./shared";
 export const Parent = () => <div {...style(menu)}><button {...style(trigger)} /></div>;"#,
@@ -480,16 +455,15 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
     assert_eq!(parsed.summary.module_id, "src/Parent.tsx".into());
     assert_eq!(parsed.summary.imports.len(), 1);
     assert_eq!(parsed.summary.imports[0].local, "importedExternal");
-    let Some(ExportedValue::Refs(alternatives)) = parsed.summary.exports.get("menu") else {
-        panic!("menu should be an exported ref");
-    };
-    assert_eq!(alternatives.len(), 1);
-    assert_eq!(alternatives[0].permitted_boundaries, None);
-    let Some(ExportedValue::Refs(alternatives)) = parsed.summary.exports.get("menuTrigger") else {
-        panic!("menuTrigger should be an exported ref");
-    };
-    assert_eq!(alternatives.len(), 1);
-    assert!(alternatives[0].permitted_boundaries.is_some());
+    for (exported, binding) in [("menu", "menu"), ("menuTrigger", "trigger")] {
+        let Some(ExportedValue::Refs(value)) = parsed.summary.exports.get(exported) else {
+            panic!("{exported} should be an exported ref");
+        };
+        assert_eq!(value.kind, AssetKind::Ref);
+        let candidates = value.finite_candidates().unwrap();
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates.first().unwrap().binding_name, binding);
+    }
     assert_eq!(parsed.summary.re_exports[0].exported, "transition");
     assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");
 }
@@ -529,14 +503,6 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             CompileDiagnostic::InvalidRefArgument,
         ),
         (
-            "const x=style.ref(...args,'x');",
-            CompileDiagnostic::InvalidRefBoundary,
-        ),
-        (
-            "const s=style.ref(); const x=style.ref(s,...args);",
-            CompileDiagnostic::InvalidRefLabelArgument,
-        ),
-        (
             "const x=style.keyframes(...args);",
             CompileDiagnostic::InvalidKeyframesDefinition,
         ),
@@ -554,11 +520,11 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
         ),
         (
             "const r=style.ref(); const x=style({[r.at(...args)]: 'flex'});",
-            CompileDiagnostic::InvalidComputedAttribute,
+            CompileDiagnostic::NonStaticRefVariant,
         ),
         (
             "const r=style.ref(); const x=style({[r.at('width > 1px',...args)]: 'flex'});",
-            CompileDiagnostic::InvalidComputedAttribute,
+            CompileDiagnostic::NonStaticRefVariant,
         ),
     ] {
         let source = SourceFile::new(
@@ -592,11 +558,20 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
 }
 
 #[test]
-fn ref_definition_requires_one_boundary_identity() {
-    for (choice, valid) in [("first", true), ("enabled ? first : second", false)] {
-        let source = SourceFile::new(FileId(1), None, None, format!(
-            "import {{style}} from 'stillwind/react'; const first=style.ref(); const second=style.ref(); const ref=style.ref({choice}, 'item');"
-        )).unwrap();
+fn ref_declarations_require_literal_labels_and_supported_arity() {
+    for (arguments, expected) in [
+        ("label", CompileDiagnostic::InvalidRefArgument),
+        ("42", CompileDiagnostic::InvalidRefArgument),
+        ("`item`", CompileDiagnostic::InvalidRefArgument),
+        ("'one', 'two'", CompileDiagnostic::InvalidRefArguments),
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!("import {{style}} from 'stillwind/react'; const item=style.ref({arguments});"),
+        )
+        .unwrap();
         let parsed = parse(
             &source,
             &ModuleId::from("test.tsx"),
@@ -605,18 +580,15 @@ fn ref_definition_requires_one_boundary_identity() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        if valid {
-            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        } else {
-            assert!(
-                parsed
-                    .diagnostics
-                    .iter()
-                    .any(|error| error.diagnostic == CompileDiagnostic::InvalidRefBoundary),
-                "{:?}",
-                parsed.diagnostics
-            );
-        }
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|error| error.diagnostic == expected),
+            "{arguments}: {:?}",
+            parsed.diagnostics
+        );
+        assert!(parsed.module.ref_definitions.is_empty(), "{arguments}");
     }
 }
 

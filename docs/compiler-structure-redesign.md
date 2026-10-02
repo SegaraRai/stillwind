@@ -35,25 +35,27 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 
 マクロ引数と CSS の表層 → Rust の名前:
 
-| 表層                                                                     | Rust                                                                                         |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `style(base)`                                                            | `StyleInput::Composition { value, candidates }`                                              |
-| `style("…")` / utility テンプレート                                      | `ClassExpression::Utilities`（utility 列）                                                   |
-| `style(a && b)` / `a ? b : c` / `style([...])`                           | `ClassExpression::Conditional` / `Array`                                                     |
-| `{ "hover:": … }`                                                        | `ClassExpression::Variant { variant: StyleVariant::Prefix, inputs }`                         |
-| `{ class: value }`                                                       | `GroupEntry::Class(ClassExpression::ClassValue)`                                             |
-| `{ "aria-*" / "data-*": value }`                                         | `GroupEntry::Attribute(AttributeEntry)`                                                      |
-| `{ "--x": value }`                                                       | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                            |
-| `style(ref)`                                                             | `StyleInput::RefAttachment`（動的版は `DynamicRefAttachment`）                               |
-| `ref.anchor` / `.positionAnchor()` / `.anchorScope` / `.container(type)` | `ClassExpression::RefProjection { definition, value, projection: RefProjection }`            |
-| `ref()` / `ref("variant:")` / ref タグ                                   | `StyleVariant::Ref { refs, prefix }`                                                         |
-| `ref.at(query)` / ref.at タグ                                            | `StyleVariant::Container { refs, query }`                                                    |
-| `style.ref(boundary?, name?)`                                            | `RefDefinition { binding, label, boundary, … }`                                              |
-| `style.keyframes(definition)` の frame                                   | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`     |
-| `keyframes(options)`                                                     | `ClassExpression::KeyframesUse { animation, options }`（option 列）                          |
-| `style.viewTransition(definition)`                                       | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列 |
-| `transition.for(key?)`（`style()` の対応する入力位置）                   | `ViewTransitionName::Key(ViewTransitionKey::…)`                                              |
-| `StillwindDeclarationIdentity` 引数                                      | IR 表現なし（checker メタデータ）                                                            |
+| 表層                                                          | Rust                                                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `style(base)`                                                 | `StyleInput::Composition { value, candidates }`                                                      |
+| `style("…")` / utility テンプレート                           | `ClassExpression::Rule` 内の `RuleExpression::Utilities`（utility 列）                               |
+| `style(a && b)` / `a ? b : c` / `style([...])`                | 寄与に応じた `StyleInput` / `ClassExpression` / `RuleExpression` の `Conditional` / `Array`          |
+| `{ "hover:": … }`                                             | `RuleExpression::Variant { variant: StyleVariant::Prefix(...), inputs }`                             |
+| `{ class: value }`                                            | `GroupEntry::Class(ClassExpression::ClassValue)`                                                     |
+| `{ "aria-*" / "data-*": value }`                              | `GroupEntry::Attribute(AttributeEntry)`                                                              |
+| `{ "--x": value }`                                            | `GroupEntry::CustomProperty(CustomPropertyEntry)`                                                    |
+| `style(ref)`                                                  | `StyleInput::RefAttachment`（動的版は `DynamicRefAttachment`）                                       |
+| `ref.asAnchor()` / `.positionAnchor()` / `.asContainer(type)` | `RuleExpression::RefProjection { definition, value, projection }`（動的版は `DynamicRefProjection`） |
+| `style.anchorScope(scope)`                                    | `RuleExpression::AnchorScope { scope, span }`                                                        |
+| `ref()` / `ref("variant:")` / ref タグ                        | `StyleVariant::Ref { condition: RefCondition { refs, prefix }, scopes: Vec::new() }`                 |
+| `ref.at(query)` / ref.at タグ                                 | `StyleVariant::Container { refs, query }`                                                            |
+| `style.ref(name?)`                                            | `RefDefinition { module_id, binding, label, call_span }`                                             |
+| `ref(state).in(scope)`                                        | `StyleVariant::Ref { condition, scopes }`。元の条件と各 scope は `RefCondition { refs, prefix }`     |
+| `style.keyframes(definition)` の frame                        | `KeyframesFrame { selector, utilities }`（utility 列）。variant キーは `KeyframesBranch`             |
+| `keyframes(options)`                                          | `RuleExpression::KeyframesUse { keyframes, options }`（option 列）                                   |
+| `style.viewTransition(definition)`                            | `ViewTransitionDefinition`: `group` は option 列、`old` / `new` / `image_pair` は utility 列         |
+| `transition.for(key?)`（`style()` の対応する入力位置）        | `ViewTransitionName::Key(ViewTransitionKey::…)`                                                      |
+| `StillwindDeclarationIdentity` 引数                           | IR 表現なし（checker メタデータ）                                                                    |
 
 ## 1. 現状の問題
 
@@ -79,7 +81,7 @@ options）。資産の俗称（motion、handle）を内部名に使わない。
 ### 1.3 motion_assets は決定を表していない
 
 - `motion_assets` への直接挿入は 2 箇所だけ。`CallEmitter` の静的 VT use と
-  `ClassExpression::KeyframesUse` の処理。
+  `RuleExpression::KeyframesUse` の処理。
 - `runtime_assets` へは、同じ VT use の両方、`DynamicViewTransitionUse`、
   `DynamicKeyframesUse`、`pipeline` の `.for` 適用が入る。
 - `pipeline` は `runtime_assets` を clone し、call を歩いた後と `.for` 適用の後に、
@@ -222,12 +224,12 @@ handle は ref に置き換える（型・フィールド・関数・診断種�
 | `HandleProjection` / `DynamicHandleProjection`                            | `RefProjection` / `DynamicRefProjection`                      |
 | `HandleAttachment` / `DynamicHandleAttachment`                            | `RefAttachment` / `DynamicRefAttachment`                      |
 | `HandleUse` / `handle_uses`                                               | `RefUse` / `ref_uses`                                         |
-| `HandleFactsRequired`（診断種別）                                         | `RefFactsRequired`（コード SHTS001 は不変）                   |
+| `HandleFactsRequired`（診断種別）                                         | `RefFactsRequired`（コード `SW03001`）                        |
 | `ModuleIr::handle_definitions`                                            | `ref_definitions`                                             |
 | `render_handle_projection` / `handle_projection_name`                     | `render_ref_projection` / `ref_projection_name`               |
 | `handle_value` / `handle_class_read` / `map_handle` / `handle_references` | `ref_value` / `ref_class_read` / `map_ref` / `ref_references` |
-| field `handles`（`StyleVariant` と動的 attachment / projection）          | `refs`                                                        |
-| field `handle`（`ClassExpression::RefProjection`）                        | `definition`                                                  |
+| field `handles`（selector の条件と動的 attachment / projection）          | `RefCondition.refs` と動的 attachment / projection の `refs`  |
+| field `handle`（ref projection）                                          | `RuleExpression::RefProjection.definition`                    |
 
 あわせて `ClassExpression::External` を `ClassValue` に、`RefDefinition` /
 `KeyframesDefinition` / `ViewTransitionDefinition` の field `name`（レキシカル束縛）を `binding`
@@ -307,19 +309,15 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 原則: 生成コードが実行時に読むのは、その値を示す **use-site の式**である。宣言サイトの束縛名を
 式の代わりに使ってはならない。
 
-`ClassExpression::RefProjection` は宣言の definition しか持たないため、emitter は宣言の束縛名を
-式として書いている（設計スケッチ `docs/compiler-design.md` の
-`StyleInput::Projection { reference, kind, origin }` が持つ `origin` を実装が落としている）。
-利用側の名前が宣言名と異なると生成コードが壊れる。
+`RuleExpression::RefProjection` は `definition` と使用箇所の受信式を示す `value: Span` を持つ。
+`DynamicRefProjection` も `value` と有限候補の `refs` を持つ。
+宣言の identity と使用箇所の式は別々に保持する。
 
-- `import { primary as p } from "./refs"; style(p.anchor)` → `primary.c`（`primary` はスコープに無い）。
-- `style(holder.trigger.anchor)` → `trigger.c`（member 受信でも同じ）。
+- `import { primary as p } from "./refs"; style(p.asAnchor())` の受信式は `p`。
+- `style(holder.trigger.asAnchor())` の受信式は `holder.trigger`。
 
-修正: use-site の受信式 span を `RefProjection` に持たせ（`DynamicRefProjection.value` と同じ）、
-emitter は `(受信式).c` を token 表で引く。静的と動的の差は表の大きさだけになる。動的側は
-受信式を読むよう修正済みで、残っているのは静的側。生成コードが変わるので単独コミットとし、
-aliased import と member 受信の回帰テストを追加する。実装後は §0.1 の `RefProjection` の行も
-追随させる。
+動的な選択では emitter が受信式の `.c` を使って候補の class unit を選ぶ。
+静的に identity が確定した use は、受信式を実行時に読む必要がない。
 
 ## 6. コミット分割案
 

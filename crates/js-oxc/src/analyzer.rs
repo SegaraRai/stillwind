@@ -20,7 +20,7 @@ use stillwind_diagnostics::{
 };
 use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
 use stillwind_semantic::{
-    ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, SymbolicValue, TypeFacts,
+    ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts,
 };
 use stillwind_source::Fingerprint;
 
@@ -37,11 +37,8 @@ pub struct OxcSourceAnalyzer;
 impl OxcSourceAnalyzer {
     /// The asset identities another module's accepted facts can reach.
     ///
-    /// A bounded ref keeps its boundary reachable, so the boundary's CSS stays in the
-    /// stylesheet even when the declaration itself lives in another module.
-    ///
-    /// This is an associated function rather than a method: it reads facts alone, and
-    /// finalization is the only caller.
+    /// Finite candidates become stylesheet roots. Universe values contribute no
+    /// identities because the checker did not determine their declarations.
     fn external_assets(facts: Option<&TypeFacts>) -> BTreeSet<IdentityId> {
         let Some(facts) = facts else {
             return BTreeSet::new();
@@ -49,20 +46,8 @@ impl OxcSourceAnalyzer {
         let mut assets = BTreeSet::new();
         for fact in &facts.facts {
             match &fact.value {
-                ExportedValue::Refs(alternatives) => {
-                    for alternative in alternatives {
-                        assets.insert(alternative.reference.clone());
-                        assets.extend(
-                            alternative
-                                .permitted_boundaries
-                                .iter()
-                                .filter_map(SymbolicValue::finite_candidates)
-                                .flatten()
-                                .cloned(),
-                        );
-                    }
-                }
                 ExportedValue::Styles(value)
+                | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
                 | ExportedValue::ViewTransitions(value) => {
                     assets.extend(value.finite_candidates().into_iter().flatten().cloned());
@@ -288,5 +273,78 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
         && let Some(framework) = input.document().format().projection_adapter()
     {
         parsed.module.adapter = framework;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+    use stillwind_semantic::{AssetKind, SymbolicValue, TypeFact};
+    use stillwind_source::{FileId, SourceFile};
+
+    use super::*;
+
+    #[test]
+    fn analysis_accepts_schema_four_and_rejects_schema_three_facts() {
+        let source = Arc::new(SourceFile::new(FileId(1), None, None, "export {};").unwrap());
+        let scan = OxcSourceAnalyzer.scan(
+            source,
+            "consumer.ts".into(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        assert_eq!(scan.summary.schema, 4);
+        for (schema, accepted) in [(3, false), (4, true)] {
+            let facts = TypeFacts {
+                schema,
+                module_id: scan.module_id.clone(),
+                source_revision: scan.source_revision.clone(),
+                semantic_revision: Fingerprint::of("facts"),
+                facts: Vec::new(),
+                assets: BTreeMap::new(),
+            };
+            let analysis = OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts));
+            if accepted {
+                assert_eq!(analysis.semantic_revision, Some(facts.semantic_revision));
+                assert!(analysis.integration_diagnostics.is_empty());
+            } else {
+                assert!(analysis.semantic_revision.is_none());
+                assert_eq!(analysis.ir, scan.local_ir);
+                assert_eq!(analysis.integration_diagnostics.len(), 1);
+                assert_eq!(
+                    analysis.integration_diagnostics[0].diagnostic,
+                    CompileDiagnostic::InvalidTypeScriptFacts,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn external_ref_assets_include_only_finite_candidates() {
+        let reference = IdentityId::new(AssetKind::Ref, "refs.ts".into(), 0, 1, "handle");
+        let facts = TypeFacts {
+            schema: TypeFacts::SCHEMA,
+            module_id: "consumer.ts".into(),
+            source_revision: Fingerprint::of(""),
+            semantic_revision: Fingerprint::of("facts"),
+            facts: vec![
+                TypeFact {
+                    start: 0,
+                    end: 0,
+                    value: ExportedValue::Refs(SymbolicValue::exact(reference.clone())),
+                },
+                TypeFact {
+                    start: 0,
+                    end: 0,
+                    value: ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref)),
+                },
+            ],
+            assets: BTreeMap::new(),
+        };
+        assert_eq!(
+            OxcSourceAnalyzer::external_assets(Some(&facts)),
+            BTreeSet::from([reference])
+        );
+        assert!(OxcSourceAnalyzer::external_assets(None).is_empty());
     }
 }

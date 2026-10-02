@@ -1,1 +1,1 @@
-export { selectedBoundary, selectedRef } from "./chooser";
+export { selectedScope, selectedRef } from "./chooser";

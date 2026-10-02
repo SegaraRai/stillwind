@@ -225,8 +225,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_symbols: HashSet<SymbolId>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
-    /// Every ref use, in source order, used for ancestry validation. An attachment is
-    /// also what makes a ref available as the boundary of a bounded ref.
+    /// Every ref use, in source order, used for ancestry validation. An attachment also
+    /// supplies a containing element for shared scope conditions.
     pub(crate) ref_uses: Vec<RefUse>,
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,

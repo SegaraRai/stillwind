@@ -21,7 +21,7 @@ use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, SourceFailureContext};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, DirectSource, PreparedSource, ProjectedSource,
-    RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
+    RefCondition, RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
     SourceDocument, SourceInput, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -349,26 +349,26 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         module_id: "x.tsx".into(),
         binding: Spanned::new("r".into(), span),
         label: None,
-        boundary: None,
         call_span: span,
+    };
+    let ref_variant = |prefix: &str| StyleVariant::Ref {
+        condition: RefCondition {
+            refs: vec![definition.clone()],
+            prefix: Spanned::new(prefix.into(), span),
+        },
+        scopes: vec![],
     };
     for (input, expected) in [
         StyleInput::Class(
             RuleExpression::Variant {
-                variant: StyleVariant::Ref {
-                    refs: vec![definition.clone()],
-                    prefix: Spanned::new(":hover".into(), span),
-                },
+                variant: ref_variant(":hover"),
                 inputs: vec![RuleExpression::Utilities(Spanned::new("flex".into(), span))],
             }
             .into(),
         ),
         StyleInput::Class(
             RuleExpression::Variant {
-                variant: StyleVariant::Ref {
-                    refs: vec![definition],
-                    prefix: Spanned::new("hover::".into(), span),
-                },
+                variant: ref_variant("hover::"),
                 inputs: vec![RuleExpression::Conditional {
                     test: span,
                     branches: ConditionalBranches::And {

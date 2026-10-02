@@ -4,8 +4,8 @@
 //! recorded uses, including uses outside JSX. It checks whether a provider's ref is
 //! attached in the same style call or on the same known JSX element. Composition can
 //! supply attachments that are not visible here, so it suppresses that warning.
-//! Ancestry checks need known JSX paths. Checks for bounded refs use declarations
-//! available in this module.
+//! Ancestry checks need known JSX paths. Shared scope checks use the conditions
+//! recorded at each selector use.
 //!
 //! These checks add lint findings. Extraction reports fatal syntax and identity
 //! errors separately, and lint suppression does not affect those errors.
@@ -25,7 +25,7 @@ impl MacroExtractor<'_> {
     /// prevent the check from proving that an attachment is missing.
     ///
     /// Selector ancestry is checked only when relevant marker paths are known. The
-    /// function also validates bounded refs. Calling it again adds the findings again.
+    /// function also validates shared scopes. Calling it again adds the findings again.
     pub(crate) fn validate_refs(&mut self) {
         let names = self
             .ref_uses
@@ -39,14 +39,6 @@ impl MacroExtractor<'_> {
                 .filter(|ref_use| ref_use.identity == identity)
                 .collect::<Vec<_>>();
             let name = uses[0].name.clone();
-            let has_boundary = self.ref_definitions.iter().any(|definition| {
-                (
-                    definition.module_id.clone(),
-                    definition.binding.value.clone(),
-                    definition.binding.span,
-                ) == identity
-                    && definition.boundary.is_some()
-            });
             let has_anchor = uses
                 .iter()
                 .any(|ref_use| ref_use.projection == RefUseKind::AsAnchor);
@@ -112,7 +104,7 @@ impl MacroExtractor<'_> {
                 let Some(path) = &ref_use.jsx_path else {
                     continue;
                 };
-                if !has_boundary
+                if ref_use.scopes.is_empty()
                     && !known_anchor_paths.is_empty()
                     && !known_anchor_paths
                         .iter()
@@ -126,100 +118,94 @@ impl MacroExtractor<'_> {
             }
         }
 
-        self.validate_bounded_refs();
+        self.validate_ref_scopes();
     }
 
-    /// Checks that every bounded ref's boundary is attached to a strict ancestor.
-    ///
-    /// Only bounded refs take part: an unbounded ref uses the descendant-only relation
-    /// and has no boundary to look for. A boundary is provided by an element that
-    /// attaches the boundary ref, so its attachments are the provider paths. Selector
-    /// uses are checked separately from other uses because they target a different
-    /// element.
-    pub(crate) fn validate_bounded_refs(&mut self) {
-        for (definition, boundary) in self.ref_definitions.iter().filter_map(|definition| {
-            definition
-                .boundary
-                .as_ref()
-                .map(|boundary| (definition, boundary))
-        }) {
-            let providers = self
-                .ref_uses
-                .iter()
-                .filter(|use_| {
-                    use_.identity
-                        == (
-                            boundary.module_id.clone(),
-                            boundary.binding.value.clone(),
-                            boundary.binding.span,
-                        )
-                        && use_.projection == RefUseKind::Marker
-                })
-                .collect::<Vec<_>>();
-            if providers.is_empty() {
-                self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::UnattachedBoundary {
-                        name: definition.binding.value.clone(),
-                        boundary: boundary.binding.value.clone(),
-                    },
-                    definition.call_span,
-                ));
-                continue;
-            }
-            for reference_use in self.ref_uses.iter().filter(|use_| {
-                use_.identity
-                    == (
-                        definition.module_id.clone(),
-                        definition.binding.value.clone(),
-                        definition.binding.span,
-                    )
-                    && matches!(
-                        use_.projection,
-                        RefUseKind::Marker | RefUseKind::AsAnchor | RefUseKind::AsContainer
-                    )
-            }) {
-                let Some(reference_path) = &reference_use.jsx_path else {
-                    continue;
-                };
-                if !providers.iter().any(|provider| {
-                    provider
-                        .jsx_path
-                        .as_ref()
-                        .is_some_and(|path| is_strict_ancestor(path, reference_path))
-                }) {
+    /// Checks the scopes of each selector use. When JSX paths are known, the same
+    /// scope attachment must contain both the reference and the styled target.
+    /// Unknown paths do not prove an ancestry failure. Adds lint findings without
+    /// rejecting extraction, and repeated calls add the same findings again.
+    fn validate_ref_scopes(&mut self) {
+        for selector in self
+            .ref_uses
+            .iter()
+            .filter(|use_| use_.projection == RefUseKind::SelectorVariant)
+        {
+            for scope in &selector.scopes {
+                let scope_name = scope
+                    .refs
+                    .iter()
+                    .map(|definition| definition.binding.value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                let providers =
+                    self.ref_uses
+                        .iter()
+                        .filter(|use_| {
+                            use_.projection == RefUseKind::Marker
+                                && scope.refs.iter().any(|definition| {
+                                    use_.identity == self.ref_identity(definition)
+                                })
+                        })
+                        .collect::<Vec<_>>();
+                if providers.is_empty() {
                     self.lint_findings.push(LintFinding::new(
-                        LintDiagnostic::MissingBoundaryAncestor {
-                            boundary: boundary.binding.value.clone(),
-                            name: definition.binding.value.clone(),
+                        LintDiagnostic::UnattachedRefScope {
+                            name: selector.name.clone(),
+                            scope: scope_name,
                         },
-                        reference_use.span,
+                        scope.prefix.span,
                     ));
-                }
-            }
-            for selector_use in self.ref_uses.iter().filter(|use_| {
-                use_.identity
-                    == (
-                        definition.module_id.clone(),
-                        definition.binding.value.clone(),
-                        definition.binding.span,
-                    )
-                    && use_.projection == RefUseKind::SelectorVariant
-            }) {
-                let Some(target_path) = &selector_use.jsx_path else {
                     continue;
-                };
-                if !providers.iter().any(|provider| {
-                    provider
-                        .jsx_path
-                        .as_ref()
-                        .is_some_and(|path| is_strict_ancestor(path, target_path))
-                }) {
+                }
+                let unknown_provider = providers.iter().any(|provider| provider.jsx_path.is_none());
+                let matching = providers
+                    .iter()
+                    .filter(|provider| match (&provider.jsx_path, &selector.jsx_path) {
+                        (Some(provider), Some(target)) => is_strict_ancestor(provider, target),
+                        _ => true,
+                    })
+                    .collect::<Vec<_>>();
+                if matching.is_empty() && !unknown_provider {
                     self.lint_findings.push(LintFinding::new(
-                        LintDiagnostic::SelectorOutsideBoundary {
-                            name: definition.binding.value.clone(),
-                            boundary: boundary.binding.value.clone(),
+                        LintDiagnostic::TargetOutsideRefScope {
+                            name: selector.name.clone(),
+                            scope: scope_name,
                         },
-                        selector_use.span,
+                        selector.span,
+                    ));
+                    continue;
+                }
+                let references = self
+                    .ref_uses
+                    .iter()
+                    .filter(|use_| {
+                        use_.identity == selector.identity && use_.projection == RefUseKind::Marker
+                    })
+                    .collect::<Vec<_>>();
+                let unknown_reference = references
+                    .iter()
+                    .any(|reference| reference.jsx_path.is_none());
+                if !references.is_empty()
+                    && !unknown_reference
+                    && !unknown_provider
+                    && !references.iter().any(|reference| {
+                        reference.jsx_path.as_ref().is_some_and(|path| {
+                            matching.iter().any(|provider| {
+                                provider
+                                    .jsx_path
+                                    .as_ref()
+                                    .is_some_and(|scope| is_strict_ancestor(scope, path))
+                            })
+                        })
+                    })
+                {
+                    self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::RefOutsideScope {
+                            name: selector.name.clone(),
+                            scope: scope_name,
+                        },
+                        selector.span,
                     ));
                 }
             }
@@ -229,7 +215,7 @@ impl MacroExtractor<'_> {
 
 /// True when `ancestor` is a strict prefix of `descendant`.
 ///
-/// Equality is not ancestry, and the whole path must match, so two sibling boundaries
+/// Equality is not ancestry, and the whole path must match, so two sibling scopes
 /// never look nested.
 fn is_strict_ancestor(ancestor: &[usize], descendant: &[usize]) -> bool {
     ancestor.len() < descendant.len() && descendant.starts_with(ancestor)

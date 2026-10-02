@@ -133,8 +133,7 @@ pub struct AttributeEntry {
 
 /// A `style.ref()` declaration serving as an identity and a prop producer.
 ///
-/// One declaration covers both roles a ref plays: the element it is attached to, and
-/// the boundary that other refs may be bounded by.
+/// A marker attachment and a named anchor or container share this declaration identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefDefinition {
@@ -144,30 +143,22 @@ pub struct RefDefinition {
     pub binding: Spanned<String>,
     /// Optional user label that participates in the declaration's generated names.
     pub label: Option<Spanned<String>>,
-    /// The single boundary passed to `style.ref()`, resolved statically; `None` for
-    /// `style.ref()` and `style.ref(label)`.
-    pub boundary: Option<BoundaryRef>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
 
-/// The bounding ref a bounded ref resolved to.
+/// An element condition over the finite refs that one expression may denote.
 ///
-/// A boundary is a ref declaration elsewhere, and only its declaration fields are kept:
-/// holding a whole [`RefDefinition`] here would let a bounded ref recurse through the
-/// boundary's own boundary, which nothing reads. Selector and marker generation need no
-/// more than these fields.
+/// A scope operand carries the same condition without introducing another scope or a
+/// container query. The prefix is resolved against each referenced element.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BoundaryRef {
-    /// Module identity of the declaring module.
-    pub module_id: ModuleId,
-    /// Lexical binding of the boundary ref; its span seeds the declaration identity.
-    pub binding: Spanned<String>,
-    /// Optional user label that participates in the declaration's generated names.
-    pub label: Option<Spanned<String>>,
-    /// Span of the producing call, used for replacement.
-    pub call_span: Span,
+pub struct RefCondition {
+    /// Finite declaration candidates. Empty candidates are diagnosed during lowering.
+    pub refs: Vec<RefDefinition>,
+    /// Static variant text with an optional final separator normalized to `:`. Empty
+    /// text tests marker presence. The span identifies this condition's use.
+    pub prefix: Spanned<String>,
 }
 
 /// A `style.keyframes()` declaration: named keyframes plus their identity.
@@ -317,16 +308,14 @@ pub enum StyleVariant {
         /// Empty text emits only the container name.
         query: Spanned<String>,
     },
-    /// Correlated ref and boundary alternatives, written as `ref()`, `ref("variant:")`,
-    /// or a ref tag, with a normalized variant prefix.
+    /// A ref condition with optional shared scopes, written as a call or tag followed
+    /// by zero or more `.in(scope)` calls.
     Ref {
-        /// The refs this variant may refer to at this use site. An empty set is
-        /// diagnosed as an unidentified ref by variant resolution.
-        refs: Vec<RefDefinition>,
-        /// The variant prefix applied to the referenced element. A non-empty prefix
-        /// ends in its separator; the surrounding variants apply to the target instead.
-        /// The compiler validates this prefix when resolving the wrapper.
-        prefix: Spanned<String>,
+        /// The element state or marker presence tested by every shared scope.
+        condition: RefCondition,
+        /// Independent scope conditions. Each scope must contain the referenced element
+        /// and the target. Their order does not define an ancestor path.
+        scopes: Vec<RefCondition>,
     },
 }
 
@@ -370,8 +359,8 @@ pub enum StyleInput {
     ),
     /// `style(ref)`: attach a ref's props and marker class to the element.
     ///
-    /// The same attachment marks a boundary element: the class token is what bounded
-    /// selectors read as the boundary of their `:has()` test.
+    /// Shared scope selectors also use this marker to identify their containing
+    /// element.
     RefAttachment {
         /// Ref whose marker and attachment props apply to this element.
         definition: RefDefinition,

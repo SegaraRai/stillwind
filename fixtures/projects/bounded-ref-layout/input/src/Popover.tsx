@@ -1,8 +1,8 @@
 import { style } from "stillwind/react";
 
 const menu = style.ref("menu");
-const container = style.ref(menu, "container");
-const trigger = style.ref(menu, "trigger");
+const container = style.ref("container");
+const trigger = style.ref("trigger");
 
 export function Popover() {
   return (
@@ -15,7 +15,7 @@ export function Popover() {
           {...style(
             trigger.positionAnchor(),
             { [container.at("width >= 40rem")]: "grid-cols-2" },
-            `${trigger`hover:`}:text-accent`,
+            `${trigger`hover:`.in(menu)}:text-accent`,
             "absolute",
           )}
         />

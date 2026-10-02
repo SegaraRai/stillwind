@@ -1,0 +1,43 @@
+.sw_lc4mp:where(.sw_menu_ja0oq) {
+  container-name: sw-c-menu-ja0oq;
+  container-type: inline-size;
+}
+@media (hover: hover) {
+  .sw_3fwti:is(:is(:where(.sw_trigger_7z9al):hover) *) {
+    color: var(--color-accent);
+  }
+}
+.sw_9v9ia:is(:is(:where(.sw_menu_ja0oq)):has(:is(:where(.sw_trigger_7z9al))) *) {
+  color: var(--color-accent);
+}
+@media (hover: hover) {
+  .sw_dqr19:is(:is(:where(.sw_menu_ja0oq):focus):has(:is(:where(.sw_trigger_7z9al):hover)) *) {
+    color: var(--color-accent);
+  }
+}
+@media (hover: hover) {
+  .sw_ux4n0:is(:is(:where(.sw_menu_ja0oq):focus):has(:is(:where(.sw_trigger_7z9al):hover)) *) {
+    color: var(--color-accent);
+  }
+}
+@media (hover: hover) {
+  .sw_anm5g:is(:is(:where(.sw_menu_ja0oq)):has(:is(:where(.sw_trigger_7z9al):hover)) *):is(
+      :is(:where(.sw_outer_mm2en)):has(:is(:where(.sw_trigger_7z9al):hover)) *
+    ) {
+    color: var(--color-accent);
+  }
+}
+@media (hover: hover) {
+  .sw_o646i:is(:is(:where(.sw_menu_ja0oq)):has(:is(:where(.sw_trigger_7z9al):hover)) *):is(
+      :is(:where(.sw_outer_mm2en)):has(:is(:where(.sw_trigger_7z9al):hover)) *
+    ) {
+    color: var(--color-accent);
+  }
+}
+@container sw-c-menu-ja0oq (width >= 40rem) {
+  @media (hover: hover) {
+    .sw_1ml1x:is(:is(:where(.sw_menu_ja0oq)):has(:is(:where(.sw_trigger_7z9al):hover)) *) {
+      color: var(--color-accent);
+    }
+  }
+}

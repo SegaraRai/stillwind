@@ -61,7 +61,7 @@ compatibility.
           │  ModuleIR: calls, static expressions, markup facts, exact spans
           ▼
  TypeScript 7 shadow project + checker sidecar
-          │  span-keyed finite candidates and correlated ref/boundary relations
+          │  span-keyed finite declaration candidates
           ▼
  semantic analysis
           │  theme lookup, selector grammar, ref graph, lint diagnostics
@@ -242,7 +242,7 @@ module:
 
 ```ts
 const menu = style.ref("menu");
-const trigger = style.ref(menu, "trigger");
+const trigger = style.ref("trigger");
 const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const title = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 ```
@@ -255,48 +255,59 @@ facts deliberately remains limited to direct local declarations.
 ### Finite symbolic declaration values
 
 Producers are declaration-site assets, not local compiler variables.
-The extractor assigns each producer a globally stable `IdentityId` from the
-host-supplied module identity, callsite span, kind, and compiler namespace. The same
+The extractor assigns each producer an `IdentityId` from its asset kind,
+host-supplied module identity, declaration span, and binding name. The same
 identity is denoted if a producer call is evaluated repeatedly; this keeps the
 CSS identity universe finite without restricting the resulting JavaScript value
 from flowing normally.
 
 ```rust
-enum AssetKind { Scope, Ref, Animation, ViewTransition }
+enum AssetKind { Style, Ref, Keyframes, ViewTransition }
 
-struct IdentityId { kind: AssetKind, stable_key: StableKey }
+struct IdentityId {
+    kind: AssetKind,
+    module_id: ModuleId,
+    start: u32,
+    end: u32,
+    binding_name: String,
+}
 
-enum SymbolicValue {
-    Exact(IdentityId),
-    Set(BTreeSet<IdentityId>),
-    Universe(AssetKind), // a sound symbolic fallback, never a guessed value
+struct SymbolicValue {
+    kind: AssetKind,
+    candidates: Candidates,
+}
+
+enum Candidates {
+    Finite(BTreeSet<IdentityId>),
+    Universe,
 }
 ```
 
-`Set` is a value-domain representation at the Rust lowering boundary, not a
-second propagation engine. TypeScript propagates branded declaration-site
+`SymbolicValue::exact(identity)` creates a singleton finite set.
+`Candidates::Universe` denotes the universe of the value's asset kind; it does
+not provide a proven finite candidate set.
+Finite sets represent candidate identities at the Rust lowering boundary.
+TypeScript propagates branded declaration-site
 identities through imports, exports, re-exports, aliases, conditionals, arrays,
 objects, functions, and control flow. Rust receives the resulting facts keyed
 by original source spans. JavaScript keeps direct, single-module support; typed
 cross-module or conditional declarations require TypeScript.
 
-Refs carry a relationship table rather than a flattened `boundary × ref` product:
+Ref facts contain the symbolic set of declaration identities:
 
 ```rust
-struct RefAlternative {
-    reference: IdentityId,
-    permitted_boundaries: SymbolicValue,
-}
+ExportedValue::Refs(SymbolicValue)
 ```
 
-The planner may lower independent alternatives as `:is(...)`, but it must keep
-the table when a boundary/ref correlation matters. For example, it may emit a
-selector list grouped by identical boundary sets; it must not turn
-`{ (boundary_a, ref_a), (boundary_b, ref_b) }` into four possible pairs.
+Selector scopes belong to the `.in()` use. Each operand carries its own ref
+candidates and optional state predicate. Repeated scopes constrain the original
+ref predicate and the target independently; their order has no effect on the
+conditions. Ref declarations and their exported facts contain no scope relationship.
 
-Projections inherit their ref candidate set. `anchor`, `position`,
-`anchorScope`, `container`, and `at()` therefore never need a separate identity
-analysis. The same rule applies to animation and view-transition uses: they
+Projections inherit their ref candidate set. `asAnchor()`, `positionAnchor()`,
+`asContainer()`, and `at()` therefore never need a separate identity analysis.
+`style.anchorScope()` obtains candidates from its explicit scope array.
+The same rule applies to animation and view-transition uses: they
 refer to a producer set, while CSS names remain declaration-site stable.
 
 ### Module summaries and package manifests
@@ -317,18 +328,18 @@ When a value cannot be reduced to an exact local choice, generated code may use
 an opaque runtime descriptor containing already-known identity metadata. The
 descriptor selects pre-emitted marker classes or declaration classes at runtime
 and is erased for exact values. It cannot parse, hash, allocate, or inject CSS.
-`Universe(kind)` is the sound final fallback for the reachable build/package
+`SymbolicValue::universe(kind)` is the sound final fallback for the reachable build/package
 closure; the CSS planner preserves it symbolically where possible and reports a
 cost diagnostic rather than becoming unsound.
 
 ### Producer audit
 
-| Producer / derivative | Identity and candidate rule                                                                | Runtime/CSS consequence                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `ref(boundary?)`      | declaration-site ref plus correlated permitted boundary set                                | selector planner preserves relation pairs; attachments read the declaration's `c`         |
-| ref projections       | derived from the ref candidate set                                                         | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
-| `animation()`         | declaration-site keyframe asset                                                            | candidate use selects prebuilt `animation-name` declarations                              |
-| `viewTransition()`    | declaration-site transition class; `.for(key)` folds a literal key and reads an expression | every use contributes the declaration's class token; a name composes the token and key    |
+| Producer / derivative    | Identity and candidate rule                                                                | Runtime/CSS consequence                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `style.ref(label?)`      | independent declaration-site ref identity                                                  | attachments read the declaration's `c`; `.in()` records scope at the selector use         |
+| ref projections          | derived from the ref candidate set                                                         | exact uses select a prebuilt projection class by token; dynamic uses select per candidate |
+| `style.keyframes()`      | declaration-site keyframe asset                                                            | candidate use selects prebuilt `animation-name` declarations                              |
+| `style.viewTransition()` | declaration-site transition class; `.for(key)` folds a literal key and reads an expression | every use contributes the declaration's class token; a name composes the token and key    |
 
 The audit is part of adding any future named CSS API: it must specify its
 identity source, exported summary form, candidate algebra, correlation needs,
@@ -368,40 +379,57 @@ The lowered IR deliberately distinguishes author intent from generated CSS.
 
 ```rust
 pub struct StyleCall {
-    pub adapter: AdapterKind,
     pub span: Span,
     pub inputs: Vec<StyleInput>,
 }
-
-pub enum StyleInput {
-    Utilities { text: DecodedText, guard: Guard, origin: Origin },
-    Attributes { entries: Vec<AttributeEntry>, guard: Guard, origin: Origin },
-    Variant { variant: StyleVariant, inputs: Vec<StyleInput> },
-    RefAttachment { reference: Ref, origin: Origin },
-    Projection { reference: Ref, kind: ProjectionKind, origin: Origin },
-    KeyframesUse { animation: AnimationRef, options: DecodedText, guard: Guard },
-    ViewTransitionUse { transition: TransitionRef, key: Option<ExprSpan>, guard: Guard },
-}
 ```
 
-`Guard` is a small boolean expression tree whose leaves are original JavaScript
-expression spans. It supports correct runtime class selection without executing
-user code.
+`ModuleIr.adapter` selects the framework for the module. Each `StyleCall` owns
+its original span and ordered inputs. `StyleInput::Array` and
+`StyleInput::Conditional { test, branches }` preserve mixed props contributions.
+Conditional tests are original source spans; `ConditionalBranches<T>` retains
+the distinction between logical conjunction and a ternary.
+
+`StyleInput::Class(ClassExpression)` contains mixed class and object entries.
+`ClassExpression::Rule(Box<RuleExpression>)` contains rule contributions such as
+utilities, projections, animation uses, and CSS variants. A
+`RuleExpression::Variant { variant, inputs }` wraps only rule expressions.
+`StyleInput::RefAttachment { definition, value }` attaches a static ref;
+`DynamicRefAttachment { value, refs }` retains its runtime receiver and finite
+candidates. `StyleInput::Composition { value, candidates }` retains completed
+style values and their declaration identities.
 
 ```rust
-pub enum ProjectionKind {
-    Anchor,
-    Position,
-    Scope,
-    Container { kind: ContainerKind },
-    ContainerQuery { condition: ContainerCondition, body: UtilityList },
+pub struct RefCondition {
+    pub refs: Vec<RefDefinition>,
+    pub prefix: Spanned<String>,
+}
+
+pub enum StyleVariant {
+    Prefix(Spanned<String>),
+    Container { refs: Vec<RefDefinition>, query: Spanned<String> },
+    Ref { condition: RefCondition, scopes: Vec<RefCondition> },
+}
+
+pub enum RefProjection {
+    AsAnchor(Option<AnchorScope>),
+    AsContainer(Option<Spanned<String>>),
+    PositionAnchor,
 }
 ```
 
-The ref graph is semantic data, not a naming convention. A boundary must be
-attached to a strict ancestor of every bounded ref. An unbounded ref targets its
-own descendants; a bounded ref generates `&:is(:where(boundary):has(:where(ref)<variant>) *)` and
-may target any descendant of that boundary.
+`RuleExpression::RefProjection { definition, value, projection }` keeps the
+declaration and the receiver expression separate. Its dynamic form keeps
+`value`, `refs`, and `projection`. `RuleExpression::AnchorScope { scope, span }`
+represents the receiver-free CSS anchor scope use. Container queries belong to
+`StyleVariant::Container`, independently of provider projections.
+
+Ref selectors record their structural constraints at the use site. `ref(state)`
+requires a matching ref ancestor of the target. `ref(state).in(scope)` requires
+the scope to contain both the matching ref and the target as descendants. A raw
+scope generates `&:is(:is(:where(scope)):has(:is(:where(ref)<variant>)) *)`; a call/tag
+operand additionally tests the scope's state. Repeated `.in()` calls combine
+independent conditions with AND against the original ref predicate and target.
 
 ## Utility and selector grammar
 
@@ -417,14 +445,16 @@ spans. A utility registry maps this representation to CSS declarations and the
 theme namespace it may reference.
 
 Variant wrappers and direct utility templates share an ordered `StyleVariant`
-representation: an ordinary prefix or a ref with its correlated ref and boundary
-identities and the prefix applied to that ref.
+representation: an ordinary prefix, a ref predicate with its use-site scope
+operands, or a container query on a raw ref.
 
 - ordinary wrapper keys end with `:`;
 - ref wrappers accept `trigger` tagged with a static variant string or
   `trigger("hover:active")`; the final `:` in the argument is optional;
-- `trigger()` is a ref variant with no state conditions: bounded refs test
-  presence within their boundary, and unbounded refs require a matching ancestor;
+- `trigger()` is a ref variant with no state conditions and requires a matching ancestor;
+- `.in(parent)` accepts a raw ref or an unscoped call/tag such as `parent("focus")`;
+- scope operands cannot contain `.in()` or `.at()`; `.at()` belongs only to raw refs
+  and combines with scoped selectors through nested style keys;
 - utility templates inside `style(...)` accept direct ref-variant substitutions
   at complete variant boundaries, such as `` `${trigger`hover:`}:active:text-accent` ``;
 - the ref's variants apply to the referenced element, and the surrounding
@@ -476,7 +506,7 @@ Initial checks:
 - invalid animation keyframe frame or animation option;
 - invalid ref projection (`position` without a corresponding `anchor`,
   `at()` without `container()`);
-- boundary that cannot contain both relevant anchor-positioning participants;
+- scope attachment that is missing, or cannot contain the referenced element or target;
 - selector relationship impossible in locally visible JSX/template ancestry;
 - a static view transition used in a repeated render;
 - duplicate or contradictory declarations at the same selector/guard level;
@@ -581,8 +611,8 @@ and generated utilities have been combined, then lowers only referenced names
 to standard `@property` rules. Authored standard `@property` rules are retained
 verbatim and suppress a compiler-owned registration with the same final name.
 
-Every generated CSS declaration carries an `Origin`; the CSS emitter writes a
-source map back to the style call and, where useful, to the exact utility token.
+The CSS emitter maps generated CSS to original source spans, including the
+style call and available utility-token ranges.
 
 ## Formatter architecture
 
@@ -672,8 +702,8 @@ as a compiler integration error rather than falling back to Rust propagation.
    container queries, animations, and view transitions.
 7. TypeScript-fact fixtures: exported values, re-exports, conditionals,
    correlation preservation, and exact/dynamic descriptor erasure.
-8. Property tests: shadow/original span mapping is stable, relation factoring
-   never adds a boundary/ref pair, and invalid facts fail conservatively.
+8. Property tests: shadow/original span mapping is stable, repeated selector
+   scopes retain their independent constraints, and invalid facts fail conservatively.
 
 ## Implementation order
 

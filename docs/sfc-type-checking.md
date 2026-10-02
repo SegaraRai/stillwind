@@ -41,7 +41,7 @@ Rust の AST 抽出中のみ正規化した解析 buffer の範囲が存在す�
 ## 型の伝播とエラー
 
 `styleFlow` による独自の代入・関数フロー解析はない。TypeScript の推論と制御フローを
-使い、style 合成、ref と boundary、keyframes、view transition の有限候補を取得する。
+使い、style 合成、ref と使用箇所の scope operand、keyframes、view transition の有限候補を取得する。
 
 ```ts
 const a = style("flex");

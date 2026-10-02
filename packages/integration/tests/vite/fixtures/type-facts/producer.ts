@@ -3,10 +3,8 @@ import { style } from "stillwind/react";
 // Non-ASCII text ensures Oxc byte offsets map back from TypeScript UTF-16 positions.
 const _label = "🧭";
 
-export const firstBoundary = style.ref("first");
-export const first = style.ref(firstBoundary, "first");
-export const secondBoundary = style.ref("second");
-export const second = style.ref(secondBoundary, "second");
+export const first = style.ref("first");
+export const second = style.ref("second");
 export const fadeIn = style.keyframes({
   from: "opacity-0 bg-[url(./support.svg)]",
   to: "opacity-100",

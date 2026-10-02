@@ -4,8 +4,11 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
-use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
-use stillwind_source::{ModuleId, Span};
+use stillwind_ir::{
+    AnchorScope, RefCondition, RefDefinition, RefProjection, RuleExpression, StyleInput,
+};
+use stillwind_semantic::IdentityId;
+use stillwind_source::Span;
 
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
@@ -17,6 +20,8 @@ pub(crate) enum RefUseKind {
     Marker,
     /// `ref("hover:")` and `` ref`hover:` `` variants.
     SelectorVariant,
+    /// A ref supplied as an element condition to `.in()`.
+    ScopeOperand,
     /// `ref.asAnchor(...)`.
     AsAnchor,
     /// `ref.asContainer(...)`.
@@ -42,14 +47,16 @@ impl<'a> From<&'a RefProjection> for RefUseKind {
 pub(crate) struct RefUse {
     /// The binding name at the declaration, used in diagnostics.
     pub(crate) name: String,
-    /// The module that declared the ref, its binding name, and its original span.
-    pub(crate) identity: (ModuleId, String, Span),
+    /// Declaration-site identity in original UTF-8 coordinates.
+    pub(crate) identity: IdentityId,
     /// Use kind.
     pub(crate) projection: RefUseKind,
     /// Whole use expression in the current AST buffer.
     pub(crate) span: Span,
     /// JSX ancestor path of the use, when it appeared inside JSX.
     pub(crate) jsx_path: Option<Vec<usize>>,
+    /// Shared scope conditions for this selector use. Other uses leave this empty.
+    pub(crate) scopes: Vec<RefCondition>,
 }
 
 impl<'a> MacroExtractor<'a> {
@@ -287,14 +294,11 @@ impl<'a> MacroExtractor<'a> {
     ) {
         self.ref_uses.push(RefUse {
             name: definition.binding.value.clone(),
-            identity: (
-                definition.module_id.clone(),
-                definition.binding.value.clone(),
-                definition.binding.span,
-            ),
+            identity: self.ref_identity(definition),
             projection,
             span,
             jsx_path: (!self.jsx_path.is_empty()).then(|| self.jsx_path.clone()),
+            scopes: Vec::new(),
         });
     }
 }

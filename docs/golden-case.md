@@ -34,8 +34,8 @@ reason to reject otherwise meaningful JavaScript. The compiler reasons about a
 finite symbolic candidate set, not necessarily one exact local value:
 
 ```ts
-const group = condition ? groupBoundary1 : groupBoundary2;
-// group ∈ { groupBoundary1, groupBoundary2 }
+const group = condition ? groupScope1 : groupScope2;
+// group ∈ { groupScope1, groupScope2 }
 ```
 
 Where safe, CSS retains the set symbolically instead of expanding a Cartesian
@@ -47,10 +47,10 @@ product:
 }
 ```
 
-Correlated choices must remain correlated. For example, a ref whose boundary
-differs by alternative must not be lowered to a boundary/ref cross-product that
-could match a DOM relationship the source never denoted. The compiler
-factors only proven-independent candidate sets.
+Each selector use retains its ref predicate and scope operands. Repeated
+`.in()` operands express independent constraints against that original ref
+predicate and the target. The compiler preserves these constraints when it
+lowers finite candidate sets.
 
 Stillwind never generates CSS at runtime. Exact values may erase completely;
 dynamic declaration selection can retain a small opaque runtime descriptor solely to
@@ -183,11 +183,11 @@ style("rounded-md bg-accent", {
 Plain strings passed directly to `style()` remain Stillwind utility strings and
 are rejected if they are not in the configured utility vocabulary.
 
-## DOM refs and boundaries
+## DOM refs and selector scopes
 
-`style.ref()` is an opaque compile-time identity for a DOM element. Without a
-boundary it is the named, local equivalent of Tailwind's `group`: a selector rooted
-at the ref can target its descendants.
+`style.ref()` is an independent opaque compile-time identity for a DOM element.
+A ref selector is the named, local equivalent of Tailwind's `group`: a selector
+rooted at the ref targets its descendants.
 
 ```tsx
 const trigger = style.ref("trigger");
@@ -213,9 +213,9 @@ style({ [trigger()]: "text-accent" });
 style(`${trigger()}:text-accent`);
 ```
 
-For a bounded ref, this requires a matching element within the boundary
-(`.target:is(:where(.boundary):has(:where(.bounded)) *)`). For an unbounded ref,
-the matching element must be an ancestor (`.target:is(:where(.ref) *)`).
+The matching element must be an ancestor (`.target:is(:is(:where(.ref)) *)`).
+Adding `.in(parent)` instead requires the parent to contain both the matching
+ref element and the target as descendants.
 
 The variants inside `trigger(...)` test the referenced element. Variants outside
 it apply to the styled target. Both forms below test a hovered trigger and an
@@ -247,32 +247,53 @@ const classes = `${trigger`hover:`}:text-accent`;
 style(classes); // Not supported: write the template directly inside style(...).
 ```
 
-A ref becomes a boundary when another ref names it. The bounded ref permits its
-reference and selector target to be siblings or otherwise independently nested within
-the boundary element.
+The selector use can specify a scope with `.in(parent)`. The referenced element
+and selector target may be siblings or otherwise independently nested within
+the scope element.
 
 ```tsx
 const menu = style.ref("menu");
-const trigger = style.ref(menu, "trigger");
+const trigger = style.ref("trigger");
 
 <section {...style(menu, "relative")}>
   <button {...style(trigger, "inline-flex items-center rounded-md px-3 py-2")}>More</button>
-  <div {...style({ [trigger`hover:`]: "block" })}>Menu</div>
+  <div {...style({ [trigger`hover:`.in(menu)]: "block" })}>Menu</div>
 </section>;
 ```
 
-The boundary element must be attached to a strict ancestor of its bounded ref. When
-JSX is visible in one file the linter verifies that invariant. The generated selector
+The scope element must be a strict ancestor of both the ref and the target. When
+JSX is visible in one file the linter checks those relationships at the selector use.
+The generated selector
 for the sibling example has the form:
 
 ```css
-.sw_<target-hash>:is(:where(.sw_menu_<hash>):has(:where(.sw_trigger_<hash>):hover) *) { ... }
+.sw_<target-hash>:is(:is(:where(.sw_menu_<hash>)):has(:is(:where(.sw_trigger_<hash>):hover)) *) { ... }
 ```
 
 Labels are optional. `style.ref()` emits `.sw_<hash>`; `style.ref("menu")` and
-`style.ref(menu, "trigger")` emit `.sw_menu_<hash>` and `.sw_trigger_<hash>`. The
+`style.ref("trigger")` emit `.sw_menu_<hash>` and `.sw_trigger_<hash>`. The
 hash keeps these local identities deterministic and collision-checked, and every other
 generated name of one declaration spells the same label.
+
+Scope operands accept raw refs or unscoped calls/tags. A state on the operand
+tests the scope element:
+
+```tsx
+style({ [trigger("hover").in(menu("focus"))]: "text-accent" });
+style({ [trigger`hover:`.in(menu`focus:`)]: "text-accent" });
+```
+
+Repeated `.in()` calls combine independent conditions with AND. Each operand
+checks the original ref predicate and the target. Their order has no effect on
+the conditions, and it does not require one scope to contain the other:
+
+```tsx
+style({ [trigger("hover").in(menu).in(panel)]: "text-accent" });
+style({ [trigger("hover").in(panel).in(menu)]: "text-accent" });
+```
+
+An operand cannot contain `.in()` or `.at()`. Calls/tags and scoped variants
+must be written directly in `style()`; storing a variant for later use is unsupported.
 
 Refs also own anchor positioning and container-query projections:
 
@@ -294,15 +315,22 @@ also add `anchor-scope`. `asContainer(type?)` adds `container-type` only when a
 type is supplied.
 
 `style.anchorScope(scope)` emits CSS `anchor-scope` on its element. Its argument
-is `"all"`, `"none"`, or a literal array of refs. Naming a ref in another ref's
-declaration creates the structural boundary used by ref selectors.
+is `"all"`, `"none"`, or a literal array of refs. CSS anchor scope is independent
+of the selector scope specified by `.in()`.
 
-`at(query?)` returns a variant for a computed key or a utility template
+`at(query?)` on a raw ref returns a variant for a computed key or a utility template
 substitution. A string literal and a static tag accept the same query:
 
 ```tsx
 style({ [card.at`width >= 40rem`]: "grid-cols-2" });
 style(`${card.at("width >= 40rem")}:grid-cols-2`);
+```
+
+A selector call/tag or a scoped variant cannot receive `.at()`. Compose a
+container query and a selector scope explicitly through nested style keys:
+
+```tsx
+style({ [card.at("width >= 40rem")]: { [popover("hover").in(card)]: "grid-cols-2" } });
 ```
 
 Omitting the query or providing empty text emits `@container <container-name>`

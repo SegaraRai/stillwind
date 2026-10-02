@@ -1,16 +1,27 @@
 import { expect, test } from "vite-plus/test";
 
-for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+const frameworks = [
+  ["react", () => import("stillwind/react")],
+  ["preact", () => import("stillwind/preact")],
+  ["solid", () => import("stillwind/solid")],
+  ["vue", () => import("stillwind/vue")],
+  ["svelte", () => import("stillwind/svelte")],
+  ["astro", () => import("stillwind/astro")],
+] as const;
+
+for (const [framework, load] of frameworks) {
   test(`${framework} reports missing integration for every uncompiled macro`, async () => {
-    const { style } = await import(`stillwind/${framework}`);
+    const { style } = await load();
     for (const call of [
       () => style("flex"),
       () => style.ref(),
+      () => style.ref("trigger"),
+      () => style.anchorScope("none"),
       () => style.keyframes({ from: "opacity-0" }),
       () => style.viewTransition({ old: "opacity-0" }),
     ]) {
       expect(call).toThrow(
-        /Stillwind style(?:\.(?:ref|keyframes|viewTransition))?\(\) is a compile-time macro/,
+        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition))?\(\) is a compile-time macro/,
       );
     }
   });

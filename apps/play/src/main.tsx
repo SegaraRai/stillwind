@@ -15,8 +15,9 @@ import { style } from "stillwind/react";
 
 export function App() {
   const [loading, setLoading] = useState(false);
+  const menu = style.ref("menu");
   const trigger = style.ref();
-  const enter = style.animation({
+  const enter = style.keyframes({
     from: "opacity-0 translate-y-2 scale-98",
     to: "opacity-100 translate-y-0 scale-100",
   });
@@ -24,9 +25,11 @@ export function App() {
     <main {...style("bg-surface p-4 rounded-md", enter("duration-normal ease-standard both"))}>
       <p>Stillwind Play</p>
       <h1>React, compiled as you type.</h1>
-      <div {...style(trigger, trigger.asAnchor(), "inline-flex")}>
+      <div {...style(menu, "inline-flex")}>
         <button
           {...style(
+            trigger,
+            trigger.asAnchor(),
             "inline-flex items-center rounded-md bg-accent px-4 py-2 text-white transition hover:bg-accent/90",
             loading && "opacity-60 cursor-wait",
             { "aria-busy": loading },
@@ -35,7 +38,9 @@ export function App() {
         >
           {loading ? "Saving…" : "Save changes"}
         </button>
-        <span {...style({ [trigger\`&:hover\`]: "text-accent" })}> ← automatic named parent selector</span>
+        <span {...style({ [trigger("hover:").in(menu)]: "text-accent" })}>
+          trigger state within this menu
+        </span>
       </div>
     </main>
   );

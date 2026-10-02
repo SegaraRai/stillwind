@@ -79,7 +79,7 @@
 | crates/js-oxc/src/refs/definitions.rs:42                       | expect      | 直前の is_some_and 条件内なので Some を保証。if let に整理可能。                                                                              |
 | crates/js-oxc/src/refs/definitions.rs:108                      | expect      | 直前の is_some_and 条件内なので Some を保証。if let に整理可能。                                                                              |
 | crates/js-oxc/src/refs/validation.rs:91                        | expect      | 同じイテレータで boundary.is_some() をfilter済み。filter_map に整理可能。                                                                     |
-| crates/js-oxc/src/visit.rs:181                                 | expect      | 直前に Ref/Scope 種別を明示して組み立てるため、現在の RefAlternative 検証条件を満たす。                                                       |
+| crates/js-oxc/src/visit.rs:257                                 | なし        | ref 宣言は `ExportedValue::Refs(SymbolicValue::exact(...))` を作る。identity の種別は `AssetKind::Ref` で、この経路に `expect` はない。       |
 | crates/tailwind/src/utilities/formatting.rs:13                 | expect      | String への文字列書込。現在の引数では fmt::Error は発生しない。                                                                               |
 | crates/core/src/compiler/handles.rs:41                         | unreachable | 抽出器による & 接頭辞保証に依存。ModuleAnalysis.ir は公開されており、手動IR構築時の防御にはならない。                                         |
 | crates/core/src/compiler/pipeline.rs:504                       | unreachable | 上流の同じループで各対象variantを処理してcontinueする制御フローに依存。                                                                       |

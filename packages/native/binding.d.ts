@@ -584,8 +584,8 @@ export interface NativeExport {
 export type NativeExportedValue =
   | { kind: 'styles'; /** Reachable style identities. */
   value: NativeSymbolicValue }
-  | { kind: 'refs'; /** The correlated alternatives. */
-  value: Array<NativeRefAlternative> }
+  | { kind: 'refs'; /** Reachable ref identities. */
+  value: NativeSymbolicValue }
   | { kind: 'keyframes'; /** Reachable keyframes identities. */
   value: NativeSymbolicValue }
   | { kind: 'viewTransitions'; /** Reachable transition identities. */
@@ -861,18 +861,6 @@ export interface NativeReExport {
   source: string
   /** Name in the source module. */
   imported: string
-}
-
-/**
- * One ref candidate together with the boundaries it may be bounded by.
- *
- * The pair is a relationship, not a product: see [`stillwind_semantic::RefAlternative`].
- */
-export interface NativeRefAlternative {
-  /** The ref identity. */
-  reference: NativeIdentity
-  /** Boundary refs this ref may be bounded by, or `None` when unconstrained. */
-  permittedBoundaries: NativeSymbolicValue | null
 }
 
 /** What changed after publishing a reloaded design system. */

@@ -657,3 +657,100 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
             .any(|mapping| mapping.original == probe)
     );
 }
+
+#[test]
+fn projected_forward_ref_scopes_match_later_attachments_in_original_coordinates() {
+    let input = projected_script(
+        "// 日本語 🧭\n\
+         import {style} from 'stillwind/svelte';\n\
+         function props() { return style({[r('hover').in(s)]: 'flex'}); }\n\
+         const r = style.ref('reference');\n\
+         const s = style.ref('scope');\n\
+         export const view = <section {...style(s)}><button {...style(r)} />\
+         <span {...props()} /></section>;",
+    );
+    let input = rebuild_projection(
+        &input,
+        Arc::clone(input.parser_source()),
+        ScriptSyntax::new(ScriptLanguage::Tsx, input.syntax().module_kind()),
+        input.projection().unwrap().map().clone(),
+        input.projection().unwrap().converter().clone(),
+    );
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    let refs = scan
+        .summary
+        .assets
+        .iter()
+        .filter(|asset| asset.identity.kind == AssetKind::Ref)
+        .map(|asset| (asset.identity.binding_name.as_str(), asset))
+        .collect::<BTreeMap<_, _>>();
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of("forward refs"),
+        assets: refs
+            .values()
+            .map(|asset| (asset.identity.clone(), asset.metadata.clone()))
+            .collect(),
+        facts: scan
+            .type_probes
+            .iter()
+            .filter_map(|probe| {
+                let name = scan.source.slice(probe.span).unwrap();
+                let asset = refs.get(name)?;
+                Some(TypeFact {
+                    start: probe.span.start.0,
+                    end: probe.span.end.0,
+                    value: ExportedValue::Refs(SymbolicValue::exact(asset.identity.clone())),
+                })
+            })
+            .collect(),
+    };
+    let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
+    assert!(analysis.integration_diagnostics.is_empty());
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:?}",
+        analysis.diagnostics
+    );
+    assert!(
+        analysis.lint_findings.is_empty(),
+        "{:?}",
+        analysis.lint_findings
+    );
+    let StyleInput::Class(ClassExpression::Group { entries, .. }) =
+        &analysis.ir.style_calls[0].inputs[0]
+    else {
+        panic!("selector group");
+    };
+    let GroupEntry::Class(expression) = &entries[0] else {
+        panic!("selector rule");
+    };
+    let ClassExpression::Rule(rule) = expression.as_ref() else {
+        panic!("selector variant");
+    };
+    let RuleExpression::Variant {
+        variant: StyleVariant::Ref { condition, scopes },
+        ..
+    } = rule.as_ref()
+    else {
+        panic!("ref variant");
+    };
+    for (definition, call_index) in [(&scopes[0].refs[0], 1), (&condition.refs[0], 2)] {
+        let StyleInput::RefAttachment {
+            definition: attached,
+            ..
+        } = &analysis.ir.style_calls[call_index].inputs[0]
+        else {
+            panic!("ref attachment");
+        };
+        assert_eq!(definition.binding, attached.binding);
+        assert_eq!(definition.module_id, attached.module_id);
+        assert_eq!(definition.binding.span.file, analysis.source.id());
+        assert_eq!(
+            analysis.source.slice(definition.binding.span).unwrap(),
+            definition.binding.value
+        );
+    }
+}

@@ -59,10 +59,11 @@ optimization changes rather than the byte size of the compact production output.
 
 - `utility-props-matrix`: utilities, arrays, conditions, ternaries, attributes,
   local selectors, and external classes.
-- `bounded-ref-layout`: ref markers and their boundaries, anchor positioning, containers,
-  container queries, and ref-tagged selectors.
-- `typed-ref-graph`: conditional refs and boundaries propagated through imports and
-  a barrel re-export by TypeScript.
+- [Ref scope layout](../fixtures/projects/bounded-ref-layout/input/src/Popover.tsx): independent
+  ref markers, selector scopes, anchor providers, containers, and container queries.
+  Its scope matrix covers stateful operands, repeated scopes in both orders, and explicit query composition.
+- `typed-ref-graph`: independent conditional refs and scope operands propagated through
+  imports and a barrel re-export by TypeScript.
 - `keyframes-matrix`: static and conditional animations across modules.
 - `view-transition-matrix`: static, keyed, and conditional view transitions
   across modules, with media-conditioned and image-pair phases, literal and

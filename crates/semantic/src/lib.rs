@@ -36,5 +36,5 @@ pub use assets::{AssetMetadata, AssetRecord};
 pub use identity::{AssetKind, IdentityId};
 pub use module::{IntegrationDiagnostic, TypeFacts, TypeFactsUpdate};
 pub use module_summary::{ImportBinding, ModuleSpecifier, ModuleSummary, ReExport};
-pub use symbolic::{Candidates, ExportedValue, RefAlternative, SymbolicError, SymbolicValue};
+pub use symbolic::{Candidates, ExportedValue, SymbolicError, SymbolicValue};
 pub use type_facts::TypeFact;
