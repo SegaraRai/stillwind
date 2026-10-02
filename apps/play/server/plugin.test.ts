@@ -11,8 +11,14 @@ test("Playground serves isolated compiled previews without the integration plugi
     root: fileURLToPath(new URL("../", import.meta.url)),
     logLevel: "silent",
     plugins: [playground("styles/default-theme.css")],
-    optimizeDeps: { noDiscovery: true, include: [] },
-    server: { host: "127.0.0.1", port: 0 },
+    optimizeDeps: {
+      noDiscovery: true,
+      include: [],
+    },
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+    },
   });
   try {
     await server.listen();

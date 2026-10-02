@@ -2,7 +2,12 @@ import { pluginSvelte } from "@rsbuild/plugin-svelte";
 import { pluginStillwind } from "@stillwind/integration/rsbuild";
 
 export default {
-  plugins: [pluginStillwind({ css: "src/styles.css" }), pluginSvelte()],
+  plugins: [
+    pluginStillwind({
+      css: "src/styles.css",
+    }),
+    pluginSvelte(),
+  ],
   source: {
     entry: {
       index: "./src/main.tsx",

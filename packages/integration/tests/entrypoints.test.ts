@@ -32,7 +32,9 @@ test("public entrypoints and configured loaders use built ESM artifacts", async 
     expect(entry.endsWith(`/dist/${name}/index.js`), entry).toBeTruthy();
     expect(existsSync(new URL(entry.replace(/\.js$/, ".d.ts")))).toBeTruthy();
   }
-  for (const rule of webpack.stillwindRules({ css: "root.css" })) {
+  for (const rule of webpack.stillwindRules({
+    css: "root.css",
+  })) {
     for (const use of rule.use) {
       const file = typeof use === "string" ? use : use.loader;
       expect(existsSync(file), file).toBeTruthy();
@@ -63,7 +65,9 @@ test("Next configuration preserves hooks and installs shared emission", () => {
       turbopack: { rules: { "*.{js,jsx,ts,tsx,mjs,cjs}": priorRule } },
       webpack: (value: any) => ({ ...value, plugins: [priorPlugin] }),
     },
-    { css: "root.css" },
+    {
+      css: "root.css",
+    },
   );
   const compiled = config.webpack({});
   expect(compiled.plugins[0]).toBe(priorPlugin);
@@ -81,7 +85,9 @@ test("Next configuration preserves hooks and installs shared emission", () => {
 test("Rsbuild installs shared emission after framework pre-loaders", () => {
   const existing = { use: ["builtin:lightningcss-loader"] };
   const config: any = { module: { rules: [existing] } };
-  pluginStillwind({ css: "root.css" }).setup({
+  pluginStillwind({
+    css: "root.css",
+  }).setup({
     modifyRspackConfig(callback) {
       expect(callback(config)).toBe(config);
     },
@@ -93,8 +99,16 @@ test("Rsbuild installs shared emission after framework pre-loaders", () => {
 });
 
 test("Turbopack rules use independent loaders and explicit application entries", () => {
-  const rules = turbopackRules({ css: "root.css", entries: ["src/main.ts"] });
-  expect(() => turbopackRules({ css: "root.css", entries: [] })).toThrow(/entry files/);
+  const rules = turbopackRules({
+    css: "root.css",
+    entries: ["src/main.ts"],
+  });
+  expect(() =>
+    turbopackRules({
+      css: "root.css",
+      entries: [],
+    }),
+  ).toThrow(/entry files/);
   for (const rule of Object.values(rules)) {
     for (const { loader, options } of rule.loaders) {
       expect(existsSync(loader)).toBeTruthy();

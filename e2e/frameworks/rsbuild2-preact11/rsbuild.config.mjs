@@ -2,7 +2,12 @@ import { pluginPreact } from "@rsbuild/plugin-preact";
 import { pluginStillwind } from "@stillwind/integration/rsbuild";
 
 export default {
-  plugins: [pluginStillwind({ css: "src/styles.css" }), pluginPreact()],
+  plugins: [
+    pluginStillwind({
+      css: "src/styles.css",
+    }),
+    pluginPreact(),
+  ],
   source: {
     entry: {
       index: "./src/main.tsx",

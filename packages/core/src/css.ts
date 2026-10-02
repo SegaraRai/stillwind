@@ -25,7 +25,10 @@ export function styleSheets(parts: readonly CssPart[], document: Document): CSSS
     }
     const sheet = new realm.CSSStyleSheet();
     sheet.replaceSync(part.css);
-    cache!.set(part.key, { css: part.css, sheet });
+    cache!.set(part.key, {
+      css: part.css,
+      sheet,
+    });
     return sheet;
   });
 }
@@ -39,7 +42,10 @@ export function cssText(parts: readonly CssPart[]): string {
 export interface StylesheetManifest {
   readonly version: 1;
   readonly revision: string;
-  readonly parts: readonly { readonly id: string; readonly href: string }[];
+  readonly parts: readonly {
+    readonly id: string;
+    readonly href: string;
+  }[];
   readonly modules: Readonly<Record<string, readonly string[]>>;
 }
 

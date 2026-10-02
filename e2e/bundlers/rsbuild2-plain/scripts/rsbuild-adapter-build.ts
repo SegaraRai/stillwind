@@ -7,15 +7,26 @@ import * as bundler from "@stillwind/integration/rsbuild";
 
 const dir = process.argv[2];
 assert.ok(dir, "A fixture directory is required");
+
 const rsbuild = await createRsbuild({
   cwd: dir,
   rsbuildConfig: {
     root: dir,
-    plugins: [bundler.pluginStillwind({ css: path.join(dir, "root.css"), root: dir })],
+    plugins: [
+      bundler.pluginStillwind({
+        css: path.join(dir, "root.css"),
+        root: dir,
+      }),
+    ],
     source: { entry: { main: path.join(dir, "main.js") } },
     output: {
-      sourceMap: { js: "source-map", css: true },
-      distPath: { root: path.join(dir, "dist") },
+      sourceMap: {
+        js: "source-map",
+        css: true,
+      },
+      distPath: {
+        root: path.join(dir, "dist"),
+      },
       assetPrefix: "/",
       minify: false,
       dataUriLimit: 0,
@@ -25,13 +36,18 @@ const rsbuild = await createRsbuild({
         devtool: "source-map",
         cache: {
           type: "persistent",
-          storage: { type: "filesystem", directory: path.join(dir, "cache") },
+          storage: {
+            type: "filesystem",
+            directory: path.join(dir, "cache"),
+          },
         },
       },
     },
   },
 });
+
 const result = await rsbuild.build();
+
 try {
   assert.ok(result.stats);
   const stats = "stats" in result.stats ? result.stats.stats[0] : result.stats;

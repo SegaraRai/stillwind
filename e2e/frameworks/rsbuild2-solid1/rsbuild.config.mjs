@@ -4,8 +4,12 @@ import { pluginStillwind } from "@stillwind/integration/rsbuild";
 
 export default {
   plugins: [
-    pluginStillwind({ css: "src/styles.css" }),
-    pluginBabel({ include: /\.[jt]sx$/ }),
+    pluginStillwind({
+      css: "src/styles.css",
+    }),
+    pluginBabel({
+      include: /\.[jt]sx$/,
+    }),
     pluginSolid(),
   ],
   source: {

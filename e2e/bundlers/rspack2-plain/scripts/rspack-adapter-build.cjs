@@ -13,7 +13,10 @@ const compiler = rspack({
   entry: "./main.js",
   cache: {
     type: "persistent",
-    storage: { type: "filesystem", directory: path.join(dir, "cache") },
+    storage: {
+      type: "filesystem",
+      directory: path.join(dir, "cache"),
+    },
   },
   output: {
     path: path.join(dir, "dist"),
@@ -23,12 +26,22 @@ const compiler = rspack({
   },
   module: {
     rules: [
-      ...stillwindRules({ css: path.join(dir, "root.css"), root: dir }),
-      { test: /\.css$/, type: "css" },
-      { test: /\.svg$/, type: "asset/resource" },
+      ...stillwindRules({
+        css: path.join(dir, "root.css"),
+        root: dir,
+      }),
+      {
+        test: /\.css$/,
+        type: "css",
+      },
+      {
+        test: /\.svg$/,
+        type: "asset/resource",
+      },
     ],
   },
 });
+
 compiler.run((error, stats) => {
   if (error || stats.hasErrors()) {
     console.error(error || stats.toString());

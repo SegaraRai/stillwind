@@ -35,7 +35,11 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
         configFile: false,
         logLevel: "silent",
         plugins: [stillwind(options)],
-        build: { write: false, minify: false, cssMinify: false },
+        build: {
+          write: false,
+          minify: false,
+          cssMinify: false,
+        },
       });
       if (!("output" in result)) {
         expect.fail('Unexpected value: "output" in result');
@@ -56,11 +60,27 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
           context: root,
           mode: "production",
           entry: "./main.js",
-          output: { path: path.join(root, "dist"), filename: "main.js", clean: true },
-          optimization: { minimize: false },
-          experiments: { css: true },
+          output: {
+            path: path.join(root, "dist"),
+            filename: "main.js",
+            clean: true,
+          },
+          optimization: {
+            minimize: false,
+          },
+          experiments: {
+            css: true,
+          },
           plugins: [new StillwindPlugin()],
-          module: { rules: [...stillwindRules(options), { test: /\.css$/, type: "css" }] },
+          module: {
+            rules: [
+              ...stillwindRules(options),
+              {
+                test: /\.css$/,
+                type: "css",
+              },
+            ],
+          },
         });
         expect(compiler).toBeTruthy();
         try {

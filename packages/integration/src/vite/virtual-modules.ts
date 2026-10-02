@@ -85,7 +85,10 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         const plan = await documentPlan(name, this);
         return decodeCssSourceMap(
           cssWithSourceMap(
-            { css: plan.originalCss, sourceMap: plan.sourceMap },
+            {
+              css: plan.originalCss,
+              sourceMap: plan.sourceMap,
+            },
             plan.resourceReplacements,
             [...inputMap(name).values()].flatMap((input) =>
               input.upstream ? [input.upstream] : [],

@@ -47,9 +47,22 @@ test("Vite aliases select the same asset in the host and checker", async () => {
       configFile: false,
       root,
       logLevel: "silent",
-      resolve: { alias: { "@selected": path.join(root, "asset.ts") } },
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      build: { write: false, minify: false, cssMinify: false },
+      resolve: {
+        alias: {
+          "@selected": path.join(root, "asset.ts"),
+        },
+      },
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+      },
     });
     if (!("output" in result)) {
       expect.fail('Unexpected value: "output" in result');
@@ -107,7 +120,14 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
       syntax,
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
-  ) as { modules: Array<{ moduleId: string; diagnostics: Array<{ code: string }> }> };
+  ) as {
+    modules: {
+      moduleId: string;
+      diagnostics: {
+        code: string;
+      }[];
+    }[];
+  };
   expect(
     withoutFacts.modules.find((module) => module.moduleId === "src/consumer.ts")?.diagnostics
       .length,
@@ -153,12 +173,14 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
     })),
     cssInput(resolveFixtureCss('@import "stillwind";')),
   ) as {
-    modules: Array<{
+    modules: {
       moduleId: string;
       code: string;
       css: string;
-      diagnostics: Array<{ code: string }>;
-    }>;
+      diagnostics: {
+        code: string;
+      }[];
+    }[];
   };
   const consumer = withFacts.modules.find((module) => module.moduleId === "src/consumer.ts");
   expect(consumer).toBeTruthy();
@@ -202,23 +224,40 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
   expect(session.moduleCss("src/consumer.ts")).toMatch(/animation-name:sw-kf-/);
   const selection: import("@stillwind/native").NativeStylesheetSelection = {
     modules: ["src/consumer.ts"],
-    coverage: { kind: "complete", target: "consumer-route", revision: "graph-1" },
+    coverage: {
+      kind: "complete",
+      target: "consumer-route",
+      revision: "graph-1",
+    },
     placement: "carrier",
   };
   const plan = session.planStylesheet(selection) as {
-    resources: { moduleId: string; specifier: string }[];
+    resources: {
+      moduleId: string;
+      specifier: string;
+    }[];
     css: string;
     coverage: typeof selection.coverage;
-    producers: { module: string; sourceRevision: string; semanticRevision: string }[];
+    producers: {
+      module: string;
+      sourceRevision: string;
+      semanticRevision: string;
+    }[];
   };
-  const reference = session.planStylesheet({ ...selection, coverage: { kind: "observed" } });
+  const reference = session.planStylesheet({
+    ...selection,
+    coverage: { kind: "observed" },
+  });
   expect(reference.css).toBe(session.moduleCss("src/consumer.ts"));
   expect(plan.css).toMatch(/animation-iteration-count:infinite/);
   expect(plan.css).toMatch(/@keyframes sw-kf-/);
   expect(plan.css.match(/@keyframes /g)?.length).toBe(2);
   expect(plan.css).not.toMatch(/display:flex/);
   expect(plan.resources.map(({ moduleId, specifier }) => ({ moduleId, specifier }))).toStrictEqual([
-    { moduleId: "src/producer.ts", specifier: "./support.svg" },
+    {
+      moduleId: "src/producer.ts",
+      specifier: "./support.svg",
+    },
   ]);
   expect(plan.coverage).toStrictEqual(selection.coverage);
   expect(plan.producers.map((producer) => producer.module)).toStrictEqual(selection.modules);

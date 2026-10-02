@@ -27,7 +27,9 @@ export default {
   },
   plugins: [
     new StillwindPlugin(),
-    new HtmlPlugin({ template: "./index.html" }),
+    new HtmlPlugin({
+      template: "./index.html",
+    }),
     new VueLoaderPlugin(),
   ],
   module: {

@@ -36,8 +36,12 @@ test("constructed sheets share content within a Document and retain repeated pos
       this.css = css;
     }
   }
-  const makeDocument = () => ({ defaultView: { CSSStyleSheet: Sheet } }) as unknown as Document;
+  const makeDocument = () =>
+    ({
+      defaultView: { CSSStyleSheet: Sheet },
+    }) as unknown as Document;
   const document = makeDocument();
+
   const parts = [
     { key: "red", css: ".x{color:red}" },
     { key: "blue", css: ".x{color:blue}" },

@@ -2,7 +2,12 @@ import { pluginReact } from "@rsbuild/plugin-react";
 import { pluginStillwind } from "@stillwind/integration/rsbuild";
 
 export default {
-  plugins: [pluginStillwind({ css: "src/styles.css" }), pluginReact()],
+  plugins: [
+    pluginStillwind({
+      css: "src/styles.css",
+    }),
+    pluginReact(),
+  ],
   source: {
     entry: {
       index: "./src/main.tsx",

@@ -152,7 +152,10 @@ function canonicalizeDeclarationOrder(css: string): {
       block.children.fromArray(canonical);
     },
   });
-  return { css: generate(ast), rules };
+  return {
+    css: generate(ast),
+    rules,
+  };
 }
 
 function preservesDependentDeclarationOrder(

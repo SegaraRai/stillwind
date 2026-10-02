@@ -9,7 +9,11 @@ let workspace = root;
 while (!existsSync(join(workspace, "pnpm-workspace.yaml")) && dirname(workspace) !== workspace) {
   workspace = dirname(workspace);
 }
-const options = { css: "root.css", root };
+
+const options = {
+  css: "root.css",
+  root,
+};
 
 export default process.env.STILLWIND_E2E_STANDALONE === "1"
   ? {
@@ -23,4 +27,12 @@ export default process.env.STILLWIND_E2E_STANDALONE === "1"
         }),
       },
     }
-  : withStillwind({ productionBrowserSourceMaps: true, turbopack: { root: workspace } }, options);
+  : withStillwind(
+      {
+        productionBrowserSourceMaps: true,
+        turbopack: {
+          root: workspace,
+        },
+      },
+      options,
+    );

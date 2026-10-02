@@ -36,10 +36,18 @@ test("Vite development composes linked CSS maps through framework preprocessing"
           };
         },
       },
-      stillwind({ css: path.join(root, "root.css"), types: false }),
+      stillwind({
+        css: path.join(root, "root.css"),
+        types: false,
+      }),
     ],
-    css: { devSourcemap: true },
-    server: { middlewareMode: true, watch: null },
+    css: {
+      devSourcemap: true,
+    },
+    server: {
+      middlewareMode: true,
+      watch: null,
+    },
     logLevel: "silent",
   });
   try {

@@ -16,10 +16,24 @@ test.each([false, true])(
       configFile: false,
       root,
       base: "/nested/",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      css: { devSourcemap: sourceMaps },
-      optimizeDeps: { noDiscovery: true, include: [] },
-      server: { host: "127.0.0.1", port: 0, watch: null },
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
+      css: {
+        devSourcemap: sourceMaps,
+      },
+      optimizeDeps: {
+        noDiscovery: true,
+        include: [],
+      },
+      server: {
+        host: "127.0.0.1",
+        port: 0,
+        watch: null,
+      },
       logLevel: "silent",
     });
     try {
@@ -45,7 +59,9 @@ test.each([false, true])(
       expect(snapshot.status).toBe(200);
       expect(await snapshot.json()).toMatchObject({
         parts: expect.arrayContaining([
-          expect.objectContaining({ css: expect.stringContaining(".base") }),
+          expect.objectContaining({
+            css: expect.stringContaining(".base"),
+          }),
         ]),
       });
       const ssr = await server.ssrLoadModule("virtual:stillwind/runtime");

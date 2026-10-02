@@ -120,7 +120,10 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         const mapped = settings.sourceMaps
           ? decodeCssSourceMap(
               cssWithSourceMap(
-                { css: plan.originalCss, sourceMap: plan.sourceMap },
+                {
+                  css: plan.originalCss,
+                  sourceMap: plan.sourceMap,
+                },
                 replacements,
                 [...inputMap(name).values()].flatMap((input) =>
                   input.upstream ? [input.upstream] : [],

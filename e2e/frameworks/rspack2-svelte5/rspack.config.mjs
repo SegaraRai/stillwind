@@ -24,7 +24,12 @@ export default {
     extensions: [".tsx", ".ts", ".jsx", ".js", ".vue", ".svelte"],
     conditionNames: ["svelte", "browser", "import", "default"],
   },
-  plugins: [new StillwindPlugin(), new HtmlPlugin({ template: "./index.html" })],
+  plugins: [
+    new StillwindPlugin(),
+    new HtmlPlugin({
+      template: "./index.html",
+    }),
+  ],
   module: {
     rules: [
       ...stillwindRules({

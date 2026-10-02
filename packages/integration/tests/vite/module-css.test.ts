@@ -24,8 +24,18 @@ test("server-only projections emit split CSS without publishing server source co
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [stillwind({ css: "./root.css", types: false, emission: "split" })],
-      build: { write: false, minify: false, sourcemap: true },
+      plugins: [
+        stillwind({
+          css: "./root.css",
+          types: false,
+          emission: "split",
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        sourcemap: true,
+      },
     });
     if (!("output" in result)) {
       expect.fail("expected output");
@@ -75,7 +85,12 @@ test("explicit module CSS exports scoped values without adding document CSS and 
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
       build: {
         write: false,
         minify: false,
@@ -99,7 +114,15 @@ test("explicit module CSS exports scoped values without adding document CSS and 
     if (!(entry?.type === "chunk")) {
       expect.fail('Unexpected value: entry?.type === "chunk"');
     }
-    const global: { result?: { css: string; otherCss: string; props: { className: string } } } = {};
+    const global: {
+      result?: {
+        css: string;
+        otherCss: string;
+        props: {
+          className: string;
+        };
+      };
+    } = {};
     runInNewContext(entry!.code, { globalThis: global });
     expect(global.result).toBeTruthy();
     expect(global.result!.css).toMatch(/color:\s*red/);
@@ -144,8 +167,18 @@ globalThis.props = style(base, 'blue');
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      build: { write: false, minify: false, cssMinify: false, modulePreload: false },
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        modulePreload: false,
+      },
     });
     if (!("output" in result)) {
       expect.fail("expected a single build output");
@@ -154,7 +187,12 @@ globalThis.props = style(base, 'blue');
     if (!entry || entry.type !== "chunk") {
       expect.fail("entry chunk not found");
     }
-    const global: { value?: string; props?: { className: string } } = {};
+    const global: {
+      value?: string;
+      props?: {
+        className: string;
+      };
+    } = {};
     runInNewContext(entry.code, { globalThis: global });
     expect(global.value ?? "").toMatch(/color:\s*blue/);
     expect(global.value ?? "").toMatch(/color:\s*red/);
@@ -188,8 +226,18 @@ test("relative JS resources preserve distinct producer origins", async () => {
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        assetsInlineLimit: 0,
+      },
     });
     if (!("output" in result)) {
       expect.fail("expected a single build output");
@@ -246,9 +294,17 @@ test("build retains late and lazy producer CSS without collecting transforms in 
             }
           },
         },
-        stillwind({ css: path.join(root, "root.css"), types: false }),
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
       ],
-      build: { write: false, minify: false, cssMinify: false, sourcemap: true },
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        sourcemap: true,
+      },
     });
     if (!("output" in output)) {
       expect.fail("expected a single build output");
@@ -314,8 +370,18 @@ test("imported CSS resources retain their owner through document and module carr
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false })],
-      build: { write: false, minify: false, cssMinify: false, assetsInlineLimit: 0 },
+      plugins: [
+        stillwind({
+          css: path.join(root, "root.css"),
+          types: false,
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        assetsInlineLimit: 0,
+      },
     });
     if (!("output" in result)) {
       expect.fail("expected a single build output");

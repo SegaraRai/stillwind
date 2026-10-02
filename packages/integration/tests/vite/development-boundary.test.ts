@@ -15,8 +15,14 @@ test("the Vite adapter exposes CSS delivery without application preview endpoint
         types: false,
       }),
     ],
-    optimizeDeps: { noDiscovery: true, include: [] },
-    server: { host: "127.0.0.1", port: 0 },
+    optimizeDeps: {
+      noDiscovery: true,
+      include: [],
+    },
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+    },
   });
   try {
     await server.listen();

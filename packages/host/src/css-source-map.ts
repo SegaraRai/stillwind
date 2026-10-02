@@ -37,20 +37,28 @@ function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUps
 }
 
 export interface CssLocations {
-  sources: Array<{ sourceMapSource: string; content: string }>;
-  entries: Array<{
+  sources: {
+    sourceMapSource: string;
+    content: string;
+  }[];
+  entries: {
     source: number;
     generatedStart: number;
     generatedEnd: number;
     originalStart: number;
     originalEnd: number;
     exact: boolean;
-  }>;
+  }[];
 }
 
-/** Rewrite resource placeholders while retaining native UTF-8 source locations. */
+/**
+ * Rewrite resource placeholders while retaining native UTF-8 source locations.
+ */
 export function cssWithSourceMap(
-  output: { css: string; sourceMap: CssLocations },
+  output: {
+    css: string;
+    sourceMap: CssLocations;
+  },
   replacements: ReadonlyMap<string, string>,
   upstream?: CssUpstreamMap | readonly CssUpstreamMap[],
   includeSourcesContent = true,
@@ -134,7 +142,9 @@ export function cssWithSourceMap(
   );
 }
 
-/** Self-contained carriers survive independent processes and filesystem caches. */
+/**
+ * Self-contained carriers survive independent processes and filesystem caches.
+ */
 export function decodeCssSourceMap(css: string) {
   const match =
     /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(css);

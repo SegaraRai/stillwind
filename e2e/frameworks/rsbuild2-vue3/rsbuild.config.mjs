@@ -2,7 +2,12 @@ import { pluginVue } from "@rsbuild/plugin-vue";
 import { pluginStillwind } from "@stillwind/integration/rsbuild";
 
 export default {
-  plugins: [pluginStillwind({ css: "src/styles.css" }), pluginVue()],
+  plugins: [
+    pluginStillwind({
+      css: "src/styles.css",
+    }),
+    pluginVue(),
+  ],
   source: {
     entry: {
       index: "./src/main.tsx",

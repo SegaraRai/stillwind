@@ -39,15 +39,32 @@ for (const backend of ["webpack", "rspack"] as const) {
       target: "web",
       entry: "./main.js",
       cache: true,
-      output: { path: path.join(root, "dist"), filename: "main.js" },
-      optimization: { minimize: false },
-      experiments: { css: true },
+      output: {
+        path: path.join(root, "dist"),
+        filename: "main.js",
+      },
+      optimization: {
+        minimize: false,
+      },
+      experiments: {
+        css: true,
+      },
       plugins: [new StillwindPlugin()],
       module: {
         rules: [
-          ...stillwindRules({ css: "./root.css", types: false }),
-          { test: /\.js$/, enforce: "pre", use: [path.join(root, "variant-loader.cjs")] },
-          { test: /\.css$/, type: "css" },
+          ...stillwindRules({
+            css: "./root.css",
+            types: false,
+          }),
+          {
+            test: /\.js$/,
+            enforce: "pre",
+            use: [path.join(root, "variant-loader.cjs")],
+          },
+          {
+            test: /\.css$/,
+            type: "css",
+          },
         ],
       },
     });
@@ -100,12 +117,28 @@ for (const backend of ["webpack", "rspack"] as const) {
       mode: "production",
       entry: "./main.js",
       cache: true,
-      output: { path: path.join(root, "dist"), filename: "main.js", clean: true },
-      optimization: { minimize: false },
-      experiments: { css: true },
+      output: {
+        path: path.join(root, "dist"),
+        filename: "main.js",
+        clean: true,
+      },
+      optimization: {
+        minimize: false,
+      },
+      experiments: {
+        css: true,
+      },
       plugins: [new StillwindPlugin()],
       module: {
-        rules: [...stillwindRules({ css: "./root.css" }), { test: /\.css$/, type: "css" }],
+        rules: [
+          ...stillwindRules({
+            css: "./root.css",
+          }),
+          {
+            test: /\.css$/,
+            type: "css",
+          },
+        ],
       },
     });
     expect(compiler).toBeTruthy();

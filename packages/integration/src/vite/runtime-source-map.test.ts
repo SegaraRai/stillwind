@@ -5,7 +5,10 @@ import { renderCssWithSourceMap } from "./runtime-source-map.ts";
 
 test("combines mappings across columns and lines and preserves Unicode source content", () => {
   const css = renderCssWithSourceMap([
-    { css: ".base{}", producers: [] },
+    {
+      css: ".base{}",
+      producers: [],
+    },
     {
       css: ".first{}\n",
       producers: ["first.ts"],
