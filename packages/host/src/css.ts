@@ -1,5 +1,11 @@
-import { NativeDesignSystemLoader } from "@stillwind/native";
-import type { NativeCompilerOptions, NativeCssLoadStep } from "@stillwind/native";
+import { setImmediate } from "node:timers";
+
+import {
+  NativeDesignSystemLoader,
+  type NativeCompilerOptions,
+  type NativeCssFileInput,
+  type NativeCssLoadStep,
+} from "@stillwind/native";
 
 /**
  * Host-owned CSS resolution, text loading, and dependency watch registration.
@@ -43,6 +49,8 @@ export async function loadCssGraph(
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
+    let queued = false;
+    let ready: NativeCssFileInput[] = [];
     const fail = (error: unknown) => {
       stopped = true;
       rejectLoad(error);
@@ -70,16 +78,29 @@ export async function loadCssGraph(
           if (stopped) {
             return;
           }
-          // JS callbacks serialize provide/step processing; I/O remains concurrent.
-          advance(
-            loader.provide(
-              request.id,
-              name,
-              content,
-              host.documentUri(name),
-              host.sourceMapSource(name),
-            ),
-          );
+          ready.push({
+            id: request.id,
+            name,
+            content,
+            uri: host.documentUri(name),
+            sourceMapSource: host.sourceMapSource(name),
+          });
+          if (!queued) {
+            queued = true;
+            setImmediate(() => {
+              queued = false;
+              const responses = ready;
+              ready = [];
+              if (stopped) {
+                return;
+              }
+              try {
+                advance(loader.provideMany(responses));
+              } catch (error) {
+                fail(error);
+              }
+            });
+          }
         };
         // Handle every rejection, including reads finishing after another read failed.
         void read().catch(fail);

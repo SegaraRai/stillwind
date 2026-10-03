@@ -60,8 +60,13 @@ export declare class NativeProjectSession {
   reload(loader: NativeDesignSystemLoader): NativeReload
   /** Renders the complete stylesheet for the current revision. */
   css(): string
-  /** Plans an explicit host selection and returns CSS with coverage and producer revisions. */
-  planStylesheet(input: NativeStylesheetSelection): NativeStylesheetPlan
+  /**
+   * Plans an explicit host selection and returns CSS with coverage and producer revisions.
+   *
+   * `include_source_maps` defaults to true. When false, the plan and part maps have
+   * empty sources and entries; CSS, ordering, ownership, and producer revisions are unchanged.
+   */
+  planStylesheet(input: NativeStylesheetSelection, includeSourceMaps?: boolean | undefined | null): NativeStylesheetPlan
   /** Stable document CSS without a source map, independent of visited JS modules. */
   baseCss(): string
   /** Base document CSS with a source map, for review tooling. */

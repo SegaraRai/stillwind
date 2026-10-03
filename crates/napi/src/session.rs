@@ -25,7 +25,7 @@ use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_ir::{ModuleAnalysis, ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
 use stillwind_semantic::{TypeFacts, TypeFactsUpdate};
@@ -465,13 +465,18 @@ impl NativeProjectSession {
     }
 
     /// Plans an explicit host selection and returns CSS with coverage and producer revisions.
+    ///
+    /// `include_source_maps` defaults to true. When false, the plan and part maps have
+    /// empty sources and entries; CSS, ordering, ownership, and producer revisions are unchanged.
     #[napi(strict)]
     pub fn plan_stylesheet(
         &self,
         env: Env,
         input: NativeStylesheetSelection,
+        include_source_maps: Option<bool>,
     ) -> napi::Result<NativeStylesheetPlan> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
+        let include_source_maps = include_source_maps.unwrap_or(true);
         let coverage = match input.coverage {
             NativeCoverage::Observed => StylesheetCoverage::Observed,
             NativeCoverage::Complete { target, revision } => {
@@ -504,7 +509,11 @@ impl NativeProjectSession {
                 .into_iter()
                 .map(|part| {
                     Ok(NativeStylesheetPart {
-                        source_map: stylesheet_locations(&part.mappings)?,
+                        source_map: stylesheet_locations(if include_source_maps {
+                            &part.mappings
+                        } else {
+                            &[]
+                        })?,
                         slot: u32::try_from(part.slot)
                             .map_err(|_| Error::from_reason("Stylesheet slot exceeds 32 bits"))?,
                         sequence: u32::try_from(part.sequence).map_err(|_| {
@@ -521,7 +530,11 @@ impl NativeProjectSession {
                 })
                 .collect::<napi::Result<_>>()?,
             css: plan.css,
-            source_map: stylesheet_locations(&plan.mappings)?,
+            source_map: stylesheet_locations(if include_source_maps {
+                &plan.mappings
+            } else {
+                &[]
+            })?,
             resources: plan.resources.into_iter().map(Into::into).collect(),
             coverage,
             placement: input.placement,
@@ -703,16 +716,15 @@ impl NativeProjectSession {
         let diagnostic_sources = transaction
             .diagnostic_sources()
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        for scan in scans {
-            let mut module_analysis =
-                OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
-            module_analysis.attach_asset_support(&analyses);
+        for module_analysis in ModuleAnalysis::attach_asset_support_batch(&analyses) {
+            let module_id = module_analysis.module_id.clone();
+            let source = module_analysis.source.clone();
             let update = transaction.update_module(module_analysis.clone());
             attempted.push(module_analysis);
             let result = if update.diagnostics.is_empty() {
                 transaction
                     .artifacts()
-                    .get(&scan.module_id)
+                    .get(&module_id)
                     .map(|artifact| artifact.to_module_output(&snapshot))
                     .unwrap_or_default()
             } else {
@@ -722,10 +734,9 @@ impl NativeProjectSession {
                     ..CompileResult::default()
                 }
             };
-            let (output, batch) =
-                binding_output_with_batch(result, &scan.source, &diagnostic_sources)?;
-            transaction.publish_diagnostic_batch(scan.module_id.clone(), batch);
-            modules.push(ProjectModuleOutput::new(scan.module_id, output));
+            let (output, batch) = binding_output_with_batch(result, &source, &diagnostic_sources)?;
+            transaction.publish_diagnostic_batch(module_id.clone(), batch);
+            modules.push(ProjectModuleOutput::new(module_id, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
             Self::refresh_batches(&mut transaction)?;
@@ -782,7 +793,13 @@ impl NativeProjectSession {
                     (
                         module.clone(),
                         analysis.source.clone(),
-                        artifact.to_module_output(&snapshot),
+                        CompileResult {
+                            diagnostics: artifact.diagnostics.clone(),
+                            lint_findings: artifact.lint_findings.clone(),
+                            lint_settings: snapshot.theme().config.lint_settings.clone(),
+                            transforms: artifact.code_transforms.clone(),
+                            ..CompileResult::default()
+                        },
                     )
                 })
             })

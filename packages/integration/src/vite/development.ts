@@ -14,6 +14,7 @@ export function developmentHooks(
     settings,
     environmentState,
     closeTypeFacts,
+    watchCssChanges,
     refreshDesignSystem,
     inputMap,
     documentPlan,
@@ -36,7 +37,7 @@ export function developmentHooks(
         },
       };
       try {
-        if (state.cssFiles.has(context.file) || state.cssFiles.has(resolve(context.file))) {
+        if (state.cssObservedFiles.has(resolve(context.file))) {
           await refreshDesignSystem(state, host);
           await publish(name, host);
           const changed = new Set(state.themeChanges);
@@ -73,6 +74,7 @@ export function developmentHooks(
     },
     configureServer(server: ViteDevServer) {
       settings.devServerRef = server;
+      watchCssChanges(server);
       server.middlewares.use("/__stillwind/style.css", (request, response) => {
         const params = new URL(request.url ?? "", "http://stillwind.local").searchParams;
         const name = params.get("environment") ?? "ssr";

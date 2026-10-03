@@ -147,6 +147,9 @@ struct DesignSystemData {
     config: DesignSystemOptions,
     /// Content identities for cache reuse and selective invalidation.
     fingerprints: DefinitionFingerprints,
+    utility_names: Arc<BTreeSet<String>>,
+    variant_names: Arc<BTreeSet<String>>,
+    property_names: Arc<BTreeSet<String>>,
     /// Retained CSS source graph for diagnostics, mappings, and resources.
     sources: CssSourceGraph,
     /// Effective utility definitions grouped by name.
@@ -374,6 +377,9 @@ impl DesignSystemSnapshot {
                 declaration_formats,
                 relationships,
                 config,
+                utility_names: Arc::new(utilities.keys().cloned().collect()),
+                variant_names: Arc::new(variants.keys().cloned().collect()),
+                property_names: Arc::new(properties.keys().cloned().collect()),
                 fingerprints: DefinitionFingerprints {
                     content,
                     config: config_hash,
@@ -402,6 +408,21 @@ impl DesignSystemSnapshot {
     /// process-local and must not be persisted.
     pub fn fingerprints(&self) -> &DefinitionFingerprints {
         &self.inner.fingerprints
+    }
+
+    /// Returns the shared set of all effective utility definition names.
+    pub fn utility_names(&self) -> &Arc<BTreeSet<String>> {
+        &self.inner.utility_names
+    }
+
+    /// Returns the shared set of all effective variant definition names.
+    pub fn variant_names(&self) -> &Arc<BTreeSet<String>> {
+        &self.inner.variant_names
+    }
+
+    /// Returns the shared set of all effective custom-property definition names.
+    pub fn property_names(&self) -> &Arc<BTreeSet<String>> {
+        &self.inner.property_names
     }
 
     /// The resolved prefixes, including CSS-authored overrides of the host defaults.

@@ -13,8 +13,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_compiler::{
-    MappedStylesheet, ModuleArtifactKey, ModuleCompiler, ModuleResourceReference,
-    StylesheetMapping, StylesheetPlacement, StylesheetRenderer,
+    MappedStylesheet, ModuleArtifactKey, ModuleResourceReference, StylesheetMapping,
+    StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileDiagnostic;
@@ -155,16 +155,15 @@ impl ProjectSession {
         if !missing.is_empty() {
             return Err(StylesheetPlanError::MissingModules(missing));
         }
-        let compiler = ModuleCompiler::new(self.snapshot(), self.options().clone());
         let stale = selection
             .modules
             .iter()
             .filter(
                 |id| match (self.analyses().get(*id), self.artifacts().get(*id)) {
-                    (Some(analysis), Some(artifact)) => {
+                    (Some(analysis), Some(_)) => {
                         !analysis.diagnostics.is_empty()
                             || !analysis.integration_diagnostics.is_empty()
-                            || artifact.key != compiler.key_for(analysis)
+                            || self.current_artifact(id).is_none()
                     }
                     _ => true,
                 },
@@ -204,7 +203,7 @@ impl ProjectSession {
             // A name without a declaration, such as a conditional helper, has no position in the
             // module to map the rule back to.
             let (start, end) = symbol.start.zip(symbol.end)?;
-            let source = std::iter::once(analysis)
+            let source = std::iter::once(analysis.as_ref())
                 .chain(analysis.asset_support.iter())
                 .find(|input| symbol.origin.module_id() == Some(&input.module_id))?
                 .source
@@ -223,7 +222,9 @@ impl ProjectSession {
         let source_modules: BTreeMap<FileId, ModuleId> = self
             .analyses()
             .values()
-            .flat_map(|analysis| std::iter::once(analysis).chain(analysis.asset_support.iter()))
+            .flat_map(|analysis| {
+                std::iter::once(analysis.as_ref()).chain(analysis.asset_support.iter())
+            })
             .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
             .collect();
         let parts = stylesheet_parts(&reference, &producers, &source_modules)?;
@@ -318,33 +319,37 @@ fn stylesheet_parts(
     source_modules: &BTreeMap<FileId, ModuleId>,
 ) -> Result<Vec<StylesheetPart>, StylesheetPlanError> {
     let mut sequences = BTreeMap::new();
+    let mappings = IntervalIndex::new(
+        reference
+            .mappings
+            .iter()
+            .map(|mapping| mapping.generated.clone()),
+    );
+    let segments = IntervalIndex::new(reference.segments.iter().map(|(range, _)| range.clone()));
     let parts = stylesheet_fragments(&reference.css)
         .map_err(|offset| {
             StylesheetPlanError::Stylesheet(CompileDiagnostic::InvalidGeneratedCss { offset })
         })?
         .into_iter()
         .map(|(css, range)| {
-            let owners: BTreeSet<_> = reference
-                .mappings
+            let overlapping = mappings.overlapping(&range);
+            let owners: BTreeSet<_> = overlapping
                 .iter()
-                .filter(|mapping| {
-                    mapping.generated.start < range.end && mapping.generated.end > range.start
-                })
+                .map(|index| &reference.mappings[*index])
                 .filter_map(|mapping| source_modules.get(&mapping.source.id()).cloned())
                 .filter(|id| producers.contains_key(id))
                 .collect();
-            let slot = reference
-                .segments
-                .iter()
-                .filter(|(segment, _)| segment.start < range.end && segment.end > range.start)
-                .map(|(_, slot)| *slot)
+            let slot = segments
+                .overlapping(&range)
+                .into_iter()
+                .map(|index| reference.segments[index].1)
                 .min()
                 .unwrap_or_default();
             let sequence = sequences.entry((slot, owners.clone())).or_insert(0);
             let prefix = css.rfind(&reference.css[range.clone()]).unwrap_or_default();
-            let mappings = reference
-                .mappings
-                .iter()
+            let mappings = overlapping
+                .into_iter()
+                .map(|index| &reference.mappings[index])
                 .filter_map(|mapping| {
                     let start = mapping.generated.start.max(range.start);
                     let end = mapping.generated.end.min(range.end);
@@ -373,6 +378,47 @@ fn stylesheet_parts(
         })
         .collect();
     Ok(parts)
+}
+
+struct IntervalIndex {
+    ranges: Vec<(std::ops::Range<usize>, usize)>,
+    maximum_ends: Vec<usize>,
+}
+
+impl IntervalIndex {
+    fn new(ranges: impl Iterator<Item = std::ops::Range<usize>>) -> Self {
+        let mut ranges: Vec<_> = ranges
+            .enumerate()
+            .map(|(index, range)| (range, index))
+            .collect();
+        ranges.sort_by_key(|(range, _)| range.start);
+        let mut maximum = 0;
+        let maximum_ends = ranges
+            .iter()
+            .map(|(range, _)| {
+                maximum = maximum.max(range.end);
+                maximum
+            })
+            .collect();
+        Self {
+            ranges,
+            maximum_ends,
+        }
+    }
+
+    fn overlapping(&self, query: &std::ops::Range<usize>) -> Vec<usize> {
+        let start = self.maximum_ends.partition_point(|end| *end <= query.start);
+        let end = self
+            .ranges
+            .partition_point(|(range, _)| range.start < query.end);
+        let mut indices: Vec<_> = self.ranges[start.min(end)..end]
+            .iter()
+            .filter(|(range, _)| range.end > query.start)
+            .map(|(_, index)| *index)
+            .collect();
+        indices.sort_unstable();
+        indices
+    }
 }
 
 /// Collects identifier tokens from generated CSS.
@@ -465,6 +511,21 @@ mod tests {
             session.plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document),
             Err(StylesheetPlanError::StaleModules(_))
         ));
+    }
+
+    #[test]
+    fn interval_lookup_preserves_input_order_for_overlapping_and_unordered_ranges() {
+        let ranges = [20..25, 0..100, 7..10, 5..9, 30..35];
+        let index = IntervalIndex::new(ranges.iter().cloned());
+        for query in [0..5, 6..8, 9..20, 21..22, 100..101] {
+            let expected: Vec<_> = ranges
+                .iter()
+                .enumerate()
+                .filter(|(_, range)| range.start < query.end && range.end > query.start)
+                .map(|(index, _)| index)
+                .collect();
+            assert_eq!(index.overlapping(&query), expected);
+        }
     }
 
     #[test]

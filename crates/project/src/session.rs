@@ -5,10 +5,12 @@
 //! observes one revision for its whole duration.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{Arc, OnceLock};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers, ModuleCompiler,
-    StyleResolver, StylesheetRenderer, check_style, is_style_analysis_lint,
+    CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers,
+    ModuleArtifactKey, ModuleCompiler, StyleResolver, StylesheetRenderer, check_style,
+    is_style_analysis_lint,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
@@ -91,13 +93,15 @@ pub struct ProjectSession {
     /// Whether a failed reload invalidates output or retains the last successful revision.
     mode: SessionMode,
     /// Retained frontend analyses keyed by module identity, used for recompilation.
-    analyses: BTreeMap<ModuleId, ModuleAnalysis>,
+    analyses: BTreeMap<ModuleId, Arc<ModuleAnalysis>>,
+    /// Keys computed before retained analyses become immutable.
+    analysis_keys: BTreeMap<ModuleId, Arc<ModuleArtifactKey>>,
     /// Published compiled modules keyed by module identity.
-    artifacts: BTreeMap<ModuleId, CompiledModule>,
+    artifacts: BTreeMap<ModuleId, Arc<CompiledModule>>,
     /// Shared stylesheet assembled from published artifacts.
     stylesheet: ProjectStylesheet,
-    /// Reverse dependency lookup used to select invalidated modules.
-    dependencies: DependencyIndex,
+    /// Reverse memberships derived on demand from this revision's published artifacts.
+    dependencies: Arc<OnceLock<DependencyIndex>>,
     /// Most recent rejected load, or None when the active configuration loaded successfully.
     load_error: Option<DesignSystemLoadError>,
 }
@@ -144,9 +148,10 @@ impl ProjectSession {
             authored: BTreeMap::new(),
             mode,
             analyses: BTreeMap::new(),
+            analysis_keys: BTreeMap::new(),
             artifacts: BTreeMap::new(),
             stylesheet: ProjectStylesheet::default(),
-            dependencies: DependencyIndex::default(),
+            dependencies: Arc::default(),
             load_error: None,
         }
     }
@@ -290,27 +295,36 @@ impl ProjectSession {
 
     /// Published artifacts by module. A module absent here has no current CSS or
     /// transforms, even if an analysis for it is retained.
-    pub fn artifacts(&self) -> &BTreeMap<ModuleId, CompiledModule> {
+    pub fn artifacts(&self) -> &BTreeMap<ModuleId, Arc<CompiledModule>> {
         &self.artifacts
     }
 
     /// Returns a published artifact only when it matches the attempted analysis.
     pub fn current_artifact(&self, module: &ModuleId) -> Option<&CompiledModule> {
         let analysis = self.analyses.get(module)?;
+        if !analysis.diagnostics.is_empty() || !analysis.integration_diagnostics.is_empty() {
+            return None;
+        }
+        let key = self.analysis_keys.get(module)?;
         let artifact = self.artifacts.get(module)?;
-        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
-        (artifact.key == backend.key_for(analysis)).then_some(artifact)
+        (artifact.key == **key).then_some(artifact.as_ref())
     }
 
     /// Analyses by module, including ones whose compilation failed.
-    pub fn analyses(&self) -> &BTreeMap<ModuleId, ModuleAnalysis> {
+    pub fn analyses(&self) -> &BTreeMap<ModuleId, Arc<ModuleAnalysis>> {
         &self.analyses
     }
 
     /// Reverse index from design-system definitions and assets to the modules that use
     /// them.
     pub fn dependencies(&self) -> &DependencyIndex {
-        &self.dependencies
+        self.dependencies.get_or_init(|| {
+            let mut index = DependencyIndex::default();
+            for (module, artifact) in &self.artifacts {
+                index.replace(module, None, &artifact.dependencies);
+            }
+            index
+        })
     }
 
     /// The most recent design-system load failure, cleared by a success.
@@ -365,14 +379,18 @@ impl ProjectSession {
     /// matching current analyses.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
+        let key = backend.key_for(&analysis);
+        self.analysis_keys
+            .insert(analysis.module_id.clone(), Arc::new(key.clone()));
         if analysis.diagnostics.is_empty()
             && analysis.integration_diagnostics.is_empty()
             && self
                 .artifacts
                 .get(&analysis.module_id)
-                .is_some_and(|artifact| artifact.key == backend.key_for(&analysis))
+                .is_some_and(|artifact| artifact.key == key)
         {
-            self.analyses.insert(analysis.module_id.clone(), analysis);
+            self.analyses
+                .insert(analysis.module_id.clone(), Arc::new(analysis));
             return ModuleUpdate::default();
         }
         let module_id = analysis.module_id.clone();
@@ -385,7 +403,7 @@ impl ProjectSession {
                     .push(CompileError::new(collision, analysis.source.full_span()));
             }
         }
-        self.analyses.insert(module_id.clone(), analysis);
+        self.analyses.insert(module_id.clone(), Arc::new(analysis));
         let mut update = ModuleUpdate::default();
         if compiled.is_success() {
             if self
@@ -395,16 +413,10 @@ impl ProjectSession {
             {
                 update.transformed = true;
             }
-            self.dependencies.replace(
-                &module_id,
-                self.artifacts
-                    .get(&module_id)
-                    .map(|previous| &previous.dependencies),
-                &compiled.dependencies,
-            );
+            self.dependencies = Arc::default();
             self.stylesheet.replace(module_id.clone(), &compiled.css);
             let dependents = self.composition_dependents(&module_id);
-            self.artifacts.insert(module_id.clone(), compiled);
+            self.artifacts.insert(module_id.clone(), Arc::new(compiled));
             self.refresh_style_lints(std::iter::once(module_id).chain(dependents));
         } else {
             update.diagnostics = compiled.diagnostics;
@@ -425,12 +437,18 @@ impl ProjectSession {
     /// the binding host must publish diagnostic batches after this state change.
     pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
         let mut dependents = BTreeSet::new();
+        let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         for analysis in analyses {
+            self.analysis_keys.insert(
+                analysis.module_id.clone(),
+                Arc::new(backend.key_for(&analysis)),
+            );
             dependents.extend(self.composition_dependents(&analysis.module_id));
             if self.mode == SessionMode::Build {
                 self.remove_artifact(&analysis.module_id);
             }
-            self.analyses.insert(analysis.module_id.clone(), analysis);
+            self.analyses
+                .insert(analysis.module_id.clone(), Arc::new(analysis));
         }
         self.refresh_style_lints(dependents);
     }
@@ -440,6 +458,7 @@ impl ProjectSession {
     /// transitive consumers are recomputed with this producer's records unavailable.
     pub fn remove_module(&mut self, module: &ModuleId) -> bool {
         let removed = self.analyses.remove(module).is_some();
+        self.analysis_keys.remove(module);
         self.reported.remove(module);
         let dependents = self.composition_dependents(module);
         self.remove_artifact(module);
@@ -454,9 +473,21 @@ impl ProjectSession {
     /// Source suppression runs in each consuming module. Other lint findings remain,
     /// and diagnostic batches are left for the binding host to refresh.
     fn refresh_style_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
+        let modules: BTreeSet<_> = modules.into_iter().collect();
+        let mut required = modules.clone();
+        let mut pending = modules.clone();
+        while let Some(module) = pending.pop_first() {
+            if let Some(artifact) = self.current_artifact(&module) {
+                for edge in &artifact.composition {
+                    if required.insert(edge.base.module_id.clone()) {
+                        pending.insert(edge.base.module_id.clone());
+                    }
+                }
+            }
+        }
         let mut resolver = StyleResolver::new(
-            self.artifacts
-                .keys()
+            required
+                .iter()
                 .filter_map(|module| self.current_artifact(module))
                 .flat_map(|artifact| &artifact.style_effects),
         );
@@ -477,6 +508,7 @@ impl ProjectSession {
             .collect();
         for (module, findings) in updates {
             if let Some(artifact) = self.artifacts.get_mut(&module) {
+                let artifact = Arc::make_mut(artifact);
                 artifact
                     .lint_findings
                     .retain(|finding| !is_style_analysis_lint(finding.kind()));
@@ -511,9 +543,9 @@ impl ProjectSession {
     }
 
     fn remove_artifact(&mut self, module: &ModuleId) {
-        if let Some((id, artifact)) = self.artifacts.remove_entry(module) {
+        if self.artifacts.remove(module).is_some() {
             self.stylesheet.remove(module);
-            self.dependencies.remove(&id, &artifact.dependencies);
+            self.dependencies = Arc::default();
         }
     }
 
@@ -539,7 +571,7 @@ impl ProjectSession {
                 if self.mode == SessionMode::Build {
                     self.artifacts.clear();
                     self.stylesheet = ProjectStylesheet::default();
-                    self.dependencies = DependencyIndex::default();
+                    self.dependencies = Arc::default();
                 }
                 return Err(error.into());
             }
@@ -564,7 +596,7 @@ impl ProjectSession {
         }
         let mut update = SessionReload::default();
         for (id, analysis) in &self.analyses {
-            let changed = next.update_module(analysis.clone());
+            let changed = next.update_module(analysis.as_ref().clone());
             if !changed.diagnostics.is_empty() {
                 update.diagnostics.insert(id.clone(), changed.diagnostics);
             }

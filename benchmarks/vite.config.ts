@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
   test: {
-    include: ["source-map/*.test.ts"],
+    include: ["source-map/*.test.ts", "research/*.test.ts"],
     benchmark: {
       include: ["**/*.bench.ts"],
       retainSamples: true,
@@ -39,6 +39,18 @@ export default defineConfig(({ mode }) => ({
       "source-map": {
         command:
           "vp test bench source-map/source-map.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/source-map.json",
+        dependsOn: ["@stillwind/host#build"],
+        cache: false,
+      },
+      research: {
+        command:
+          "vp test bench research/investigation.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/research.json",
+        dependsOn: ["@stillwind/host#build"],
+        cache: false,
+      },
+      architecture: {
+        command:
+          "vp test bench research/architecture.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/architecture.json",
         dependsOn: ["@stillwind/host#build"],
         cache: false,
       },

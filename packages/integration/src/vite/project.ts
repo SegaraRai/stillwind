@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -34,6 +34,7 @@ export interface StillwindOptions extends CommonOptions {
 export function createViteProject(options: StillwindOptions) {
   const settings = {
     watching: false,
+    cssWatching: false,
     compilerMode: "release",
     projectRoot: "",
     devServerRef: undefined as ViteDevServer | undefined,
@@ -46,12 +47,15 @@ export function createViteProject(options: StillwindOptions) {
   type EnvironmentState = {
     work: Promise<void>;
     session?: NativeProjectSession;
-    initializing?: Promise<void>;
     resources: Map<string, string>;
     cssFiles: Set<string>;
     cssVersion?: string;
+    cssObservedFiles: Set<string>;
+    cssChange: number;
+    cssApplied: number;
+    cssAttempted: number;
+    cssError?: unknown;
     themeChanges: Set<string>;
-    refreshing?: Promise<void>;
     compiler?: IntegrationSession;
     revision: number;
     buildCss?: string;
@@ -70,6 +74,10 @@ export function createViteProject(options: StillwindOptions) {
         work: Promise.resolve(),
         resources: new Map(),
         cssFiles: new Set(),
+        cssObservedFiles: new Set(),
+        cssChange: 0,
+        cssApplied: 0,
+        cssAttempted: -1,
         themeChanges: new Set(),
         revision: 0,
       };
@@ -83,29 +91,88 @@ export function createViteProject(options: StillwindOptions) {
     }
   };
 
+  const inTurn = async <T>(state: EnvironmentState, operation: () => Promise<T>) => {
+    const previous = state.work;
+    let release!: () => void;
+    state.work = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  };
+  let stopCssWatching = () => {};
+  const watchCssChanges = (server: ViteDevServer) => {
+    stopCssWatching();
+    settings.cssWatching = server.config.server.watch !== null;
+    if (!settings.cssWatching) {
+      return;
+    }
+    const changed = (event: string, file: string) => {
+      if (event !== "add" && event !== "change" && event !== "unlink") {
+        return;
+      }
+      const path = resolve(file);
+      for (const state of environments.values()) {
+        if (state.cssObservedFiles.has(path)) {
+          state.cssChange++;
+        }
+      }
+    };
+    const stop = () => {
+      server.watcher.off("all", changed);
+      server.httpServer?.off("close", stop);
+      settings.cssWatching = false;
+    };
+    server.watcher.on("all", changed);
+    server.httpServer?.once("close", stop);
+    stopCssWatching = stop;
+  };
+  const close = () => {
+    stopCssWatching();
+    closeTypeFacts();
+  };
+
   const loadDesignSystem = async (
     resolveImport: (specifier: string, importer: string) => Promise<string>,
     dependencies: Set<string>,
     session?: NativeProjectSession,
+    watch: (file: string) => void = () => {},
   ) => {
-    const root = realpathSync(resolve(settings.projectRoot, cssEntrypoint(options)));
+    const entry = resolve(settings.projectRoot, cssEntrypoint(options));
+    watch(entry);
+    const root = realpathSync(entry);
+    const resolveCss = async (specifier: string, importer: string) => {
+      if (specifier.startsWith(".")) {
+        watch(resolve(dirname(importer), cleanModuleId(specifier)));
+      }
+      const file = await resolveImport(specifier, importer);
+      watch(cleanModuleId(file));
+      return file;
+    };
     const nativeOptions = compilerOptions(options);
     const { loader, resources: resourceReferences } = await loadCssGraph(
       root,
       nativeOptions,
       {
-        resolve: async (specifier, importer) => realpath(await resolveImport(specifier, importer)),
+        resolve: async (specifier, importer) => realpath(await resolveCss(specifier, importer)),
         read: (name) => readFile(name, "utf8"),
         documentUri: (name) => pathToFileURL(name).href,
         sourceMapSource: (name) => pathToFileURL(name).href,
-        watch: (name) => dependencies.add(name),
+        watch: (name) => {
+          dependencies.add(name);
+          watch(name);
+        },
       },
       undefined,
       session?.newLoader(nativeOptions),
     );
     const references = new Map<string, string>();
     for (const resource of resourceReferences) {
-      const resolved = await resolveImport(resource.specifier, resource.sourceName);
+      const resolved = await resolveCss(resource.specifier, resource.sourceName);
       const url = resourceUrl(resolved);
       references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
       dependencies.add(cleanModuleId(resolved));
@@ -113,105 +180,148 @@ export function createViteProject(options: StillwindOptions) {
     return { loader, resources: references };
   };
 
-  const ensureSession = async (
-    state: EnvironmentState,
-    context: {
-      resolve: (
-        specifier: string,
-        importer: string,
-        options: { skipSelf: boolean },
-      ) => Promise<{ id: string; external?: boolean | string } | null>;
-      addWatchFile: (id: string) => void;
-    },
-  ) => {
+  type CssContext = {
+    resolve: (
+      specifier: string,
+      importer: string,
+      options: { skipSelf: boolean },
+    ) => Promise<{ id: string; external?: boolean | string } | null>;
+    addWatchFile: (id: string) => void;
+  };
+  const loadRevision = async (state: EnvironmentState, context: CssContext) => {
+    const dependencies = new Set<string>();
+    const observed = new Set<string>();
+    const tracking = state.cssObservedFiles;
+    const watch = (file: string) => {
+      const path = resolve(file);
+      if (observed.has(path)) {
+        return;
+      }
+      observed.add(path);
+      tracking.add(path);
+      context.addWatchFile(path);
+      settings.devServerRef?.watcher.add(path);
+    };
+    const result = await loadDesignSystem(
+      async (specifier, importer) =>
+        resolvedFile(
+          await context.resolve(specifier, importer, { skipSelf: true }),
+          `CSS ${specifier} from ${importer}`,
+        ),
+      dependencies,
+      state.session,
+      watch,
+    );
+    return { ...result, dependencies, observed };
+  };
+  const ensureSessionInTurn = async (state: EnvironmentState, context: CssContext) => {
     if (state.session) {
       return;
     }
-    if (!state.initializing) {
-      const revision = ++state.revision;
-      const initialize = async () => {
-        const dependencies = new Set<string>();
-        const { loader, resources } = await loadDesignSystem(async (specifier, importer) => {
-          const result = await context.resolve(specifier, importer, {
-            skipSelf: true,
-          });
-          return resolvedFile(result, `CSS ${specifier} from ${importer}`);
-        }, dependencies);
-        if (state.revision !== revision) {
-          return;
+    while (true) {
+      const change = state.cssChange;
+      let loaded: Awaited<ReturnType<typeof loadRevision>>;
+      try {
+        loaded = await loadRevision(state, context);
+      } catch (error) {
+        if (settings.cssWatching && change !== state.cssChange) {
+          continue;
         }
-        state.compiler?.close();
-        state.compiler = new IntegrationSession(
-          settings.projectRoot,
-          loader,
-          options,
-          settings.watching,
-          settings.compilerMode,
-        );
-        state.session = state.compiler.native;
-        state.resources = resources;
-        state.cssFiles = dependencies;
-        state.cssVersion = await designSystemVersion(dependencies);
-        for (const path of dependencies) {
-          context.addWatchFile(path);
-        }
-        writeVocabulary(loader, settings.projectRoot, options);
-      };
-      state.initializing = initialize().finally(() => {
-        state.initializing = undefined;
-      });
+        throw error;
+      }
+      const version =
+        settings.watching && !settings.cssWatching
+          ? await designSystemVersion(loaded.dependencies)
+          : undefined;
+      if (settings.cssWatching && change !== state.cssChange) {
+        continue;
+      }
+      state.compiler?.close();
+      state.compiler = new IntegrationSession(
+        settings.projectRoot,
+        loaded.loader,
+        options,
+        settings.watching,
+        settings.compilerMode,
+      );
+      state.session = state.compiler.native;
+      state.resources = loaded.resources;
+      state.cssFiles = loaded.dependencies;
+      state.cssObservedFiles = loaded.observed;
+      state.cssVersion = version;
+      state.cssApplied = state.cssAttempted = change;
+      state.cssError = undefined;
+      state.revision++;
+      writeVocabulary(loaded.loader, settings.projectRoot, options);
+      return;
     }
-    await state.initializing;
+  };
+  const ensureSession = (state: EnvironmentState, context: CssContext) =>
+    inTurn(state, () => ensureSessionInTurn(state, context));
+  const startSession = (name: string | undefined, context: CssContext) => {
+    const state = environmentState(name);
+    return inTurn(state, async () => {
+      state.session = undefined;
+      inputMap(name).clear();
+      state.buildCss = undefined;
+      state.manifest = undefined;
+      await ensureSessionInTurn(state, context);
+    });
   };
 
   const designSystemVersion = async (files: Set<string>) => {
     const hash = createHash("sha256");
-    for (const file of [...files].sort()) {
-      hash.update(file).update("\0");
-      try {
-        hash.update(await readFile(file));
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          throw error;
-        }
-        hash.update("\0missing");
+    const ordered = [...files].sort();
+    for (let offset = 0; offset < ordered.length; offset += 64) {
+      const batch = ordered.slice(offset, offset + 64);
+      const contents = await Promise.all(
+        batch.map(async (file) => {
+          try {
+            return await readFile(file);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+              throw error;
+            }
+            return "\0missing";
+          }
+        }),
+      );
+      for (const [index, file] of batch.entries()) {
+        hash.update(file).update("\0").update(contents[index]).update("\0");
       }
-      hash.update("\0");
     }
     return hash.digest("hex");
   };
 
-  const refreshDesignSystem = async (
-    state: EnvironmentState,
-    context: Parameters<typeof ensureSession>[1],
-  ) => {
-    await ensureSession(state, context);
+  const refreshDesignSystemInTurn = async (state: EnvironmentState, context: CssContext) => {
+    await ensureSessionInTurn(state, context);
     if (!settings.watching) {
       return;
     }
-    if (state.refreshing) {
-      return state.refreshing;
-    }
-    const refresh = async () => {
-      while (true) {
-        const version = await designSystemVersion(state.cssFiles);
-        if (version === state.cssVersion) {
+    while (true) {
+      const change = state.cssChange;
+      if (settings.cssWatching && state.cssAttempted === change) {
+        return;
+      }
+      try {
+        const version = settings.cssWatching
+          ? undefined
+          : await designSystemVersion(state.cssFiles);
+        if (!settings.cssWatching && version === state.cssVersion) {
           return;
         }
-        const dependencies = new Set<string>();
-        const { loader, resources } = await loadDesignSystem(
-          async (specifier, importer) =>
-            resolvedFile(
-              await context.resolve(specifier, importer, { skipSelf: true }),
-              `CSS ${specifier}`,
-            ),
-          dependencies,
-          state.session,
-        );
-        if (version !== (await designSystemVersion(state.cssFiles))) {
+        const loaded = await loadRevision(state, context);
+        const nextVersion = settings.cssWatching
+          ? undefined
+          : await designSystemVersion(loaded.dependencies);
+        if (
+          settings.cssWatching
+            ? change !== state.cssChange
+            : version !== (await designSystemVersion(state.cssFiles))
+        ) {
           continue;
         }
-        const update = state.session!.reload(loader);
+        const update = state.session!.reload(loaded.loader);
         const name = [...environments].find(([, candidate]) => candidate === state)?.[0];
         for (const module of update.transformedModules) {
           state.themeChanges.add(module);
@@ -227,27 +337,29 @@ export function createViteProject(options: StillwindOptions) {
             }
           }
         }
-        state.resources = resources;
-        state.cssFiles = dependencies;
-        state.cssVersion = await designSystemVersion(dependencies);
-        for (const file of dependencies) {
-          context.addWatchFile(file);
-        }
-        writeVocabulary(loader, settings.projectRoot, options);
+        state.resources = loaded.resources;
+        state.cssFiles = loaded.dependencies;
+        state.cssObservedFiles = loaded.observed;
+        state.cssVersion = nextVersion;
+        state.cssApplied = state.cssAttempted = change;
+        state.cssError = undefined;
+        writeVocabulary(loaded.loader, settings.projectRoot, options);
         return;
-      }
-    };
-    state.refreshing = refresh()
-      .catch((error) => {
+      } catch (error) {
+        if (settings.cssWatching && change !== state.cssChange) {
+          continue;
+        }
+        state.cssAttempted = change;
+        state.cssError = error;
         settings.devServerRef?.config.logger.warn(
           `Stillwind update failed; retaining published styles: ${String(error)}`,
         );
-      })
-      .finally(() => {
-        state.refreshing = undefined;
-      });
-    await state.refreshing;
+        return;
+      }
+    }
   };
+  const refreshDesignSystem = (state: EnvironmentState, context: CssContext) =>
+    inTurn(state, () => refreshDesignSystemInTurn(state, context));
 
   type Input = {
     projection?: boolean;
@@ -298,17 +410,20 @@ export function createViteProject(options: StillwindOptions) {
     complete = false,
   ) => {
     const revision = state.revision;
-    const plan = state.session!.planStylesheet({
-      modules,
-      coverage: complete
-        ? {
-            kind: "complete",
-            target: "application",
-            revision: String(state.revision),
-          }
-        : { kind: "observed" },
-      placement: "document",
-    });
+    const plan = state.session!.planStylesheet(
+      {
+        modules,
+        coverage: complete
+          ? {
+              kind: "complete",
+              target: "application",
+              revision: String(state.revision),
+            }
+          : { kind: "observed" },
+        placement: "document",
+      },
+      settings.watching ? settings.devSourceMaps : settings.sourceMaps,
+    );
     const resources = new Map(state.resources);
     for (const resource of plan.resources) {
       const resolved = await context.resolve(
@@ -351,40 +466,52 @@ export function createViteProject(options: StillwindOptions) {
       }),
     };
   };
-  const documentPlan = async (
+  const documentPlanInTurn = async (
     name: string | undefined,
     context: Parameters<typeof resolvePlan>[2],
     complete = false,
     selection?: readonly string[],
   ) => {
     const state = environmentState(name);
-    await refreshDesignSystem(state, context);
+    await refreshDesignSystemInTurn(state, context);
     const modules = [...inputMap(name).values()]
       .filter((input) => !input.manual)
       .filter((input) => !selection || selection.includes(cleanModuleId(input.moduleId)))
       .map((input) => input.moduleId);
     return resolvePlan(state, modules, context, complete);
   };
+  const documentPlan = (
+    name: string | undefined,
+    context: CssContext,
+    complete = false,
+    selection?: readonly string[],
+  ) => inTurn(environmentState(name), () => documentPlanInTurn(name, context, complete, selection));
   const publish = async (name: string | undefined, context: Parameters<typeof resolvePlan>[2]) => {
     if (!settings.watching || !settings.devServerRef) {
       return;
     }
     const state = environmentState(name);
-    const revision = ++state.revision;
-    const plan = await documentPlan(name, context);
-    if (revision === state.revision) {
-      settings.devServerRef.environments[name ?? "client"]?.hot.send({
-        type: "custom",
-        event: "stillwind:css",
-        data: {
-          revision,
-          parts: plan.parts,
-          dependencies: Object.fromEntries(
-            [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
-          ),
-        },
-      });
-    }
+    await inTurn(state, async () => {
+      await refreshDesignSystemInTurn(state, context);
+      const revision = ++state.revision;
+      const modules = [...inputMap(name).values()]
+        .filter((input) => !input.manual)
+        .map((input) => input.moduleId);
+      const plan = await resolvePlan(state, modules, context);
+      if (revision === state.revision) {
+        settings.devServerRef?.environments[name ?? "client"]?.hot.send({
+          type: "custom",
+          event: "stillwind:css",
+          data: {
+            revision,
+            parts: plan.parts,
+            dependencies: Object.fromEntries(
+              [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
+            ),
+          },
+        });
+      }
+    });
   };
   const compile = async (
     name: string | undefined,
@@ -396,14 +523,8 @@ export function createViteProject(options: StillwindOptions) {
     },
   ) => {
     const state = environmentState(name);
-    const previous = state.work;
-    let release!: () => void;
-    state.work = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    try {
-      await refreshDesignSystem(state, context);
+    return inTurn(state, async () => {
+      await refreshDesignSystemInTurn(state, context);
       const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
       const documentUri = (id: string) => {
         const clean = cleanModuleId(id);
@@ -507,9 +628,7 @@ export function createViteProject(options: StillwindOptions) {
           },
         },
       };
-    } finally {
-      release();
-    }
+    });
   };
 
   return {
@@ -517,6 +636,9 @@ export function createViteProject(options: StillwindOptions) {
     settings,
     environmentState,
     closeTypeFacts,
+    close,
+    watchCssChanges,
+    startSession,
     loadDesignSystem,
     ensureSession,
     refreshDesignSystem,

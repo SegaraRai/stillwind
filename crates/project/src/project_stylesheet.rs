@@ -16,14 +16,15 @@ use stillwind_source::{ModuleId, SourceFile, Span};
 /// Producers absent from that list follow in module-identity order.
 #[derive(Clone, Debug, Default)]
 pub struct ProjectStylesheet {
-    contributions: BTreeMap<ModuleId, ModuleCssArtifact>,
+    contributions: BTreeMap<ModuleId, Arc<ModuleCssArtifact>>,
     order: Vec<ModuleId>,
 }
 
 impl ProjectStylesheet {
     /// Replaces every occurrence owned by a producer.
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
-        self.contributions.insert(module, artifact.clone());
+        self.contributions
+            .insert(module, Arc::new(artifact.clone()));
     }
 
     /// Retracts one producer without changing any other producer's occurrences.

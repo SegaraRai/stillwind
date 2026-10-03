@@ -316,6 +316,7 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
       (async () =>
         buildStart.call(
           {
+            addWatchFile: () => {},
             async resolve(specifier: string) {
               if (specifier === "failed") {
                 throw new Error("first CSS resolution failed");

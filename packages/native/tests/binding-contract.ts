@@ -472,6 +472,23 @@ export function registerBindingContract(bindingSpecifier: string) {
     expect(typeof plan).toBe("object");
     expect(plan.css).toMatch(/display:flex/);
     expect(plan.producers[0].module).toBe("🧭.tsx");
+    expect(plan.sourceMap.entries.length).toBeGreaterThan(0);
+    const unmapped = session.planStylesheet(
+      {
+        modules: ["🧭.tsx"],
+        coverage: { kind: "observed" },
+        placement: "document",
+      },
+      false,
+    );
+    expect(unmapped).toStrictEqual({
+      ...plan,
+      sourceMap: { sources: [], entries: [] },
+      parts: plan.parts.map((part: import("../binding.js").NativeStylesheetPart) => ({
+        ...part,
+        sourceMap: { sources: [], entries: [] },
+      })),
+    });
     if (!Array.isArray(session.baseCssWithMap().sourceMap.entries)) {
       expect.fail("Unexpected value: Array.isArray(session.baseCssWithMap().sourceMap.entries)");
     }

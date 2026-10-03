@@ -235,27 +235,9 @@ impl ModuleCompiler {
                 .iter()
                 .map(|token| token.name.value.clone())
                 .collect(),
-            utilities: self
-                .design_system
-                .fingerprints()
-                .utilities
-                .keys()
-                .cloned()
-                .collect(),
-            variants: self
-                .design_system
-                .fingerprints()
-                .variants
-                .keys()
-                .cloned()
-                .collect(),
-            properties: self
-                .design_system
-                .fingerprints()
-                .properties
-                .keys()
-                .cloned()
-                .collect(),
+            utilities: self.design_system.utility_names().clone(),
+            variants: self.design_system.variant_names().clone(),
+            properties: self.design_system.property_names().clone(),
             assets: module
                 .summary
                 .assets

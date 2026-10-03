@@ -140,6 +140,30 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
+    /// Validates a complete producer graph once and attaches referenced declaration CSS.
+    /// `inputs` must contain each module identity once. Returned analyses retain their
+    /// source coordinates and receive graph errors at their own full source span.
+    pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
+        let modules: Vec<_> = inputs.iter().collect();
+        let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
+            validate_composition(&modules, input.source.full_span(), true)
+        });
+        inputs
+            .iter()
+            .map(|input| {
+                let mut analysis = input.clone();
+                for error in &diagnostics {
+                    analysis.diagnostics.push(CompileError::new(
+                        error.diagnostic.clone(),
+                        input.source.full_span(),
+                    ));
+                }
+                analysis.attach_declarations(inputs);
+                analysis
+            })
+            .collect()
+    }
+
     /// Attaches referenced declaration CSS without registering semantic inputs as producers.
     pub fn attach_asset_support(&mut self, inputs: &[Self]) {
         let mut modules = vec![&*self];
@@ -150,7 +174,14 @@ impl ModuleAnalysis {
         );
         let diagnostics = validate_composition(&modules, self.source.full_span(), true);
         self.diagnostics.extend(diagnostics);
+        self.attach_declarations(inputs);
+    }
+
+    fn attach_declarations(&mut self, inputs: &[Self]) {
         self.asset_support.clear();
+        if self.external_assets.is_empty() {
+            return;
+        }
         for input in inputs {
             if input.module_id == self.module_id {
                 continue;

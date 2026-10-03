@@ -9,7 +9,10 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetPlacement, StylesheetRenderer};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{
+    ClassExpression, ModuleAnalysis, RuleExpression, ScriptLanguage, ScriptModuleKind,
+    SourceAnalyzer, StyleInput,
+};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry, SourceUri};
@@ -351,7 +354,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         Identifiers::default(),
     );
     for analysis in session.analyses().values() {
-        rebuilt.update_module(analysis.clone());
+        rebuilt.update_module(analysis.as_ref().clone());
     }
     assert_eq!(session.dependencies(), rebuilt.dependencies());
     assert_eq!(session.css().unwrap(), rebuilt.css().unwrap());
@@ -367,4 +370,70 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     );
     assert!(session.remove_module(&ModuleId::from("a.tsx")));
     assert_eq!(session.dependencies(), &DependencyIndex::default());
+}
+
+#[test]
+fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
+    let mut original = ProjectSession::new(
+        snapshot("red"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    let id = ModuleId::from("a.tsx");
+    original.update_module(module("a.tsx", "bg-brand"));
+    let css = original.css().unwrap();
+    let dependencies = original.dependencies().clone();
+    let mut edited = original.clone();
+    assert!(
+        edited
+            .update_module(module("a.tsx", "flex"))
+            .diagnostics
+            .is_empty()
+    );
+    assert_ne!(edited.css().unwrap(), css);
+    assert!(edited.dependencies().theme_tokens.is_empty());
+    assert_eq!(original.css().unwrap(), css);
+    assert_eq!(original.dependencies(), &dependencies);
+    assert!(original.current_artifact(&id).is_some());
+    assert!(edited.remove_module(&id));
+    assert!(edited.current_artifact(&id).is_none());
+    assert!(original.current_artifact(&id).is_some());
+}
+
+#[test]
+fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
+    let mut session = ProjectSession::new(
+        snapshot("red"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    let mut analysis = module("a.tsx", "flex");
+    session.update_module(analysis.clone());
+    let before = session
+        .current_artifact(&analysis.module_id)
+        .unwrap()
+        .key
+        .clone();
+    let StyleInput::Class(ClassExpression::Rule(rule)) = &mut analysis.ir.style_calls[0].inputs[0]
+    else {
+        panic!("expected a literal utility");
+    };
+    let RuleExpression::Utilities(value) = rule.as_mut() else {
+        panic!("expected utility input");
+    };
+    value.value = "grid".into();
+    assert!(
+        session
+            .update_module(analysis.clone())
+            .diagnostics
+            .is_empty()
+    );
+    let after = session.current_artifact(&analysis.module_id).unwrap();
+    assert_ne!(after.key, before);
+    assert_eq!(after.key.source_revision, before.source_revision);
+    assert!(after.css.to_css().contains("display:grid"));
 }

@@ -25,8 +25,17 @@ export function stillwind(options: StillwindOptions): Plugin {
  */
 export function compilerPlugin(project: ViteProject): Plugin {
   const { options } = project;
-  const { settings, environmentState, closeTypeFacts, ensureSession, inputMap, publish, compile } =
-    project;
+  const {
+    settings,
+    environmentState,
+    closeTypeFacts,
+    close,
+    ensureSession,
+    startSession,
+    inputMap,
+    publish,
+    compile,
+  } = project;
   return {
     name: "stillwind",
     enforce: "pre",
@@ -49,12 +58,7 @@ export function compilerPlugin(project: ViteProject): Plugin {
     },
     async buildStart() {
       const name = this.environment?.name;
-      const state = environmentState(name);
-      state.session = undefined;
-      inputMap(name).clear();
-      state.buildCss = undefined;
-      state.manifest = undefined;
-      await ensureSession(state, this);
+      await startSession(name, this);
     },
     shouldTransformCachedModule({ id }) {
       return (
@@ -118,7 +122,7 @@ export function compilerPlugin(project: ViteProject): Plugin {
         return result;
       },
     },
-    closeBundle: closeTypeFacts,
+    closeBundle: close,
   };
 }
 

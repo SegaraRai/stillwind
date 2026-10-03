@@ -5,6 +5,7 @@
 //! Compilation itself belongs to [`super::ModuleCompiler`].
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use serde::Serialize;
 
@@ -72,11 +73,11 @@ pub struct CompilationDependencies {
     /// Theme token names whose values appear in the module's generated CSS.
     pub theme_tokens: BTreeSet<String>,
     /// All currently registered utility definition names, recorded conservatively.
-    pub utilities: BTreeSet<String>,
+    pub utilities: Arc<BTreeSet<String>>,
     /// All currently registered variant definition names, recorded conservatively.
-    pub variants: BTreeSet<String>,
+    pub variants: Arc<BTreeSet<String>>,
     /// All currently registered custom-property definition names.
-    pub properties: BTreeSet<String>,
+    pub properties: Arc<BTreeSet<String>>,
     /// Identities of the assets the module used.
     pub assets: BTreeSet<IdentityId>,
 }

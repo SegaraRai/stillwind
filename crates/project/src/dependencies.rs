@@ -63,9 +63,9 @@ impl DependencyIndex {
         for (entries, index) in [
             (&next.candidates, &mut self.candidates),
             (&next.theme_tokens, &mut self.theme_tokens),
-            (&next.utilities, &mut self.utilities),
-            (&next.variants, &mut self.variants),
-            (&next.properties, &mut self.properties),
+            (next.utilities.as_ref(), &mut self.utilities),
+            (next.variants.as_ref(), &mut self.variants),
+            (next.properties.as_ref(), &mut self.properties),
         ] {
             insert_memberships(index, entries, module);
         }
@@ -76,9 +76,9 @@ impl DependencyIndex {
         for (entries, index) in [
             (&previous.candidates, &mut self.candidates),
             (&previous.theme_tokens, &mut self.theme_tokens),
-            (&previous.utilities, &mut self.utilities),
-            (&previous.variants, &mut self.variants),
-            (&previous.properties, &mut self.properties),
+            (previous.utilities.as_ref(), &mut self.utilities),
+            (previous.variants.as_ref(), &mut self.variants),
+            (previous.properties.as_ref(), &mut self.properties),
         ] {
             remove_memberships(index, entries, module);
         }
