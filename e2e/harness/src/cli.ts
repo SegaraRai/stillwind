@@ -225,7 +225,9 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
     args.push(driver === "next" ? "-p" : "--port", String(port));
   }
   if (driver === "astro" && mode !== "build") {
-    args.push("--host", "localhost");
+    // Astro locks can outlive forcibly stopped servers and identify reused PIDs.
+    // The harness owns each server in an isolated workspace.
+    args.push("--host", "localhost", "--ignore-lock");
   }
   process.argv = [process.execPath, bin, ...args];
   await import(pathToFileURL(bin).href);

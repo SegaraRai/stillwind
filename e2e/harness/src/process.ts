@@ -3,19 +3,30 @@ import { setTimeout as delay } from "node:timers/promises";
 
 /**
  * Stops a runner and its descendants, including framework CLI processes on Windows.
+ * For a running child, waits for its exit and the closure of its output pipes.
+ * Rejects if taskkill fails before the child reports its exit.
  */
 export async function stopProcess(child: ChildProcess): Promise<void> {
   if (!child.pid || child.exitCode !== null || child.signalCode !== null) {
     return;
   }
+  const closed = new Promise<void>((resolve) => {
+    child.once("close", () => resolve());
+  });
   if (process.platform === "win32") {
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
         windowsHide: true,
         stdio: "ignore",
       });
-      killer.once("error", () => resolve());
-      killer.once("close", () => resolve());
+      killer.once("error", reject);
+      killer.once("close", (code) => {
+        if (code === 0 || child.exitCode !== null || child.signalCode !== null) {
+          resolve();
+        } else {
+          reject(new Error(`taskkill exited with code ${code}`));
+        }
+      });
     });
   } else {
     try {
@@ -30,6 +41,7 @@ export async function stopProcess(child: ChildProcess): Promise<void> {
       /* The group may already have exited. */
     }
   }
+  await closed;
 }
 
 /**
@@ -61,17 +73,25 @@ export function startNode(
       output = (output + data.toString()).slice(-200_000);
     });
   }
-  const done = new Promise<number | null>((resolve, reject) => {
-    child.once("error", reject);
-    child.once("close", resolve);
-  });
+  const {
+    promise: done,
+    resolve: resolveDone,
+    reject: rejectDone,
+  } = Promise.withResolvers<number | null>();
+  child.once("error", rejectDone);
+  child.once("close", resolveDone);
   void done.catch(() => {});
   const timer = setTimeout(() => {
-    void stopProcess(child);
+    void stopProcess(child).catch(rejectDone);
   }, timeout);
   timer.unref();
   void done.finally(() => clearTimeout(timer)).catch(() => {});
-  return { child, done, logs: () => output, stop: () => stopProcess(child) };
+  return {
+    child,
+    done,
+    logs: () => output,
+    stop: () => stopProcess(child),
+  };
 }
 
 /**
@@ -89,7 +109,9 @@ export async function waitForServer(
       throw new Error(processHandle.logs());
     }
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(2000),
+      });
       if (response.ok) {
         return;
       }
