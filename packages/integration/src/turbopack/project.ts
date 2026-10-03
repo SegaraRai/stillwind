@@ -4,9 +4,10 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { cleanModuleId, fileModuleDescriptor, loadCssGraph } from "@stillwind/host";
-import { nativeBindingPath, scanSource } from "@stillwind/native";
+import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
+import { nativeBindingFiles } from "../binding-files.ts";
 import {
   compilerOptions,
   cssEntrypoint,
@@ -27,10 +28,10 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
   const watch = (id: string) => {
     context.addDependency(id);
   };
-  watch(nativeBindingPath);
-  for (const name of ["@stillwind/host", "@stillwind/native"]) {
-    watch(fileURLToPath(import.meta.resolve(name)));
+  for (const file of nativeBindingFiles()) {
+    watch(file);
   }
+  watch(fileURLToPath(import.meta.resolve("@stillwind/host")));
   watch(import.meta.filename);
   for (const file of ["loader.js", "css-loader.js"]) {
     watch(

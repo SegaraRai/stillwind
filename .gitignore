@@ -7,7 +7,8 @@ dist
 stillwind.generated.d.ts
 
 .napi-external
-.napi-rs-filesystem-transaction.swp
+.napi-rs-*
+.*.napi-stage-*
 .test-*
 *.tmp
 
@@ -17,10 +18,14 @@ packages/native/npm/wasm32-wasi/*.cjs
 packages/native/npm/wasm32-wasi/*.js
 packages/native/npm/wasm32-wasi/*.mjs
 packages/native/npm/wasm32-wasi/*.d.cts
+packages/native/index.js
+packages/native/browser.js
+packages/native/*.wasm
 
 .review-fixtures
 
 .e2e
+.vitest/
 e2e/**/results/
 e2e/**/.output/
 e2e/**/.nuxt/

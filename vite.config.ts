@@ -1,6 +1,12 @@
 import { defineConfig } from "vite-plus";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  fmt: {
+    ignorePatterns: ["packages/native/binding.d.ts"],
+    sortImports: true,
+    sortPackageJson: true,
+    svelte: true,
+  },
   lint: {
     ignorePatterns: [
       "fixtures/projects/*/expected/**",
@@ -14,11 +20,23 @@ export default defineConfig({
       curly: "warn",
     },
   },
-  fmt: {
-    ignorePatterns: ["packages/native/binding.d.ts"],
-    sortImports: true,
-    sortPackageJson: true,
-    svelte: true,
+  test: {
+    projects:
+      mode === "wasm"
+        ? ["packages/native/vite.config.ts", "e2e/harness/vite.browser.config.ts"]
+        : mode === "browser"
+          ? ["tools/vite.browser.config.ts", "e2e/css/vite.browser.config.ts"]
+          : [
+              "packages/core/vite.config.ts",
+              "packages/native/vite.config.ts",
+              "packages/host/vite.config.ts",
+              "packages/integration/vite.config.ts",
+              "tools/vite.config.ts",
+              "benchmarks/vite.config.ts",
+              "e2e/harness/vite.config.ts",
+              "apps/play/vite.config.ts",
+              "apps/logo-editor/vite.config.ts",
+            ],
   },
   run: {
     tasks: {
@@ -108,20 +126,14 @@ export default defineConfig({
           "@stillwind/react-example#check",
         ],
       },
+      "test:js": {
+        command: "vp test --run",
+        dependsOn: ["@stillwind/integration#build", "@stillwind/native#typecheck"],
+        cache: false,
+      },
       test: {
         command: "",
-        dependsOn: [
-          "rust:test",
-          "stillwind#test",
-          "@stillwind/native#test",
-          "@stillwind/host#test",
-          "@stillwind/integration#test",
-          "@stillwind/tools#test",
-          "@stillwind/benchmarks#test",
-          "@stillwind/e2e-harness#test",
-          "@stillwind/play#test",
-          "@stillwind/logo-editor#test",
-        ],
+        dependsOn: ["rust:test", "test:js"],
       },
       "fixtures:refresh": {
         command: "",
@@ -152,13 +164,13 @@ export default defineConfig({
         cache: false,
       },
       "verify:browser": {
-        command: "",
-        dependsOn: ["@stillwind/tools#tailwind:browser"],
+        command: "vp test --run --mode browser",
+        dependsOn: ["@stillwind/native#collect:local"],
         cache: false,
       },
       "verify:wasm": {
-        command: "",
-        dependsOn: ["@stillwind/native#test:wasm"],
+        command: "vp test --run --mode wasm",
+        dependsOn: ["@stillwind/native#collect:local"],
         cache: false,
       },
       "webref:generate": {
@@ -168,4 +180,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

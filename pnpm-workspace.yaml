@@ -23,6 +23,7 @@ patchedDependencies:
 catalogs:
   default:
     "@types/node": ^26.4.0
+    "@vitest/ui": 5.0.1
     typescript: ^6.0.3
     vite: npm:@voidzero-dev/vite-plus-core@1.0.0
     vite-plus: 1.0.0
@@ -66,6 +67,7 @@ minimumReleaseAgeExclude:
   - "@tanstack/solid-start@1.168.57"
 
 overrides:
+  "@vitest/ui": 5.0.1
   vite@*: "catalog:"
   vitest: 5.0.1
 

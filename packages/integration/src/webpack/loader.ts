@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { cleanModuleId } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
+import { nativeBindingFiles } from "../binding-files.ts";
 import {
   compilerOptions,
   cssEntrypoint,
@@ -119,9 +120,9 @@ export default function (
   watch(import.meta.filename);
   void (async () => {
     const host = await import("@stillwind/host");
-    const { nativeBindingPath } = await import("@stillwind/native");
-    watch(nativeBindingPath);
-    watch(fileURLToPath(import.meta.resolve("@stillwind/native")));
+    for (const file of nativeBindingFiles()) {
+      watch(file);
+    }
     const hostDirectory = path.dirname(fileURLToPath(import.meta.resolve("@stillwind/host")));
     for (const file of fs.readdirSync(hostDirectory)) {
       if (file.endsWith(".js")) {

@@ -1,10 +1,5 @@
-import { runInNewContext } from "node:vm";
-
-import { expectCss } from "@stillwind/e2e-harness/browser";
-import { registerScenario } from "@stillwind/e2e-harness/scenario";
 import { compileSource } from "@stillwind/native";
-import { chromium, type Browser, type Page } from "playwright";
-import { afterAll, beforeAll, test, expect } from "vite-plus/test";
+import { afterEach, describe, expect, test } from "vite-plus/test";
 
 const theme = `
 @variant on { &[data-on] { @slot; } }
@@ -17,7 +12,7 @@ const theme = `
 @utility pseudo { content:"ok"; color:red; }
 @stillwind-slot utilities;`;
 
-function compile(expression: string) {
+async function compile(expression: string) {
   const output = compileSource({
     source: `import {style} from 'stillwind/react';
 const parent = style.ref('parent');
@@ -43,62 +38,82 @@ export const props = {
   });
   expect(output.diagnostics).toEqual([]);
   expect(output.code).toBeTruthy();
-  const sandbox = {} as { props: Record<string, { className: string }> };
-  runInNewContext(output.code!.replace("export const props", "globalThis.props"), sandbox);
-  return { css: output.css, props: sandbox.props };
+  const moduleUrl = URL.createObjectURL(new Blob([output.code!], { type: "text/javascript" }));
+  try {
+    const module = await import(/* @vite-ignore */ moduleUrl);
+    return { css: output.css, props: module.props as Record<string, { className: string }> };
+  } finally {
+    URL.revokeObjectURL(moduleUrl);
+  }
 }
 
-async function setDocument(page: Page, expression: string, html: string) {
-  const { css, props } = compile(expression);
-  await page.setContent(
-    `<style>body {color:black;} ${css}</style>${html.replaceAll(
-      /\{(parent|outer|relative|container|target)\}/g,
-      (_, name: string) => props[name].className,
-    )}`,
-  );
+let frame: HTMLIFrameElement | undefined;
+
+function documentUnderTest() {
+  return frame!.contentDocument!;
 }
 
-registerScenario("ref-scopes", new URL("../", import.meta.url), () => {
-  let browser: Browser;
-  let page: Page;
-  beforeAll(async () => {
-    browser = await chromium.launch({ channel: "chrome", headless: true });
-    page = await browser.newPage();
+function element(selector: string) {
+  return documentUnderTest().querySelector<HTMLElement>(selector)!;
+}
+
+async function expectCss(selector: string, values: Record<string, string>) {
+  for (const [name, value] of Object.entries(values)) {
+    await expect
+      .poll(() => frame!.contentWindow!.getComputedStyle(element(selector)).getPropertyValue(name))
+      .toBe(value);
+  }
+}
+
+async function setDocument(expression: string, html: string) {
+  const { css, props } = await compile(expression);
+  frame?.remove();
+  frame = document.createElement("iframe");
+  const ready = new Promise<void>((resolve) => {
+    frame!.onload = () => resolve();
   });
-  afterAll(async () => browser?.close());
+  frame.srcdoc = `<style>body {color:black;} ${css}</style>${html.replaceAll(
+    /\{(parent|outer|relative|container|target)\}/g,
+    (_, name: string) => props[name].className,
+  )}`;
+  document.body.append(frame);
+  await ready;
+}
 
+afterEach(() => {
+  frame?.remove();
+  frame = undefined;
+});
+
+describe("ref-scopes", () => {
   test("scope order preserves states and ancestors outside the scope", async () => {
     for (const scopes of ['.in(parent("active")).in(outer)', '.in(outer).in(parent("active"))']) {
       await setDocument(
-        page,
         `{[relative("outside:on")${scopes}]: 'accent'}`,
         `<main class="outside {outer}"><section class="{parent}" data-active>
           <button id="ref" class="{relative}" data-on></button>
           <span id="target" class="{target}">target</span>
         </section></main><span id="outside" class="{target}">outside</span>`,
       );
-      await expectCss(page, "#target", { color: "rgb(255, 0, 0)" });
-      await expectCss(page, "#outside", { color: "rgb(0, 0, 0)" });
-      await page.locator("section").evaluate((element) => element.removeAttribute("data-active"));
-      await expectCss(page, "#target", { color: "rgb(0, 0, 0)" });
-      await page.locator("section").evaluate((element) => element.setAttribute("data-active", ""));
-      await page.locator("#ref").evaluate((element) => element.removeAttribute("data-on"));
-      await expectCss(page, "#target", { color: "rgb(0, 0, 0)" });
+      await expectCss("#target", { color: "rgb(255, 0, 0)" });
+      await expectCss("#outside", { color: "rgb(0, 0, 0)" });
+      element("section").removeAttribute("data-active");
+      await expectCss("#target", { color: "rgb(0, 0, 0)" });
+      element("section").setAttribute("data-active", "");
+      element("#ref").removeAttribute("data-on");
+      await expectCss("#target", { color: "rgb(0, 0, 0)" });
     }
   });
 
   test("ref and target must share the same scope instance", async () => {
     await setDocument(
-      page,
       "{[relative('on').in(parent)]: 'accent'}",
       `<section class="{parent}"><span id="target" class="{target}">target</span></section>
        <section class="{parent}"><button id="ref" class="{relative}" data-on></button></section>`,
     );
-    await expectCss(page, "#target", { color: "rgb(0, 0, 0)" });
-    await page.locator("#target").evaluate((target) => {
-      document.querySelector("#ref")!.parentElement!.append(target);
-    });
-    await expectCss(page, "#target", { color: "rgb(255, 0, 0)" });
+    await expectCss("#target", { color: "rgb(0, 0, 0)" });
+    element("#ref").parentElement!.append(element("#target"));
+    await expectCss("#target", { color: "rgb(255, 0, 0)" });
   });
 
   test("container queries test the final target in either wrapper order", async () => {
@@ -107,18 +122,15 @@ registerScenario("ref-scopes", new URL("../", import.meta.url), () => {
       "{[relative('on').in(parent)]: {[container.at('width > 200px')]: 'accent'}}",
     ]) {
       await setDocument(
-        page,
         expression,
         `<section class="{parent}">
           <div class="{container}" style="width:400px"><button class="{relative}" data-on></button></div>
           <div id="container" class="{container}" style="width:100px"><span id="target" class="{target}">target</span></div>
         </section>`,
       );
-      await expectCss(page, "#target", { color: "rgb(0, 0, 0)" });
-      await page.locator("#container").evaluate((element: HTMLElement) => {
-        element.style.width = "300px";
-      });
-      await expectCss(page, "#target", { color: "rgb(255, 0, 0)" });
+      await expectCss("#target", { color: "rgb(0, 0, 0)" });
+      element("#container").style.width = "300px";
+      await expectCss("#target", { color: "rgb(255, 0, 0)" });
     }
   });
 
@@ -128,36 +140,31 @@ registerScenario("ref-scopes", new URL("../", import.meta.url), () => {
       "{[relative('on').in(parent)]: 'children:accent'}",
     ]) {
       await setDocument(
-        page,
         expression,
         `<main class="{target}"><section class="{parent}">
           <button class="{relative}" data-on></button><span id="target">target</span>
         </section></main>`,
       );
-      await expectCss(page, "#target", { color: "rgb(0, 0, 0)" });
-      await page.locator("section").evaluate((element) => {
-        element.classList.add(element.parentElement!.className);
-      });
-      await expectCss(page, "#target", { color: "rgb(255, 0, 0)" });
+      await expectCss("#target", { color: "rgb(0, 0, 0)" });
+      const section = element("section");
+      section.classList.add(section.parentElement!.className);
+      await expectCss("#target", { color: "rgb(255, 0, 0)" });
     }
   });
 
   test("scope conditions test the originating element of a target pseudo-element", async () => {
     for (const pseudo of ["before", "after"]) {
       await setDocument(
-        page,
         `{[relative('on').in(parent)]: '${pseudo}:pseudo'}`,
         `<section class="{parent}"><button id="ref" class="{relative}" data-on></button>
           <span id="target" class="{target}">target</span>
         </section><span id="outside" class="{target}">outside</span>`,
       );
       const color = (id: string) =>
-        page
-          .locator(id)
-          .evaluate((element, pseudo) => getComputedStyle(element, pseudo).color, `::${pseudo}`);
+        frame!.contentWindow!.getComputedStyle(element(id), `::${pseudo}`).color;
       await expect.poll(() => color("#target")).toBe("rgb(255, 0, 0)");
       await expect.poll(() => color("#outside")).toBe("rgb(0, 0, 0)");
-      await page.locator("#ref").evaluate((element) => element.removeAttribute("data-on"));
+      element("#ref").removeAttribute("data-on");
       await expect.poll(() => color("#target")).toBe("rgb(0, 0, 0)");
     }
   });

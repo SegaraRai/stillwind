@@ -5,8 +5,8 @@ import {
   scanSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
-} from "../dist/index.js";
-import type { NativePreparedSource, NativeStylesheetSelection } from "../dist/index.js";
+} from "../binding.js";
+import type { NativePreparedSource, NativeStylesheetSelection } from "../binding.js";
 
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {

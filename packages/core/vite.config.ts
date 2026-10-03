@@ -1,9 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  test: {
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-  },
+  root: import.meta.dirname,
   pack: {
     entry: [
       "src/css.ts",
@@ -27,6 +25,10 @@ export default defineConfig({
     fixedExtension: false,
     dts: true,
     sourcemap: true,
+  },
+  test: {
+    name: "core",
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
   },
   run: {
     tasks: {

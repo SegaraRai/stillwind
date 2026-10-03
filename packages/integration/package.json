@@ -43,7 +43,8 @@
     "./sveltekit/handle": {
       "types": "./dist/sveltekit/handle.d.ts",
       "default": "./dist/sveltekit/handle.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"

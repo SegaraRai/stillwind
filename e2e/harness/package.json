@@ -13,14 +13,17 @@
     "./source-map": "./src/source-map.ts",
     "./scenario": "./src/scenario.ts",
     "./source": "./src/source.ts",
-    "./browser": "./src/browser.ts"
+    "./browser": "./src/browser.ts",
+    "./browser-config": "./src/browser-config.ts"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
     "playwright": "1.63.0"
   },
   "devDependencies": {
+    "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",
+    "@vitest/browser-playwright": "5.0.1",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

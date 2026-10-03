@@ -1,7 +1,9 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
+  root: import.meta.dirname,
   test: {
+    name: "benchmarks",
     include: ["source-map/*.test.ts", "research/*.test.ts", "performance/*.test.ts"],
     benchmark: {
       include: ["**/*.bench.ts"],

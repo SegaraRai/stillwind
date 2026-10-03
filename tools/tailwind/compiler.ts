@@ -40,7 +40,7 @@ export async function compileTailwindCss({
     },
     async loadModule(id, importerBase) {
       const path = resolve(importerBase, id);
-      const loaded = await import(pathToFileURL(path).href);
+      const loaded = await import(/* @vite-ignore */ pathToFileURL(path).href);
       return { path, base: dirname(path), module: loaded.default ?? loaded };
     },
   });

@@ -1,17 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  test: {
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-    fileParallelism: false,
-    testTimeout: 120_000,
-    server: {
-      deps: {
-        // Rspack loads built loaders through Node; the plugin must share their module state.
-        external: [/\/packages\/integration\/dist\//],
-      },
-    },
-  },
+  root: import.meta.dirname,
   pack: {
     entry: [
       "src/astro/index.ts",
@@ -60,6 +50,18 @@ export default defineConfig({
         to: "dist/webpack",
       },
     ],
+  },
+  test: {
+    name: "integration",
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    fileParallelism: false,
+    testTimeout: 120_000,
+    server: {
+      deps: {
+        // Rspack loads built loaders through Node; the plugin must share their module state.
+        external: [/\/packages\/integration\/dist\//],
+      },
+    },
   },
   run: {
     tasks: {

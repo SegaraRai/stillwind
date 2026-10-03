@@ -121,6 +121,7 @@ catalogs:
       version: 1.0.0
 
 overrides:
+  '@vitest/ui': 5.0.1
   vite@*: npm:@voidzero-dev/vite-plus-core@1.0.0
   vitest: 5.0.1
 
@@ -138,11 +139,14 @@ importers:
         specifier: 2.0.0-alpha.5
         version: 2.0.0-alpha.5
       '@napi-rs/cli':
-        specifier: ^3.10.5
-        version: 3.10.5(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@26.4.0)(emnapi@2.0.0-alpha.5)(supports-color@8.1.1)
+        specifier: ^3.10.6
+        version: 3.10.6(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@26.4.0)(emnapi@2.0.0-alpha.5)(supports-color@8.1.1)
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
+      '@vitest/ui':
+        specifier: 5.0.1
+        version: 5.0.1(vitest@5.0.1)
       emnapi:
         specifier: 2.0.0-alpha.5
         version: 2.0.0-alpha.5
@@ -154,7 +158,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
   apps/fixtures-viewer:
     dependencies:
@@ -203,7 +207,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
   apps/logo-editor:
     dependencies:
@@ -219,7 +223,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   apps/play:
     dependencies:
@@ -280,7 +284,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
   benchmarks:
     dependencies:
@@ -311,7 +315,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/bundlers/rsbuild2-plain:
     dependencies:
@@ -342,7 +346,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/bundlers/rspack2-plain:
     dependencies:
@@ -373,7 +377,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/css:
     dependencies:
@@ -404,7 +408,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/astro7-plain:
     dependencies:
@@ -429,7 +433,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/astro7-preact11-solid1:
     dependencies:
@@ -466,7 +470,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/astro7-react19-svelte5-vue3:
     dependencies:
@@ -521,7 +525,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/next16-react19:
     dependencies:
@@ -561,13 +565,13 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/nuxt4-vue3:
     dependencies:
       nuxt:
         specifier: 4.5.2
-        version: 4.5.2(e4f542054af7b921f1d1951c908bee58)
+        version: 4.5.2(fbaf1f47e1296dd6ee56ae6385fbf148)
       stillwind:
         specifier: workspace:*
         version: link:../../../packages/core
@@ -592,7 +596,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rsbuild2-preact11:
     dependencies:
@@ -623,7 +627,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rsbuild2-react19:
     dependencies:
@@ -663,7 +667,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rsbuild2-solid1:
     dependencies:
@@ -697,7 +701,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rsbuild2-svelte5:
     dependencies:
@@ -728,7 +732,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rsbuild2-vue3:
     dependencies:
@@ -759,7 +763,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rspack2-preact11:
     dependencies:
@@ -796,7 +800,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rspack2-react19:
     dependencies:
@@ -842,7 +846,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rspack2-solid1:
     dependencies:
@@ -891,7 +895,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rspack2-svelte5:
     dependencies:
@@ -931,7 +935,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/rspack2-vue3:
     dependencies:
@@ -968,7 +972,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       vue-loader:
         specifier: 17.4.2
         version: 17.4.2(@vue/compiler-sfc@3.5.43)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
@@ -1011,7 +1015,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/sveltekit2-svelte5:
     dependencies:
@@ -1045,7 +1049,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/tanstackstart1-react19:
     dependencies:
@@ -1091,7 +1095,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/tanstackstart1-react19-server-function:
     dependencies:
@@ -1146,7 +1150,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/tanstackstart1-solid1:
     dependencies:
@@ -1183,7 +1187,7 @@ importers:
         version: 2.11.14(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(solid-js@1.9.15)(supports-color@8.1.1)
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-preact11:
     dependencies:
@@ -1211,7 +1215,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-react19:
     dependencies:
@@ -1251,7 +1255,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-react19-reactrouter8:
     dependencies:
@@ -1300,7 +1304,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-solid1:
     dependencies:
@@ -1328,7 +1332,7 @@ importers:
         version: 2.11.14(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(solid-js@1.9.15)(supports-color@8.1.1)
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-solid2rc:
     dependencies:
@@ -1359,7 +1363,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-svelte5:
     dependencies:
@@ -1387,7 +1391,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-vue3:
     dependencies:
@@ -1415,7 +1419,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/vite8-vue3-jsx:
     dependencies:
@@ -1446,7 +1450,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   e2e/frameworks/webpack5-preact11:
     dependencies:
@@ -1480,7 +1484,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       webpack:
         specifier: 5.111.1
         version: 5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)
@@ -1529,7 +1533,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       webpack:
         specifier: 5.111.1
         version: 5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)
@@ -1581,7 +1585,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       webpack:
         specifier: 5.111.1
         version: 5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)
@@ -1624,7 +1628,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       webpack:
         specifier: 5.111.1
         version: 5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)
@@ -1664,7 +1668,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       vue-loader:
         specifier: 17.4.2
         version: 17.4.2(@vue/compiler-sfc@3.5.43)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
@@ -1684,15 +1688,21 @@ importers:
         specifier: 1.63.0
         version: 1.63.0
     devDependencies:
+      '@stillwind/native':
+        specifier: workspace:*
+        version: link:../../packages/native
       '@types/node':
         specifier: 'catalog:'
         version: 26.4.0
+      '@vitest/browser-playwright':
+        specifier: 5.0.1
+        version: 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   examples/react:
     dependencies:
@@ -1729,7 +1739,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
   packages/core:
     devDependencies:
@@ -1744,7 +1754,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
   packages/host:
     dependencies:
@@ -1784,7 +1794,7 @@ importers:
         version: 5.57.1
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
 
   packages/integration:
     dependencies:
@@ -1839,7 +1849,7 @@ importers:
         version: 7.1.5(@rspack/core@2.2.8(@swc/helpers@0.5.23))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       nuxt:
         specifier: ^4.5.2
-        version: 4.5.2(d7d879fe3720bf06fdc846d51ade82d9)
+        version: 4.5.2(918964888ccb08db05879186b49d6f2b)
       svelte:
         specifier: ^5.57.1
         version: 5.57.1
@@ -1854,7 +1864,7 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
       vue:
         specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)
@@ -1878,7 +1888,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
     optionalDependencies:
       '@stillwind/native-darwin-arm64':
         specifier: workspace:*
@@ -1892,6 +1902,9 @@ importers:
       '@stillwind/native-linux-x64-gnu':
         specifier: workspace:*
         version: link:npm/linux-x64-gnu
+      '@stillwind/native-wasm32-wasi':
+        specifier: workspace:*
+        version: link:npm/wasm32-wasi
       '@stillwind/native-win32-arm64-msvc':
         specifier: workspace:*
         version: link:npm/win32-arm64-msvc
@@ -1910,14 +1923,14 @@ importers:
   packages/native/npm/wasm32-wasi:
     dependencies:
       '@emnapi/core':
-        specifier: 2.0.0-alpha.4
-        version: 2.0.0-alpha.4
+        specifier: 2.0.0-alpha.5
+        version: 2.0.0-alpha.5
       '@emnapi/runtime':
-        specifier: 2.0.0-alpha.4
-        version: 2.0.0-alpha.4
+        specifier: 2.0.0-alpha.5
+        version: 2.0.0-alpha.5
       '@napi-rs/wasm-runtime':
         specifier: ~1.2.4
-        version: 1.2.4(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)
+        version: 1.2.4(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)
 
   packages/native/npm/win32-arm64-msvc: {}
 
@@ -1958,10 +1971,13 @@ importers:
         version: 0.7.61(svelte@5.57.1)(typescript@6.0.3)
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
   tools:
     devDependencies:
+      '@stillwind/e2e-harness':
+        specifier: workspace:*
+        version: link:../e2e/harness
       '@stillwind/host':
         specifier: workspace:*
         version: link:../packages/host
@@ -1997,7 +2013,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+        version: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
 packages:
 
@@ -2446,9 +2462,6 @@ packages:
   '@emnapi/core@1.9.2':
     resolution: {integrity: sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==}
 
-  '@emnapi/core@2.0.0-alpha.4':
-    resolution: {integrity: sha512-KjoUR6mNvjT+z5bKMy+a5QDI+kTNTiMZi6uPKzWuWjwZGNa0UPwIVduTfeBRdf6v8Ws5fmHDh7Usf15w/ANfkg==}
-
   '@emnapi/core@2.0.0-alpha.5':
     resolution: {integrity: sha512-DbeLFquQJyYGwM3LzPdjvb4IRmAAQuTzEmqUGtIAYxlAO4ArfUZ7WMytLWDSsCAYm6MZJNeojaawQQiFrFVehg==}
 
@@ -2464,9 +2477,6 @@ packages:
   '@emnapi/runtime@1.9.2':
     resolution: {integrity: sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==}
 
-  '@emnapi/runtime@2.0.0-alpha.4':
-    resolution: {integrity: sha512-Wy1TQ99obRP3Ah7cf/OOtK1zD9t3pYTWz+G/SpAwTFMhG5hoMdlvfzBpYoHUigS/izu3q+VhYMKhJd7Ii/trpg==}
-
   '@emnapi/runtime@2.0.0-alpha.5':
     resolution: {integrity: sha512-SS4jUXRklsrPKTEtW92WHdneh9QBrZGmRyeYEac2ktLN3ie1wd/BrkBbk4DqPWKhjSFfrR8NClXwMlfZ73m60A==}
 
@@ -2478,9 +2488,6 @@ packages:
 
   '@emnapi/wasi-threads@1.2.3':
     resolution: {integrity: sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g==}
-
-  '@emnapi/wasi-threads@2.0.1':
-    resolution: {integrity: sha512-9DsSk+o5NBX0CCJT8s0EROGSGxjR/tKu6aBTaVyq+SjAEQH4XcdcRxPBRzsBLizTTJ49MJjF+jgu3qnO9GLQcQ==}
 
   '@emnapi/wasi-threads@2.1.0':
     resolution: {integrity: sha512-DM18NXgQ5coifswrwhFgrqeW/UiFRaLj0aLKU0cp0FoYjEfP/hj/yUeF+Hz754ViG+jQmG2HIeDCUeQsPnRwOA==}
@@ -3119,8 +3126,8 @@ packages:
   '@marijn/find-cluster-break@1.0.4':
     resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
 
-  '@napi-rs/cli@3.10.5':
-    resolution: {integrity: sha512-GF4WXmLLQk3uQvkPuLCOSH50DN4GUKZw1zHlMDh4rRF5TWpfOj3a8DkZ2PWCTwpPDMD4ex05sAjrCEwNdukEjg==}
+  '@napi-rs/cli@3.10.6':
+    resolution: {integrity: sha512-8Vj+XgPHtHWiPjyj+RXKKdAiC/rSpSrzT7OabrS4xGKu6yEnj6sVJ2Bqzmg3xHYqopXCE6P3ylcuek7wV4zFWA==}
     engines: {node: ^20.17.0 || ^22.13.0 || >= 23.5.0}
     hasBin: true
     peerDependencies:
@@ -5586,6 +5593,12 @@ packages:
     peerDependencies:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.2.25
+
+  '@vitest/browser-playwright@5.0.1':
+    resolution: {integrity: sha512-BlknN81ZeoCyP5CSm5u7+1BTlS7d0cDU5DfndNSjEC3SmbzOESGrp+DQpNhQmTlggawWc+yKVEM03mM/aBynqg==}
+    peerDependencies:
+      playwright: '*'
+      vitest: 5.0.1
 
   '@vitest/browser-preview@5.0.1':
     resolution: {integrity: sha512-NagNnZD6A8ccl+pycLWX2b/e9YJtH5NuDUyiiadQjptMRuZVBAB9r9I3itdKm6exxtcl+rOTv2rWt6vu5uOm1A==}
@@ -10759,11 +10772,6 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/core@2.0.0-alpha.4':
-    dependencies:
-      '@emnapi/wasi-threads': 2.0.1
-      tslib: 2.8.1
-
   '@emnapi/core@2.0.0-alpha.5':
     dependencies:
       '@emnapi/wasi-threads': 2.1.0
@@ -10789,10 +10797,6 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/runtime@2.0.0-alpha.4':
-    dependencies:
-      tslib: 2.8.1
-
   '@emnapi/runtime@2.0.0-alpha.5':
     dependencies:
       tslib: 2.8.1
@@ -10811,10 +10815,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
-
-  '@emnapi/wasi-threads@2.0.1':
-    dependencies:
-      tslib: 2.8.1
 
   '@emnapi/wasi-threads@2.1.0':
     dependencies:
@@ -11338,7 +11338,7 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.4': {}
 
-  '@napi-rs/cli@3.10.5(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@26.4.0)(emnapi@2.0.0-alpha.5)(supports-color@8.1.1)':
+  '@napi-rs/cli@3.10.6(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)(@types/node@26.4.0)(emnapi@2.0.0-alpha.5)(supports-color@8.1.1)':
     dependencies:
       '@inquirer/prompts': 8.7.2(@types/node@26.4.0)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@8.1.1)
@@ -11559,10 +11559,10 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@2.0.0-alpha.4)(@emnapi/runtime@2.0.0-alpha.4)':
+  '@napi-rs/wasm-runtime@1.2.4(@emnapi/core@2.0.0-alpha.5)(@emnapi/runtime@2.0.0-alpha.5)':
     dependencies:
-      '@emnapi/core': 2.0.0-alpha.4
-      '@emnapi/runtime': 2.0.0-alpha.4
+      '@emnapi/core': 2.0.0-alpha.5
+      '@emnapi/runtime': 2.0.0-alpha.5
       '@tybys/wasm-util': 0.10.4
 
   '@napi-rs/wasm-tools-android-arm-eabi@1.1.0':
@@ -11921,7 +11921,7 @@ snapshots:
       - rolldown
       - unplugin
 
-  '@nuxt/nitro-server@4.5.2(5932a3f41a8119d9ab41a1a77fde0882)':
+  '@nuxt/nitro-server@4.5.2(589b90339f1da353743efa0317719f42)':
     dependencies:
       '@nuxt/devalue': 2.0.2
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
@@ -11938,9 +11938,9 @@ snapshots:
       impound: 1.2.0(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       klona: 2.0.6
       mocked-exports: 0.1.1
-      nitropack: 2.13.4(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxc-parser@0.141.0)(rolldown@1.2.11)(srvx@1.0.5)(supports-color@10.2.2)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
+      nitropack: 2.13.4(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxc-parser@0.141.0)(rolldown@1.2.11)(srvx@0.11.22)(supports-color@10.2.2)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       nostics: 1.3.0
-      nuxt: 4.5.2(d7d879fe3720bf06fdc846d51ade82d9)
+      nuxt: 4.5.2(fbaf1f47e1296dd6ee56ae6385fbf148)
       nypm: 0.6.10
       ohash: 2.0.12
       pathe: 2.0.3
@@ -11948,7 +11948,7 @@ snapshots:
       std-env: 4.2.0
       ufo: 1.6.4
       unctx: 3.0.1(magic-string@1.4.2)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
-      unstorage: 1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
+      unstorage: 1.17.5(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2))
       vue: 3.5.43(typescript@6.0.3)
       vue-bundle-renderer: 2.4.0
       vue-devtools-stub: 0.1.0
@@ -12009,7 +12009,7 @@ snapshots:
       - webpack
       - xml2js
 
-  '@nuxt/nitro-server@4.5.2(f4b2b08c121c1f049d3bd14b5f77dd2e)':
+  '@nuxt/nitro-server@4.5.2(b217b55dd0762410841314ebb605245e)':
     dependencies:
       '@nuxt/devalue': 2.0.2
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
@@ -12026,9 +12026,9 @@ snapshots:
       impound: 1.2.0(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       klona: 2.0.6
       mocked-exports: 0.1.1
-      nitropack: 2.13.4(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxc-parser@0.141.0)(rolldown@1.2.11)(srvx@0.11.22)(supports-color@10.2.2)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
+      nitropack: 2.13.4(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxc-parser@0.141.0)(rolldown@1.2.11)(srvx@1.0.5)(supports-color@10.2.2)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       nostics: 1.3.0
-      nuxt: 4.5.2(e4f542054af7b921f1d1951c908bee58)
+      nuxt: 4.5.2(918964888ccb08db05879186b49d6f2b)
       nypm: 0.6.10
       ohash: 2.0.12
       pathe: 2.0.3
@@ -12036,7 +12036,7 @@ snapshots:
       std-env: 4.2.0
       ufo: 1.6.4
       unctx: 3.0.1(magic-string@1.4.2)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
-      unstorage: 1.17.5(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2))
+      unstorage: 1.17.5(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))
       vue: 3.5.43(typescript@6.0.3)
       vue-bundle-renderer: 2.4.0
       vue-devtools-stub: 0.1.0
@@ -12114,7 +12114,7 @@ snapshots:
       rc9: 3.1.0
       std-env: 4.2.0
 
-  '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@types/node@26.4.0)(esbuild@0.28.2)(magic-string@1.4.2)(magicast@0.5.5)(nuxt@4.5.2(d7d879fe3720bf06fdc846d51ade82d9))(oxc-parser@0.141.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))':
+  '@nuxt/vite-builder@4.5.2(5fa29d6b628b3f85526540c849a3fde3)':
     dependencies:
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
       '@vitejs/plugin-vue': 6.0.9(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
@@ -12132,7 +12132,7 @@ snapshots:
       knitwork: 1.3.0
       mlly: 1.8.2
       mocked-exports: 0.1.1
-      nuxt: 4.5.2(d7d879fe3720bf06fdc846d51ade82d9)
+      nuxt: 4.5.2(918964888ccb08db05879186b49d6f2b)
       nypm: 0.6.10
       pathe: 2.0.3
       pkg-types: 2.3.3
@@ -12145,7 +12145,7 @@ snapshots:
       unplugin: 3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-node: 6.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)
-      vite-plugin-checker: 0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3)
+      vite-plugin-checker: 0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3)
       vue: 3.5.43(typescript@6.0.3)
       vue-bundle-renderer: 2.4.0
     optionalDependencies:
@@ -12189,7 +12189,7 @@ snapshots:
       - webpack
       - yaml
 
-  '@nuxt/vite-builder@4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@types/node@26.4.0)(esbuild@0.28.2)(magic-string@1.4.2)(magicast@0.5.5)(nuxt@4.5.2(e4f542054af7b921f1d1951c908bee58))(oxc-parser@0.141.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))':
+  '@nuxt/vite-builder@4.5.2(98a4db747c02552ea7f82524f8cdba08)':
     dependencies:
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
       '@vitejs/plugin-vue': 6.0.9(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vue@3.5.43(typescript@6.0.3))
@@ -12207,7 +12207,7 @@ snapshots:
       knitwork: 1.3.0
       mlly: 1.8.2
       mocked-exports: 0.1.1
-      nuxt: 4.5.2(e4f542054af7b921f1d1951c908bee58)
+      nuxt: 4.5.2(fbaf1f47e1296dd6ee56ae6385fbf148)
       nypm: 0.6.10
       pathe: 2.0.3
       pkg-types: 2.3.3
@@ -12220,7 +12220,7 @@ snapshots:
       unplugin: 3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vite-node: 6.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)
-      vite-plugin-checker: 0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3)
+      vite-plugin-checker: 0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3)
       vue: 3.5.43(typescript@6.0.3)
       vue-bundle-renderer: 2.4.0
     optionalDependencies:
@@ -14342,12 +14342,25 @@ snapshots:
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vue: 3.5.43(typescript@6.0.3)
 
+  '@vitest/browser-playwright@5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)':
+    dependencies:
+      '@vitest/browser': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vitest@5.0.1)
+      '@vitest/mocker': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      playwright: 1.63.0
+      tinyrainbow: 3.1.1
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+    transitivePeerDependencies:
+      - bufferutil
+      - msw
+      - utf-8-validate
+      - vite
+
   '@vitest/browser-preview@5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vitest@5.0.1)':
     dependencies:
       '@testing-library/dom': 10.4.2
       '@testing-library/user-event': 14.6.7(@testing-library/dom@10.4.2)
       '@vitest/browser': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vitest@5.0.1)
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -14364,7 +14377,7 @@ snapshots:
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.1.1
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
@@ -14402,7 +14415,7 @@ snapshots:
       pathe: 2.0.3
       sirv: 3.0.2
       tinyrainbow: 3.1.1
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
 
   '@vitest/utils@5.0.1':
     dependencies:
@@ -17251,16 +17264,16 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
-  nuxt@4.5.2(d7d879fe3720bf06fdc846d51ade82d9):
+  nuxt@4.5.2(918964888ccb08db05879186b49d6f2b):
     dependencies:
       '@dxup/nuxt': 0.5.10(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       '@nuxt/cli': 3.37.0(@nuxt/schema@4.5.2)(magicast@0.5.5)(supports-color@10.2.2)
       '@nuxt/devtools': 3.4.2(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(db0@0.4.1)(ioredis@5.11.1(supports-color@10.2.2))(magic-string@1.4.2)(oxc-parser@0.141.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))(vue@3.5.43(typescript@6.0.3))
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
-      '@nuxt/nitro-server': 4.5.2(5932a3f41a8119d9ab41a1a77fde0882)
+      '@nuxt/nitro-server': 4.5.2(b217b55dd0762410841314ebb605245e)
       '@nuxt/schema': 4.5.2
       '@nuxt/telemetry': 2.9.1(@nuxt/kit@4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))))
-      '@nuxt/vite-builder': 4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@types/node@26.4.0)(esbuild@0.28.2)(magic-string@1.4.2)(magicast@0.5.5)(nuxt@4.5.2(d7d879fe3720bf06fdc846d51ade82d9))(oxc-parser@0.141.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
+      '@nuxt/vite-builder': 4.5.2(5fa29d6b628b3f85526540c849a3fde3)
       '@unhead/vue': 3.4.2(@oxc-project/types@0.151.0)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(lightningcss@1.33.0)(oxc-parser@0.141.0)(rolldown@1.2.11)(rollup@4.63.5)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       '@vue/shared': 3.5.43
       chokidar: 5.0.0
@@ -17397,16 +17410,16 @@ snapshots:
       - xml2js
       - yaml
 
-  nuxt@4.5.2(e4f542054af7b921f1d1951c908bee58):
+  nuxt@4.5.2(fbaf1f47e1296dd6ee56ae6385fbf148):
     dependencies:
       '@dxup/nuxt': 0.5.10(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       '@nuxt/cli': 3.37.0(@nuxt/schema@4.5.2)(magicast@0.5.5)(supports-color@10.2.2)
       '@nuxt/devtools': 3.4.2(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(db0@0.3.4)(ioredis@5.11.1(supports-color@10.2.2))(magic-string@1.4.2)(oxc-parser@0.141.0)(rolldown@1.2.11)(supports-color@10.2.2)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))(vue@3.5.43(typescript@6.0.3))
       '@nuxt/kit': 4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0)))
-      '@nuxt/nitro-server': 4.5.2(f4b2b08c121c1f049d3bd14b5f77dd2e)
+      '@nuxt/nitro-server': 4.5.2(589b90339f1da353743efa0317719f42)
       '@nuxt/schema': 4.5.2
       '@nuxt/telemetry': 2.9.1(@nuxt/kit@4.5.2(magic-string@1.4.2)(magicast@0.5.5)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))))
-      '@nuxt/vite-builder': 4.5.2(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@types/node@26.4.0)(esbuild@0.28.2)(magic-string@1.4.2)(magicast@0.5.5)(nuxt@4.5.2(e4f542054af7b921f1d1951c908bee58))(oxc-parser@0.141.0)(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(rolldown@1.2.11)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.11)(rollup@4.63.5))(rollup@4.63.5)(supports-color@10.2.2)(terser@5.51.2)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
+      '@nuxt/vite-builder': 4.5.2(98a4db747c02552ea7f82524f8cdba08)
       '@unhead/vue': 3.4.2(@oxc-project/types@0.151.0)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(lightningcss@1.33.0)(oxc-parser@0.141.0)(rolldown@1.2.11)(rollup@4.63.5)(vue@3.5.43(typescript@6.0.3))(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))
       '@vue/shared': 3.5.43
       chokidar: 5.0.0
@@ -17635,7 +17648,7 @@ snapshots:
       oxc-parser: 0.141.0
       rolldown: 1.2.11
 
-  oxfmt@0.70.0(svelte@5.57.0)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)):
+  oxfmt@0.70.0(svelte@5.57.0)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)):
     dependencies:
       tinypool: 2.1.2
     optionalDependencies:
@@ -17659,9 +17672,9 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.70.0
       '@oxfmt/binding-win32-x64-msvc': 0.70.0
       svelte: 5.57.0
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
-  oxfmt@0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)):
+  oxfmt@0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)):
     dependencies:
       tinypool: 2.1.2
     optionalDependencies:
@@ -17685,9 +17698,9 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.70.0
       '@oxfmt/binding-win32-x64-msvc': 0.70.0
       svelte: 5.57.1
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
-  oxfmt@0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)):
+  oxfmt@0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)):
     dependencies:
       tinypool: 2.1.2
     optionalDependencies:
@@ -17711,7 +17724,7 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.70.0
       '@oxfmt/binding-win32-x64-msvc': 0.70.0
       svelte: 5.57.1
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
 
   oxlint-tsgolint@7.0.2003:
     optionalDependencies:
@@ -17722,7 +17735,7 @@ snapshots:
       '@oxlint-tsgolint/win32-arm64': 7.0.2003
       '@oxlint-tsgolint/win32-x64': 7.0.2003
 
-  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)):
+  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.85.0
       '@oxlint/binding-android-arm64': 1.85.0
@@ -17744,9 +17757,9 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.85.0
       '@oxlint/binding-win32-x64-msvc': 1.85.0
       oxlint-tsgolint: 7.0.2003
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3)
 
-  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)):
+  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.85.0
       '@oxlint/binding-android-arm64': 1.85.0
@@ -17768,9 +17781,9 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.85.0
       '@oxlint/binding-win32-x64-msvc': 1.85.0
       oxlint-tsgolint: 7.0.2003
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)
 
-  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)):
+  oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.85.0
       '@oxlint/binding-android-arm64': 1.85.0
@@ -17792,7 +17805,7 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.85.0
       '@oxlint/binding-win32-x64-msvc': 1.85.0
       oxlint-tsgolint: 7.0.2003
-      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
+      vite-plus: 1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2)
 
   p-limit@3.1.0:
     dependencies:
@@ -19332,7 +19345,7 @@ snapshots:
       - unrun
       - yaml
 
-  vite-plugin-checker@0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3):
+  vite-plugin-checker@0.14.5(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(oxlint@1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3)))(typescript@6.0.3):
     dependencies:
       '@babel/code-frame': 7.29.7
       chokidar: 5.0.0
@@ -19343,7 +19356,7 @@ snapshots:
       tiny-invariant: 1.3.3
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
     optionalDependencies:
-      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
+      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
       typescript: 6.0.3
 
   vite-plugin-inspect@11.4.1(@nuxt/kit@4.5.2(magic-string@1.4.2)(oxc-parser@0.141.0)(rolldown@1.2.11)(unplugin@3.4.0(patch_hash=ba543c06ec437c330886796a074184c6951654a3d61ae9fc9d53dd5d6720be3b)(@rsbuild/core@2.2.11)(@rspack/core@2.2.8(@swc/helpers@0.5.23))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(esbuild@0.28.2)(rolldown@1.2.11)(rollup@4.63.5)(webpack@5.111.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(clean-css@5.3.3)(cssnano@8.0.10(postcss@8.5.28))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.5.28)(sharp@0.35.4(@types/node@26.4.0))(svgo@4.1.0))))(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)):
@@ -19426,7 +19439,7 @@ snapshots:
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
       vue: 3.5.43(typescript@6.0.3)
 
-  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3):
+  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3):
     dependencies:
       '@oxc-project/types': 0.151.0
       '@oxlint/plugins': 1.79.0
@@ -19437,12 +19450,13 @@ snapshots:
       '@vitest/snapshot': 5.0.1
       '@vitest/spy': 5.0.1
       '@vitest/utils': 5.0.1
-      oxfmt: 0.70.0(svelte@5.57.0)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3))
-      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3))
+      oxfmt: 0.70.0(svelte@5.57.0)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3))
+      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.0)(terser@5.51.2)(typescript@6.0.3))
       oxlint-tsgolint: 7.0.2003
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
     optionalDependencies:
+      '@vitest/browser-playwright': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)
       '@voidzero-dev/vite-plus-darwin-arm64': 1.0.0
       '@voidzero-dev/vite-plus-darwin-x64': 1.0.0
       '@voidzero-dev/vite-plus-linux-arm64-gnu': 1.0.0
@@ -19481,7 +19495,7 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3):
+  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3):
     dependencies:
       '@oxc-project/types': 0.151.0
       '@oxlint/plugins': 1.79.0
@@ -19492,12 +19506,13 @@ snapshots:
       '@vitest/snapshot': 5.0.1
       '@vitest/spy': 5.0.1
       '@vitest/utils': 5.0.1
-      oxfmt: 0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
-      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
+      oxfmt: 0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
+      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@6.0.3))
       oxlint-tsgolint: 7.0.2003
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
     optionalDependencies:
+      '@vitest/browser-playwright': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)
       '@voidzero-dev/vite-plus-darwin-arm64': 1.0.0
       '@voidzero-dev/vite-plus-darwin-x64': 1.0.0
       '@voidzero-dev/vite-plus-linux-arm64-gnu': 1.0.0
@@ -19536,7 +19551,7 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2):
+  vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2):
     dependencies:
       '@oxc-project/types': 0.151.0
       '@oxlint/plugins': 1.79.0
@@ -19547,12 +19562,13 @@ snapshots:
       '@vitest/snapshot': 5.0.1
       '@vitest/spy': 5.0.1
       '@vitest/utils': 5.0.1
-      oxfmt: 0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2))
-      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2))
+      oxfmt: 0.70.0(svelte@5.57.1)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2))
+      oxlint: 1.85.0(oxlint-tsgolint@7.0.2003)(vite-plus@1.0.0(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.1)(terser@5.51.2)(typescript@7.0.2))
       oxlint-tsgolint: 7.0.2003
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@7.0.2)'
-      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
+      vitest: 5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
     optionalDependencies:
+      '@vitest/browser-playwright': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)
       '@voidzero-dev/vite-plus-darwin-arm64': 1.0.0
       '@voidzero-dev/vite-plus-darwin-x64': 1.0.0
       '@voidzero-dev/vite-plus-linux-arm64-gnu': 1.0.0
@@ -19605,7 +19621,7 @@ snapshots:
     optionalDependencies:
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)'
 
-  vitest@5.0.1(@types/node@26.4.0)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)):
+  vitest@5.0.1(@types/node@26.4.0)(@vitest/browser-playwright@5.0.1)(@vitest/browser-preview@5.0.1)(@vitest/ui@5.0.1)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))
@@ -19623,6 +19639,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.4.0
+      '@vitest/browser-playwright': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(playwright@1.63.0)(vitest@5.0.1)
       '@vitest/browser-preview': 5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3))(vitest@5.0.1)
       '@vitest/ui': 5.0.1(vitest@5.0.1)
     transitivePeerDependencies:

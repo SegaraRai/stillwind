@@ -78,7 +78,8 @@
     "./macro": {
       "types": "./dist/macro/index.d.ts",
       "default": "./dist/macro/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "devDependencies": {
     "@types/node": "catalog:",

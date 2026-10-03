@@ -4,5 +4,5 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": ["tests/**/*.ts", "vite.config.ts", "acceptance.config.ts", "scripts/**/*.ts"]
+  "include": ["tests/**/*.ts", "vite*.config.ts", "acceptance.config.ts", "scripts/**/*.ts"]
 }

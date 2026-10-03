@@ -2,21 +2,35 @@
 
 Tasks are defined in each workspace's `vite.config.ts`. Run them with Vite+.
 
-| Root task               | Scope                                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------- |
-| `vp run check`          | Formatting, lint, TypeScript checks, Cargo formatting, and Clippy                         |
-| `vp run test`           | Rust workspace tests and ordinary JS tests in packages, tools, Play, and Shape Lab        |
-| `vp run fixtures:check` | Stillwind project outputs, Tailwind expectations, Webref data, and Tailwind ordering data |
-| `vp run verify`         | All three tasks above                                                                     |
-| `vp run verify:compat`  | Tailwind differential comparison, property ordering, numeric domains                      |
-| `vp run verify:browser` | Generated CSS behavior in Chromium or Edge                                                |
-| `vp run verify:wasm`    | WASM build and the binding contract shared with native tests                              |
+| Root task               | Scope                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `vp run check`          | Formatting, lint, TypeScript checks, Cargo formatting, and Clippy                                        |
+| `vp run test`           | Rust workspace tests and ordinary JS tests in packages, tools, Play, and Shape Lab                       |
+| `vp run fixtures:check` | Stillwind project outputs, Tailwind expectations, Webref data, and Tailwind ordering data                |
+| `vp run verify`         | All three tasks above                                                                                    |
+| `vp run verify:compat`  | Tailwind differential comparison, property ordering, numeric domains                                     |
+| `vp run verify:browser` | CSS cascade, rendered filters, and ref scopes in Vitest Browser Mode                                     |
+| `vp run verify:wasm`    | WASM build, root loader contracts, packed-package fallback, production bundling, and Vitest Browser Mode |
 
-`verify:browser` needs a Chromium-compatible executable. Set `STILLWIND_BROWSER`
-when the default Edge path is unavailable. `verify:wasm` needs the
-`wasm32-wasip1-threads` Rust target and its build toolchain. Neither environment is
-required by ordinary tests. A requested environment's failure is reported by its
-task rather than silently skipped.
+The root `test.projects` configuration registers nine ordinary JS projects.
+`vp run test:js` builds their dependencies and runs them together. Use
+`vp test --run --project host` to select one project after its dependencies have
+been built. `vp test list --filesOnly` lists the selected files and project names.
+Each referenced config declares its root and name.
+
+`--mode browser` selects the Tailwind and CSS Browser Mode projects.
+`--mode wasm` selects the Node WASI contracts, package and bundle checks, and the
+WASI Browser Mode project. The verification tasks build and collect the required
+artifacts before running those projects. Browser Mode uses the Playwright provider
+with installed Chrome by default. Set `STILLWIND_BROWSER` to another Chromium
+executable when needed. Both environments require the `wasm32-wasip1-threads`
+Rust target and its build toolchain. These environments are separate from ordinary
+tests. A requested environment's failure is reported rather than silently skipped.
+
+Vite+ 1.0.0 bundles Vitest 5.0.1. The Vitest override and Browser Mode provider use
+that same version. Browser tests run in the browser; Tailwind's global setup
+compiles the expected and actual CSS in Node and provides it to those tests.
+Framework E2E suites start separate applications and retain their Playwright harness.
 
 ## Test responsibilities
 

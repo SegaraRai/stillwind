@@ -6,11 +6,10 @@ import { defineConfig } from "vite-plus";
 
 import { playground } from "./server/plugin.ts";
 
-const projectRoot = fileURLToPath(new URL(".", import.meta.url));
-
 export default defineConfig({
-  root: projectRoot,
+  root: import.meta.dirname,
   test: {
+    name: "play",
     include: ["src/**/*.test.ts", "server/**/*.test.ts"],
     testTimeout: 60_000,
   },

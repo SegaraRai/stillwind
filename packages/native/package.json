@@ -4,14 +4,21 @@
   "description": "Native Node-API binding for the Stillwind compiler",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist/index.js",
+    "dist/browser.js",
+    "binding.d.ts"
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "browser": "./dist/browser.js",
+  "types": "./binding.d.ts",
   "exports": {
-    "types": "./dist/index.d.ts",
-    "default": "./dist/index.js"
+    ".": {
+      "types": "./binding.d.ts",
+      "browser": "./dist/browser.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
@@ -27,6 +34,7 @@
     "@stillwind/native-darwin-x64": "workspace:*",
     "@stillwind/native-linux-arm64-gnu": "workspace:*",
     "@stillwind/native-linux-x64-gnu": "workspace:*",
+    "@stillwind/native-wasm32-wasi": "workspace:*",
     "@stillwind/native-win32-arm64-msvc": "workspace:*",
     "@stillwind/native-win32-x64-msvc": "workspace:*"
   },
@@ -40,6 +48,11 @@
       "x86_64-unknown-linux-gnu",
       "aarch64-unknown-linux-gnu",
       "wasm32-wasip1-threads"
-    ]
+    ],
+    "wasm": {
+      "browser": {
+        "errorEvent": true
+      }
+    }
   }
 }

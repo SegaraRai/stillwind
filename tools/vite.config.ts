@@ -1,7 +1,9 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  root: import.meta.dirname,
   test: {
+    name: "tools",
     include: ["tailwind/*.test.ts"],
     exclude: ["tailwind/browser.test.ts"],
     testTimeout: 30_000,
@@ -81,7 +83,7 @@ export default defineConfig({
         cache: false,
       },
       "tailwind:browser": {
-        command: "vp test --run --config browser.config.ts",
+        command: "vp test --run --config vite.browser.config.ts",
         dependsOn: ["@stillwind/native#build"],
         cache: false,
       },
