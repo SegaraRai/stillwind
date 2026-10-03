@@ -10,12 +10,12 @@
 - theme変数、keyframes、property登録、fallback初期化を `@stillwind-slot` で配置する。support条件はCSS側に移した。生成済み最終CSSをminifyして配置を修復する経路は追加していない。
 - 既定keyframesはthemeレイヤー内に保持する。同名keyframesの優先順位はTailwind既定配置と異なるため、意図した契約差としてテストする。条件内のkeyframesを条件外へ持ち上げない。
 
-比較器が許容する差と拒否する差、各入力adapterの制約は[比較契約](../tailwind-comparison-contract.md)および `tools/lib/tailwind-parity-contract.ts` のコメントに記載した。旧「追加property登録を許す」例外は削除した。単に不一致を除外する変更ではなく、layer本体・条件・fallback・登録・干渉する宣言順序の不一致を拒否する境界テストを追加した。
+比較器が許容する差と拒否する差、各入力adapterの制約は[比較契約](../tailwind-comparison-contract.md)および `tools/tailwind-compat/comparison.ts` のコメントに記載した。旧「追加property登録を許す」例外は削除した。単に不一致を除外する変更ではなく、layer本体・条件・fallback・登録・干渉する宣言順序の不一致を拒否する境界テストを追加した。
 
 ## 検証
 
-- `vp run --filter @stillwind/tools tailwind:parity:analyze`: 13,428/13,428。property-orderは12,402候補・38ケースから545制約を検証。
-- `vp run --filter @stillwind/tools tailwind:inventory`: 13,428件、不一致0。73回の直接コンパイル照合。新しい実行結果は `target/tailwind-inventory` に出力し、修正前の棚卸し資料を上書きしない。
+- `vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind`: 13,428/13,428。property-orderは12,402候補・38ケースから545制約を検証。
+- `vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind:inventory`: 13,428件、不一致0。73回の直接コンパイル照合。新しい実行結果は `target/tailwind-inventory` に出力し、修正前の棚卸し資料を上書きしない。
 - 比較契約テスト6件、Edgeブラウザー検証10件通過。filterはCanvasの描画比較（8-bit色変換の丸め差として各channel最大1を許容）、その他はcomputed valueを比較。同名keyframes競合は意図した差を確認する。
 - Rust workspaceのlib/integration tests、doc tests、Clippy全targets、警告をエラー扱いしたrustdocが通過。
 - native・host・Viteテスト、6プロジェクトのfixture再生成と整合確認が通過。

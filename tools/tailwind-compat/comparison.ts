@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import {
   foldCalcExpressions,
   NativeDesignSystemLoader,
@@ -13,7 +13,7 @@ import {
   comparableFixtureClasses,
   compileFixtureSource,
   fixturePreparedSource,
-} from "../support/native-input.ts";
+} from "./native-input.ts";
 
 // These are explicit harness contracts, not general CSS equivalences. See
 // docs/tailwind-comparison-contract.md. Never discard arbitrary layers, property
@@ -91,7 +91,7 @@ export function themeKeyframes(input: string): Set<string> {
 }
 
 export const defaultThemeKeyframes = themeKeyframes(
-  readFileSync(new URL("../../packages/core/css/theme.css", import.meta.url), "utf8"),
+  resolveFixtureCss('@import "stillwind/theme.css";'),
 );
 
 /**

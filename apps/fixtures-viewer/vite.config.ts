@@ -4,27 +4,28 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  server: {
+    port: 5179,
+    strictPort: true,
+  },
   run: {
     tasks: {
-      "data:refresh": {
+      generate: {
         command: "",
-        dependsOn: ["@stillwind/tools#projects:refresh"],
-      },
-      "data:check": {
-        command: "",
-        dependsOn: ["@stillwind/tools#projects:check"],
+        dependsOn: ["@stillwind-tools/projects#generate:fixtures:projects"],
       },
       dev: {
         command: "vp dev",
-        dependsOn: ["data:refresh"],
+        cache: false,
+        dependsOn: ["generate"],
       },
       build: {
         command: "vp build",
-        dependsOn: ["data:check"],
+        dependsOn: ["generate"],
       },
-      check: {
+      typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["build"],
+        dependsOn: [],
       },
     },
   },

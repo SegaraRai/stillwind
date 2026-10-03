@@ -19,13 +19,13 @@ reach descendants. Keep this declaration slot inside the selector rule.
   width: var(--sw-if-jg1gu, 60px);
   opacity: calc(100 * 1%);
 }
-@supports (x: revert-rule) and (--w78xn: ) {
+@supports (x: revert-rule) and (--w78xn:) {
   .sw_wmvay {
     --sw-if-s6okf: var(--enabled) flex;
     display: var(--sw-if-s6okf, revert-rule);
   }
 }
-@supports (x: revert-rule) and (--w78xn: ) {
+@supports (x: revert-rule) and (--w78xn:) {
   .sw_wmvay {
     --sw-ifg-qhl3x: var(--second) var(--enabled);
     --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50 * 1%);
@@ -39,7 +39,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 
 .authored {
   display: grid;
-  @supports (x: revert-rule) and (--t0yb4: ) {
+  @supports (x: revert-rule) and (--t0yb4:) {
     & {
       --sw-if-s6okf: var(--enabled) flex;
       display: var(--sw-if-s6okf, revert-rule);

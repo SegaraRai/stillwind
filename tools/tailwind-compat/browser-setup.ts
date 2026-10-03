@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 
+import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
 import type { TestProject } from "vite-plus/test/node";
 
 import { compileParity } from "./comparison.ts";
-import { compileTailwindCss } from "./compiler.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 export interface BrowserCssCase {

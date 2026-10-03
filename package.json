@@ -1,5 +1,5 @@
 {
-  "name": "stillwind-workspace",
+  "name": "@stillwind/root",
   "version": "0.0.0",
   "private": true,
   "description": "Stillwind compiler and Vite workspaces",
@@ -9,6 +9,7 @@
     "@emnapi/core": "2.0.0-alpha.5",
     "@emnapi/runtime": "2.0.0-alpha.5",
     "@napi-rs/cli": "^3.10.6",
+    "@stillwind-tools/workspace": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/ui": "catalog:",
     "emnapi": "2.0.0-alpha.5",
@@ -19,9 +20,9 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.3.4",
+      "version": "12.9.0",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.3.4"
+  "packageManager": "pnpm@12.9.0"
 }

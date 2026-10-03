@@ -82,6 +82,7 @@
     "./package.json": "./package.json"
   },
   "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

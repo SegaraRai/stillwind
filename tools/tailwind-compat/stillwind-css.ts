@@ -1,4 +1,4 @@
-import { resolveFixtureCss } from "../support/stillwind-css.ts";
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 
 /** Runs upstream utility fixtures against Stillwind's explicitly selected registry. */
 export function stillwindFixtureCss(css: string): string {

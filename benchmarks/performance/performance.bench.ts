@@ -3,6 +3,7 @@ import path from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import {
   NativeDesignSystemLoader,
   NativeProjectSession,
@@ -13,7 +14,6 @@ import { expect, inject, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { compilerPlugin, stillwind } from "../../packages/integration/src/vite/plugin.ts";
 import { createViteProject } from "../../packages/integration/src/vite/project.ts";
-import { resolveFixtureCss } from "../../tools/support/stillwind-css.ts";
 import { assertBudget, budgets } from "./budgets.ts";
 
 const full = inject("performanceFull");

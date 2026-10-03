@@ -5,17 +5,17 @@
   "license": "MIT",
   "files": [
     "dist/index.js",
-    "dist/browser.js",
+    "dist/wasm/browser.js",
     "binding.d.ts"
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "browser": "./dist/browser.js",
+  "browser": "./dist/wasm/browser.js",
   "types": "./binding.d.ts",
   "exports": {
     ".": {
       "types": "./binding.d.ts",
-      "browser": "./dist/browser.js",
+      "browser": "./dist/wasm/browser.js",
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
@@ -24,6 +24,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

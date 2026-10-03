@@ -73,4 +73,4 @@ frameworkの前処理、型checkerを必要とする依存グラフ、実際のH
 
 architectureの測定は37 testと72計測ケース、ディスク出力の追加測定は3 testと3計測ケース、`vp run bench:compiler`は27 testと27計測ケースに成功した。Viteビルドは最適化後に各CSS条件を3回ずつ測った。再現方法と計測範囲は[benchmark README](/F:/Projects/shorth/benchmarks/README.md)を参照する。
 
-`vp run verify`と`vp run verify:browser`に成功した。通常の全体検証にはRustの864 test、JSの286 test、型検査、lint、format、fixtures checkが含まれる。追加した回帰テストは、session cloneの独立性、同じ本文で変更したIRの無効化、unorderedな範囲の重なりと順序を検証する。既存テストは、composition cycle、consumer診断、失敗batch、CSSの再読込と鮮度、importの並行読込を確認する。
+`vp run verify`と`vp run test:browser`に成功した。通常の全体検証にはRustの864 test、JSの286 test、型検査、lint、format、fixtures checkが含まれる。追加した回帰テストは、session cloneの独立性、同じ本文で変更したIRの無効化、unorderedな範囲の重なりと順序を検証する。既存テストは、composition cycle、consumer診断、失敗batch、CSSの再読込と鮮度、importの並行読込を確認する。

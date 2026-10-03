@@ -2,12 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import { compileModule, fileModuleDescriptor, TypeScriptFactsService } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type BenchRunOptions } from "vite-plus/test";
 
 import { cssWithSourceMap, decodeCssSourceMap } from "../../packages/host/src/css-source-map.ts";
-import { resolveFixtureCss } from "../../tools/support/stillwind-css.ts";
 import { cssWithSourceMap as candidate } from "../source-map/candidate.ts";
 import { cssInput } from "../source-map/input.ts";
 
@@ -95,7 +95,11 @@ const host = {
 
 for (const operation of ["unchanged", "edit"] as const) {
   test(`host/phases/${operation}`, async ({ bench, task }) => {
-    const samples: Array<{ checkerMs: number; nativeMs: number; totalMs: number }> = [];
+    const samples: Array<{
+      checkerMs: number;
+      nativeMs: number;
+      totalMs: number;
+    }> = [];
     const session = new NativeProjectSession(loader, true);
     const facts = new TypeScriptFactsService(root);
     const originalCollect = facts.collect.bind(facts);
@@ -139,7 +143,11 @@ for (const operation of ["unchanged", "edit"] as const) {
         output = await analyze(
           operation === "edit" && ++edit % 2 ? semantic.replaceAll("red", "blue") : semantic,
         );
-        samples.push({ checkerMs, nativeMs, totalMs: performance.now() - start });
+        samples.push({
+          checkerMs,
+          nativeMs,
+          totalMs: performance.now() - start,
+        });
       }).run(options);
       expect(output!.diagnostics).toEqual([]);
       task.meta.notes = JSON.stringify({
@@ -153,7 +161,11 @@ for (const operation of ["unchanged", "edit"] as const) {
 }
 
 test("host/fresh/phases", async ({ bench, task }) => {
-  const samples: Array<{ createMs: number; compileMs: number; closeMs: number }> = [];
+  const samples: Array<{
+    createMs: number;
+    compileMs: number;
+    closeMs: number;
+  }> = [];
   let output: Awaited<ReturnType<typeof compileModule>>;
   task.meta.measurement = options;
   await bench("fresh", { async: true }, async () => {
@@ -181,7 +193,9 @@ test("host/fresh/phases", async ({ bench, task }) => {
     }
   }).run(options);
   expect(output!.diagnostics).toEqual([]);
-  task.meta.notes = JSON.stringify({ phases: samples.slice(options.warmupIterations) });
+  task.meta.notes = JSON.stringify({
+    phases: samples.slice(options.warmupIterations),
+  });
 });
 
 for (const [name, css] of [
@@ -202,7 +216,10 @@ for (const [name, css] of [
           format: "jsx" as const,
           code: "import {style} from 'stillwind/react'; export const props=style('flex');",
         },
-        syntax: { language: "tsx" as const, moduleKind: "unambiguous" as const },
+        syntax: {
+          language: "tsx" as const,
+          moduleKind: "unambiguous" as const,
+        },
       },
     ];
     session.compile(sources);

@@ -3,6 +3,6 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   run: {
-    tasks: fixtureTasks("nuxt"),
+    tasks: fixtureTasks("nuxt", import.meta.dirname),
   },
 });

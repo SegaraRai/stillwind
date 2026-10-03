@@ -27,19 +27,21 @@ fixture if duplication becomes material.
 ## Generate and serve
 
 ```powershell
-vp run fixtures:refresh
-vp run fixtures:check
+vp run generate:fixtures:projects
+vp run test:fixtures:projects
 vp run --filter @stillwind/fixtures-viewer dev
 vp run --filter @stillwind/fixtures-viewer build
 ```
 
-The refresh task compiles each complete project, collects TypeScript facts, and
+The generation task compiles each complete project, collects TypeScript facts, and
 writes runnable transformed source and per-module utility CSS fragments. Shared
 theme/base/property layers are deliberately omitted from each fragment because
 the Vite integration emits them once for the complete module graph. It also creates the static JSON
-catalog consumed by the viewer. The check task regenerates in memory and fails
+catalog consumed by the viewer. The comparison task regenerates in memory and fails
 when a manifest, source, expected file, or catalog is stale. The production
 viewer is static and read-only; its host needs no compiler or API route.
+The task graph builds the host and native dependencies before generation or
+comparison. The viewer's `dev` and `build` tasks generate the catalog first.
 
 The viewer's transform comparison is anchored to the compiler's UTF-16 source
 span mappings, including the final macro-import removal and runtime-import
@@ -97,8 +99,8 @@ small in-browser index. No search service or runtime write access is required.
 For any feature or behavior change that alters emitted source or CSS:
 
 1. Add or update the smallest representative project.
-2. Run `vp run fixtures:refresh` and review both transformed source and CSS.
-3. Run `vp run fixtures:check` with the normal affected tests.
+2. Run `vp run generate:fixtures:projects` and review both transformed source and CSS.
+3. Run `vp run test:fixtures:projects` with the normal affected tests.
 4. Put the relevant viewer permalink in the PR or issue description.
 5. Treat an expected-output diff as a behavior change; explain it rather than
    accepting snapshots mechanically.

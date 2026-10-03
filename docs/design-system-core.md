@@ -175,10 +175,10 @@ $env:CARGO_INCREMENTAL='0'
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-vp run --filter @stillwind/native check
+vp run --filter @stillwind/native test
 vp run --filter @stillwind/integration test
-vp run fixtures:check
-vp run @stillwind/tools#tailwind:parity
+vp run test:fixtures:projects
+vp run @stillwind-tools/tailwind-compat#test:tailwind:parity
 ```
 
 Tests cover snapshot identity and fingerprints, imported source provenance,

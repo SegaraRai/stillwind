@@ -7,8 +7,8 @@ export default mergeConfig(
     root: import.meta.dirname,
     test: {
       name: "tailwind-browser",
-      include: ["tailwind/browser.test.ts"],
-      globalSetup: ["./tailwind/browser-setup.ts"],
+      include: ["browser.test.ts"],
+      globalSetup: ["./browser-setup.ts"],
     },
   }),
 );

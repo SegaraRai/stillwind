@@ -2,16 +2,17 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { setImmediate } from "node:timers/promises";
 
+import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
+import { hasEquivalentDeclarationOrder } from "@stillwind-tools/tailwind/property-order";
+
 import {
   comparisonCss,
   compileParity,
   parityFixture,
   fixtureThemeKeyframes,
 } from "./comparison.ts";
-import { compileTailwindCss } from "./compiler.ts";
-import { parseMarkdownFixtureCases } from "./markdown-fixtures.ts";
 import { verifyPropertyOrderParity } from "./property-order-fixtures.ts";
-import { hasEquivalentDeclarationOrder } from "./property-order.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 const root = resolve(import.meta.dirname, "../..");

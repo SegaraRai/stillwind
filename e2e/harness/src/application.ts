@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +8,7 @@ import { expect } from "vite-plus/test";
 
 import { fixtureSupport, type Fixture } from "./fixture.ts";
 import { casePolicy, type CasePolicy } from "./policy.ts";
+import { availablePort } from "./port.ts";
 import { startNode, waitForServer } from "./process.ts";
 import { createWorkspace } from "./workspace.ts";
 
@@ -264,20 +264,4 @@ export class FixtureApplication {
       STILLWIND_E2E_PROFILE: this.profile,
     };
   }
-}
-
-async function availablePort(): Promise<number> {
-  const server = createServer();
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "localhost", resolve);
-  });
-  const address = server.address();
-  if (!address || typeof address === "string") {
-    throw new Error("Missing TCP address");
-  }
-  await new Promise<void>((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
-  return address.port;
 }

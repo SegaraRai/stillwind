@@ -39,11 +39,22 @@ Semantic candidates are discriminated unions: `{kind: "universe"}` or `{kind: "f
 Run these tasks from the repository root:
 
 - `vp run --filter @stillwind/native test`: native build, generated declaration typechecks, and public JavaScript API tests. Invalid former JSON inputs, enum values, and malformed nested records must fail.
-- `vp run verify:wasm`: shared API contracts through the root loader with WASI required, fallback with packed packages, production bundling, and browser compilation with Vitest Browser Mode.
+- `vp run test:wasm`: shared API contracts through the root loader with WASI required, fallback with packed packages, production bundling, and browser compilation with Vitest Browser Mode.
 - `vp run @stillwind/host#test` and `vp run @stillwind/integration#test:vite`: host source analysis, type facts, CSS maps, and Vite integration.
-- `vp run @stillwind/integration#test:webpack` and `vp run @stillwind/integration#test:frameworks`: webpack/Rspack and official SFC builds.
+- `vp run @stillwind/integration#test:bundlers` and `vp run @stillwind/integration#test:frameworks`: webpack/Rspack and official SFC builds.
 
 The native build regenerates `binding.d.ts`; do not edit it by hand. Only generated declarations are excluded from formatting. Authored binding code and the declaration typecheck remain checked.
+
+`build:binding` generates the Rust Webref and Tailwind property tables before
+compiling into `.build/native`. `build` then installs changed artifacts into
+`dist` and the package's `binding.d.ts`. The WASM build has the same Rust data
+prerequisites and writes to `dist/wasm`.
+
+Run `vp run @stillwind/native#generate:platform-packages` after changing the
+configured targets or the napi-rs CLI's runtime dependencies. This task generates
+package metadata independently of compilation. `collect:local` builds and
+collects the host native and WASM artifacts. Release jobs build every configured
+target before selecting `collect:release`, which collects the full target set.
 
 Session compilation updates producers without rendering the project stylesheet. `remove(module)` returns whether that producer was registered, including when another producer keeps the same shared CSS alive. Query `css()` or `planStylesheet()` to render CSS; `reload()` still reports the exact project-level `cssChanged` result across the revision boundary.
 

@@ -1,13 +1,11 @@
-import { readFile, access } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { startNode } from "./process.ts";
 
 const root = resolve(process.argv[2] || process.cwd());
 const require = createRequire(join(root, "package.json"));
-const metadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 
 async function run(args: string[]) {
   const process = startNode(args, root);
@@ -19,13 +17,6 @@ async function run(args: string[]) {
   } finally {
     await process.stop();
   }
-}
-
-if (
-  metadata.dependencies?.["@tanstack/react-start"] ||
-  metadata.dependencies?.["@tanstack/solid-start"]
-) {
-  await run([fileURLToPath(new URL("./cli.ts", import.meta.url)), "vite", "prepare", root]);
 }
 
 let config = "tsconfig.json";

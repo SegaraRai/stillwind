@@ -173,7 +173,7 @@ Browser Modeはテスト本体をブラウザーで実行する。[公式ガイ�
 
 | 対象                                  | 判断           | 根拠と移行内容                                                                                                                                                                                      |
 | ------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| tools/tailwind/browser.test.ts        | 第一候補       | 手書きHTML、Chromium起動、debug port待機、WebSocketとCDPを独自管理している。CSS生成をNode commandへ分け、computed styleとcanvasの検証をBrowser Modeへ移す。                                         |
+| tools/tailwind-compat/browser.test.ts | 第一候補       | 手書きHTML、Chromium起動、debug port待機、WebSocketとCDPを独自管理している。CSS生成をNode commandへ分け、computed styleとcanvasの検証をBrowser Modeへ移す。                                         |
 | e2e/css/tests/ref-scopes.test.ts      | 第二候補       | browser側はdocumentとscopeの操作が中心である。Node側でcompileとvm評価を行い、CSSとpropsを返せば移せる。既存scenario登録との接続を整理する必要がある。                                               |
 | e2e/frameworksとFixtureApplication    | 現状維持を推奨 | 別のframework server、disposable workspace、build、SSR、hydration、navigation、HMRとdocument保持を検証する。test iframe中心のBrowser Modeへ移すと、既存driverを再構築する割に検証価値が増えにくい。 |
 | host、native、integrationのNode tests | 現状維持       | NAPI、filesystem、compiler、build tool、型checkerが検証対象である。ブラウザーで動かす必要がない。                                                                                                   |
@@ -200,10 +200,10 @@ loaderとcheckerを通常の更新で再作成しない方針は維持する。h
 
 ## 再現と検証
 
-追加benchmarkは`vp run --filter @stillwind/benchmarks research`で実行できる。native内部profileとNode CPU profileのコマンドは[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。native profileを作る際は、同じRustソースに対する編集やbuildを並行して実行しない。
+追加benchmarkは`vp run --filter @stillwind/benchmarks bench:research`で実行できる。native内部profileとNode CPU profileのコマンドは[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。native profileを作る際は、同じRustソースに対する編集やbuildを並行して実行しない。
 
 追加の正しさ検証は通常のbenchmark packageのtest taskに含まれる。元の3 benchmark taskの実行方法は変更していない。重いnative profileは少数の診断用測定であり、通常の検証では実行しない。
 
-`vp run verify`は成功した。check、通常のtest、fixture checkを通過し、追加したsource-mapの正しさ検証も含まれる。`vp run verify:browser`も成功し、既存のCSS cascade検証を通過した。frameworkのE2E全体とWASM検証は今回実行していない。
+`vp run verify`は成功した。check、通常のtest、fixture checkを通過し、追加したsource-mapの正しさ検証も含まれる。`vp run test:browser`も成功し、既存のCSS cascade検証を通過した。frameworkのE2E全体とWASM検証は今回実行していない。
 
 追加benchmarkは17 assertion、25計測ケースが成功した。loader再利用の2ケースは両registryで有効な`flex`を使って再測定し、証拠にその値を保存した。source-mapの正しさ検証は既存4テストと追加2テストが成功した。計測後のRustソースは元の内容に復元されており、productionの最適化とBrowser Modeへの移行は未実施である。

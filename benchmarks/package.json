@@ -12,6 +12,8 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
+    "@stillwind-tools/fixture-css": "workspace:*",
+    "@stillwind-tools/workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

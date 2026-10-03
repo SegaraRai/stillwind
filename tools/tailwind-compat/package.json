@@ -1,0 +1,23 @@
+{
+  "name": "@stillwind-tools/tailwind-compat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stillwind compatibility checks against Tailwind",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@stillwind-tools/fixture-css": "workspace:*",
+    "@stillwind-tools/tailwind": "workspace:*",
+    "@stillwind/native": "workspace:*",
+    "css-tree": "^3.2.1",
+    "lightningcss": "^1.33.0"
+  },
+  "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind/e2e-harness": "workspace:*",
+    "@types/css-tree": "^3.2.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

@@ -1,3 +1,4 @@
+import { testCache } from "@stillwind-tools/workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -65,6 +66,11 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "dev:frameworks": {
+        command: "node tests/vite/framework-dev.ts",
+        cache: false,
+        dependsOn: ["typecheck"],
+      },
       build: {
         command: "vp pack",
         dependsOn: ["@stillwind/host#build", "stillwind#build"],
@@ -75,28 +81,23 @@ export default defineConfig({
       },
       test: {
         command: "vp test --run",
+        cache: testCache,
         dependsOn: ["build"],
-        cache: false,
       },
       "test:vite": {
         command: "vp test --run tests/vite",
+        cache: testCache,
         dependsOn: ["build"],
-        cache: false,
       },
-      "test:webpack": {
+      "test:bundlers": {
         command: "vp test --run tests/webpack",
+        cache: testCache,
         dependsOn: ["build"],
-        cache: false,
       },
       "test:frameworks": {
         command: "vp test --run tests/vite/framework-builds.test.ts",
+        cache: testCache,
         dependsOn: ["build"],
-        cache: false,
-      },
-      "dev:frameworks": {
-        command: "node tests/vite/framework-dev.ts",
-        dependsOn: ["typecheck"],
-        cache: false,
       },
     },
   },

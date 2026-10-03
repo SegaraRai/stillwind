@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import { expectCss, waitForHydration } from "@stillwind/e2e-harness/browser";
+import { availablePort } from "@stillwind/e2e-harness/port";
 import { startNode, waitForServer } from "@stillwind/e2e-harness/process";
 import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
 import { snapshotSources } from "@stillwind/e2e-harness/source";
@@ -27,8 +28,8 @@ export function createApplication(context: ScenarioContext) {
   const mode = context.args[0] || "turbopack";
   const standalone = context.args[1] === "standalone";
   const label = standalone ? "turbopack-standalone" : mode;
-  const port = standalone ? 43181 : mode === "webpack" ? 43175 : 43174;
-  const url = "http://localhost:" + port;
+  let port!: number;
+  let url!: string;
   const results = {
     mode,
     standalone,
@@ -77,6 +78,8 @@ export function createApplication(context: ScenarioContext) {
 
   let page!: Page;
   async function initialize() {
+    port = await availablePort();
+    url = "http://localhost:" + port;
     dir = context.directory;
     sources = await snapshotSources(dir, ["root.css", "app/page.jsx", "shared/derived.ts"]);
     initialTheme = await fs.readFile(path.join(dir, "root.css"), "utf8");
@@ -161,7 +164,9 @@ export function createApplication(context: ScenarioContext) {
     theme,
     mode,
     standalone,
-    url,
+    get url() {
+      return url;
+    },
     results,
     delay,
     get browser() {

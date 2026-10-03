@@ -306,8 +306,8 @@ Practical guidance:
 - Variant generation order is compared against fixtures generated from Tailwind
   v4 whose candidates are deliberately spelled out of canonical order, so the
   check cannot pass by preserving the input order.
-- `vp run e2e` (inside `e2e/css`) drives a real
+- `vp run test:e2e` (inside `e2e/css`) drives a real
   browser through development, production, reverse lazy-route order, and
   JavaScript-disabled SSR and Shadow DOM, and checks equivalent computed styles.
-- `vp run e2e` in `e2e/frameworks/vite8-react19` covers nested conditions, SSR/hydration class
+- `vp run test:e2e` in `e2e/frameworks/vite8-react19` covers nested conditions, SSR/hydration class
   equality, and content reload.

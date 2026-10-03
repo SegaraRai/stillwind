@@ -1,5 +1,4 @@
 import { fixtureTasks } from "@stillwind/e2e-harness/config";
-import { stillwind } from "@stillwind/integration/vite";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
@@ -10,14 +9,17 @@ export default defineConfig({
     cssMinify: process.env.STILLWIND_E2E_PROFILE === "unminified" ? false : undefined,
   },
   run: {
-    tasks: fixtureTasks("vite"),
+    tasks: fixtureTasks("vite", import.meta.dirname),
   },
-  plugins: lazyPlugins(async () => [
-    stillwind({
-      css: "src/styles.css",
-      types: false,
-      emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
-    }),
-    vue(),
-  ]),
+  plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
+    return [
+      stillwind({
+        css: "src/styles.css",
+        types: false,
+        emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
+      }),
+      vue(),
+    ];
+  }),
 });

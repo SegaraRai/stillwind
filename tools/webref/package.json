@@ -1,0 +1,17 @@
+{
+  "name": "@stillwind-tools/webref",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Webref data generation for Stillwind",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@webref/css": "catalog:"
+  },
+  "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

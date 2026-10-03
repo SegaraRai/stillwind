@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import { loadCssGraph } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import type { NativePreparedSource } from "@stillwind/native";
@@ -11,7 +12,6 @@ import { build, createServer } from "vite-plus";
 import { expect, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { stillwind } from "../../packages/integration/src/vite/plugin.ts";
-import { resolveFixtureCss } from "../../tools/support/stillwind-css.ts";
 
 declare module "vite-plus/test" {
   interface TaskMeta {
@@ -144,8 +144,16 @@ for (const count of [100, 1000]) {
   test(`js-load/batch-versus-single/${count}`, async ({ bench, task }) => {
     const design = loader(minimal);
     const input = sources(count);
-    const slowOptions = { ...options, iterations: count === 1000 ? 1 : 3, warmupIterations: 0 };
-    task.meta.input = { count, callsPerModule: 1, cssBytes: Buffer.byteLength(minimal) };
+    const slowOptions = {
+      ...options,
+      iterations: count === 1000 ? 1 : 3,
+      warmupIterations: 0,
+    };
+    task.meta.input = {
+      count,
+      callsPerModule: 1,
+      cssBytes: Buffer.byteLength(minimal),
+    };
     task.meta.measurement = slowOptions;
     let batch!: NativeProjectSession;
     let individual!: NativeProjectSession;
@@ -181,7 +189,11 @@ for (const utilities of [10, 100, 1000, 10_000]) {
   test(`joint/js100/utilities${utilities}`, async ({ bench, task }) => {
     const design = loader(definitionCss("utilities", utilities));
     const input = sources(100);
-    task.meta.input = { modules: 100, callsPerModule: 1, unusedUtilities: utilities };
+    task.meta.input = {
+      modules: 100,
+      callsPerModule: 1,
+      unusedUtilities: utilities,
+    };
     task.meta.measurement = { ...options, iterations: 3, warmupIterations: 0 };
     let session!: NativeProjectSession;
     await bench("fresh", { async: false }, () => {
@@ -299,7 +311,11 @@ for (const [count, calls, name, css, watching] of [
       plugins: [plugin],
       logLevel: "silent",
       optimizeDeps: { noDiscovery: true, include: [] },
-      server: { host: "127.0.0.1", port: 0, watch: watching ? undefined : null },
+      server: {
+        host: "127.0.0.1",
+        port: 0,
+        watch: watching ? undefined : null,
+      },
     });
     try {
       await server.listen();
@@ -632,7 +648,11 @@ test("css-version-io/1000", async ({ bench, task }) => {
   for (const [i, file] of files.entries()) {
     writeFileSync(file, `.rule-${i}{color:red;}`);
   }
-  task.meta.input = { cssFiles: files.length, contentHash: true, warmFilesystem: true };
+  task.meta.input = {
+    cssFiles: files.length,
+    contentHash: true,
+    warmFilesystem: true,
+  };
   task.meta.measurement = options;
   const fingerprints: string[] = [];
   try {

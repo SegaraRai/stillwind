@@ -363,8 +363,8 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
 
 - Rust: `cargo test --workspace`、`cargo clippy --workspace --all-targets -- -D warnings`、
   `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps`、`cargo fmt --all --check`。
-- fixture: `vp run fixtures:refresh` → `vp run fixtures:check`。
-- TS: `vp run @stillwind/core#check`、`@stillwind/host#test`、`@stillwind/integration#test:vite`、
+- fixture: `vp run generate:fixtures:projects` → `vp run test:fixtures:projects`。
+- TS: `vp run stillwind#typecheck`、`vp run stillwind#test`、`@stillwind/host#test`、`@stillwind/integration#test:vite`、
   `vp run fmt`、`vp run check`。
 - 断言すべき契約:
   - 静的ケースは runtime import も style prop も出さない（純 CSS）。
@@ -375,9 +375,9 @@ wrapper で表すことになる。§3.5 の条件ユニットが要素側のク
   - エスケープ: Rust と TS が同一の名前を返す（共有ベクタ）。
   - lint 2本の検出と、`[view-transition-name:none]` が警告を出さないこと。
   - SSR（文字列 style）で `view-transition-name:<escaped>` が出る。
-- ブラウザ確認: 現状 VT 用の `verify:*` スクリプトは experiments に無い。
-  動的キー・動的 identity・複数適用の実挙動を確認するには新設が要る（Chrome で
-  `::view-transition-group(.class)` が期待どおり当たること、名前の一意性が保たれること）。
+- ブラウザ確認: `e2e/css` で `vp run test:e2e` を実行する。
+  `tests/view-transition.test.ts` が literal / runtime key と条件分岐による participant 名、
+  group の class token による duration の適用を確認する。
 
 ## 6. 未決・注意点
 

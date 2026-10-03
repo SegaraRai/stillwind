@@ -68,8 +68,8 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
 
 ### 5. CI gates and maintenance
 
-- `fixtures:check` verifies oracle fixtures are current.
-- A dedicated `tailwind:parity` task runs the minified differential suite.
+- `test:fixtures:projects` verifies oracle fixtures are current.
+- A dedicated `test:tailwind:parity` task runs the minified differential suite.
 - CI fails on any parity mismatch; unresolved candidates are reported but are
   not counted as parity successes.
 - Regeneration is explicit and records the Tailwind version and Lightning CSS
@@ -90,8 +90,8 @@ and variant/at-rule structure; resolving a candidate is not sufficient.
 
 - The Rust representative gate now compares minified declarations and variant
   structure; the former unresolved-count acceptance test is removed.
-- `tools/tailwind/parity.ts` provides the full candidate-level differential
-  oracle and is available as `vp run @stillwind/tools#tailwind:parity`. It uses the pinned
+- `tools/tailwind-compat/parity.ts` provides the full candidate-level differential
+  oracle and is available as `vp run @stillwind-tools/tailwind-compat#test:tailwind:parity`. It uses the pinned
   Tailwind compiler and Lightning CSS minifier and reports every mismatch.
 - Candidate grammar coverage includes arbitrary values/properties, important,
   negative, fractions, responsive/container, `aria`, `data`, `supports`, dark,

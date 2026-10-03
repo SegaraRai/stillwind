@@ -1,6 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+
+import source from "./upstream-source.json" with { type: "json" };
+import { verifyTailwindSource } from "./upstream.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -10,15 +14,18 @@ const installedTailwind = JSON.parse(
   readFileSync(require.resolve("tailwindcss/package.json"), "utf8"),
 );
 const tailwindLabel = `Tailwind CSS v${installedTailwind.version}`;
-const sourceIndex = process.argv.indexOf("--upstream");
-const upstreamArgument =
-  sourceIndex === -1 ? process.env.STILLWIND_TAILWIND_UPSTREAM : process.argv[sourceIndex + 1];
-const upstream = upstreamArgument ? resolve(upstreamArgument) : undefined;
-const write = process.argv.includes("--write");
 
-if (!upstream) {
-  throw new Error("pass --upstream <tailwindcss-checkout> or set STILLWIND_TAILWIND_UPSTREAM");
-}
+const {
+  values: { check },
+} = parseArgs({
+  options: {
+    check: { type: "boolean", default: false },
+  },
+});
+const write = !check;
+
+const upstream = resolve(import.meta.dirname, ".cache/upstream", source.revision);
+verifyTailwindSource(upstream, source, installedTailwind.version);
 
 function registrations(path: string, expression: RegExp): string[] {
   const source = readFileSync(path, "utf8");
@@ -137,7 +144,7 @@ for (const [path, output] of outputs) {
       mkdirSync(resolve(path, ".."), { recursive: true });
       writeFileSync(path, output);
     } else {
-      console.error(`${path} is stale; run with --write`);
+      console.error(`${path} is stale; run vp run generate:tailwind-registrations`);
     }
   }
 }
@@ -155,7 +162,7 @@ if (currentFixture !== nextFixture) {
   if (write) {
     writeFileSync(fixturePath, nextFixture);
   } else {
-    console.error(`${fixturePath} is stale; run with --write`);
+    console.error(`${fixturePath} is stale; run vp run generate:tailwind-registrations`);
   }
 }
 
@@ -174,7 +181,7 @@ if (currentCompletionFixture !== nextCompletionFixture) {
   if (write) {
     writeFileSync(completionFixturePath, nextCompletionFixture);
   } else {
-    console.error(`${completionFixturePath} is stale; run with --write`);
+    console.error(`${completionFixturePath} is stale; run vp run generate:tailwind-registrations`);
   }
 }
 

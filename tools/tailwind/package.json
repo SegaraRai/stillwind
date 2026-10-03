@@ -1,0 +1,25 @@
+{
+  "name": "@stillwind-tools/tailwind",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Upstream Tailwind fixtures and ordering data",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./compiler": "./compiler.ts",
+    "./markdown-fixtures": "./markdown-fixtures.ts",
+    "./property-order": "./property-order.ts"
+  },
+  "dependencies": {
+    "@webref/css": "catalog:",
+    "css-tree": "^3.2.1",
+    "tailwindcss": "catalog:"
+  },
+  "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
+    "@types/css-tree": "^3.2.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

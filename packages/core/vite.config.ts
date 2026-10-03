@@ -1,3 +1,4 @@
+import { testCache } from "@stillwind-tools/workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -41,7 +42,7 @@ export default defineConfig({
       },
       test: {
         command: "vp test --run",
-        cache: false,
+        cache: testCache,
         dependsOn: ["build"],
       },
     },

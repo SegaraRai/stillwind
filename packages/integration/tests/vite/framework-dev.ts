@@ -6,7 +6,7 @@ import { stillwind } from "@stillwind/integration/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import vue from "@vitejs/plugin-vue";
 import { dev as astroDev } from "astro";
-import { createServer, type PluginOption } from "vite";
+import { createServer } from "vite";
 
 import { writeFrameworkFixture, type Framework } from "../shared/framework-fixtures.ts";
 

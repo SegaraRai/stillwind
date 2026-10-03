@@ -45,7 +45,7 @@ Convex and concave faces of any corner count can be colored. Collinear points re
 
 ```powershell
 vp run --filter @stillwind/logo-editor test
-vp run --filter @stillwind/logo-editor check
+vp run --filter @stillwind/logo-editor typecheck
 vp run --filter @stillwind/logo-editor build
 ```
 

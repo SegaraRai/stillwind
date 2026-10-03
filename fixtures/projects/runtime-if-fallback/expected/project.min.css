@@ -8,7 +8,7 @@
   opacity: 1;
   display: grid;
 }
-@supports (x: revert-rule) and (--w78xn: ) {
+@supports (x: revert-rule) and (--w78xn:) {
   .sw_wmvay {
     --sw-if-s6okf: var(--enabled) flex;
     display: var(--sw-if-s6okf, revert-rule);
@@ -23,7 +23,7 @@
 }
 .authored {
   display: grid;
-  @supports (x: revert-rule) and (--t0yb4: ) {
+  @supports (x: revert-rule) and (--t0yb4:) {
     & {
       --sw-if-s6okf: var(--enabled) flex;
       display: var(--sw-if-s6okf, revert-rule);

@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { compileFixtureSource } from "../support/native-input.ts";
-import { compileTailwindCss } from "./compiler.ts";
-import { parseMarkdownFixtureCases } from "./markdown-fixtures.ts";
+import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
+
+import { compileFixtureSource } from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 const root = resolve(import.meta.dirname, "../..");

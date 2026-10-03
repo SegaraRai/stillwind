@@ -8,4 +8,4 @@ The host uses the project-relative module path for default class identity. A CSS
 
 The implementation and public options are described in [module-graph-implementation.md](module-graph-implementation.md) and [the integration package](../packages/integration/README.md).
 
-Current build-tool contracts are checked by `vp run @stillwind/integration#test`. Browser acceptance uses the real compiler and lives in [e2e/frameworks](../e2e/frameworks/README.md). Run `vp run verify:e2e` for its full matrix. Vite dependency edits may reload the page; the browser checks do not guarantee state-preserving HMR.
+Current build-tool contracts are checked by `vp run @stillwind/integration#test`. Browser acceptance uses the real compiler and lives in [e2e/frameworks](../e2e/frameworks/README.md). Run `vp run test:e2e` for its full matrix. Vite dependency edits may reload the page; the browser checks do not guarantee state-preserving HMR.

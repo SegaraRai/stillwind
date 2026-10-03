@@ -291,7 +291,7 @@ style({
 
 ## 検証フィクスチャ
 
-`vp run fixtures:check` が入力と expected の一致を検証する。棚卸しの根拠に使った
+`vp run test:fixtures:projects` が入力と expected の一致を検証する。棚卸しの根拠に使った
 プロジェクトは次の通り。
 
 - `utility-props-matrix`: utility・配列・条件・属性・custom property・外部 class。

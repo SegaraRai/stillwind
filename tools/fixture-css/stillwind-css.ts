@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const packageRoot = fileURLToPath(new URL("../../packages/core/", import.meta.url));
+const packageRoot = dirname(createRequire(import.meta.url).resolve("stillwind/package.json"));
 
 export function resolveFixtureCss(css: string, directory = packageRoot): string {
   return css.replace(

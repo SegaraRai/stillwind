@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import { expectCss, waitForHydration } from "@stillwind/e2e-harness/browser";
+import { availablePort } from "@stillwind/e2e-harness/port";
 import { startNode, waitForServer } from "@stillwind/e2e-harness/process";
 import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
 import { snapshotSources } from "@stillwind/e2e-harness/source";
@@ -22,8 +23,8 @@ export function createApplication(context: ScenarioContext) {
 
   const theme = (color: string) => initialTheme.replace(/rgb\(11,\s*22,\s*33\)/, color);
   const require = createRequire(import.meta.url);
-  const port = 43176;
-  const url = "http://localhost:" + port;
+  let port!: number;
+  let url!: string;
   const results = {
     framework: "react-router",
     version: require("@react-router/dev/package.json").version,
@@ -79,6 +80,8 @@ export function createApplication(context: ScenarioContext) {
   let page!: Page;
   const errors: string[] = [];
   async function initialize() {
+    port = await availablePort();
+    url = "http://localhost:" + port;
     dir = context.directory;
     sources = await snapshotSources(dir, [
       "root.css",
@@ -162,7 +165,9 @@ export function createApplication(context: ScenarioContext) {
     },
     write,
     theme,
-    url,
+    get url() {
+      return url;
+    },
     results,
     get home() {
       return home;

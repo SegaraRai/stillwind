@@ -1,14 +1,14 @@
 packages:
   - apps/*
   - benchmarks
-  - e2e/harness
   - e2e/css
-  - e2e/frameworks/*
+  - e2e/harness
   - e2e/bundlers/*
+  - e2e/frameworks/*
   - examples/*
   - packages/*
   - packages/native/npm/*
-  - tools
+  - tools/*
 
 allowBuilds:
   "@parcel/watcher": true
@@ -24,6 +24,8 @@ catalogs:
   default:
     "@types/node": ^26.6.4
     "@vitest/ui": 5.0.1
+    "@webref/css": 8.7.3
+    tailwindcss: 4.3.3
     typescript: ^6.0.3
     vite: npm:@voidzero-dev/vite-plus-core@1.0.0
     vite-plus: 1.0.0

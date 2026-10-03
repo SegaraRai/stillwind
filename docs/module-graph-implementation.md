@@ -95,7 +95,7 @@ vp run verify
 ```
 
 `test` covers Rust and ordinary JS suites, including native bindings and framework
-production builds. `check` runs static checks, and `fixtures:check` verifies
+production builds. `check` runs static checks, and `test:fixtures:projects` verifies
 generated data and project outputs. Build includes the React example, playground,
 and fixture viewer. Each example's build/dev task first builds its compiler dependencies.
 
@@ -103,7 +103,7 @@ From the repository root:
 
 ```sh
 vp i --frozen-lockfile
-vp run verify:e2e
+vp run test:e2e
 ```
 
 ## Explicit limits

@@ -184,7 +184,7 @@ CSSをdisk上の複数ファイルへ分けると、別の問題が出た。root
 
 新しい結果と生sampleは[architecture-evidence.json](/F:/Projects/shorth/benchmarks/research/architecture-evidence.json)に保存した。前のnative profileは[evidence.json](/F:/Projects/shorth/benchmarks/research/evidence.json)を参照した。Node 24.21.0、Vitest 5.0.1、Windows x64、Ryzen 7 9800X3D、release addonで計測した。測定は他のbuildや検証と重ねなかった。
 
-`vp run --filter @stillwind/benchmarks architecture`が新しい測定群を実行する。重い初期投入もあるため、個別の調査ではbenchmark fileとtest名を指定して実行する。nativeでCSS定義数の影響を分離するprobeは`registry-profile.mjs`である。profile addonの作成方法は[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。
+`vp run --filter @stillwind/benchmarks bench:architecture`が新しい測定群を実行する。重い初期投入もあるため、個別の調査ではbenchmark fileとtest名を指定して実行する。nativeでCSS定義数の影響を分離するprobeは`registry-profile.mjs`である。profile addonの作成方法は[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。
 
 調査では32 test、66計測ケースを分けて実行し、成功を確認した。nativeのregistry profileは4種類の定義数に対して初期投入1回と編集3回を行った。productionの最適化、永続cacheの導入、キャッシュ契約の変更はまだ行っていない。
 

@@ -3,6 +3,6 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   run: {
-    tasks: fixtureTasks("rspack"),
+    tasks: fixtureTasks("rspack", import.meta.dirname),
   },
 });

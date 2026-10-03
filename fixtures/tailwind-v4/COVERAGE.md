@@ -1,7 +1,7 @@
 # Tailwind CSS v4 coverage map
 
 The source of truth for this suite is the `tailwindcss` version pinned by
-`@stillwind/tools`. The fixture families mirror the upstream compiler's public
+`@stillwind-tools/tailwind`. The fixture families mirror the upstream compiler's public
 candidate and directive surface, rather than Stillwind's current implementation
 details.
 

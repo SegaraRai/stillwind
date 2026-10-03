@@ -1,5 +1,4 @@
 import { fixtureTasks } from "@stillwind/e2e-harness/config";
-import { stillwind } from "@stillwind/integration/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
@@ -7,18 +6,21 @@ import { defineConfig, lazyPlugins } from "vite-plus";
 
 export default defineConfig({
   run: {
-    tasks: fixtureTasks("vite"),
+    tasks: fixtureTasks("vite", import.meta.dirname),
   },
-  plugins: lazyPlugins(() => [
-    tanstackStart(),
-    stillwind({
-      css: "root.css",
-      types: false,
-      emission: "split",
-    }),
-    nitro(),
-    react(),
-  ]),
+  plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
+    return [
+      tanstackStart(),
+      stillwind({
+        css: "root.css",
+        types: false,
+        emission: "split",
+      }),
+      nitro(),
+      react(),
+    ];
+  }),
   nitro: {
     preset: "node_server",
   },

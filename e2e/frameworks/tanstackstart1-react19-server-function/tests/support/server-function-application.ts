@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { expectCss, waitForHydration } from "@stillwind/e2e-harness/browser";
+import { availablePort } from "@stillwind/e2e-harness/port";
 import { startNode, waitForServer } from "@stillwind/e2e-harness/process";
 import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
 import { snapshotSources } from "@stillwind/e2e-harness/source";
@@ -24,8 +25,8 @@ export function createApplication(context: ScenarioContext) {
   const theme = (color: string) => initialTheme.replace(/rgb\(11,\s*22,\s*33\)/, color);
 
   const bundler = context.args[0] || "vite";
-  const port = bundler === "vite" ? 43178 : 43179;
-  const url = "http://localhost:" + port;
+  let port!: number;
+  let url!: string;
   const results = {
     framework: "TanStack Start",
     bundler,
@@ -73,6 +74,8 @@ export function createApplication(context: ScenarioContext) {
   let page!: Page;
   const errors: string[] = [];
   async function initialize() {
+    port = await availablePort();
+    url = "http://localhost:" + port;
     dir = context.directory;
     sources = await snapshotSources(dir, [
       "root.css",
@@ -157,7 +160,9 @@ export function createApplication(context: ScenarioContext) {
     write,
     theme,
     bundler,
-    url,
+    get url() {
+      return url;
+    },
     results,
     get home() {
       return home;

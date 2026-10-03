@@ -17,6 +17,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",

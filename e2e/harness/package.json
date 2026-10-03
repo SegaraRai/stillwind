@@ -5,22 +5,24 @@
   "type": "module",
   "exports": {
     ".": "./src/fixture.ts",
-    "./acceptance": "./src/acceptance.ts",
-    "./workspace": "./src/workspace.ts",
-    "./process": "./src/process.ts",
-    "./config": "./src/config.ts",
     "./acceptance-config": "./src/acceptance-config.ts",
-    "./source-map": "./src/source-map.ts",
-    "./scenario": "./src/scenario.ts",
-    "./source": "./src/source.ts",
+    "./acceptance": "./src/acceptance.ts",
+    "./browser-config": "./src/browser-config.ts",
     "./browser": "./src/browser.ts",
-    "./browser-config": "./src/browser-config.ts"
+    "./config": "./src/config.ts",
+    "./port": "./src/port.ts",
+    "./process": "./src/process.ts",
+    "./scenario": "./src/scenario.ts",
+    "./source-map": "./src/source-map.ts",
+    "./source": "./src/source.ts",
+    "./workspace": "./src/workspace.ts"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
     "playwright": "1.63.0"
   },
   "devDependencies": {
+    "@stillwind-tools/workspace": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "5.0.1",

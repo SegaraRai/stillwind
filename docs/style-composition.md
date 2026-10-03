@@ -104,6 +104,6 @@ CSS never participates.
 
 ## Verification
 
-The repeatable browser probe is `vp run e2e` inside
+The repeatable browser probe is `vp run test:e2e` inside
 `e2e/css`.
 It compares computed styles across development, single/split builds, SSR and Shadow DOM.

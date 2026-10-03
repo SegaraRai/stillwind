@@ -167,7 +167,7 @@ only its stylesheet and does not ship its JavaScript.
 The TanStack Start/Rsbuild experiment covers SSR without JavaScript, lazy route CSS,
 server functions, editing, and cold/warm production. The fixture declares its own
 framework dependencies, and the frozen lockfile is at the workspace root.
-Run `vp run e2e` in `e2e/frameworks/tanstackstart1-react19-server-function` with the
+Run `vp run test:e2e` in `e2e/frameworks/tanstackstart1-react19-server-function` with the
 `rsbuild` profile to reproduce on port 43179.
 
 ## Transport and verification
@@ -189,7 +189,7 @@ set `root` explicitly when different build environments use different roots.
 Run the matrix from the repository root after `vp i --frozen-lockfile`:
 
 ```sh
-vp run verify:e2e
+vp run test:e2e
 ```
 
 The probes use the real compiler and Chrome. The package test suite checks current

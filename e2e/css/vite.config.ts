@@ -5,16 +5,17 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
+        dependsOn: ["@stillwind/integration#build"],
       },
       "test:browser": {
         command: "vp test --run --config vite.browser.config.ts",
+        cache: false,
         dependsOn: ["@stillwind/native#collect:local"],
-        cache: false,
       },
-      e2e: {
+      "test:e2e": {
         command: "vp test --run --config acceptance.config.ts",
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
         cache: false,
+        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
       },
     },
   },

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import {
   TypeScriptFactsService,
   finalizeModuleWithMap,
@@ -17,9 +19,7 @@ import {
   type NativePreparedSource,
   type NativeScriptLanguage,
 } from "@stillwind/native";
-import { format } from "prettier";
-
-import { resolveFixtureCss } from "../support/stillwind-css.ts";
+import { format } from "vite-plus/fmt";
 
 type Manifest = {
   schemaVersion: 1;
@@ -48,7 +48,11 @@ type ModuleOutput = {
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const projectsRoot = path.join(repositoryRoot, "fixtures/projects");
 const catalogPath = path.join(repositoryRoot, "apps/fixtures-viewer/public/fixtures.json");
-const check = process.argv.includes("--check");
+const {
+  values: { check },
+} = parseArgs({
+  options: { check: { type: "boolean", default: false } },
+});
 
 function normalize(value: string) {
   return value.replaceAll("\r\n", "\n");
@@ -151,7 +155,12 @@ function compileProject(root: string, manifest: Manifest) {
       syntax,
       typeFacts: facts.get(moduleId) ?? [],
     })),
-    { content: theme, name: manifest.theme, uri: cssUri, sourceMapSource: cssUri },
+    {
+      content: theme,
+      name: manifest.theme,
+      uri: cssUri,
+      sourceMapSource: cssUri,
+    },
     manifest.compilerOptions,
   );
   const modules: ModuleOutput[] = output.modules.map((module) => ({
@@ -191,7 +200,14 @@ function projectCssPath(root: string) {
 }
 
 async function prettyCss(css: string) {
-  return css.trim() === "" ? "" : format(css, { parser: "css", printWidth: 100 });
+  if (!css.trim()) {
+    return "";
+  }
+  const result = await format("file.css", css, {
+    parser: "css",
+    printWidth: 100,
+  });
+  return result.code;
 }
 
 async function minifiedCss(css: string, filename: string) {
@@ -227,7 +243,12 @@ function finalizedPosition(position: number, prefix: string, removed: FinalizedM
 }
 
 function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: FinalizedModuleEdit[]) {
-  const changes: Array<{ fromA: number; toA: number; fromB: number; toB: number }> = [];
+  const changes: Array<{
+    fromA: number;
+    toA: number;
+    fromB: number;
+    toB: number;
+  }> = [];
   const remainingRemoved = [...removed];
   if (remainingRemoved[0]?.from === 0) {
     const header = remainingRemoved.shift()!;
@@ -237,7 +258,12 @@ function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: Finaliz
   }
   for (const edit of remainingRemoved) {
     const generated = finalizedPosition(edit.from, prefix, removed);
-    changes.push({ fromA: edit.from, toA: edit.to, fromB: generated, toB: generated });
+    changes.push({
+      fromA: edit.from,
+      toA: edit.to,
+      fromB: generated,
+      toB: generated,
+    });
   }
   for (const mapping of module.mappings) {
     changes.push({
@@ -266,7 +292,10 @@ function runnableOutput(module: ModuleOutput, fixture: string) {
     `${fixture}: transformed runtime helper is not imported`,
   );
   assert(!/\bdeclare\s+(?:const|let|var)\b/.test(output), `${fixture}: output is not executable`);
-  return { output, diff: sourceMappedDiff(module, finalized.prefix, finalized.removed) };
+  return {
+    output,
+    diff: sourceMappedDiff(module, finalized.prefix, finalized.removed),
+  };
 }
 
 const projects = loadProjects();
@@ -295,7 +324,9 @@ for (const { root, manifest } of projects) {
 }
 
 if (stale.length > 0) {
-  throw new Error(`Review fixtures are stale:\n${stale.join("\n")}\nRun: vp run fixtures:refresh`);
+  throw new Error(
+    `Review fixtures are stale:\n${stale.join("\n")}\nRun: vp run generate:fixtures:projects`,
+  );
 }
 
 const catalog = {
@@ -324,7 +355,7 @@ const catalog = {
 writeOrCheck(catalogPath, JSON.stringify(catalog, null, 2), stale);
 if (stale.length > 0) {
   throw new Error(
-    `Review fixtures are stale:\n${stale.map((file) => `- ${file}`).join("\n")}\nRun: vp run fixtures:refresh`,
+    `Review fixtures are stale:\n${stale.map((file) => `- ${file}`).join("\n")}\nRun: vp run generate:fixtures:projects`,
   );
 }
 console.log(`${check ? "Verified" : "Generated"} ${projects.length} review fixture project(s).`);

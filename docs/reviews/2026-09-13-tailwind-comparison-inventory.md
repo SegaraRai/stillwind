@@ -153,16 +153,16 @@ ID **13204** `mask-[url(mask.svg)]`。Tailwindの`url(mask.svg)`に対し、Stil
 | 647, 648     | `custom-css.prefix-migration`: `tw:flex`, `tw:bg-brand` | `Unsupported fixture import modifier: layer(theme) prefix(tw)` |
 | 13135, 13136 | `directives.tailwind-utilities`: `flex`, `bg-red-500`   | `Unsupported fixture import modifier: source(none)`            |
 
-[stillwind-fixture-css.ts](../../tools/lib/stillwind-fixture-css.ts)は単独の`layer(...)`以外のimport修飾子を拒否する。これらはコアが候補を評価する前の例外。`source(none)`を明示候補の比較でどう扱うかと、prefixの移行仕様をそれぞれ定義する必要がある。既存ゲートの`native exception`という表示だけでは原因を区別できない。
+[stillwind-css.ts](../../tools/fixture-css/stillwind-css.ts)は単独の`layer(...)`以外のimport修飾子を拒否する。これらはコアが候補を評価する前の例外。`source(none)`を明示候補の比較でどう扱うかと、prefixの移行仕様をそれぞれ定義する必要がある。既存ゲートの`native exception`という表示だけでは原因を区別できない。
 
 ## 再現・証跡
 
 ```powershell
-vp run --filter @stillwind/tools tailwind:inventory
-vp run --filter @stillwind/tools typecheck
+vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind:inventory
+vp run --filter @stillwind-tools/tailwind-compat typecheck
 ```
 
-[tailwind-inventory.mts](../../tools/tailwind-inventory.mts)はnativeをビルドしてから、入力CSSごとにdesign systemを読み込む。同一パスのモジュールを1候補ずつ差し替え、project sessionのCSSを取得する。最初と250使用ごとに既存`compileSource`経路とCSS・classes・diagnosticsを厳密に照合した。**18入力のセッション、71回の照合がすべて一致**した。例外となったimport入力も証跡に保存する。
+[inventory.ts](../../tools/tailwind-compat/inventory.ts)はnativeをビルドしてから、入力CSSごとにdesign systemを読み込む。同一パスのモジュールを1候補ずつ差し替え、project sessionのCSSを取得する。最初と250使用ごとに既存`compileSource`経路とCSS・classes・diagnosticsを厳密に照合した。**18入力のセッション、71回の照合がすべて一致**した。例外となったimport入力も証跡に保存する。
 
 比較前のコメント除去、`foldCalcExpressions`、Lightning CSS minify、セレクター置換、干渉しない宣言順の許容は既存ゲートに合わせている。これらは調査ツール側でありコアの出力契約ではない。追加登録例外のmetadata除去はASTで実装しているが、今回この例外による合格は0件。さらに既存ゲートの実際の追加登録判定関数で、CSSを取得できた不一致8,531件を独立に確認し、合格へ変わるものが0件であることを検証した。
 

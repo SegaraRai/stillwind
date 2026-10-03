@@ -1,3 +1,4 @@
+import { rustCache, testCache } from "@stillwind-tools/workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
@@ -9,8 +10,8 @@ export default defineConfig(({ mode }) => ({
   },
   lint: {
     ignorePatterns: [
-      "fixtures/projects/*/expected/**",
       "apps/fixtures-viewer/public/fixtures.json",
+      "fixtures/projects/*/expected/**",
       "packages/native/binding.d.ts",
     ],
     options: {
@@ -25,13 +26,14 @@ export default defineConfig(({ mode }) => ({
       mode === "wasm"
         ? ["packages/native/vite.config.ts", "e2e/harness/vite.browser.config.ts"]
         : mode === "browser"
-          ? ["tools/vite.browser.config.ts", "e2e/css/vite.browser.config.ts"]
+          ? ["tools/tailwind-compat/vite.browser.config.ts", "e2e/css/vite.browser.config.ts"]
           : [
               "packages/core/vite.config.ts",
               "packages/native/vite.config.ts",
               "packages/host/vite.config.ts",
               "packages/integration/vite.config.ts",
-              "tools/vite.config.ts",
+              "tools/tailwind/vite.config.ts",
+              "tools/tailwind-compat/vite.config.ts",
               "benchmarks/vite.config.ts",
               "e2e/harness/vite.config.ts",
               "apps/play/vite.config.ts",
@@ -40,143 +42,202 @@ export default defineConfig(({ mode }) => ({
   },
   run: {
     tasks: {
-      "verify:performance": {
+      // generate
+      generate: {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#performance"],
-        cache: false,
+        dependsOn: [
+          "generate:webref",
+          "generate:tailwind-order",
+          "generate:fixtures:projects",
+          "generate:fixtures:tailwind",
+          "@stillwind-tools/tailwind#generate:fixtures:tailwind-order",
+        ],
       },
-      "verify:performance:full": {
+      "generate:fixtures:projects": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#performance:full"],
-        cache: false,
+        dependsOn: ["@stillwind-tools/projects#generate:fixtures:projects"],
       },
-      "bench:compiler": {
+      "generate:fixtures:tailwind": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#compiler"],
-        cache: false,
+        dependsOn: ["@stillwind-tools/tailwind#generate:fixtures:tailwind"],
       },
-      "bench:host": {
+      "generate:tailwind-order": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#host"],
-        cache: false,
+        dependsOn: ["@stillwind-tools/tailwind#generate:tailwind-order"],
       },
-      "bench:source-map": {
+      "generate:webref": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#source-map"],
-        cache: false,
+        dependsOn: ["@stillwind-tools/webref#generate:webref"],
       },
-      "verify:e2e": {
-        command: "",
-        dependsOn: ["@stillwind/e2e-harness#e2e"],
-        cache: false,
-      },
-      "verify:e2e:primary": {
-        command: "",
-        dependsOn: ["@stillwind/e2e-harness#e2e:primary"],
-        cache: false,
-      },
-      "verify:e2e:compatibility": {
-        command: "",
-        dependsOn: ["@stillwind/e2e-harness#e2e:compatibility"],
-        cache: false,
-      },
+      // fmt
       fmt: {
-        command: "vp fmt --check",
-        cache: false,
+        command: "",
+        dependsOn: ["fmt:js", "fmt:rust"],
       },
-      "fmt:write": {
+      "fmt:check": {
+        command: "",
+        dependsOn: ["fmt:js:check", "fmt:rust:check"],
+      },
+      "fmt:js": {
         command: "vp fmt",
         cache: false,
       },
+      "fmt:js:check": {
+        command: "vp fmt --check",
+      },
+      "fmt:rust": {
+        command: "cargo fmt --all",
+        cache: false,
+      },
+      "fmt:rust:check": {
+        command: "cargo fmt --all --check",
+      },
+      // lint
       lint: {
+        command: "",
+        dependsOn: ["lint:js", "lint:rust"],
+      },
+      "lint:js": {
         command: "vp lint",
         dependsOn: ["@stillwind/integration#build"],
-        cache: false,
       },
-      "rust:fmt": {
-        command: "cargo fmt --all --check",
-        cache: false,
-      },
-      "rust:lint": {
+      "lint:rust": {
         command: "cargo clippy --workspace --all-targets -- -D warnings",
-        cache: false,
+        cache: rustCache,
+        dependsOn: [
+          "@stillwind-tools/webref#check:generated:webref",
+          "@stillwind-tools/tailwind#check:generated:tailwind-order",
+        ],
       },
-      "rust:test": {
-        command: "cargo test --workspace",
-        cache: false,
-      },
+      // check
       check: {
         command: "",
+        dependsOn: ["fmt:check", "lint", "typecheck", "check:generated"],
+      },
+      "check:generated": {
+        command: "",
         dependsOn: [
-          "fmt",
-          "lint",
-          "rust:fmt",
-          "rust:lint",
-          "stillwind#typecheck",
-          "@stillwind/native#typecheck",
-          "@stillwind/host#typecheck",
-          "@stillwind/projection#typecheck",
-          "@stillwind/integration#typecheck",
-          "@stillwind/tools#typecheck",
-          "@stillwind/benchmarks#typecheck",
-          "@stillwind/e2e-harness#check",
-          "@stillwind/play#typecheck",
-          "@stillwind/logo-editor#check",
-          "@stillwind/fixtures-viewer#check",
-          "@stillwind/react-example#check",
+          "@stillwind-tools/webref#check:generated:webref",
+          "@stillwind-tools/tailwind#check:generated:fixtures:tailwind",
+          "@stillwind-tools/tailwind#check:generated:tailwind-order",
+          "@stillwind-tools/tailwind#check:generated:fixtures:tailwind-order",
         ],
+      },
+      // typecheck
+      typecheck: {
+        command: "",
+        dependsOn: [
+          "stillwind#typecheck",
+          "@stillwind/benchmarks#typecheck",
+          "@stillwind/e2e-harness#typecheck:fixtures",
+          "@stillwind/e2e-harness#typecheck",
+          "@stillwind/fixtures-viewer#typecheck",
+          "@stillwind/host#typecheck",
+          "@stillwind/integration#typecheck",
+          "@stillwind/logo-editor#typecheck",
+          "@stillwind/native#typecheck",
+          "@stillwind/play#typecheck",
+          "@stillwind/projection#typecheck",
+          "@stillwind/react-example#typecheck",
+          "@stillwind-tools/fixture-css#typecheck",
+          "@stillwind-tools/projects#typecheck",
+          "@stillwind-tools/tailwind-compat#typecheck",
+          "@stillwind-tools/tailwind#typecheck",
+          "@stillwind-tools/webref#typecheck",
+          "@stillwind-tools/workspace#typecheck",
+        ],
+      },
+      // verify
+      verify: {
+        command: "",
+        dependsOn: ["check", "test"],
+      },
+      // bench
+      "bench:architecture": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#bench:architecture"],
+      },
+      "bench:compiler": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#bench:compiler"],
+      },
+      "bench:host": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#bench:host"],
+      },
+      "bench:research": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#bench:research"],
+      },
+      "bench:source-map": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#bench:source-map"],
+      },
+      // test
+      test: {
+        command: "",
+        dependsOn: ["test:js", "test:rust", "test:fixtures:projects"],
       },
       "test:js": {
         command: "vp test --run",
+        cache: testCache,
         dependsOn: ["@stillwind/integration#build", "@stillwind/native#typecheck"],
-        cache: false,
       },
-      test: {
+      "test:rust": {
+        command: "cargo test --workspace",
+        cache: {
+          ...rustCache,
+          input: [
+            ...rustCache.input,
+            { pattern: "fixtures/tailwind-v4/utility-order.json", base: "workspace" },
+          ],
+        },
+        dependsOn: [
+          "@stillwind-tools/tailwind#generate:tailwind-order",
+          "@stillwind-tools/webref#generate:webref",
+        ],
+      },
+      "test:fixtures:projects": {
         command: "",
-        dependsOn: ["rust:test", "test:js"],
+        dependsOn: ["@stillwind-tools/projects#test:fixtures:projects"],
       },
-      "fixtures:refresh": {
-        command: "",
-        dependsOn: ["@stillwind/tools#projects:refresh"],
-        cache: false,
-      },
-      "fixtures:check": {
+      "test:tailwind": {
         command: "",
         dependsOn: [
-          "@stillwind/tools#projects:check",
-          "@stillwind/tools#tailwind:fixtures:check",
-          "@stillwind/tools#webref:check",
-          "@stillwind/tools#tailwind:order:check",
+          "@stillwind-tools/tailwind-compat#test:tailwind:parity",
+          "@stillwind-tools/tailwind-compat#test:tailwind:property-order",
+          "@stillwind-tools/tailwind-compat#test:tailwind:numeric-domains",
         ],
-        cache: false,
       },
-      verify: {
-        command: "",
-        dependsOn: ["check", "test", "fixtures:check"],
-      },
-      "verify:compat": {
-        command: "",
-        dependsOn: [
-          "@stillwind/tools#tailwind:parity",
-          "@stillwind/tools#tailwind:property-order",
-          "@stillwind/tools#tailwind:numeric-domains",
-        ],
-        cache: false,
-      },
-      "verify:browser": {
+      "test:browser": {
         command: "vp test --run --mode browser",
-        dependsOn: ["@stillwind/native#collect:local"],
         cache: false,
+        dependsOn: ["@stillwind/native#collect:local"],
       },
-      "verify:wasm": {
+      "test:wasm": {
         command: "vp test --run --mode wasm",
+        cache: false,
         dependsOn: ["@stillwind/native#collect:local"],
-        cache: false,
       },
-      "webref:generate": {
+      "test:performance": {
         command: "",
-        dependsOn: ["@stillwind/tools#webref:generate"],
-        cache: false,
+        dependsOn: ["@stillwind/benchmarks#test:performance"],
+      },
+      "test:performance:full": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#test:performance:full"],
+      },
+      "test:e2e": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-harness#test:e2e"],
+      },
+      "test:e2e:primary": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-harness#test:e2e:primary"],
+      },
+      "test:e2e:compatibility": {
+        command: "",
+        dependsOn: ["@stillwind/e2e-harness#test:e2e:compatibility"],
       },
     },
   },

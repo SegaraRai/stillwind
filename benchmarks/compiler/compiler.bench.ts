@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 
+import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
 import { compileSource, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import type { NativePreparedSource, NativeStylesheetSelection } from "@stillwind/native";
 import { expect, test, type BenchRunOptions } from "vite-plus/test";
-
-import { resolveFixtureCss } from "../../tools/support/stillwind-css.ts";
 
 const repeated: BenchRunOptions = {
   iterations: 9,

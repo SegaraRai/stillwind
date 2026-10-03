@@ -336,12 +336,12 @@ SHVIEW001 / SHVIEW002 が既にあるので `SHVIEW003` にする。docs の参�
 
 ## 7. 検証
 
-- 移動のコミットは、`vp run fixtures:refresh` のあとに差分が出ないことで「出力が変わって
+- 移動のコミットは、`vp run generate:fixtures:projects` のあとに差分が出ないことで「出力が変わって
   いない」ことを示す。fixture の期待値を書き換える必要が出たら、そのコミットは移動ではない。
 - Rust: `cargo test --workspace --lib --tests`、`cargo clippy --workspace --all-targets -- -D warnings`、
   `cargo doc --workspace --no-deps`（`-D warnings`）、`cargo fmt --all --check`。
 - TS とホスト: `vp run check`、`vp run fmt`、core / host / vite のテスト。
-- ブラウザ: `vp run verify:view-transition`（guard 付き use と option 条件の実挙動）。
+- ブラウザ: `e2e/css` で `vp run test:e2e`（view-transition の participant 名と group duration の実挙動）。
 
 ## 8. 未決
 

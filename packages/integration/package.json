@@ -60,7 +60,8 @@
   "devDependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
     "@rspack/core": "^2.2.8",
-    "@stillwind/tools": "workspace:*",
+    "@stillwind-tools/fixture-css": "workspace:*",
+    "@stillwind-tools/workspace": "workspace:*",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@swc/core": "^1.16.2",

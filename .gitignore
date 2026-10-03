@@ -6,6 +6,7 @@ dist
 
 stillwind.generated.d.ts
 
+.cache
 .napi-external
 .napi-rs-*
 .*.napi-stage-*
@@ -21,6 +22,7 @@ packages/native/npm/wasm32-wasi/*.d.cts
 packages/native/index.js
 packages/native/browser.js
 packages/native/*.wasm
+packages/native/.build/
 
 .review-fixtures
 
@@ -32,5 +34,6 @@ e2e/**/.nuxt/
 e2e/**/.next/
 e2e/**/.astro/
 e2e/**/.svelte-kit/
+e2e/**/.react-router/
 e2e/**/build/
 e2e/**/src/routeTree.gen.ts

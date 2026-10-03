@@ -13,6 +13,7 @@ for (const target of config.targets) {
   const artifact = path.join(
     root,
     "dist",
+    ...(target.platform === "wasi" ? ["wasm"] : []),
     `${config.binaryName}.${target.platformArchABI}.${extension}`,
   );
   try {
@@ -24,7 +25,7 @@ for (const target of config.targets) {
     }
   }
 }
-const temporary = await mkdtemp(path.join(root, "dist", ".test-collect-"));
+const temporary = await mkdtemp(path.join(root, ".test-collect-"));
 try {
   const configPath = path.join(temporary, "napi.json");
   await writeFile(configPath, JSON.stringify({ ...manifest.napi, targets }));
@@ -33,7 +34,7 @@ try {
     packageJsonPath: "package.json",
     configPath,
     outputDir: "dist",
-    buildOutputDir: "dist",
+    buildOutputDir: "dist/wasm",
     npmDir: "npm",
   });
   // WASI loaders prefer debug companions, which would override the collected release module.

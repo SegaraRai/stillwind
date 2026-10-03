@@ -20,17 +20,20 @@ rename them only when intentionally breaking existing viewer permalinks.
 Optional `compilerOptions` are passed to both module compilation and project CSS
 rendering. The runtime-if projects use this to compare fallback and native output.
 
-Refresh snapshots after building the local native package:
+Generate snapshots and compare them with:
 
 ```powershell
-vp run fixtures:refresh
-vp run fixtures:check
+vp run generate:fixtures:projects
+vp run test:fixtures:projects
 vp run --filter @stillwind/fixtures-viewer build
 ```
 
-`fixtures:refresh` compiles the whole source graph and uses the same TypeScript
-fact propagation as the Vite integration. `fixtures:check` fails when checked-in
+`generate:fixtures:projects` compiles the whole source graph and uses the same TypeScript
+fact propagation as the Vite integration. `test:fixtures:projects` fails when checked-in
 expected output or the viewer's static catalog is stale.
+Both tasks build the host and native dependencies through the task graph.
+Generation updates the expected files and viewer catalog together; comparison
+leaves those files unchanged. The viewer's `dev` and `build` tasks depend on generation.
 
 Keep each project centered on one review narrative. Prefer a small matrix of
 related transformations over one catch-all project, and use multiple source

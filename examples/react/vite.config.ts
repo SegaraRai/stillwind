@@ -1,32 +1,39 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { stillwind } from "@stillwind/integration/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import { defineConfig, lazyPlugins } from "vite-plus";
 
 const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   root: projectRoot,
-  plugins: [
-    react(),
-    stillwind({
-      theme: fileURLToPath(new URL("./styles/stillwind.css", import.meta.url)),
-    }),
-  ],
+  server: {
+    port: 5178,
+    strictPort: true,
+  },
+  plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
+    return [
+      react(),
+      stillwind({
+        theme: fileURLToPath(new URL("./styles/stillwind.css", import.meta.url)),
+      }),
+    ];
+  }),
   run: {
     tasks: {
       dev: {
         command: "vp dev",
+        cache: false,
         dependsOn: ["@stillwind/integration#build"],
       },
       build: {
         command: "vp build",
         dependsOn: ["@stillwind/integration#build"],
       },
-      check: {
+      typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["build"],
+        dependsOn: ["@stillwind/integration#build"],
       },
     },
   },

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { createWriteStream, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { setImmediate } from "node:timers/promises";
 import { createGzip } from "node:zlib";
 
+import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
+import { hasEquivalentDeclarationOrder } from "@stillwind-tools/tailwind/property-order";
 import {
   NativeDesignSystemLoader,
   NativeProjectSession,
@@ -13,26 +16,26 @@ import {
 } from "@stillwind/native";
 import { generate, parse, walk, type CssNode } from "css-tree";
 
+import { comparisonCss, parityFixture, fixtureThemeKeyframes } from "./comparison.ts";
+import { createInventoryOutput } from "./inventory-output.ts";
 import {
   comparableFixtureClasses,
   compileFixtureSource,
   fixturePreparedSource,
-} from "../support/native-input.ts";
-import { comparisonCss, parityFixture, fixtureThemeKeyframes } from "./comparison.ts";
-import { compileTailwindCss } from "./compiler.ts";
-import { parseMarkdownFixtureCases } from "./markdown-fixtures.ts";
-import { hasEquivalentDeclarationOrder } from "./property-order.ts";
+} from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 const fixtureRoot = join(root, "fixtures/tailwind-v4");
-const outputRoot = resolve(
+const outputIndex = process.argv.indexOf("--output");
+if (outputIndex !== -1 && !process.argv[outputIndex + 1]) {
+  throw new Error("--output requires a parent directory");
+}
+const outputRoot = createInventoryOutput(
   root,
-  process.argv[process.argv.indexOf("--output") + 1] && process.argv.includes("--output")
-    ? process.argv[process.argv.indexOf("--output") + 1]
-    : "target/tailwind-inventory",
+  outputIndex === -1 ? undefined : process.argv[outputIndex + 1],
 );
-mkdirSync(outputRoot, { recursive: true });
+console.log(`Inventory output: ${outputRoot}`);
 const evidence = createGzip();
 const evidenceFile = createWriteStream(join(outputRoot, "mismatches.jsonl.gz"));
 evidence.pipe(evidenceFile);

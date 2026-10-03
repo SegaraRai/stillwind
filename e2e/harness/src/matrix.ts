@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -93,8 +93,10 @@ const results: {
   profiles: { profile: string; support: string }[];
   contracts: typeof contractPolicy;
 }[] = [];
-const resultRoot = join(repo, "e2e/results");
-await mkdir(resultRoot, { recursive: true });
+const resultsRoot = join(repo, "e2e/results");
+await mkdir(resultsRoot, { recursive: true });
+const resultRoot = await mkdtemp(join(resultsRoot, `${typecheck ? "typecheck" : "matrix"}-`));
+process.stdout.write(`Results: ${resultRoot}\n`);
 
 const concurrency = Number(process.env.STILLWIND_E2E_CONCURRENCY || 3);
 if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) {
@@ -107,7 +109,7 @@ await Promise.all(
       process.stdout.write(`Starting ${fixture.name}\n`);
       const runner = startNode(
         typecheck
-          ? [fileURLToPath(new URL("./typecheck.ts", import.meta.url)), fixture.root]
+          ? [vp, "run", "typecheck"]
           : [vp, "test", "--run", "--config", "acceptance.config.ts"],
         fixture.root,
         support ? { STILLWIND_E2E_SUPPORT: support } : {},

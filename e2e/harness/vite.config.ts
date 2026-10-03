@@ -1,4 +1,7 @@
+import { testCache } from "@stillwind-tools/workspace/task-cache";
 import { defineConfig } from "vite-plus";
+
+import { fixtureTypechecks } from "./src/config.ts";
 
 export default defineConfig({
   root: import.meta.dirname,
@@ -11,35 +14,35 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
+        dependsOn: ["@stillwind/native#build"],
       },
-      check: {
-        command: "node src/matrix.ts --typecheck",
-        dependsOn: ["typecheck", "@stillwind/integration#build"],
-        cache: false,
+      "typecheck:fixtures": {
+        command: "",
+        dependsOn: fixtureTypechecks,
       },
       test: {
         command: "vp test --run",
-        cache: false,
+        cache: testCache,
       },
       "test:wasm": {
         command: "vp test --run --config vite.browser.config.ts",
+        cache: false,
         dependsOn: ["@stillwind/native#collect:local"],
-        cache: false,
       },
-      "e2e:primary": {
-        command: "node src/matrix.ts --support primary",
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
-        cache: false,
-      },
-      "e2e:compatibility": {
-        command: "node src/matrix.ts --support compatibility",
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
-        cache: false,
-      },
-      e2e: {
+      "test:e2e": {
         command: "node src/matrix.ts",
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
         cache: false,
+        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
+      },
+      "test:e2e:compatibility": {
+        command: "node src/matrix.ts --support compatibility",
+        cache: false,
+        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
+      },
+      "test:e2e:primary": {
+        command: "node src/matrix.ts --support primary",
+        cache: false,
+        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
       },
     },
   },

@@ -1,4 +1,4 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["tests/**/*.ts", "collect-local-artifacts.ts", "vite.config.ts"]
+  "include": ["tests/**/*.ts", "collect-local-artifacts.ts", "install-binding.ts", "vite.config.ts"]
 }

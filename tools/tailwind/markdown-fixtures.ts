@@ -69,7 +69,7 @@ export async function verifyMarkdownFixtures({
       if (write) {
         writeFileSync(path, next);
       } else {
-        console.error(`${basename(path)} is stale; run with --write`);
+        console.error(`${basename(path)} is stale; run vp run generate:fixtures:tailwind`);
       }
     }
   }

@@ -1,13 +1,13 @@
 import { fixtureTasks } from "@stillwind/e2e-harness/config";
-import { stillwind } from "@stillwind/integration/vite";
 import { nitro } from "nitro/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
 export default defineConfig({
   run: {
-    tasks: fixtureTasks("vite"),
+    tasks: fixtureTasks("vite", import.meta.dirname),
   },
   plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
     const { solidStart } = await import("@solidjs/start/config");
     return [
       stillwind({

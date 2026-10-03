@@ -1,0 +1,10 @@
+{
+  "version": "4.3.3",
+  "revision": "c2b24dd15fed1c59dd521bd86082f520c9f5ad0d",
+  "files": {
+    "packages/tailwindcss/package.json": "0b5949a1be5a419528ddf767fa2224a66ca179d0200d9a65c0f3512e5b9d679f",
+    "packages/tailwindcss/src/utilities.ts": "c9aeba905ac9d6129e2174f377098735a64a1fec917312af372ae8cc291cac2f",
+    "packages/tailwindcss/src/variants.ts": "a633c91c11ebe30e69474a447f8cc985b1616cc57ead48fd441599cc9df24b47",
+    "packages/tailwindcss/src/__snapshots__/intellisense.test.ts.snap": "2447a9074540a52e71b98d739fee620f8c41e1c1254a01bfdfa3059f16218cf3"
+  }
+}

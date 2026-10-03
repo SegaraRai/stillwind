@@ -56,13 +56,13 @@ To retain production-build fixtures for inspection, set `STILLWIND_KEEP_FRAMEWOR
 On 2026-09-11 (JST), the final implementation passed:
 
 - `cargo test --workspace --locked` and `cargo clippy --workspace --all-targets --locked -- -D warnings` (use `$env:CARGO_INCREMENTAL='0'` on Windows).
-- `vp run @stillwind/native#check`: 7 public API tests and typechecking.
+- Native binding: 7 public API tests and typechecking; the current task is `vp run @stillwind/native#test`.
 - `vp run @stillwind/host#test`: 28 tests, including original SFC edits and official compiler output.
-- `vp run @stillwind/integration#test:vite`: 15 tests; `vp run @stillwind/integration#test:webpack`: 10 production builds.
-- `vp run stillwind#check`: framework type entrypoints and 6 runtime/CSS tests.
-- `vp run fixtures:check`, `vp fmt --check`, and `vp lint`.
+- `vp run @stillwind/integration#test:vite`: 15 tests; `vp run @stillwind/integration#test:bundlers`: 10 production builds.
+- Core: framework type entrypoints and 6 runtime/CSS tests; the current tasks are `vp run stillwind#typecheck` and `vp run stillwind#test`.
+- `vp run test:fixtures:projects`, `vp fmt --check`, and `vp lint`.
 
-Current SFC conversion and normalization are checked by the host framework tests, including original receivers, template shadowing, nested expressions, Svelte stores and runes. Rust source-coordinate tests cover Unicode and CRLF boundaries. The current tasks are `vp run @stillwind/host#test` and `vp run rust:test`.
+Current SFC conversion and normalization are checked by the host framework tests, including original receivers, template shadowing, nested expressions, Svelte stores and runes. Rust source-coordinate tests cover Unicode and CRLF boundaries. The current tasks are `vp run @stillwind/host#test` and `vp run test:rust`.
 
 Use `vp run bench:source-map` for the current production CSS-map implementation and its benchmark candidate. Results are generated locally under `benchmarks/results/`. These measurements do not include full framework compilation or claim application speedups.
 
@@ -72,7 +72,7 @@ The host does not yet query checker type facts for projected input. The normal J
 
 ## webpack and Rspack
 
-Run `vp run @stillwind/integration#test:webpack` for ten production builds: React, Preact, Solid, Vue, and Svelte on each bundler. All ten passed on 2026-09-10. Vue and Svelte use their official loaders. The tests verify automatic CSS ownership, explicit module CSS values, preserved external classes, and final JavaScript source maps back to the exact original macro line and column. The ordinary JS cases also execute the bundle and check emitted asset URLs in CSS values.
+Run `vp run @stillwind/integration#test:bundlers` for ten production builds: React, Preact, Solid, Vue, and Svelte on each bundler. All ten passed on 2026-09-10. Vue and Svelte use their official loaders. The tests verify automatic CSS ownership, explicit module CSS values, preserved external classes, and final JavaScript source maps back to the exact original macro line and column. The ordinary JS cases also execute the bundle and check emitted asset URLs in CSS values.
 
 Unlike Vite, vue-loader can run the raw-SFC loader in query subrequests and clone it within a chain. Identical already-transformed output is skipped using loader metadata. SFC stylesheet and CSS-value requests include the loader and serialized configuration, so another worker can reconstruct them from the source file. The source receives only native import edits.
 

@@ -1,20 +1,22 @@
 import { reactRouter } from "@react-router/dev/vite";
 import { fixtureTasks } from "@stillwind/e2e-harness/config";
-import { stillwind } from "@stillwind/integration/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
 export default defineConfig({
   run: {
-    tasks: fixtureTasks("react-router"),
+    tasks: fixtureTasks("react-router", import.meta.dirname),
   },
-  plugins: lazyPlugins(() => [
-    stillwind({
-      css: "root.css",
-      types: false,
-      emission: "split",
-    }),
-    reactRouter(),
-  ]),
+  plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
+    return [
+      stillwind({
+        css: "root.css",
+        types: false,
+        emission: "split",
+      }),
+      reactRouter(),
+    ];
+  }),
   build: {
     sourcemap: true,
   },

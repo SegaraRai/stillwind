@@ -2,8 +2,8 @@
 
 Run one timing task at a time after other builds and tests have finished:
 
-- `vp run verify:performance` checks 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
-- `vp run verify:performance:full` also checks 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
+- `vp run test:performance` checks 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
+- `vp run test:performance:full` also checks 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
 
 The quick suite has 12 tests and takes about six seconds on the machine listed below. The full suite has 18 tests and takes about 40 seconds. Each measurement uses three samples. These times exclude builds needed before the tests. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
 
