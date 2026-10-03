@@ -6,9 +6,6 @@
 //! intentionally minimal: only `stillwind`, `stillwind/…` and relative paths inside the
 //! fixture directory are supported, and an unsupported tail asserts instead of being
 //! ignored.
-//!
-//! This is a fixture helper included through `#[path]` by test and example targets;
-//! it is not part of the library API.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -16,20 +13,36 @@ use std::sync::OnceLock;
 
 use stillwind_source::{FileId, SourceError, SourceFile};
 
-/// Builds a source buffer from CSS that has the standard package prepended.
+/// Builds a source buffer with `id` from CSS that has the standard package prepended.
 ///
 /// CSS that imports `stillwind` itself is expanded instead, so a fixture can choose
 /// between the defaults and an explicit import list.
+///
+/// # Errors
+///
+/// Returns [`SourceError::TooLarge`] if the expanded CSS exceeds the 32-bit source limit.
+///
+/// # Panics
+///
+/// Panics if [`with_defaults`] cannot read an imported file or expand its import tail.
 pub fn source(id: FileId, css: impl AsRef<str>) -> Result<SourceFile, SourceError> {
     SourceFile::new(id, None, None, with_defaults(css.as_ref()))
 }
 
-/// Root of the standard CSS package, resolved from the crate the test builds.
+/// Returns the standard CSS package's path relative to this crate's manifest.
 pub fn package_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/core")
 }
 
 /// Expands `@import` statements against the standard package.
+///
+/// Returns CSS with imports from the standard package and existing relative files
+/// replaced by their contents. Unrecognized imports are copied unchanged.
+///
+/// # Panics
+///
+/// Panics if an imported file cannot be read or a supported import has a nonempty
+/// tail other than `layer(...)`.
 pub fn expand(css: &str) -> String {
     expand_from(css, &package_root())
 }
@@ -89,6 +102,13 @@ fn expand_from(css: &str, directory: &Path) -> String {
 ///
 /// The defaults are expanded once and cached, because every fixture would otherwise
 /// re-read the package from disk.
+///
+/// Returns expanded `css` when it contains a quoted name starting with `stillwind`.
+/// Otherwise, returns the expanded default package followed by a newline and `css`.
+///
+/// # Panics
+///
+/// Panics if [`expand`] cannot read an imported file or expand its import tail.
 pub fn with_defaults(css: &str) -> String {
     static DEFAULTS: OnceLock<String> = OnceLock::new();
     if css.contains("\"stillwind") || css.contains("'stillwind") {

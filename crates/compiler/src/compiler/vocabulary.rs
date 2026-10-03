@@ -65,19 +65,20 @@ pub(crate) fn render_vocabulary_types(theme: &ThemeIndex) -> String {
 #[cfg(test)]
 mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
+    use stillwind_test_support::css;
 
     use super::render_vocabulary_types;
     use crate::Compiler;
 
     #[test]
     fn generates_types_from_the_css_theme_vocabulary() {
-        let css = crate::css_fixture::source(
+        let theme = css::source(
             FileId(2),
             "@theme { --color-accent: red; --spacing-4: 1rem; }",
         )
         .unwrap();
-        let theme = Compiler::read_theme(&css, &CssSourceName::from("stillwind.css")).unwrap();
-        let types = render_vocabulary_types(&theme);
+        let index = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
+        let types = render_vocabulary_types(&index);
 
         assert!(types.contains("declare module \"stillwind/macro\""));
         assert!(!types.contains("stillwind/react"));

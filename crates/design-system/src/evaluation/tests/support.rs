@@ -1,16 +1,12 @@
-//! Shared fixture and catalog helpers for the evaluation test modules.
+//! Theme construction and CSSWG syntax helpers for evaluation tests.
 //!
-//! The helpers load the real vendored registry and the parity fixtures, expand CSSWG
-//! formal syntax over property references, and resolve variants through the same code
-//! path the compiler uses, so the suites never validate a simplified stand-in for
-//! production behavior.
+//! [`theme`] parses package CSS through the crate's fixture parser. The syntax
+//! helpers expand CSSWG property references for comparisons with builtin domains.
 
 use stillwind_css::csswg_formal_syntax;
-use stillwind_diagnostics::CompileError;
-use stillwind_source::CssSourceName;
 
 use super::*;
-use crate::parse_theme;
+use crate::test_support::parse_fixture_theme;
 
 /// The formal-syntax terms the catalog treats as primitives.
 pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
@@ -129,91 +125,3 @@ pub(super) fn theme() -> ThemeIndex {
         ).unwrap())
         .unwrap()
 }
-
-/// Rows of a markdown catalog section, up to the next heading.
-pub(super) fn catalog_section<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
-    let start = markdown
-        .find(heading)
-        .and_then(|start| {
-            markdown[start..]
-                .find("```text\n")
-                .map(|offset| start + offset + 8)
-        })
-        .expect("catalog section must contain candidates");
-    markdown[start..]
-        .split_once("\n```")
-        .expect("catalog section must close")
-        .0
-        .split_whitespace()
-        .collect()
-}
-
-/// Parses a fixture buffer wrapped in the standard package CSS.
-pub(super) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
-    parse_theme(
-        &crate::css_fixture::source(source.id(), stillwind_fixture_css(source.text())).unwrap(),
-        &CssSourceName::from("test.css"),
-    )
-}
-
-/// Runs an upstream parity fixture against Stillwind's registry, mirroring
-/// `tools/tailwind/stillwind-css.ts`.
-fn stillwind_fixture_css(css: &str) -> String {
-    // Only upstream fixture inputs select the registry explicitly; the other
-    // fixtures keep relying on the default Stillwind entry point.
-    if !css.contains("tailwindcss") {
-        return css.to_owned();
-    }
-    let selected = css
-        .replace(
-            "@import \"tailwindcss/theme\"",
-            "@import \"stillwind/theme.css\"",
-        )
-        .replace(
-            "@import 'tailwindcss/theme'",
-            "@import 'stillwind/theme.css'",
-        )
-        .replace(
-            "@import \"tailwindcss/preflight\"",
-            "@import \"stillwind/preflight.css\"",
-        )
-        .replace(
-            "@import 'tailwindcss/preflight'",
-            "@import 'stillwind/preflight.css'",
-        )
-        .replace(
-            "@import \"tailwindcss/utilities\"",
-            "@import \"stillwind/utilities.css\"",
-        )
-        .replace(
-            "@import 'tailwindcss/utilities'",
-            "@import 'stillwind/utilities.css'",
-        )
-        .replace("@import \"tailwindcss\"", "@import \"stillwind\"")
-        .replace("@import 'tailwindcss'", "@import 'stillwind'");
-    // `source(...)` scopes which files Tailwind scans; the fixture candidates are
-    // explicit, so the modifier does not change what this audit exercises.
-    let selected = selected
-        .replace(
-            "@import \"stillwind\" source(none);",
-            "@import \"stillwind\";",
-        )
-        .replace("@import 'stillwind' source(none);", "@import 'stillwind';");
-    let has_entry = [
-        "@import \"stillwind\"",
-        "@import 'stillwind'",
-        "@import \"stillwind/builtins.css\"",
-        "@import 'stillwind/builtins.css'",
-    ]
-    .iter()
-    .any(|entry| selected.contains(entry));
-    if has_entry {
-        selected
-    } else {
-        format!("{selected}\n@import \"stillwind/builtins.css\";")
-    }
-}
-
-#[path = "../../../../css/test-support/assertions.rs"]
-mod css_assertions;
-pub(super) use css_assertions::{CssAssertions, css_tokens};

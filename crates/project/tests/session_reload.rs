@@ -1,41 +1,19 @@
 //! Design-system reloads: a failed reload keeps the last good revision in watch mode
 //! and clears artifacts in build mode, and the same split holds for a failed update.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+mod support;
+
+use support::{module, snapshot};
 
 use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
-use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_design_system::DesignSystemLoadError;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
-use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-
-/// One analyzed module whose single call uses the given candidate.
-fn module(name: &str, candidate: &str) -> ModuleAnalysis {
-    OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(
-            Arc::new(
-                SourceFile::new(
-                    FileId(1),
-                    None,
-                    None,
-                    format!(
-                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                    ),
-                )
-                .unwrap(),
-            ),
-            ModuleId::from(name),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous,
-        ),
-        None,
-    )
-}
+use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry};
 
 /// One analyzed module whose analysis carries a fatal diagnostic.
 fn failing_module(name: &str) -> ModuleAnalysis {
@@ -45,15 +23,6 @@ fn failing_module(name: &str) -> ModuleAnalysis {
         analysis.source.full_span(),
     ));
     analysis
-}
-
-fn reload_snapshot(css: &str) -> DesignSystemSnapshot {
-    DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), css).unwrap(),
-        CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
-    )
-    .unwrap()
 }
 
 fn reload_module() -> ModuleAnalysis {
@@ -75,7 +44,7 @@ fn reload_module() -> ModuleAnalysis {
 #[test]
 fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     let mut session = ProjectSession::new(
-        reload_snapshot("@utility brand { color:red; }"),
+        snapshot("@utility brand { color:red; }"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -114,7 +83,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
         .css
         .to_css();
     let update = session
-        .reload(Ok(reload_snapshot("")), session.options().clone())
+        .reload(Ok(snapshot("")), session.options().clone())
         .unwrap();
     assert!(
         update.diagnostics[&ModuleId::from("motion.tsx")]
@@ -145,7 +114,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     assert!(
         session
             .reload(
-                Ok(reload_snapshot("@utility brand { color:blue; }")),
+                Ok(snapshot("@utility brand { color:blue; }")),
                 session.options().clone()
             )
             .unwrap()
@@ -166,7 +135,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
 #[test]
 fn build_load_failure_clears_artifacts_and_dependency_indexes() {
     let mut session = ProjectSession::new(
-        reload_snapshot("@utility brand { color:red; }"),
+        snapshot("@utility brand { color:red; }"),
         &SourceRegistry::default(),
         SessionMode::Build,
         CompilerOptions::default(),
@@ -204,7 +173,7 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
     assert!(
         session
             .reload(
-                Ok(reload_snapshot("@utility brand { color:blue; }")),
+                Ok(snapshot("@utility brand { color:blue; }")),
                 session.options().clone()
             )
             .unwrap()

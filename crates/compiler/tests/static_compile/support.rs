@@ -1,78 +1,16 @@
-//! Shared helpers for the static-compile suite.
+//! Compilation and stylesheet comparisons for the static-compile suite.
 //!
-//! Fixture readers pull candidates and fenced code blocks out of the checked-in Tailwind v4 markdown
-//! cases, and the CSS helpers extract, normalize, compare, and minify rules so an assertion can be
-//! about declarations rather than about whitespace.
-
-#[path = "../../../css/test-support/assertions.rs"]
-mod css_assertions;
-
-pub(super) use css_assertions::CssAssertions;
+//! Rule comparisons retain condition contexts and generation order. The Tailwind
+//! parity oracle normalizes arithmetic and serializes rules with Lightning CSS.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_css::fold_calc_expressions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::css;
 
 use super::*;
-
-/// Compare utilities against upstream fixtures using Stillwind's own entrypoints.
-/// Tailwind package names are deliberately not aliases in the production loader.
-pub(super) fn stillwind_fixture_css(css: &str) -> String {
-    let css = css
-        .replace("tailwindcss/theme", "stillwind/theme.css")
-        .replace("tailwindcss/preflight", "stillwind/preflight.css")
-        .replace("tailwindcss/utilities", "stillwind/utilities.css")
-        .replace("\"tailwindcss\"", "\"stillwind\"");
-    format!("{css}\n@import \"stillwind/builtins.css\";")
-}
-
-pub(super) fn fixture_candidates(fixture: &str, case_name: &str) -> String {
-    let case_start = fixture
-        .find(&format!("## `{case_name}`"))
-        .expect("fixture case must exist");
-    let candidates_start = fixture[case_start..]
-        .find("### Candidates\n\n```text\n")
-        .expect("fixture candidates must exist")
-        + case_start
-        + "### Candidates\n\n```text\n".len();
-    fixture[candidates_start..]
-        .split_once("\n```")
-        .expect("fixture candidates must close")
-        .0
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-pub(super) fn fixture_code_block(section: &str, heading: &str, language: &str) -> Option<String> {
-    let marker = format!("### {heading}\n\n```{language}\n");
-    let start = section.find(&marker)? + marker.len();
-    Some(section[start..].split_once("\n```")?.0.trim().to_owned())
-}
-
-pub(super) fn fixture_case_for_candidate<'a>(fixture: &'a str, candidate: &str) -> &'a str {
-    fixture
-        .split("## `")
-        .skip(1)
-        .find(|section| {
-            fixture_code_block(section, "Candidates", "text").is_some_and(|candidates| {
-                candidates
-                    .split_whitespace()
-                    .any(|value| value == candidate)
-            })
-        })
-        .unwrap_or_else(|| panic!("fixture case for `{candidate}` must exist"))
-}
-
-pub(super) fn fixture_case_named<'a>(fixture: &'a str, name: &str) -> &'a str {
-    fixture
-        .split("## `")
-        .skip(1)
-        .find(|section| section.starts_with(&format!("{name}`")))
-        .unwrap_or_else(|| panic!("fixture case `{name}` must exist"))
-}
 
 pub(super) fn css_rule(css: &str, class_name: &str) -> String {
     let selector = format!(".{class_name}");
@@ -219,7 +157,7 @@ pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
         &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
-        &crate::css_fixture::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
+        &css::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     )

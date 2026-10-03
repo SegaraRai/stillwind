@@ -194,12 +194,13 @@ pub(crate) fn extract_theme_tokens(
 #[cfg(test)]
 mod tests {
     use stillwind_css::strip_css_comments;
+    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
 
     use super::*;
 
     #[test]
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
-        let source = SourceFile::new(FileId(1), None, None, format!("{}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;", crate::test_defaults::BUILTIN_REGISTRY_CSS)).unwrap();
+        let source = SourceFile::new(FileId(1), None, None, format!("{BUILTIN_REGISTRY_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert_eq!(theme.tokens.len(), 1);
         assert_eq!(theme.tokens[0].name.value, "--color-local");

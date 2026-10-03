@@ -3,8 +3,12 @@
 //! Pins arbitrary-property order, animation option resolution, theme suffix metadata,
 //! and the value domains used by theme namespaces.
 
+use stillwind_test_support::assertions::css_tokens;
+use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
+
 use super::*;
-use crate::{parse_builtin_utility_definitions, test_defaults::BUILTIN_REGISTRY_CSS};
+use crate::parse_builtin_utility_definitions;
+use crate::test_support::parse_fixture_theme;
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {

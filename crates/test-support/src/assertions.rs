@@ -1,10 +1,29 @@
+//! CSS token comparisons for generated declarations.
+
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::fold_calc_expressions;
 
+/// Asserts that two CSS value or declaration sequences have equal tokens after
+/// arithmetic evaluation. Evaluates each argument once and ignores whitespace and
+/// comments while preserving strings, token boundaries, and declaration order.
+///
+/// # Panics
+///
+/// Panics if the normalized token sequences differ.
+#[macro_export]
+macro_rules! assert_css_eq {
+    ($actual:expr, $expected:expr $(,)?) => {
+        ::std::assert_eq!(
+            $crate::assertions::css_tokens(&$actual),
+            $crate::assertions::css_tokens(&$expected),
+        );
+    };
+}
+
 /// Compares value tokens after test-only arithmetic evaluation. Whitespace inside
 /// strings and token boundaries remain observable; declaration order is never sorted.
-pub(crate) fn css_tokens(value: &str) -> Vec<String> {
+pub fn css_tokens(value: &str) -> Vec<String> {
     fn collect(parser: &mut Parser<'_>, output: &mut Vec<String>) {
         while let Ok(token) = parser.next_including_whitespace_and_comments() {
             let nested = matches!(
@@ -32,7 +51,10 @@ pub(crate) fn css_tokens(value: &str) -> Vec<String> {
     output
 }
 
-pub(crate) trait CssAssertions {
+/// Tests whether a CSS string contains a contiguous sequence of value tokens.
+pub trait CssAssertions {
+    /// Returns whether `expected` occurs after arithmetic evaluation of both strings.
+    /// Whitespace and comments are ignored, and an empty token sequence matches.
     fn contains_css(&self, expected: &str) -> bool;
 }
 
@@ -61,4 +83,20 @@ fn comparison_preserves_strings_token_boundaries_fallbacks_and_order() {
     ] {
         assert_ne!(css_tokens(left), css_tokens(right));
     }
+}
+
+#[test]
+fn equality_assertion_evaluates_each_argument_once() {
+    let calls = std::cell::Cell::new(0);
+    assert_css_eq!(
+        {
+            calls.set(calls.get() + 1);
+            String::from("width:calc(1px + 2px);")
+        },
+        {
+            calls.set(calls.get() + 1);
+            "width:3px;"
+        },
+    );
+    assert_eq!(calls.get(), 2);
 }

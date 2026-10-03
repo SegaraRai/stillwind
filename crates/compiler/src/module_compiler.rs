@@ -383,6 +383,7 @@ mod tests {
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_semantic::TypeFacts;
     use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile};
+    use stillwind_test_support::css;
 
     use super::*;
     use crate::{GeneratedRule, SourceTransform};
@@ -417,7 +418,7 @@ mod tests {
         let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
         assert!(analysis.semantic_revision.is_none());
         assert_eq!(analysis.integration_diagnostics.len(), 1);
-        let theme = crate::css_fixture::source(
+        let theme = css::source(
             FileId(90),
             "@utility flex { display:flex; } @stillwind-slot utilities;",
         )

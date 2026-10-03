@@ -5,6 +5,7 @@ use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -20,7 +21,7 @@ fn compile_arguments(arguments: &str, native: bool) -> CompileResult {
         format!("import {{ style }} from 'stillwind/react'; export const x = style({arguments});"),
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@import 'stillwind';").unwrap();
+    let theme = css::source(FileId(2), "@import 'stillwind';").unwrap();
     Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -92,7 +93,7 @@ fn runtime_if_independent_rules_share_barriers_but_conflicts_do_not() {
 
 #[test]
 fn runtime_if_authored_apply_and_variant_share_owner_and_expand_nested_rules() {
-    let source = crate::css_fixture::source(
+    let source = css::source(
         FileId(2),
         r"
         @import 'stillwind';
@@ -373,7 +374,7 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
 
 #[test]
 fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
-    let source = crate::css_fixture::source(
+    let source = css::source(
         FileId(2),
         r"
         @import 'stillwind';

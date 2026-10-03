@@ -279,6 +279,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
 #[cfg(test)]
 mod tests {
     use stillwind_source::{CssSourceName, FileId};
+    use stillwind_test_support::css;
 
     use super::*;
     use crate::Compiler;
@@ -306,7 +307,7 @@ mod tests {
 
     #[test]
     fn expands_authored_variants_through_the_shared_registry() {
-        let source = crate::css_fixture::source(
+        let source = css::source(
             FileId(1),
             r#"
                 @import "stillwind/theme.css" layer(theme);
@@ -336,7 +337,7 @@ mod tests {
 
     #[test]
     fn expands_authored_apply_in_tailwind_property_order() {
-        let source = crate::css_fixture::source(
+        let source = css::source(
             FileId(1),
             r#"
                 @stillwind { utility-order: tailwind; }

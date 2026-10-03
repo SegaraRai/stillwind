@@ -1,8 +1,9 @@
 //! Names an authored document already uses: per-family pools, producer-authored CSS,
 //! and collisions reported at publication time.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+mod support;
+
+use support::brand_snapshot;
 
 use std::sync::Arc;
 
@@ -16,17 +17,7 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-
-/// One snapshot whose theme declares a single token.
-fn snapshot(color: &str) -> DesignSystemSnapshot {
-    DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
-            .unwrap(),
-        CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
-    )
-    .unwrap()
-}
+use stillwind_test_support::css;
 
 /// Names the ref marker and anchor families with one fixed body.
 #[derive(Debug)]
@@ -77,7 +68,7 @@ fn ref_module() -> ModuleAnalysis {
 fn distinct_pools_may_publish_the_same_spelling() {
     let generators = Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release);
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -104,7 +95,7 @@ fn distinct_pools_may_publish_the_same_spelling() {
 #[test]
 fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -134,7 +125,7 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
 
 #[test]
 fn a_generated_anchor_name_is_checked_against_the_authored_document() {
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         ":root{anchor-name:shared;} @stillwind-slot utilities;",
     )

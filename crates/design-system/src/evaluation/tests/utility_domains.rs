@@ -4,14 +4,19 @@
 //! that namespace resets are respected, and that typed branches prune only the
 //! declarations that do not match a candidate.
 
+use stillwind_test_support::assert_css_eq;
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::fixtures;
+
 use super::*;
 use crate::UtilityOrderMode;
+use crate::test_support::parse_fixture_theme;
 
 #[test]
 fn resolves_every_upstream_static_utility_from_the_css_registry() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let candidates = catalog_section(catalog, "## Static utilities");
+    let candidates = fixtures::catalog_section(catalog, "## Static utilities");
     let theme = theme();
 
     let unresolved = candidates
@@ -29,7 +34,7 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
 fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let roots = catalog_section(catalog, "## Functional utility roots");
+    let roots = fixtures::catalog_section(catalog, "## Functional utility roots");
     let theme = theme();
 
     let unresolved = roots
@@ -48,7 +53,7 @@ fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
 fn resolves_every_upstream_static_variant_from_the_css_registry() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let variants = catalog_section(catalog, "## Static variants");
+    let variants = fixtures::catalog_section(catalog, "## Static variants");
     let theme = theme();
 
     let unresolved = variants

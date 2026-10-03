@@ -1984,6 +1984,7 @@ dependencies = [
  "stillwind-semantic",
  "stillwind-source",
  "stillwind-syntax",
+ "stillwind-test-support",
  "thiserror",
 ]
 
@@ -2012,6 +2013,7 @@ dependencies = [
  "stillwind-diagnostics",
  "stillwind-source",
  "stillwind-syntax",
+ "stillwind-test-support",
  "thiserror",
 ]
 
@@ -2066,6 +2068,7 @@ dependencies = [
  "stillwind-project",
  "stillwind-semantic",
  "stillwind-source",
+ "stillwind-test-support",
  "thiserror",
 ]
 
@@ -2083,6 +2086,7 @@ dependencies = [
  "stillwind-js-oxc",
  "stillwind-semantic",
  "stillwind-source",
+ "stillwind-test-support",
  "thiserror",
 ]
 
@@ -2114,6 +2118,15 @@ name = "stillwind-syntax"
 version = "0.0.0"
 dependencies = [
  "proptest",
+ "stillwind-source",
+]
+
+[[package]]
+name = "stillwind-test-support"
+version = "0.0.0"
+dependencies = [
+ "cssparser 0.38.0",
+ "stillwind-css",
  "stillwind-source",
 ]
 

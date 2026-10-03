@@ -9,6 +9,8 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -22,7 +24,7 @@ fn emits_tailwind_shaped_layers_theme_variables_and_variants() {
 const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opacity-60");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         r"@theme {
   --color-accent: oklch(.6 .2 250);
@@ -74,7 +76,7 @@ fn retains_authored_custom_properties_and_theme_selectors() {
 const props = style("bg-accent");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         r#"@theme inline { --color-accent: var(--app-accent); }
 :root { --app-accent: oklch(.6 .2 250); }
@@ -117,7 +119,7 @@ fn resolves_v4_default_spacing_and_arbitrary_custom_properties() {
 const props = style("px-4 -mt-2 bg-red-500 [--gutter:1rem] w-[calc(var(--gutter)*2)]");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -160,7 +162,7 @@ fn resolves_v4_default_animations_and_emits_their_keyframes() {
 const props = style("animate-spin");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -188,7 +190,7 @@ fn resolves_css_defined_custom_utilities_and_variants() {
 const props = style("content-auto data-checked:content-auto tab-8");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         r#"@utility content-auto { content-visibility: auto; }
 @utility tab-* { tab-size: --value(integer); }
@@ -224,7 +226,7 @@ const props = style("bg-accent");
 export { props };"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -256,7 +258,7 @@ const props = style(
 );"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --color-accent: red; --spacing-4: 1rem; }",
     )
@@ -300,7 +302,7 @@ fn resolves_negative_and_transition_utilities_from_declared_theme_tokens() {
 const props = style("-mt-4 duration-120 ease-standard");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --spacing-4: 1rem; --ease-standard: ease-out; }",
     )

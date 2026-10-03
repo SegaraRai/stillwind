@@ -1,42 +1,17 @@
 //! Composition ordering and suppression through a project session.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+mod support;
 
-use std::sync::Arc;
+use support::{analysis, brand_snapshot};
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
-use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
-use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
-use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-
-fn snapshot() -> DesignSystemSnapshot {
-    DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap(),
-        CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
-    )
-    .unwrap()
-}
-
-fn analysis(name: &str, source: &str) -> ModuleAnalysis {
-    OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(
-            Arc::new(SourceFile::new(FileId(1), None, None, source).unwrap()),
-            ModuleId::from(name),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous,
-        ),
-        None,
-    )
-}
+use stillwind_source::{ModuleId, SourceRegistry};
 
 fn session() -> ProjectSession {
     ProjectSession::new(
-        snapshot(),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),

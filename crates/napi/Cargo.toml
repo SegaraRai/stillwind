@@ -29,6 +29,7 @@ serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+stillwind-test-support = { path = "../test-support" }
 serde_json.workspace = true
 
 [build-dependencies]

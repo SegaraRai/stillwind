@@ -166,6 +166,7 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, SourceFile};
+    use stillwind_test_support::css;
 
     use super::*;
     use crate::Compiler;
@@ -193,7 +194,7 @@ mod tests {
                 format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
             )
             .unwrap();
-            let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+            let theme = css::source(FileId(2), "").unwrap();
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,

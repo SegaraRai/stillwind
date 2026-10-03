@@ -5,8 +5,7 @@
 //! transform output against a pinned snapshot, invalid IR and byte boundaries returning
 //! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+use stillwind_test_support::css as css_fixture;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -27,11 +26,12 @@ use stillwind_ir::{
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
 use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile, Span, Spanned};
+use stillwind_test_support::css;
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
     let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const a=style('m-10 hover:m-20'); const b=style(a,'m-4'); const c=style(b,'m-10'); const d=style(flag?a:c); const e=style(a,c);").unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+    let theme = css::source(FileId(2), "").unwrap();
     let output = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
@@ -69,7 +69,7 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
 
 #[test]
 fn composition_rejects_props_and_nested_calls() {
-    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+    let theme = css::source(FileId(2), "").unwrap();
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
@@ -114,7 +114,7 @@ fn composition_rejects_props_and_nested_calls() {
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-brand: red; }").unwrap();
+    let theme = css::source(FileId(2), "@theme { --color-brand: red; }").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -275,7 +275,7 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
         None,
     );
     let compile = |policy: &str| {
-        let theme = crate::css_fixture::source(
+        let theme = css::source(
             FileId(2),
             format!("@stillwind {{ unknown-utility: {policy}; }}"),
         )
@@ -318,7 +318,7 @@ fn invalid_transform_byte_boundaries_return_errors() {
 
 #[test]
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
-    let theme = crate::css_fixture::source(FileId(2), "").unwrap();
+    let theme = css::source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),

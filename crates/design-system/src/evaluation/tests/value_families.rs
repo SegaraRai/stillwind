@@ -4,6 +4,12 @@
 //! families, and the difference between unhinted and hint-checked arbitrary values
 //! against Tailwind's unbracketed grammar catalog.
 
+use stillwind_test_support::assert_css_eq;
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::fixtures;
+
+use crate::test_support::parse_fixture_theme;
+
 use super::*;
 
 #[test]
@@ -260,7 +266,7 @@ fn matches_tailwind_unbracketed_value_grammar_catalog() {
         ("## Z index: accepted without brackets", true),
         ("## Z index: rejected without brackets", false),
     ] {
-        for candidate in catalog_section(catalog, heading) {
+        for candidate in fixtures::catalog_section(catalog, heading) {
             assert_eq!(
                 resolve_utility(candidate, &theme).is_some(),
                 expected,

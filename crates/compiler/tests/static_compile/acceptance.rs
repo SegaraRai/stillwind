@@ -10,6 +10,8 @@ use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -20,7 +22,7 @@ fn resolves_a_broader_css_first_tailwind_compatibility_slice() {
         r#"import { style } from "stillwind/react";
 const props = style("grid place-items-center size-10 flex-col grow border outline-2 outline-offset-2 outline-accent z-popover position-area-block-end grid-cols-3 text-3xl");"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --spacing-10: 2.5rem; --color-accent: red; --z-index-popover: 50; --text-3xl: 1.875rem; }",
     ).unwrap();
@@ -63,7 +65,7 @@ fn emits_tailwind_background_gradient_and_mask_declarations() {
         r#"import { style } from "stillwind/react";
 const props = style("bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 mask-linear-from-0 mask-linear-to-100");"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -113,7 +115,7 @@ const props = style(trigger, trigger.asAnchor());"#;
     let windows = SourceFile::new(FileId(1), None, None, module).unwrap();
     let unix = SourceFile::new(FileId(1), None, None, module).unwrap();
     let other = SourceFile::new(FileId(1), None, None, module).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let windows_result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -164,7 +166,7 @@ const selected = enabled ? first : second;
 export const props = style(selected);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -196,7 +198,7 @@ export const anchor = style(selected.asAnchor());
 export const container = style(selected.asContainer("inline-size"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,

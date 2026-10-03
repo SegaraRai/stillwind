@@ -12,6 +12,7 @@ members = [
   "crates/semantic",
   "crates/source",
   "crates/syntax",
+  "crates/test-support",
 ]
 resolver = "3"
 

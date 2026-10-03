@@ -1,8 +1,9 @@
 //! Artifact replacement, reuse, and dependency bookkeeping across module updates and
 //! code-generation reloads.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+mod support;
+
+use support::{brand_snapshot, module};
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -11,12 +12,12 @@ use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetPlacement, Styl
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::CompileError;
 use stillwind_ir::{
-    ClassExpression, ModuleAnalysis, RuleExpression, ScriptLanguage, ScriptModuleKind,
-    SourceAnalyzer, StyleInput,
+    ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry, SourceUri};
+use stillwind_test_support::css;
 
 #[test]
 fn css_and_script_sources_share_ids_without_sharing_retention() {
@@ -53,45 +54,11 @@ fn css_and_script_sources_share_ids_without_sharing_retention() {
     assert!(report_sources.source(script.id()).is_ok());
 }
 
-/// One snapshot whose theme declares a single token.
-fn snapshot(color: &str) -> DesignSystemSnapshot {
-    DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
-            .unwrap(),
-        CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
-    )
-    .unwrap()
-}
-
-/// One analyzed module whose single call uses the given candidate.
-fn module(name: &str, candidate: &str) -> ModuleAnalysis {
-    OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(
-            Arc::new(
-                SourceFile::new(
-                    FileId(1),
-                    None,
-                    None,
-                    format!(
-                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                    ),
-                )
-                .unwrap(),
-            ),
-            ModuleId::from(name),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous,
-        ),
-        None,
-    )
-}
-
 /// A code-generation option change recompiles artifacts without reloading the
 /// design-system snapshot or its revision.
 #[test]
 fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
-    let snapshot = snapshot("red");
+    let snapshot = brand_snapshot("red");
     let options = CompilerOptions {
         class_namespace: "first".to_owned(),
         ..CompilerOptions::default()
@@ -132,7 +99,7 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
 #[test]
 fn module_stylesheets_include_support_without_repeating_document_rules() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(
+        &css::source(
             FileId(2),
             "@theme { --color-brand: red; } .document-only{color:blue;}",
         )
@@ -202,7 +169,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
 #[test]
 fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -244,7 +211,7 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         .source_revision
         .clone();
     let update = session
-        .reload(Ok(snapshot("blue")), session.options().clone())
+        .reload(Ok(brand_snapshot("blue")), session.options().clone())
         .unwrap();
     assert!(update.css_changed);
     assert!(update.transformed_modules.is_empty());
@@ -264,7 +231,7 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
 #[test]
 fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -300,7 +267,7 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
 /// analyses from scratch reproduces both the indexes and the CSS.
 #[test]
 fn dependency_replacement_retains_other_producers_and_clears_last_memberships() {
-    let snapshot = snapshot("red");
+    let snapshot = brand_snapshot("red");
     let mut session = ProjectSession::new(
         snapshot.clone(),
         &SourceRegistry::default(),
@@ -377,7 +344,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
 #[test]
 fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
     let mut original = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -405,7 +372,7 @@ fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
 #[test]
 fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),

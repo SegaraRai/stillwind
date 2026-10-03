@@ -184,11 +184,9 @@ pub(in crate::compiler) fn order_utilities(
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
     use stillwind_design_system::parse_declaration_formats;
+    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
 
-    combine_declarations_with_formats(
-        utilities,
-        &parse_declaration_formats(crate::test_defaults::BUILTIN_REGISTRY_CSS),
-    )
+    combine_declarations_with_formats(utilities, &parse_declaration_formats(BUILTIN_REGISTRY_CSS))
 }
 
 #[cfg(test)]

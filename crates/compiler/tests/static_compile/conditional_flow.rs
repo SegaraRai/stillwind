@@ -10,6 +10,7 @@ use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -26,7 +27,7 @@ export const one = style({ "hover:": ref });
 export const two = style({ "hover:": base });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -84,7 +85,7 @@ fn compile(body: &str) -> CompileResult {
         ),
     )
     .unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --color-accent: red; --color-muted: gray; } @utility p-4 { padding: 1rem; } \
          @utility p-2 { padding: 0.5rem; } @utility m-2 { margin: 0.5rem; } \
@@ -245,7 +246,7 @@ fn unsupported_forms_report_their_diagnostics() {
             ),
         )
         .unwrap();
-        let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+        let theme = css::source(FileId(2), "@theme {}").unwrap();
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &component,

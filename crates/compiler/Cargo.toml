@@ -25,6 +25,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 stillwind-js-oxc = { path = "../js-oxc" }
+stillwind-test-support = { path = "../test-support" }
 lightningcss.workspace = true
 proptest.workspace = true
 

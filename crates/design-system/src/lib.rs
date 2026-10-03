@@ -56,9 +56,4 @@ pub use theme::*;
 mod tests;
 
 #[cfg(test)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
-
-#[cfg(test)]
-#[path = "../../test-support/defaults.rs"]
-mod test_defaults;
+mod test_support;

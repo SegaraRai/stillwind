@@ -10,6 +10,8 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -34,7 +36,7 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
     let source = SourceFile::new(FileId(1), None, None, format!(
         "import {{ style }} from \"stillwind/react\"; {ref_definition} const other = style.ref(\"other\"); declare const active: boolean; {use_site}"
     )).unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         r#"
 @import "stillwind";
@@ -214,8 +216,7 @@ fn invalid_ref_variants_report_diagnostics_without_unscoped_output() {
         let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{ style }} from \"stillwind/react\"; const trigger = style.ref(); const props = style({args});"
         )).unwrap();
-        let theme =
-            crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
+        let theme = css::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
@@ -242,7 +243,7 @@ const trigger = style.ref();
 const props = style(check() && `${trigger`hover`}:text-accent ${trigger`focus`}:opacity-50`);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
+    let theme = css::source(FileId(2), "@theme { --color-accent:red; }").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
@@ -272,7 +273,7 @@ const enter = style.keyframes({ from: "opacity-0", to: "opacity-100" });
 const props = style({ [trigger("hover")]: { "active:": enter("duration-120") } });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,

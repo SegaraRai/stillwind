@@ -4,8 +4,12 @@
 //! resolve with the same slot syntax as built-ins, and that theme wildcards and typed
 //! modifiers expand inside them.
 
+use stillwind_test_support::assert_css_eq;
+use stillwind_test_support::assertions::CssAssertions as _;
+
 use super::*;
 use crate::evaluation::builtins::metadata::COMPAT_COLOR_SUPPORT;
+use crate::test_support::parse_fixture_theme;
 
 #[test]
 fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {

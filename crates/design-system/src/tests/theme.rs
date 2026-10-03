@@ -7,6 +7,8 @@
 use stillwind_css::CssOutputNode;
 use stillwind_diagnostics::LintKind;
 
+use crate::test_support::parse_fixture_theme;
+
 use super::*;
 
 #[test]

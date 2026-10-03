@@ -168,6 +168,8 @@ pub(crate) fn typed_css_variable<'a>(
 mod tests {
     use std::sync::Arc;
 
+    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
+
     use super::*;
     use crate::BuiltinDefinitions;
 
@@ -186,9 +188,7 @@ mod tests {
     #[test]
     fn arbitrary_values_and_variables_must_match_namespace_types() {
         let configured = ThemeIndex {
-            registry: Arc::new(BuiltinDefinitions::from_css(
-                crate::test_defaults::BUILTIN_REGISTRY_CSS,
-            )),
+            registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
             ..ThemeIndex::default()
         };
         assert_eq!(

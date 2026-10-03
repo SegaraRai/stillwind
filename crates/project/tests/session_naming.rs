@@ -1,8 +1,9 @@
 //! Injected generators: the names they own, the families that keep their own prefix,
 //! and collisions with names an authored document already uses.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+mod support;
+
+use support::{brand_snapshot, module};
 
 use std::sync::Arc;
 
@@ -13,44 +14,11 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
-use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-
-/// One snapshot whose theme declares a single token.
-fn snapshot(color: &str) -> DesignSystemSnapshot {
-    DesignSystemSnapshot::from_source(
-        &crate::css_fixture::source(FileId(2), format!("@theme {{ --color-brand: {color}; }}"))
-            .unwrap(),
-        CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
-    )
-    .unwrap()
-}
-
-/// One analyzed module whose single call uses the given candidate.
-fn module(name: &str, candidate: &str) -> ModuleAnalysis {
-    OxcSourceAnalyzer.finalize(
-        OxcSourceAnalyzer.scan(
-            Arc::new(
-                SourceFile::new(
-                    FileId(1),
-                    None,
-                    None,
-                    format!(
-                        "import {{ style }} from 'stillwind/react'; const x = style({candidate:?});"
-                    ),
-                )
-                .unwrap(),
-            ),
-            ModuleId::from(name),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous,
-        ),
-        None,
-    )
-}
+use stillwind_test_support::css;
 
 /// Names utility classes with a fixed, readable body.
 #[derive(Debug)]
@@ -72,7 +40,7 @@ impl IdentifierGenerator for FixedClassGenerator {
 #[test]
 fn session_generators_name_generated_classes() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -113,7 +81,7 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
 
 #[test]
 fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         // The host body carries no built-in prefix, so the authored name it collides
         // with is the bare one.
@@ -184,7 +152,7 @@ impl IdentifierGenerator for FixedHelperGenerator {
 #[test]
 fn a_helper_name_is_checked_in_the_custom_property_pool() {
     let mut session = ProjectSession::new(
-        snapshot("red"),
+        brand_snapshot("red"),
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
@@ -228,7 +196,7 @@ fn merge_barriers_have_an_independent_collision_pool() {
         ("if(--a):flex if(--b):grid", true, true),
     ] {
         let mut session = ProjectSession::new(
-            snapshot("red"),
+            brand_snapshot("red"),
             &SourceRegistry::default(),
             SessionMode::Watch,
             CompilerOptions {
@@ -296,7 +264,7 @@ impl IdentifierGenerator for FixedLayerGenerator {
 
 #[test]
 fn a_layer_name_is_checked_against_the_authored_document() {
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@layer app-layer-0; @layer { @stillwind-slot utilities; }",
     )

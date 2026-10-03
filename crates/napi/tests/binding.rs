@@ -8,9 +8,7 @@
 //! invalid projection metadata fails the compile instead of producing partial code, and
 //! options are validated rather than defaulted silently.
 
-#[allow(dead_code)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+use stillwind_test_support::css as css_fixture;
 
 use std::error::Error;
 

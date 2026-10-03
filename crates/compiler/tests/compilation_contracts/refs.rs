@@ -1,7 +1,6 @@
 //! Ref names, projections, scope lists, and provider diagnostics.
 
-#[path = "../../../test-support/css.rs"]
-mod css_fixture;
+use stillwind_test_support::css as css_fixture;
 
 use std::collections::BTreeMap;
 

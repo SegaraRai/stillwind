@@ -1,7 +1,7 @@
 # Rust crate responsibility boundaries
 
 This is the accepted crate structure for Stillwind. The Rust workspace has
-twelve crates; there are no `core`, `tailwind`, or `grammar` compatibility crates.
+thirteen crates; there are no `core`, `tailwind`, or `grammar` compatibility crates.
 
 The proposed framework descriptor placement and projection/editing boundaries
 are documented in [framework projection design](framework-projection-design.md).
@@ -20,11 +20,13 @@ are documented in [framework projection design](framework-projection-design.md).
 | `project`       | Mutable analyses and artifacts, rule ownership, reloads, dependency indexes, producer selection, and coverage validation            |
 | `napi`          | Node transport, serialization, and composition of the Rust services                                                                 |
 | `cli`           | Filesystem/package resolution and command-line composition                                                                          |
+| `test-support`  | CSS fixtures, Markdown readers, Tailwind fixture input conversion, builtin package contents, and CSS token assertions               |
 
 `css` also exposes optional final asset minification and source-map composition through its
 `minify` feature. See [CSS minification](css-minification.md) for the public API.
 
-`crates/test-support` contains shared test sources, not a workspace crate.
+Tests use `stillwind-test-support` through dev-dependencies. The crate reads the
+standard CSS package from `packages/core`.
 
 ## Dependency direction
 

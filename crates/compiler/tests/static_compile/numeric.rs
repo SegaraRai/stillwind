@@ -4,8 +4,8 @@
 //! across a wide numeric domain and assert on the CSS the whole pipeline generates, including typed
 //! arbitrary values and the property families that must reject them.
 
-use stillwind_css::fold_calc_expressions;
 use stillwind_diagnostics::{LintDiagnostic, UtilityFailure};
+use stillwind_test_support::assertions::CssAssertions as _;
 
 use super::*;
 
@@ -21,14 +21,13 @@ proptest! {
         let padding = format!("padding:calc(var(--spacing)*{n});");
         let border = format!("border-width:{n}px;");
         let z_index = format!("z-index:{n};");
-        let css = normalize_css(&fold_calc_expressions(&result.css, None));
         prop_assert!(
-            css.contains(&padding) || (n == 1 && css.contains("padding:var(--spacing);")),
+            result.css.contains_css(&padding) || (n == 1 && result.css.contains_css("padding:var(--spacing);")),
             "{}",
             result.css
         );
-        prop_assert!(css.contains(&border), "{}", result.css);
-        prop_assert!(css.contains(&z_index), "{}", result.css);
+        prop_assert!(result.css.contains_css(&border), "{}", result.css);
+        prop_assert!(result.css.contains_css(&z_index), "{}", result.css);
     }
 
     #[test]
@@ -36,7 +35,7 @@ proptest! {
         let result = compile_one_utility(&format!("-z-{n}"));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
         let z_index = format!("z-index:-{n};");
-        prop_assert!(normalize_css(&fold_calc_expressions(&result.css, None)).contains(&z_index), "{}", result.css);
+        prop_assert!(result.css.contains_css(&z_index), "{}", result.css);
     }
 
     #[test]
@@ -45,11 +44,10 @@ proptest! {
             "p-[length:{n}px] p-[percentage:{n}%] border-[length:{n}px] z-[integer:{n}]"
         ));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-        let css = normalize_css(&fold_calc_expressions(&result.css, None));
-        prop_assert!(css.contains(&format!("padding:{n}px;")), "{}", result.css);
-        prop_assert!(css.contains(&format!("padding:{n}%;")), "{}", result.css);
-        prop_assert!(css.contains(&format!("border-width:{n}px;")), "{}", result.css);
-        prop_assert!(css.contains(&format!("z-index:{n};")), "{}", result.css);
+        prop_assert!(result.css.contains_css(&format!("padding:{n}px;")), "{}", result.css);
+        prop_assert!(result.css.contains_css(&format!("padding:{n}%;")), "{}", result.css);
+        prop_assert!(result.css.contains_css(&format!("border-width:{n}px;")), "{}", result.css);
+        prop_assert!(result.css.contains_css(&format!("z-index:{n};")), "{}", result.css);
     }
 
     #[test]
@@ -71,9 +69,8 @@ proptest! {
             "p-[length-percentage:calc({n}px_+_50%)] border-[line-width:thin] z-[z-index:auto]"
         ));
         prop_assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-        let css = normalize_css(&fold_calc_expressions(&result.css, None));
-        prop_assert!(css.contains(&format!("padding:calc({n}px+50%);")), "{}", result.css);
-        prop_assert!(css.contains("border-width:thin;"), "{}", result.css);
-        prop_assert!(css.contains("z-index:auto;"), "{}", result.css);
+        prop_assert!(result.css.contains_css(&format!("padding:calc({n}px+50%);")), "{}", result.css);
+        prop_assert!(result.css.contains_css("border-width:thin;"), "{}", result.css);
+        prop_assert!(result.css.contains_css("z-index:auto;"), "{}", result.css);
     }
 }

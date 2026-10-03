@@ -393,13 +393,14 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+    use stillwind_test_support::css;
 
     use super::*;
     use crate::{Compiler, CompilerOptions, ModuleCompiler};
 
     #[test]
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
-        let theme = crate::css_fixture::source(
+        let theme = css::source(
             FileId(1),
             "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
         )
@@ -527,7 +528,7 @@ mod tests {
     /// candidates have no order at all.
     #[test]
     fn editor_order_uses_custom_utility_and_variant_precedence() {
-        let theme = crate::css_fixture::source(
+        let theme = css::source(
             FileId(1),
             "@utility a { color:red; } @utility b { color:blue; }",
         )
@@ -557,8 +558,7 @@ mod tests {
     /// candidate, pins the snapshot revision, and classifies unresolved candidates.
     #[test]
     fn queries_share_resolved_custom_definitions_and_pin_revisions() {
-        let theme =
-            crate::css_fixture::source(FileId(1), "@utility brand { color: red; }").unwrap();
+        let theme = css::source(FileId(1), "@utility brand { color: red; }").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &theme,
             CssSourceName::from("test.css"),
@@ -654,7 +654,7 @@ mod tests {
     /// empty rule.
     #[test]
     fn an_empty_utility_is_unresolved_and_produces_no_rules() {
-        let theme = crate::css_fixture::source(FileId(1), "@utility empty {}").unwrap();
+        let theme = css::source(FileId(1), "@utility empty {}").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &theme,
             CssSourceName::from("test.css"),

@@ -10,6 +10,8 @@ use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintKind, LintSev
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
+use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::css;
 
 use super::*;
 
@@ -22,7 +24,7 @@ const enter = style.keyframes({ from: "opacity-0 translate-y-2 scale-98", to: "o
 const exit = style.keyframes({ from: "opacity-100", to: "opacity-0 scale-98" });
 const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[&[data-state=closed]]:": exit("duration-120 ease-standard both") });"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --radius-md: .375rem; --spacing-2: .5rem; --ease-standard: ease-out; }",
     )
@@ -73,7 +75,7 @@ const panel = style.viewTransition({ label: "panel", old: "opacity-0" });
 export const item = style(panel, enter("duration-180"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -126,7 +128,7 @@ const item = style("rounded-md", card.for(product.id));
 const image = style(title);
 const detail = style(title);"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(
+    let theme = css::source(
         FileId(2),
         "@theme { --color-accent: red; --radius-md: .375rem; --spacing-1: .25rem; --ease-standard: ease-out; }",
     ).unwrap();
@@ -187,7 +189,7 @@ const item = style.viewTransition({ old: "opacity-0 motion-reduce:opacity-100", 
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -234,7 +236,7 @@ const item = style.viewTransition({ group: "duration-180 ease-linear both motion
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -292,7 +294,7 @@ const item = style.viewTransition({ group: "motion-reduce:[transition-duration:7
 export const photo = style(item);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -337,7 +339,7 @@ export const replaced = style(block, other.for("hero"));
 export const kept = style(block, base.for("hero"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -384,7 +386,7 @@ const named = style(transition.for(key));
 export const props = style(named, "flex");"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -418,7 +420,7 @@ const card = style.viewTransition({ old: "opacity-0" });
 export const item = style("translate-x-1", card);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme { --spacing-1: .25rem; }").unwrap();
+    let theme = css::source(FileId(2), "@theme { --spacing-1: .25rem; }").unwrap();
     let options = CompilerOptions {
         prefix: "--app-".to_owned(),
         tailwind_prefix: "--compat-".to_owned(),
@@ -464,7 +466,7 @@ const sub = style.viewTransition({ new: "opacity-100" });
 export const item = style("rounded", compact && sub, main.for("hero"));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -514,7 +516,7 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -557,7 +559,7 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", enabled && motion.for(id));"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -594,7 +596,7 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style("block", { "hover:": enabled && motion.for("hero") });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -630,7 +632,7 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style({ "hover:": motion.for(first), "focus:": motion.for(second) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -667,7 +669,7 @@ const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style({ "hover:": motion.for(id) });"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -703,7 +705,7 @@ const anchor = style.ref();
 const motion = style.viewTransition({ old: "opacity-0" });
 export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "external" }, enabled && motion.for(id)]);"#,
     ).unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -742,7 +744,7 @@ const two = style.viewTransition({ new: "opacity-100" });
 export const item = style("block", first && one, second && two);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -788,7 +790,7 @@ export const dynamic = card.for(product.id);
 export const useLiteral = style("block", literal);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -829,7 +831,7 @@ const image = style.viewTransition({ new: "opacity-100" });
 export const item = style(card, image);"#,
     )
     .unwrap();
-    let theme = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,

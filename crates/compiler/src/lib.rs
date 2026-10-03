@@ -82,11 +82,3 @@ pub use transforms::{
     ExpressionMapping, ExpressionTransformMapping, RenderedSource, SourceTransform, TransformError,
     TransformMapping, render_transforms,
 };
-
-#[cfg(test)]
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
-
-#[cfg(test)]
-#[path = "../../test-support/defaults.rs"]
-mod test_defaults;

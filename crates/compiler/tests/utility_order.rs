@@ -1,7 +1,6 @@
 //! Differential ordering against the pinned Tailwind compiler's unoptimized AST.
 
-#[path = "../../test-support/css.rs"]
-mod css_fixture;
+use stillwind_test_support::css as css_fixture;
 
 use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_design_system::{

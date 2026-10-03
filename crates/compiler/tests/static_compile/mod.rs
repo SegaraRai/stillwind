@@ -30,6 +30,3 @@ mod runtime_if;
 mod theme;
 mod utilities;
 mod variants;
-
-#[path = "../../../test-support/css.rs"]
-mod css_fixture;

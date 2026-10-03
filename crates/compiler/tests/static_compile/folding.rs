@@ -9,6 +9,7 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, LintSeverity}
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_test_support::css;
 
 use super::Compiler;
 
@@ -26,14 +27,14 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
         format!("import {{ style }} from 'stillwind/{framework}';\n{body}"),
     )
     .unwrap();
-    let css = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
         &ModuleId::from("test.ts"),
         ScriptLanguage::Ts,
         ScriptModuleKind::Unambiguous,
-        &css,
+        &theme,
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
@@ -469,14 +470,14 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
         "import {style} from 'stillwind/react'; const props = style(index++ ? [] : []);",
     )
     .unwrap();
-    let css = crate::css_fixture::source(FileId(2), "@theme {}").unwrap();
+    let theme = css::source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
         &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
-        &css,
+        &theme,
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );

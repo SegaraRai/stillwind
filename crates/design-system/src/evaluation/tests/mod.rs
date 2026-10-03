@@ -29,12 +29,6 @@ fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
 mod support;
 use support::*;
 
-macro_rules! assert_css_eq {
-    ($actual:expr, $expected:expr $(,)?) => {
-        assert_eq!(css_tokens(&$actual), css_tokens(&$expected));
-    };
-}
-
 mod animations;
 mod custom_variants;
 mod overloads;
