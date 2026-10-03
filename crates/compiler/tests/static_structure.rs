@@ -1,6 +1,6 @@
 //! Literal structure normalization through the public compiler.
 
-use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, SourceTransform};
 use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -84,7 +84,7 @@ fn inline_custom_properties_combine_with_variant_utilities() {
                 }),
             "{result:#?}"
         );
-        assert!(result.transforms.is_empty());
+        assert_eq!(result.transforms, [] as [SourceTransform; 0]);
     }
     let (_, result) = compile(
         "const x = style('hover:[--x:var(--y)]', {'--y': dynamicValue});",
@@ -110,7 +110,7 @@ fn malformed_utility_requirement_keeps_its_definition_cause() {
         )),
         "{result:#?}"
     );
-    assert!(result.transforms.is_empty());
+    assert_eq!(result.transforms, [] as [SourceTransform; 0]);
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
                 .any(|error| error.diagnostic == expected),
             "{result:#?}"
         );
-        assert!(result.transforms.is_empty());
+        assert_eq!(result.transforms, [] as [SourceTransform; 0]);
     }
 }
 

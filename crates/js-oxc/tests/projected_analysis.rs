@@ -8,17 +8,19 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, ClassExpression, ConverterIdentity, DirectSource, GroupEntry, ImportRealm,
-    PreparedSource, ProjectedSource, RuleExpression, ScriptLanguage, ScriptModuleKind,
-    ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput, SourceInputError,
-    SourceProjection, StyleInput, StyleVariant,
+    PreparedSource, ProjectedSource, RefDefinition, RuleExpression, ScriptLanguage,
+    ScriptModuleKind, ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput,
+    SourceInputError, SourceProjection, StyleCall, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::{OxcSourceAnalyzer, normalize_projection, parse};
-use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_semantic::{
+    AssetKind, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact, TypeFacts,
+};
 use stillwind_source::{
-    FileId, Fingerprint, ModuleId, ProjectionMap, SourceFile, Span, VolarMapping,
+    FileId, Fingerprint, ModuleId, ProjectionMap, SourceFile, SourceProvenance, Span, VolarMapping,
 };
 
 #[test]
@@ -306,7 +308,7 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(parsed.diagnostics.is_empty());
+        assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
         let (ir, _) = normalized.original_ir(&parsed.module).unwrap();
         let binding = &ir.imports.macros[0].specifiers[0];
         assert!(!binding.has_unmapped_references);
@@ -364,7 +366,7 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
     assert!(Arc::ptr_eq(&scan.source, &original));
-    assert!(!scan.provenance.is_empty());
+    assert_ne!(scan.provenance, [] as [SourceProvenance; 0]);
     assert!(!scan.type_probes.is_empty());
     for probe in &scan.type_probes {
         assert_eq!(probe.span.file, original.id());
@@ -447,8 +449,8 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
         scan.diagnostics[0].diagnostic,
         CompileDiagnostic::ProjectionUnmapped { .. }
     ));
-    assert!(scan.local_ir.style_calls.is_empty());
-    assert!(scan.local_ir.ref_definitions.is_empty());
+    assert_eq!(scan.local_ir.style_calls, [] as [StyleCall; 0]);
+    assert_eq!(scan.local_ir.ref_definitions, [] as [RefDefinition; 0]);
 }
 
 #[test]
@@ -596,7 +598,7 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
     .unwrap();
     let input = SourceInput::new(ModuleId::from("test.tsx"), PreparedSource::Direct(direct));
     let scan = OxcSourceAnalyzer.scan_input(input);
-    assert!(scan.diagnostics.is_empty());
+    assert_eq!(scan.diagnostics, [] as [CompileError; 0]);
     assert!(Arc::ptr_eq(&scan.source, &source));
     assert_eq!(scan.local_ir.style_calls.len(), 1);
 }
@@ -639,7 +641,10 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
         "{:?}",
         analysis.diagnostics
     );
-    assert!(analysis.integration_diagnostics.is_empty());
+    assert_eq!(
+        analysis.integration_diagnostics,
+        [] as [IntegrationDiagnostic; 0]
+    );
     let StyleInput::Composition { value, candidates } = &analysis.ir.style_calls[1].inputs[0]
     else {
         panic!("composition")
@@ -708,7 +713,10 @@ fn projected_forward_ref_scopes_match_later_attachments_in_original_coordinates(
             .collect(),
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    assert!(analysis.integration_diagnostics.is_empty());
+    assert_eq!(
+        analysis.integration_diagnostics,
+        [] as [IntegrationDiagnostic; 0]
+    );
     assert!(
         analysis.diagnostics.is_empty(),
         "{:?}",

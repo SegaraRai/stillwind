@@ -234,8 +234,8 @@ mod tests {
         assert!(compiled.is_success());
         let output = StylesheetRenderer::new(&design, &options, &Identifiers::default())
             .render_compilation(&compiled, source.full_span());
-        assert!(output.diagnostics.is_empty());
-        assert!(!output.module_css.is_empty());
+        assert_eq!(output.diagnostics, [] as [CompileError; 0]);
+        assert_ne!(output.module_css, "");
         assert_eq!(output.module_css, compiled.css.to_css());
     }
 

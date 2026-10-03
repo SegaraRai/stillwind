@@ -230,7 +230,7 @@ mod tests {
             assert!(matches!(input.prepared(), PreparedSource::Direct(_)));
             assert!(input.document().upstream_map().is_none());
             assert!(input.framework.is_none());
-            assert!(input.stylesheet_imports.is_empty());
+            assert_eq!(input.stylesheet_imports, [] as [String; 0]);
             assert!(input.module_css_import.is_none());
         }
     }

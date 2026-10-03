@@ -11,7 +11,7 @@ use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry, Source
 use stillwind_syntax::parse_candidate;
 
 use super::*;
-use crate::{DesignSystemOptions, DesignSystemSnapshot, resolve_variant};
+use crate::{CustomUtility, DesignSystemOptions, DesignSystemSnapshot, resolve_variant};
 
 #[test]
 fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
@@ -268,7 +268,10 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
         DesignSystemOptions::default(),
     )
     .unwrap();
-    assert!(unselected.builtins().unwrap().utilities.is_empty());
+    assert_eq!(
+        unselected.builtins().unwrap().utilities,
+        [] as [CustomUtility; 0]
+    );
     assert!(unselected.utilities().get("flex").is_none());
 }
 

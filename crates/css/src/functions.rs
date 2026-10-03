@@ -244,8 +244,14 @@ mod tests {
             found[1..]
         );
         assert_eq!(find_css_function(value, "--x", 0), Some(found[0].start));
-        assert!(find_css_functions(value, &[], 0).is_empty());
-        assert!(find_css_functions(value, &["--x"], value.len() + 1).is_empty());
+        assert_eq!(
+            find_css_functions(value, &[], 0),
+            [] as [CssFunctionMatch; 0]
+        );
+        assert_eq!(
+            find_css_functions(value, &["--x"], value.len() + 1),
+            [] as [CssFunctionMatch; 0]
+        );
     }
 
     #[test]

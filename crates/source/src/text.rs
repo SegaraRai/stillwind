@@ -422,7 +422,7 @@ impl SourceRegistry {
     fn next_id(&self) -> Result<FileId, SourceRegistryError> {
         let id = self
             .next_id
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
                 next.checked_add(1).filter(|id| *id < u32::MAX)
             })
             .map_err(|_| SourceRegistryError::FileIdExhausted)?;

@@ -148,7 +148,7 @@ mod tests {
                 .declaration,
             "animation-duration:var(--duration-normal);animation-fill-mode:both;"
         );
-        assert!(diagnostics.is_empty());
+        assert_eq!(diagnostics, [] as [CompileError; 0]);
     }
 
     #[test]

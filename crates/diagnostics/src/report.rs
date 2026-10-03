@@ -608,7 +608,7 @@ mod tests {
         let kind = LintKind::RequireRefAttachment;
         let mut reporter = Reporter::new(LintSettings::default());
         reporter.report(&finding()).unwrap();
-        assert!(reporter.finish().diagnostics.is_empty());
+        assert_eq!(reporter.finish().diagnostics, [] as [ResolvedDiagnostic; 0]);
         let plain = document(&mut sources, "untitled:plain", "x");
         let finding = || {
             LocatedDiagnostic::new(
@@ -622,7 +622,7 @@ mod tests {
                 .collect(),
         );
         reporter.report(&finding()).unwrap();
-        assert!(reporter.finish().diagnostics.is_empty());
+        assert_eq!(reporter.finish().diagnostics, [] as [ResolvedDiagnostic; 0]);
         let mut reporter = Reporter::new(
             [LintConfig::new(kind, LintSeverity::Deny)]
                 .into_iter()

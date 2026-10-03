@@ -426,8 +426,8 @@ mod tests {
             let projection = source.projection();
             assert_eq!(projection.analysis_id(), FileId(3));
             assert_eq!(projection.converter(), &converter());
-            assert!(projection.import_realms().is_empty());
-            assert!(projection.editable_regions().is_empty());
+            assert_eq!(projection.import_realms(), []);
+            assert_eq!(projection.editable_regions(), []);
             assert!(
                 matches!(projection.map(), ProjectionMap::Volar { mappings } if mappings.is_empty())
             );

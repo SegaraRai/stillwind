@@ -264,12 +264,12 @@ mod tests {
         assert_eq!(users[0].builtin_order, None);
         assert_eq!(builtins[0].body, "color:blue;");
         assert_eq!(builtins[0].builtin_order, css.find("@stillwind-utility"));
-        assert!(
+        assert_eq!(
             parse_ordered_utility_definitions(
                 "@stillwind-utility-other x {x:y;}",
                 "@stillwind-utility"
-            )
-            .is_empty()
+            ),
+            [] as [CustomUtility; 0]
         );
         assert_eq!(
             parse_marker_utilities("@stillwind-marker group; @stillwind-marker group;"),

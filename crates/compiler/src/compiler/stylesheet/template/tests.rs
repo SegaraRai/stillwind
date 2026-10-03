@@ -11,7 +11,7 @@ use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, SourceFile};
 
 use stillwind_css::CssOutputTemplate;
-use stillwind_design_system::{CssSourceGraph, ThemeIndex};
+use stillwind_design_system::{CssSourceGraph, CustomUtility, ThemeIndex, ThemeToken};
 
 use crate::identifiers::{
     DEFAULT_HASH_LENGTH, GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator,
@@ -390,8 +390,8 @@ fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
         ),
         Err(CompileDiagnostic::MissingUtilitiesSlot)
     ));
-    assert!(theme.registry.utilities.is_empty());
-    assert!(theme.tokens.is_empty());
+    assert_eq!(theme.registry.utilities, [] as [CustomUtility; 0]);
+    assert_eq!(theme.tokens, [] as [ThemeToken; 0]);
 }
 
 #[test]

@@ -74,7 +74,7 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
                 .any(|error| error.diagnostic == CompileDiagnostic::InvalidKeyframesVariant),
             "{key}: {result:#?}"
         );
-        assert!(result.css.is_empty());
+        assert_eq!(result.css, "");
     }
     let result = compile("from:'motion-reduce:a'");
     assert!(

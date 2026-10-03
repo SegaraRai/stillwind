@@ -399,7 +399,7 @@ mod tests {
                 assert_eq!(scopes[0].prefix.value, "focus:");
                 assert_eq!(source.slice(scopes[0].prefix.span).unwrap(), "focus");
                 assert_eq!(scopes[1].refs[0].binding.value, "outer");
-                assert!(scopes[1].prefix.value.is_empty());
+                assert_eq!(scopes[1].prefix.value, "");
                 assert_eq!(source.slice(scopes[1].prefix.span).unwrap(), "outer");
             }
         }
@@ -421,7 +421,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["target", "outer"]
         );
-        assert!(condition.prefix.value.is_empty());
+        assert_eq!(condition.prefix.value, "");
         assert_eq!(scopes.len(), 1);
         assert_eq!(
             scopes[0]
@@ -454,7 +454,7 @@ mod tests {
             let StyleVariant::Container { query, .. } = extracted_variant(&parsed) else {
                 panic!("{expression}: expected container variant");
             };
-            assert!(query.value.is_empty());
+            assert_eq!(query.value, "");
         }
     }
 

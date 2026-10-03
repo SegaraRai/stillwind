@@ -1,7 +1,9 @@
 //! Final CSS processing contracts, including input-map composition.
+
 #![cfg(feature = "minify")]
 
 use parcel_sourcemap::{OriginalLocation, SourceMap};
+
 use stillwind_css::{CssMinifyError, CssMinifyOptions, minify_css};
 
 #[test]
@@ -13,7 +15,7 @@ fn combines_equal_queries_and_retains_conflicting_rule_barriers() {
     assert!(output.css.contains("(--a:)"));
     assert!(output.css.contains("(--b:)"));
     assert!(output.source_map.is_none());
-    assert!(output.warnings.is_empty());
+    assert_eq!(output.warnings, [] as [String; 0]);
 }
 
 #[test]
@@ -49,7 +51,7 @@ fn recovery_returns_warnings_while_strict_parsing_fails() {
         },
     )
     .unwrap();
-    assert!(!output.warnings.is_empty());
+    assert_ne!(output.warnings, [] as [String; 0]);
     assert!(output.css.contains(".b{color:red}"));
 }
 

@@ -221,7 +221,10 @@ mod tests {
         };
         let root = f::effects("root", transition("root", 1, other.clone()));
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let root = f::effects(
             "root",
             StyleEffect::All(vec![
@@ -242,7 +245,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -260,7 +266,10 @@ mod tests {
         );
         let root = f::effects("root", StyleEffect::All(vec![participant.clone(), unknown]));
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let uncertain = RuleContext {
             subject: RuleSubject::Unknown,
             ..f::context(":is(&, span)")
@@ -273,7 +282,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -378,7 +390,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&base, &sibling, &root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let other = RuleContext {
             subject: RuleSubject::Other,
             ..f::context("& > span")
@@ -391,6 +406,9 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&base, &root]);
-        assert!(check(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 }

@@ -709,7 +709,7 @@ fn prepared_documents_preserve_upstream_maps_source_names_and_parser_settings() 
         value["moduleCssImport"] = "virtual:module-css".into();
         value["framework"] = "svelte".into();
         let source: HostPreparedSource = serde_json::from_value(value.clone()).unwrap();
-        assert!(source.type_facts().is_empty());
+        assert_eq!(source.type_facts(), []);
         let input = source.input(&mut SourceRegistry::default()).unwrap();
         assert_eq!(input.document().upstream_map(), Some(upstream.as_str()));
         assert_eq!(

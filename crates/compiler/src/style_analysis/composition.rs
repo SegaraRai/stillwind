@@ -333,7 +333,7 @@ pub(super) fn can_omit(required: &[&ResolvedSupply<'_>], excluded: &[&ResolvedSu
 
 #[cfg(test)]
 mod tests {
-    use stillwind_diagnostics::LintKind;
+    use stillwind_diagnostics::{LintFinding, LintKind};
     use stillwind_ir::ConditionalBranches;
     use stillwind_semantic::AssetKind;
     use stillwind_source::{FileId, ModuleId, Span};
@@ -458,7 +458,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&a, &b, &root]);
-        assert!(check_style(&resolver.resolve(&root.identity).unwrap()).is_empty());
+        assert_eq!(
+            check_style(&resolver.resolve(&root.identity).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -492,7 +495,10 @@ mod tests {
             StyleEffect::All(vec![provider, StyleEffect::Base(identity("missing"))]),
         );
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check_style(&resolver.resolve(&root.identity).unwrap()).is_empty());
+        assert_eq!(
+            check_style(&resolver.resolve(&root.identity).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -503,7 +509,7 @@ mod tests {
         assert!(resolver.resolve(&f::identity("missing")).is_none());
         let empty = resolver.resolve(empty.identity()).unwrap();
         assert!(empty.supplies.is_empty());
-        assert!(empty.unknown.is_empty());
+        assert_eq!(empty.unknown, [] as [Vec<Decision>; 0]);
         let root = resolver.resolve(root.identity()).unwrap();
         assert!(root.supplies.is_empty());
         assert_eq!(root.unknown, vec![Vec::new()]);
@@ -565,7 +571,7 @@ mod tests {
         let c = f::effects("c", StyleEffect::All(Vec::new()));
         let mut resolver = StyleResolver::new([&a, &b, &c]);
         let result = resolver.resolve(a.identity()).unwrap();
-        assert!(!result.unknown.is_empty());
+        assert_ne!(result.unknown, [] as [Vec<Decision>; 0]);
         for target in [
             &a.identity,
             &b.identity,

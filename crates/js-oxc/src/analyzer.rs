@@ -306,7 +306,10 @@ mod tests {
             let analysis = OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts));
             if accepted {
                 assert_eq!(analysis.semantic_revision, Some(facts.semantic_revision));
-                assert!(analysis.integration_diagnostics.is_empty());
+                assert_eq!(
+                    analysis.integration_diagnostics,
+                    [] as [IntegrationDiagnostic; 0]
+                );
             } else {
                 assert!(analysis.semantic_revision.is_none());
                 assert_eq!(analysis.ir, scan.local_ir);

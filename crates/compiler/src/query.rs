@@ -567,7 +567,7 @@ mod tests {
         .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         let resolved = query.resolve_candidate("hover:brand").unwrap();
-        assert!(resolved.diagnostics.is_empty());
+        assert_eq!(resolved.diagnostics, [] as [LintFinding; 0]);
         assert_eq!(resolved.revision, snapshot.revision());
         let source = SourceFile::new(
             FileId(2),
@@ -611,11 +611,9 @@ mod tests {
                 .contains("color:red")
         );
         assert!(query.hover_candidate("missing:brand").unwrap().is_none());
-        assert!(
-            !query
-                .diagnose_candidate("this-does-not-exist")
-                .unwrap()
-                .is_empty()
+        assert_ne!(
+            query.diagnose_candidate("this-does-not-exist").unwrap(),
+            [] as [LintFinding; 0]
         );
         for (candidate, classification) in [
             ("hover:[", UtilityFailure::Invalid),
@@ -665,7 +663,7 @@ mod tests {
         .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let result = query.resolve_candidate("empty").unwrap();
-        assert!(!result.diagnostics.is_empty());
-        assert!(result.generated_rules.is_empty());
+        assert_ne!(result.diagnostics, [] as [LintFinding; 0]);
+        assert_eq!(result.generated_rules, [] as [GeneratedRule; 0]);
     }
 }

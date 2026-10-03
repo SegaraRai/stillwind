@@ -13,12 +13,12 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassContext, CompileResult, Compiler, CompilerOptions, ConditionContext, ConditionHelperName,
-    DeclarationContext, GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierKind,
-    IdentifierMode, Identifiers, ModuleCompiler, RefMarker, SourceTransform, StylesheetRenderer,
-    UtilityClass,
+    DeclarationContext, GeneratedClass, GeneratedName, GeneratedRule, GeneratedSymbol,
+    IdentifierGenerator, IdentifierHash, IdentifierKind, IdentifierMode, Identifiers,
+    ModuleCompiler, RefMarker, SourceTransform, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileDiagnostic, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding, SourceFailureContext};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, DirectSource, PreparedSource, ProjectedSource,
     RefCondition, RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
@@ -221,7 +221,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         let fragment = compiled.to_module_output(&snapshot);
-        assert!(fragment.diagnostics.is_empty());
+        assert_eq!(fragment.diagnostics, [] as [CompileError; 0]);
         assert!(fragment.css.contains("display:flex"));
         assert!(fragment.apply_to_source(&source).is_ok());
         let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::default());
@@ -232,11 +232,11 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         let document = renderer.render_compilation(&compiled, source.full_span());
         assert_eq!(document.diagnostics[0].diagnostic, expected);
         assert_eq!(document.diagnostics[0].labels[0].span, source.full_span());
-        assert!(document.css.is_empty());
-        assert!(document.module_css.is_empty());
-        assert!(document.classes.is_empty());
-        assert!(document.symbols.is_empty());
-        assert!(document.transforms.is_empty());
+        assert_eq!(document.css, "");
+        assert_eq!(document.module_css, "");
+        assert_eq!(document.classes, [] as [GeneratedClass; 0]);
+        assert_eq!(document.symbols, [] as [GeneratedSymbol; 0]);
+        assert_eq!(document.transforms, [] as [SourceTransform; 0]);
         assert!(document.apply_to_source(&source).is_err());
         assert_eq!(
             document,
@@ -299,7 +299,7 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
     assert_eq!(off.css, deny.css);
     assert_eq!(off.code_transforms, deny.code_transforms);
     assert_eq!(off.symbols, deny.symbols);
-    assert!(!deny.lint_findings.is_empty());
+    assert_ne!(deny.lint_findings, [] as [LintFinding; 0]);
 }
 
 #[test]
@@ -411,8 +411,8 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
                 .iter()
                 .any(|error| error.diagnostic == expected)
         );
-        assert!(compiled.css.rules.is_empty());
-        assert!(compiled.code_transforms.is_empty());
+        assert_eq!(compiled.css.rules, [] as [GeneratedRule; 0]);
+        assert_eq!(compiled.code_transforms, [] as [SourceTransform; 0]);
     }
 }
 
@@ -722,7 +722,7 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
     assert!(class.name.starts_with("sw_"), "{}", class.name);
     let release = compile(IdentifierMode::Release);
     assert!(!release.is_success());
-    assert!(release.symbols.is_empty());
+    assert_eq!(release.symbols, [] as [GeneratedSymbol; 0]);
 }
 
 /// Names the ref marker family with a fixed, readable body.

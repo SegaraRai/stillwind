@@ -385,6 +385,7 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile};
 
     use super::*;
+    use crate::{GeneratedRule, SourceTransform};
 
     /// Facts whose revisions no longer match the scan cannot be used, and the compiler
     /// reports that as a diagnostic with no CSS or transforms.
@@ -435,7 +436,7 @@ mod tests {
                 .iter()
                 .any(|d| d.diagnostic == CompileDiagnostic::InvalidTypeScriptFacts)
         );
-        assert!(compiled.css.rules.is_empty());
-        assert!(compiled.code_transforms.is_empty());
+        assert_eq!(compiled.css.rules, [] as [GeneratedRule; 0]);
+        assert_eq!(compiled.code_transforms, [] as [SourceTransform; 0]);
     }
 }

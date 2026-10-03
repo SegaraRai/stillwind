@@ -355,7 +355,7 @@ mod tests {
         let vectors: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
         let token = vectors["token"].as_str().expect("a token");
         let entries = vectors["vectors"].as_array().expect("vectors");
-        assert!(!entries.is_empty());
+        assert_ne!(entries, &[] as &[serde_json::Value; 0]);
         for entry in entries {
             let key = entry["key"].as_str().expect("a key");
             let expected = entry["name"].as_str().expect("a name");

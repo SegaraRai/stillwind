@@ -4,8 +4,8 @@
 //! Cases compile authored calls through the frontend, then inspect output, helper
 //! bindings, typed findings, and independently converted source coordinates.
 
-use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
-use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
+use stillwind_compiler::{CompileResult, CompilerOptions, SourceTransform, render_transforms};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -85,7 +85,7 @@ fn ordinary_calls_fold_across_channels_without_pure_annotations() {
             fw,
             r#"const props = style({ "--x": f() }, { "data-value": g() }, { "--y": h() });"#,
         );
-        assert!(result.lint_findings.is_empty());
+        assert_eq!(result.lint_findings, [] as [LintFinding; 0]);
         let code = &result.transforms[0].replacement;
         for call in ["f()", "g()", "h()"] {
             assert_eq!(code.matches(call).count(), 1);
@@ -102,7 +102,7 @@ fn unimpeded_and_duplicate_records_do_not_report_order_findings() {
             "const props = style({ '--x': f() }, { '--x': g() });",
         ] {
             let (_, result) = compile(fw, body);
-            assert!(result.lint_findings.is_empty());
+            assert_eq!(result.lint_findings, [] as [LintFinding; 0]);
             let code = &result.transforms[0].replacement;
             assert_eq!(code.matches("f()").count(), 1);
             assert_eq!(code.matches("g()").count(), 1);
@@ -123,7 +123,7 @@ fn conditional_custom_properties_keep_one_guard_and_branch_values() {
     for call in ["f()", "g()", "h()"] {
         assert_eq!(code.matches(call).count(), 1, "{code}");
     }
-    assert!(result.lint_findings.is_empty());
+    assert_eq!(result.lint_findings, [] as [LintFinding; 0]);
 }
 
 /// Keeps async work outside the macro while preserving source-owned value reads.
@@ -486,7 +486,7 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
             .iter()
             .any(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
     );
-    assert!(!result.transforms.is_empty());
+    assert_ne!(result.transforms, [] as [SourceTransform; 0]);
     assert_eq!(
         result
             .lint_settings

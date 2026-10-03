@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn only_families_the_builtin_generator_owns_carry_a_prefix() {
-        assert!(builtin_prefix(IdentifierKind::RuleBoundary).is_empty());
+        assert_eq!(builtin_prefix(IdentifierKind::RuleBoundary), "");
         for kind in [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,

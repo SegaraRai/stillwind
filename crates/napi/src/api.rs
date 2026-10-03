@@ -693,7 +693,7 @@ mod tests {
         });
         let output = binding_output(result, &source, &registry).unwrap();
         assert!(output.code.is_none());
-        assert!(output.css.is_empty());
+        assert_eq!(output.css, "");
         assert_eq!(output.diagnostics.len(), 1);
         assert_eq!(output.diagnostics[0].code, "SW09004");
         assert!(output.diagnostics[0].message.contains("expected FileId("));

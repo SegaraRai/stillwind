@@ -473,6 +473,7 @@ mod tests {
 
     use stillwind_compiler::{CompilerOptions, Identifiers};
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+    use stillwind_diagnostics::CompileError;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry};
@@ -578,7 +579,10 @@ mod tests {
                 ),
                 None,
             );
-            assert!(session.update_module(analysis).diagnostics.is_empty());
+            assert_eq!(
+                session.update_module(analysis).diagnostics,
+                [] as [CompileError; 0]
+            );
         }
         let observed = session
             .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document)

@@ -460,7 +460,10 @@ mod tests {
 
     #[test]
     fn named_blocks_do_not_slice_unclosed_bodies() {
-        assert!(extract_named_blocks("@utility x {", "@utility").is_empty());
+        assert_eq!(
+            extract_named_blocks("@utility x {", "@utility"),
+            [] as [(String, String); 0]
+        );
         assert_eq!(
             extract_named_blocks("@utility ok {color:red;} @utility missing {", "@utility"),
             vec![("ok".into(), "color:red;".into())]

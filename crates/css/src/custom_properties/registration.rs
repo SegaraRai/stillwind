@@ -215,6 +215,9 @@ mod boundary_tests {
             ),
             BTreeSet::from(["--x".into()])
         );
-        assert!(parse_property_definitions("@stillwind-property nope {syntax:'*';}").is_empty());
+        assert_eq!(
+            parse_property_definitions("@stillwind-property nope {syntax:'*';}"),
+            [] as [CustomPropertyDefinition; 0]
+        );
     }
 }

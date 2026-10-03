@@ -504,8 +504,8 @@ mod declaration_value_tests {
             ]
         );
         assert_eq!(slices("a:1;b:2"), slices("a:1;b:2;"));
-        assert!(slices("").is_empty());
-        assert!(slices("no-colon;").is_empty());
+        assert_eq!(slices(""), [] as [(String, String); 0]);
+        assert_eq!(slices("no-colon;"), [] as [(String, String); 0]);
         // Surrounding whitespace is retained in both ranges.
         let css = "  a : 1 ; ";
         let values = declaration_values(css);

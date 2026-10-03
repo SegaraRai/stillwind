@@ -329,7 +329,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&base, &attached]);
-        assert!(check(&resolver.resolve(attached.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check(&resolver.resolve(attached.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -420,7 +423,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check_interference(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let mut other_context = f::context("& > span");
         other_context.subject = RuleSubject::Other;
         let root = f::effects(
@@ -431,7 +437,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&root]);
-        assert!(check_interference(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -448,7 +457,10 @@ mod tests {
             check_interference(&resolver.resolve(repeated.identity()).unwrap()).len(),
             1
         );
-        assert!(check_interference(&resolver.resolve(exclusive.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(exclusive.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let plain = f::effects(
             "plain",
             StyleEffect::All(vec![
@@ -457,7 +469,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&plain]);
-        assert!(check_interference(&resolver.resolve(plain.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(plain.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]
@@ -490,7 +505,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&left, &ordered, &root]);
-        assert!(check_interference(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
         let imported = f::effects("imported", right.root.clone());
         let imported_root = local_style(
             50,
@@ -531,7 +549,10 @@ mod tests {
                 ]),
             );
             let mut resolver = StyleResolver::new([&left, &right, &root]);
-            assert!(check_interference(&resolver.resolve(root.identity()).unwrap()).is_empty());
+            assert_eq!(
+                check_interference(&resolver.resolve(root.identity()).unwrap()),
+                [] as [LintFinding; 0]
+            );
         }
     }
 
@@ -549,7 +570,10 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&base, &root]);
-        assert!(check_interference(&resolver.resolve(root.identity()).unwrap()).is_empty());
+        assert_eq!(
+            check_interference(&resolver.resolve(root.identity()).unwrap()),
+            [] as [LintFinding; 0]
+        );
     }
 
     #[test]

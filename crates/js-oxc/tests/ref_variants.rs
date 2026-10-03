@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleIr, RefCondition, RuleExpression, ScriptLanguage,
     ScriptModuleKind, StyleInput, StyleVariant,
@@ -61,8 +61,8 @@ fn argument_free_ref_variants_retain_identity_in_both_forms() {
         else {
             panic!("ref variant")
         };
-        assert!(scopes.is_empty());
-        assert!(prefix.value.is_empty());
+        assert_eq!(scopes.as_slice(), []);
+        assert_eq!(prefix.value, "");
         assert_eq!(refs.len(), 1);
         assert_eq!(refs[0].binding.value, "trigger");
         assert_eq!(source.slice(prefix.span).unwrap(), "trigger()");
@@ -118,7 +118,7 @@ const props = style(`md:${trigger`hover:`}:active:text-accent p-4`);"#,
         panic!("ref variant")
     };
     assert_eq!(source.slice(prefix.span).unwrap(), "hover:");
-    assert!(scopes.is_empty());
+    assert_eq!(scopes.as_slice(), []);
     assert_eq!(refs.len(), 1);
     assert_eq!(refs[0].binding.value, "trigger");
     let RuleExpression::Utilities(utility) = &nested[0] else {
@@ -222,8 +222,8 @@ const props = style(classes);"#,
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
-    assert!(!parsed.diagnostics.is_empty());
-    assert!(parsed.module.style_calls[0].inputs.is_empty());
+    assert_ne!(parsed.diagnostics, [] as [CompileError; 0]);
+    assert_eq!(parsed.module.style_calls[0].inputs, [] as [StyleInput; 0]);
 }
 
 fn scoped_variant(input: &str) -> (SourceFile, StyleVariant, ModuleIr) {
@@ -278,10 +278,10 @@ fn ref_scopes_accept_calls_tags_and_presence_shorthand() {
                 panic!("ref: {input}");
             };
             assert_eq!(condition.refs[0].binding.value, "trigger");
-            assert!(condition.prefix.value.is_empty());
+            assert_eq!(condition.prefix.value, "");
             assert_eq!(scopes.len(), 1);
             assert_eq!(scopes[0].refs[0].binding.value, "parent");
-            assert!(scopes[0].prefix.value.is_empty());
+            assert_eq!(scopes[0].prefix.value, "");
         }
     }
 }

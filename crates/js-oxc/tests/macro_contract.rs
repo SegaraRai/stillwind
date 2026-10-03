@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileErrorCode, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, CompileErrorCode, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, ModuleId, SourceFile};
@@ -121,7 +121,7 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
         assert_eq!(errors[0].code(), "macro-execution-boundary");
     }
     let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; async function render() { const theme = useTheme(); const value = await read(); state++; return style({ '--x': value, class: theme }); }").unwrap();
-    assert!(
+    assert_eq!(
         parse(
             &source,
             &ModuleId::from("test.tsx"),
@@ -130,8 +130,8 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous
         )
-        .diagnostics
-        .is_empty()
+        .diagnostics,
+        [] as [CompileError; 0]
     );
 }
 

@@ -10,7 +10,9 @@ use std::sync::Arc;
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
-use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact, TypeFacts};
+use stillwind_semantic::{
+    AssetKind, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact, TypeFacts,
+};
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile};
 
 #[test]
@@ -93,7 +95,10 @@ fn analysis_is_design_system_independent_and_rejects_stale_facts() {
         ..facts
     };
     let accepted = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    assert!(accepted.integration_diagnostics.is_empty());
+    assert_eq!(
+        accepted.integration_diagnostics,
+        [] as [IntegrationDiagnostic; 0]
+    );
     assert_eq!(accepted.semantic_revision, Some(facts.semantic_revision));
     assert_eq!(accepted.ir, local.ir);
 }

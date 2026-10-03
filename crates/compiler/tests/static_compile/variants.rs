@@ -124,7 +124,7 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
             .count(),
         2
     );
-    assert!(!result.css.is_empty());
+    assert_ne!(result.css, "");
 }
 
 #[test]

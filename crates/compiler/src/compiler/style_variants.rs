@@ -659,7 +659,7 @@ mod add_ref_tests {
             &mut diagnostics,
         );
         assert!(added.is_some(), "{diagnostics:?}");
-        assert!(diagnostics.is_empty());
+        assert_eq!(diagnostics, [] as [CompileError; 0]);
         assert!(plan.has_refs);
         let first_marker = ref_marker_name(&context, &first).unwrap();
         let second_marker = ref_marker_name(&context, &second).unwrap();

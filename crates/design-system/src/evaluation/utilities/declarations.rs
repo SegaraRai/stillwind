@@ -212,6 +212,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");
-        assert!(resolved.compat_modern.is_empty());
+        assert_eq!(resolved.compat_modern, [] as [String; 0]);
     }
 }

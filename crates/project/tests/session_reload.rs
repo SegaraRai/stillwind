@@ -81,11 +81,9 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
         CompilerOptions::default(),
         Identifiers::default(),
     );
-    assert!(
-        session
-            .update_module(reload_module())
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        session.update_module(reload_module()).diagnostics,
+        [] as [CompileError; 0]
     );
     let other = SourceFile::new(
         FileId(3),
@@ -103,7 +101,10 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
         ),
         None,
     );
-    assert!(session.update_module(analysis).diagnostics.is_empty());
+    assert_eq!(
+        session.update_module(analysis).diagnostics,
+        [] as [CompileError; 0]
+    );
     let other_artifact = session.artifacts()[&ModuleId::from("other.tsx")]
         .css
         .to_css();
@@ -153,7 +154,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     // A failed module update keeps the watch artifact and its dependency index.
     let dependencies = session.dependencies().clone();
     let update = session.update_module(failing_module("motion.tsx"));
-    assert!(!update.diagnostics.is_empty());
+    assert_ne!(update.diagnostics, [] as [CompileError; 0]);
     assert!(
         session
             .artifacts()
@@ -171,11 +172,9 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
         CompilerOptions::default(),
         Identifiers::default(),
     );
-    assert!(
-        session
-            .update_module(reload_module())
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        session.update_module(reload_module()).diagnostics,
+        [] as [CompileError; 0]
     );
     assert!(!session.artifacts().is_empty());
     assert!(!session.dependencies().utilities.is_empty());
@@ -220,7 +219,7 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
     );
     // A failed module update in build mode drops the artifact and its memberships.
     let update = session.update_module(failing_module("motion.tsx"));
-    assert!(!update.diagnostics.is_empty());
+    assert_ne!(update.diagnostics, [] as [CompileError; 0]);
     assert!(
         !session
             .artifacts()

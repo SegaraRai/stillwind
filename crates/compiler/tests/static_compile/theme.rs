@@ -5,7 +5,7 @@
 //! framework imports gate the baseline layers.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -206,7 +206,7 @@ fn framework_imports_gate_baseline_layers() {
     let utilities_only = compiler(
         "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities);\n@import \"stillwind/builtins.css\";",
     );
-    assert!(utilities_only.diagnostics.is_empty());
+    assert_eq!(utilities_only.diagnostics, [] as [CompileError; 0]);
     assert!(!utilities_only.css.contains("box-sizing:border-box"));
     assert!(!utilities_only.css.contains("@property --tw-"));
     let theme_start = utilities_only.css.find("@layer theme{").unwrap() + "@layer theme{".len();
@@ -215,14 +215,14 @@ fn framework_imports_gate_baseline_layers() {
     assert!(utilities_only.css.contains("@layer utilities{"));
 
     let full = compiler("@import \"stillwind\";");
-    assert!(full.diagnostics.is_empty());
+    assert_eq!(full.diagnostics, [] as [CompileError; 0]);
     assert!(full.css.contains("box-sizing: border-box"));
     assert!(!full.css.contains("@property --tw-"));
 
     let tailwind_individual = compiler(
         "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
     );
-    assert!(tailwind_individual.diagnostics.is_empty());
+    assert_eq!(tailwind_individual.diagnostics, [] as [CompileError; 0]);
     assert!(tailwind_individual.css.contains("@layer utilities{"));
 
     let content = Compiler::compile_source(
@@ -242,6 +242,6 @@ fn framework_imports_gate_baseline_layers() {
         ).unwrap(),
         &CssSourceName::from("stillwind.css")
     , &CompilerOptions::default());
-    assert!(content.diagnostics.is_empty());
+    assert_eq!(content.diagnostics, [] as [CompileError; 0]);
     assert!(!content.css.contains("@property --tw-gradient-position"));
 }

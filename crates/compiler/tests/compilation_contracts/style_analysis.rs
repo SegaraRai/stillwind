@@ -35,7 +35,12 @@ fn alternative_bases_and_repeated_inheritance_do_not_compete() {
 
 #[test]
 fn attachments_are_resolved_from_bases_instead_of_assumed() {
-    assert!(findings("const r=style.ref(); const a=style(r); const b=style(a); const x=style(b,r.asContainer('size'));").is_empty());
+    assert_eq!(
+        findings(
+            "const r=style.ref(); const a=style(r); const b=style(a); const x=style(b,r.asContainer('size'));"
+        ),
+        [] as [LintKind; 0]
+    );
     assert_eq!(
         findings(
             "const r=style.ref(); const a=style('color'); const x=style(a,r.asContainer('size'));"
@@ -60,14 +65,24 @@ fn inherited_provider_writes_conflict_with_direct_properties() {
 
 #[test]
 fn transition_names_follow_the_target_and_transitive_bases() {
-    assert!(findings("const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(a); const x=style(b);").is_empty());
+    assert_eq!(
+        findings(
+            "const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(a); const x=style(b);"
+        ),
+        [] as [LintKind; 0]
+    );
     assert_eq!(
         findings(
             "const vt=style.viewTransition({old:'color'}); const x=style(vt,{'[&>span]:':'[view-transition-name:hero]'});"
         ),
         vec![LintKind::RequireViewTransitionName]
     );
-    assert!(findings("const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(a); const x=style(a,b);").is_empty());
+    assert_eq!(
+        findings(
+            "const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(a); const x=style(a,b);"
+        ),
+        [] as [LintKind; 0]
+    );
     assert_eq!(
         findings(
             "const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const x=style(a,vt.for('b'));"
@@ -88,7 +103,12 @@ fn transition_class_replacement_sees_transitive_inheritance() {
         ),
         vec![LintKind::SingleViewTransitionClass]
     );
-    assert!(findings("const a=style.viewTransition({old:'color'}); const base=style(a.for('a')); const x=style(base,flag?a:a);").is_empty());
+    assert_eq!(
+        findings(
+            "const a=style.viewTransition({old:'color'}); const base=style(a.for('a')); const x=style(base,flag?a:a);"
+        ),
+        [] as [LintKind; 0]
+    );
 }
 
 #[test]
@@ -130,5 +150,10 @@ fn independent_name_uses_are_counted_and_choices_stay_exclusive() {
         ),
         vec![LintKind::SingleViewTransitionName]
     );
-    assert!(findings("const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(vt.for('b')); const x=style(flag?a:b);").is_empty());
+    assert_eq!(
+        findings(
+            "const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const b=style(vt.for('b')); const x=style(flag?a:b);"
+        ),
+        [] as [LintKind; 0]
+    );
 }

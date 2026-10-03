@@ -7,13 +7,13 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding};
 use stillwind_ir::{
     AdapterKind, ClassExpression, FRAMEWORKS, GroupEntry, RuleExpression, ScriptLanguage,
-    ScriptModuleKind, StyleInput, StyleVariant,
+    ScriptModuleKind, StyleCall, StyleInput, StyleVariant,
 };
 use stillwind_js_oxc::parse;
-use stillwind_semantic::{AssetKind, ExportedValue};
+use stillwind_semantic::{AssetKind, ExportedValue, ImportBinding};
 use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 fn rule(expression: &ClassExpression) -> &RuleExpression {
@@ -42,8 +42,8 @@ fn parser_diagnostics_keep_external_detail_as_notes() {
     assert_eq!(error.diagnostic, CompileDiagnostic::JavaScriptParse);
     assert_eq!(error.to_string(), "JavaScript parse error");
     assert_eq!(error.labels[0].span, source.full_span());
-    assert!(!error.notes[0].is_empty());
-    assert!(parsed.lint_findings.is_empty());
+    assert_ne!(error.notes[0], "");
+    assert_eq!(parsed.lint_findings, [] as [LintFinding; 0]);
 }
 
 /// IR span mapping visits every span and fails atomically.
@@ -61,7 +61,7 @@ fn ir_span_mapping_relocates_nested_expressions_transactionally() {
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
-    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
     let before = parsed.module.clone();
     let mut visited = 0;
     let relocated = before
@@ -139,9 +139,9 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(parsed.diagnostics.is_empty());
+        assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
         assert_eq!(parsed.framework, None);
-        assert!(parsed.module.style_calls.is_empty());
+        assert_eq!(parsed.module.style_calls, [] as [StyleCall; 0]);
 
         let mixed = SourceFile::new(
             FileId(2),
@@ -160,7 +160,7 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(parsed.diagnostics.is_empty());
+        assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
         assert_eq!(parsed.framework, Some(AdapterKind::Solid));
         assert_eq!(parsed.module.style_calls.len(), 1);
     }
@@ -181,7 +181,7 @@ fn import_edit_metadata_tracks_macro_references_and_preserves_mixed_bindings() {
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
-    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
     let imports = &parsed.module.imports;
     assert_eq!(imports.macros.len(), 1);
     let declaration = &imports.macros[0];
@@ -254,7 +254,7 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
         ScriptModuleKind::Unambiguous,
     );
     assert_eq!(parsed.module.adapter, AdapterKind::Solid);
-    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
     let mixed = SourceFile::new(FileId(2), None, None, "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
     assert!(
         parse(
@@ -328,7 +328,7 @@ export function attach(handle: unknown) { return style(handle); }
 ",
     )
     .unwrap();
-    assert!(
+    assert_eq!(
         parse(
             &source,
             &ModuleId::from("test.tsx"),
@@ -338,8 +338,8 @@ export function attach(handle: unknown) { return style(handle); }
             ScriptModuleKind::Unambiguous
         )
         .summary
-        .probe_imports
-        .is_empty()
+        .probe_imports,
+        [] as [ImportBinding; 0]
     );
 }
 
@@ -369,7 +369,7 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
         "literal utilities need no checker queries"
     );
 
-    assert!(parsed.diagnostics.is_empty());
+    assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
     assert_eq!(parsed.module.style_calls.len(), 1);
     let Some(StyleInput::Class(expression)) = parsed.module.style_calls[0].inputs.first() else {
         panic!("the first input should be a static utility string");

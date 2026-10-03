@@ -5,9 +5,9 @@
 //! residual macro reference fails the whole compilation, and diagnostics, lint directives,
 //! conditional branches, and explicit `class` entries behave as documented.
 
-use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
-use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+use stillwind_compiler::{CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
+use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
 
@@ -52,8 +52,8 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(reparsed.diagnostics.is_empty());
-        assert!(reparsed.module.imports.macros.is_empty());
+        assert_eq!(reparsed.diagnostics, [] as [CompileError; 0]);
+        assert_eq!(reparsed.module.imports.macros, [] as [MacroImport; 0]);
     }
 }
 
@@ -88,10 +88,10 @@ fn residual_macro_references_fail_the_entire_compilation() {
             "{:?}",
             result.diagnostics
         );
-        assert!(result.transforms.is_empty());
-        assert!(result.classes.is_empty());
-        assert!(result.symbols.is_empty());
-        assert!(result.css.is_empty());
+        assert_eq!(result.transforms, [] as [SourceTransform; 0]);
+        assert_eq!(result.classes, [] as [GeneratedClass; 0]);
+        assert_eq!(result.symbols, [] as [GeneratedSymbol; 0]);
+        assert_eq!(result.css, "");
     }
     let component = SourceFile::new(FileId(1), None, None,
         "import {style} from 'stillwind/react'; const props = style('flex', {'aria-label': style});"
@@ -114,8 +114,8 @@ fn residual_macro_references_fail_the_entire_compilation() {
         "{:?}",
         result.diagnostics
     );
-    assert!(result.transforms.is_empty());
-    assert!(result.css.is_empty());
+    assert_eq!(result.transforms, [] as [SourceTransform; 0]);
+    assert_eq!(result.css, "");
 }
 
 #[test]
@@ -198,7 +198,7 @@ const props = style("bg-accnet");"#,
     );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(transformed.contains("bg-accnet"));
-    assert!(!result.css.is_empty());
+    assert_ne!(result.css, "");
 }
 
 #[test]

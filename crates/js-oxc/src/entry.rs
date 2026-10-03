@@ -202,6 +202,7 @@ pub(crate) fn source_type(language: ScriptLanguage, module_kind: ScriptModuleKin
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::StyleCall;
     use stillwind_source::FileId;
 
     use super::*;
@@ -216,7 +217,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
+        assert_eq!(
             parse(
                 &source,
                 &ModuleId::from("test.tsx"),
@@ -225,8 +226,8 @@ mod tests {
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous
             )
-            .diagnostics
-            .is_empty()
+            .diagnostics,
+            [] as [CompileError; 0]
         );
     }
 
@@ -249,7 +250,7 @@ mod tests {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(plain.diagnostics.is_empty());
+        assert_eq!(plain.diagnostics, [] as [CompileError; 0]);
         assert_eq!(plain.module.adapter, AdapterKind::React);
         assert_eq!(plain.module.style_calls.len(), 1);
         assert_eq!(plain.framework, Some(AdapterKind::React));
@@ -263,7 +264,7 @@ mod tests {
             &source,
             &|_| None,
         );
-        assert!(located.diagnostics.is_empty());
+        assert_eq!(located.diagnostics, [] as [CompileError; 0]);
         assert_eq!(located.module.style_calls.len(), 1);
         assert_eq!(located.module.adapter, AdapterKind::React);
         assert_eq!(plain.summary.module_id, located.summary.module_id);
@@ -276,8 +277,8 @@ mod tests {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(parsed.diagnostics.is_empty());
-        assert!(parsed.module.style_calls.is_empty());
+        assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
+        assert_eq!(parsed.module.style_calls, [] as [StyleCall; 0]);
         assert_eq!(parsed.framework, None);
     }
 

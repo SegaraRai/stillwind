@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use stillwind_diagnostics::LintFinding;
 use stillwind_ir::{ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput};
 use stillwind_js_oxc::parse;
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
@@ -12,7 +13,7 @@ use super::compile;
 #[test]
 fn escaped_utility_diagnostics_keep_the_literal_provenance() {
     let (source, result) = compile(r"const x = style('\u006eot-a-utility');", "");
-    assert!(!result.lint_findings.is_empty());
+    assert_ne!(result.lint_findings, [] as [LintFinding; 0]);
     let spans = result
         .lint_findings
         .iter()

@@ -4,7 +4,7 @@
 //! transitions, the independent `--sw-` and `--tw-` prefix configuration, and the rejection of a
 //! second view transition in one call.
 
-use stillwind_compiler::CompilerOptions;
+use stillwind_compiler::{CompilerOptions, SourceTransform};
 use stillwind_css::fold_calc_expressions;
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
@@ -814,7 +814,7 @@ export const useLiteral = style("block", literal);"#,
         "{:?}",
         result.diagnostics
     );
-    assert!(result.transforms.is_empty());
+    assert_eq!(result.transforms, [] as [SourceTransform; 0]);
 }
 
 #[test]

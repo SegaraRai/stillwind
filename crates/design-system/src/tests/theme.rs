@@ -4,6 +4,7 @@
 //! modes, namespace resets, CSS-first configuration, and the rule that importing the
 //! package is what selects the built-in definitions and default tokens.
 
+use stillwind_css::CssOutputNode;
 use stillwind_diagnostics::LintKind;
 
 use super::*;
@@ -74,7 +75,7 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
         &[],
     );
 
-    assert!(required.is_empty());
+    assert_eq!(required, [] as [&ThemeToken; 0]);
     let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false, &[]);
     assert_eq!(referenced.len(), 1);
     assert_eq!(referenced[0].name.value, "--breakpoint-foo");
@@ -138,7 +139,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         .unwrap(),
     )
     .unwrap();
-    assert!(individual.registry.utilities.is_empty());
+    assert_eq!(individual.registry.utilities, [] as [CustomUtility; 0]);
     assert!(individual.scale(ThemeNamespace::Spacing).is_none());
 
     let with_builtins = parse_fixture_theme(&SourceFile::new(
@@ -146,7 +147,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap())
         .unwrap();
-    assert!(!with_builtins.registry.utilities.is_empty());
+    assert_ne!(with_builtins.registry.utilities, [] as [CustomUtility; 0]);
     assert_eq!(
         with_builtins
             .scale(ThemeNamespace::Spacing)
@@ -159,10 +160,10 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         &SourceFile::new(FileId(7), None, None, "@import \"stillwind\";").unwrap(),
     )
     .unwrap();
-    assert!(!aggregate.registry.utilities.is_empty());
-    assert!(!aggregate.tokens.is_empty());
+    assert_ne!(aggregate.registry.utilities, [] as [CustomUtility; 0]);
+    assert_ne!(aggregate.tokens, [] as [ThemeToken; 0]);
     assert!(aggregate.custom_css.contains("box-sizing"));
-    assert!(!aggregate.output_template.nodes.is_empty());
+    assert_ne!(aggregate.output_template.nodes, [] as [CssOutputNode; 0]);
 
     let external_import = parse_theme(
         &SourceFile::new(

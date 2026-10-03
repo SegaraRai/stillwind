@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers, StylesheetPlacement, StylesheetRenderer};
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_diagnostics::CompileError;
 use stillwind_ir::{
     ClassExpression, ModuleAnalysis, RuleExpression, ScriptLanguage, ScriptModuleKind,
     SourceAnalyzer, StyleInput,
@@ -320,7 +321,10 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
             ),
             None,
         );
-        assert!(session.update_module(analysis).diagnostics.is_empty());
+        assert_eq!(
+            session.update_module(analysis).diagnostics,
+            [] as [CompileError; 0]
+        );
     }
     assert_eq!(session.dependencies().assets.len(), 4);
     assert!(!session.dependencies().utilities.is_empty());
@@ -331,11 +335,9 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         2
     );
 
-    assert!(
-        session
-            .update_module(module("a.tsx", "flex"))
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        session.update_module(module("a.tsx", "flex")).diagnostics,
+        [] as [CompileError; 0]
     );
     assert_eq!(session.dependencies().assets.len(), 3);
     assert_eq!(
@@ -386,11 +388,9 @@ fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
     let css = original.css().unwrap();
     let dependencies = original.dependencies().clone();
     let mut edited = original.clone();
-    assert!(
-        edited
-            .update_module(module("a.tsx", "flex"))
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        edited.update_module(module("a.tsx", "flex")).diagnostics,
+        [] as [CompileError; 0]
     );
     assert_ne!(edited.css().unwrap(), css);
     assert!(edited.dependencies().theme_tokens.is_empty());
@@ -426,11 +426,9 @@ fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
         panic!("expected utility input");
     };
     value.value = "grid".into();
-    assert!(
-        session
-            .update_module(analysis.clone())
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        session.update_module(analysis.clone()).diagnostics,
+        [] as [CompileError; 0]
     );
     let after = session.current_artifact(&analysis.module_id).unwrap();
     assert_ne!(after.key, before);

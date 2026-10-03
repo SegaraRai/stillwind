@@ -11,7 +11,7 @@ use stillwind_compiler::{
     IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
@@ -110,7 +110,10 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
         CompilerOptions::default(),
         Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release),
     );
-    assert!(session.update_module(ref_module()).diagnostics.is_empty());
+    assert_eq!(
+        session.update_module(ref_module()).diagnostics,
+        [] as [CompileError; 0]
+    );
     // The producer's own stylesheet names its anchor `shared`, which the generator also returned.
     let reported =
         session.reserve_authored_css(&ModuleId::from("panel.css"), ":root{anchor-name:shared;}");

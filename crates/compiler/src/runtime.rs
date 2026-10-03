@@ -442,7 +442,9 @@ mod runtime_anchor_tests {
         SourceDocument, SourceFormat, SourceInput, SourceInputError, SourceProjection,
     };
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{FileId, ModuleId, ProjectionMap, SourceFile, VolarMapping};
+    use stillwind_source::{
+        FileId, ModuleId, ProjectionMap, SourceFile, SourceProvenance, VolarMapping,
+    };
 
     use super::*;
 
@@ -530,7 +532,7 @@ mod runtime_anchor_tests {
             analysis.input.projection().unwrap().analysis_id(),
             FileId(3)
         );
-        assert!(!analysis.provenance.is_empty());
+        assert_ne!(analysis.provenance, [] as [SourceProvenance; 0]);
         assert!(analysis.provenance.iter().all(|entry| {
             entry.original.file == FileId(1) && entry.projected.file == FileId(2)
         }));

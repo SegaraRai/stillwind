@@ -1,6 +1,7 @@
 //! Experimental computed-value conditions through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
+use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -162,26 +163,20 @@ fn runtime_if_variant_name_is_owned_by_css_registration() {
         "{}",
         alias.module_css
     );
-    assert!(
-        compile_registered("if(--c):flex", registration)
-            .module_css
-            .is_empty()
+    assert_eq!(
+        compile_registered("if(--c):flex", registration).module_css,
+        ""
     );
-    assert!(
-        !compile_registered("when(!!--c):flex", registration)
-            .diagnostics
-            .is_empty()
+    assert_ne!(
+        compile_registered("when(!!--c):flex", registration).diagnostics,
+        [] as [CompileError; 0]
     );
     for body in [
         "@stillwind-intrinsic unknown;",
         "@stillwind-intrinsic builtin-if-variant; color:red;",
     ] {
         let css = format!(r"@stillwind-variant when\(*\) (value: [if-condition]) {{ {body} }}");
-        assert!(
-            compile_registered("when(--c):flex", &css)
-                .module_css
-                .is_empty()
-        );
+        assert_eq!(compile_registered("when(--c):flex", &css).module_css, "");
     }
     let value = compile_registered("[width:--if(--c,1px,2px)]", "");
     assert!(value.diagnostics.is_empty(), "{:?}", value.diagnostics);

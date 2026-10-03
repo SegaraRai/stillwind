@@ -12,7 +12,7 @@ use stillwind_compiler::{
     LayerContext, LayerName, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
@@ -78,11 +78,11 @@ fn session_generators_name_generated_classes() {
         CompilerOptions::default(),
         Identifiers::new(Some(Arc::new(FixedClassGenerator)), IdentifierMode::Release),
     );
-    assert!(
+    assert_eq!(
         session
             .update_module(module("button.tsx", "flex"))
-            .diagnostics
-            .is_empty()
+            .diagnostics,
+        [] as [CompileError; 0]
     );
     let artifact = &session.artifacts()[&ModuleId::from("button.tsx")];
     let class = artifact
@@ -314,11 +314,11 @@ fn a_layer_name_is_checked_against_the_authored_document() {
         CompilerOptions::default(),
         Identifiers::new(Some(Arc::new(FixedLayerGenerator)), IdentifierMode::Release),
     );
-    assert!(
+    assert_eq!(
         session
             .update_module(module("button.tsx", "flex"))
-            .diagnostics
-            .is_empty()
+            .diagnostics,
+        [] as [CompileError; 0]
     );
     // The render names the document's first anonymous layer, which the authored layer already owns.
     let failure = session.css().unwrap_err();

@@ -1,7 +1,7 @@
 //! Utility emission, precedence, registration dependencies, and diagnostics.
 
 use stillwind_css::MAX_VALUE_NESTING;
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
 
 use super::compile;
 
@@ -78,7 +78,7 @@ fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
             )),
             "{result:#?}"
         );
-        assert!(result.css.is_empty());
+        assert_eq!(result.css, "");
     }
 }
 
@@ -184,5 +184,5 @@ fn explicit_registration_dependencies_survive_apply_and_do_not_leak_into_css() {
         "const x = style('consumer');",
         "@utility consumer { @stillwind-require-properties --missing; color:red; }",
     );
-    assert!(!missing.diagnostics.is_empty());
+    assert_ne!(missing.diagnostics, [] as [CompileError; 0]);
 }

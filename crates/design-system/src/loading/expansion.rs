@@ -289,7 +289,7 @@ mod tests {
                 .append_source(&source, &CssSourceName::from("test.css"), 0..1)
                 .is_err()
         );
-        assert!(output.text.is_empty());
+        assert_eq!(output.text, "");
         output
             .append_source(&source, &CssSourceName::from("test.css"), 0..2)
             .unwrap();
