@@ -19,7 +19,10 @@ export function stillwind(options: StillwindOptions): Plugin {
 }
 
 /**
- * Builds hooks for the supplied project, which the framework adapter also owns.
+ * Returns compiler hooks for `project`, which is also used by the framework adapter.
+ * The hooks set project settings from Vite configuration and keep a compiler session
+ * for each environment. Server shutdown removes watch listeners and closes any
+ * TypeScriptFactsService instances.
  *
  * @internal
  */

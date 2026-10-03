@@ -22,6 +22,16 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "verify:performance": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#performance"],
+        cache: false,
+      },
+      "verify:performance:full": {
+        command: "",
+        dependsOn: ["@stillwind/benchmarks#performance:full"],
+        cache: false,
+      },
       "bench:compiler": {
         command: "",
         dependsOn: ["@stillwind/benchmarks#compiler"],

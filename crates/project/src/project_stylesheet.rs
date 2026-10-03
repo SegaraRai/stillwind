@@ -1,4 +1,4 @@
-//! Occurrence ownership and reference-order assembly.
+//! Keeps each producer's CSS rules and assembles them in the requested order.
 //!
 //! [`ProjectStylesheet::replace`] retains each producer's rule occurrences, including
 //! repeated content. [`ProjectStylesheet::serialize`] expands the design-system template.
@@ -16,12 +16,19 @@ use stillwind_source::{ModuleId, SourceFile, Span};
 /// Producers absent from that list follow in module-identity order.
 #[derive(Clone, Debug, Default)]
 pub struct ProjectStylesheet {
+    /// `Arc` shares rules between session clones, so cloning does not copy every rule.
+    /// Replacing a producer's rules leaves other stylesheet clones unchanged.
     contributions: BTreeMap<ModuleId, Arc<ModuleCssArtifact>>,
+    /// The linker sets this order. Other producers follow in module-identity order.
     order: Vec<ModuleId>,
 }
 
 impl ProjectStylesheet {
     /// Replaces every occurrence owned by a producer.
+    ///
+    /// `module` identifies the owner. This method copies `artifact`, including repeated
+    /// rules, and keeps the existing order. Later changes to `artifact` do not change
+    /// the stored rules.
     pub fn replace(&mut self, module: ModuleId, artifact: &ModuleCssArtifact) {
         self.contributions
             .insert(module, Arc::new(artifact.clone()));
@@ -38,7 +45,7 @@ impl ProjectStylesheet {
         self.order = order;
     }
 
-    /// Counts distinct content payloads, independently of occurrence count.
+    /// Returns the number of distinct rule contents. Repeated rules count once.
     pub fn rule_count(&self) -> usize {
         self.contributions
             .values()
@@ -81,11 +88,12 @@ impl ProjectStylesheet {
         output
     }
 
-    /// Renders reference order through the design-system template.
+    /// Uses `renderer` to assemble the rules in order within the design-system
+    /// template. Returns the CSS text without changing this stylesheet.
     ///
     /// # Errors
     ///
-    /// Returns invalid template or support errors.
+    /// Returns an error if the template or required support rules are invalid.
     pub fn serialize(
         &self,
         renderer: &StylesheetRenderer<'_>,

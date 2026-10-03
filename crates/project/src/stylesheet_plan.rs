@@ -1,12 +1,9 @@
-//! Explicit host selections; observing transforms never proves graph completeness.
+//! Plans CSS for producer modules selected by the host.
 //!
-//! A selection names the producers whose CSS belongs in one output target, and a plan
-//! is the rendered result plus the provenance a host needs to attribute and watch it.
-//! The completeness question is deliberately not answered here: the compiler can see
-//! which modules it transformed, but only the host knows whether that set is the whole
-//! module graph for a target. A selection therefore states its coverage explicitly, and
-//! a plan for retained output after a failed load is rejected rather than reported as
-//! current.
+//! [`StylesheetSelection`] names the producers for an output target. Only the host
+//! knows whether it selected the whole module graph, so it must state the coverage.
+//! [`ProjectSession::plan_stylesheet`] returns CSS with source mappings, resources,
+//! and producer revisions. It rejects output kept after a failed design-system load.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -28,14 +25,14 @@ pub enum StylesheetPlanError {
     /// The selection names modules with no published artifact.
     #[error("Stillwind selection contains unregistered modules: {0:?}")]
     MissingModules(BTreeSet<ModuleId>),
-    /// A complete-coverage claim came without a target or graph revision.
+    /// Complete coverage has no target or graph revision with non-whitespace text.
     #[error("Complete coverage requires a nonempty host target and graph revision")]
     MissingCoverageIdentity,
-    /// A selected artifact was compiled against a different snapshot or failed its
-    /// current analysis, so its CSS is not a valid output for this plan.
+    /// A selected artifact no longer matches its analysis or design-system snapshot.
     #[error("Stillwind selection contains stale producers: {0:?}")]
     StaleModules(BTreeSet<ModuleId>),
-    /// The retained revision follows a failed load, so it is not a current plan.
+    /// The latest load failed, so output kept from the previous revision cannot form a
+    /// current plan.
     #[error("The latest design-system load failed; retained CSS is not a current output plan")]
     FailedDesignSystemLoad,
     /// Producer dependencies contain a cycle.
@@ -49,15 +46,13 @@ pub enum StylesheetPlanError {
 /// How much the host knows about the selected producer set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StylesheetCoverage {
-    /// The selection is what this session has seen so far. It makes no claim about
-    /// modules that were never compiled, so it cannot justify emitting a complete
-    /// target stylesheet.
+    /// Selects producers compiled so far. Other modules may still exist, so this
+    /// selection cannot guarantee a complete stylesheet for the target.
     Observed,
-    /// The host guarantees this selection for this target and graph revision.
+    /// The host guarantees that the selection covers the target at this graph revision.
     ///
-    /// Both fields must be non-empty: they are the host's statement of which build
-    /// output and which module-graph revision the claim belongs to, and they travel
-    /// into the plan so a consumer can detect a stale claim.
+    /// Both fields must contain non-whitespace text. The plan keeps them so consumers
+    /// can check which output and graph revision the guarantee applies to.
     Complete {
         /// Host-defined identity of the output being planned, for example a route id.
         target: String,
@@ -75,7 +70,7 @@ pub struct StylesheetSelection {
     pub coverage: StylesheetCoverage,
 }
 
-/// A rendered stylesheet plus everything needed to place and attribute it.
+/// Contains rendered CSS, its placement, and source and producer information.
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
     /// Fragments in reference order. Repeated content remains a separate entry.
@@ -96,12 +91,13 @@ pub struct StylesheetPlan {
     pub producers: BTreeMap<ModuleId, ModuleArtifactKey>,
 }
 
-/// A shareable payload at one position in a stylesheet plan.
+/// Contains one CSS fragment at a position in a stylesheet plan.
 #[derive(Clone, Debug)]
 pub struct StylesheetPart {
-    /// Source attribution relative to the complete wrapped fragment.
+    /// Maps positions in the whole fragment, including its wrapper, to source
+    /// locations.
     pub mappings: Vec<StylesheetMapping>,
-    /// Stable template node ordinal.
+    /// Identifies a node in the stylesheet template by its stable index.
     pub slot: usize,
     /// Zero-based occurrence index for this template slot and producer set.
     pub sequence: usize,
@@ -114,7 +110,8 @@ pub struct StylesheetPart {
 }
 
 impl ProjectSession {
-    /// A snapshot of observed producers, explicitly carrying no completeness guarantee.
+    /// Returns a selection of published producers without claiming the graph is
+    /// complete.
     pub fn observed_selection(&self) -> StylesheetSelection {
         StylesheetSelection {
             modules: self.artifacts().keys().cloned().collect(),
@@ -124,14 +121,17 @@ impl ProjectSession {
 
     /// Plans a module, chunk, entry, or document selection supplied by the host.
     ///
-    /// Rejects the request instead of guessing when a selected module has no artifact,
-    /// when its artifact is stale with respect to the current snapshot, or when
-    /// coverage is claimed without a target and revision. Staleness is checked per
-    /// module so the error names exactly the producers the host must recompile.
+    /// `selection` supplies producers and their coverage. `placement` chooses document
+    /// or carrier output. The plan includes composition dependencies and identifies
+    /// each producer's artifact revision. The session remains unchanged.
     ///
     /// # Errors
     ///
-    /// Rejects unavailable producers, incomplete coverage metadata, or invalid CSS.
+    /// Returns an error if the latest design-system load failed, producers are missing
+    /// or no longer match their analyses, dependencies contain a cycle, or CSS is
+    /// invalid. Complete coverage requires target and revision strings with non
+    /// whitespace text. Errors for missing or stale modules identify the modules the
+    /// host must recompile.
     pub fn plan_stylesheet(
         &self,
         mut selection: StylesheetSelection,
@@ -380,12 +380,23 @@ fn stylesheet_parts(
     Ok(parts)
 }
 
+/// Finds source mappings and owners for a CSS fragment.
+/// Sorted starts and stored maximum ends let a query skip ranges that cannot match.
+/// This avoids scanning every source range for each fragment.
 struct IntervalIndex {
+    /// CSS byte ranges are sorted by start and paired with their original input
+    /// indices. Each range includes its start and excludes its end.
     ranges: Vec<(std::ops::Range<usize>, usize)>,
+    /// Each entry records the largest end offset up to that position. A query can use
+    /// binary search to skip earlier ranges even when ranges overlap or contain one
+    /// another.
     maximum_ends: Vec<usize>,
 }
 
 impl IntervalIndex {
+    /// Builds an index from byte ranges in the same CSS buffer. Input order is
+    /// arbitrary. The index keeps each range's original position so callers can find
+    /// its source data.
     fn new(ranges: impl Iterator<Item = std::ops::Range<usize>>) -> Self {
         let mut ranges: Vec<_> = ranges
             .enumerate()
@@ -406,6 +417,9 @@ impl IntervalIndex {
         }
     }
 
+    /// Returns input indices for ranges that start before `query.end` and end after
+    /// `query.start`. Results follow input order. `query` must be a nonempty CSS byte
+    /// range.
     fn overlapping(&self, query: &std::ops::Range<usize>) -> Vec<usize> {
         let start = self.maximum_ends.partition_point(|end| *end <= query.start);
         let end = self

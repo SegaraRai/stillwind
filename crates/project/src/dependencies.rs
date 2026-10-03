@@ -1,22 +1,17 @@
-//! Reverse dependency index over the currently published artifacts.
+//! Maps recorded definitions and assets to published modules.
 //!
-//! Hosts use it to answer "which modules must be recompiled when this theme token,
-//! utility, variant, property, candidate, or asset changes". Entries are derived from
-//! [`CompilationDependencies`] and describe the last published artifact.
+//! Hosts use [`DependencyIndex`] to find modules affected by a definition change.
+//! Entries come from [`CompilationDependencies`] in the last published artifacts.
 //!
-//! Entries reflect the compiler's recorded sets, not a proof of exact use. Candidates
-//! are syntactic mentions, tokens include static and transitive dependencies, and
-//! assets include declarations as well as external facts. Utilities, variants, and
-//! properties are especially conservative: the compiler records every definition in
-//! those three maps, because a candidate's generated content depends on which
-//! definition it resolves against and that cannot be narrowed without tracking usage
-//! during resolution. A change to an already indexed definition therefore includes
-//! every module. New names have no reverse entry; hosts must handle additions
-//! separately. Session reloads currently rebuild all retained analyses instead of
-//! selecting through this index.
+//! Entries may include unused definitions. Candidates come from source syntax.
+//! Tokens include direct and indirect dependencies. Assets include declarations
+//! and external facts. The compiler records all utility, variant, and property names
+//! because it does not track which definition each candidate resolves to.
 //!
-//! The index is not append-only. A module that stops using a definition is removed from
-//! that definition's entry, and an entry disappears with its last member.
+//! Changing an indexed utility, variant, or property therefore selects every module.
+//! New names have no index entry, so hosts must handle additions separately.
+//! Session reloads rebuild all retained analyses without using this index to select
+//! modules.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,33 +19,33 @@ use stillwind_compiler::CompilationDependencies;
 use stillwind_semantic::IdentityId;
 use stillwind_source::ModuleId;
 
-/// Reverse memberships derived from the currently published artifacts.
+/// Records which published modules depend on each definition or asset.
 ///
-/// Every map is keyed by the definition's textual or identity form and holds the
-/// modules that referenced it. Keys disappear when their last member is removed, so an
-/// index with no entries means no module depends on anything.
+/// Each key is a definition name or asset identity. Its value contains module IDs.
+/// Removing the last module from an entry also removes its key.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DependencyIndex {
-    /// Candidate text to the modules that evaluate it.
+    /// Maps candidate text to modules that mention it.
     pub candidates: BTreeMap<String, BTreeSet<ModuleId>>,
-    /// Theme token name to the modules that reference it.
+    /// Maps theme token names to modules that reference them.
     pub theme_tokens: BTreeMap<String, BTreeSet<ModuleId>>,
-    /// Utility definition name to the modules conservatively depending on it.
+    /// Maps utility names to modules, including modules that do not use the utility.
     pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
-    /// Variant definition name to the modules conservatively depending on it.
+    /// Maps variant names to modules, including modules that do not use the variant.
     pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
-    /// Property definition name to the modules conservatively depending on it.
+    /// Maps property names to modules, including modules that do not use the property.
     pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
-    /// Asset identity to modules declaring it or receiving it in external facts.
+    /// Maps asset identities to modules that declare them or receive them in external
+    /// facts.
     pub assets: BTreeMap<IdentityId, BTreeSet<ModuleId>>,
 }
 
 impl DependencyIndex {
-    /// Swaps one module's entries, retracting the previous set first.
+    /// Replaces dependency entries for `module` with those in `next`.
     ///
-    /// The previous value must be the one that produced the current entries; a `None`
-    /// previous leaves old entries in place, so callers that lost the artifact must
-    /// call [`DependencyIndex::remove`] before replacing.
+    /// `previous` must match the dependencies used to create the existing entries.
+    /// These entries are removed before adding `next`. Passing `None` keeps old
+    /// entries, so callers without the old artifact must call [`Self::remove`] first.
     pub(crate) fn replace(
         &mut self,
         module: &ModuleId,

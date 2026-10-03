@@ -1,12 +1,11 @@
-//! The two-phase analysis contract every frontend implements.
+//! Defines how frontends scan source and produce module IR.
 //!
-//! Analysis runs in two steps because TypeScript facts are computed across modules:
-//! [`SourceAnalyzer::scan`] extracts what one module contains locally, the host may
-//! then feed all scans to a [`TypeScriptFactsProvider`], and
-//! [`SourceAnalyzer::finalize`] produces the IR the compiler consumes. Without facts,
-//! [`SourceAnalyzer::finalize`] must support only the intentionally limited local
-//! cases; cross-module values and non-trivial conditionals are reported as unsupported
-//! rather than approximated in Rust.
+//! Analysis has two steps because TypeScript facts can depend on several modules.
+//! [`SourceAnalyzer::scan`] reads one module's local content. The host can then send
+//! all scans to a [`TypeScriptFactsProvider`]. [`SourceAnalyzer::finalize`] uses the
+//! results to produce IR for the compiler. Without facts, finalization supports only
+//! a limited set of local cases. It reports values from other modules and non-trivial
+//! conditionals as unsupported.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -64,11 +63,12 @@ pub struct ModuleScan {
     pub lint_findings: Vec<LintFinding>,
 }
 
-/// Host-side TypeScript integration. Implementations own dependency traversal, checker
-/// lifetime, and invalidation; they must not leak checker objects into the analysis.
+/// Supplies TypeScript facts to the frontend. Implementations follow dependencies,
+/// manage the checker's lifetime, and invalidate outdated facts. They must keep
+/// checker objects out of the analysis.
 pub trait TypeScriptFactsProvider {
-    /// Resolves the probes of every scan in one batch and returns versioned facts.
-    /// Implementations may omit facts they cannot prove.
+    /// Resolves probes from all `scans` in one batch and returns facts with their
+    /// revisions. Implementations may omit facts they cannot prove.
     fn update(&mut self, scans: &[ModuleScan]) -> TypeFactsUpdate;
 }
 
@@ -98,18 +98,17 @@ pub trait SourceAnalyzer {
     fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis;
 }
 
-/// Finalized module IR plus everything the compiler and project layer need.
+/// Contains finalized module IR and metadata used by the compiler and project session.
 #[derive(Clone, Debug)]
 pub struct ModuleAnalysis {
     /// The input this analysis was produced from.
     pub input: SourceInput,
     /// Projection provenance, empty when the input had no projection.
     pub provenance: Vec<SourceProvenance>,
-    /// Declaration-only semantic inputs needed by this producer's standalone CSS.
+    /// Supplies declarations needed to render this producer's CSS on its own.
     ///
-    /// These are attached by [`ModuleAnalysis::attach_asset_support`] and are not
-    /// dependencies for invalidation: they exist so a single module can be rendered in
-    /// isolation, and they never add producers to a project.
+    /// [`ModuleAnalysis::attach_asset_support`] adds these inputs. They do not register
+    /// producers or serve as entries for dependency invalidation.
     pub asset_support: Vec<ModuleAnalysis>,
     /// Assets this module consumes from elsewhere. A module may only use assets it
     /// declares itself or that appear here.
@@ -140,9 +139,16 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Validates a complete producer graph once and attaches referenced declaration CSS.
-    /// `inputs` must contain each module identity once. Returned analyses retain their
-    /// source coordinates and receive graph errors at their own full source span.
+    /// Checks composition across the graph and adds CSS for referenced declarations.
+    ///
+    /// `inputs` must contain the complete producer graph with each module identity
+    /// once. Returns cloned analyses in input order, or an empty vector for empty
+    /// input. The clones keep their source coordinates. Each clone receives graph
+    /// errors at its full source span and support for referenced keyframes and view
+    /// transitions. Style calls from support modules do not become producers.
+    ///
+    /// This method checks the graph once for the whole batch instead of once per
+    /// module. It leaves `inputs` unchanged.
     pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
         let modules: Vec<_> = inputs.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
@@ -164,7 +170,11 @@ impl ModuleAnalysis {
             .collect()
     }
 
-    /// Attaches referenced declaration CSS without registering semantic inputs as producers.
+    /// Adds CSS for referenced declarations without adding their modules as producers.
+    ///
+    /// `inputs` supplies analyses for checking composition and finding declarations.
+    /// Entries with this module's identity are ignored. This method adds graph errors
+    /// to this analysis and replaces its asset support. It leaves `inputs` unchanged.
     pub fn attach_asset_support(&mut self, inputs: &[Self]) {
         let mut modules = vec![&*self];
         modules.extend(
@@ -177,6 +187,10 @@ impl ModuleAnalysis {
         self.attach_declarations(inputs);
     }
 
+    /// Replaces asset support with copies of referenced declarations from `inputs`.
+    /// The copies exclude style calls and ref definitions. If this module uses no
+    /// external assets, the method clears support and skips the scan. It leaves
+    /// `inputs` unchanged.
     fn attach_declarations(&mut self, inputs: &[Self]) {
         self.asset_support.clear();
         if self.external_assets.is_empty() {

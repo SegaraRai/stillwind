@@ -2,26 +2,26 @@
 /* eslint-disable */
 
 /**
- * Caller-driven design-system loader.
+ * Loads CSS files supplied by the caller into a design-system snapshot.
  *
- * Feed the root source first, then answer each requested id. The loader reports parse
- * and link failures; a host that cannot read a requested file reports its own error
- * and drops the loader.
+ * Supply the root source first, then answer each requested ID. The loader reports
+ * parse and link errors. If the host cannot read a file, it must report that error
+ * and discard the loader.
  */
 export declare class NativeDesignSystemLoader {
   /** Creates a loader for the given compiler options. */
   constructor(options?: NativeCompilerOptions | undefined | null)
   /**
-   * Answers one outstanding request; equivalent to [`Self::provide_many`] with one file.
+   * Answers one pending request by calling [`Self::provide_many`] with one file.
    * An absent URI marks the CSS as an internal buffer without a reportable location.
    */
   provide(id: number, name: string, content: string, uri?: string | undefined | null, sourceMapSource?: string | undefined | null): NativeCssLoadStep
   /**
    * Answers any subset of the outstanding requests, in any order.
    *
-   * A partially supplied batch does not block parsing: each supplied source is
-   * parsed immediately and its imports appear in the next step. Unknown or duplicate
-   * ids are protocol errors.
+   * Each supplied source is parsed immediately, and its imports appear in the next
+   * step. Other requests can remain unanswered. Unknown or duplicate IDs cause
+   * errors.
    */
   provideMany(files: Array<NativeCssFileInput>): NativeCssLoadStep
   /** Generates the TypeScript augmentation for the completed snapshot. */
@@ -33,38 +33,61 @@ export declare class NativeProjectSession {
   /** Returns the latest attempted diagnostics for every retained module. */
   diagnosticBatches(): Array<NativeDiagnosticBatch>
   /**
-   * Creates a session from a completed loader. `watch` selects whether a failed
-   * reload retains the last known good revision.
+   * Creates a session from a completed `loader`. If `watch` is true, a failed reload
+   * keeps the last successful revision.
    *
-   * `mode` is `"development"` for a dev server and anything else for a release
-   * build; it decides whether a rejected host-supplied identifier name is reported
-   * as a lint finding or fails the compilation. A development session is offered to
-   * a dev server, where usable output matters more than a fatal diagnostic.
+   * `mode` selects development behavior only when it equals `"development"`.
+   * Other values, including no value, select release behavior. If a host-supplied
+   * name is rejected, development mode reports a lint finding and release mode
+   * fails compilation.
    *
-   * `naming` supplies the host's own name generators, one optional function per
-   * family. A family whose function returns `undefined` keeps the compiler's name.
-   * Functions must be pure: the same request has to produce the same name. Pair them
-   * with a matching `naming_revision` so cached artifacts are not reused across a
-   * change to them.
+   * `naming` supplies an optional name generator for each family. Returning
+   * `undefined` keeps the compiler's name. Each function must return the same name
+   * for the same request. Change `naming_revision` when changing these functions
+   * so cached output from the old generators is not reused.
+   *
+   * # Errors
+   *
+   * Returns an error if the loader is incomplete or name generators cannot be
+   * initialized.
    */
   constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null, naming?: NativeIdentifierNaming | undefined | null)
-  /** Creates a CSS loader in this session's source ID scope for a reload. */
+  /**
+   * Creates a CSS loader that shares this session's source ID allocator.
+   * Use it for reloads to avoid conflicts between CSS and script file IDs.
+   */
   newLoader(options?: NativeCompilerOptions | undefined | null): NativeDesignSystemLoader
   /**
    * Publishes a reloaded design system and reports what changed.
    *
-   * Recompiling retained modules can fail; the error then lists the failing modules.
-   * Watch mode retains the previous revision. Build mode has already published the
-   * new revision with failed modules omitted when this error is returned.
+   * `loader` must be complete and created by this session.
+   * If recompilation fails, the error lists the failing modules. Watch mode keeps
+   * the previous revision. Build mode publishes the new revision without the failed
+   * modules before returning this error.
    */
   reload(loader: NativeDesignSystemLoader): NativeReload
   /** Renders the complete stylesheet for the current revision. */
   css(): string
   /**
-   * Plans an explicit host selection and returns CSS with coverage and producer revisions.
+   * Returns CSS and producer revisions for the modules selected by the host.
    *
-   * `include_source_maps` defaults to true. When false, the plan and part maps have
-   * empty sources and entries; CSS, ordering, ownership, and producer revisions are unchanged.
+   * `input` selects registered producers, coverage, and document or carrier
+   * placement. Complete coverage requires target and revision strings with
+   * non-whitespace text. The plan also includes modules required by composition.
+   * The session is unchanged.
+   *
+   * Source maps are included by default. Passing false for the second argument
+   * leaves the sources and entries empty in the plan's map and each part's map. This
+   * avoids copying source text and mappings into JavaScript when the host does not
+   * need them. CSS, ordering, owners, and producer revisions are the same with
+   * either setting.
+   *
+   * # Errors
+   *
+   * Returns an error if a producer is missing or no longer matches its analysis,
+   * composition or CSS is invalid, or complete coverage has invalid identifiers.
+   * Conversion fails if a value exceeds its 32-bit range. With maps enabled,
+   * conversion also fails if a source location cannot be resolved.
    */
   planStylesheet(input: NativeStylesheetSelection, includeSourceMaps?: boolean | undefined | null): NativeStylesheetPlan
   /** Stable document CSS without a source map, independent of visited JS modules. */
@@ -488,11 +511,17 @@ export type NativeCoverage =
     target: string; /** Host-defined revision of the module graph. */
   revision: string }
 
-/** One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`] call. */
+/**
+ * One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`]
+ * call.
+ */
 export interface NativeCssFileInput {
   /** Request id being answered; `0` is the root source. */
   id: number
-  /** Opaque host-chosen CSS resolution name, compared verbatim by the loader. */
+  /**
+   * The host chooses this name for CSS resolution. The loader compares it as
+   * supplied.
+   */
   name: string
   /** Absolute document URI supplied by the host; absent means an internal buffer. */
   uri?: string

@@ -31,9 +31,20 @@ export interface StillwindOptions extends CommonOptions {
   emission?: "single" | "split";
 }
 
+/**
+ * Creates project state and returns helpers for the Vite hooks and framework adapters.
+ * `options` selects the CSS entrypoint and compiler options. Before serving requests,
+ * callers must set project settings from Vite configuration and attach the server.
+ * Each environment has its own compiler, inputs, and CSS revision. Compilation and
+ * CSS publication run in order. `close` removes watch listeners and closes any
+ * TypeScriptFactsService instances.
+ */
 export function createViteProject(options: StillwindOptions) {
   const settings = {
     watching: false,
+    /**
+     * Uses watcher events to detect CSS changes without reading every file on each JS edit.
+     */
     cssWatching: false,
     compilerMode: "release",
     projectRoot: "",
@@ -45,15 +56,41 @@ export function createViteProject(options: StillwindOptions) {
     minifyCss: true,
   };
   type EnvironmentState = {
+    /**
+     * Resolves when the last queued operation ends, even if that operation failed.
+     */
     work: Promise<void>;
     session?: NativeProjectSession;
     resources: Map<string, string>;
+    /**
+     * Files in the last accepted CSS graph. With `watch: null`, their contents are hashed.
+     */
     cssFiles: Set<string>;
+    /**
+     * Hash used to skip CSS reloads when the watcher is disabled and file contents match.
+     */
     cssVersion?: string;
+    /**
+     * Absolute paths watched while loading CSS, including missing relative imports.
+     * Keeping missing paths lets file creation trigger a retry after a load failure.
+     */
     cssObservedFiles: Set<string>;
+    /**
+     * Counter increased when the watcher reports a CSS file added, changed, or removed.
+     */
     cssChange: number;
+    /**
+     * Value of `cssChange` when the current CSS graph was accepted.
+     */
     cssApplied: number;
+    /**
+     * Value of `cssChange` when loading was last tried, even if it failed. -1 means no attempt.
+     * Keeping this value skips repeated failed loads until the watcher reports another change.
+     */
     cssAttempted: number;
+    /**
+     * Last load or reload error. A successful load clears it.
+     */
     cssError?: unknown;
     themeChanges: Set<string>;
     compiler?: IntegrationSession;
@@ -91,6 +128,12 @@ export function createViteProject(options: StillwindOptions) {
     }
   };
 
+  /**
+   * Runs `operation` after earlier work in `state` and returns its result.
+   * Errors reach the caller, but later operations can still run. `operation` must not
+   * wait for another queued operation, because that operation would wait for it to finish.
+   * Running operations in order avoids loading CSS twice or publishing conflicting snapshots.
+   */
   const inTurn = async <T>(state: EnvironmentState, operation: () => Promise<T>) => {
     const previous = state.work;
     let release!: () => void;
@@ -105,6 +148,11 @@ export function createViteProject(options: StillwindOptions) {
     }
   };
   let stopCssWatching = () => {};
+  /**
+   * Replaces existing listeners with CSS listeners on `server`'s file watcher.
+   * No HMR connection is needed. Closing the HTTP server or calling `close` removes
+   * the listeners. If the watcher is disabled, requests check file contents instead.
+   */
   const watchCssChanges = (server: ViteDevServer) => {
     stopCssWatching();
     settings.cssWatching = server.config.server.watch !== null;
@@ -188,9 +236,16 @@ export function createViteProject(options: StillwindOptions) {
     ) => Promise<{ id: string; external?: boolean | string } | null>;
     addWatchFile: (id: string) => void;
   };
+  /**
+   * Loads CSS through `context` and returns the loader, URL replacements, and file sets.
+   * It leaves the active compiler revision unchanged. Files are watched before reading,
+   * including paths for relative imports that cannot yet be resolved. Resolve and read
+   * errors reject the promise, but watches stay registered so later changes can trigger a retry.
+   */
   const loadRevision = async (state: EnvironmentState, context: CssContext) => {
     const dependencies = new Set<string>();
     const observed = new Set<string>();
+    // Keep this set so reads that finish later cannot change the next revision's file set.
     const tracking = state.cssObservedFiles;
     const watch = (file: string) => {
       const path = resolve(file);
@@ -214,6 +269,11 @@ export function createViteProject(options: StillwindOptions) {
     );
     return { ...result, dependencies, observed };
   };
+  /**
+   * Creates a session if `state` has none. The caller must run this in `state`'s queue.
+   * If the watcher reports a CSS change during loading, loading is retried before the
+   * session is stored. Errors reject the promise. An existing session is left unchanged.
+   */
   const ensureSessionInTurn = async (state: EnvironmentState, context: CssContext) => {
     if (state.session) {
       return;
@@ -269,6 +329,11 @@ export function createViteProject(options: StillwindOptions) {
     });
   };
 
+  /**
+   * Returns a hash of sorted file paths and their contents for `watch: null`.
+   * Reading 64 files at a time overlaps disk access without opening every file at once.
+   * Missing files add a fixed marker to the hash. Other read errors reject the promise.
+   */
   const designSystemVersion = async (files: Set<string>) => {
     const hash = createHash("sha256");
     const ordered = [...files].sort();
@@ -293,6 +358,13 @@ export function createViteProject(options: StillwindOptions) {
     return hash.digest("hex");
   };
 
+  /**
+   * Reloads CSS in `state` and records producers whose transforms changed.
+   * The caller must run this in `state`'s queue. Watcher counters skip file reads
+   * until another CSS change is reported. Without a watcher, file hashes detect changes.
+   * A CSS change during loading causes a retry. Errors from the first load reject the
+   * promise. Later errors are stored and logged. Failed loads and reloads keep active output.
+   */
   const refreshDesignSystemInTurn = async (state: EnvironmentState, context: CssContext) => {
     await ensureSessionInTurn(state, context);
     if (!settings.watching) {

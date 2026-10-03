@@ -7,6 +7,12 @@ import { sendJson } from "./http.ts";
 import { valuePrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 
+/**
+ * Returns development hooks that use `project`'s state for each Vite environment.
+ * The server hook watches CSS files and adds routes for requesting stylesheets.
+ * Hot updates compile changed inputs and send CSS before invalidating JS modules.
+ * The caller must also install the compiler hooks to initialize project settings.
+ */
 export function developmentHooks(
   project: ViteProject,
 ): Pick<Plugin, "hotUpdate" | "configureServer"> {

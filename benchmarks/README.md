@@ -5,8 +5,10 @@ Run these tasks from the repository root:
 - `vp run bench:compiler`: native loader, standalone compilation, unchanged updates, single-file edits and stylesheet planning across synthetic module graphs.
 - `vp run bench:host`: reused and fresh checker services, direct scripts and Vue/Svelte/Astro input.
 - `vp run bench:source-map`: production CSS map generation versus the candidate in `source-map/candidate.ts`.
+- `vp run verify:performance`: quick checks with soft targets and hard limits; see [performance budgets and measurement boundaries](performance/README.md).
+- `vp run verify:performance:full`: the same checks including 1000 modules, 1000 imported CSS files, and 10,000 unused utility definitions.
 
-The tasks run Vitest benchmarks from `.bench.ts` files with `vite-plus/test`. Benchmark mode uses native Node ESM, so Vite does not transform the measured modules. Run one benchmark task at a time to avoid competition for CPU time. Ordinary tests run correctness checks from `source-map/*.test.ts` and `research/*.test.ts`.
+The tasks run Vitest benchmarks from `.bench.ts` files with `vite-plus/test`. Benchmark and performance modes use native Node ESM, so Vite does not transform the measured modules. Run one benchmark task at a time to avoid competition for CPU time. Ordinary tests run correctness checks from `source-map/*.test.ts`, `research/*.test.ts`, and `performance/*.test.ts`.
 
 Vitest JSON reports are written to ignored `results/compiler.json`, `results/host.json`, and `results/source-map.json`. Each assertion result includes benchmark statistics, raw latency samples, and metadata with the Git revision, Node version, platform, timestamp, and measurement options. Fresh compiler graph cases also record output fingerprints. Latency values use milliseconds; `latency.p50` is the median. Timings are descriptive; ordinary verification does not impose machine-dependent performance thresholds.
 

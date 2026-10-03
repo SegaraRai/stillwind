@@ -1,8 +1,8 @@
-//! Compiled module results, cache identity, and checked source-edit application.
+//! Stores compiled output and the keys used to reuse it.
 //!
-//! [`CompiledModule::apply_to_source`] validates edits before applying them;
-//! [`CompiledModule::to_module_output`] exposes producer CSS without document assembly.
-//! Compilation itself belongs to [`super::ModuleCompiler`].
+//! [`CompiledModule::apply_to_source`] checks source edits before applying them.
+//! [`CompiledModule::to_module_output`] returns a producer's CSS without assembling
+//! the document stylesheet. [`super::ModuleCompiler`] performs compilation.
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -30,17 +30,16 @@ pub struct ModuleTransformError(
     pub TransformError,
 );
 
-/// Everything that can change a module's compiled output, and nothing else.
+/// Identifies the inputs used to compile a module so its output can be reused.
 ///
-/// Two equal keys mean the previously compiled artifact can be reused. The compiler's
-/// own build fingerprint participates through [`Self::compiler_version`], so rebuilding
-/// the compiler invalidates every cached artifact, and `analysis_revision` covers the
-/// frontend's actual inputs rather than its implementation.
+/// Equal keys allow reuse of the compiled artifact. [`Self::compiler_version`] includes
+/// the compiler's build fingerprint, so a compiler rebuild invalidates cached artifacts.
+/// [`Self::analysis_revision`] hashes the analysis inputs supplied by the frontend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleArtifactKey {
     /// Compiler version plus the build fingerprint of the compiler and its dependencies.
     pub compiler_version: String,
-    /// Fingerprint of the resolved [`crate::CompilerOptions`]; a prefix change is a separate key.
+    /// Hash of the resolved [`crate::CompilerOptions`].
     pub compiler_options: Fingerprint,
     /// The frontend's actual compiler inputs, independent of its implementation.
     pub analysis_revision: Fingerprint,
@@ -60,21 +59,24 @@ pub struct ModuleArtifactKey {
     pub semantic_revision: Option<Fingerprint>,
 }
 
-/// Definition sets a compiled module's output was derived from.
+/// Records definitions that can affect a compiled module's output.
 ///
-/// The sets are conservative: they may hold more names than the output actually uses,
-/// so a change can invalidate a still-valid artifact. They must never hold fewer,
-/// because an omission would keep stale CSS. [`Self::assets`] lists the ref, keyframes,
-/// and view-transition identities the module referenced.
+/// Sets may contain unused names, so a definition change may invalidate output that is
+/// still valid. They must include every dependency to avoid keeping stale CSS.
+/// [`Self::assets`] contains the identities of referenced refs, keyframes, and view
+/// transitions.
+///
+/// Utility, variant, and property names use `Arc` to share the snapshot's sets. Each
+/// module can keep these sets without copying all their names.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompilationDependencies {
     /// Candidate spellings the module mentions, including their variant prefixes.
     pub candidates: BTreeSet<String>,
     /// Theme token names whose values appear in the module's generated CSS.
     pub theme_tokens: BTreeSet<String>,
-    /// All currently registered utility definition names, recorded conservatively.
+    /// All registered utility definition names, including unused definitions.
     pub utilities: Arc<BTreeSet<String>>,
-    /// All currently registered variant definition names, recorded conservatively.
+    /// All registered variant definition names, including unused definitions.
     pub variants: Arc<BTreeSet<String>>,
     /// All currently registered custom-property definition names.
     pub properties: Arc<BTreeSet<String>>,
@@ -84,10 +86,9 @@ pub struct CompilationDependencies {
 
 /// A URL in generated CSS that only the host can resolve.
 ///
-/// The compiler cannot know where a file lives, so each reference becomes a unique
-/// placeholder string and the host rewrites it later. Repeated references with the
-/// same owner and decoded specifier share a placeholder; different owners are hashed
-/// separately.
+/// The compiler replaces the URL with a placeholder, and the host resolves it later.
+/// References with the same owner and decoded specifier share a placeholder. The
+/// placeholder hash includes the owner.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleResourceReference {
@@ -101,17 +102,14 @@ pub struct ModuleResourceReference {
 
 /// One module's complete compiled output.
 ///
-/// This is the compiler-to-project boundary. The fields are produced together, so a
-/// consumer receives generated classes and symbols alongside CSS and source edits.
-/// Marker classes need not have a CSS rule. Transform validity is checked when the
-/// edits are rendered. They are only meaningful when the module compiled without
-/// diagnostics.
+/// The compiler returns CSS, classes, symbols, and source edits together. Marker
+/// classes may have no CSS rule. Callers must check for compilation errors before using
+/// output. Applying source edits also checks that their spans are valid.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
-    /// Direct contributions of this module's style calls; empty after compilation
-    /// failure. Records retain original source coordinates. Hosts combine current
-    /// artifacts with [`crate::StyleResolver`] and replace composition-dependent
-    /// findings when bases change.
+    /// Records the effects of this module's own style calls and keeps their source
+    /// coordinates. The vector is empty after compilation failure. Hosts use
+    /// [`crate::StyleResolver`] to update composition findings when bases change.
     pub style_effects: Vec<StyleEffects>,
     /// Style dependencies the project layer must order this module after.
     pub composition: Vec<StyleDependency>,
@@ -133,19 +131,20 @@ pub struct CompiledModule {
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
-    /// Definitions a change to which invalidates this artifact.
+    /// Records definitions whose changes invalidate this artifact.
     pub dependencies: CompilationDependencies,
 }
 
 impl CompiledModule {
     /// Applies the module's transforms to the original source and returns the new text.
     ///
-    /// The input source is not modified; the result is a fresh string with untouched
-    /// intervals preserved byte for byte.
+    /// Leaves `source` unchanged and returns a new string. Text outside the edit spans
+    /// is preserved byte for byte.
     ///
     /// # Errors
     ///
-    /// Rejects failed compilation and invalid or overlapping source-transform spans.
+    /// Returns an error if compilation failed or source edit spans are invalid or
+    /// overlap.
     pub fn apply_to_source(&self, source: &SourceFile) -> Result<String, ModuleTransformError> {
         if !self.is_success() {
             return Err(ModuleTransformError(TransformError::CompilationFailed));
@@ -163,12 +162,13 @@ impl CompiledModule {
 
     /// Builds a producer's output without assembling document CSS or support layers.
     ///
-    /// `css` and `module_css` are both the module's own rules here: the stylesheet
-    /// renderer later replaces `css` with the assembled document stylesheet while
-    /// leaving `module_css` addressable for a host that transports CSS per module.
-    /// `snapshot` must be the design-system revision recorded by this artifact. The
-    /// result clones direct style effects and existing findings without resolving bases
-    /// again. Callers must refresh composition findings when the graph changes.
+    /// `snapshot` must match this artifact's design-system revision. The returned `css`
+    /// and `module_css` both contain this module's rules. The stylesheet renderer later
+    /// replaces `css` with the document stylesheet and keeps `module_css` for hosts
+    /// that send CSS per module.
+    ///
+    /// The result copies style effects and existing findings without resolving bases
+    /// again. Callers must update composition findings when the graph changes.
     pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {

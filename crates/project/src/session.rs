@@ -1,8 +1,8 @@
-//! Mutable host orchestration; snapshots and in-flight request clones stay immutable.
+//! Stores project analyses, compiled modules, and generated CSS.
 //!
-//! A session is an actor: all mutation happens behind an exclusive borrow, and a
-//! request handler takes a [`ProjectSession::snapshot`] clone before doing work so it
-//! observes one revision for its whole duration.
+//! Hosts update a session one operation at a time. [`ProjectSession::snapshot`] keeps
+//! a design-system revision available to a request while later updates change the
+//! session.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
@@ -72,13 +72,15 @@ pub struct SessionReload {
     pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
 }
 
-/// Exclusive mutation is the actor boundary. A host can put this in a mutex; request
-/// handlers pin a clone obtained from `snapshot` before doing work.
+/// Keeps the analyses and compiled output for a project.
+///
+/// Session clones share analyses and compiled modules through `Arc`, so transactions
+/// do not copy all IR and CSS. Updating one clone leaves other clones unchanged.
 #[derive(Clone)]
 pub struct ProjectSession {
-    /// Script source revisions; CSS revisions live in the active design-system snapshot.
+    /// Stores script sources. The active design-system snapshot stores CSS sources.
     sources: SourceRegistry,
-    /// Latest attempted diagnostic batch for each module, independent of active output.
+    /// Keeps each module's latest diagnostic batch even if its active output is older.
     reported: BTreeMap<ModuleId, DiagnosticBatch>,
     /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
@@ -90,29 +92,38 @@ pub struct ProjectSession {
     reserved: ReservedNames,
     /// Names a producer's own CSS uses, keyed by module identity.
     authored: BTreeMap<ModuleId, ReservedNames>,
-    /// Whether a failed reload invalidates output or retains the last successful revision.
+    /// Whether a failed reload invalidates output or retains the last successful
+    /// revision.
     mode: SessionMode,
-    /// Retained frontend analyses keyed by module identity, used for recompilation.
+    /// The session keeps each module's latest analysis, including failed attempts.
+    /// `Arc` shares their IR when a host clones the session for a transaction.
     analyses: BTreeMap<ModuleId, Arc<ModuleAnalysis>>,
-    /// Keys computed before retained analyses become immutable.
+    /// The session keeps keys for the latest analyses to avoid hashing the IR on each
+    /// artifact lookup. `Arc` avoids copying their strings when sessions are cloned.
     analysis_keys: BTreeMap<ModuleId, Arc<ModuleArtifactKey>>,
-    /// Published compiled modules keyed by module identity.
+    /// Watch mode keeps the last successful compiled module when an update fails.
+    /// `Arc` shares CSS and transforms when sessions are cloned. Lint updates use
+    /// [`Arc::make_mut`] to keep other clones unchanged.
     artifacts: BTreeMap<ModuleId, Arc<CompiledModule>>,
     /// Shared stylesheet assembled from published artifacts.
     stylesheet: ProjectStylesheet,
-    /// Reverse memberships derived on demand from this revision's published artifacts.
+    /// Maps definitions and assets to compiled modules. `OnceLock` builds the index
+    /// only when queried. `Arc` shares it between session clones. Changing published
+    /// artifacts clears it so the next query rebuilds it.
     dependencies: Arc<OnceLock<DependencyIndex>>,
-    /// Most recent rejected load, or None when the active configuration loaded successfully.
+    /// Most recent rejected load, or None when the active configuration loaded
+    /// successfully.
     load_error: Option<DesignSystemLoadError>,
 }
 
 impl ProjectSession {
-    /// Starts a session in the source ID scope used to load its CSS snapshot.
+    /// Creates a session using the source ID scope that loaded `snapshot`.
     ///
-    /// The naming inputs are fixed for the session's lifetime: a host that changes
-    /// generators starts a new session and pairs the change with a new
-    /// [`CompilerOptions::naming_revision`], so cached artifacts are not reused across
-    /// naming changes.
+    /// `sources` supplies the ID scope. `mode` controls how failures affect output.
+    /// `options` and `identifiers` configure compilation and generated names. Naming
+    /// rules stay fixed for the session's lifetime. To change generators, the host must
+    /// create a new session and change [`CompilerOptions::naming_revision`] so cached
+    /// output from the old generators is not reused.
     pub fn new(
         snapshot: DesignSystemSnapshot,
         sources: &SourceRegistry,
@@ -156,12 +167,13 @@ impl ProjectSession {
         }
     }
 
-    /// Script source registry issuing the file IDs used by this session's analyses.
+    /// Returns the script registry that assigns file IDs for this session's analyses.
     pub fn sources(&self) -> &SourceRegistry {
         &self.sources
     }
 
-    /// Registers input before analysis so spans and public document identity share one source.
+    /// Returns the script registry for registering input before analysis. Use it to
+    /// keep analysis spans and public document identity tied to the same source.
     pub fn sources_mut(&mut self) -> &mut SourceRegistry {
         &mut self.sources
     }
@@ -245,20 +257,21 @@ impl ProjectSession {
     /// A generated name that would collide with one of these is reported, because the
     /// authored declaration or reference already owns the name in that namespace.
     /// The set covers the accepted design-system sources and the authored CSS the theme
-    /// keeps outside its definition blocks. CSS a producer authors itself is not part of the
-    /// design system, so the host supplies it through [`Self::reserve_authored_css`].
+    /// keeps outside its definition blocks. CSS a producer authors itself is not part
+    /// of the design system, so the host supplies it through
+    /// [`Self::reserve_authored_css`].
     pub fn reserved_names(&self) -> &ReservedNames {
         &self.reserved
     }
 
-    /// Reserves the names one producer's own CSS uses, replacing its previous ones.
+    /// Records names used in `module`'s own `css`, replacing its previous names.
     ///
-    /// A producer's CSS is not part of the design system, so only the host can supply its text;
-    /// the session scans it exactly like the design system's CSS. Names authored here collide with
-    /// generated ones like any other authored name.
+    /// The host must supply this CSS because it is outside the design-system snapshot.
+    /// The session scans it and checks its names against generated names in each
+    /// namespace.
     ///
-    /// Returns the modules whose published artifacts now collide, each with the errors a
-    /// recompilation would report; an empty result means every published artifact is still valid.
+    /// Returns modules with name collisions and the errors recompilation would report.
+    /// An empty result means no published artifact has a name collision.
     pub fn reserve_authored_css(
         &mut self,
         module: &ModuleId,
@@ -282,7 +295,8 @@ impl ProjectSession {
         self.recheck_artifacts()
     }
 
-    /// Pins the current immutable design-system revision. Cheap to clone.
+    /// Returns a clone of the current snapshot without copying its registries.
+    /// Later session updates leave the returned snapshot unchanged.
     pub fn snapshot(&self) -> DesignSystemSnapshot {
         self.current.clone()
     }
@@ -293,13 +307,17 @@ impl ProjectSession {
         &self.stylesheet
     }
 
-    /// Published artifacts by module. A module absent here has no current CSS or
-    /// transforms, even if an analysis for it is retained.
+    /// Returns published artifacts. In watch mode, these can include the last successful
+    /// output of a module whose latest update failed. Use [`Self::current_artifact`]
+    /// when the output must match the latest analysis.
     pub fn artifacts(&self) -> &BTreeMap<ModuleId, Arc<CompiledModule>> {
         &self.artifacts
     }
 
-    /// Returns a published artifact only when it matches the attempted analysis.
+    /// Returns the artifact for `module` if it matches the latest analysis. Returns
+    /// `None` if the analysis or artifact is missing, the analysis failed, or their
+    /// keys differ. This lookup compares stored keys without hashing the IR or changing
+    /// the session.
     pub fn current_artifact(&self, module: &ModuleId) -> Option<&CompiledModule> {
         let analysis = self.analyses.get(module)?;
         if !analysis.diagnostics.is_empty() || !analysis.integration_diagnostics.is_empty() {
@@ -315,8 +333,10 @@ impl ProjectSession {
         &self.analyses
     }
 
-    /// Reverse index from design-system definitions and assets to the modules that use
-    /// them.
+    /// Returns an index that maps definitions and assets to published modules.
+    /// The index can include unused definitions and output kept after a watch failure.
+    /// The first call builds it. Later calls reuse it until an artifact is replaced or
+    /// removed. Compilation can run without building this index.
     pub fn dependencies(&self) -> &DependencyIndex {
         self.dependencies.get_or_init(|| {
             let mut index = DependencyIndex::default();
@@ -335,8 +355,8 @@ impl ProjectSession {
     ///
     /// # Errors
     ///
-    /// Returns an error if stylesheet serialization fails, or when a name the render generated
-    /// collides with another name in its CSS namespace.
+    /// Returns an error if the stylesheet cannot be rendered or a generated name
+    /// collides with another name in the same CSS namespace.
     pub fn css(&self) -> Result<String, CompileDiagnostic> {
         let renderer = StylesheetRenderer::new(&self.current, &self.options, &self.identifiers);
         let mut stylesheet = self.stylesheet.clone();
@@ -358,25 +378,22 @@ impl ProjectSession {
 
     /// Updates one producer without rendering the project stylesheet.
     ///
-    /// Recompilation is skipped when the analysis key already matches the published
-    /// artifact, which makes repeated updates during a watch session cheap; the
-    /// analysis is still replaced so later queries see the newest one. A module whose
-    /// artifact key changed is recompiled. Previous contributions are replaced only
-    /// after successful compilation; build-mode failure removes the old artifact.
+    /// `analysis` must identify the producer and keep source coordinates for its
+    /// inputs. The session stores it even if compilation fails. If it has no errors and
+    /// its key matches a published artifact, recompilation is skipped. Otherwise, it is
+    /// recompiled.
     ///
-    /// Generated identifiers are checked against every other module's symbols, not only
-    /// this module's, because all artifacts share one document. A collision is reported
-    /// as `CompileDiagnostic::GeneratedIdentifierCollision` and prevents publication.
-    /// Each CSS namespace is checked on its own, so one spelling may appear in two
-    /// pools without a conflict while two identities inside one pool may not share a
-    /// spelling.
+    /// Generated names are checked against other modules' symbols because their output
+    /// shares one document. A collision prevents publication and reports
+    /// `CompileDiagnostic::GeneratedIdentifierCollision`. Each namespace is checked
+    /// separately. Different namespaces can share a spelling, but different identities
+    /// in the same namespace cannot.
     ///
-    /// `analysis` must identify the producer and retain source coordinates for its
-    /// inputs. Returns whether generated transforms changed and any compilation errors.
-    /// Successful publication also recomputes composition findings in direct and
-    /// indirect consumers. On failure, watch mode keeps the last good artifact for
-    /// display and build mode removes it. Consumer lint checks use only artifacts
-    /// matching current analyses.
+    /// Returns whether source transforms changed and any compilation errors. Successful
+    /// compilation replaces the producer's output. Watch mode keeps the last successful
+    /// artifact on failure, while build mode removes it. Composition findings are
+    /// updated in direct and indirect consumers using only artifacts that match current
+    /// analyses.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         let key = backend.key_for(&analysis);
@@ -429,12 +446,11 @@ impl ProjectSession {
         update
     }
 
-    /// Replaces the attempted analyses after a multi-module transaction fails.
-    /// `analyses` contains the producers attempted by that transaction. Watch mode
-    /// retains their last good artifacts for display; build mode removes them.
-    /// Planning and lint resolution exclude artifacts whose keys no longer match.
-    /// The method then recomputes composition findings in all transitive consumers;
-    /// the binding host must publish diagnostic batches after this state change.
+    /// Stores `analyses` from a failed transaction that attempted several producers.
+    /// Watch mode keeps their last successful artifacts, while build mode removes them.
+    /// Stylesheet planning and lint checks exclude artifacts whose keys no longer
+    /// match. This method updates composition findings in direct and indirect
+    /// consumers. The binding host must then publish diagnostic batches.
     pub fn reject_updates(&mut self, analyses: impl IntoIterator<Item = ModuleAnalysis>) {
         let mut dependents = BTreeSet::new();
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
@@ -466,12 +482,18 @@ impl ProjectSession {
         removed
     }
 
-    /// Replaces composition-dependent findings for the requested module identities.
-    /// The caller must first publish or retract changed artifacts and analyses.
-    /// Only artifacts matching their current analyses enter the resolver. Modules
-    /// without a current artifact are skipped; compatible missing bases remain unknown.
-    /// Source suppression runs in each consuming module. Other lint findings remain,
-    /// and diagnostic batches are left for the binding host to refresh.
+    /// Updates style lint findings for `modules` after their inputs or bases change.
+    /// The caller must update the analyses and artifacts first. The resolver uses only
+    /// artifacts that match their latest analyses. It skips missing or failed modules
+    /// and treats missing compatible bases as unknown.
+    ///
+    /// Each module's source directives suppress its findings. Other lint findings stay
+    /// unchanged. The binding host must refresh diagnostic batches after this method.
+    ///
+    /// The resolver reads only the requested modules and the bases they depend on,
+    /// including indirect bases. This avoids checking unrelated styles after an edit.
+    /// Lint updates copy shared artifacts as needed to keep other session clones
+    /// unchanged.
     fn refresh_style_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
         let modules: BTreeSet<_> = modules.into_iter().collect();
         let mut required = modules.clone();
@@ -517,11 +539,10 @@ impl ProjectSession {
         }
     }
 
-    /// Returns every published module that directly or indirectly consumes `module`.
-    /// Traversal uses retained artifact edges, including last good watch artifacts.
-    /// The starting module is omitted, each consumer occurs once, and cycles terminate.
-    /// Ordering follows breadth-first traversal with module order among each producer's
-    /// consumers.
+    /// Returns published modules that directly or indirectly depend on `module`.
+    /// It uses dependency edges from published artifacts, including output kept after
+    /// watch failures. The result excludes `module` and lists each consumer once.
+    /// Cycles do not cause an infinite loop. The result does not define stylesheet order.
     fn composition_dependents(&self, module: &ModuleId) -> Vec<ModuleId> {
         let mut pending = vec![module.clone()];
         let mut seen = BTreeSet::from([module.clone()]);
@@ -549,16 +570,21 @@ impl ProjectSession {
         }
     }
 
-    /// Publishes an entirely rebuilt revision under the host's exclusive actor turn.
+    /// Applies a new design-system revision and updates all retained modules.
     ///
-    /// Every retained analysis is recompiled against the new snapshot before anything
-    /// is published, because definition changes can invalidate output that the source
-    /// revision did not touch.
+    /// `result` supplies the new snapshot or its load error. `options` configures the
+    /// new compilation. Definition changes can affect modules whose source did not
+    /// change, so every retained analysis is checked before publishing the new
+    /// revision. Artifacts with matching keys can be reused. Module compilation errors
+    /// are returned in [`SessionReload::diagnostics`]. Watch mode keeps the previous
+    /// revision if any module fails. Build mode publishes the new revision without
+    /// failed modules.
     ///
     /// # Errors
     ///
-    /// Returns the attempted load failure. Watch mode retains all active output; build
-    /// mode invalidates artifacts and requires the host to fail the build.
+    /// Returns an error if loading or stylesheet rendering fails. After a load failure,
+    /// watch mode keeps active output and build mode clears it and requires the host to
+    /// fail the build. Rendering failures leave published output unchanged.
     pub fn reload(
         &mut self,
         result: Result<DesignSystemSnapshot, DesignSystemLoadError>,

@@ -2,20 +2,41 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
   test: {
-    include: ["source-map/*.test.ts", "research/*.test.ts"],
+    include: ["source-map/*.test.ts", "research/*.test.ts", "performance/*.test.ts"],
     benchmark: {
       include: ["**/*.bench.ts"],
       retainSamples: true,
     },
     environment: "node",
-    setupFiles: mode === "benchmark" ? ["./setup.ts"] : [],
-    testTimeout: mode === "benchmark" ? 600_000 : undefined,
+    provide: {
+      performanceFull: mode === "performance-full",
+    },
+    setupFiles: mode === "benchmark" || mode.startsWith("performance") ? ["./setup.ts"] : [],
+    testTimeout: (
+      {
+        benchmark: 600_000,
+        "performance-full": 120_000,
+        performance: 30_000,
+      } as Record<string, number | undefined>
+    )[mode],
     experimental: {
-      viteModuleRunner: mode !== "benchmark",
+      viteModuleRunner: mode !== "benchmark" && !mode.startsWith("performance"),
     },
   },
   run: {
     tasks: {
+      performance: {
+        command:
+          "vp test bench performance/performance.bench.ts --run --mode performance --reporter default --reporter json --outputFile results/performance.json",
+        dependsOn: ["@stillwind/host#build"],
+        cache: false,
+      },
+      "performance:full": {
+        command:
+          "vp test bench performance/performance.bench.ts --run --mode performance-full --reporter default --reporter json --outputFile results/performance-full.json",
+        dependsOn: ["@stillwind/host#build"],
+        cache: false,
+      },
       test: {
         command: "vp test --run",
         cache: false,

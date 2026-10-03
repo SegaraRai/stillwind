@@ -8,7 +8,7 @@ import {
 } from "@stillwind/native";
 
 /**
- * Host-owned CSS resolution, text loading, and dependency watch registration.
+ * The host resolves CSS imports, reads their text, and watches files.
  * Resolved identifiers must be accepted by read and watch.
  */
 export interface CssHost {
@@ -20,13 +20,18 @@ export interface CssHost {
 }
 
 /**
- * Loads a CSS dependency graph through the native loader and returns its completed
- * loader and resources. rootContent, when supplied, replaces only the initial read;
- * the root and resolved dependencies are still registered with the host watcher.
+ * Loads a CSS graph and returns the completed native loader and its resource references.
+ * `root` must already be resolved and accepted by the host's read and watch methods.
+ * `options` configures a new loader. If `suppliedLoader` is given, it must not have
+ * received any input yet, and this function uses its existing configuration.
+ * `rootContent` skips reading the root file. The function still watches that file
+ * and all resolved dependencies.
  *
- * Pending requests are loaded concurrently and each request id is scheduled once.
- * Resolution, reading, or native loading failures reject the operation. In-flight
- * reads are not cancelled, and watches already registered remain registered.
+ * Reads run concurrently, and each request ID is read only once. Responses ready
+ * in the same event-loop turn are sent together to reduce native calls. Faster reads
+ * can reveal more imports without waiting for slower reads.
+ * Resolution, read, and native loading errors reject the promise. Reads already
+ * started continue, and files already registered with the watcher stay registered.
  */
 export async function loadCssGraph(
   root: string,

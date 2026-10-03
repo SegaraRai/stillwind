@@ -1,14 +1,13 @@
-//! Immutable styling semantics shared by compilation and editor requests.
+//! Provides design-system snapshots for compilation and editor requests.
 //!
-//! [`DesignSystemSnapshot`] is an `Arc` handle to one fully resolved revision. Cloning
-//! it is cheap and never copies registries, and no method on it mutates shared state,
-//! so a request may pin one clone and stay consistent even while another thread
-//! publishes a replacement.
+//! [`DesignSystemSnapshot`] keeps one resolved revision through `Arc`. Cloning it
+//! does not copy registries. A request can keep a clone while another thread loads
+//! a new revision. Existing snapshots stay unchanged.
 //!
-//! A revision number identifies one successful load inside the process. Fingerprints
-//! identify content, so caches that outlive the process must key on fingerprints; in
-//! particular a fingerprint must not include source IDs or spans, which vary with host
-//! read order for identical content.
+//! Revision numbers identify successful loads within a process. Content fingerprints
+//! are used for caches kept across processes. Snapshot fingerprints exclude source IDs
+//! and spans because these can vary with file read order even when the content is
+//! identical.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -26,10 +25,10 @@ use crate::{
     builtin_theme_order,
 };
 
-/// Why a snapshot could not be produced from an already supplied buffer.
+/// Reports why a snapshot could not be created from supplied CSS.
 ///
-/// A host resolution or read failure is not represented here: the loader reports its
-/// own protocol errors, and the host keeps resolution failures.
+/// The loader reports parsing and protocol errors. The host handles failures to resolve
+/// or read files separately.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum DesignSystemError {
     /// Loading failed; see [`DesignSystemLoadError`].
@@ -48,11 +47,11 @@ pub enum DesignSystemError {
 }
 
 impl DesignSystemError {
-    /// Converts a snapshot failure into a source-located compilation error.
+    /// Converts a snapshot failure into a compilation error with a source location.
     ///
     /// Existing compilation errors retain their cause, labels, source name, and notes.
-    /// Other failures receive `span` as their primary label; it must be a valid location
-    /// in the caller's source. The fallback does not rebind existing labels.
+    /// Other failures use `span` as their primary label. It must be a valid location
+    /// in the caller's source. Existing labels are left unchanged.
     pub fn into_compile_error(self, span: Span) -> CompileError {
         let kind = match self {
             DesignSystemError::UnresolvedImports { requests } => {
@@ -96,22 +95,22 @@ impl DesignSystemError {
     }
 }
 
-/// Process-local identity of one successful load.
+/// Identifies one successful load within a process.
 ///
-/// Values increase monotonically within a process and are only meaningful for comparing
-/// two live revisions; persist [`DefinitionFingerprints`] instead.
+/// Values increase with each load. Use them only to compare revisions in the same
+/// process. Store [`DefinitionFingerprints`] when comparisons must survive a restart.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DesignSystemRevision(
-    /// Monotonic process-local revision number; use content fingerprints for persistence.
+    /// Monotonic process-local revision number; use content fingerprints for
+    /// persistence.
     pub u64,
 );
 
-/// Content fingerprints of independently invalidatable semantic groups.
+/// Records content hashes for the whole snapshot and its definition groups.
 ///
-/// `content` covers the whole resolved snapshot and is the fingerprint a cache key
-/// should use. The other fields narrow an invalidation to configuration, ordering, lint
-/// policy, or one definition group. They are content-derived, so two loads of identical
-/// CSS agree even when their revisions differ.
+/// Use `content` in cache keys to track the whole snapshot. Other fields identify
+/// changes to configuration, ordering, lint settings, or specific definition groups.
+/// Loading identical CSS produces the same hashes even when revision numbers differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
     /// Whole-snapshot content, including the compiler version and the selected built-in
@@ -135,8 +134,8 @@ pub struct DefinitionFingerprints {
     pub properties: BTreeMap<String, Fingerprint>,
 }
 
-/// The resolved data behind a snapshot. Never mutated after construction, and never
-/// handed out by value: callers reach it through accessors on the snapshot.
+/// Stores resolved snapshot data. Construction sets it once, and snapshot methods
+/// let callers read it without changing it or taking ownership.
 #[derive(Debug)]
 struct DesignSystemData {
     /// Process-local identity allocated for this successful snapshot.
@@ -147,8 +146,17 @@ struct DesignSystemData {
     config: DesignSystemOptions,
     /// Content identities for cache reuse and selective invalidation.
     fingerprints: DefinitionFingerprints,
+    /// Contains the names of all effective utility definitions in this snapshot.
+    /// The set avoids repeated registry scans. `Arc` lets modules share it
+    /// without copying the names.
     utility_names: Arc<BTreeSet<String>>,
+    /// Contains the names of all effective variant definitions in this snapshot.
+    /// The set avoids repeated registry scans. `Arc` lets modules share it
+    /// without copying the names.
     variant_names: Arc<BTreeSet<String>>,
+    /// Contains the names of all effective `@property` definitions in this snapshot.
+    /// The set avoids repeated registry scans. `Arc` lets modules share it
+    /// without copying the names.
     property_names: Arc<BTreeSet<String>>,
     /// Retained CSS source graph for diagnostics, mappings, and resources.
     sources: CssSourceGraph,
@@ -162,16 +170,16 @@ struct DesignSystemData {
     tokens: ThemeRegistry,
     /// Selected built-in definitions, or None when no built-in registry is loaded.
     builtins: Option<Arc<BuiltinDefinitions>>,
-    /// Property-name lookup of authored declaration serialization templates.
+    /// Maps property names to templates for serializing authored declarations.
     declaration_formats: BTreeMap<String, String>,
     /// Registered relationship names used to validate relationship-aware candidates.
     relationships: BTreeSet<String>,
 }
 
-/// A cheaply cloneable, immutable revision. All access is read-only.
+/// Stores one resolved design-system revision that callers can read and share.
 ///
-/// Cloning shares the same resolved registries; creating a new revision is the only way
-/// to change semantics, and it never alters a snapshot already in use.
+/// Clones share the registries through `Arc`. Loading new definitions creates a new
+/// revision without changing snapshots already in use.
 #[derive(Clone, Debug)]
 pub struct DesignSystemSnapshot {
     /// Shared immutable data.
@@ -181,17 +189,16 @@ pub struct DesignSystemSnapshot {
 impl DesignSystemSnapshot {
     /// Parses a single supplied buffer without performing I/O.
     ///
-    /// This is the convenience path for a stylesheet with no host-resolved imports. A
-    /// buffer that does contain imports is rejected with
-    /// [`DesignSystemError::UnresolvedImports`] rather than silently dropping them;
-    /// drive [`DesignSystemLoader`] instead when the host must resolve them.
+    /// `source` contains the CSS text and its document identity. `source_name` names it
+    /// for CSS resolution and error messages. `options` configures the design system.
+    /// Use [`DesignSystemLoader`] when the host needs to resolve imports.
     ///
     /// # Errors
     ///
-    /// Returns invalid CSS, unresolved imports, or invalid resolved configuration.
-    /// Compilation-error labels use the supplied source identity rather than loader-local
-    /// file IDs, and the display source name is retained. Snapshot source-graph IDs remain
-    /// loader-local; this rebinding applies only to errors returned from this entry point.
+    /// Returns an error for invalid CSS or configuration. Imports return
+    /// [`DesignSystemError::UnresolvedImports`]. Compilation errors use `source`'s
+    /// file ID and keep the display source name. Sources stored in the snapshot keep
+    /// the loader's file IDs.
     pub fn from_source(
         source: &SourceFile,
         source_name: CssSourceName,
@@ -205,7 +212,7 @@ impl DesignSystemSnapshot {
             source.text().into(),
         ) {
             DesignSystemLoadStep::Complete(result) => result.map_err(|mut error| {
-                // A single-buffer caller owns the source identity; loader IDs are local.
+                // Report errors against the caller's source ID, which can differ from the loader's.
                 if let DesignSystemLoadError::Compilation(error) = &mut error {
                     for label in &mut error.labels {
                         label.span.file = source.id();
@@ -219,19 +226,15 @@ impl DesignSystemSnapshot {
         }
     }
 
-    /// Resolves one parsed theme, its supplied source graph, and the host options into
-    /// a snapshot.
+    /// Creates a snapshot from the parsed `theme`, host options in `config`, and `sources`.
     ///
-    /// CSS-authored prefixes override the host defaults before validation, so the
-    /// stored configuration is the resolved one. Source IDs and spans are deliberately
-    /// excluded from every fingerprint: they depend on the order in which host reads
-    /// completed, and identical content must fingerprint identically regardless of that
-    /// order. Built-ins are parsed from the supplied theme CSS rather than injected;
-    /// that CSS may declare a registry directly or receive one through imports.
+    /// Prefixes in CSS override host defaults before validation. Fingerprints exclude
+    /// source IDs and spans so file read order does not change hashes for identical CSS.
+    /// The supplied CSS determines built-in definitions, either directly or through imports.
     ///
     /// # Errors
     ///
-    /// Returns an invalid resolved prefix configuration.
+    /// Returns an error if the final prefix configuration is invalid.
     #[allow(clippy::too_many_lines)] // Resolve and fingerprint one immutable set of semantic registries.
     pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
@@ -396,31 +399,37 @@ impl DesignSystemSnapshot {
 
     /// Revision of the snapshot's load, for cache identity within one process.
     ///
-    /// This is process-local load identity. Two successful loads of identical CSS still
-    /// differ here; compare [`Self::fingerprints`] for content equality.
+    /// Two successful loads have different revision numbers even if their CSS matches.
+    /// Compare [`Self::fingerprints`] to check content equality.
     pub fn revision(&self) -> DesignSystemRevision {
         self.inner.revision
     }
 
-    /// Stable content hashes of the snapshot and its invalidatable groups.
+    /// Returns stable content hashes for the snapshot and its definition groups.
     ///
-    /// Use these to key caches and to compare two revisions; the revision number is
-    /// process-local and must not be persisted.
+    /// Use these hashes for cache keys and to compare revisions. Revision numbers are
+    /// valid only within one process and must not be stored for later comparisons.
     pub fn fingerprints(&self) -> &DefinitionFingerprints {
         &self.inner.fingerprints
     }
 
     /// Returns the shared set of all effective utility definition names.
+    /// Callers can clone the `Arc` without copying the names. This snapshot never
+    /// changes the set.
     pub fn utility_names(&self) -> &Arc<BTreeSet<String>> {
         &self.inner.utility_names
     }
 
     /// Returns the shared set of all effective variant definition names.
+    /// Callers can clone the `Arc` without copying the names. This snapshot never
+    /// changes the set.
     pub fn variant_names(&self) -> &Arc<BTreeSet<String>> {
         &self.inner.variant_names
     }
 
     /// Returns the shared set of all effective custom-property definition names.
+    /// Callers can clone the `Arc` without copying the names. This snapshot never
+    /// changes the set.
     pub fn property_names(&self) -> &Arc<BTreeSet<String>> {
         &self.inner.property_names
     }
@@ -441,14 +450,12 @@ impl DesignSystemSnapshot {
         &self.inner.utilities
     }
 
-    /// Declaration-format metadata after project CSS overrides are merged over the
-    /// selected built-ins.
+    /// Returns declaration formats after project CSS overrides the selected built-ins.
     pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
         &self.inner.declaration_formats
     }
 
-    /// Relationship patterns after project CSS overrides are merged over the selected
-    /// built-ins.
+    /// Returns relationship patterns after project CSS overrides the selected built-ins.
     pub fn relationships(&self) -> &BTreeSet<String> {
         &self.inner.relationships
     }

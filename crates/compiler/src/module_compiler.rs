@@ -1,16 +1,12 @@
-//! Snapshot-pinned compilation and structured, independently owned CSS rules.
+//! Compiles modules using a fixed design-system snapshot.
 //!
-//! [`ModuleCompiler`] compiles one module analysis against one immutable design-system
-//! snapshot and returns a [`CompiledModule`]: source transforms, a CSS artifact split
-//! into independently owned rules, generated classes and symbols, diagnostics, and the
-//! dependency sets a cache needs. Rule identity is content identity, so the project
-//! layer can compare, move, or drop rules it did not emit itself. URLs found in
-//! generated CSS are replaced with placeholders and reported, because the compiler
-//! never resolves a path.
+//! [`ModuleCompiler`] takes a module analysis and returns a [`CompiledModule`] with
+//! source edits, CSS rules, classes, symbols, diagnostics, and dependencies. Rule keys
+//! identify content, so the project layer can compare and manage individual rules.
+//! The compiler replaces CSS URLs with placeholders for the host to resolve.
 //!
-//! A failed compilation still returns the artifact shape, but with empty transforms,
-//! classes, symbols, and CSS. Callers must check [`CompiledModule::is_success`] before
-//! applying anything from it.
+//! Failed compilation returns empty transforms, classes, symbols, and CSS.
+//! Callers must check [`CompiledModule::is_success`] before applying output.
 
 use std::collections::BTreeSet;
 
@@ -37,10 +33,10 @@ pub struct ModuleCompiler {
 }
 
 impl ModuleCompiler {
-    /// Creates a compiler pinned to `design_system`.
+    /// Creates a compiler that keeps the supplied `design_system` snapshot.
     ///
-    /// The options' prefixes are resolved against the snapshot, so a stale options
-    /// value cannot emit text that disagrees with the theme it is compiled against.
+    /// Resolves prefixes in `options` against the snapshot so output uses the theme's
+    /// prefix settings even if the supplied options are outdated.
     pub fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         let options = options.resolved(&design_system);
         Self {
@@ -54,11 +50,11 @@ impl ModuleCompiler {
         &self.design_system
     }
 
-    /// The cache key for `module`; computing it does not compile anything.
+    /// Returns the cache key for `module` without compiling it.
     ///
-    /// When the module carries asset support modules, their revisions are folded into
-    /// `semantic_revision`, because changing a supporting module changes this module's
-    /// output even though its own source did not move.
+    /// If the module has asset support, `semantic_revision` also hashes the support
+    /// modules' revisions. Changing those modules can change this module's output
+    /// even when its own source is unchanged.
     pub fn key_for(&self, module: &ModuleAnalysis) -> ModuleArtifactKey {
         ModuleArtifactKey {
             compiler_options: Fingerprint::of(format!("{:?}", self.options)),
@@ -190,19 +186,16 @@ impl ModuleCompiler {
 
     /// Compiles one module with explicit naming inputs.
     ///
-    /// Integration diagnostics from the frontend are converted to source-spanning
-    /// errors before any CSS is split, and the CSS artifact is empty as long as any
-    /// diagnostic remains: a failed module must not hand half an artifact to the
-    /// project layer.
+    /// Frontend integration errors receive the module's full source span. If any
+    /// compilation error remains, the returned CSS artifact is empty.
     ///
-    /// Successful artifacts retain this module's direct style effects; asset support
-    /// modules only supply declarations and do not add style-call effects.
+    /// Successful artifacts keep the effects of this module's own style calls.
+    /// Asset support modules supply declarations without adding style-call effects.
     ///
-    /// `module` must contain source spans for its editable source and valid support
-    /// records. `identifiers` supplies generation policy; this method creates a
-    /// separate naming context. The returned artifact carries diagnostics, and failure
-    /// clears direct effects as well as generated CSS, classes, symbols, and
-    /// transforms.
+    /// Spans in `module` must refer to its editable source, and its support records
+    /// must be valid. `identifiers` supplies the naming rules. Each call creates a
+    /// separate naming context. Errors are returned in the artifact's diagnostics.
+    /// Failed compilation clears style effects, CSS, classes, symbols, and transforms.
     pub fn compile(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompiledModule {
         let identifiers = identifiers.context(self.options.hash_length);
         let result = self.compile_support_closure(module, &identifiers);
