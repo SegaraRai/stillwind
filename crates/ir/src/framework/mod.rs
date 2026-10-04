@@ -108,8 +108,7 @@ pub enum StyleFormat {
 /// Parser-neutral view of a possible converter-generated expression wrapper.
 ///
 /// The frontend reports what it saw; the framework's [`FrameworkSpec::normalize`]
-/// decides whether the wrapper is scaffolding that may be discarded, a mapping that
-/// must be retained, or user code that must be preserved.
+/// decides which source expression to retain or which generated references to ignore.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectionExpression<'a> {
     /// A type alias injected by a language tool. `definition` is its text.
@@ -119,48 +118,87 @@ pub enum ProjectionExpression<'a> {
         /// Text of the alias definition.
         definition: &'a str,
     },
-    /// A synthetic reference list emitted next to a binding.
+    /// A reference list used by the converter for completions.
     SyntheticReferenceList {
         /// Comment line the converter placed before the list.
         preceding_line: &'a str,
-        /// Name of the binding that follows the list.
-        next_binding: &'a str,
     },
     /// `receiver.property`, possibly optional (`receiver?.property`).
     Member {
         /// Text of the receiver expression.
         receiver: &'a str,
+        /// Span of the receiver expression.
+        object: Span,
         /// Span of the whole member expression in the analyzed buffer.
         whole: Span,
         /// Span of the property name, which is the part the user wrote.
         property: Span,
+        /// Property name, including names introduced by the converter.
+        property_name: &'a str,
         /// Whether the access used optional chaining.
         optional: bool,
+        /// False for a qualified type name.
+        runtime: bool,
     },
     /// A shorthand property that a converter expanded into `{ a: a }`; `key` and
     /// `value` are the two occurrences.
     ExpandedShorthand {
-        /// Text of the receiver expression.
-        receiver: &'a str,
         /// Span of the whole expanded property.
         whole: Span,
         /// Span of the key occurrence, which is the part the user wrote.
         key: Span,
+        /// Span of the value expression, after its children have been normalized.
+        value: Span,
         /// Key text as written.
         key_name: &'a str,
         /// Value text as written; equal to `key_name` for a true shorthand.
         value_name: &'a str,
     },
+    /// A call with a value argument and a converter-supplied type witness.
+    Call {
+        /// Name of the callee identifier.
+        callee: &'a str,
+        /// Span of the complete call.
+        whole: Span,
+        /// Span of the first argument.
+        value: Span,
+        /// Text between the first argument and the end of the call.
+        witness: &'a str,
+    },
+    /// Parentheses around the operand of `new`.
+    ConstructorOperand {
+        /// Span including the parentheses.
+        whole: Span,
+        /// Span inside the parentheses.
+        operand: Span,
+    },
+    /// A return object in a method of a converter-created binding.
+    SyntheticReturn {
+        /// Name of the enclosing variable binding.
+        binding: &'a str,
+        /// Name of the enclosing method.
+        method: &'a str,
+        /// True for an object whose values assert each key's identically named binding.
+        mirrored_bindings: bool,
+    },
 }
 
 /// What the frontend should do with a candidate wrapper expression.
+#[derive(Clone, Copy, Debug)]
 pub enum ProjectionDecision {
     /// Keep the expression as user-authored code.
     Preserve,
-    /// Treat [`Span`] as the user's original expression and drop the wrapper.
-    Retain(Span),
-    /// Discard only if the caller proves the scaffolding's syntax is unmapped.
-    DiscardScaffolding,
+    /// Retain authored fragments and query the generated runtime expression.
+    Keep {
+        /// Span of the complete converter wrapper.
+        whole: Span,
+        /// Span whose fragments must match the original source.
+        retained: Span,
+        /// Runtime expression to query, absent for type-only names.
+        checker: Option<Span>,
+    },
+    /// Ignore import reads only after the frontend proves their generated syntax.
+    IgnoreReferences,
 }
 
 /// The policy for a framework whose converter never rewrites user code.

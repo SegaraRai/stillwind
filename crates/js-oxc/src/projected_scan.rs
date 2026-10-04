@@ -1,23 +1,22 @@
 //! Scanning a converter's shadow module and answering in original coordinates.
 //!
 //! The pipeline normalizes the converter buffer against the projection, parses the
-//! normalized source, maps the IR back to the original file,
-//! then rewrite every diagnostic label, lint label, module specifier, asset record and
-//! exported symbolic value into original spans. If required data cannot be mapped,
+//! normalized source, and maps the IR and summary back to the original file.
+//! It also maps diagnostic and lint labels to original spans. If required data cannot be mapped,
 //! parsing returns an error or reports a diagnostic. Optional recognition probes
 //! are omitted when their generated code has no corresponding original source.
 
 use std::collections::BTreeMap;
 
-use stillwind_ir::ProjectedSource;
-use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact};
+use stillwind_ir::{CheckerProjection, CheckerRole, ProjectedSource};
+use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, ProjectionError, SourceProvenance, Span};
 
 use crate::ParsedJavaScript;
 use crate::entry::parse_with_coordinates;
-use crate::normalization::normalize_with_language;
+use crate::normalization::{NormalizedProjection, normalize_with_language};
 
-/// Parses a projected input and returns IR plus the provenance it collected.
+/// Parses a projected input and returns original IR, provenance, and checker operations.
 ///
 /// The validated source supplies the component format and converter metadata.
 /// `module_id` identifies the module for asset identities, and `facts` and `assets`
@@ -28,7 +27,7 @@ pub(crate) fn parse_projected(
     projected: &ProjectedSource,
     facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
-) -> Result<(ParsedJavaScript, Vec<SourceProvenance>), ProjectionError> {
+) -> Result<(ParsedJavaScript, Vec<SourceProvenance>, CheckerProjection), ProjectionError> {
     let projection = projected.projection();
     let original = projected.document().file();
     let syntax = projection.syntax();
@@ -61,17 +60,17 @@ pub(crate) fn parse_projected(
     );
     let (ir, mut provenance) = normalized.original_ir(&parsed.module)?;
     parsed.module = ir;
-
-    let map_span = |span| {
-        normalized
-            .original_span(span)
-            .map(|provenance| provenance.original)
+    let mut checker = CheckerProjection {
+        spans: Vec::new(),
+        bindings: normalized.checker_bindings().to_vec(),
     };
     parsed.type_probes = parsed
         .type_probes
         .into_iter()
         .map(|span| {
-            let mapped = normalized.original_span(span)?;
+            let target = normalized.checker_span(span, CheckerRole::Expression)?;
+            let mapped = target.provenance;
+            checker.spans.push(target);
             provenance.push(mapped);
             Ok(mapped.original)
         })
@@ -80,11 +79,20 @@ pub(crate) fn parse_projected(
         .use_probes
         .into_iter()
         .filter_map(|span| {
-            let mapped = normalized.original_span(span).ok()?;
+            let target = normalized
+                .checker_span(span, CheckerRole::Expression)
+                .ok()?;
+            let mapped = target.provenance;
+            checker.spans.push(target);
             provenance.push(mapped);
             Some(mapped.original)
         })
         .collect();
+    let map_span = |span| {
+        normalized
+            .original_span(span)
+            .map(|provenance| provenance.original)
+    };
     for diagnostic in &mut parsed.diagnostics {
         for label in &mut diagnostic.labels {
             label.span = map_span(label.span).unwrap_or(original.full_span());
@@ -95,28 +103,59 @@ pub(crate) fn parse_projected(
             label.span = map_span(label.span).unwrap_or(original.full_span());
         }
     }
+    map_summary(
+        &normalized,
+        &mut parsed.summary,
+        &mut provenance,
+        &mut checker,
+    )?;
+    Ok((parsed, provenance, checker))
+}
+
+fn map_summary(
+    normalized: &NormalizedProjection<'_>,
+    summary: &mut ModuleSummary,
+    provenance: &mut Vec<SourceProvenance>,
+    checker: &mut CheckerProjection,
+) -> Result<(), ProjectionError> {
     let mut mapped_specifiers = Vec::new();
-    for mut specifier in parsed.summary.module_specifiers {
+    for mut specifier in std::mem::take(&mut summary.module_specifiers) {
         if let Ok(mapped) = normalized.original_span(Span::new(
             normalized.source.id(),
             specifier.start,
             specifier.end,
         )) {
+            checker.spans.push(normalized.checker_span(
+                Span::new(normalized.source.id(), specifier.start, specifier.end),
+                CheckerRole::ModuleSpecifier,
+            )?);
             provenance.push(mapped);
             specifier.start = mapped.original.start.0;
             specifier.end = mapped.original.end.0;
             mapped_specifiers.push(specifier);
         }
     }
-    parsed.summary.module_specifiers = mapped_specifiers;
-    for asset in &mut parsed.summary.assets {
-        let span = map_span(Span::new(
-            normalized.source.id(),
-            asset.call_start,
-            asset.call_end,
-        ))?;
+    summary.module_specifiers = mapped_specifiers;
+    for asset in &mut summary.assets {
+        let target = normalized.checker_span(
+            Span::new(normalized.source.id(), asset.call_start, asset.call_end),
+            CheckerRole::Producer,
+        )?;
+        checker.spans.push(target);
+        let span = target.provenance.original;
         asset.call_start = span.start.0;
         asset.call_end = span.end.0;
     }
-    Ok((parsed, provenance))
+    let mut canonical = BTreeMap::new();
+    for asset in std::mem::take(&mut summary.assets) {
+        if let Some(previous) = canonical.insert(asset.identity.clone(), asset.clone())
+            && previous != asset
+        {
+            return Err(ProjectionError::Map(
+                "conflicting copies of an asset declaration".into(),
+            ));
+        }
+    }
+    summary.assets = canonical.into_values().collect();
+    Ok(())
 }

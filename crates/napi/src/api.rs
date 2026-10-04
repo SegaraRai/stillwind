@@ -19,7 +19,7 @@ use stillwind_diagnostics::{
     AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, Reporter, ResolvedDiagnostic,
     SourceFailureContext, filter_lint_findings,
 };
-use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{CheckerRole, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
 use stillwind_source::{
@@ -30,7 +30,9 @@ use stillwind_source::{
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput, BindingReport};
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
-use crate::semantic::{NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe};
+use crate::semantic::{
+    NativeCheckerBinding, NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe,
+};
 use crate::source_input::{
     HostPreparedSource, NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind,
 };
@@ -428,29 +430,16 @@ pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSum
             })
             .collect(),
     );
-    let wanted: BTreeSet<_> = result
-        .type_probes
-        .iter()
-        .map(|probe| (probe.start, probe.end))
-        .chain(
-            result
-                .assets
-                .iter()
-                .map(|asset| (asset.call_start, asset.call_end)),
-        )
-        .chain(
-            result
-                .module_specifiers
-                .iter()
-                .map(|specifier| (specifier.start, specifier.end)),
-        )
-        .collect();
     let index = CoordinateIndex::new(scan.input.parser_source());
-    for mapped in scan.provenance {
-        if !wanted.contains(&(mapped.original.start.0, mapped.original.end.0)) {
-            continue;
-        }
+    for checked in scan.checker_projection.spans {
+        let mapped = checked.provenance;
         result.checker_spans.push(NativeCheckerSpan {
+            role: match checked.role {
+                CheckerRole::Expression => "expression",
+                CheckerRole::Producer => "producer",
+                CheckerRole::ModuleSpecifier => "moduleSpecifier",
+            }
+            .into(),
             start: mapped.original.start.0,
             end: mapped.original.end.0,
             projected_start: index
@@ -459,6 +448,19 @@ pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSum
                 .0,
             projected_end: index
                 .utf16(mapped.projected.end)
+                .map_err(|e| Error::from_reason(e.to_string()))?
+                .0,
+        });
+    }
+    for binding in scan.checker_projection.bindings {
+        result.checker_bindings.push(NativeCheckerBinding {
+            name: binding.name,
+            projected_start: index
+                .utf16(binding.span.start)
+                .map_err(|e| Error::from_reason(e.to_string()))?
+                .0,
+            projected_end: index
+                .utf16(binding.span.end)
                 .map_err(|e| Error::from_reason(e.to_string()))?
                 .0,
         });

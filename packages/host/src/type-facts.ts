@@ -20,6 +20,7 @@ import {
 import {
   API,
   TypeFlags,
+  SignatureKind,
   type Checker,
   Snapshot,
   type Type,
@@ -36,6 +37,7 @@ export class TypeFactsError extends Error {
   readonly start: number;
   readonly end: number;
   readonly code: string;
+
   constructor(moduleId: string, start: number, end: number, code: string, message: string) {
     super(`${code}: ${message} (${moduleId}:${start})`);
     this.moduleId = moduleId;
@@ -89,14 +91,6 @@ function visit(node: Node, callback: (node: Node) => void) {
   node.forEachChild((child) => visit(child, callback));
 }
 
-function typeArguments(checker: Checker, type: Type): readonly Type[] {
-  const aliasArguments = type.getAliasTypeArguments();
-  if (aliasArguments.length > 0) {
-    return aliasArguments;
-  }
-  return type.isTypeReference() ? checker.getTypeArguments(type) : [];
-}
-
 function knownIdentities(
   type: Type | undefined,
   identities: ReadonlyMap<string, IdentityId>,
@@ -127,95 +121,116 @@ function symbolic(
   return { kind, candidates: { kind: "finite", values: [...identities] } };
 }
 
-/**
- * Returns the finite set of declaration identities represented by a checker type.
- * Each identity must be registered in `identities`. Every member of a union must
- * belong to the same asset family.
- *
- * Returns null for unsupported types, types that represent macro uses, unions of
- * different asset families, or unknown identities. The function reads type arguments
- * from the checker and leaves the identity registry unchanged.
- */
-function typeFactValue(
-  checker: Checker,
-  type: Type,
-  identities: ReadonlyMap<string, IdentityId>,
-): NativeExportedValue | null {
-  const constituents = type.isUnionType() ? type.getTypes() : [type];
-  const refs: IdentityId[] = [];
-  const keyframes: IdentityId[] = [];
-  const viewTransitions: IdentityId[] = [];
-  const styles: IdentityId[] = [];
+/** Registered identities and the core module's canonical unique-symbol brands. */
+class AssetTypeDecoder {
+  readonly #checker: Checker;
+  readonly #identities: ReadonlyMap<string, IdentityId>;
+  readonly #modules = new Set<number>();
+  readonly #brands = new Map<string, IdentityId["kind"]>();
 
-  for (const constituent of constituents) {
-    const symbol = constituent.getAliasSymbol() ?? constituent.getSymbol();
-    const args = typeArguments(checker, constituent);
-    if (symbol?.name === "StyleResult") {
-      const candidates = knownIdentities(args[0], identities, "style");
-      if (!candidates) {
-        return null;
-      }
-      styles.push(...candidates);
-      continue;
-    }
-    if (symbol?.name === "StyleRef") {
-      const references = knownIdentities(args[0], identities, "ref");
-      if (!references) {
-        return null;
-      }
-      refs.push(...references);
-      continue;
-    }
-    if (symbol?.name === "StyleKeyframes") {
-      const candidates = knownIdentities(args[0], identities, "keyframes");
-      if (!candidates) {
-        return null;
-      }
-      keyframes.push(...candidates);
-      continue;
-    }
-    if (symbol?.name === "StyleViewTransition") {
-      const candidates = knownIdentities(args[0], identities, "viewTransition");
-      if (!candidates) {
-        return null;
-      }
-      viewTransitions.push(...candidates);
-      continue;
-    }
-    return null;
+  constructor(checker: Checker, identities: ReadonlyMap<string, IdentityId>) {
+    this.#checker = checker;
+    this.#identities = identities;
   }
 
-  const populated = [refs, keyframes, viewTransitions, styles].filter(
-    (values) => values.length > 0,
-  );
-  if (populated.length !== 1) {
-    return null;
+  /** Loads canonical unique-symbol properties from a registered producer's core module. */
+  register(type: Type): void {
+    const module = type.getAliasSymbol()?.getParent();
+    if (!module || this.#modules.has(module.id)) {
+      return;
+    }
+    this.#modules.add(module.id);
+    for (const [name, kind, brand] of [
+      ["StyleRef", "ref", "refIdentity"],
+      ["StyleKeyframes", "keyframes", "keyframesIdentity"],
+      ["StyleViewTransition", "viewTransition", "viewTransitionIdentity"],
+    ] as const) {
+      const symbol = this.#checker.getMemberInModuleExports(module, name);
+      if (!symbol) {
+        continue;
+      }
+      const declared = this.#checker.getDeclaredTypeOfSymbol(symbol);
+      const property = this.#checker
+        .getPropertiesOfType(declared)
+        .find((property) => property.name.startsWith(`__@${brand}@`));
+      if (property) {
+        this.#brands.set(property.name, kind);
+      }
+    }
   }
-  if (styles.length > 0) {
+
+  decode(type: Type): { value: NativeExportedValue | null; recognized: boolean } {
+    const constituents = type.isUnionType() ? type.getTypes() : [type];
+    const values: IdentityId[] = [];
+    let family: IdentityId["kind"] | undefined;
+    let recognized = false;
+    let valid = true;
+    for (const constituent of constituents) {
+      let kind: IdentityId["kind"] | undefined;
+      let identityType: Type | undefined;
+      const style = this.#checker.getPropertyOfType(constituent, "data-__stillwindStyleIdentity");
+      if (style) {
+        kind = "style";
+        identityType = this.#checker.getTypeOfSymbol(style);
+      } else {
+        for (const brand of this.#checker.getPropertiesOfType(constituent)) {
+          const candidateKind = this.#brands.get(brand.name);
+          if (!candidateKind) {
+            continue;
+          }
+          const callable =
+            candidateKind === "viewTransition"
+              ? this.#checker.getPropertyOfType(constituent, "for")
+              : undefined;
+          const method = callable && this.#checker.getTypeOfSymbol(callable);
+          const declaration =
+            candidateKind === "viewTransition"
+              ? method && this.#checker.getSignaturesOfType(method, SignatureKind.Call).length > 0
+              : this.#checker.getSignaturesOfType(constituent, SignatureKind.Call).length > 0;
+          if (!declaration) {
+            continue;
+          }
+          kind = candidateKind;
+          identityType = this.#checker.getTypeOfSymbol(brand);
+          if (kind === "ref" && identityType) {
+            const ref = this.#checker.getPropertyOfType(identityType, "ref");
+            identityType = ref && this.#checker.getTypeOfSymbol(ref);
+          }
+          break;
+        }
+      }
+      const name = (constituent.getAliasSymbol() ?? constituent.getSymbol())?.name;
+      recognized ||=
+        !!kind || (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name));
+      if (!kind) {
+        valid = false;
+        continue;
+      }
+      const candidates = knownIdentities(identityType, this.#identities, kind);
+      if (!candidates || (family && family !== kind)) {
+        valid = false;
+      } else {
+        family = kind;
+        values.push(...candidates);
+      }
+    }
+    if (!valid || !family || values.length === 0) {
+      return { value: null, recognized };
+    }
+    const kinds = {
+      style: "styles",
+      ref: "refs",
+      keyframes: "keyframes",
+      viewTransition: "viewTransitions",
+    } as const;
     return {
-      kind: "styles",
-      value: symbolic("style", styles),
+      value: {
+        kind: kinds[family],
+        value: symbolic(family, values),
+      },
+      recognized,
     };
   }
-  if (refs.length > 0) {
-    return {
-      kind: "refs",
-      value: symbolic("ref", refs),
-    };
-  }
-  if (keyframes.length > 0) {
-    return {
-      kind: "keyframes",
-      value: symbolic("keyframes", keyframes),
-    };
-  }
-  if (viewTransitions.length > 0) {
-    return {
-      kind: "viewTransitions",
-      value: symbolic("viewTransition", viewTransitions),
-    };
-  }
-  return null;
 }
 
 interface PreparedProject {
@@ -241,8 +256,18 @@ function prepareProject(
   const virtualFiles = new Map<string, string>();
   const mappings: CheckerSource[] = [];
   const allIdentities = new Map<string, IdentityId>();
+  const globals = new Set<string>();
   const ids = new Map(sources.map((source) => [source.resolverId, checkerId(source)]));
   for (const source of sources) {
+    const declarations = source.kind === "projected" && source.projection.checkerGlobals;
+    if (declarations) {
+      const fingerprint = createHash("sha256").update(declarations).digest("hex").slice(0, 16);
+      const id = normalize(
+        path.join(path.dirname(configFile), `.stillwind-globals-${fingerprint}.d.ts`),
+      );
+      virtualFiles.set(id, declarations);
+      globals.add(id);
+    }
     const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
     const buffers = source.checkerBuffers ?? [
       {
@@ -262,6 +287,9 @@ function prepareProject(
         ids,
       );
       virtualFiles.set(normalize(shadow.id), shadow.text);
+      if (shadow.helperModule) {
+        virtualFiles.set(normalize(shadow.helperModule.id), shadow.helperModule.text);
+      }
       mappings.push(shadow);
       for (const [key, identity] of shadow.identities) {
         allIdentities.set(key, identity);
@@ -304,6 +332,7 @@ function prepareProject(
         types: [],
       },
       files: [
+        ...globals,
         ...mappings.map((mapping) => mapping.id),
         ...new Set(sources.flatMap((source) => source.checkerTypes ?? [])),
       ],
@@ -437,6 +466,27 @@ export class TypeScriptFactsService {
         throw new Error("TypeScript 7 could not open the Stillwind shadow project");
       }
       const result = new Map<string, TypeFact[]>();
+      const decoder = new AssetTypeDecoder(project.checker, prepared.identities);
+      const producers: Node[] = [];
+      for (const mapping of prepared.mappings) {
+        const file = project.program.getSourceFile(mapping.id);
+        if (!file) {
+          continue;
+        }
+        visit(file, (node) => {
+          if (
+            isCallExpression(node) &&
+            mapping.producers.has(`${node.getStart(file)}:${node.end}`)
+          ) {
+            producers.push(node);
+          }
+        });
+      }
+      for (const type of project.checker.getTypeAtLocation(producers)) {
+        if (type) {
+          decoder.register(type);
+        }
+      }
       for (const mapping of prepared.mappings) {
         const sourceFile = project.program.getSourceFile(mapping.id);
         if (!sourceFile) {
@@ -466,7 +516,7 @@ export class TypeScriptFactsService {
             `TS${diagnostic.code}: ${message} Preserve declaration candidates with an explicit union or a generic parameter.`,
           );
         }
-        const facts = factsForSource(project.checker, sourceFile, mapping, prepared.identities);
+        const facts = factsForSource(project.checker, sourceFile, mapping, decoder);
         const previous = result.get(mapping.source.moduleId) ?? [];
         for (const fact of facts) {
           const existing = previous.find(
@@ -528,7 +578,7 @@ function factsForSource(
   checker: Checker,
   sourceFile: SourceFile,
   mapping: CheckerSource,
-  identities: ReadonlyMap<string, IdentityId>,
+  decoder: AssetTypeDecoder,
 ): TypeFact[] {
   const expressions: Node[] = [];
   const matched = new Set<string>();
@@ -558,14 +608,14 @@ function factsForSource(
   for (const [index, expression] of expressions.entries()) {
     const probe = mapping.probes.get(`${expression.getStart(sourceFile)}:${expression.end}`)!;
     const type = types[index];
-    const value = type && typeFactValue(checker, type, identities);
+    const decoded = type && decoder.decode(type);
+    const value = decoded?.value;
     if (!value) {
       // Recognition queries only identify Stillwind receivers for unconsumed-use diagnostics.
       // Missing facts leave the receiver as ordinary JavaScript without an error.
       if (probe.recognitionOnly) {
         continue;
       }
-      const name = type && (type.getAliasSymbol() ?? type.getSymbol())?.name;
       if (
         !type ||
         (type.flags & (TypeFlags.Any | TypeFlags.Unknown) &&
@@ -573,15 +623,7 @@ function factsForSource(
             isCallExpression(expression) ||
             isPropertyAccessExpression(expression) ||
             isElementAccessExpression(expression))) ||
-        (name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name)) ||
-        (type.isUnionType() &&
-          type
-            .getTypes()
-            .some((t) =>
-              /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(
-                (t.getAliasSymbol() ?? t.getSymbol())?.name ?? "",
-              ),
-            ))
+        decoded?.recognized
       ) {
         throw new TypeFactsError(
           mapping.source.moduleId,

@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{
-    AdapterKind, ClassExpression, ConverterIdentity, DirectSource, GroupEntry, ImportRealm,
-    PreparedSource, ProjectedSource, RefDefinition, RuleExpression, ScriptLanguage,
+    AdapterKind, CheckerRole, ClassExpression, ConverterIdentity, DirectSource, GroupEntry,
+    ImportRealm, PreparedSource, ProjectedSource, RefDefinition, RuleExpression, ScriptLanguage,
     ScriptModuleKind, ScriptSyntax, SourceAnalyzer, SourceDocument, SourceFormat, SourceInput,
     SourceInputError, SourceProjection, StyleCall, StyleInput, StyleVariant,
 };
@@ -53,12 +53,218 @@ fn checker_spans_restore_each_generated_receiver_for_properties_and_calls() {
         (7, 10, "__VLS_ctx.bar"),
         (3, 5, "()"),
     ] {
-        let mapped = normalized
-            .original_span(Span::new(FileId(3), start, end))
-            .unwrap();
+        let span = Span::new(FileId(3), start, end);
+        let mapped = if expected == "()" {
+            normalized.original_span(span)
+        } else {
+            normalized
+                .checker_span(span, CheckerRole::Expression)
+                .map(|checked| checked.provenance)
+        }
+        .unwrap();
         assert_eq!(mapped.original, Span::new(original.id(), start, end));
         assert_eq!(generated.slice(mapped.projected).unwrap(), expected);
     }
+}
+
+#[test]
+fn nested_unwrap_and_inserted_value_retain_the_authored_expression() {
+    let original_text = "style(active ? 'flex' : 'grid', {class: external})";
+    let generated_text = "__VLS_unwrap(style, {} as import('vue').Ref<unknown>)(active.value ? 'flex' : 'grid', {class: __VLS_unwrap(external, {} as import('vue').Ref<unknown>)} )".replace("} )", "})");
+    let original = SourceFile::new(FileId(1), None, None, original_text).unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, generated_text.as_str()).unwrap();
+    let mut mappings = Vec::new();
+    for piece in [
+        "style",
+        "(active",
+        " ? 'flex' : 'grid', {class: ",
+        "external",
+        "})",
+    ] {
+        mappings.push(VolarMapping {
+            source_offsets: vec![u32::try_from(original_text.find(piece).unwrap()).unwrap()],
+            generated_offsets: vec![u32::try_from(generated_text.find(piece).unwrap()).unwrap()],
+            lengths: vec![u32::try_from(piece.len()).unwrap()],
+            generated_lengths: None,
+        });
+    }
+    let normalized = normalize_projection(
+        &generated,
+        &original,
+        &ProjectionMap::Volar { mappings },
+        AdapterKind::Vue,
+        FileId(3),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    )
+    .unwrap();
+    assert_eq!(normalized.source.text(), original_text);
+    let checked = normalized
+        .checker_span(normalized.source.full_span(), CheckerRole::Producer)
+        .unwrap();
+    assert_eq!(checked.provenance.projected, generated.full_span());
+}
+
+#[test]
+fn qualified_names_and_authored_value_accesses_share_mapping_validation() {
+    for authored in [false, true] {
+        let original_text = if authored {
+            "typeof state.value"
+        } else {
+            "typeof state"
+        };
+        let generated_text = if authored {
+            "typeof state.value.value"
+        } else {
+            "typeof state.value"
+        };
+        let mut mappings = vec![VolarMapping {
+            source_offsets: vec![0],
+            generated_offsets: vec![0],
+            lengths: vec![12],
+            generated_lengths: None,
+        }];
+        if authored {
+            mappings.push(VolarMapping {
+                source_offsets: vec![12],
+                generated_offsets: vec![18],
+                lengths: vec![6],
+                generated_lengths: None,
+            });
+        }
+        let original =
+            SourceFile::new(FileId(1), None, None, format!("type T = {original_text};")).unwrap();
+        let generated =
+            SourceFile::new(FileId(2), None, None, format!("type T = {generated_text};")).unwrap();
+        for mapping in &mut mappings {
+            mapping.source_offsets[0] += 9;
+            mapping.generated_offsets[0] += 9;
+        }
+        let normalized = normalize_projection(
+            &generated,
+            &original,
+            &ProjectionMap::Volar { mappings },
+            AdapterKind::Vue,
+            FileId(3),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        )
+        .unwrap();
+        assert_eq!(normalized.source.text(), original.text());
+    }
+}
+
+#[test]
+fn expanded_shorthand_queries_the_value_expression() {
+    let original = SourceFile::new(FileId(1), None, None, "({value})").unwrap();
+    let generated = SourceFile::new(
+        FileId(2),
+        None,
+        None,
+        "({value: __VLS_unwrap(value, {} as import('vue').Ref<unknown>)})",
+    )
+    .unwrap();
+    let value = u32::try_from(generated.text().find("(value,").unwrap() + 1).unwrap();
+    let end = u32::try_from(generated.text().len()).unwrap();
+    let map = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![0, 2, 2, 7],
+            generated_offsets: vec![0, 2, value, end - 2],
+            lengths: vec![2, 5, 5, 2],
+            generated_lengths: None,
+        }],
+    };
+    let normalized = normalize_projection(
+        &generated,
+        &original,
+        &map,
+        AdapterKind::Vue,
+        FileId(3),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    )
+    .unwrap();
+    assert_eq!(normalized.source.text(), original.text());
+    let checked = normalized
+        .checker_span(Span::new(FileId(3), 2, 7), CheckerRole::Expression)
+        .unwrap();
+    assert_eq!(
+        generated.slice(checked.provenance.projected).unwrap(),
+        "__VLS_unwrap(value, {} as import('vue').Ref<unknown>)"
+    );
+}
+
+#[test]
+fn constructor_parentheses_follow_the_map_even_when_generated_text_is_identical() {
+    let generated_text = "new (__VLS_unwrap(Factory, {} as import('vue').Ref<unknown>))()";
+    let generated = SourceFile::new(FileId(2), None, None, generated_text).unwrap();
+    let factory = u32::try_from(generated_text.find("Factory").unwrap()).unwrap();
+    let close = u32::try_from(generated_text.len() - 3).unwrap();
+    for authored in [false, true] {
+        let original_text = if authored {
+            "new (Factory)()"
+        } else {
+            "new Factory()"
+        };
+        let original = SourceFile::new(FileId(1), None, None, original_text).unwrap();
+        let map = ProjectionMap::Volar {
+            mappings: vec![VolarMapping {
+                source_offsets: vec![
+                    0,
+                    if authored { 5 } else { 4 },
+                    if authored { 12 } else { 11 },
+                ],
+                generated_offsets: vec![0, factory, if authored { close } else { close + 1 }],
+                lengths: vec![
+                    if authored { 5 } else { 4 },
+                    7,
+                    if authored { 3 } else { 2 },
+                ],
+                generated_lengths: None,
+            }],
+        };
+        let normalized = normalize_projection(
+            &generated,
+            &original,
+            &map,
+            AdapterKind::Vue,
+            FileId(3),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        )
+        .unwrap();
+        assert_eq!(normalized.source.text(), original_text);
+    }
+}
+
+#[test]
+fn conflicting_wrapper_points_do_not_authorize_a_rewrite() {
+    let original = SourceFile::new(FileId(1), None, None, "value; foreign;").unwrap();
+    let generated = SourceFile::new(FileId(2), None, None, "__VLS_ctx.value;").unwrap();
+    let map = ProjectionMap::Volar {
+        mappings: vec![VolarMapping {
+            source_offsets: vec![0, 7, 0],
+            generated_offsets: vec![0, 0, 10],
+            lengths: vec![0, 0, 6],
+            generated_lengths: None,
+        }],
+    };
+    let normalized = normalize_projection(
+        &generated,
+        &original,
+        &map,
+        AdapterKind::Vue,
+        FileId(3),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    )
+    .unwrap();
+    assert_eq!(normalized.source.text(), generated.text());
+    assert!(
+        normalized
+            .original_span(normalized.source.full_span())
+            .is_err()
+    );
 }
 
 /// A Svelte-style projection of one script block into an original file.
@@ -258,13 +464,13 @@ fn contract_findings_map_to_original_framework_expression_spans() {
     assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");
 }
 
-/// Only scaffolding the map proves was inserted is discarded.
+/// Only references proven to come from converter scaffolding are ignored.
 ///
 /// The same generated text is analysed twice, once where the original also contains the
 /// scaffolding and once where it does not; authored scaffolding must survive, and the
 /// reference count must reflect that difference.
 #[test]
-fn only_verified_unmapped_framework_scaffolding_is_discarded() {
+fn only_verified_synthetic_references_are_ignored() {
     let script = "import {style} from 'stillwind/vue'; const props = style('flex');";
     let scaffold = "\ntype __VLS_SetupExposed = import('vue').ShallowUnwrapRef<{ style: typeof style; }>;\n// @ts-ignore\n[style,];\nconst __VLS_export = {};";
     let generated_text = format!("{script}{scaffold}");
@@ -313,8 +519,70 @@ fn only_verified_unmapped_framework_scaffolding_is_discarded() {
         let binding = &ir.imports.macros[0].specifiers[0];
         assert!(!binding.has_unmapped_references);
         assert_eq!(binding.references.len(), if authored { 3 } else { 1 });
-        assert_eq!(normalized.source.text().contains("typeof style"), authored);
-        assert_eq!(normalized.source.text().contains("[style,]"), authored);
+    }
+}
+
+#[test]
+fn generated_exposure_reads_and_nested_completion_reads_keep_import_guards_precise() {
+    let script = "import {style} from 'stillwind/vue'; const props = style('flex');";
+    let scaffolds = [
+        (
+            "type __VLS_Bindings = __VLS_ProxyRefs<{style:typeof style}>;",
+            false,
+        ),
+        (
+            "type __VLS_SetupExposed = __VLS_ProxyRefs<{style:typeof style}>;",
+            false,
+        ),
+        (
+            "const __VLS_self = {setup(){return {style:style as typeof style};}};",
+            false,
+        ),
+        (
+            "const __VLS_self = {setup:()=>({style:style as typeof style})};",
+            false,
+        ),
+        ("function completion(){\n// @ts-ignore\n[style,];\n}", false),
+        (
+            "__VLS_withDotValue(style, {} as import('vue').Ref<unknown>);",
+            false,
+        ),
+        ("const __VLS_self = {setup(){return {leak:style};}};", true),
+    ];
+    for (scaffold, guarded) in scaffolds {
+        let original = SourceFile::new(FileId(1), None, None, script).unwrap();
+        let generated =
+            SourceFile::new(FileId(2), None, None, format!("{script}\n{scaffold}")).unwrap();
+        let map = ProjectionMap::Volar {
+            mappings: vec![VolarMapping {
+                source_offsets: vec![0],
+                generated_offsets: vec![0],
+                lengths: vec![u32::try_from(script.len()).unwrap()],
+                generated_lengths: None,
+            }],
+        };
+        let normalized = normalize_projection(
+            &generated,
+            &original,
+            &map,
+            AdapterKind::Vue,
+            FileId(3),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        )
+        .unwrap();
+        let parsed = parse(
+            &normalized.source,
+            &ModuleId::from("exposure.vue"),
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        );
+        let (ir, _) = normalized.original_ir(&parsed.module).unwrap();
+        let binding = &ir.imports.macros[0].specifiers[0];
+        assert_eq!(binding.has_unmapped_references, guarded, "{scaffold}");
+        assert_eq!(binding.references.len(), 1, "{scaffold}");
     }
 }
 

@@ -1,8 +1,8 @@
 //! Vue adapter policy and its Volar projection rewrite.
 //!
 //! Vue SFC sources reach the analyzer through a converter, so the policy has to tell
-//! synthetic wrappers apart from user code: `__VLS_*` scaffolding is removed, while a
-//! reference that `__VLS_ctx` wraps is mapped back to the user's original expression.
+//! synthetic wrappers apart from user code. The frontend validates these candidates
+//! against the converter map before retaining expressions or ignoring import reads.
 //! Plain Vue JSX uses the same props and runtime without projection normalization.
 
 use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
@@ -22,33 +22,81 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
 
 /// Recognizes the wrappers Volar adds to a compiled SFC script.
 ///
-/// Only the exact scaffolding shapes are discarded. Anything else is preserved, because
-/// an unrecognized wrapper may be user code that happens to mention `__VLS_ctx`.
+/// The frontend must validate source correspondence before applying the decision.
 fn normalize(expression: ProjectionExpression<'_>) -> ProjectionDecision {
     match expression {
         ProjectionExpression::SyntheticTypeAlias {
-            name: "__VLS_SetupExposed",
+            name: "__VLS_SetupExposed" | "__VLS_Bindings",
             definition,
-        } if definition.starts_with("import('vue').ShallowUnwrapRef<{") => {
-            ProjectionDecision::DiscardScaffolding
+        } if definition.starts_with("import('vue').ShallowUnwrapRef<{")
+            || definition.starts_with("__VLS_ProxyRefs<{") =>
+        {
+            ProjectionDecision::IgnoreReferences
         }
         ProjectionExpression::SyntheticReferenceList {
             preceding_line: "// @ts-ignore",
-            next_binding: "__VLS_export",
-        } => ProjectionDecision::DiscardScaffolding,
+        }
+        | ProjectionExpression::SyntheticReturn {
+            binding: "__VLS_self",
+            method: "setup",
+            mirrored_bindings: true,
+        } => ProjectionDecision::IgnoreReferences,
         ProjectionExpression::Member {
-            receiver: "__VLS_ctx",
+            receiver: "__VLS_ctx" | "__VLS_dollars",
+            whole,
             property,
             optional: false,
+            runtime,
             ..
-        } => ProjectionDecision::Retain(property),
+        } => ProjectionDecision::Keep {
+            whole,
+            retained: property,
+            checker: runtime.then_some(whole),
+        },
+        ProjectionExpression::Member {
+            whole,
+            object,
+            property_name: "value",
+            optional: false,
+            runtime,
+            ..
+        } => ProjectionDecision::Keep {
+            whole,
+            retained: object,
+            checker: runtime.then_some(whole),
+        },
         ProjectionExpression::ExpandedShorthand {
-            receiver: "__VLS_ctx",
-            key,
+            whole,
+            value,
             key_name,
             value_name,
             ..
-        } if key_name == value_name => ProjectionDecision::Retain(key),
+        } if key_name == value_name => ProjectionDecision::Keep {
+            whole,
+            retained: value,
+            checker: Some(value),
+        },
+        ProjectionExpression::Call {
+            callee,
+            whole,
+            value,
+            witness:
+                ", {} as import('vue').Ref<unknown>)"
+                | ", /** @type {import('vue').Ref<unknown>} */ ({}))",
+        } => match callee {
+            "__VLS_unwrap" => ProjectionDecision::Keep {
+                whole,
+                retained: value,
+                checker: Some(whole),
+            },
+            "__VLS_withDotValue" => ProjectionDecision::IgnoreReferences,
+            _ => ProjectionDecision::Preserve,
+        },
+        ProjectionExpression::ConstructorOperand { whole, operand } => ProjectionDecision::Keep {
+            whole,
+            retained: operand,
+            checker: Some(whole),
+        },
         _ => ProjectionDecision::Preserve,
     }
 }

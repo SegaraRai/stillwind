@@ -29,6 +29,12 @@
     "stillwind": "workspace:*",
     "svelte": "^5.57.1",
     "typescript": "^7.0.2",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vue-language-core-3-0-2": "npm:@vue/language-core@3.0.2",
+    "vue-language-core-3-0-6": "npm:@vue/language-core@3.0.6",
+    "vue-language-core-3-1-0": "npm:@vue/language-core@3.1.0",
+    "vue-language-core-3-1-6": "npm:@vue/language-core@3.1.6",
+    "vue-language-core-3-2-0": "npm:@vue/language-core@3.2.0",
+    "vue-language-core-3-3-12": "npm:@vue/language-core@3.3.12"
   }
 }

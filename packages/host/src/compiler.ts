@@ -282,6 +282,7 @@ export async function compileModule(
               ...source,
               ...checkerEnvironment(source),
               checkerSpans: summary.checkerSpans,
+              checkerBindings: summary.checkerBindings,
               probes: summary.typeProbes,
               resolutions: summary.moduleSpecifiers.flatMap((specifier) => {
                 const id = resolutions.get(source.resolverId)?.get(specifier.source);

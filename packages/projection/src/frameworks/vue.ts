@@ -13,6 +13,11 @@ export function convert(source: string, filename: string): SourceProjection {
     throw new Error(parsed.errors.map(String).join("\n"));
   }
   const options = vue.getDefaultCompilerOptions();
+  const globals = (
+    vue as typeof vue & {
+      generateGlobalTypes?: (compilerOptions: typeof options) => string;
+    }
+  ).generateGlobalTypes?.(options);
   const plugin = vue.createVueLanguagePlugin<string>(ts, {}, options, (id) => id);
   const root = plugin.createVirtualCode?.(filename, "vue", ts.ScriptSnapshot.fromString(source), {
     getAssociatedScript: () => undefined,
@@ -43,6 +48,11 @@ export function convert(source: string, filename: string): SourceProjection {
       });
     }
     return {
+      ...(globals
+        ? {
+            checkerGlobals: globals,
+          }
+        : {}),
       syntax: {
         language: service.extension === ".tsx" ? "tsx" : "ts",
         moduleKind: "module",

@@ -199,6 +199,74 @@ test("Astro identical client script bodies retain separate scopes", async (t) =>
   expect(result!.composition.length).toBe(2);
 });
 
+for (const reference of ["ref", "shallowRef"] as const) {
+  for (const narrowed of [false, true]) {
+    test(`Vue ${reference} preserves composition identity${narrowed ? " after narrowing" : ""}`, async (t) => {
+      const entry = "Unwrapped.vue";
+      const files = {
+        [entry]: wrap(
+          "vue",
+          `// 日本語 🧭
+import {style} from 'stillwind/vue';import {${reference}} from 'vue';
+const base=style('red');const chosen=${reference}(base);`,
+          `<div ${narrowed ? 'v-if="chosen" ' : ""}v-bind="style(chosen,'blue')"/>`,
+        ),
+      };
+      const result = await harness(t, files, entry).compile();
+      expect(result!.diagnostics).toStrictEqual([]);
+      expect(result!.composition).toHaveLength(1);
+      const identity = result!.composition[0].base;
+      expect(Buffer.from(files[entry]).subarray(identity.start, identity.end).toString()).toBe(
+        "style('red')",
+      );
+    });
+  }
+}
+
+test("Vue generated helpers avoid authored helpers, globalThis, and escaped import names", async (t) => {
+  const entry = "HelperNames.vue";
+  const script = `import {style} from 'stillwind/vue';import {ref} from 'vue';
+const base=style('red');const chosen=ref(base);
+function __VLS_unwrap(value:unknown,witness?:unknown){return String(value);}
+function __VLS_withDotValue(value:unknown,witness?:unknown){}
+const globalThis={__VLS_unwrap,__VLS_withDotValue};
+const __stillwindCheckerHelper\\u0030=1,__stillwindCheckerHelper1=2;`;
+  const authored = "__VLS_unwrap('authored', {} as import('vue').Ref<unknown>)";
+  const files = {
+    [entry]: wrap(
+      "vue",
+      script,
+      `<div v-if="chosen" v-bind="style(chosen,'blue',{class:${authored}})"/>`,
+    ),
+  };
+  const result = await harness(t, files, entry).compile();
+  expect(result!.diagnostics).toStrictEqual([]);
+  expect(result!.composition).toHaveLength(1);
+  expect(result!.code).toContain(authored);
+  expect(result!.code).toContain("const globalThis={__VLS_unwrap,__VLS_withDotValue}");
+});
+
+test("Vue deep refs retain declaration roles for refs, keyframes, and view transitions", async (t) => {
+  const entry = "UnwrappedAssets.vue";
+  const files = {
+    [entry]: wrap(
+      "vue",
+      `import {style} from 'stillwind/vue';import {ref} from 'vue';
+const r=style.ref('target'),k=style.keyframes({from:'red',to:'blue'}),v=style.viewTransition({old:'red'});
+const target=ref(r),animation=ref(k),transition=ref(v);`,
+      `<div v-if="transition" v-bind="style(target,animation(''),transition)"/>`,
+    ),
+  };
+  const result = await harness(t, files, entry).compile();
+  expect(result!.diagnostics).toStrictEqual([]);
+  expect(result!.code).toBeTruthy();
+  expect(
+    result!.symbols
+      .filter((symbol) => symbol.sourceKind === "module" && symbol.sourceId === entry)
+      .map((symbol) => Buffer.from(files[entry]).subarray(symbol.start, symbol.end).toString()),
+  ).toEqual(expect.arrayContaining(["r", "k", "v"]));
+});
+
 test("SFC checker errors participate in collect mode with original editor coordinates", async (t) => {
   const entry = "Diagnostic.vue";
   const source = wrap(

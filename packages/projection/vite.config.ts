@@ -1,6 +1,13 @@
+import { testCache } from "@stillwind-tools/workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  root: import.meta.dirname,
+  test: {
+    name: "projection",
+    include: ["src/**/*.test.ts"],
+    testTimeout: 30_000,
+  },
   pack: {
     entry: ["src/index.ts"],
     format: ["esm"],
@@ -15,6 +22,10 @@ export default defineConfig({
       },
       typecheck: {
         command: "tsc --noEmit",
+      },
+      test: {
+        command: "vp test --run",
+        cache: testCache,
       },
     },
   },

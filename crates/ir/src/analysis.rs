@@ -31,6 +31,44 @@ pub struct TypeProbe {
     pub recognition_only: bool,
 }
 
+/// The AST role required for a checker correspondence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckerRole {
+    /// An expression whose runtime type is queried.
+    Expression,
+    /// A call that receives a declaration identity argument.
+    Producer,
+    /// A string literal that identifies an imported module.
+    ModuleSpecifier,
+}
+
+/// A validated generated location for one checker operation.
+#[derive(Clone, Copy, Debug)]
+pub struct CheckerSpan {
+    /// Original and generated UTF-8 ranges.
+    pub provenance: SourceProvenance,
+    /// AST role of the generated range.
+    pub role: CheckerRole,
+}
+
+/// A converter-created callee that must bind to its global helper declaration.
+#[derive(Clone, Debug)]
+pub struct CheckerBinding {
+    /// Global helper identifier.
+    pub name: String,
+    /// Generated UTF-8 range of the callee identifier.
+    pub span: Span,
+}
+
+/// Validated locations used to construct a projected checker source.
+#[derive(Clone, Debug, Default)]
+pub struct CheckerProjection {
+    /// Correspondences for expressions, producers, and module specifiers.
+    pub spans: Vec<CheckerSpan>,
+    /// Generated callees that need independent helper bindings.
+    pub bindings: Vec<CheckerBinding>,
+}
+
 /// Local extraction for one module, before cross-module facts exist.
 ///
 /// A scan is a valid input for its own [`SourceAnalyzer::finalize`] call. Its spans
@@ -42,6 +80,8 @@ pub struct ModuleScan {
     pub input: SourceInput,
     /// Projection provenance, empty when the input had no projection.
     pub provenance: Vec<SourceProvenance>,
+    /// Checker operations validated against the projection map.
+    pub checker_projection: CheckerProjection,
     /// Identity of the module being analyzed.
     pub module_id: ModuleId,
     /// Editable source the spans refer to.

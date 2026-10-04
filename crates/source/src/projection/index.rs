@@ -160,9 +160,8 @@ impl<'a> ProjectionIndex<'a> {
     /// True only when valid, nonempty syntax has no map entries or intervals. Ambiguous
     /// points count as entries, never as evidence of generated syntax.
     ///
-    /// Callers use this to recognize scaffolding a converter inserted (a retyped
-    /// type-alias header, an added reference list) and drop it from the analysis view
-    /// without touching the original text.
+    /// Callers use this to prove that converter syntax can be normalized or its
+    /// synthetic references can be ignored without changing authored text.
     pub fn is_unmapped_syntax(&self, span: Span) -> bool {
         self.generated.slice(span).is_ok()
             && span.start < span.end
@@ -281,38 +280,49 @@ impl<'a> ProjectionIndex<'a> {
         }
         self.points
             .range(whole.start.0..retained.start.0)
-            .all(|(_, mapped)| mapped.is_none_or(|mapped| mapped == provenance.original.start.0))
+            .all(|(_, mapped)| mapped.is_some_and(|mapped| mapped == provenance.original.start.0))
     }
 
     /// Checks that all mapped pieces of a wrapper originate within the retained source
     /// range. This also supports duplicated identifiers in expanded shorthand
     /// properties without treating authored `key: value` as shorthand.
     pub fn is_collapsed_wrapper(&self, whole: Span, retained: Span) -> bool {
+        self.verify_wrapper(whole, &[retained]).is_ok() && self.verify_exact(whole).is_err()
+    }
+
+    /// Validates that a wrapper's mapped syntax belongs to the retained fragments.
+    /// Duplicate mappings within the original range are allowed; foreign or conflicting
+    /// points and ranges extending outside it are rejected.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid spans, nonmatching retained text, and unrelated mapped syntax.
+    pub fn verify_wrapper(
+        &self,
+        whole: Span,
+        fragments: &[Span],
+    ) -> Result<SourceProvenance, ProjectionError> {
+        self.generated.slice(whole)?;
+        let mapped = self.verify_fragments(fragments)?;
         if whole.file != self.generated.id()
-            || retained.file != whole.file
-            || whole.start.0 > retained.start.0
-            || whole.end.0 < retained.end.0
+            || whole.start > mapped.projected.start
+            || whole.end < mapped.projected.end
         {
-            return false;
-        }
-        let Ok(mapped) = self.verify_exact(retained) else {
-            return false;
-        };
-        if self.verify_exact(whole).is_ok() {
-            return false;
+            return Err(ProjectionError::Unmapped(whole));
         }
         if !self
             .points
             .range(whole.start.0..whole.end.0)
             .all(|(_, point)| {
-                point.is_none_or(|point| {
+                point.is_some_and(|point| {
                     point >= mapped.original.start.0 && point <= mapped.original.end.0
                 })
             })
         {
-            return false;
+            return Err(ProjectionError::Unmapped(whole));
         }
-        self.ranges
+        if !self
+            .ranges
             .iter()
             .filter(|range| {
                 range.generated.start.0 < whole.end.0 && range.generated.end.0 > whole.start.0
@@ -324,6 +334,13 @@ impl<'a> ProjectionIndex<'a> {
                     - range.generated.start.0;
                 start >= mapped.original.start.0 && end <= mapped.original.end.0
             })
+        {
+            return Err(ProjectionError::Unmapped(whole));
+        }
+        Ok(SourceProvenance {
+            projected: whole,
+            original: mapped.original,
+        })
     }
 }
 

@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@astrojs/compiler": "^4.0.0",
+    "@stillwind-tools/workspace": "workspace:*",
     "@types/node": "catalog:",
     "@volar/typescript": "^2.4.28",
     "@vue/compiler-dom": "^3.5.43",
@@ -27,13 +28,14 @@
     "svelte": "^5.57.1",
     "svelte2tsx": "^0.7.61",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vue-language-core-3-0-2": "npm:@vue/language-core@3.0.2"
   },
   "peerDependencies": {
     "@astrojs/compiler": "^4.0.0",
     "@vue/compiler-dom": "^3.0.0",
     "@vue/compiler-sfc": "^3.0.0",
-    "@vue/language-core": "^3.0.0",
+    "@vue/language-core": "^3.0.2",
     "svelte": "^5.0.0",
     "svelte2tsx": "^0.6.0 || ^0.7.0"
   },

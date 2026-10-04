@@ -161,6 +161,8 @@ pub struct NativeExportImports {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeCheckerSpan {
+    /// Required AST role: expression, producer, or moduleSpecifier.
+    pub role: String,
     /// Inclusive original UTF-8 byte offset.
     pub start: u32,
     /// Exclusive original UTF-8 byte offset.
@@ -171,6 +173,19 @@ pub struct NativeCheckerSpan {
     pub projected_end: u32,
 }
 
+/// A validated generated callee that needs a global helper binding.
+#[napi(object, object_from_js = false)]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeCheckerBinding {
+    /// Name of the global helper declaration.
+    pub name: String,
+    /// Inclusive projected UTF-16 offset of the callee identifier.
+    pub projected_start: u32,
+    /// Exclusive projected UTF-16 offset of the callee identifier.
+    pub projected_end: u32,
+}
+
 /// Versioned cross-module summary of one module.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
@@ -178,6 +193,8 @@ pub struct NativeCheckerSpan {
 pub struct NativeModuleSummary {
     /// Original-to-projected expression/import correspondences; empty for plain inputs.
     pub checker_spans: Vec<NativeCheckerSpan>,
+    /// Generated helper callees protected from bindings in authored scopes.
+    pub checker_bindings: Vec<NativeCheckerBinding>,
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,
     /// Module this summary describes.
@@ -214,6 +231,7 @@ impl NativeModuleSummary {
     ) -> Self {
         Self {
             checker_spans: Vec::new(),
+            checker_bindings: Vec::new(),
             schema: summary.schema,
             module_id: summary.module_id.into_string(),
             module_css_imports,

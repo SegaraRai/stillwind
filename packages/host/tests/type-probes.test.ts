@@ -79,6 +79,7 @@ for (const [kind, language] of [
               editableRegions: [],
             },
             checkerSpans: assets.map((asset) => ({
+              role: "producer",
               start: asset.callStart,
               end: asset.callEnd,
               projectedStart: asset.callStart - byteOffset,

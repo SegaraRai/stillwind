@@ -110,6 +110,10 @@ export interface SourceProjection {
   code: string;
   syntax: ScriptSyntax;
   /**
+   * Global declarations supplied by converters that do not reference a helper file.
+   */
+  checkerGlobals?: string;
+  /**
    * Maps generated code positions back to the original document.
    */
   map: ProjectionMap;

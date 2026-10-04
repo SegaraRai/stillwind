@@ -18,7 +18,9 @@ use std::sync::Arc;
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, collect_lint_directives,
 };
-use stillwind_ir::{ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe};
+use stillwind_ir::{
+    CheckerProjection, ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe,
+};
 use stillwind_semantic::{
     ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts,
 };
@@ -67,43 +69,47 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
     /// a projection diagnostic and empty IR so the caller can report and continue.
     fn scan_input(&self, input: SourceInput) -> ModuleScan {
         let source = Arc::clone(input.document().file());
-        let (mut parsed, provenance) = if let Some(projected) = input.projected() {
-            match parse_projected(&input.module_id, projected, &[], &BTreeMap::new()) {
-                Ok(value) => value,
-                Err(error) => {
-                    return ModuleScan {
-                        module_id: input.module_id.clone(),
-                        source_revision: Fingerprint::of(source.text()),
-                        local_ir: ModuleIr::react(),
-                        summary: ModuleSummary::new(input.module_id.clone()),
-                        type_probes: Vec::new(),
-                        lint_directives: collect_lint_directives(source.text()),
-                        diagnostics: vec![CompileError::new(error.into(), source.full_span())],
-                        lint_findings: Vec::new(),
-                        input,
-                        provenance: Vec::new(),
-                        source,
-                    };
+        let (mut parsed, provenance, checker_projection) =
+            if let Some(projected) = input.projected() {
+                match parse_projected(&input.module_id, projected, &[], &BTreeMap::new()) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return ModuleScan {
+                            module_id: input.module_id.clone(),
+                            source_revision: Fingerprint::of(source.text()),
+                            local_ir: ModuleIr::react(),
+                            summary: ModuleSummary::new(input.module_id.clone()),
+                            type_probes: Vec::new(),
+                            lint_directives: collect_lint_directives(source.text()),
+                            diagnostics: vec![CompileError::new(error.into(), source.full_span())],
+                            lint_findings: Vec::new(),
+                            input,
+                            provenance: Vec::new(),
+                            checker_projection: CheckerProjection::default(),
+                            source,
+                        };
+                    }
                 }
-            }
-        } else {
-            (
-                parse(
-                    &source,
-                    &input.module_id,
-                    &[],
-                    &BTreeMap::new(),
-                    input.syntax().language(),
-                    input.syntax().module_kind(),
-                ),
-                Vec::new(),
-            )
-        };
+            } else {
+                (
+                    parse(
+                        &source,
+                        &input.module_id,
+                        &[],
+                        &BTreeMap::new(),
+                        input.syntax().language(),
+                        input.syntax().module_kind(),
+                    ),
+                    Vec::new(),
+                    CheckerProjection::default(),
+                )
+            };
         select_framework(&mut parsed, &input);
         let module_id = input.module_id.clone();
         ModuleScan {
             input,
             provenance,
+            checker_projection,
             module_id,
             source_revision: Fingerprint::of(source.text()),
             type_probes: parsed
@@ -164,7 +170,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         let parsed = facts.map(|facts| {
             let mut parsed = if let Some(projected) = scan.input.projected() {
                 match parse_projected(&scan.module_id, projected, &facts.facts, &facts.assets) {
-                    Ok((parsed, mapped)) => {
+                    Ok((parsed, mapped, _)) => {
                         provenance = mapped;
                         parsed
                     }

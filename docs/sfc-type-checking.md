@@ -10,7 +10,9 @@ converter は `@stillwind/projection` に隔離し、JavaScript SDK を必要と
 2. Rust が投影を正規化して scan する。Vue の挿入 receiver 等を除去した解析用
    buffer から、マクロ、型問い合わせ、意味依存 import を収集する。
 3. scan の公開結果は原文位置に戻す。宣言 identity は生成時から原文位置を使う。
-   checker に必要な箇所だけ、検証済みの投影範囲を追加で返す。
+   checker に必要な式、producer call、module specifier には、それぞれの AST role を
+   検証した投影範囲を追加で返す。同じ原文の宣言が投影内に複製された場合も、
+   identity は一つにまとめ、checker には各コピーの call 範囲を渡す。
 4. host が意味依存をたどり、必要な TS / TSX / SFC、barrel、helper を準備する。
    ファイルの読み込み・非同期 converter は checker を呼ぶ前に行う。
 5. checker 専用 buffer に宣言 identity の隠し引数と解決済み import を挿入する。
@@ -26,13 +28,14 @@ converter は `@stillwind/projection` に隔離し、JavaScript SDK を必要と
 
 ## 位置の契約
 
-| データ                                                                       | 座標                                               |
-| ---------------------------------------------------------------------------- | -------------------------------------------------- |
-| identity、type probe、type fact、module specifier、公開 IR、診断の byte 範囲 | 原文 UTF-8 byte、半開区間                          |
-| converter map、script realm、編集 region                                     | 原文／投影の UTF-16 code unit、半開区間            |
-| native `checkerSpans`                                                        | 原文 UTF-8 範囲と対応する投影 UTF-16 範囲          |
-| checker の AST と shadow edit                                                | checker buffer の UTF-16 範囲                      |
-| 診断の editor 位置                                                           | 原文 UTF-16 offset、およびゼロ始まり line / column |
+| データ                                                                       | 座標                                                  |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------- |
+| identity、type probe、type fact、module specifier、公開 IR、診断の byte 範囲 | 原文 UTF-8 byte、半開区間                             |
+| converter map、script realm、編集 region                                     | 原文／投影の UTF-16 code unit、半開区間               |
+| native `checkerSpans`                                                        | 原文 UTF-8 範囲と対応する投影 UTF-16 範囲             |
+| native `checkerBindings`                                                     | converter が生成した helper callee の投影 UTF-16 範囲 |
+| checker の AST と shadow edit                                                | checker buffer の UTF-16 範囲                         |
+| 診断の editor 位置                                                           | 原文 UTF-16 offset、およびゼロ始まり line / column    |
 
 Rust の AST 抽出中のみ正規化した解析 buffer の範囲が存在する。公開前に原文へ戻し、
 対応を検証できない場合は投影や座標に対応する診断で拒否する。別モジュールの宣言 identity を
@@ -66,12 +69,22 @@ const other = style(identity(flag ? a : b));
 `StyleResult` の identity は `data-__stillwindStyleIdentity` という readonly の型専用
 文字列 property。Svelte の attachment 用 symbol index signature と共存する。
 ref、keyframes、view transition のブランドは symbol のまま保持する。
+checker は登録済み producer の core module から正規の unique-symbol property を取得する。
+型 alias が消えた場合もブランドから有限 identity を取り出し、登録済みの同じ asset 種別かを検証する。
+ref と keyframes は callable な宣言型、view transition は callable な `for` を持つ宣言型を対象とする。
+マクロの使用結果や variant は宣言候補として扱わない。
 ユーザーが identity を偽造したり TS 診断抑制で意図的に契約を破る場合は保証対象外。
 
 ## Framework 固有の処理
 
 - Vue: Volar の型付き投影を checker に渡す。Rust が取り除いた `__VLS_ctx.` の範囲を
-  checker 問い合わせ時には含める。normal script と setup の import realm を保持する。
+  checker 問い合わせ時には含める。挿入された `.value`、unwrap、shorthand の展開、
+  型名の修飾、constructor の括弧も、原文との対応を検証して正規化する。
+  生成された宣言と scope は保持し、exposure、completion、narrowing が追加した
+  import reference だけを除外する。normal script と setup の import realm を保持する。
+  生成 helper の callee は checker 専用の import に置換する。名前は投影内の識別子と
+  衝突しないものを選び、独立した仮想 module で global helper の型を取得する。
+  ユーザーが書いた同名の関数や `globalThis` はこの型取得に影響しない。
 - Svelte: svelte2tsx の公式 shim / JSX 宣言を checker に含め、props、rune、store、each の
   型を使用する。DOM spread のために identity を消す adapter は不要。
 - Astro: frontmatter と template は TSX。client script は元の script region ごとに
@@ -82,6 +95,23 @@ ref、keyframes、view transition のブランドは symbol のまま保持す�
 
 converter は遅延ロードする。`@stillwind/projection` の optional peers として、
 利用する framework の組だけをインストールする。
+`@vue/language-core` の対応範囲は `>=3.0.2 <4.0.0`。この番号は Vue runtime の版ではない。
+converter が global 型宣言を返す場合は、それを checker の仮想 `.d.ts` に含める。
+
+Vue の変換形式は、host の dev dependency に固定した以下の版で検証する。
+alias は `vue-language-core-3-0-2` のように版番号を含める。
+[vue-projection-versions.test.ts](../packages/host/tests/vue-projection-versions.test.ts) は
+各版の実際の投影を Rust の scan、TS7 の型問い合わせ、コンパイルに通す。
+TS / JS の式、原文の構文と座標、有限 identity、生成された参照とユーザーの参照を検証する。
+
+| 固定した版 | 検証する変換形式                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| 3.0.2      | `__VLS_self` を生成する `setup()` の return に binding を公開する。                      |
+| 3.0.6      | `__VLS_self` を生成する `setup` の arrow function で binding を公開する。                |
+| 3.1.0      | `__VLS_Bindings` と `__VLS_ProxyRefs` を使う。                                           |
+| 3.1.6      | `__VLS_SetupExposed` と `__VLS_ProxyRefs` を使う。                                       |
+| 3.2.0      | `__VLS_SetupExposed` と `ShallowUnwrapRef` を使い、helper 型を外部ファイルから参照する。 |
+| 3.3.12     | 直接参照、`.value`、`__VLS_unwrap` と `__VLS_withDotValue` を使う。                      |
 
 | Framework | optional peers                                                 |
 | --------- | -------------------------------------------------------------- |

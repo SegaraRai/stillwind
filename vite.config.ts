@@ -24,20 +24,21 @@ export default defineConfig(({ mode }) => ({
   test: {
     projects:
       mode === "wasm"
-        ? ["packages/native/vite.config.ts", "e2e/harness/vite.browser.config.ts"]
+        ? ["e2e/harness/vite.browser.config.ts", "packages/native/vite.config.ts"]
         : mode === "browser"
-          ? ["tools/tailwind-compat/vite.browser.config.ts", "e2e/css/vite.browser.config.ts"]
+          ? ["e2e/css/vite.browser.config.ts", "tools/tailwind-compat/vite.browser.config.ts"]
           : [
-              "packages/core/vite.config.ts",
-              "packages/native/vite.config.ts",
-              "packages/host/vite.config.ts",
-              "packages/integration/vite.config.ts",
-              "tools/tailwind/vite.config.ts",
-              "tools/tailwind-compat/vite.config.ts",
+              "apps/logo-editor/vite.config.ts",
+              "apps/play/vite.config.ts",
               "benchmarks/vite.config.ts",
               "e2e/harness/vite.config.ts",
-              "apps/play/vite.config.ts",
-              "apps/logo-editor/vite.config.ts",
+              "packages/core/vite.config.ts",
+              "packages/host/vite.config.ts",
+              "packages/integration/vite.config.ts",
+              "packages/native/vite.config.ts",
+              "packages/projection/vite.config.ts",
+              "tools/tailwind-compat/vite.config.ts",
+              "tools/tailwind/vite.config.ts",
             ],
   },
   run: {
@@ -189,7 +190,10 @@ export default defineConfig(({ mode }) => ({
           ...rustCache,
           input: [
             ...rustCache.input,
-            { pattern: "fixtures/tailwind-v4/utility-order.json", base: "workspace" },
+            {
+              pattern: "fixtures/tailwind-v4/utility-order.json",
+              base: "workspace",
+            },
           ],
         },
         dependsOn: [

@@ -1,121 +1,172 @@
-//! A validated analysis view shared by macro detection and expression comparison.
+//! Validated correspondence between authored expressions and converter code.
 //!
-//! Converters (Vue, Svelte, host transformers) emit a shadow module whose text differs
-//! from what the author wrote: type scaffolding, inserted reference lists, helper
-//! consts. This module asks the framework adapter which of those constructs may be
-//! discarded, removes only the ones the projection map says were never derived from
-//! user text, and keeps an ordered segment list that maps every surviving byte back to
-//! the generated source.
-//!
-//! Two invariants matter. The view is analysis-only: output expressions come from
-//! validated original spans, never from reprinting this intermediate source. And a span
-//! that does not correspond exactly to original text fails the whole conversion instead
-//! of producing a plausible edit.
+//! Framework policy selects candidates. Mapping validation produces one analysis
+//! view and AST-specific checker targets. Generated declarations keep their scopes;
+//! only proven synthetic reads are excluded from macro import accounting.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use oxc::allocator::Allocator;
 use oxc::ast::ast::{
-    ArrayExpressionElement, BindingPattern, Expression, ObjectProperty, PropertyKey, Statement,
-    StaticMemberExpression, TSTypeAliasDeclaration,
+    ArrayExpressionElement, ArrowFunctionBody, BindingPattern, CallExpression, Expression,
+    NewExpression, ObjectExpression, ObjectProperty, ObjectPropertyKind, PropertyKey, Statement,
+    StaticMemberExpression, TSQualifiedName, TSType, TSTypeAliasDeclaration, TSTypeQueryExprName,
+    VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
 use oxc::span::GetSpan;
 
 use stillwind_ir::{
-    AdapterKind, FrameworkSpec, ModuleIr, ProjectionDecision, ProjectionExpression, ScriptLanguage,
-    ScriptModuleKind,
+    AdapterKind, CheckerBinding, CheckerRole, CheckerSpan, FrameworkSpec, ModuleIr,
+    ProjectionDecision, ProjectionExpression, ScriptLanguage, ScriptModuleKind,
 };
 use stillwind_source::{
-    BytePos, FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance,
-    Span,
+    FileId, ProjectionError, ProjectionIndex, ProjectionMap, SourceFile, SourceProvenance, Span,
 };
 
 use crate::entry::source_type;
 
-/// One retained run of text, in both coordinate systems.
+/// A retained run with equal byte lengths in both buffers.
 struct Segment {
-    /// Half-open UTF-8 span of the retained run in the analysis source.
     normalized: Span,
-    /// Half-open UTF-8 span of the same text in the projected source; equal in byte
-    /// length to normalized.
     projected: Span,
 }
 
-/// Normalization is only an analysis view. Output expressions come from validated
-/// original spans, never from reprinting this intermediate source.
+/// An analysis view and the validated generated expressions that it represents.
 ///
-/// The struct owns the analysis `SourceFile` and borrows both real sources through the
-/// projection index, so it must not outlive them.
+/// Output edits use original spans. This view borrows the projection sources and
+/// owns the analysis source tagged with the caller's distinct file identity.
 pub struct NormalizedProjection<'a> {
-    /// The spliced analysis source, tagged with the caller's `analysis_id`.
+    /// Source for macro extraction and expression comparison.
     pub source: SourceFile,
-    /// Loaded map between the generated and original sources.
     index: ProjectionIndex<'a>,
-    /// Retained text runs, in normalized source order.
     segments: Vec<Segment>,
-    /// Generated-source UTF-8 property starts mapped to their full member-expression
-    /// starts, restoring omitted `__VLS_ctx.` text in checker query spans.
-    member_starts_by_property_start: HashMap<BytePos, BytePos>,
+    expressions: BTreeMap<(u32, u32), Span>,
+    producers: BTreeMap<(u32, u32), Span>,
+    ignored: Vec<Span>,
+    bindings: Vec<CheckerBinding>,
 }
 
 impl NormalizedProjection<'_> {
-    /// Maps a span of the analysis source back to the original source.
-    ///
-    /// Characters the conversion removed are skipped, so a span that crosses an omitted
-    /// region is verified as several fragments; the returned provenance covers the same
-    /// text in the original.
-    ///
-    /// # Errors
-    ///
-    /// Rejects spans outside the analysis view or without exact original correspondence.
-    pub fn original_span(&self, span: Span) -> Result<SourceProvenance, ProjectionError> {
-        self.source.slice(span)?;
-        let mut fragments = Vec::new();
-        for segment in &self.segments {
-            let start = span.start.0.max(segment.normalized.start.0);
-            let end = span.end.0.min(segment.normalized.end.0);
-            if start < end
-                || (span.start == span.end
-                    && segment.normalized.start <= span.start
-                    && span.end <= segment.normalized.end)
-            {
-                let shift = segment.projected.start.0 - segment.normalized.start.0;
-                fragments.push(Span::new(
-                    segment.projected.file,
-                    start + shift,
-                    end + shift,
-                ));
-            }
-        }
-        let mut mapped = self.index.verify_fragments(&fragments)?;
-        if let Some(start) = self
-            .member_starts_by_property_start
-            .get(&mapped.projected.start)
-        {
-            mapped.projected.start = *start;
-        }
-        Ok(mapped)
+    fn fragments(&self, span: Span) -> Vec<Span> {
+        self.segments
+            .iter()
+            .filter_map(|segment| {
+                let start = span.start.0.max(segment.normalized.start.0);
+                let end = span.end.0.min(segment.normalized.end.0);
+                if start < end
+                    || (span.start == span.end
+                        && segment.normalized.start <= span.start
+                        && span.end <= segment.normalized.end)
+                {
+                    let shift = segment.projected.start.0 - segment.normalized.start.0;
+                    Some(Span::new(
+                        segment.projected.file,
+                        start + shift,
+                        end + shift,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
-    /// Rewrites every IR span to the original source, returning the provenance of each
-    /// span it mapped.
-    ///
-    /// The whole IR is mapped or the call fails; a partially mapped IR is never
-    /// returned, because a stale span would produce an edit in the wrong place.
+    /// Maps retained analysis text to the exact authored text.
     ///
     /// # Errors
     ///
-    /// Fails atomically if any expression or declaration cannot be mapped.
+    /// Rejects invalid analysis spans and ambiguous or nonmatching correspondence.
+    pub fn original_span(&self, span: Span) -> Result<SourceProvenance, ProjectionError> {
+        self.source.slice(span)?;
+        self.index.verify_fragments(&self.fragments(span))
+    }
+
+    /// Returns the generated AST node for a checker operation on an analysis span.
+    ///
+    /// # Errors
+    ///
+    /// Rejects spans without exact original correspondence or the required AST role.
+    pub fn checker_span(
+        &self,
+        span: Span,
+        role: CheckerRole,
+    ) -> Result<CheckerSpan, ProjectionError> {
+        let mut provenance = self.original_span(span)?;
+        provenance.projected = match role {
+            CheckerRole::Expression => self.expressions.get(&(span.start.0, span.end.0)).copied(),
+            CheckerRole::Producer => self.producers.get(&(span.start.0, span.end.0)).copied(),
+            CheckerRole::ModuleSpecifier => self
+                .index
+                .verify_exact(provenance.projected)
+                .ok()
+                .map(|mapped| mapped.projected),
+        }
+        .ok_or(ProjectionError::Unmapped(span))?;
+        Ok(CheckerSpan { provenance, role })
+    }
+
+    /// Generated callees whose bindings the checker must protect from author scopes.
+    pub fn checker_bindings(&self) -> &[CheckerBinding] {
+        &self.bindings
+    }
+
+    fn record_expressions(&mut self, expressions: Vec<(Span, bool)>) {
+        for (generated_span, call) in expressions {
+            let retained: Vec<_> = self
+                .segments
+                .iter()
+                .filter_map(|segment| {
+                    let start = generated_span.start.0.max(segment.projected.start.0);
+                    let end = generated_span.end.0.min(segment.projected.end.0);
+                    (start < end).then(|| {
+                        (
+                            start - segment.projected.start.0 + segment.normalized.start.0,
+                            end - segment.projected.start.0 + segment.normalized.start.0,
+                        )
+                    })
+                })
+                .collect();
+            if let Some((first, last)) = retained.first().zip(retained.last()) {
+                let key = (first.0, last.1);
+                let span = Span::new(self.source.id(), key.0, key.1);
+                if self.original_span(span).is_ok() {
+                    // Parents are visited after children, so a validated wrapper wins
+                    // over its retained argument when both represent the same text.
+                    self.expressions.insert(key, generated_span);
+                    if call {
+                        self.producers.insert(key, generated_span);
+                    }
+                }
+            }
+        }
+    }
+
+    fn ignored_reference(&self, span: Span) -> bool {
+        let fragments = self.fragments(span);
+        fragments
+            .first()
+            .zip(fragments.last())
+            .is_some_and(|(first, last)| {
+                self.ignored
+                    .iter()
+                    .any(|ignored| ignored.start <= first.start && last.end <= ignored.end)
+            })
+    }
+
+    /// Maps IR atomically and excludes validated synthetic import reads.
+    ///
+    /// Unmapped reads outside synthetic regions remain import-deletion guards.
+    ///
+    /// # Errors
+    ///
+    /// Rejects any expression or declaration without exact original correspondence.
     pub fn original_ir(
         &self,
         ir: &ModuleIr,
     ) -> Result<(ModuleIr, Vec<SourceProvenance>), ProjectionError> {
         let mut provenance = Vec::new();
-        // Converter-only reads (for example generated type queries) may have no
-        // original coordinate. Keep that uncertainty rather than inventing a location
-        // or allowing an unsafe import deletion.
         let mut editable = ir.clone();
         for import in &mut editable.imports.macros {
             for specifier in &mut import.specifiers {
@@ -133,6 +184,9 @@ impl NormalizedProjection<'_> {
         for (target, source) in original.imports.macros.iter_mut().zip(&ir.imports.macros) {
             for (target, source) in target.specifiers.iter_mut().zip(&source.specifiers) {
                 for reference in &source.references {
+                    if self.ignored_reference(*reference) {
+                        continue;
+                    }
                     if let Ok(mapped) = self.original_span(*reference) {
                         target.references.push(mapped.original);
                         provenance.push(mapped);
@@ -140,21 +194,22 @@ impl NormalizedProjection<'_> {
                         target.has_unmapped_references = true;
                     }
                 }
+                target.references.sort_by_key(|span| (span.start, span.end));
+                target.references.dedup();
             }
         }
         Ok((original, provenance))
     }
 }
 
-/// Creates a parser-neutral normalization plan, validates each omitted prefix against
-/// converter mappings, then builds an Oxc analysis source from that plan.
+/// Creates a validated analysis view and generated checker correspondences.
 ///
-/// `analysis_id` becomes the file id of the produced source and must differ from both
-/// inputs, so a span can never be attributed to the wrong file by accident.
+/// `analysis_id` must differ from both input file identities. The language describes
+/// the generated buffer, independently of its file extension.
 ///
 /// # Errors
 ///
-/// Rejects malformed maps, invalid syntax, overlapping plans or source identity collisions.
+/// Rejects malformed maps or generated syntax and overlapping normalization plans.
 pub fn normalize_projection<'a>(
     generated: &'a SourceFile,
     original: &'a SourceFile,
@@ -175,10 +230,6 @@ pub fn normalize_projection<'a>(
     )
 }
 
-/// Language-explicit form of [`normalize_projection`].
-///
-/// The language decides how the generated text is parsed, which matters when the
-/// generated path does not carry the script language.
 pub(crate) fn normalize_with_language<'a>(
     generated: &'a SourceFile,
     original: &'a SourceFile,
@@ -204,10 +255,9 @@ pub(crate) fn normalize_with_language<'a>(
         source_type(language, module_kind),
     )
     .parse();
-    if !parsed.diagnostics.is_empty() {
+    if let Some(diagnostic) = parsed.diagnostics.first() {
         return Err(ProjectionError::Map(format!(
-            "invalid generated JavaScript: {}",
-            parsed.diagnostics[0]
+            "invalid generated JavaScript: {diagnostic}"
         )));
     }
     let mut visitor = NormalizationVisitor {
@@ -215,30 +265,24 @@ pub(crate) fn normalize_with_language<'a>(
         index: &index,
         framework: framework.spec(),
         omitted: Vec::new(),
-        receiver_prefixes: Vec::new(),
+        ignored: Vec::new(),
+        bindings: Vec::new(),
+        expressions: Vec::new(),
+        binding: "",
     };
     visitor.visit_program(&parsed.program);
-    let member_starts_by_property_start = visitor
-        .receiver_prefixes
-        .into_iter()
-        .map(|prefix| (prefix.end, prefix.start))
-        .collect();
-    let mut omitted = visitor.omitted;
-    omitted.sort_by_key(|span| (span.start.0, std::cmp::Reverse(span.end.0)));
-    omitted.dedup();
-    let mut non_nested: Vec<Span> = Vec::new();
-    for omission in omitted {
-        if non_nested.last().is_some_and(|previous| {
-            previous.start.0 <= omission.start.0 && previous.end.0 >= omission.end.0
-        }) {
-            continue;
-        }
-        non_nested.push(omission);
-    }
+    let NormalizationVisitor {
+        omitted,
+        ignored,
+        bindings,
+        expressions,
+        ..
+    } = visitor;
+    let omitted = merge_omissions(omitted);
     let mut output = String::with_capacity(generated.text().len());
     let mut cursor = 0;
     let mut segments = Vec::new();
-    for omission in non_nested.into_iter().chain(std::iter::once(Span::new(
+    for omission in omitted.into_iter().chain(std::iter::once(Span::new(
         generated.id(),
         generated.full_span().end.0,
         generated.full_span().end.0,
@@ -261,69 +305,179 @@ pub(crate) fn normalize_with_language<'a>(
         }
         cursor = omission.end.0;
     }
-    Ok(NormalizedProjection {
+    let mut normalized = NormalizedProjection {
         source: SourceFile::new(analysis_id, None, None, output)?,
         index,
         segments,
-        member_starts_by_property_start,
-    })
+        expressions: BTreeMap::new(),
+        producers: BTreeMap::new(),
+        ignored,
+        bindings,
+    };
+    normalized.record_expressions(expressions);
+    Ok(normalized)
 }
 
-/// Visitor that asks the framework adapter which scaffolding to omit.
-///
-/// It only ever records spans it could prove the converter inserted; a construct the
-/// map claims came from user text is never omitted.
-struct NormalizationVisitor<'a, 'b> {
-    /// Generated source being visited.
-    source: &'a SourceFile,
-    /// Loaded projection map, used to test whether a header was derived.
-    index: &'b ProjectionIndex<'a>,
-    /// Framework rules deciding what counts as scaffolding.
-    framework: &'static FrameworkSpec,
-    /// Candidate omission spans, in visit order.
-    omitted: Vec<Span>,
-    /// Half-open UTF-8 spans in `source` covering the generated receiver and dot
-    /// removed from member expressions, e.g. `__VLS_ctx.` in `__VLS_ctx.foo`.
-    /// Each span ends at the retained property's start, after projection validation.
-    receiver_prefixes: Vec<Span>,
-}
-
-impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
-    /// Drops a synthetic type alias whose header no user text produced.
-    fn visit_ts_type_alias_declaration(&mut self, declaration: &TSTypeAliasDeclaration<'a>) {
-        let definition = declaration.type_annotation.span();
-        let whole = Span::new(
-            self.source.id(),
-            declaration.span.start,
-            declaration.span.end,
-        );
-        let header = Span::new(self.source.id(), declaration.span.start, definition.start);
-        let decision = (self.framework.normalize)(ProjectionExpression::SyntheticTypeAlias {
-            name: declaration.id.name.as_str(),
-            definition: self
-                .source
-                .slice(Span::new(
-                    self.source.id(),
-                    definition.start,
-                    definition.end,
-                ))
-                .unwrap_or_default(),
-        });
-        if matches!(decision, ProjectionDecision::DiscardScaffolding)
-            && self.index.is_unmapped_syntax(header)
+fn merge_omissions(mut spans: Vec<Span>) -> Vec<Span> {
+    spans.sort_by_key(|span| (span.start, span.end));
+    let mut merged: Vec<Span> = Vec::new();
+    for span in spans {
+        if let Some(previous) = merged.last_mut()
+            && span.start <= previous.end
         {
-            self.omitted.push(whole);
+            previous.end = previous.end.max(span.end);
         } else {
-            walk::walk_ts_type_alias_declaration(self, declaration);
+            merged.push(span);
         }
     }
+    merged
+}
 
-    /// Drops an inserted reference list spread over two statements.
-    ///
-    /// Both the array header and the following binding must be unmapped, so a
-    /// user-written `[a, b]` array followed by a variable is left alone.
+struct NormalizationVisitor<'a, 'b> {
+    source: &'a SourceFile,
+    index: &'b ProjectionIndex<'a>,
+    framework: &'static FrameworkSpec,
+    omitted: Vec<Span>,
+    ignored: Vec<Span>,
+    bindings: Vec<CheckerBinding>,
+    expressions: Vec<(Span, bool)>,
+    binding: &'b str,
+}
+
+impl NormalizationVisitor<'_, '_> {
+    fn span(&self, span: oxc::span::Span) -> Span {
+        Span::new(self.source.id(), span.start, span.end)
+    }
+
+    fn text(&self, span: oxc::span::Span) -> &str {
+        self.source
+            .text()
+            .get(span.start as usize..span.end as usize)
+            .unwrap_or_default()
+    }
+
+    fn fragments(&self, span: Span) -> Vec<Span> {
+        let mut cursor = span.start.0;
+        let mut fragments = Vec::new();
+        for omitted in merge_omissions(self.omitted.clone()) {
+            let start = omitted.start.0.max(span.start.0);
+            let end = omitted.end.0.min(span.end.0);
+            if start < end {
+                if cursor < start {
+                    fragments.push(Span::new(span.file, cursor, start));
+                }
+                cursor = cursor.max(end);
+            }
+        }
+        if cursor < span.end.0 {
+            fragments.push(Span::new(span.file, cursor, span.end.0));
+        }
+        fragments
+    }
+
+    fn keep(&mut self, decision: ProjectionDecision) -> bool {
+        let ProjectionDecision::Keep {
+            whole,
+            retained,
+            checker,
+        } = decision
+        else {
+            return false;
+        };
+        if self.index.verify_fragments(&self.fragments(whole)).is_ok()
+            || self
+                .index
+                .verify_wrapper(whole, &self.fragments(retained))
+                .is_err()
+        {
+            return false;
+        }
+        if whole.start < retained.start {
+            self.omitted
+                .push(Span::new(whole.file, whole.start.0, retained.start.0));
+        }
+        if retained.end < whole.end {
+            self.omitted
+                .push(Span::new(whole.file, retained.end.0, whole.end.0));
+        }
+        if let Some(checker) = checker {
+            self.expressions.push((checker, false));
+        }
+        true
+    }
+
+    fn ignore_return(
+        &mut self,
+        property: &ObjectProperty<'_>,
+        key: &str,
+        object: &ObjectExpression<'_>,
+    ) {
+        let mirrored_bindings = object.properties.iter().all(|property| {
+            let ObjectPropertyKind::ObjectProperty(property) = property else {
+                return false;
+            };
+            if property.computed || property.method {
+                return false;
+            }
+            let PropertyKey::StaticIdentifier(key) = &property.key else {
+                return false;
+            };
+            let Expression::TSAsExpression(value) = &property.value else {
+                return false;
+            };
+            let Expression::Identifier(binding) = &value.expression else {
+                return false;
+            };
+            let TSType::TSTypeQuery(query) = &value.type_annotation else {
+                return false;
+            };
+            let TSTypeQueryExprName::IdentifierReference(reference) = &query.expr_name else {
+                return false;
+            };
+            key.name == binding.name && binding.name == reference.name
+        });
+        let decision = (self.framework.normalize)(ProjectionExpression::SyntheticReturn {
+            binding: self.binding,
+            method: key,
+            mirrored_bindings,
+        });
+        if matches!(decision, ProjectionDecision::IgnoreReferences)
+            && self.index.is_unmapped_syntax(self.span(property.span))
+        {
+            self.ignored.push(self.span(object.span));
+        }
+    }
+}
+
+impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
+    fn visit_expression(&mut self, expression: &Expression<'a>) {
+        walk::walk_expression(self, expression);
+        self.expressions.push((
+            self.span(expression.span()),
+            matches!(expression, Expression::CallExpression(_)),
+        ));
+    }
+
+    fn visit_ts_type_alias_declaration(&mut self, declaration: &TSTypeAliasDeclaration<'a>) {
+        let definition = declaration.type_annotation.span();
+        let decision = (self.framework.normalize)(ProjectionExpression::SyntheticTypeAlias {
+            name: declaration.id.name.as_str(),
+            definition: self.text(definition),
+        });
+        if matches!(decision, ProjectionDecision::IgnoreReferences)
+            && self.index.is_unmapped_syntax(Span::new(
+                self.source.id(),
+                declaration.span.start,
+                definition.start,
+            ))
+        {
+            self.ignored.push(self.span(declaration.span));
+        }
+        walk::walk_ts_type_alias_declaration(self, declaration);
+    }
+
     fn visit_statements(&mut self, statements: &oxc::allocator::Vec<'a, Statement<'a>>) {
-        for (index, statement) in statements.iter().enumerate() {
+        for statement in statements {
             if let Statement::ExpressionStatement(expression) = statement
                 && let Expression::ArrayExpression(array) = &expression.expression
                 && !array.elements.is_empty()
@@ -331,12 +485,8 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
                     .elements
                     .iter()
                     .all(|element| matches!(element, ArrayExpressionElement::Identifier(_)))
-                && let Some(Statement::VariableDeclaration(next)) = statements.get(index + 1)
-                && let Some(binding) = next.declarations.first()
-                && let BindingPattern::BindingIdentifier(identifier) = &binding.id
             {
-                let prefix = &self.source.text()[..expression.span.start as usize];
-                let preceding_line = prefix
+                let preceding_line = self.source.text()[..expression.span.start as usize]
                     .trim_end()
                     .lines()
                     .next_back()
@@ -345,90 +495,152 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, '_> {
                 let decision =
                     (self.framework.normalize)(ProjectionExpression::SyntheticReferenceList {
                         preceding_line,
-                        next_binding: identifier.name.as_str(),
                     });
-                let header = Span::new(
-                    self.source.id(),
-                    array.span.start,
-                    array.elements[0].span().start,
-                );
-                if matches!(decision, ProjectionDecision::DiscardScaffolding)
-                    && self.index.is_unmapped_syntax(header)
+                if matches!(decision, ProjectionDecision::IgnoreReferences)
                     && self.index.is_unmapped_syntax(Span::new(
                         self.source.id(),
-                        identifier.span.start,
-                        identifier.span.end,
+                        array.span.start,
+                        array.elements[0].span().start,
+                    ))
+                    && self.index.is_unmapped_syntax(Span::new(
+                        self.source.id(),
+                        array
+                            .elements
+                            .last()
+                            .map_or(array.span.end, |element| element.span().end),
+                        array.span.end,
                     ))
                 {
-                    self.omitted.push(Span::new(
-                        self.source.id(),
-                        expression.span.start,
-                        expression.span.end,
-                    ));
-                    continue;
+                    self.ignored.push(self.span(array.span));
                 }
             }
             self.visit_statement(statement);
         }
     }
 
-    /// Omits a collapsed receiver prefix when the adapter keeps the property.
     fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'a>) {
-        if let Expression::Identifier(receiver) = &member.object {
-            let whole = Span::new(self.source.id(), member.span.start, member.span.end);
-            let property = Span::new(
-                self.source.id(),
-                member.property.span.start,
-                member.property.span.end,
-            );
-            let decision = (self.framework.normalize)(ProjectionExpression::Member {
-                receiver: receiver.name.as_str(),
-                whole,
-                property,
-                optional: member.optional,
-            });
-            if let ProjectionDecision::Retain(retained) = decision
-                && self.index.is_collapsed_prefix(whole, retained)
-            {
-                let prefix = Span::new(whole.file, whole.start.0, retained.start.0);
-                self.omitted.push(prefix);
-                self.receiver_prefixes.push(prefix);
-            }
-        }
         walk::walk_static_member_expression(self, member);
+        self.keep((self.framework.normalize)(ProjectionExpression::Member {
+            receiver: self.text(member.object.span()),
+            object: self.span(member.object.span()),
+            whole: self.span(member.span),
+            property: self.span(member.property.span),
+            property_name: member.property.name.as_str(),
+            optional: member.optional,
+            runtime: true,
+        }));
     }
 
-    /// Omits the parts of an expanded shorthand property that were not retained.
-    fn visit_object_property(&mut self, property: &ObjectProperty<'a>) {
-        if !property.computed
-            && !property.method
-            && let PropertyKey::StaticIdentifier(key) = &property.key
-            && let Expression::StaticMemberExpression(value) = &property.value
-            && !value.optional
-            && let Expression::Identifier(receiver) = &value.object
+    fn visit_ts_qualified_name(&mut self, name: &TSQualifiedName<'a>) {
+        walk::walk_ts_qualified_name(self, name);
+        self.keep((self.framework.normalize)(ProjectionExpression::Member {
+            receiver: self.text(name.left.span()),
+            object: self.span(name.left.span()),
+            whole: self.span(name.span),
+            property: self.span(name.right.span),
+            property_name: name.right.name.as_str(),
+            optional: false,
+            runtime: false,
+        }));
+    }
+
+    fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        walk::walk_call_expression(self, call);
+        if !call.optional
+            && call.arguments.len() == 2
+            && let Expression::Identifier(callee) = &call.callee
         {
-            let whole = Span::new(self.source.id(), property.span.start, property.span.end);
-            let key_span = Span::new(self.source.id(), key.span.start, key.span.end);
-            let decision = (self.framework.normalize)(ProjectionExpression::ExpandedShorthand {
-                receiver: receiver.name.as_str(),
-                whole,
-                key: key_span,
-                key_name: key.name.as_str(),
-                value_name: value.property.name.as_str(),
+            let value = call.arguments[0].span();
+            let decision = (self.framework.normalize)(ProjectionExpression::Call {
+                callee: callee.name.as_str(),
+                whole: self.span(call.span),
+                value: self.span(value),
+                witness: self.text(oxc::span::Span::new(value.end, call.span.end)),
             });
-            if let ProjectionDecision::Retain(retained) = decision
-                && self.index.is_collapsed_wrapper(whole, retained)
-            {
-                if whole.start.0 < retained.start.0 {
-                    self.omitted
-                        .push(Span::new(whole.file, whole.start.0, retained.start.0));
-                }
-                if retained.end.0 < whole.end.0 {
-                    self.omitted
-                        .push(Span::new(whole.file, retained.end.0, whole.end.0));
-                }
+            let synthetic = self.index.is_unmapped_syntax(self.span(callee.span));
+            let ignored = matches!(decision, ProjectionDecision::IgnoreReferences)
+                && synthetic
+                && self.index.is_unmapped_syntax(Span::new(
+                    self.source.id(),
+                    value.end,
+                    call.span.end,
+                ));
+            if ignored {
+                self.ignored.push(self.span(call.span));
+            }
+            if ignored || self.keep(decision) {
+                self.bindings.push(CheckerBinding {
+                    name: callee.name.to_string(),
+                    span: self.span(callee.span),
+                });
             }
         }
+    }
+
+    fn visit_new_expression(&mut self, expression: &NewExpression<'a>) {
+        walk::walk_new_expression(self, expression);
+        if let Expression::ParenthesizedExpression(parentheses) = &expression.callee {
+            self.keep((self.framework.normalize)(
+                ProjectionExpression::ConstructorOperand {
+                    whole: self.span(parentheses.span),
+                    operand: self.span(parentheses.expression.span()),
+                },
+            ));
+        }
+    }
+
+    fn visit_variable_declarator(&mut self, declaration: &VariableDeclarator<'a>) {
+        let previous = self.binding;
+        self.binding = if let BindingPattern::BindingIdentifier(identifier) = &declaration.id {
+            identifier.name.as_str()
+        } else {
+            ""
+        };
+        walk::walk_variable_declarator(self, declaration);
+        self.binding = previous;
+    }
+
+    fn visit_object_property(&mut self, property: &ObjectProperty<'a>) {
         walk::walk_object_property(self, property);
+        if property.computed {
+            return;
+        }
+        let PropertyKey::StaticIdentifier(key) = &property.key else {
+            return;
+        };
+        if let Expression::ArrowFunctionExpression(function) = &property.value {
+            if let ArrowFunctionBody::ParenthesizedExpression(parentheses) = &function.body
+                && let Expression::ObjectExpression(object) = &parentheses.expression
+            {
+                self.ignore_return(property, key.name.as_str(), object);
+            }
+        } else if property.method
+            && let Expression::FunctionExpression(function) = &property.value
+        {
+            if let Some(body) = &function.body
+                && body.statements.len() == 1
+                && let Statement::ReturnStatement(returned) = &body.statements[0]
+                && let Some(Expression::ObjectExpression(object)) = &returned.argument
+            {
+                self.ignore_return(property, key.name.as_str(), object);
+            }
+        } else if !property.method && !property.shorthand {
+            let fragments = self.fragments(self.span(property.value.span()));
+            if self.index.verify_fragments(&fragments).is_ok() {
+                let value_name: String = fragments
+                    .iter()
+                    .filter_map(|span| self.source.slice(*span).ok())
+                    .collect();
+                self.keep((self.framework.normalize)(
+                    ProjectionExpression::ExpandedShorthand {
+                        whole: self.span(property.span),
+                        key: self.span(key.span),
+                        value: self.span(property.value.span()),
+                        key_name: key.name.as_str(),
+                        value_name: &value_name,
+                    },
+                ));
+            }
+        }
     }
 }

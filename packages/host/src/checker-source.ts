@@ -1,12 +1,13 @@
 import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
-import type { NativeAssetRecord } from "@stillwind/native";
+import type { NativeAssetRecord, NativeCheckerBinding } from "@stillwind/native";
 import type { PreparedSource, CheckerBuffer } from "@stillwind/projection";
 import { skipTrivia } from "typescript/unstable/ast";
 
 /** Original UTF-8 expression range and its validated projected UTF-16 range. */
 export interface CheckerSpan {
+  role: string;
   start: number;
   end: number;
   projectedStart: number;
@@ -25,6 +26,8 @@ export type TypeFactSource = PreparedSource & {
   probes: readonly { start: number; end: number; recognitionOnly?: boolean }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
   checkerSpans?: readonly CheckerSpan[];
+  /** Validated generated callees that must use their global helper declarations. */
+  checkerBindings?: readonly NativeCheckerBinding[];
   /** Alternative checker buffers, including independent Astro client modules. */
   checkerBuffers?: readonly CheckerBuffer[];
   /** Absolute framework declaration files included in the checker project. */
@@ -81,8 +84,13 @@ export class CheckerSource {
   readonly text: string;
   readonly id: string;
   readonly identities = new Map<string, NativeAssetRecord["identity"]>();
+  /** Independent module that supplies helper declarations in the virtual project. */
+  readonly helperModule?: { id: string; text: string };
   /** Shadow UTF-16 AST ranges keyed to original UTF-8 probe ranges. */
   readonly probes = new Map<string, { start: number; end: number; recognitionOnly?: boolean }>();
+  /** Producer call ranges after identity insertion, keyed to their asset families. */
+  readonly producers = new Map<string, NativeAssetRecord["identity"]["kind"]>();
+
   readonly #edits: ShadowEdit[] = [];
   readonly #original: string;
   readonly #points: Map<number, number | null>;
@@ -101,11 +109,26 @@ export class CheckerSource {
       : checkerId(source);
     this.#original = source.document.code;
     this.#points = projectionPoints(source);
+    const producers = new Map<number, string>();
+    const producerRanges: Array<{
+      start: number;
+      end: number;
+      kind: NativeAssetRecord["identity"]["kind"];
+    }> = [];
     for (const asset of assets) {
-      const targets = this.targets(asset.callStart, asset.callEnd);
+      const targets = this.targets(asset.callStart, asset.callEnd, "producer");
       const key = identityKey(asset.identity);
       this.identities.set(key, asset.identity);
       for (const [start, end] of targets) {
+        const previous = producers.get(end);
+        if (previous) {
+          if (previous !== key) {
+            throw new Error(`Conflicting producer identities in ${source.moduleId}`);
+          }
+          continue;
+        }
+        producers.set(end, key);
+        producerRanges.push({ start, end, kind: asset.identity.kind });
         const call = buffer.source.slice(start, end);
         if (!call.endsWith(")")) {
           throw new Error(`Cannot locate producer in ${source.moduleId}`);
@@ -130,7 +153,7 @@ export class CheckerSource {
       }
     }
     for (const resolution of source.resolutions ?? []) {
-      for (const [at, end] of this.targets(resolution.start, resolution.end)) {
+      for (const [at, end] of this.targets(resolution.start, resolution.end, "moduleSpecifier")) {
         this.#edits.push({
           at,
           end,
@@ -140,6 +163,48 @@ export class CheckerSource {
           ),
         });
       }
+    }
+    const bindings = buffer.region ? [] : (source.checkerBindings ?? []);
+    if (bindings.length > 0) {
+      const names = new Set(
+        buffer.source
+          .replaceAll(/\\u(?:\{([\da-fA-F]{1,6})\}|([\da-fA-F]{4}))/g, (escape, braced, fixed) => {
+            const value = Number.parseInt(braced ?? fixed, 16);
+            return value <= 0x10ffff ? String.fromCodePoint(value) : escape;
+          })
+          .match(/[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*/gu),
+      );
+      const aliases = new Map<string, string>();
+      let next = 0;
+      for (const binding of bindings) {
+        let alias = aliases.get(binding.name);
+        if (!alias) {
+          do {
+            alias = `__stillwindCheckerHelper${next++}`;
+          } while (names.has(alias));
+          aliases.set(binding.name, alias);
+        }
+        this.#edits.push({
+          at: binding.projectedStart,
+          end: binding.projectedEnd,
+          text: alias,
+          original: { start: 0, end: 0 },
+        });
+      }
+      const id = `${this.id}.stillwind-helpers.ts`;
+      this.helperModule = {
+        id,
+        text: [...aliases.keys()]
+          .map((name) => `export declare const ${name}: typeof globalThis.${name};`)
+          .join("\n"),
+      };
+      // Triple-slash directives must precede module statements.
+      this.#edits.push({
+        at: buffer.source.length,
+        end: buffer.source.length,
+        text: `\nimport {${[...aliases].map(([name, alias]) => `${name} as ${alias}`).join(",")}} from ${JSON.stringify(path.resolve(id).replaceAll("\\", "/"))};\n`,
+        original: { start: 0, end: 0 },
+      });
     }
     this.#edits.sort((a, b) => a.at - b.at || a.end - b.end);
     for (let i = 1; i < this.#edits.length; i++) {
@@ -151,9 +216,15 @@ export class CheckerSource {
       }
     }
     for (const probe of source.probes) {
-      for (const [start, end] of this.targets(probe.start, probe.end)) {
+      for (const [start, end] of this.targets(probe.start, probe.end, "expression")) {
         this.probes.set(`${this.toShadow(start)}:${this.toShadow(end, true)}`, probe);
       }
+    }
+    for (const producer of producerRanges) {
+      this.producers.set(
+        `${this.toShadow(producer.start)}:${this.toShadow(producer.end, true)}`,
+        producer.kind,
+      );
     }
     let text = buffer.source;
     for (const edit of [...this.#edits].reverse()) {
@@ -163,7 +234,7 @@ export class CheckerSource {
   }
 
   /** Finds input-buffer UTF-16 ranges for an original UTF-8 range. */
-  targets(start: number, end: number): Array<[number, number]> {
+  targets(start: number, end: number, role: string): Array<[number, number]> {
     const a = byteToUtf16(this.#original, start),
       b = byteToUtf16(this.#original, end);
     if (this.buffer.region) {
@@ -184,7 +255,7 @@ export class CheckerSource {
     return [
       ...new Map(
         (this.source.checkerSpans ?? [])
-          .filter((span) => span.start === start && span.end === end)
+          .filter((span) => span.start === start && span.end === end && span.role === role)
           .map((span) => [
             `${span.projectedStart}:${span.projectedEnd}`,
             [span.projectedStart, span.projectedEnd] as [number, number],
@@ -197,7 +268,7 @@ export class CheckerSource {
   toShadow(position: number, end = false): number {
     let delta = 0;
     for (const edit of this.#edits) {
-      if (edit.at > position || (end && edit.at === position)) {
+      if (edit.at > position || (edit.at === position && (end || edit.end > edit.at))) {
         break;
       }
       delta += edit.text.length - (edit.end - edit.at);
