@@ -11,7 +11,7 @@ import * as core316 from "vue-language-core-3-1-6";
 import * as core320 from "vue-language-core-3-2-0";
 import * as core3312 from "vue-language-core-3-3-12";
 
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { TypeScriptFactsService } from "../../src/type-facts.ts";
 
 const versions = [
   {
@@ -46,7 +46,7 @@ const versions = [
   },
 ];
 
-const root = path.resolve(import.meta.dirname, "../../integration/testss");
+const root = path.resolve(import.meta.dirname, "../../../integration/testss");
 const filename = path.join(root, "Projection.vue");
 const corePath = createRequire(import.meta.resolve("@stillwind/projection/package.json")).resolve(
   "@vue/language-core",

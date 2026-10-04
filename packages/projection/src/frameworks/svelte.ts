@@ -40,7 +40,7 @@ export function convert(source: string, filename: string): SourceProjection {
   }
   return {
     syntax: {
-      language: "tsx",
+      language: "ts",
       moduleKind: "module",
     },
     code: result.code,

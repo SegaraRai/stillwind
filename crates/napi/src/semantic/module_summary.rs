@@ -173,16 +173,16 @@ pub struct NativeCheckerSpan {
     pub projected_end: u32,
 }
 
-/// A validated generated callee that needs a global helper binding.
+/// A validated generated reference that needs a global helper binding.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeCheckerBinding {
     /// Name of the global helper declaration.
     pub name: String,
-    /// Inclusive projected UTF-16 offset of the callee identifier.
+    /// Inclusive projected UTF-16 offset of the identifier reference.
     pub projected_start: u32,
-    /// Exclusive projected UTF-16 offset of the callee identifier.
+    /// Exclusive projected UTF-16 offset of the identifier reference.
     pub projected_end: u32,
 }
 
@@ -193,7 +193,7 @@ pub struct NativeCheckerBinding {
 pub struct NativeModuleSummary {
     /// Original-to-projected expression/import correspondences; empty for plain inputs.
     pub checker_spans: Vec<NativeCheckerSpan>,
-    /// Generated helper callees protected from bindings in authored scopes.
+    /// Generated helper references protected from bindings in authored scopes.
     pub checker_bindings: Vec<NativeCheckerBinding>,
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,

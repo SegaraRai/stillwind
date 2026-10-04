@@ -51,12 +51,12 @@ pub struct CheckerSpan {
     pub role: CheckerRole,
 }
 
-/// A converter-created callee that must bind to its global helper declaration.
+/// A converter-created reference that must bind to its global helper declaration.
 #[derive(Clone, Debug)]
 pub struct CheckerBinding {
     /// Global helper identifier.
     pub name: String,
-    /// Generated UTF-8 range of the callee identifier.
+    /// Generated UTF-8 range of the identifier reference.
     pub span: Span,
 }
 

@@ -28,14 +28,14 @@ converter は `@stillwind/projection` に隔離し、JavaScript SDK を必要と
 
 ## 位置の契約
 
-| データ                                                                       | 座標                                                  |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------- |
-| identity、type probe、type fact、module specifier、公開 IR、診断の byte 範囲 | 原文 UTF-8 byte、半開区間                             |
-| converter map、script realm、編集 region                                     | 原文／投影の UTF-16 code unit、半開区間               |
-| native `checkerSpans`                                                        | 原文 UTF-8 範囲と対応する投影 UTF-16 範囲             |
-| native `checkerBindings`                                                     | converter が生成した helper callee の投影 UTF-16 範囲 |
-| checker の AST と shadow edit                                                | checker buffer の UTF-16 範囲                         |
-| 診断の editor 位置                                                           | 原文 UTF-16 offset、およびゼロ始まり line / column    |
+| データ                                                                       | 座標                                               |
+| ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| identity、type probe、type fact、module specifier、公開 IR、診断の byte 範囲 | 原文 UTF-8 byte、半開区間                          |
+| converter map、script realm、編集 region                                     | 原文／投影の UTF-16 code unit、半開区間            |
+| native `checkerSpans`                                                        | 原文 UTF-8 範囲と対応する投影 UTF-16 範囲          |
+| native `checkerBindings`                                                     | converter が生成した helper 参照の投影 UTF-16 範囲 |
+| checker の AST と shadow edit                                                | checker buffer の UTF-16 範囲                      |
+| 診断の editor 位置                                                           | 原文 UTF-16 offset、およびゼロ始まり line / column |
 
 Rust の AST 抽出中のみ正規化した解析 buffer の範囲が存在する。公開前に原文へ戻し、
 対応を検証できない場合は投影や座標に対応する診断で拒否する。別モジュールの宣言 identity を
@@ -86,10 +86,19 @@ ref と keyframes は callable な宣言型、view transition は callable な `
   衝突しないものを選び、独立した仮想 module で global helper の型を取得する。
   ユーザーが書いた同名の関数や `globalThis` はこの型取得に影響しない。
 - Svelte: svelte2tsx の公式 shim / JSX 宣言を checker に含め、props、rune、store、each の
-  型を使用する。DOM spread のために identity を消す adapter は不要。
+  型を使用する。生成コードは TS として解析し、generic arrow function を保持する。
+  生成された `__sveltets_2_*` と `__sveltets_$$*` の runtime 参照は、原文の参照との
+  対応がないことを検証してから、Vue と同じ checker 用 import に置換する。
+  ユーザーが書いた同名の参照と、変換器が生成したローカル関数は元の binding を使う。
+  DOM spread のために identity を消す adapter は不要。
+  slot prop にマクロ呼び出しを直接書くと、svelte2tsx が型宣言用に複製した呼び出しに
+  source map を付けないため、投影検証で拒否する。script で style を宣言してから slot に渡す。
 - Astro: frontmatter と template は TSX。client script は元の script region ごとに
   独立した checker `.ts` buffer にする。converter が生成した関数内の client body は
   空白化し、位置を維持する。元 script と投影の対応は source map と本文一致で検証する。
+  TSX 変換には Go/WASM 版の `@astrojs/compiler` を使う。
+  client script の generic arrow function は `<T,>` のように TSX と区別できる形で書く。
+  `<T>` は converter が TSX にそのままコピーするため、Rust の投影検証で拒否する。
 
 ## 依存関係
 
@@ -100,7 +109,7 @@ converter が global 型宣言を返す場合は、それを checker の仮想 `
 
 Vue の変換形式は、host の dev dependency に固定した以下の版で検証する。
 alias は `vue-language-core-3-0-2` のように版番号を含める。
-[vue-projection-versions.test.ts](../packages/host/tests/vue-projection-versions.test.ts) は
+[vue.test.ts](../packages/host/tests/projection/vue.test.ts) は
 各版の実際の投影を Rust の scan、TS7 の型問い合わせ、コンパイルに通す。
 TS / JS の式、原文の構文と座標、有限 identity、生成された参照とユーザーの参照を検証する。
 
@@ -112,6 +121,21 @@ TS / JS の式、原文の構文と座標、有限 identity、生成された参
 | 3.1.6      | `__VLS_SetupExposed` と `__VLS_ProxyRefs` を使う。                                       |
 | 3.2.0      | `__VLS_SetupExposed` と `ShallowUnwrapRef` を使い、helper 型を外部ファイルから参照する。 |
 | 3.3.12     | 直接参照、`.value`、`__VLS_unwrap` と `__VLS_withDotValue` を使う。                      |
+
+Svelte の対応範囲は `svelte ^5.0.0` と `svelte2tsx ^0.7.56`。
+[svelte.test.ts](../packages/host/tests/projection/svelte.test.ts) は
+0.7.56 と 0.7.61 の変換器と、その版の公式型宣言を使用する。
+版を含む alias は projection の dev dependency に固定し、TS6 SDK で実行する。
+Rust の scan、TS7 の型問い合わせ、原文の編集、Svelte compiler による検証を通す。
+宣言タグ、attachment、await の型注釈、nullable な each、snippet、module script、
+生成 helper の名前衝突と、Unicode / CRLF の原文座標を検証する。
+
+Astro の対応範囲は `@astrojs/compiler ^4.0.0`。
+[astro.test.ts](../packages/host/tests/projection/astro.test.ts) は
+host の dev dependency に固定した 4.0.0 を使用し、Rust の scan、TS7 の型問い合わせ、
+原文の編集、Astro compiler による検証を通す。
+frontmatter、fragment、client script の各形式、server / client のスコープ分離、
+Unicode / CRLF の原文座標と型エラーを検証する。JSON、外部 script、空の script も含める。
 
 | Framework | optional peers                                                 |
 | --------- | -------------------------------------------------------------- |

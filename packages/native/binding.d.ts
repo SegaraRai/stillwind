@@ -405,13 +405,13 @@ export type NativeCandidates =
   | { kind: 'finite'; /** The reachable identities. */
   values: Array<NativeIdentity> }
 
-/** A validated generated callee that needs a global helper binding. */
+/** A validated generated reference that needs a global helper binding. */
 export interface NativeCheckerBinding {
   /** Name of the global helper declaration. */
   name: string
-  /** Inclusive projected UTF-16 offset of the callee identifier. */
+  /** Inclusive projected UTF-16 offset of the identifier reference. */
   projectedStart: number
-  /** Exclusive projected UTF-16 offset of the callee identifier. */
+  /** Exclusive projected UTF-16 offset of the identifier reference. */
   projectedEnd: number
 }
 
@@ -868,7 +868,7 @@ export interface NativeModuleSpecifier {
 export interface NativeModuleSummary {
   /** Original-to-projected expression/import correspondences; empty for plain inputs. */
   checkerSpans: Array<NativeCheckerSpan>
-  /** Generated helper callees protected from bindings in authored scopes. */
+  /** Generated helper references protected from bindings in authored scopes. */
   checkerBindings: Array<NativeCheckerBinding>
   /** Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`]. */
   schema: number

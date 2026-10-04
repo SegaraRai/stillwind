@@ -26,7 +26,7 @@ export type TypeFactSource = PreparedSource & {
   probes: readonly { start: number; end: number; recognitionOnly?: boolean }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
   checkerSpans?: readonly CheckerSpan[];
-  /** Validated generated callees that must use their global helper declarations. */
+  /** Validated generated references that must use their global helper declarations. */
   checkerBindings?: readonly NativeCheckerBinding[];
   /** Alternative checker buffers, including independent Astro client modules. */
   checkerBuffers?: readonly CheckerBuffer[];

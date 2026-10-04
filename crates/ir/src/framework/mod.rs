@@ -90,8 +90,8 @@ pub struct FrameworkSpec {
     pub style_format: StyleFormat,
     /// Enabled only after the original-source projection path is validated.
     pub projected_input: bool,
-    /// Rewrite policy for converter-generated wrappers, applied when a projected input
-    /// is analyzed.
+    /// Policy for converter-generated expressions and helper bindings in projected
+    /// input.
     pub normalize: fn(ProjectionExpression<'_>) -> ProjectionDecision,
 }
 
@@ -105,12 +105,17 @@ pub enum StyleFormat {
     String,
 }
 
-/// Parser-neutral view of a possible converter-generated expression wrapper.
+/// Parser-neutral view of a possible converter-generated expression or reference.
 ///
 /// The frontend reports what it saw; the framework's [`FrameworkSpec::normalize`]
-/// decides which source expression to retain or which generated references to ignore.
+/// decides which source expression to retain and how to handle generated references.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectionExpression<'a> {
+    /// An identifier used as a runtime expression.
+    Reference {
+        /// Name of the referenced identifier.
+        name: &'a str,
+    },
     /// A type alias injected by a language tool. `definition` is its text.
     SyntheticTypeAlias {
         /// Name of the injected alias, for example `__VLS_SetupExposed`.
@@ -183,11 +188,13 @@ pub enum ProjectionExpression<'a> {
     },
 }
 
-/// What the frontend should do with a candidate wrapper expression.
+/// What the frontend should do with a candidate expression or reference.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectionDecision {
     /// Keep the expression as user-authored code.
     Preserve,
+    /// Bind a reference to its global helper after validating its generated syntax.
+    BindGlobalHelper,
     /// Retain authored fragments and query the generated runtime expression.
     Keep {
         /// Span of the complete converter wrapper.

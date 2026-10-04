@@ -1,6 +1,6 @@
-//! Svelte adapter policy.
+//! Svelte adapter policy and bindings for helpers supplied by svelte2tsx.
 
-use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
+use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
 
 /// Svelte receives custom properties as a serialized style string.
 pub const SPEC: FrameworkSpec = FrameworkSpec {
@@ -12,5 +12,16 @@ pub const SPEC: FrameworkSpec = FrameworkSpec {
     style_property: "style",
     style_format: StyleFormat::String,
     projected_input: true,
-    normalize: preserve,
+    normalize,
 };
+
+fn normalize(expression: ProjectionExpression<'_>) -> ProjectionDecision {
+    match expression {
+        ProjectionExpression::Reference { name }
+            if name.starts_with("__sveltets_2_") || name.starts_with("__sveltets_$$") =>
+        {
+            ProjectionDecision::BindGlobalHelper
+        }
+        _ => ProjectionDecision::Preserve,
+    }
+}

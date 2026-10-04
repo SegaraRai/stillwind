@@ -107,7 +107,7 @@ impl NormalizedProjection<'_> {
         Ok(CheckerSpan { provenance, role })
     }
 
-    /// Generated callees whose bindings the checker must protect from author scopes.
+    /// Generated references whose bindings the checker must protect from author scopes.
     pub fn checker_bindings(&self) -> &[CheckerBinding] {
         &self.bindings
     }
@@ -452,6 +452,20 @@ impl NormalizationVisitor<'_, '_> {
 impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
     fn visit_expression(&mut self, expression: &Expression<'a>) {
         walk::walk_expression(self, expression);
+        if let Expression::Identifier(reference) = expression
+            && matches!(
+                (self.framework.normalize)(ProjectionExpression::Reference {
+                    name: reference.name.as_str(),
+                }),
+                ProjectionDecision::BindGlobalHelper
+            )
+            && self.index.is_unmapped_syntax(self.span(reference.span))
+        {
+            self.bindings.push(CheckerBinding {
+                name: reference.name.to_string(),
+                span: self.span(reference.span),
+            });
+        }
         self.expressions.push((
             self.span(expression.span()),
             matches!(expression, Expression::CallExpression(_)),

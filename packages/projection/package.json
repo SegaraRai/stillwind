@@ -27,6 +27,8 @@
     "@vue/language-core": "^3.3.12",
     "svelte": "^5.57.1",
     "svelte2tsx": "^0.7.61",
+    "svelte2tsx-0-7-56": "npm:svelte2tsx@0.7.56",
+    "svelte2tsx-0-7-61": "npm:svelte2tsx@0.7.61",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
     "vue-language-core-3-0-2": "npm:@vue/language-core@3.0.2"
@@ -37,7 +39,7 @@
     "@vue/compiler-sfc": "^3.0.0",
     "@vue/language-core": "^3.0.2",
     "svelte": "^5.0.0",
-    "svelte2tsx": "^0.6.0 || ^0.7.0"
+    "svelte2tsx": "^0.7.56"
   },
   "peerDependenciesMeta": {
     "@astrojs/compiler": {
