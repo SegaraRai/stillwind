@@ -37,15 +37,15 @@ export function fixtureTasks(driver: string, root: string) {
   const command = (mode: string) =>
     `node "${cli}" ${driver} ${mode} . ${mode === "serve" ? port + 100 : port}`;
   const dependencies = routes
-    ? ["@stillwind/integration#build", "generate:routes"]
-    : ["@stillwind/integration#build"];
+    ? ["@stillwind/integration#build", "stillwind#build", "generate:routes"]
+    : ["@stillwind/integration#build", "stillwind#build"];
 
   return {
     ...(routes
       ? {
           "generate:routes": {
             command: command("prepare"),
-            dependsOn: ["@stillwind/integration#build"],
+            dependsOn: ["@stillwind/integration#build", "stillwind#build"],
             cache: {
               env: ["STILLWIND_E2E_PROFILE"],
               input: [{ auto: true }, "!node_modules/.vite-temp/**"],
@@ -90,7 +90,7 @@ export function fixtureTasks(driver: string, root: string) {
     },
     "test:e2e": {
       command: "vp test --run --config acceptance.config.ts",
-      dependsOn: ["@stillwind/integration#build"],
+      dependsOn: ["@stillwind/integration#build", "stillwind#build"],
       cache: false,
     },
   };

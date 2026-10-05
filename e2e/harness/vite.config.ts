@@ -14,7 +14,7 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/native#build", "@stillwind/integration#build"],
+        dependsOn: ["@stillwind/native#build"],
       },
       "typecheck:fixtures": {
         command: "",
@@ -32,17 +32,29 @@ export default defineConfig({
       "test:e2e": {
         command: "node src/matrix.ts",
         cache: false,
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
+        dependsOn: [
+          "@stillwind/integration#build",
+          "@stillwind/native#collect:local",
+          "stillwind#build",
+        ],
       },
       "test:e2e:compatibility": {
         command: "node src/matrix.ts --support compatibility",
         cache: false,
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
+        dependsOn: [
+          "@stillwind/integration#build",
+          "@stillwind/native#collect:local",
+          "stillwind#build",
+        ],
       },
       "test:e2e:primary": {
         command: "node src/matrix.ts --support primary",
         cache: false,
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#collect:local"],
+        dependsOn: [
+          "@stillwind/integration#build",
+          "@stillwind/native#collect:local",
+          "stillwind#build",
+        ],
       },
     },
   },

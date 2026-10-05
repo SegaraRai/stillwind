@@ -100,7 +100,13 @@ export default defineConfig(({ mode }) => ({
       },
       "lint:js": {
         command: "vp lint",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "@stillwind/projection#build",
+          "stillwind#build",
+        ],
       },
       "lint:rust": {
         command: "cargo clippy --workspace --all-targets -- -D warnings",
@@ -182,7 +188,14 @@ export default defineConfig(({ mode }) => ({
       "test:js": {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["@stillwind/integration#build", "@stillwind/native#typecheck"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "@stillwind/native#typecheck",
+          "@stillwind/projection#build",
+          "stillwind#build",
+        ],
       },
       "test:rust": {
         command: "cargo test --workspace",

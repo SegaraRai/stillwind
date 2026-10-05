@@ -31,20 +31,40 @@ export default defineConfig({
       dev: {
         command: "vp dev",
         cache: false,
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "stillwind#build",
+        ],
       },
       build: {
         command: "vp build",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "stillwind#build",
+        ],
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "stillwind#build",
+        ],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "stillwind#build",
+        ],
       },
     },
   },

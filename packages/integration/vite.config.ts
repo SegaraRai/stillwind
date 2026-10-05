@@ -69,35 +69,40 @@ export default defineConfig({
       "dev:frameworks": {
         command: "node tests/vite/framework-dev.ts",
         cache: false,
-        dependsOn: ["typecheck"],
+        dependsOn: [
+          "typecheck",
+          "@stillwind/host#build",
+          "@stillwind/native#build",
+          "stillwind#build",
+        ],
       },
       build: {
         command: "vp pack",
-        dependsOn: ["@stillwind/host#build", "stillwind#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "test:vite": {
         command: "vp test --run tests/vite",
         cache: testCache,
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "test:bundlers": {
         command: "vp test --run tests/webpack",
         cache: testCache,
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "test:frameworks": {
         command: "vp test --run tests/vite/framework-builds.test.ts",
         cache: testCache,
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
     },
   },

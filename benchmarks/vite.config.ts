@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => ({
         command:
           "vp test bench research/architecture.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/architecture.json",
         cache: false,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "bench:compiler": {
         command:
@@ -44,13 +44,13 @@ export default defineConfig(({ mode }) => ({
         command:
           "vp test bench compiler/host.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/host.json",
         cache: false,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "bench:research": {
         command:
           "vp test bench research/investigation.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/research.json",
         cache: false,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "bench:source-map": {
         command:
@@ -60,24 +60,24 @@ export default defineConfig(({ mode }) => ({
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "test:performance": {
         command:
           "vp test bench performance/performance.bench.ts --run --mode performance --reporter default --reporter json --outputFile results/performance.json",
         cache: false,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "test:performance:full": {
         command:
           "vp test bench performance/performance.bench.ts --run --mode performance-full --reporter default --reporter json --outputFile results/performance-full.json",
         cache: false,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
     },
   },

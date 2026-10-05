@@ -22,17 +22,17 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "generate:fixtures:projects": {
         command: "node fixtures.ts",
         cache: projectCache,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "test:fixtures:projects": {
         command: "node fixtures.ts --check",
         cache: fixtureCache,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
     },
   },

@@ -25,15 +25,15 @@ export default defineConfig({
       dev: {
         command: "vp dev",
         cache: false,
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: ["@stillwind/integration#build", "stillwind#build"],
       },
       build: {
         command: "vp build",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: ["@stillwind/integration#build", "stillwind#build"],
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: ["@stillwind/integration#build", "stillwind#build"],
       },
     },
   },

@@ -29,7 +29,12 @@ export default defineConfig({
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["build"],
+        dependsOn: [
+          "build",
+          "@stillwind/native#build",
+          "@stillwind/projection#build",
+          "stillwind#build",
+        ],
       },
     },
   },
