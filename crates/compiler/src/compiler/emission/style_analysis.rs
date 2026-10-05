@@ -8,7 +8,7 @@
 
 use cssparser::{Parser, Token};
 
-use stillwind_css::{declaration_ranges, selector_is_element_condition};
+use stillwind_css::{declaration_ranges, instantiate_selector, selector_is_element_condition};
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::IdentityId;
 use stillwind_source::Span;
@@ -270,7 +270,7 @@ fn collect_declarations(
                 let expanded = if selector.is_empty() {
                     prelude.into()
                 } else {
-                    stillwind_css::instantiate_selector(prelude, selector)
+                    instantiate_selector(prelude, selector)
                 };
                 collect_declarations(body, &expanded, at_rules, provider, gate, out);
             }

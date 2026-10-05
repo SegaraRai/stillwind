@@ -9,8 +9,8 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassContext, CompilerOptions, ConditionContext, ConditionHelperName, DeclarationContext,
-    GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierMode, Identifiers, KeyframesName,
-    LayerContext, LayerName, UtilityClass,
+    GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierMode, IdentifierPool,
+    Identifiers, KeyframesName, LayerContext, LayerName, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -239,7 +239,7 @@ fn merge_barriers_have_an_independent_collision_pool() {
             artifact
                 .symbols
                 .iter()
-                .any(|symbol| symbol.pool == stillwind_compiler::IdentifierPool::RuleBoundary),
+                .any(|symbol| symbol.pool == IdentifierPool::RuleBoundary),
             "{:?}",
             artifact.symbols
         );
