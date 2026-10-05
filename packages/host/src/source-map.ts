@@ -1,17 +1,29 @@
 import { resolve } from "node:path";
 
-import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
+import {
+  GenMapping,
+  addSegment,
+  setSourceContent,
+  toEncodedMap,
+  type EncodedSourceMap,
+} from "@jridgewell/gen-mapping";
 import remapping from "@jridgewell/remapping";
-import { TraceMap } from "@jridgewell/trace-mapping";
+import { TraceMap, type SourceMapInput } from "@jridgewell/trace-mapping";
 
 /**
- * Composes original into depth-one sources whose embedded content exactly equals
- * transformedSource. Other sources remain outside this composition step.
- * Invalid maps may throw from the source-map libraries.
+ * Traces framework output through a Stillwind transform when embedded source text identifies the
+ * transformed input.
+ *
+ * @param generated - Framework output map.
+ * @param original - Map or map chain from the Stillwind-transformed input back to original sources.
+ * @param transformedSource - Exact text to match against the generated map's `sourcesContent`.
+ * @returns A composed map. Only matching immediate sources are replaced. Other sources retain their
+ * mappings.
+ * @throws If a supplied source map cannot be decoded or composed.
  */
 export function composeFrameworkSourceMap(
-  generated: Exclude<Parameters<typeof remapping>[0], unknown[]>,
-  original: Parameters<typeof remapping>[0],
+  generated: SourceMapInput,
+  original: SourceMapInput | readonly SourceMapInput[],
   transformedSource: string,
 ) {
   const traced = new TraceMap(generated);
@@ -21,38 +33,49 @@ export function composeFrameworkSourceMap(
     ),
   );
   return remapping(generated, (source, context) =>
-    context.depth === 1 && matches.has(source)
-      ? (original as Exclude<Parameters<typeof remapping>[0], unknown[]>)
+    context.depth === 1 && matches.has(source) ? (original as SourceMapInput) : null,
+  );
+}
+
+/**
+ * Traces a CSS pipeline map through the original map of its carrier resource.
+ *
+ * @param generated - Pipeline output map, or a map chain accepted by the composition library.
+ * @param original - Map or chain from the CSS carrier back to authored sources.
+ * @param resource - Absolute carrier path with forward slashes. Candidate source names are resolved
+ * against the process working directory before comparison.
+ * @returns A composed map that replaces only immediate sources resolving to the carrier path.
+ * @throws If a supplied source map cannot be decoded or composed.
+ */
+export function composeCarrierSourceMap(
+  generated: SourceMapInput | SourceMapInput[],
+  original: SourceMapInput | readonly SourceMapInput[],
+  resource: string,
+) {
+  return remapping(generated, (source, context) =>
+    context.depth === 1 && resolve(source).replaceAll("\\", "/") === resource
+      ? (original as SourceMapInput)
       : null,
   );
 }
 
 /**
- * Composes original into depth-one sources resolving to resource. The caller must
- * supply an absolute, forward-slash resource path; source names are resolved against
- * the process working directory. Invalid maps may throw from the mapping libraries.
+ * Map or ordered map chain from a module's input back to its original sources. Null and undefined
+ * mean that no upstream map is available. Each map may be serialized or supplied as an object.
  */
-export function composeCarrierSourceMap(
-  generated: Parameters<typeof remapping>[0],
-  original: Parameters<typeof remapping>[0],
-  resource: string,
-) {
-  return remapping(generated, (source, context) =>
-    context.depth === 1 && resolve(source).replaceAll("\\", "/") === resource
-      ? (original as Exclude<Parameters<typeof remapping>[0], unknown[]>)
-      : null,
-  );
-}
+export type UpstreamSourceMap = SourceMapInput | readonly SourceMapInput[] | undefined | null;
 
 /**
  * Composes the native output map with the upstream loader map or ordered map chain
  * describing its input. Without upstream, returns the generated object unchanged.
  * Invalid maps or incompatible chains may throw from the mapping library.
+ *
+ * @param generated - Map from compiled JavaScript back to the input received by Stillwind.
+ * @param upstream - Optional map or ordered map chain from that input back to original sources.
+ * @returns The generated map unchanged when no upstream map is supplied, otherwise a composed map.
+ * @throws If map decoding fails or a supplied map chain is incompatible.
  */
-export function composeModuleSourceMap(
-  generated: ReturnType<typeof moduleSourceMap>,
-  upstream: Parameters<typeof remapping>[0] | undefined | null,
-) {
+export function composeModuleSourceMap(generated: EncodedSourceMap, upstream: UpstreamSourceMap) {
   return upstream
     ? remapping(
         [JSON.stringify(generated), ...(Array.isArray(upstream) ? upstream : [upstream])],
@@ -62,25 +85,25 @@ export function composeModuleSourceMap(
 }
 
 /**
- * One compiler replacement before host prefix insertion or import removal.
+ * One compiler replacement before host finalization inserts a prefix or removes text.
  * All offsets are absolute UTF-16 code units in the original and compiled buffers.
  * Replacement gaps without expression intervals map to `originalStart`.
  */
 export interface CompilerMapping {
-  /** Inclusive original offset; equals end for insertion. */
+  /** Inclusive original offset. Equals end for insertion. */
   originalStart: number;
   /** Exclusive original offset, at or after start. */
   originalEnd: number;
   /** Inclusive offset in the complete compiled buffer. */
   generatedStart: number;
-  /** Exclusive compiled offset; equals start for deletion. */
+  /** Exclusive compiled offset. Equals start for deletion. */
   generatedEnd: number;
   /**
    * Nonempty, nonoverlapping intervals contained in this replacement, sorted by
    * generated start. Source order may differ. Missing/empty means anchor-only mapping.
    */
   expressions?: Array<{
-    /** Inclusive original offset; the anchor for a nonexact interval. */
+    /** Inclusive original offset. The anchor for a nonexact interval. */
     originalStart: number;
     /** Exclusive original offset of the expression or encoded character. */
     originalEnd: number;
@@ -88,30 +111,33 @@ export interface CompilerMapping {
     generatedStart: number;
     /** Exclusive compiled offset, strictly greater than start. */
     generatedEnd: number;
-    /** True requires identical text/equal lengths; false anchors all units at original start. */
+    /** True requires identical text/equal lengths. False anchors all units at original start. */
     exact: boolean;
   }>;
 }
 
 /**
- * Builds a source-map v3 object for `prefix` followed by `compiled` with `removed` ranges omitted.
+ * Builds a JavaScript source map from compiler replacements and host finalization edits.
  *
- * `source` is the original buffer embedded as sourcesContent under `id`. `mappings`
- * must contain valid, nonoverlapping edits ordered by generated/original replacement
- * start; nested expression intervals follow generated order, not original order.
- * `removed` must be sorted, nonoverlapping half-open UTF-16 ranges in `compiled`.
- * The caller validates these contracts; inputs are not changed.
+ * Unchanged text maps character by character. Replacement text maps to its original start unless an
+ * expression interval provides a more precise correspondence. All offsets use UTF-16 code units.
  *
- * Untouched text and exact expressions map by code-unit offset, encoded expressions
- * use their original anchor, and other replacement syntax maps to the call start.
- * The synthetic prefix is unmapped. Upstream framework/loader maps are composed separately.
+ * @param source - Original source whose text is embedded in the map.
+ * @param compiled - Compiler output before the host inserts a prefix or removes intervals.
+ * @param id - Source identity used as the map's file and sole source name.
+ * @param mappings - Nonoverlapping compiler replacements in generated-start order, with valid
+ * original and generated ranges.
+ * @param removed - Nonoverlapping ranges removed from `compiled`, in ascending order.
+ * @param prefix - Exact text inserted before the retained compiler output. It advances generated
+ * positions without receiving original mappings.
+ * @returns An encoded version 3 map for the finalized output with original source content.
  */
 export function moduleSourceMap(
   source: string,
   compiled: string,
   id: string,
-  mappings: CompilerMapping[],
-  removed: Array<{ from: number; to: number }>,
+  mappings: readonly CompilerMapping[],
+  removed: readonly { from: number; to: number }[],
   prefix: string,
 ) {
   const map = new GenMapping({ file: id });

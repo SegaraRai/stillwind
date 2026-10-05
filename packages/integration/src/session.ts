@@ -1,4 +1,9 @@
-import { compileModule, TypeScriptFactsService, type CompilerHost } from "@stillwind/host";
+import {
+  compileModule,
+  TypeScriptFactsService,
+  type CompilerHost,
+  type ModuleCompileOptions,
+} from "@stillwind/host";
 import { NativeProjectSession, type NativeDesignSystemLoader } from "@stillwind/native";
 
 import type { StillwindOptions } from "./options.ts";
@@ -26,7 +31,7 @@ export class IntegrationSession {
     code: string,
     id: string,
     host: CompilerHost,
-    transport: Parameters<typeof compileModule>[6] = {},
+    transport: ModuleCompileOptions = {},
   ) {
     const pending = new Map<string, string>();
     const pendingByResolverId = new Map<string, string>();
@@ -35,7 +40,6 @@ export class IntegrationSession {
       () => (this.facts ??= new TypeScriptFactsService(this.root)),
       code,
       id,
-      this.root,
       {
         ...host,
         onModule: (moduleId, resolverId) => {

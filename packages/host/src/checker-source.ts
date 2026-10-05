@@ -7,23 +7,35 @@ import { skipTrivia } from "typescript/unstable/ast";
 
 /** Original UTF-8 expression range and its validated projected UTF-16 range. */
 export interface CheckerSpan {
+  /** Correspondence role matched when mapping a producer, expression, or module specifier. */
   role: string;
+  /** Inclusive UTF-8 byte offset in the original document. */
   start: number;
+  /** Exclusive UTF-8 byte offset in the original document, at or after `start`. */
   end: number;
+  /** Inclusive UTF-16 offset in the unedited projected parser buffer. */
   projectedStart: number;
+  /** Exclusive UTF-16 offset in the projected buffer, at or after `projectedStart`. */
   projectedEnd: number;
 }
 
 /** Original-coordinate requests for one module and its optional parser projection. */
 export type TypeFactSource = PreparedSource & {
   /**
-   * Half-open UTF-8 ranges in document.code.
-   * When `recognitionOnly` is true, the query only checks whether the receiver is
-   * a Stillwind macro asset. A type that cannot be resolved produces no fact.
-   * When false or omitted, the query follows the required-query policy for lowering.
-   * Every probe must still match an expression in the checker AST.
+   * Original expressions queried for lowering or optional macro recognition. Every probe must
+   * match an expression in a checker AST.
    */
-  probes: readonly { start: number; end: number; recognitionOnly?: boolean }[];
+  probes: readonly {
+    /** Inclusive UTF-8 byte offset of the original expression. */
+    start: number;
+    /** Exclusive UTF-8 byte offset of the original expression. */
+    end: number;
+    /**
+     * True makes unresolved identities optional for macro recognition. Otherwise missing or
+     * unresolved types and nonfinite Stillwind candidates are errors.
+     */
+    recognitionOnly?: boolean;
+  }[];
   /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
   checkerSpans?: readonly CheckerSpan[];
   /** Validated generated references that must use their global helper declarations. */
@@ -32,20 +44,44 @@ export type TypeFactSource = PreparedSource & {
   checkerBuffers?: readonly CheckerBuffer[];
   /** Absolute framework declaration files included in the checker project. */
   checkerTypes?: readonly string[];
-  /** Original UTF-8 string-literal ranges and resolved original module ids. */
-  resolutions?: readonly { start: number; end: number; id: string }[];
+  /** Import resolutions used to rewrite checker module paths. */
+  resolutions?: readonly {
+    /**
+     * Full resolved source identity. The checker rewrites this to the matching checker filename
+     * when one is supplied.
+     */
+    id: string;
+    /** Inclusive UTF-8 byte offset of the original module string literal, including its quotes. */
+    start: number;
+    /** Exclusive UTF-8 byte offset of the original module string literal. */
+    end: number;
+  }[];
 };
 
 /** Checker-only insertion/replacement in input-buffer UTF-16 coordinates. */
 interface ShadowEdit {
+  /** Inclusive UTF-16 offset of the insertion or replacement in the unedited checker buffer. */
   at: number;
+  /** Exclusive UTF-16 end in that buffer. Equal to `at` for an insertion. */
   end: number;
+  /** Generated checker text that replaces the selected interval. */
   text: string;
   /** Original UTF-8 range that owns generated text in this edit. */
-  original: { start: number; end: number };
+  original: {
+    /** Inclusive UTF-8 byte offset used to map diagnostics inside the generated text. */
+    start: number;
+    /** Exclusive UTF-8 byte offset used when mapping the end of such a diagnostic. */
+    end: number;
+  };
 }
 
-/** Stable encoding of a declaration's original-coordinate identity. */
+/**
+ * Serializes a declaration identity as a stable checker string-literal key.
+ *
+ * @param identity - Native declaration identity with original UTF-8 offsets.
+ * @returns `stillwind-identity/v1:` followed by base64url JSON of kind, module ID, range, and
+ * binding name in a fixed field order.
+ */
 export function identityKey(identity: NativeAssetRecord["identity"]): string {
   const serialized = JSON.stringify({
     kind: identity.kind,
@@ -57,7 +93,16 @@ export function identityKey(identity: NativeAssetRecord["identity"]): string {
   return `stillwind-identity/v1:${Buffer.from(serialized).toString("base64url")}`;
 }
 
-/** Converts a validated original UTF-8 byte boundary to a UTF-16 offset. */
+/**
+ * Converts an original UTF-8 byte boundary to a UTF-16 offset for slicing JavaScript text.
+ *
+ * @param text - Original document text.
+ * @param offset - Integer byte offset from zero through the UTF-8 byte length, at a character
+ * boundary.
+ * @returns Length of the text before that boundary in UTF-16 code units.
+ * @throws If the offset is negative, exceeds the byte length, or points into a UTF-8 continuation
+ * byte.
+ */
 export function byteToUtf16(text: string, offset: number): number {
   const bytes = Buffer.from(text);
   if (
@@ -70,19 +115,38 @@ export function byteToUtf16(text: string, offset: number): number {
   return bytes.subarray(0, offset).toString("utf8").length;
 }
 
-/** Checker file identity; the original module id remains unchanged outside the checker. */
+/**
+ * Selects the checker filename for a prepared source.
+ *
+ * @param source - Source with its host checker filename and any projection syntax.
+ * @returns The host filename for direct input, or that filename followed by the projection language
+ * extension for projected input.
+ */
 export function checkerId(source: PreparedSource): string {
   return source.kind === "direct"
     ? source.checkerFileName
     : `${source.checkerFileName}.${source.projection.syntax.language}`;
 }
 
-/** Owns shadow edits and translates checker UTF-16 positions back to original bytes. */
+/**
+ * Checker buffer with declaration identities, resolved import paths, and helper aliases inserted
+ * for type queries. Its range maps relate checker AST expressions to original document bytes.
+ */
 export class CheckerSource {
+  /** Prepared source and original-coordinate requests that own this checker buffer. */
   readonly source: TypeFactSource;
+  /** Unedited input buffer, optionally restricted to one original script region. */
   readonly buffer: CheckerBuffer;
+  /**
+   * Final checker text after identity arguments, module paths, and helper bindings have been
+   * rewritten.
+   */
   readonly text: string;
+  /**
+   * Checker filename, with a distinct client-script suffix when the buffer has an original region.
+   */
   readonly id: string;
+  /** Serialized identity keys mapped to the native declarations supplied during construction. */
   readonly identities = new Map<string, NativeAssetRecord["identity"]>();
   /** Independent module that supplies helper declarations in the virtual project. */
   readonly helperModule?: { id: string; text: string };
@@ -91,10 +155,34 @@ export class CheckerSource {
   /** Producer call ranges after identity insertion, keyed to their asset families. */
   readonly producers = new Map<string, NativeAssetRecord["identity"]["kind"]>();
 
+  /**
+   * Ordered, nonoverlapping edits in the input buffer. Their cumulative lengths translate between
+   * input and checker offsets.
+   */
   readonly #edits: ShadowEdit[] = [];
+  /** Original document text used to convert byte ranges and recover diagnostic byte offsets. */
   readonly #original: string;
+  /**
+   * Projected UTF-16 positions mapped to original UTF-16 positions. Null marks conflicting
+   * correspondences. Missing keys have no known mapping.
+   */
   readonly #points: Map<number, number | null>;
 
+  /**
+   * Constructs checker text and range indexes without modifying the source or input buffer.
+   *
+   * @param source - Prepared source with validated frontend correspondences, probes, resolutions,
+   * and helper references.
+   * @param buffer - Direct or projected checker text, optionally scoped to an original script
+   * region.
+   * @param index - Buffer index used to give independent client scripts distinct filenames.
+   * @param assets - Native declaration records with original-byte producer call ranges. Repeated
+   * records for the same generated call are inserted once.
+   * @param ids - Resolved source identities mapped to their main checker filenames for import
+   * rewriting.
+   * @throws If a byte boundary is invalid, producer identities conflict, a mapped producer does not
+   * end with a closing parenthesis, edits overlap, or projection decoding fails.
+   */
   constructor(
     source: TypeFactSource,
     buffer: CheckerBuffer,
@@ -233,7 +321,17 @@ export class CheckerSource {
     this.text = text;
   }
 
-  /** Finds input-buffer UTF-16 ranges for an original UTF-8 range. */
+  /**
+   * Finds input-buffer intervals corresponding to one original range and role.
+   *
+   * @param start - Inclusive original UTF-8 byte boundary.
+   * @param end - Exclusive original UTF-8 byte boundary.
+   * @param role - Frontend correspondence role, matched exactly for projected input.
+   * @returns Deduplicated UTF-16 intervals. Independent scripts receive only contained ranges.
+   * Their ranges are excluded from the main buffer. Unmapped projected ranges produce an empty
+   * list.
+   * @throws If either original byte boundary is invalid.
+   */
   targets(start: number, end: number, role: string): Array<[number, number]> {
     const a = byteToUtf16(this.#original, start),
       b = byteToUtf16(this.#original, end);
@@ -264,7 +362,15 @@ export class CheckerSource {
     ];
   }
 
-  /** Maps an input checker buffer UTF-16 boundary through shadow edits. */
+  /**
+   * Translates an input-buffer boundary after checker edits are applied.
+   *
+   * @param position - UTF-16 boundary in the unedited checker buffer.
+   * @param end - True for an interval end, which stays before an insertion at the same position.
+   * False includes such an insertion.
+   * @returns The UTF-16 boundary in final checker text. Positions should delimit preserved input
+   * intervals rather than lie inside replaced text.
+   */
   toShadow(position: number, end = false): number {
     let delta = 0;
     for (const edit of this.#edits) {
@@ -276,7 +382,15 @@ export class CheckerSource {
     return position + delta;
   }
 
-  /** Maps a checker UTF-16 point to an original UTF-8 byte offset, if authored. */
+  /**
+   * Maps a checker position back to an original document byte boundary.
+   *
+   * @param position - UTF-16 position in final checker text.
+   * @param end - True selects the owning original range's end for positions inside generated edits.
+   * False selects its start.
+   * @returns An original UTF-8 byte offset, or null when a projected position has no unique known
+   * correspondence.
+   */
   originalOffset(position: number, end = false): number | null {
     let delta = 0;
     for (const edit of this.#edits) {
@@ -301,7 +415,14 @@ export class CheckerSource {
   }
 }
 
-/** Exact mapped UTF-16 points for diagnostics; conflicting mappings stay unmapped. */
+/**
+ * Collects exact projection points for mapping checker diagnostics back to a document.
+ *
+ * @param source - Prepared source with its original text and any Volar or version 3 projection map.
+ * @returns Generated UTF-16 positions mapped to original UTF-16 positions. Conflicting points map
+ * to null. Direct sources produce an empty map because their offsets are translated directly.
+ * @throws If a version 3 projection map cannot be decoded.
+ */
 function projectionPoints(source: PreparedSource): Map<number, number | null> {
   const points = new Map<number, number | null>();
   const add = (generated: number, original: number) => {

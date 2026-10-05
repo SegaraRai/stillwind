@@ -4,7 +4,7 @@ import path from "node:path";
 import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 
-import { compilerPlugin } from "../../src/vite/plugin.ts";
+import { createVitePlugins } from "../../src/vite/plugin.ts";
 import { createViteProject } from "../../src/vite/project.ts";
 import { packageRoot, redStyleSource } from "./vite-server-fixture.ts";
 
@@ -21,13 +21,21 @@ ${redStyleSource}
 globalThis.css = css;
 `,
   );
-  const project = createViteProject({ css: "root.css", types: false });
+  const project = createViteProject({
+    css: "root.css",
+    types: false,
+  });
   const watcher = await build({
     configFile: false,
     root,
     logLevel: "silent",
-    plugins: [compilerPlugin(project)],
-    build: { watch: {}, minify: false, cssMinify: false, modulePreload: false },
+    plugins: [createVitePlugins(project)],
+    build: {
+      watch: {},
+      minify: false,
+      cssMinify: false,
+      modulePreload: false,
+    },
   });
   if (Array.isArray(watcher) || !("on" in watcher)) {
     expect.fail("Expected a build watcher");

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, onTestFinished } from "vite-plus/test";
 
-import { compilerPlugin } from "../../src/vite/plugin.ts";
+import { createVitePlugins } from "../../src/vite/plugin.ts";
 import { createViteProject } from "../../src/vite/project.ts";
 
 export const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -32,7 +32,7 @@ export async function createTestServer() {
     css: "root.css",
     types: false,
   });
-  const plugin = compilerPlugin(project);
+  const plugin = createVitePlugins(project);
   server = await createServer({
     configFile: false,
     root,

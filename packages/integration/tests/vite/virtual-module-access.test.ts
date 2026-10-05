@@ -44,7 +44,7 @@ describe("unregistered CSS requests", () => {
       expect(response.status).toBe(500);
       expect(filesRead()).not.toContain(normalizeFile(secretFile));
       expect(watcherAdd).not.toHaveBeenCalled();
-      expect(project.inputMap().size).toBe(0);
+      expect(project.inputs().size).toBe(0);
     },
   );
 
@@ -81,7 +81,7 @@ describe("unregistered CSS requests", () => {
     expect(filesRead()).not.toContain(normalizeFile(secretFile));
     const watchedFiles = watcherAdd.mock.calls.flatMap(([files]) => files);
     expect(watchedFiles.map(normalizeFile)).not.toContain(normalizeFile(secretFile));
-    expect(project.inputMap().size).toBe(0);
+    expect(project.inputs().size).toBe(0);
     expect(
       project.moduleRegistry().projection("./secret.ts?stillwind.css", importer),
     ).toBeUndefined();

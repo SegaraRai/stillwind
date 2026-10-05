@@ -12,22 +12,39 @@ import type { PreparedSource } from "./protocol.ts";
 export interface CheckerBuffer {
   source: string;
   language: "ts" | "tsx";
-  region?: { start: number; end: number };
+  region?: {
+    start: number;
+    end: number;
+  };
+}
+
+/** Declarations and optional code buffers needed to check one prepared source. */
+export interface CheckerEnvironment {
+  /**
+   * Independent buffers used for Astro projections. The main TSX buffer comes first, followed by
+   * client script buffers in their original source order. Omission uses the prepared source code.
+   */
+  checkerBuffers?: CheckerBuffer[];
+  /** Absolute declaration file paths required by the source format. Direct sources use an empty list. */
+  checkerTypes: string[];
 }
 
 /**
- * Returns checker declarations selected by document.format for projected input.
- * Astro client scripts become independent buffers while the main buffer keeps their
- * line positions. The caller supplies projection maps and original script ranges;
- * source is not mutated. Plain input requires no extra declarations or buffers.
- * Throws if declaration packages cannot be resolved or Astro script mappings are invalid.
+ * Selects checker declarations and buffers for the original source format.
+ *
+ * Astro client scripts become independent buffers while the main buffer keeps their line
+ * positions. The prepared source is not mutated.
+ *
+ * @param source - Prepared source with projection maps and original script ranges when projected.
+ * @returns Declaration paths and any independent buffers needed to check the source. Direct
+ * sources require no additional declarations or buffers.
+ * @throws If declaration packages cannot be resolved or Astro script mappings are invalid.
  */
-export function checkerEnvironment(source: PreparedSource): {
-  checkerBuffers?: CheckerBuffer[];
-  checkerTypes: string[];
-} {
+export function checkerEnvironment(source: PreparedSource): CheckerEnvironment {
   if (source.kind === "direct") {
-    return { checkerTypes: [] };
+    return {
+      checkerTypes: [],
+    };
   }
   const require = createRequire(import.meta.url);
   const userRequire = createRequire(path.resolve(source.checkerFileName));
@@ -40,7 +57,9 @@ export function checkerEnvironment(source: PreparedSource): {
     };
   }
   if (source.document.format !== "astro") {
-    return { checkerTypes: [] };
+    return {
+      checkerTypes: [],
+    };
   }
   let main = source.projection.code;
   const buffers: CheckerBuffer[] = [];
@@ -48,10 +67,20 @@ export function checkerEnvironment(source: PreparedSource): {
     const text = source.document.code.slice(region.start, region.end);
     const at = clientProjectionStart(source, region);
     main = main.slice(0, at) + text.replace(/[^\r\n]/g, " ") + main.slice(at + text.length);
-    buffers.push({ source: text, language: "ts", region });
+    buffers.push({
+      source: text,
+      language: "ts",
+      region,
+    });
   }
   return {
-    checkerBuffers: [{ source: main, language: "tsx" }, ...buffers],
+    checkerBuffers: [
+      {
+        source: main,
+        language: "tsx",
+      },
+      ...buffers,
+    ],
     checkerTypes: [path.join(path.dirname(userRequire.resolve("astro/package.json")), "env.d.ts")],
   };
 }

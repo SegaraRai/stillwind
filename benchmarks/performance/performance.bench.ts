@@ -9,10 +9,10 @@ import {
   NativeProjectSession,
   type NativePreparedSource,
 } from "@stillwind/native";
-import { build, createServer, type Plugin, type ViteDevServer } from "vite";
+import { build, createServer, type PluginOption, type ViteDevServer } from "vite";
 import { expect, inject, test, vi, type BenchRunOptions } from "vite-plus/test";
 
-import { compilerPlugin, stillwind } from "../../packages/integration/src/vite/plugin.ts";
+import { createVitePlugins, stillwind } from "../../packages/integration/src/vite/plugin.ts";
 import { createViteProject } from "../../packages/integration/src/vite/project.ts";
 import { assertBudget, budgets } from "./budgets.ts";
 
@@ -98,8 +98,9 @@ for (const count of sizes) {
         await assertBudget(context, "watch-ready", startup, budgets.startup[count]);
 
         const project = createViteProject({ css: "root.css", types: false });
-        const plugin = compilerPlugin(project);
-        active = await startServer(root, plugin);
+        const plugins = createVitePlugins(project);
+        active = await startServer(root, plugins);
+        const [plugin] = plugins;
         const environment = active.environments.client;
         const hook =
           typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
@@ -225,13 +226,23 @@ for (const count of sizes) {
             },
           },
           async () => {
-            active = await startServer(root, stillwind({ css: "root.css", types: false }));
+            active = await startServer(
+              root,
+              stillwind({
+                css: "root.css",
+                types: false,
+              }),
+            );
           },
         )
         .run(options);
       await assertBudget(context, "css-watch-ready", startup, budgets.cssStartup[count]);
-      const plugin = stillwind({ css: "root.css", types: false });
-      active = await startServer(root, plugin);
+      const plugins = stillwind({
+        css: "root.css",
+        types: false,
+      });
+      const [plugin] = plugins;
+      active = await startServer(root, plugins);
       const hook =
         typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
       if (!hook) {
@@ -415,7 +426,7 @@ function fixture(count: number, css: string): string {
 /**
  * Returns a listening server after its initial filesystem scan, closing it on failure.
  */
-async function startServer(root: string, plugin: Plugin): Promise<ViteDevServer> {
+async function startServer(root: string, plugin: PluginOption): Promise<ViteDevServer> {
   let watched!: () => void;
   const ready = new Promise<void>((resolve) => {
     watched = resolve;

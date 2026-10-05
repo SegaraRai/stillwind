@@ -4,24 +4,42 @@ import { fileURLToPath } from "node:url";
 import { moduleSourceMap } from "@stillwind/host";
 import type { AstroIntegration } from "astro";
 
-import { compilerPlugin } from "../vite/plugin.ts";
+import { createVitePlugins } from "../vite/plugin.ts";
 import { createViteProject, type StillwindOptions } from "../vite/project.ts";
 import { registerDevelopmentCss } from "./development.ts";
 
 export type { StillwindOptions } from "../vite/index.ts";
 
+/** Virtual server module imported by Astro middleware to obtain document stylesheet markup. */
 const ID = "virtual:stillwind/astro-styles";
+
+/** Virtual client module that updates inline SSR styles when development CSS changes. */
 const CLIENT_ID = ID + "/client";
+
+/** External server module that connects SSR rendering to the active development compiler. */
 const BRIDGE_ID = "@stillwind/integration/internal/astro-development";
+
+/**
+ * JavaScript string literal replaced with stylesheet links after the production graph is rendered.
+ */
 const MARKER = '"__STILLWIND_ASTRO_STYLES_574f6dfce7c69466ab9516fb7fc6199a__"';
 
 /**
- * Compiles Astro components and supplies their CSS to rendered documents and hydrated islands.
+ * Creates an Astro integration that applies Stillwind CSS to server-rendered documents and client
+ * islands.
+ *
+ * Development SSR reads current CSS through a server bridge and embeds it in HTML. Production SSR
+ * inserts links from the stylesheet manifest.
+ *
+ * @param options - Compiler and Vite emission options shared by the client and server environments.
+ * @returns An Astro integration that installs Stillwind Vite plugins, middleware, and document
+ * stylesheet modules.
  */
 export function stillwind(options: StillwindOptions): AstroIntegration {
   const project = createViteProject(options);
-  const plugin = compilerPlugin(project);
+  const plugins = createVitePlugins(project);
   const bridgeId = randomUUID();
+
   let disposeBridge = () => {};
 
   return {
@@ -38,7 +56,7 @@ export function stillwind(options: StillwindOptions): AstroIntegration {
         updateConfig({
           vite: {
             plugins: [
-              plugin,
+              plugins,
               {
                 name: "stillwind:astro-document",
                 configureServer(server) {
@@ -139,8 +157,8 @@ export async function getStyles() {
                     return;
                   }
 
-                  const state = project.environmentState(this.environment?.name);
-                  const styles = (state.manifest?.parts ?? [])
+                  const build = project.buildOutput(this.environment?.name);
+                  const styles = (build?.manifest?.parts ?? [])
                     .map(
                       (part) =>
                         `<link rel="stylesheet" href="${part.href.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}">`,

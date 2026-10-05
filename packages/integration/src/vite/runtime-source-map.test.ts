@@ -28,7 +28,7 @@ test("joining CSS parts shifts their generated positions and keeps their origina
     },
   ]);
   const { code, map } = decodeCssSourceMap(renderedCss);
-  const trace = new TraceMap(map);
+  const trace = new TraceMap(map!);
 
   expect(code.trimEnd()).toBe(".base{}.first{}\n.second{}");
   expect(originalPositionFor(trace, { line: 1, column: ".base{}".length })).toMatchObject({
@@ -76,7 +76,7 @@ test("a longer image URL keeps the mapping for CSS after it, including UTF-16 co
 
   expect(code).toContain(imageUrl);
   expect(
-    originalPositionFor(new TraceMap(map), { line: 1, column: code.indexOf("color") }),
+    originalPositionFor(new TraceMap(map!), { line: 1, column: code.indexOf("color") }),
   ).toMatchObject({
     source: "stillwind-source:/input.css",
     line: 1,

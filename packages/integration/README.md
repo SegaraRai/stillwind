@@ -66,7 +66,7 @@ export default defineConfig({
 });
 ```
 
-The `astro:config:setup` hook adds the public Vite plugin with the same options,
+The `astro:config:setup` hook adds the Vite plugins with the same options,
 including `emission`. Keep the application's other Astro integrations. The optional
 Astro peer dependency is required only for this subpath.
 
@@ -132,20 +132,31 @@ The implementation uses `getResolve`, file/context dependencies, and a CSS-outpu
 loader rather than webpack compilation hooks. See the official
 [Turbopack loader API and module types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack).
 
-## Rspack
+## webpack and Rspack
 
 ```js
-import { stillwindRules, StillwindPlugin } from "@stillwind/integration/rspack";
+import { StillwindPlugin } from "@stillwind/integration/rspack";
 export default {
-  plugins: [new StillwindPlugin()],
+  plugins: [new StillwindPlugin({ css: "./src/stillwind.css" })],
   module: {
-    rules: [...stillwindRules({ css: "./src/stillwind.css" }), { test: /\.css$/, type: "css" }],
+    rules: [{ test: /\.css$/, type: "css" }],
   },
 };
 ```
 
-For webpack, import the plugin and rules from `@stillwind/integration/webpack` alongside the application's existing CSS loader
-pipeline. Next's webpack integration supplies its own CSS pipeline.
+For webpack, import `StillwindPlugin` from `@stillwind/integration/webpack` and pass
+its compiler options to the constructor. The plugin installs Stillwind's loader
+rules and registers CSS reconstruction before compilation begins. Keep the
+application's existing CSS loader pipeline. Next's webpack integration supplies
+its own loaders and CSS pipeline.
+
+Place `StillwindPlugin` before `VueLoaderPlugin` in webpack's `plugins` array.
+`VueLoaderPlugin` clones loader rules during setup, so Stillwind's rules must
+already be installed when it runs.
+
+Use `new StillwindPlugin({ css: "./src/stillwind.css", automatic: false })` when
+all styles are supplied through explicit `stillwind/module-css` values. The plugin
+still installs the producer loaders; ordinary producers do not import document CSS.
 
 ## Rsbuild
 
@@ -170,12 +181,27 @@ framework dependencies, and the frozen lockfile is at the workspace root.
 Run `vp run test:e2e` in `e2e/frameworks/tanstackstart1-react19-server-function` with the
 `rsbuild` profile to reproduce on port 43179.
 
+## Internal loader hosts
+
+`@stillwind/integration/internal/webpack-loader` exposes the producer loader for
+hosts that configure loaders directly. It accepts compiler options through the
+loader context. A host without `StillwindPlugin` can supply explicit
+`stillwind/module-css` values with `automatic: false`. It must provide webpack's
+resolution and file-dependency operations. Query-qualified dependencies also need
+`importModule` so the loader can capture transformed source without executing the
+application. Automatic document CSS and stylesheet projections require the plugin
+and a complete compilation graph.
+
+This internal API is separate from normal webpack configuration. Next and
+Turbopack use their own loaders, which reconstruct CSS from configured entries or
+framework routes as described above.
+
 ## Transport and verification
 
 Webpack/Rspack automatic producers record their inputs in bundler metadata. `StillwindPlugin`
 links the completed compilation graph, including lazy and cached modules, and
 rebuilds one shared CSS module for the host's extraction or HMR pipeline. The plugin
-must be installed before compilation begins, including on Rspack.
+is the configuration entrypoint for both webpack and Rspack.
 
 Explicit CSS values import immutable fragment modules. Common payloads share bytes.
 Each value retains its ordered rules and required producer styles.

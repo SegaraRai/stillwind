@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { transform as compileAstro } from "@astrojs/compiler";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import { checkerEnvironment, prepareSource } from "@stillwind/projection";
+import { checkerEnvironment, prepareSource, type PreparedSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 import { expect, test } from "vite-plus/test";
@@ -163,7 +163,7 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
   };
   for (const [extension, source] of Object.entries(examples)) {
     const id = path.join(root, `Component.${extension}`);
-    const output = await compileModule(session, () => facts, source, id, root, host);
+    const output = await compileModule(session, () => facts, source, id, host);
     expect(output).toBeTruthy();
     expect(output?.code).toContain(`<${extension === "astro" ? "div" : "script"}`);
     expect(output!.diagnostics).toStrictEqual([]);
@@ -173,7 +173,6 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
       () => facts,
       source.replace('"flex"', '"grid"').replace("'flex'", "'grid'"),
       id,
-      root,
       host,
     );
     expect(edited?.code).toBeTruthy();
@@ -183,7 +182,7 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
 });
 
 test("SFC output fails on residual macros or mismatched attribute context", async () => {
-  const compile = (input: Awaited<ReturnType<typeof prepareSource>>) =>
+  const compile = (input: PreparedSource) =>
     (
       compileProject(
         [input],

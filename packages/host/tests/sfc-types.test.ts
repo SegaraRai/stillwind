@@ -34,7 +34,6 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
       () => facts,
       files[entry],
       path.join(root, entry),
-      root,
       {
         resolve: async (specifier, importer) =>
           specifier.startsWith(".")

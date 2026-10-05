@@ -1,7 +1,13 @@
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
+import {
+  GenMapping,
+  addSegment,
+  setSourceContent,
+  toEncodedMap,
+  type EncodedSourceMap,
+} from "@jridgewell/gen-mapping";
 import remapping from "@jridgewell/remapping";
 
 export interface CssUpstreamMap {
@@ -10,7 +16,7 @@ export interface CssUpstreamMap {
   map: string;
 }
 
-function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUpstreamMap) {
+function composeUpstream(map: EncodedSourceMap, upstream?: CssUpstreamMap) {
   if (!upstream) {
     return map;
   }

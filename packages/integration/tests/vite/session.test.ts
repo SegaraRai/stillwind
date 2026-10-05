@@ -14,14 +14,15 @@ test("query modules retain independent CSS and deletion removes all derivatives 
     css,
     "@import '../packages/core/index.css'; @utility first { width: 13px; } @utility second { width: 17px; } @utility third { width: 19px; }",
   );
-  const plugin = stillwind({
+  const plugins = stillwind({
     css,
     types: false,
   });
+  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [plugin],
+    plugins: [plugins],
     logLevel: "silent",
     optimizeDeps: {
       noDiscovery: true,
@@ -96,14 +97,16 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
     "@import '../packages/core/index.css'; @import './tokens.css'; .base { color: var(--color-brand); }",
   );
   writeFileSync(tokens, "@theme { --color-brand: red; }");
-  const plugin = stillwind({
+  const plugins = stillwind({
     css,
     types: false,
   });
+  const [plugin] = plugins;
+  const development = plugins.find((plugin) => plugin.hotUpdate)!;
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [plugin],
+    plugins: [plugins],
     logLevel: "silent",
     server: {
       middlewareMode: true,
@@ -154,7 +157,7 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
     // Fresh stylesheet requests observe edits even when this environment has no HMR connection.
     writeFileSync(tokens, "@theme { --color-brand: blue; }");
     expect(await load.call(context, "\0stillwind:snapshot.css")).not.toStrictEqual(before);
-    const hot = plugin.hotUpdate;
+    const hot = development.hotUpdate;
     if (typeof hot !== "function") {
       expect.fail("expected HMR hook");
     }
@@ -170,7 +173,10 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
         warn: () => {},
         environment: server.environments.client,
       } as unknown as ThisParameterType<typeof hot>,
-      { ...hotContext, type: "update" },
+      {
+        ...hotContext,
+        type: "update",
+      },
     );
     const after = await load.call(context, "\0stillwind:snapshot.css");
     if (!(after && typeof after === "object" && after.map)) {
@@ -211,7 +217,7 @@ test("nested CSS imports resolve while a sibling import waits, and CSS keeps imp
   writeFileSync(first, ".first { color: red; }");
   writeFileSync(second, "@import 'parallel-child'; .second { color: blue; }");
   writeFileSync(child, ".child { color: green; }");
-  const plugin = stillwind({
+  const plugins = stillwind({
     css,
     types: false,
   });
@@ -254,7 +260,7 @@ test("nested CSS imports resolve while a sibling import waits, and CSS keeps imp
           return null;
         },
       },
-      plugin,
+      plugins,
     ],
     logLevel: "silent",
     server: {
@@ -292,10 +298,11 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
   const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
   const css = path.join(root, "root.css");
   writeFileSync(css, "@import 'failed'; @import 'late';");
-  const plugin = stillwind({
+  const plugins = stillwind({
     css,
     types: false,
   });
+  const [plugin] = plugins;
   const buildStart = plugin.buildStart;
   if (typeof buildStart !== "function") {
     expect.fail("expected buildStart hook");
@@ -344,10 +351,12 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
   writeFileSync(entry, '@import "environment-css"; @stillwind-slot utilities;');
   writeFileSync(clientCss, ".environment { color: red; } @stillwind-utility paint { color: red; }");
   writeFileSync(ssrCss, ".environment { color: blue; } @stillwind-utility paint { color: blue; }");
-  const plugin = stillwind({
+  const plugins = stillwind({
     css: entry,
     types: false,
   });
+  const [plugin] = plugins;
+  const development = plugins.find((plugin) => plugin.hotUpdate)!;
   let heldResolution: Promise<string> | undefined;
   let onHeldResolution: (() => void) | undefined;
   const server = await createServer({
@@ -373,7 +382,7 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
           }
         },
       },
-      plugin,
+      plugins,
     ],
   });
   try {
@@ -381,7 +390,7 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
     const ssr = server.environments.ssr;
     await Promise.all([client.pluginContainer.buildStart({}), ssr.pluginContainer.buildStart({})]);
     const load = plugin.load;
-    const hot = plugin.hotUpdate;
+    const hot = development.hotUpdate;
     const transform =
       typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
     if (
@@ -445,7 +454,10 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
       ".environment { color: green; } @stillwind-utility paint { color: green; }",
     );
     await hot!.call(
-      { environment: client, warn: () => {} } as unknown as ThisParameterType<typeof hot>,
+      {
+        environment: client,
+        warn: () => {},
+      } as unknown as ThisParameterType<typeof hot>,
       {
         type: "update",
         file: clientCss,
@@ -466,7 +478,10 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
     });
     const reload = () =>
       hot!.call(
-        { environment: client, warn: () => {} } as unknown as ThisParameterType<typeof hot>,
+        {
+          environment: client,
+          warn: () => {},
+        } as unknown as ThisParameterType<typeof hot>,
         {
           type: "update",
           file: clientCss,

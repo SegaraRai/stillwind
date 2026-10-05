@@ -1,229 +1,188 @@
-import { createHash } from "node:crypto";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import type { CssUpstreamMap } from "@stillwind/host";
 
-import { cleanModuleId, type CssUpstreamMap } from "@stillwind/host";
+import type { StillwindOptions } from "../options.ts";
+import { compilationStyles } from "./compilation-styles.ts";
+import { createCompilationHost, type ResolverHost } from "./host.ts";
 
-import {
-  compilerOptions,
-  cssEntrypoint,
-  writeVocabulary,
-  type StillwindOptions,
-} from "../options.ts";
-import { IntegrationSession } from "../session.ts";
-import { sourceDescriptor } from "./sources.ts";
-
-interface ProducerInput {
+/** A producer and its captured dependencies stored in bundler metadata for CSS reconstruction. */
+export interface ProducerInput {
+  /** Source text received by the producer loader, before Stillwind compilation. */
   source: string;
+  /** Producer identity. Query-qualified script dependencies retain their query suffix. */
   id: string;
+  /** Absolute project root against which compiler module identities are resolved. */
   root: string;
+  /** Compiler configuration shared by every producer in this compilation. */
   options: StillwindOptions;
+  /**
+   * Whether this producer is excluded from automatic document CSS and supplies explicit CSS values.
+   */
   manual: boolean;
+  /** Map from loader input back to the original source, used when composing final CSS maps. */
   upstream?: CssUpstreamMap;
+  /**
+   * Transformed dependencies captured through the loader chain. Cached metadata retains them for
+   * reconstruction.
+   */
   dependencies?: {
+    /** Complete resolver identity, including the query that selected the transformed dependency. */
     id: string;
+    /** Source produced by the loaders that ran before Stillwind. */
     source: string;
+    /**
+     * Map from the captured source back to its original source, when the preceding loaders supplied
+     * one.
+     */
     upstream?: CssUpstreamMap;
   }[];
 }
 
-const installed = new WeakSet();
+/**
+ * Stores a producer in module build metadata so cached modules can participate in CSS
+ * reconstruction.
+ *
+ * @param context - Loader context for a module in a compilation registered by `StillwindPlugin`.
+ * @param input - Producer source, compiler configuration, and captured dependency sources.
+ * @throws If the compilation has no registered emission hook or the loader context has no module.
+ */
+export function recordProducer(context: EmissionContext, input: ProducerInput): void {
+  requireEmission(context);
+  if (!context._module) {
+    throw new Error(incompleteGraphMessage);
+  }
+  context._module.buildInfo.stillwind = input;
+}
 
-/** Links the completed webpack/Rspack graph before CSS modules are code-generated. */
-function registerEmission(context: any, input?: ProducerInput) {
-  const compilation = context._compilation;
-  if (!compilation?.hooks?.finishModules || (input && !context._module)) {
-    throw new Error(
-      "Automatic Stillwind CSS requires a complete-graph webpack/Rspack integration; use stillwind/module-css for explicit transport in loader-only hosts",
-    );
-  }
-  if (input) {
-    context._module.buildInfo.stillwind = input;
-  }
+/**
+ * Bundler module metadata used to recover cached producer inputs and identify the shared document
+ * CSS carrier.
+ */
+interface EmissionModule {
+  /** Resource path and query used to identify the shared document CSS carrier. */
+  resource?: string;
+  /** Build metadata retained by the bundler when a module is reused from cache. */
+  buildInfo: {
+    /** Producer input reconstructed after the compilation graph is complete. */
+    stillwind?: ProducerInput;
+  };
+}
+
+/** Compilation operations required to collect producers and rebuild document CSS carriers. */
+export interface EmissionCompilation {
+  hooks: {
+    finishModules: {
+      tapPromise(
+        name: string,
+        callback: (modules: Iterable<EmissionModule>) => Promise<void>,
+      ): void;
+    };
+  };
+  fileDependencies: {
+    add(id: string): unknown;
+  };
+  warnings: {
+    push(error: Error): unknown;
+  };
+  rebuildModule(module: EmissionModule, callback: (error: Error | null) => void): void;
+  /**
+   * Reconstructed document CSS, optionally including an inline source map. Undefined before
+   * reconstruction.
+   */
+  __stillwindCss?: string;
+}
+
+/**
+ * Bundler context used to register emission and attach producer metadata to the current
+ * compilation.
+ */
+export interface EmissionContext extends ResolverHost {
+  _compilation?: EmissionCompilation;
+  _module?: EmissionModule;
+  /**
+   * Bundler mode forwarded to CSS reconstruction. Only `development` selects development
+   * compilation.
+   */
+  mode?: string;
+}
+
+/**
+ * Registers CSS reconstruction after all modules in the compilation have finished.
+ *
+ * Registration is idempotent for a compilation. The hook collects cached and newly built producers,
+ * stores document CSS, and rebuilds each carrier through the host CSS pipeline.
+ *
+ * @param context - Context with a compilation, filesystem, and resolver. Register it before
+ * producer loaders run.
+ * @throws If the context has no compilation with a `finishModules` hook.
+ */
+export function installEmission(context: EmissionContext): void {
+  const compilation = requireCompilation(context);
   if (installed.has(compilation)) {
     return;
   }
-  if (context._compiler?.rspack) {
-    throw new Error(
-      "Stillwind Rspack emission requires new StillwindPlugin() alongside stillwindRules()",
-    );
-  }
   installed.add(compilation);
-  const filesystem = context.fs;
-  const resolveModule = context.getResolve({
-    dependencyType: "esm",
-    extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".cjs", ".vue", ".svelte", ".astro"],
+  const io = createCompilationHost(context);
+  compilation.hooks.finishModules.tapPromise("StillwindEmission", async (modules) => {
+    const completed = [...modules];
+    const producers = completed
+      .map((module) => module.buildInfo?.stillwind)
+      .filter((input): input is ProducerInput => Boolean(input));
+    const carriers = completed.filter((module) =>
+      module.resource?.includes("stillwind-webpack.css?stillwind-document"),
+    );
+    if (!carriers.length || !producers.length) {
+      return;
+    }
+    compilation.__stillwindCss = await compilationStyles(
+      producers,
+      io,
+      context.mode,
+      (id) => compilation.fileDependencies.add(id),
+      (message) => compilation.warnings.push(new Error(message)),
+    );
+    for (const carrier of carriers) {
+      await new Promise<void>((resolve, reject) =>
+        compilation.rebuildModule(carrier, (error) => (error ? reject(error) : resolve())),
+      );
+    }
   });
-  const resolveStylesheet = context.getResolve({
-    conditionNames: ["style", "import", "default"],
-    extensions: [".css"],
-    mainFields: ["style", "main"],
-  });
-  const resolveResource = context.getResolve({});
-  compilation.hooks.finishModules.tapPromise(
-    "StillwindEmission",
-    async (modules: Iterable<any>) => {
-      const producers = [...modules].filter((module) => module.buildInfo?.stillwind);
-      const carriers = [...modules].filter((module) =>
-        module.resource?.includes("stillwind-webpack.css?stillwind-document"),
-      );
-      if (!carriers.length || !producers.length) {
-        return;
-      }
-      const host = await import("@stillwind/host");
-      const sources = new Map<string, string>();
-      for (const producer of producers) {
-        const input = producer.buildInfo.stillwind as ProducerInput;
-        sources.set(input.id, input.source);
-        for (const dependency of input.dependencies ?? []) {
-          sources.set(dependency.id, dependency.source);
-        }
-      }
-      const read = (id: string) =>
-        new Promise<string>((resolve, reject) =>
-          filesystem.readFile(cleanModuleId(id), (error: Error | null, value: unknown) =>
-            error ? reject(error) : resolve(String(value)),
-          ),
-        );
-      const readDependency = (id: string) => {
-        if (sources.has(id)) {
-          return Promise.resolve(sources.get(id)!);
-        }
-        if (cleanModuleId(id) !== id) {
-          return Promise.reject(new Error(`No transformed source captured for ${id}`));
-        }
-        return read(id);
-      };
-      const resolver = (resolve: any) => {
-        return (specifier: string, importer: string) =>
-          new Promise<string>((done, reject) =>
-            resolve(path.dirname(importer), specifier, (error: Error | null, id: string) =>
-              error ? reject(error) : done(id),
-            ),
-          );
-      };
-      const resolveCss = resolver(resolveStylesheet);
-      const resolveJs = resolver(resolveModule);
-      const resolveAsset = resolver(resolveResource);
-      const { options, root } = producers[0].buildInfo.stillwind;
-      const loaded = await host.loadCssGraph(
-        path.resolve(root, cssEntrypoint(options)),
-        compilerOptions(options),
-        {
-          read,
-          resolve: resolveCss,
-          documentUri: (id) => pathToFileURL(id).href,
-          sourceMapSource: (id) => pathToFileURL(id).href,
-          watch: (id) => compilation.fileDependencies.add(id),
-        },
-      );
-      writeVocabulary(loaded.loader, root, options);
-      const compiler = new IntegrationSession(
-        root,
-        loaded.loader,
-        options,
-        false,
-        context.mode === "development" ? "development" : "release",
-      );
-      const session = compiler.native;
-      const selection = [];
-      try {
-        for (const producer of producers) {
-          const input = producer.buildInfo.stillwind;
-          if (input.root !== root || JSON.stringify(input.options) !== JSON.stringify(options)) {
-            throw new Error("A compilation must use one Stillwind design system");
-          }
-          const output = await compiler.compile(
-            input.source,
-            input.id,
-            {
-              describe: (id) => sourceDescriptor(root, id),
-              resolve: async (specifier, importer) => ({
-                id: await resolveJs(specifier, importer),
-              }),
-              read: readDependency,
-              watch: (id) => {
-                compilation.fileDependencies.add(cleanModuleId(id));
-              },
-              warn: (message) => {
-                compilation.warnings.push(new Error(message));
-              },
-            },
-            {
-              moduleCssImport: "stillwind/module-css",
-            },
-          );
-          if (output && !input.manual) {
-            selection.push(output.moduleId);
-          }
-        }
-        const revision = createHash("sha256")
-          .update(producers.map((module) => `${module.buildInfo.stillwind.source}\0`).join(""))
-          .digest("hex");
-        const plan = session.planStylesheet({
-          modules: selection,
-          coverage: { kind: "complete", target: "compilation", revision },
-          placement: "document",
-        });
-        const replacements = new Map();
-        for (const resource of [...loaded.resources, ...plan.resources]) {
-          const owner =
-            "moduleId" in resource ? compiler.resolverId(resource.moduleId) : resource.sourceName;
-          const file = await resolveAsset(resource.specifier, owner);
-          compilation.fileDependencies.add(file);
-          let request = path
-            .relative(
-              path.dirname(fileURLToPath(import.meta.resolve("@stillwind/integration/webpack"))),
-              file,
-            )
-            .replaceAll("\\", "/");
-          if (!request.startsWith(".")) {
-            request = `./${request}`;
-          }
-          replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
-        }
-        compilation.__stillwindCss = host.cssWithSourceMap(
-          plan,
-          replacements,
-          producers.flatMap((producer) =>
-            [
-              producer.buildInfo.stillwind.upstream,
-              ...(producer.buildInfo.stillwind.dependencies ?? []).map(
-                (dependency: NonNullable<ProducerInput["dependencies"]>[number]) =>
-                  dependency.upstream,
-              ),
-            ].filter((upstream): upstream is CssUpstreamMap => Boolean(upstream)),
-          ),
-        );
-        for (const carrier of carriers) {
-          await new Promise<void>((resolve, reject) =>
-            compilation.rebuildModule(carrier, (error: Error | null) =>
-              error ? reject(error) : resolve(),
-            ),
-          );
-        }
-      } finally {
-        compiler.close();
-      }
-    },
-  );
 }
 
-class StillwindPlugin {
-  apply(compiler: any) {
-    compiler.hooks.thisCompilation.tap("StillwindEmission", (compilation: any) => {
-      registerEmission({
-        _compilation: compilation,
-        fs: compiler.inputFileSystem,
-        mode: compiler.options.mode,
-        getResolve(settings: any) {
-          const resolver = compiler.resolverFactory.get("normal", settings);
-          return (directory: string, specifier: string, callback: any) =>
-            resolver.resolve({}, directory, specifier, {}, callback);
-        },
-      });
-    });
+/**
+ * Compilations whose emission hooks have been registered. Membership is required before automatic
+ * loaders record producers.
+ */
+const installed = new WeakSet<EmissionCompilation>();
+
+const incompleteGraphMessage =
+  "Automatic Stillwind CSS requires new StillwindPlugin(options) before compilation begins";
+
+/**
+ * Obtains the compilation operations needed to reconstruct document CSS.
+ *
+ * @param context - Bundler context that must expose a `finishModules` compilation hook.
+ * @returns The compilation attached to the context.
+ * @throws If the context cannot supply a completed compilation graph.
+ */
+function requireCompilation(context: EmissionContext): EmissionCompilation {
+  const compilation = context._compilation;
+  if (!compilation?.hooks?.finishModules) {
+    throw new Error(incompleteGraphMessage);
   }
+  return compilation;
 }
 
-export { registerEmission, StillwindPlugin };
+/**
+ * Rejects automatic CSS requests when the compilation has no registered emission hook.
+ *
+ * @param context - Loader context associated with a compilation registered by `StillwindPlugin`.
+ * @returns The compilation holding reconstructed document CSS.
+ * @throws If the compilation is missing or its emission hook has not been registered.
+ */
+export function requireEmission(context: EmissionContext): EmissionCompilation {
+  const compilation = requireCompilation(context);
+  if (!installed.has(compilation)) {
+    throw new Error(incompleteGraphMessage);
+  }
+  return compilation;
+}

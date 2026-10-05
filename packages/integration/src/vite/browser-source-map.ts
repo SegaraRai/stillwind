@@ -1,11 +1,26 @@
-import { GenMapping, addSegment, toEncodedMap } from "@jridgewell/gen-mapping";
+import {
+  GenMapping,
+  addSegment,
+  toEncodedMap,
+  type EncodedSourceMap,
+} from "@jridgewell/gen-mapping";
 import { TraceMap, eachMapping } from "@jridgewell/trace-mapping";
 
-/** Publishes positions with caller-approved source names and no source text or symbol names. */
+/** Serialized or object source map accepted by the tracing library, including readonly arrays. */
+export type BrowserSourceMapInput = ConstructorParameters<typeof TraceMap>[0];
+
+/**
+ * Publishes positions with caller-approved source names and no source text or symbol names.
+ *
+ * @param input - Serialized or object source map accepted by the tracing library.
+ * @param sourceName - Maps each original source name to the name approved for browser delivery.
+ * @returns An encoded map retaining positions with the approved names and no embedded source text.
+ * @throws If the input is not a valid source map.
+ */
 export function browserSourceMap(
-  input: ConstructorParameters<typeof TraceMap>[0],
+  input: BrowserSourceMapInput,
   sourceName: (source: string) => string,
-) {
+): EncodedSourceMap {
   const trace = new TraceMap(input);
   const map = new GenMapping();
   const sources = new Map<string, string>();

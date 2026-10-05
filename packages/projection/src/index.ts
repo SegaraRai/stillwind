@@ -12,4 +12,4 @@ export type {
   SourceProjection,
 } from "./protocol.ts";
 export { checkerEnvironment } from "./checker.ts";
-export type { CheckerBuffer } from "./checker.ts";
+export type { CheckerBuffer, CheckerEnvironment } from "./checker.ts";

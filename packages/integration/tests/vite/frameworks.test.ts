@@ -14,14 +14,15 @@ test("raw SFC transforms retain stable producer registrations and replace linked
     css,
     "@utility red {color:red;} @utility blue {color:blue;} @stillwind-slot utilities;",
   );
-  const plugin = stillwind({
+  const plugins = stillwind({
     css,
     types: false,
   });
+  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [plugin],
+    plugins: [plugins],
     logLevel: "silent",
     server: {
       middlewareMode: true,

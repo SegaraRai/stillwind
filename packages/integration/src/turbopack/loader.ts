@@ -6,7 +6,7 @@ import type { LoaderContext } from "webpack";
 
 import { createProject, type TurbopackLoaderOptions } from "./project.ts";
 
-export default function (
+export default function turbopackLoader(
   this: LoaderContext<TurbopackLoaderOptions>,
   source: string,
   inputMap: any,

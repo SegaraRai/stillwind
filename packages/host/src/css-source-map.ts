@@ -1,16 +1,48 @@
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
-import remapping from "@jridgewell/remapping";
+import {
+  GenMapping,
+  addSegment,
+  setSourceContent,
+  toEncodedMap,
+  type EncodedSourceMap,
+} from "@jridgewell/gen-mapping";
+import remapping, { type SourceMap } from "@jridgewell/remapping";
+import type { EncodedSourceMap as MutableEncodedSourceMap } from "@jridgewell/trace-mapping";
 
+/**
+ * Producer map used to trace native CSS locations from a transformed script or component back to
+ * its authored source.
+ */
 export interface CssUpstreamMap {
+  /**
+   * Producer filesystem identity used as the base for relative map sources. Ordinary query and
+   * fragment suffixes may follow its path.
+   */
   id: string;
+  /** Exact source name in the native CSS map to which this producer map applies. */
   sourceMapSource: string;
+  /** JSON text for an encoded version 3 map from producer input to authored sources. */
   map: string;
 }
 
-function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUpstreamMap) {
+/**
+ * Composes one producer map into the matching immediate source of a CSS map.
+ *
+ * Relative producer sources are resolved against its resource path and optional source root. Other
+ * CSS sources keep their existing mappings.
+ *
+ * @param map - Encoded CSS map whose source names identify original producer inputs.
+ * @param upstream - Optional producer map and the exact CSS source name to replace.
+ * @returns The composed map, or the input map unchanged when upstream is absent or lacks a sources
+ * array or nonempty mappings.
+ * @throws If producer JSON, source URLs, or source-map composition are invalid.
+ */
+function composeUpstream(
+  map: EncodedSourceMap,
+  upstream?: CssUpstreamMap,
+): EncodedSourceMap | SourceMap {
   if (!upstream) {
     return map;
   }
@@ -36,29 +68,65 @@ function composeUpstream(map: ReturnType<typeof toEncodedMap>, upstream?: CssUps
   );
 }
 
+/**
+ * Native locations linking generated CSS intervals to authored text. All interval offsets count
+ * UTF-8 bytes before resource placeholders are replaced.
+ */
 export interface CssLocations {
+  /** Source table indexed by each entry's `source` field. */
   sources: {
+    /** Source identity recorded in the emitted version 3 map. */
     sourceMapSource: string;
+    /**
+     * Authored source text used to derive original lines, UTF-16 columns, and optional
+     * `sourcesContent`.
+     */
     content: string;
   }[];
+  /**
+   * Nonoverlapping generated CSS intervals. Rendering sorts them by generated start. Callers must
+   * supply valid source indexes and byte boundaries.
+   */
   entries: {
+    /** Zero-based index into `sources` for the authored interval. */
     source: number;
+    /** Inclusive UTF-8 byte offset in generated CSS before resource replacement. */
     generatedStart: number;
+    /** Exclusive UTF-8 byte offset in that CSS, at or after `generatedStart`. */
     generatedEnd: number;
+    /** Inclusive UTF-8 byte offset in the selected source's content. */
     originalStart: number;
+    /** Exclusive UTF-8 byte offset in that content, at or after `originalStart`. */
     originalEnd: number;
+    /**
+     * True maps matching text byte for byte from `originalStart`. False maps the generated interval
+     * to its original start.
+     */
     exact: boolean;
   }[];
 }
 
+/** CSS and native source locations before resource URLs and upstream maps are composed. */
+export interface CssSourceMapInput {
+  /** Stylesheet text containing any unresolved resource placeholder tokens. */
+  css: string;
+  /** Native source locations whose generated offsets count UTF-8 bytes in `css`. */
+  sourceMap: CssLocations;
+}
+
 /**
- * Rewrite resource placeholders while retaining native UTF-8 source locations.
+ * Rewrites resource placeholders while retaining native UTF-8 source locations.
+ *
+ * @param output - CSS and native source locations before resource replacement. Source indexes and
+ * byte boundaries must be valid for the supplied CSS and authored text.
+ * @param replacements - Resource placeholders mapped to escaped URL text.
+ * @param upstream - Optional maps from producer input back to its original source, in composition order.
+ * @param includeSourcesContent - Whether the inline map retains source text. Defaults to true.
+ * @returns Resolved CSS with an inline version 3 map, or an empty string when the input CSS is empty.
+ * @throws If an upstream map cannot be decoded, its source URLs are invalid, or composition fails.
  */
 export function cssWithSourceMap(
-  output: {
-    css: string;
-    sourceMap: CssLocations;
-  },
+  output: CssSourceMapInput,
   replacements: ReadonlyMap<string, string>,
   upstream?: CssUpstreamMap | readonly CssUpstreamMap[],
   includeSourcesContent = true,
@@ -142,10 +210,27 @@ export function cssWithSourceMap(
   );
 }
 
+/** Stylesheet text and its decoded inline source map, ready for a bundler's CSS pipeline. */
+export interface DecodedCssSourceMap {
+  /** CSS with the recognized trailing inline source-map comment removed. */
+  code: string;
+  /**
+   * Decoded version 3 map with mutable arrays and string source identities, or null when the CSS
+   * has no recognized trailing map.
+   */
+  map: (MutableEncodedSourceMap & { sources: string[] }) | null;
+}
+
 /**
- * Self-contained carriers survive independent processes and filesystem caches.
+ * Decodes the trailing inline map emitted by `cssWithSourceMap` or a compatible CSS carrier.
+ *
+ * @param css - Stylesheet text. A recognized map must contain a base64-encoded version 3 JSON map
+ * in the trailing comment format emitted by `cssWithSourceMap`.
+ * @returns CSS and its decoded map. Without a recognized trailing map, the CSS is unchanged and
+ * the map is null. JSON is decoded without validating its source-map fields.
+ * @throws If a recognized inline map contains invalid JSON.
  */
-export function decodeCssSourceMap(css: string) {
+export function decodeCssSourceMap(css: string): DecodedCssSourceMap {
   const match =
     /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(css);
   if (!match) {
@@ -156,6 +241,8 @@ export function decodeCssSourceMap(css: string) {
   }
   return {
     code: css.slice(0, match.index),
-    map: JSON.parse(Buffer.from(match[1], "base64").toString("utf8")),
+    map: JSON.parse(Buffer.from(match[1], "base64").toString("utf8")) as NonNullable<
+      DecodedCssSourceMap["map"]
+    >,
   };
 }

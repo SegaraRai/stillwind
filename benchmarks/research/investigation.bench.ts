@@ -126,14 +126,7 @@ for (const operation of ["unchanged", "edit"] as const) {
     let output: Awaited<ReturnType<typeof compileModule>>;
     try {
       const analyze = (source: string) =>
-        compileModule(
-          session,
-          () => facts,
-          source,
-          path.join(root, "perf-semantic.tsx"),
-          root,
-          host,
-        );
+        compileModule(session, () => facts, source, path.join(root, "perf-semantic.tsx"), host);
       await analyze(semantic);
       task.meta.measurement = options;
       await bench(operation, { async: true }, async () => {
@@ -178,7 +171,6 @@ test("host/fresh/phases", async ({ bench, task }) => {
         () => facts,
         semantic,
         path.join(root, "perf-semantic.tsx"),
-        root,
         host,
       );
       const compiled = performance.now();
@@ -277,13 +269,13 @@ for (const count of [10, 100]) {
       let edit = 0;
       const graphOptions = { ...options, iterations: 5, warmupIterations: 1 };
       try {
-        await compileModule(session, () => service, source, id, graphRoot, graphHost);
+        await compileModule(session, () => service, source, id, graphHost);
         reads = 0;
         resolves = 0;
         task.meta.measurement = graphOptions;
         await bench(operation, { async: true }, async () => {
           const text = operation === "edit" ? source + `\n// edit ${++edit}` : source;
-          output = await compileModule(session, () => service, text, id, graphRoot, graphHost);
+          output = await compileModule(session, () => service, text, id, graphHost);
         }).run(graphOptions);
         expect(output!.diagnostics).toEqual([]);
         task.meta.notes = JSON.stringify({

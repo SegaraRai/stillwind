@@ -20,32 +20,25 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
   const session = new NativeProjectSession(loader, false);
   const facts = new TypeScriptFactsService(root);
   try {
-    const output = await compileModule(
-      session,
-      () => facts,
-      files[entry],
-      path.join(root, entry),
-      root,
-      {
-        resolve: async (specifier, importer) => ({
-          id: path.resolve(path.dirname(importer), `${specifier}.ts`),
-        }),
-        read: async (id) => {
-          const source = files[path.basename(id)];
-          expect(source).not.toBe(undefined);
-          return source;
-        },
-        describe: (id) => ({
-          ...fileModuleDescriptor(root, id),
-          document: {
-            ...fileModuleDescriptor(root, id).document,
-            uri: `untitled:${encodeURIComponent(id)}`,
-          },
-        }),
-        watch: () => {},
-        warn: () => {},
+    const output = await compileModule(session, () => facts, files[entry], path.join(root, entry), {
+      resolve: async (specifier, importer) => ({
+        id: path.resolve(path.dirname(importer), `${specifier}.ts`),
+      }),
+      read: async (id) => {
+        const source = files[path.basename(id)];
+        expect(source).not.toBe(undefined);
+        return source;
       },
-    );
+      describe: (id) => ({
+        ...fileModuleDescriptor(root, id),
+        document: {
+          ...fileModuleDescriptor(root, id).document,
+          uri: `untitled:${encodeURIComponent(id)}`,
+        },
+      }),
+      watch: () => {},
+      warn: () => {},
+    });
     expect(output).toBeTruthy();
     return output!;
   } finally {
@@ -337,28 +330,21 @@ test("composition follows imported and re-exported style producers", async () =>
   const facts = new TypeScriptFactsService(root);
   try {
     const compile = () =>
-      compileModule(
-        session,
-        () => facts,
-        files.get("entry.ts")!,
-        path.join(root, "entry.ts"),
-        root,
-        {
-          resolve: async (specifier, importer) => ({
-            id: path.resolve(path.dirname(importer), `${specifier}.ts`),
-          }),
-          read: async (id) => files.get(path.basename(id))!,
-          describe: (id) => ({
-            ...fileModuleDescriptor(root, id),
-            document: {
-              ...fileModuleDescriptor(root, id).document,
-              uri: `untitled:${encodeURIComponent(id)}`,
-            },
-          }),
-          watch: () => {},
-          warn: () => {},
-        },
-      );
+      compileModule(session, () => facts, files.get("entry.ts")!, path.join(root, "entry.ts"), {
+        resolve: async (specifier, importer) => ({
+          id: path.resolve(path.dirname(importer), `${specifier}.ts`),
+        }),
+        read: async (id) => files.get(path.basename(id))!,
+        describe: (id) => ({
+          ...fileModuleDescriptor(root, id),
+          document: {
+            ...fileModuleDescriptor(root, id).document,
+            uri: `untitled:${encodeURIComponent(id)}`,
+          },
+        }),
+        watch: () => {},
+        warn: () => {},
+      });
     const result = await compile();
     expect(result).toBeTruthy();
     expect(result!.code!).toMatch(

@@ -32,6 +32,7 @@ type Manifest = {
   /** Compiler overrides shared by module compilation and project stylesheet rendering. */
   compilerOptions?: NativeCompilerOptions;
 };
+
 type ModuleOutput = {
   path: string;
   code: string | null;
@@ -81,7 +82,26 @@ function loadProjects() {
     .sort((left, right) => left.manifest.id.localeCompare(right.manifest.id));
 }
 
-function compileProject(root: string, manifest: Manifest) {
+/** Compiled module artifacts and complete stylesheet used to check or generate a project fixture. */
+export interface CompiledFixtureProject {
+  /** Module outputs in the source order declared by the fixture manifest. */
+  modules: ModuleOutput[];
+  /** Complete project CSS rendered from module styles using the fixture's theme and compiler settings. */
+  projectCss: string;
+}
+
+/**
+ * Compiles a fixture's sources and renders their complete project stylesheet.
+ *
+ * The function creates virtual checker directories and collects type facts before native
+ * compilation. It returns artifacts without writing the fixture's expected output files.
+ *
+ * @param root - Absolute fixture directory containing the manifest's input sources and theme.
+ * @param manifest - Fixture metadata whose source paths are relative to its input directory.
+ * @returns Module artifacts and project CSS for comparison or generation.
+ * @throws If an input cannot be read, checker or compiler work fails, or compilation reports diagnostics.
+ */
+function compileProject(root: string, manifest: Manifest): CompiledFixtureProject {
   const sources = manifest.sources.map((sourcePath) => {
     // Place virtual TS files under packages/integration so module resolution sees the
     // same workspace dependencies as the production checker service. The TS7
@@ -300,7 +320,7 @@ function runnableOutput(module: ModuleOutput, fixture: string) {
 
 const projects = loadProjects();
 const stale: string[] = [];
-const compiledProjects = new Map<string, ReturnType<typeof compileProject>>();
+const compiledProjects = new Map<string, CompiledFixtureProject>();
 for (const { root, manifest } of projects) {
   const output = compileProject(root, manifest);
   compiledProjects.set(manifest.id, output);
@@ -322,7 +342,6 @@ for (const { root, manifest } of projects) {
     stale,
   );
 }
-
 if (stale.length > 0) {
   throw new Error(
     `Review fixtures are stale:\n${stale.join("\n")}\nRun: vp run generate:fixtures:projects`,
@@ -358,4 +377,5 @@ if (stale.length > 0) {
     `Review fixtures are stale:\n${stale.map((file) => `- ${file}`).join("\n")}\nRun: vp run generate:fixtures:projects`,
   );
 }
+
 console.log(`${check ? "Verified" : "Generated"} ${projects.length} review fixture project(s).`);

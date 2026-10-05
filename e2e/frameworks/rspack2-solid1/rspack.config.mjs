@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import { HtmlRspackPlugin as HtmlPlugin } from "@rspack/core";
-import { StillwindPlugin, stillwindRules } from "@stillwind/integration/rspack";
+import { StillwindPlugin } from "@stillwind/integration/rspack";
 
 const require = createRequire(import.meta.url);
 const root = process.cwd();
@@ -25,17 +25,16 @@ export default {
     conditionNames: ["svelte", "browser", "import", "default"],
   },
   plugins: [
-    new StillwindPlugin(),
+    new StillwindPlugin({
+      css: "src/styles.css",
+      root,
+    }),
     new HtmlPlugin({
       template: "./index.html",
     }),
   ],
   module: {
     rules: [
-      ...stillwindRules({
-        css: "src/styles.css",
-        root,
-      }),
       {
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,

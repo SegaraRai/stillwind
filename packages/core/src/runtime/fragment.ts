@@ -1,47 +1,74 @@
 /**
- * Fragment construction and props materialization for compiled style calls.
- * Each runtime instance owns its class and style symbols; fragments must be
- * consumed by the instance that created their keys.
+ * CSS property names mapped to value text for a generated fragment's style or custom properties.
  */
-
 export type StillwindStylePayload = Readonly<Record<string, string>>;
 
+/** Framework conventions used when materializing generated fragments as element props. */
 export interface FragmentRuntimeOptions {
-  /** `className` for React, `class` for every other framework. */
+  /** Element prop that receives class text, such as `class` or `className`. */
   readonly classProperty: string;
-  /** Object frameworks receive the payload as an object, others as a string. */
+  /** Whether style records remain objects or become semicolon-separated declaration text. */
   readonly styleFormat: "object" | "string";
 }
 
 /**
- * Instance-local fragment keys and conversion operations. Compiler-generated
- * fragments carry class contributions and an optional complete style payload.
+ * Operations and private symbol keys shared by fragments created for one runtime instance.
+ * Fragments must be merged by the instance that supplied their keys.
  */
 export interface FragmentRuntime {
+  /**
+   * Own symbol property containing a fragment's class text. Other runtime instances use a different
+   * key.
+   */
   readonly stillwindClassKey: symbol;
+  /** Own symbol property containing the fragment's authored style payload, before serialization. */
   readonly stillwindStyleKey: symbol;
-  /** Custom properties merge individually, with later entries winning. */
+  /**
+   * Own symbol property containing generated custom properties applied after the authored style.
+   */
   readonly stillwindCustomPropertiesKey: symbol;
-  /** Converts a whole-style payload to the framework format; nullish values yield undefined. */
+  /**
+   * Converts an authored style payload using this runtime's framework convention.
+   *
+   * @param value - Style payload. Null and undefined mean no style. String mode accepts text or an
+   * object.
+   * @returns The payload unchanged in object mode, serialized declarations in string mode, or
+   * undefined for an unsupported string-mode payload.
+   */
   readonly stillwindStyleValue: (value: unknown) => unknown;
   /**
-   * Flattens arrays left-to-right, ignoring falsy and nonobject values. Class
-   * contributions are joined without deduplication; later enumerable props win.
-   * The last non-null symbol style payload replaces the entire earlier payload
-   * and, when serializable, takes precedence over the ordinary style prop.
-   * Custom-property fragments merge per name and overlay the materialized style.
-   * Development checks reject foreign symbols and materialized class props on
-   * objects without this instance's keys; production omits those checks.
+   * Materializes fragments and ordinary prop records into one element prop object.
+   *
+   * Nested arrays are traversed in order. Fragment classes are joined. Later ordinary props and
+   * authored style payloads replace earlier ones. Generated custom properties are combined and
+   * applied last. The last non-null fragment style overrides ordinary style props. Inputs are not
+   * mutated.
+   *
+   * @param values - Fragments from this instance, ordinary prop records, or nested arrays.
+   * Nonobjects are ignored.
+   * @returns Element props with this runtime's class property and style format.
+   * @throws In development if an unrecognized record contains symbols or an own class prop, or the
+   * result retains symbol properties.
    */
   readonly stillwindMerge: (...values: readonly unknown[]) => Record<string, unknown>;
   /**
-   * Returns an existing instance fragment unchanged, otherwise copies enumerable
-   * string props and moves class/style to the instance symbols. Other symbol keys
-   * are not copied. Throws TypeError for nonobjects in every build mode.
+   * Converts materialized element props into a fragment that this instance can merge.
+   *
+   * @param value - Element prop object. Class and style props become private symbol properties.
+   * Other enumerable string props are copied.
+   * @returns The input unchanged if it already has one of this instance's own fragment keys,
+   * otherwise a new fragment.
+   * @throws If the value is null or is not an object.
    */
   readonly stillwindToFragment: (value: unknown) => Record<PropertyKey, unknown>;
 }
 
+/**
+ * Selects runtime validation when `NODE_ENV` is not exactly `production`.
+ *
+ * @returns True when the process or its environment is unavailable, or the environment is not
+ * production.
+ */
 function isDevelopment(): boolean {
   return (
     typeof process === "undefined" ||
@@ -50,15 +77,22 @@ function isDevelopment(): boolean {
   );
 }
 
+/**
+ * Checks whether a value can carry fragment or style properties.
+ *
+ * @param value - Value to inspect.
+ * @returns True for non-null objects, including arrays, and false for functions and primitives.
+ */
 function isObject(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 /**
- * Creates fresh fragment symbols and operations for the supplied props convention.
- * String style serialization joins key:value entries with semicolons without CSS
- * escaping; callers must supply valid CSS names and values. Development checks are
- * enabled unless process.env.NODE_ENV is explicitly "production".
+ * Creates framework-specific fragment operations with fresh symbol keys.
+ *
+ * @param options - Class prop name and style serialization convention for the target framework.
+ * @returns An independent runtime. Generated fragments must use these keys when passed to its merge
+ * operation.
  */
 export function createFragmentRuntime(options: FragmentRuntimeOptions): FragmentRuntime {
   const stillwindClassKey = Symbol("stillwind.class");

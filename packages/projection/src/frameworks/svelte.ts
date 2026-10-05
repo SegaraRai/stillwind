@@ -1,5 +1,5 @@
-import { parse } from "svelte/compiler";
-import { svelte2tsx } from "svelte2tsx";
+import { parse, type AST } from "svelte/compiler";
+import { svelte2tsx, type SvelteCompiledToTsx } from "svelte2tsx";
 import ts from "typescript";
 
 import type { SourceProjection } from "../protocol.ts";
@@ -22,8 +22,8 @@ export function convert(source: string, filename: string): SourceProjection {
     svelte: converterIdentity("svelte", {}).version,
     typescript: ts.version,
   });
-  let ast: ReturnType<typeof parse>;
-  let result: ReturnType<typeof svelte2tsx>;
+  let ast: AST.Root;
+  let result: SvelteCompiledToTsx;
   try {
     ast = parse(source, {
       modern: true,

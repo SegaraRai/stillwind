@@ -8,6 +8,8 @@ import {
   fileModuleDescriptor,
   loadCssGraph,
   CompilationFailure,
+  type CompilerHost,
+  type LoadedCssGraph,
 } from "@stillwind/host";
 import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
@@ -28,7 +30,53 @@ export interface TurbopackLoaderOptions {
   mode: string;
 }
 
-export async function createProject(context: LoaderContext<TurbopackLoaderOptions>) {
+/** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
+export interface TurbopackProject {
+  /** Loader options containing the absolute project root, entry selection, and compiler settings. */
+  options: TurbopackLoaderOptions;
+  /** Initialized compiler. The caller must close it after compilation or stylesheet reconstruction. */
+  compiler: IntegrationSession;
+  /** Filesystem, source metadata, resolver, dependency watcher, and warning operations. */
+  host: TurbopackHost;
+  /** Completed CSS graph and authored resources used by the compiler. */
+  loaded: LoadedCssGraph;
+  /**
+   * Resolves an asset with the loader context's default resolver.
+   *
+   * @param specifier - Resource request text from CSS or a producer.
+   * @param importer - Absolute identity of the resource owner.
+   * @returns A promise for the resolved asset identity. Unresolved requests reject the promise.
+   */
+  resolveAsset: (specifier: string, importer: string) => Promise<string>;
+}
+
+/** Compiler host whose resolver returns an identity or rejects instead of returning null. */
+export interface TurbopackHost extends CompilerHost {
+  /**
+   * Resolves a script dependency or marks a Node builtin or Next boundary marker as external.
+   *
+   * @param specifier - Script request text, including any resource query.
+   * @param importer - Absolute identity of the importing source.
+   * @returns A promise for the resolved identity and optional external status. Resolution failures
+   * reject the promise.
+   */
+  resolve: (specifier: string, importer: string) => Promise<{ id: string; external?: boolean }>;
+}
+
+/**
+ * Loads the design system and creates a compiler for a Turbopack or Next loader invocation.
+ *
+ * Compiler runtime files and CSS dependencies are registered with the loader context. Vocabulary
+ * declarations are written unless disabled by compiler options.
+ *
+ * @param context - Loader context containing compiler options, an absolute root, filesystem
+ * access, resolution operations, and dependency tracking.
+ * @returns A promise for the initialized project. The caller owns the compiler's lifetime.
+ * @throws If the CSS graph cannot be resolved or read, or initialization or vocabulary writing fails.
+ */
+export async function createProject(
+  context: LoaderContext<TurbopackLoaderOptions>,
+): Promise<TurbopackProject> {
   const options = context.getOptions();
   const watch = (id: string) => {
     context.addDependency(id);
@@ -114,10 +162,7 @@ export async function createProject(context: LoaderContext<TurbopackLoaderOption
 }
 
 /** Reconstructs all entry-reachable producers before requesting one document plan. */
-export async function compileGraph(
-  entries: readonly string[],
-  project: Awaited<ReturnType<typeof createProject>>,
-) {
+export async function compileGraph(entries: readonly string[], project: TurbopackProject) {
   const { options, compiler, host } = project;
   const pending = entries.map((entry) => path.resolve(options.root, entry));
   const visited = new Set<string>();

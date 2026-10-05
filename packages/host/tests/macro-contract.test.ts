@@ -22,7 +22,6 @@ test("contract defaults deny builds while warn and off remain configurable", asy
       () => facts,
       "import {style} from 'stillwind/react'; let n = 0; export const props = style({'--x': n++});",
       path.resolve("contract.tsx"),
-      process.cwd(),
       {
         resolve: async () => null,
         read: async () => {

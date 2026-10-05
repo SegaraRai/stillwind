@@ -23,7 +23,6 @@ test("host name generators decide the names the compiler writes", async () => {
     () => ({}) as TypeScriptFactsService,
     'import { style } from "stillwind/react"; export const x = style("flex");',
     entry,
-    process.cwd(),
     {
       resolve: async () => null,
       read: async () => {
@@ -64,7 +63,6 @@ test("a generator that fails only warns while the session is in development", as
     () => ({}) as TypeScriptFactsService,
     'import { style } from "stillwind/react"; export const x = style("flex");',
     path.resolve("throwing.tsx"),
-    process.cwd(),
     {
       resolve: async () => null,
       read: async () => {

@@ -2,12 +2,22 @@ import type { CssPart } from "./module-css.ts";
 
 export type { CssPart } from "./module-css.ts";
 
+/**
+ * Constructed sheets cached by document and part key. A changed CSS value replaces only that key's
+ * cached sheet.
+ */
 const documents = new WeakMap<Document, Map<string, { css: string; sheet: CSSStyleSheet }>>();
 
 /**
- * Returns shared constructed sheets in plan order, without adopting them.
- * Treat the sheets as immutable: mutations affect every adopter in this Document.
- * Throws if the Document has no Window or constructing a stylesheet fails.
+ * Creates or reuses constructed sheets in the supplied document's Window.
+ *
+ * Updating a cached part creates a new sheet. Callers must adopt the returned sheets to apply it.
+ *
+ * @param parts - Ordered CSS parts. A part reuses the cached sheet for its key only when its CSS
+ * matches the cached text.
+ * @param document - Target document whose Window provides `CSSStyleSheet` and `replaceSync`.
+ * @returns One sheet per input part, in input order, without adopting them into the document.
+ * @throws If the document has no Window or constructing or parsing a stylesheet fails.
  */
 export function styleSheets(parts: readonly CssPart[], document: Document): CSSStyleSheet[] {
   const realm = document.defaultView;
@@ -33,25 +43,51 @@ export function styleSheets(parts: readonly CssPart[], document: Document): CSSS
   });
 }
 
-/** Concatenates every occurrence, including repeated payloads. */
+/**
+ * Concatenates CSS parts without removing repeated occurrences or adding separators.
+ *
+ * @param parts - CSS parts in the order required by the cascade.
+ * @returns The combined stylesheet text.
+ */
 export function cssText(parts: readonly CssPart[]): string {
   return parts.map((part) => part.css).join("");
 }
 
-/** Ordered stylesheet occurrences emitted by a complete build. */
+/** Build manifest that maps producer modules to stylesheet occurrences in cascade order. */
 export interface StylesheetManifest {
+  /** Manifest format version. The supported shape uses version 1. */
   readonly version: 1;
+  /**
+   * Build revision identifying the manifest. Link selection and loading do not compare this value.
+   */
   readonly revision: string;
+  /**
+   * Stylesheet occurrences in cascade order. Each occurrence has a distinct ID even when URLs
+   * repeat.
+   */
   readonly parts: readonly {
+    /**
+     * Unique occurrence identity used by module selections and `data-stillwind-part` attributes.
+     */
     readonly id: string;
+    /**
+     * Stylesheet URL assigned to a link element. Relative URLs resolve against the target document.
+     */
     readonly href: string;
   }[];
+  /**
+   * Producer module identities mapped to occurrence IDs from `parts`. An empty list means no CSS.
+   */
   readonly modules: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
- * Resolves producer selections to link descriptors in manifest order.
- * Throws if a selected producer is absent from the manifest.
+ * Selects stylesheet occurrences for producer modules in manifest order.
+ *
+ * @param manifest - Manifest whose module selections refer to IDs in its ordered parts.
+ * @param modules - Producer identities to include. Repeated requests select each occurrence once.
+ * @returns Selected parts with their zero-based position in the complete manifest as `order`.
+ * @throws If a requested producer has no entry in `manifest.modules`.
  */
 export function stylesheetLinks(manifest: StylesheetManifest, modules: readonly string[]) {
   const selected = new Set(
@@ -69,9 +105,19 @@ export function stylesheetLinks(manifest: StylesheetManifest, modules: readonly 
 }
 
 /**
- * Installs missing links in manifest order and resolves after loading.
- * Existing Stillwind links must use this manifest and already be in manifest order.
- * Rejects if a producer is unknown or a stylesheet fails to load.
+ * Adds selected stylesheet links to the document head and waits for them to load.
+ *
+ * Existing links are matched by occurrence ID and retained, including their current URL. New links
+ * are inserted before the first existing Stillwind link that follows them in manifest order. IDs
+ * must identify stable resources across calls. This function does not refresh links by revision or
+ * remove unselected links.
+ *
+ * @param manifest - Manifest containing the requested producers and their ordered stylesheet
+ * occurrences.
+ * @param modules - Producer identities whose stylesheet occurrences should be loaded.
+ * @param document - Target document with a head for inserting links.
+ * @returns A promise that resolves when all selected links have loaded or already expose a sheet.
+ * @throws If a producer is unknown or a selected stylesheet emits an error event.
  */
 export async function loadStyles(
   manifest: StylesheetManifest,

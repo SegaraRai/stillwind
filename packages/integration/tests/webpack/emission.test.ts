@@ -9,8 +9,8 @@ import { expect, test } from "vite-plus/test";
 import webpack from "webpack";
 
 for (const backend of ["webpack", "rspack"] as const) {
-  const { StillwindPlugin, stillwindRules } =
-    backend === "webpack" ? webpackIntegration : rspackIntegration;
+  const { StillwindPlugin } = backend === "webpack" ? webpackIntegration : rspackIntegration;
+
   test(`${backend} keeps generated query producers distinct and reads their transformed dependencies without executing them`, async () => {
     const root = mkdtempSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-query-"),
@@ -49,13 +49,14 @@ for (const backend of ["webpack", "rspack"] as const) {
       experiments: {
         css: true,
       },
-      plugins: [new StillwindPlugin()],
+      plugins: [
+        new StillwindPlugin({
+          css: "./root.css",
+          types: false,
+        }),
+      ],
       module: {
         rules: [
-          ...stillwindRules({
-            css: "./root.css",
-            types: false,
-          }),
           {
             test: /\.js$/,
             enforce: "pre",
@@ -74,7 +75,15 @@ for (const backend of ["webpack", "rspack"] as const) {
           if (error) {
             reject(error);
           } else if (!stats || stats.hasErrors()) {
-            reject(new Error(stats?.toString({ all: false, errors: true, errorDetails: true })));
+            reject(
+              new Error(
+                stats?.toString({
+                  all: false,
+                  errors: true,
+                  errorDetails: true,
+                }),
+              ),
+            );
           } else {
             resolve();
           }
@@ -98,6 +107,7 @@ for (const backend of ["webpack", "rspack"] as const) {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
   test(`${backend} links lazy and cached producers and retracts removed modules`, async () => {
     const root = mkdtempSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-emission-"),
@@ -128,12 +138,13 @@ for (const backend of ["webpack", "rspack"] as const) {
       experiments: {
         css: true,
       },
-      plugins: [new StillwindPlugin()],
+      plugins: [
+        new StillwindPlugin({
+          css: "./root.css",
+        }),
+      ],
       module: {
         rules: [
-          ...stillwindRules({
-            css: "./root.css",
-          }),
           {
             test: /\.css$/,
             type: "css",

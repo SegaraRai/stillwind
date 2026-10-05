@@ -17,8 +17,7 @@ import { writeFrameworkFixture } from "../shared/framework-fixtures.ts";
 const require = createRequire(import.meta.url);
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 for (const backend of ["webpack", "rspack"] as const) {
-  const { StillwindPlugin, stillwindRules } =
-    backend === "webpack" ? webpackIntegration : rspackIntegration;
+  const { StillwindPlugin } = backend === "webpack" ? webpackIntegration : rspackIntegration;
   for (const framework of ["react", "preact", "solid", "vue", "svelte"] as const) {
     test(`${backend} ${framework} preserves framework output and module CSS value ownership`, async () => {
       const root = mkdtempSync(path.join(packageRoot, ".test-framework-"));
@@ -49,42 +48,74 @@ for (const backend of ["webpack", "rspack"] as const) {
         mode: "production",
         target: "web",
         entry: "./main.ts",
-        output: { path: path.join(root, "dist"), filename: "main.js", publicPath: "/assets/" },
+        output: {
+          path: path.join(root, "dist"),
+          filename: "main.js",
+          publicPath: "/assets/",
+        },
         devtool: "source-map",
-        optimization: { minimize: false },
-        experiments: { css: true },
+        optimization: {
+          minimize: false,
+        },
+        experiments: {
+          css: true,
+        },
         resolve: {
           extensions: [".ts", ".js", ".mjs", ".vue", ".svelte"],
           conditionNames: ["svelte", "browser", "import", "default"],
         },
-        plugins: [new StillwindPlugin(), ...(framework === "vue" ? [new VueLoaderPlugin()] : [])],
+        plugins: [
+          new StillwindPlugin({
+            css: "./root.css",
+            naming: { utilityClass: (_context, hash) => "custom-" + hash.toString("hex") },
+            namingRevision: "framework-test",
+          }),
+          ...(framework === "vue" ? [new VueLoaderPlugin()] : []),
+        ],
         module: {
           rules: [
-            ...stillwindRules({
-              css: "./root.css",
-              naming: { utilityClass: (_context, hash) => "custom-" + hash.toString("hex") },
-              namingRevision: "framework-test",
-            }),
             {
               test: /\.ts$/,
               use: [
                 {
                   loader: require.resolve("swc-loader"),
-                  options: { jsc: { parser: { syntax: "typescript" }, target: "es2022" } },
+                  options: {
+                    jsc: {
+                      parser: {
+                        syntax: "typescript",
+                      },
+                      target: "es2022",
+                    },
+                  },
                 },
               ],
             },
-            { test: /\.css$/, type: "css" },
-            { test: /\.svg$/, type: "asset/resource" },
+            {
+              test: /\.css$/,
+              type: "css",
+            },
+            {
+              test: /\.svg$/,
+              type: "asset/resource",
+            },
             ...(framework === "vue"
-              ? [{ test: /\.vue$/, loader: require.resolve("vue-loader") }]
+              ? [
+                  {
+                    test: /\.vue$/,
+                    loader: require.resolve("vue-loader"),
+                  },
+                ]
               : []),
             ...(framework === "svelte"
               ? [
                   {
                     test: /\.svelte$/,
                     loader: require.resolve("svelte-loader"),
-                    options: { compilerOptions: { dev: false } },
+                    options: {
+                      compilerOptions: {
+                        dev: false,
+                      },
+                    },
                   },
                 ]
               : []),
@@ -100,8 +131,11 @@ for (const backend of ["webpack", "rspack"] as const) {
             } else if (!stats || stats.hasErrors()) {
               reject(
                 new Error(
-                  stats?.toString({ all: false, errors: true, errorDetails: true }) ??
-                    "Missing build stats",
+                  stats?.toString({
+                    all: false,
+                    errors: true,
+                    errorDetails: true,
+                  }) ?? "Missing build stats",
                 ),
               );
             } else {

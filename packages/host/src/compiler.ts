@@ -7,7 +7,12 @@ import type {
   BindingReport,
   BindingDiagnostic,
 } from "@stillwind/native";
-import { checkerEnvironment, prepareSource, PreparationError } from "@stillwind/projection";
+import {
+  checkerEnvironment,
+  prepareSource,
+  PreparationError,
+  type CheckerEnvironment,
+} from "@stillwind/projection";
 
 import { byteToUtf16 } from "./checker-source.ts";
 import type {
@@ -19,10 +24,23 @@ import type {
 } from "./protocol.ts";
 import { TypeFactsError, type TypeScriptFactsService, type TypeFact } from "./type-facts.ts";
 
-/** A rejected compilation with the same reports returned by collect mode. */
+/**
+ * Compilation failure carrying diagnostic batches for the same report format used by collect mode.
+ * Its message renders those reports with source locations.
+ */
 export class CompilationFailure extends Error {
+  /**
+   * Report batches grouped by compiler module identity. The supplied array is retained without
+   * copying.
+   */
   readonly batches: readonly NativeDiagnosticBatch[];
 
+  /**
+   * Builds an error message from the supplied reports and preserves an optional cause.
+   *
+   * @param batches - Reports to retain, in message order.
+   * @param cause - Optional preparation or checker failure that produced these reports.
+   */
   constructor(batches: readonly NativeDiagnosticBatch[], cause?: unknown) {
     super(
       batches
@@ -35,6 +53,13 @@ export class CompilationFailure extends Error {
   }
 }
 
+/**
+ * Formats a compiler report for an Error message or terminal output.
+ *
+ * @param report - Structured report with a primary label, related labels, and notes.
+ * @returns Text with one-based line and column ranges for source labels, followed by related labels
+ * and notes. Document-scoped primary labels use only the URI.
+ */
 function formatReport(report: BindingReport) {
   const { location, scope } = report.primary;
   const at =
@@ -56,6 +81,13 @@ function formatReport(report: BindingReport) {
   ].join("\n");
 }
 
+/**
+ * Projects a report's primary label into the diagnostic shape returned by compilation.
+ *
+ * @param report - Structured compiler report.
+ * @returns Primary location and scope, diagnostic code, message, and notes. Related labels and
+ * severity remain in the report.
+ */
 function reportDiagnostic(report: BindingReport): BindingDiagnostic {
   return {
     ...report.primary.location,
@@ -66,6 +98,15 @@ function reportDiagnostic(report: BindingReport): BindingDiagnostic {
   };
 }
 
+/**
+ * Builds a collect-mode entry output when preparation, scanning, or checking failed.
+ *
+ * @param moduleId - Compiler identity of the entry module.
+ * @param batches - Failure reports from the attempted compilation.
+ * @param hasModuleCssImport - Whether scanning found an explicit CSS value import in the entry.
+ * @returns An output with null code, empty generated artifacts, all reports, and diagnostics
+ * derived only from error reports.
+ */
 function failedOutput(
   moduleId: string,
   batches: readonly NativeDiagnosticBatch[],
@@ -92,34 +133,90 @@ function failedOutput(
   };
 }
 
+/** Source identities and parser metadata supplied by a host before preparation or compilation. */
+export type ModuleDescriptor = Pick<
+  ProjectInput,
+  "moduleId" | "checkerFileName" | "projectionFileName" | "syntax" | "framework"
+> & {
+  /** Original document identity and format. The compiler obtains its text through the host. */
+  document: Omit<SourceDocument, "code">;
+};
+
 /**
- * Host services for resolving and reading semantic dependencies, registering watches,
- * and reporting lint warnings. Resolution may exclude external modules or return null.
+ * Source metadata, dependency resolution, reads, watches, and warnings supplied to module
+ * compilation. Hosts must preserve a stable correspondence between resolver and compiler module
+ * identities.
  */
 export interface CompilerHost {
-  /** Describes one resolved source before it is scanned or compiled. */
-  describe(
-    id: string,
-  ): Pick<
-    ProjectInput,
-    "moduleId" | "checkerFileName" | "projectionFileName" | "syntax" | "framework"
-  > & { document: Omit<SourceDocument, "code"> };
+  /**
+   * Describes one resolved source before it is scanned or compiled.
+   *
+   * @param id - Full resolver identity of the source, including any query suffix.
+   * @returns Compiler and checker identities, parser metadata, and original document metadata.
+   */
+  describe(id: string): ModuleDescriptor;
+  /**
+   * Resolves a semantic dependency relative to its importing source.
+   *
+   * @param specifier - Authored module request text.
+   * @param importer - Full resolver identity of the importing source.
+   * @param options - Optional resolver policy. Compilation passes `skipSelf: true`.
+   * @returns A promise for a resolved identity and optional external status, or null when
+   * unresolved. Unresolved and external modules are skipped by semantic dependency traversal.
+   */
   resolve(
     specifier: string,
     importer: string,
     options?: { skipSelf: boolean },
   ): Promise<{ id: string; external?: boolean | string } | null>;
+  /**
+   * Reads one resolved dependency before source preparation.
+   *
+   * @param id - Full resolver identity, including any query selecting transformed source.
+   * @returns A promise for source text. Read failures reject the compilation.
+   */
   read(id: string): Promise<string>;
-  /** Records the identity selected for each source in this compilation. */
+  /**
+   * Records the identity correspondence before a source is prepared.
+   *
+   * This callback can run before preparation fails. Callers must not treat it as proof of a
+   * successful compilation.
+   *
+   * @param moduleId - Stable identity used by the compiler and checker results.
+   * @param resolverId - Full host identity used to resolve and read this source.
+   */
   onModule?(moduleId: string, resolverId: string): void;
+  /**
+   * Registers a resolved semantic dependency for change tracking.
+   *
+   * @param id - Full dependency identity selected by the host resolver.
+   */
   watch(id: string): void;
+  /**
+   * Reports a lint warning or a rejected generated name through the host.
+   *
+   * @param message - Formatted warning text. No structured diagnostic location is implied.
+   */
   warn(message: string): void;
 }
 
+/**
+ * Rejects compilation when host and compiler module identities violate an internal contract.
+ *
+ * @param message - Description of the violated identity contract.
+ * @returns No value. This function always throws.
+ * @throws An Error containing the supplied message.
+ */
 function fail(message: string): never {
   throw new Error(message);
 }
 
+/**
+ * Allows a constant lookup table to be indexed by an arbitrary string at the type level.
+ *
+ * @param record - Lookup table retained without copying or validation.
+ * @returns The same object typed so an unknown key can produce undefined.
+ */
 function asRecord<const T extends Readonly<Record<string, any>>>(
   record: T,
 ): T extends Record<string, infer U> ? Partial<Readonly<Record<string, U>>> : never {
@@ -127,16 +224,26 @@ function asRecord<const T extends Readonly<Record<string, any>>>(
 }
 
 /**
- * Returns the root-relative module identity with forward slashes. Paths outside
- * root retain `..` segments; this does not validate filesystem containment.
+ * Derives a compiler module identity relative to a filesystem root.
+ *
+ * @param root - Filesystem directory from which the identity is made relative.
+ * @param id - Filesystem path to identify. Callers remove resolver queries before using this
+ * helper.
+ * @returns A relative path with forward slashes. Paths outside the root retain `..` segments. This
+ * function does not enforce containment.
  */
 export function compilerModuleId(root: string, id: string): string {
   return relative(root, id).replaceAll("\\", "/");
 }
 
 /**
- * Returns parser metadata and the original format inferred from id's extension,
- * ignoring query and fragment suffixes. Leaves the output adapter undefined.
+ * Infers the source format and parser language from a module path.
+ *
+ * @param id - Source identity whose query or fragment is removed before case-insensitive extension
+ * matching.
+ * @returns Parser settings with unambiguous module kind and the inferred source format. TypeScript
+ * and JSX extensions choose their parser languages. Declaration files use `dts`, and SFC
+ * extensions select projected formats. Unrecognized extensions default to JavaScript script input.
  */
 export function fileSourceKind(id: string): {
   syntax: ScriptSyntax;
@@ -170,11 +277,14 @@ export function fileSourceKind(id: string): {
   };
 }
 
-/** Describes a filesystem module for the project compiler. */
-export function fileModuleDescriptor(
-  root: string,
-  id: string,
-): ReturnType<CompilerHost["describe"]> {
+/**
+ * Infers parser metadata from a filesystem path and assigns compiler and checker identities.
+ *
+ * @param root - Project directory used for relative compiler and projection identities.
+ * @param id - Absolute source path, optionally followed by a query or fragment suffix.
+ * @returns Metadata for the file after removing its query or fragment suffix.
+ */
+export function fileModuleDescriptor(root: string, id: string): ModuleDescriptor {
   const file = cleanModuleId(id);
   const { syntax, format } = fileSourceKind(file);
   return {
@@ -190,7 +300,11 @@ export function fileModuleDescriptor(
 }
 
 /**
- * Removes the query or fragment suffix from a host module identifier.
+ * Removes a filesystem identity's query or fragment before a disk operation.
+ *
+ * @param id - Resolver identity, including any query or fragment suffix.
+ * @returns The identity up to its first `?` or `#`. IDs beginning with NUL or `virtual:` are
+ * returned unchanged.
  */
 export function cleanModuleId(id: string): string {
   if (id.startsWith("\0") || id.startsWith("virtual:")) {
@@ -199,6 +313,15 @@ export function cleanModuleId(id: string): string {
   return id.replace(/[?#].*$/, "");
 }
 
+/**
+ * Selects imports needed to answer the current semantic demand.
+ *
+ * @param summary - Scanner summary for the source being traversed.
+ * @param requested - Null for entry probes, `*` for a namespace demand, or a specific exported
+ * name.
+ * @returns Probe imports, imports for a matched export, or matching re-export demands. Unmatched
+ * and namespace demands conservatively retain all imports and re-exports.
+ */
 function semanticDependencies(summary: ModuleSummary, requested: string | null) {
   if (requested === null) {
     return summary.probeImports;
@@ -220,36 +343,59 @@ function semanticDependencies(summary: ModuleSummary, requested: string | null) 
   return [...summary.imports, ...summary.reExports];
 }
 
+/** Diagnostic behavior and generated stylesheet imports for one module compilation. */
+export interface ModuleCompileOptions {
+  /**
+   * Whether compiler and checker diagnostics reject compilation or are returned in reports.
+   * Defaults to `throw`. Host I/O and malformed transport failures still reject in `collect` mode.
+   */
+  diagnostics?: "throw" | "collect";
+  /** Module specifiers injected into the entry source to activate its styles, in import order. */
+  stylesheetImports?: string[];
+  /**
+   * JavaScript module exporting CSS for an explicit `stillwind/module-css` import in the entry.
+   * Omission produces a compiler diagnostic when the entry contains that import.
+   */
+  moduleCssImport?: string;
+}
+
 /**
  * Compiles an entry buffer and its demanded semantic dependencies into a project session.
  * The host descriptor supplies the module identity and parser metadata for each source.
  * Type facts are requested lazily for original-coordinate probes in JS/TS or SFC inputs.
  *
  * Returns the entry output with composition metadata, or undefined when normal mode
- * has no generated entry code. Collect mode retains compiler diagnostics across outputs;
- * normal mode throws on compiler diagnostics and deny-level lint findings.
+ * has no generated entry code. Collect mode retains compiler diagnostics across outputs.
+ * Normal mode throws on compiler diagnostics and deny-level lint findings.
  * Checker contract errors use original coordinates and participate in collect mode.
  * Known syntax, projection, and checker contract failures use the shared reports.
  * Host I/O, checker process, and malformed native transport failures propagate.
  * Session updates, watches, and warnings are not rolled back on failure.
+ *
+ * @param session - Native project session with an initialized design system.
+ * @param factsService - Supplies the type-facts service when the source graph needs semantic facts.
+ * @param code - Entry source before Stillwind transformation.
+ * @param id - Full resolver identity of the entry source, including its query suffix.
+ * @param host - Source metadata, resolution, reading, dependency tracking, and warning operations.
+ * @param options - Diagnostic behavior and stylesheet import configuration for the entry source.
+ * @returns A promise for the entry output and composition metadata, or undefined when normal mode
+ * produces no entry code.
+ * @throws If compilation rejects diagnostics, source preparation fails, or host or checker operations fail.
  */
 export async function compileModule(
   session: NativeProjectSession,
   factsService: () => TypeScriptFactsService,
   code: string,
   id: string,
-  projectRoot: string,
   host: CompilerHost,
-  options: {
-    diagnostics?: "throw" | "collect";
-    stylesheetImports?: string[];
-    moduleCssImport?: string;
-  } = {},
+  options: ModuleCompileOptions = {},
 ) {
   const entryId = id;
   const entryDescriptor = host.describe(entryId);
   const attempted = new Map<string, PreparedSource>();
+
   let hasModuleCssImport = false;
+
   const rejectPreparation = (input: ProjectInput | PreparedSource, error: PreparationError) => {
     const batch = session.reportSourceFailure({
       moduleId: input.moduleId,
@@ -260,6 +406,7 @@ export async function compileModule(
     });
     return new CompilationFailure([batch], error);
   };
+
   const prepare = async (input: ProjectInput) => {
     host.onModule?.(input.moduleId, input.resolverId);
     try {
@@ -273,6 +420,7 @@ export async function compileModule(
       throw error;
     }
   };
+
   const scan = (source: PreparedSource) => {
     const result = session.scanSource(source);
     if (result.kind === "failed") {
@@ -280,6 +428,7 @@ export async function compileModule(
     }
     return result.summary;
   };
+
   try {
     const entrySource = await prepare({
       resolverId: entryId,
@@ -390,7 +539,7 @@ export async function compileModule(
       ? factsService().collect(
           sources.map((source) => {
             const summary = summaries.get(source.moduleId)!;
-            let environment: ReturnType<typeof checkerEnvironment>;
+            let environment: CheckerEnvironment;
             try {
               environment = checkerEnvironment(source);
             } catch (error) {

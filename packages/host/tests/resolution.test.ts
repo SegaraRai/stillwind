@@ -23,7 +23,6 @@ test("distinct resolver identities cannot share a module identity", async () => 
       },
       "import {style} from 'stillwind/react'; import {token} from './token'; export const x=style(token);",
       entry,
-      root,
       {
         describe: (id) => ({ ...fileModuleDescriptor(root, id), moduleId: "shared.ts" }),
         resolve: async () => ({ id: dependency }),
@@ -72,7 +71,7 @@ test("checker follows per-importer host aliases and barrel resolutions", async (
   const reads: string[] = [];
   try {
     const compile = () =>
-      compileModule(session, () => facts, source, entry, root, {
+      compileModule(session, () => facts, source, entry, {
         resolve: async (specifier, importer) => {
           expect(specifier).toBe("@chosen");
           return { id: importer === entry ? barrel : selected };
@@ -202,7 +201,6 @@ test("external package runtime exports do not replace declaration resolution", a
       () => service,
       source,
       path.join(root, "entry.ts"),
-      root,
       {
         resolve: async () => ({ id: path.join(packageRoot, "index.js") }),
         read: async () =>

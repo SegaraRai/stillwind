@@ -53,11 +53,11 @@ test("CSS maps retain imported authored text, theme tokens and macro origins", (
   });
   const decoded = decodeCssSourceMap(cssWithSourceMap(output, new Map()));
   const projected = decodeCssSourceMap(cssWithSourceMap(output, new Map(), undefined, false));
-  expect(projected.map.sourcesContent).toBe(undefined);
+  expect(projected.map!.sourcesContent).toBe(undefined);
   expect(projected.code).toBe(decoded.code);
-  expect(projected.map.sources).toStrictEqual(decoded.map.sources);
-  expect(projected.map.mappings).toBe(decoded.map.mappings);
-  const map = new TraceMap(decoded.map);
+  expect(projected.map!.sources).toStrictEqual(decoded.map!.sources);
+  expect(projected.map!.mappings).toBe(decoded.map!.mappings);
+  const map = new TraceMap(decoded.map!);
   for (const [needle, original, file, text] of [
     ["color: blue", child.indexOf("color: blue"), "child.css", child],
     ["--color-brand", root.indexOf("--color-brand"), "design.css", root],
@@ -95,7 +95,7 @@ test("resource URL length edits preserve following non-ASCII CSS columns", () =>
     cssWithSourceMap(output, new Map([["PLACEHOLDER", "./much/longer/image.svg"]])),
   );
   const actual = originalPositionFor(
-    new TraceMap(decoded.map),
+    new TraceMap(decoded.map!),
     location(decoded.code, decoded.code.indexOf("color")),
   );
   expect(actual.column).toBe(css.indexOf("color"));
@@ -132,9 +132,9 @@ test("CSS origins compose through framework preprocessing to original source", (
       map: JSON.stringify(toEncodedMap(previous)),
     }),
   );
-  const mapped = originalPositionFor(new TraceMap(result.map), { line: 1, column: 1 });
+  const mapped = originalPositionFor(new TraceMap(result.map!), { line: 1, column: 1 });
   expect(mapped).toStrictEqual({ source: pathToFileURL(id).href, line: 2, column: 17, name: null });
-  expect(result.map.sourcesContent).toStrictEqual([original]);
+  expect(result.map!.sourcesContent).toStrictEqual([original]);
 });
 
 test("loader composition traces native replacements through an upstream framework transform", () => {

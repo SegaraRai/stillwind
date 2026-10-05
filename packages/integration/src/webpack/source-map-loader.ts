@@ -1,4 +1,9 @@
-export default function (this: any, source: string, inputMap: any, additionalData: any) {
+export default function webpackSourceMapLoader(
+  this: any,
+  source: string,
+  inputMap: any,
+  additionalData: any,
+) {
   const callback = this.async();
 
   // Vue development script maps include the template. Replacing their embedded source

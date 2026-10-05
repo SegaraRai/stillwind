@@ -31,7 +31,6 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
       () => (facts ??= new TypeScriptFactsService(root)),
       files[entry],
       path.join(root, entry),
-      root,
       {
         describe: (id) => fileModuleDescriptor(root, id),
         resolve: async (specifier, importer) =>
@@ -159,7 +158,6 @@ test("host I/O failures remain exceptions in collect mode", async () => {
       },
       "import {style} from 'stillwind/react';import {base} from './missing.ts';const props=style(base);",
       path.join(root, "Input.tsx"),
-      root,
       {
         describe: (id) => fileModuleDescriptor(root, id),
         resolve: async () => ({

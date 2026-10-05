@@ -86,7 +86,7 @@ test("combining SSR CSS parts keeps maps without publishing private sources", as
   const { code, map } = decodeCssSourceMap(css);
 
   expect(code).toMatch(/color:\s*red/);
-  expect(map.sources).toContainEqual(expect.stringMatching(/^stillwind-source:[a-f0-9]{64}$/));
+  expect(map!.sources).toContainEqual(expect.stringMatching(/^stillwind-source:[a-f0-9]{64}$/));
   expectNoPrivateSource(JSON.stringify(map), root);
 });
 

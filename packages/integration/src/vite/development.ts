@@ -7,30 +7,34 @@ import { sendJson } from "./http.ts";
 import type { ViteProject } from "./project.ts";
 
 /**
- * Returns development hooks that use `project`'s state for each Vite environment.
- * The server hook watches CSS files and adds routes for requesting stylesheets.
- * Hot updates compile changed inputs and send CSS before invalidating JS modules.
- * The caller must also install the compiler hooks to initialize project settings.
+ * Returns development hooks that use `project`'s state for each Vite environment. The server hook
+ * adds routes for requesting stylesheets. Hot updates compile changed inputs and send CSS before
+ * invalidating JS modules. The caller must also install the compiler hooks to initialize project
+ * settings.
+ *
+ * @param project - Shared project configured and attached to the server by the compiler plugin.
+ * @returns Hooks for serving stylesheet requests and handling CSS hot updates.
  */
 export function developmentHooks(
   project: ViteProject,
 ): Pick<Plugin, "hotUpdate" | "configureServer"> {
-  const {
-    settings,
-    environmentState,
-    closeTypeFacts,
-    watchCssChanges,
-    refreshDesignSystem,
-    inputMap,
-    valueSpecifier,
-    documentPlan,
-    publish,
-    compile,
-  } = project;
+  const { settings, inputs, valueSpecifier, documentPlan, publish, compile } = project;
+
   return {
+    /**
+     * Recompiles changed styles and selects JavaScript modules that require hot invalidation.
+     *
+     * The hook publishes CSS before returning modules for invalidation. Failed updates warn and
+     * leave the last published styles in use.
+     *
+     * @param context - Vite hot-update event with the current server, changed file, and source
+     * reader.
+     * @returns Modules affected by a design-system update, an empty list for a CSS-only producer
+     * change, or `undefined` to retain normal Vite handling.
+     */
     async hotUpdate(context) {
       const name = this.environment.name;
-      const state = environmentState(name);
+      const state = project.environment(name);
       const id = cleanModuleId(context.file);
       const host = {
         resolve: (specifier: string, importer: string) =>
@@ -43,12 +47,11 @@ export function developmentHooks(
         },
       };
       try {
-        if (state.cssObservedFiles.has(resolve(context.file))) {
-          await refreshDesignSystem(state, host);
+        if (state.designSystem.cssObservedFiles.has(resolve(context.file))) {
+          await state.refreshDesignSystem(host);
           await publish(name, host);
-          const changed = new Set(state.themeChanges);
-          state.themeChanges.clear();
-          const modules = [...inputMap(name).values()]
+          const changed = state.takeThemeChanges();
+          const modules = [...inputs(name).values()]
             .filter((input) => input.manual || changed.has(input.moduleId))
             .flatMap((input) => [
               ...(this.environment.moduleGraph.getModulesByFile(cleanModuleId(input.id)) ?? []),
@@ -65,7 +68,7 @@ export function developmentHooks(
           }
           return modules;
         }
-        const previous = inputMap(name).get(id);
+        const previous = inputs(name).get(id);
         if (previous && context.type !== "delete") {
           const result = await compile(name, await context.read(), id, host);
           await publish(name, host);
@@ -78,9 +81,16 @@ export function developmentHooks(
       }
       return undefined;
     },
+    /**
+     * Registers routes that serve document CSS and revisioned stylesheet snapshots.
+     *
+     * The document route supports repeated `module` selections and defaults to `ssr`. The snapshot
+     * route defaults to `client`. Unknown environments return 404 and stylesheet failures return
+     * 500.
+     *
+     * @param server - Active server with the project's initialized Vite environments.
+     */
     configureServer(server: ViteDevServer) {
-      settings.devServerRef = server;
-      watchCssChanges(server);
       server.middlewares.use("/__stillwind/style.css", (request, response) => {
         const params = new URL(request.url ?? "", "http://stillwind.local").searchParams;
         const name = params.get("environment") ?? "ssr";
@@ -118,27 +128,19 @@ export function developmentHooks(
         if (!environment) {
           return sendJson(response, { error: "Unknown environment" }, 404);
         }
-        void documentPlan(name, {
-          resolve: (specifier: string, importer: string) =>
-            environment.pluginContainer.resolveId(specifier, importer),
-          addWatchFile: (id: string) => {
-            server.watcher.add(id);
-          },
-        })
-          .then((plan) =>
-            sendJson(response, {
-              revision: plan.revision,
-              parts: plan.parts,
-              dependencies: Object.fromEntries(
-                [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
-              ),
-            }),
-          )
+        void project
+          .snapshot(name, {
+            resolve: (specifier, importer) =>
+              environment.pluginContainer.resolveId(specifier, importer),
+            addWatchFile: (id) => {
+              server.watcher.add(id);
+            },
+          })
+          .then((snapshot) => sendJson(response, snapshot))
           .catch((error) => {
             sendJson(response, { error: String(error) }, 500);
           });
       });
-      server.httpServer?.once("close", closeTypeFacts);
     },
   };
 }

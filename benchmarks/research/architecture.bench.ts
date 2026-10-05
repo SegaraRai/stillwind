@@ -304,13 +304,20 @@ for (const [count, calls, name, css, watching] of [
     );
     writeFileSync(path.join(root, "root.css"), css);
     const input = sources(count, calls);
-    const plugin = stillwind({ css: "root.css", types: false });
+    const plugins = stillwind({
+      css: "root.css",
+      types: false,
+    });
+    const [plugin] = plugins;
     const server = await createServer({
       configFile: false,
       root,
-      plugins: [plugin],
+      plugins: [plugins],
       logLevel: "silent",
-      optimizeDeps: { noDiscovery: true, include: [] },
+      optimizeDeps: {
+        noDiscovery: true,
+        include: [],
+      },
       server: {
         host: "127.0.0.1",
         port: 0,
@@ -346,7 +353,9 @@ for (const [count, calls, name, css, watching] of [
         fileWatcher: watching,
         transport: "transform-and-hot-send",
       };
-      task.meta.output = { preloadMs: performance.now() - preloadStart };
+      task.meta.output = {
+        preloadMs: performance.now() - preloadStart,
+      };
       task.meta.measurement = options;
       let edit = 0;
       let result!: Awaited<ReturnType<typeof transform>>;
@@ -374,7 +383,8 @@ test("vite/watch-event/1000/8-calls/full-registry", async ({ bench, task }) => {
   for (const source of input) {
     writeFileSync(path.join(root, source.moduleId), source.document.code);
   }
-  const plugin = stillwind({ css: "root.css", types: false });
+  const plugins = stillwind({ css: "root.css", types: false });
+  const [plugin] = plugins;
   let written = 0;
   const watcherMs: number[] = [];
   const hotUpdateMs: number[] = [];
@@ -392,10 +402,13 @@ test("vite/watch-event/1000/8-calls/full-registry", async ({ bench, task }) => {
           }
         },
       },
-      plugin,
+      plugins,
     ],
     logLevel: "silent",
-    optimizeDeps: { noDiscovery: true, include: [] },
+    optimizeDeps: {
+      noDiscovery: true,
+      include: [],
+    },
     server: { host: "127.0.0.1", port: 0 },
   });
   try {
@@ -532,9 +545,17 @@ for (const [name, css, write] of [
         result = await build({
           configFile: false,
           root,
-          plugins: [stillwind({ css: "root.css", types: false })],
+          plugins: [
+            stillwind({
+              css: "root.css",
+              types: false,
+            }),
+          ],
           logLevel: "silent",
-          build: { write, sourcemap: false },
+          build: {
+            write,
+            sourcemap: false,
+          },
         });
       }).run(buildOptions);
       expect(result).toHaveProperty("output");
@@ -564,7 +585,10 @@ for (const files of [100, 1000]) {
       const ready = new Promise<void>((resolve) => {
         watched = resolve;
       });
-      const plugin = stillwind({ css: "root.css", types: false });
+      const plugins = stillwind({
+        css: "root.css",
+        types: false,
+      });
       const server = await createServer({
         configFile: false,
         root,
@@ -575,17 +599,23 @@ for (const files of [100, 1000]) {
               server.watcher.once("ready", watched);
             },
           },
-          plugin,
+          plugins,
         ],
         logLevel: "silent",
-        optimizeDeps: { noDiscovery: true, include: [] },
-        server: { host: "127.0.0.1", port: 0 },
+        optimizeDeps: {
+          noDiscovery: true,
+          include: [],
+        },
+        server: {
+          host: "127.0.0.1",
+          port: 0,
+        },
       });
       await server.listen();
       listenMs.push(performance.now() - start);
       await ready;
       watchReadyMs.push(performance.now() - start);
-      return { server, plugin };
+      return { server, plugins };
     };
     task.meta.input = {
       cssFiles: files + 1,
@@ -602,7 +632,8 @@ for (const files of [100, 1000]) {
       }).run(options);
       task.meta.listenMs = listenMs.slice(options.warmupIterations);
       task.meta.watchReadyMs = watchReadyMs.slice(options.warmupIterations);
-      const { server, plugin } = await startServer();
+      const { server, plugins } = await startServer();
+      const [plugin] = plugins;
       try {
         const transform =
           typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
@@ -706,6 +737,9 @@ function sources(count: number, calls = 1): NativePreparedSource[] {
         "import {style} from 'stillwind/react';" +
         Array.from({ length: calls }, (_, j) => `export const props${j}=style('flex');`).join("\n"),
     },
-    syntax: { language: "ts", moduleKind: "unambiguous" },
+    syntax: {
+      language: "ts",
+      moduleKind: "unambiguous",
+    },
   }));
 }

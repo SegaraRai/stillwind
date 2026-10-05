@@ -10,7 +10,12 @@ test("partitions retain red-blue-red occurrences and shift UTF-8 source coordina
     slot: 0,
     sequence: 0,
     sourceMap: {
-      sources: [{ sourceMapSource: "input.css", content: css }],
+      sources: [
+        {
+          sourceMapSource: "input.css",
+          content: css,
+        },
+      ],
       entries: [
         {
           source: 0,

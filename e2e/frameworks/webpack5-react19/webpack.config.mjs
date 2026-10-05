@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { StillwindPlugin, stillwindRules } from "@stillwind/integration/webpack";
+import { StillwindPlugin } from "@stillwind/integration/webpack";
 import HtmlPlugin from "html-webpack-plugin";
 
 const require = createRequire(import.meta.url);
@@ -25,17 +25,16 @@ export default {
     conditionNames: ["svelte", "browser", "import", "default"],
   },
   plugins: [
-    new StillwindPlugin(),
+    new StillwindPlugin({
+      css: "src/styles.css",
+      root,
+    }),
     new HtmlPlugin({
       template: "./index.html",
     }),
   ],
   module: {
     rules: [
-      ...stillwindRules({
-        css: "src/styles.css",
-        root,
-      }),
       {
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,

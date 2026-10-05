@@ -151,7 +151,6 @@ test("CSS configures framework import warn, off, and deny with next-line suppres
           },
           source,
           id,
-          root,
           {
             describe: (id) => fileModuleDescriptor(root, id),
             resolve: async () => null,

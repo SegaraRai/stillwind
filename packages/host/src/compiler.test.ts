@@ -38,7 +38,6 @@ test("a rejected generator name is reported through the host warnings", async ()
     () => ({}) as TypeScriptFactsService,
     "export const x = 1;",
     path.resolve("rejected.tsx"),
-    process.cwd(),
     {
       resolve: async () => null,
       read: async () => {

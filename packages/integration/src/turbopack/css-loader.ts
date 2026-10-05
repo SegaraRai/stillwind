@@ -6,7 +6,7 @@ import type { LoaderContext } from "webpack";
 
 import { compileGraph, createProject, type TurbopackLoaderOptions } from "./project.ts";
 
-export default function (this: LoaderContext<TurbopackLoaderOptions>) {
+export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOptions>) {
   emitStylesheet(this, async () => this.getOptions().entries);
 }
 
@@ -40,7 +40,7 @@ export function emitStylesheet(
           source.startsWith("file:") ? fileURLToPath(source).replaceAll("\\", "/") : source,
         );
       }
-      callback(null, output.code, output.map);
+      callback(null, output.code, output.map as Parameters<typeof callback>[2]);
     } finally {
       project.compiler.close();
     }

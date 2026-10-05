@@ -4,7 +4,7 @@ import path from "node:path";
 import { build } from "vite";
 import { afterEach, expect, onTestFinished, test, vi } from "vite-plus/test";
 
-import { compilerPlugin } from "../../src/vite/plugin.ts";
+import { createVitePlugins } from "../../src/vite/plugin.ts";
 import { createViteProject } from "../../src/vite/project.ts";
 import { normalizeFile, packageRoot, redStyleSource } from "./vite-server-fixture.ts";
 
@@ -65,7 +65,7 @@ globalThis.css = css;
       configFile: false,
       root,
       logLevel: "silent",
-      plugins: [compilerPlugin(project)],
+      plugins: [createVitePlugins(project)],
       build: {
         write: false,
         minify: false,

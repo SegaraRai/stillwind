@@ -1,13 +1,13 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-import { GenMapping, addSegment, toEncodedMap } from "@jridgewell/gen-mapping";
 import { createServer } from "vite";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vite-plus/test";
 
-import { compilerPlugin } from "./plugin.ts";
+import { writeVocabulary } from "../options.ts";
+import { createVitePlugins } from "./plugin.ts";
 import { createViteProject } from "./project.ts";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -18,8 +18,17 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
+vi.mock("../options.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../options.ts")>();
+  return {
+    ...original,
+    writeVocabulary: vi.fn(original.writeVocabulary),
+  };
+});
+
 afterEach(() => {
   vi.mocked(readFile).mockReset();
+  vi.mocked(writeVocabulary).mockReset();
 });
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -65,7 +74,7 @@ describe("CSS updates without HMR", () => {
 
   test("closing the server stops CSS watch events from changing the project", async () => {
     const fixture = await createWatchedProject({ "root.css": definePaint("red") });
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
     await fixture.server.close();
     const revisionAfterClose = state.cssChange;
 
@@ -84,7 +93,7 @@ describe("invalid or missing CSS imports", () => {
     await fixture.waitUntilWatched("part.css");
     await fixture.compileProducer();
     const workingCss = await fixture.getCss();
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
 
     await fixture.writeCss("part.css", "@utility paint {");
     expect(await fixture.getCss()).toBe(workingCss);
@@ -109,7 +118,7 @@ describe("invalid or missing CSS imports", () => {
       "part.css": definePaint("green"),
     });
     await fixture.waitUntilWatched("root.css");
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
     const addedFile = path.join(fixture.root, "added.css");
 
     await fixture.writeCss(
@@ -133,7 +142,7 @@ describe("invalid or missing CSS imports", () => {
       "added.css": ".addition { width: 11px; }",
     });
     await fixture.waitUntilWatched("root.css");
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
     const addedFile = path.join(fixture.root, "added.css");
     expect(await fixture.getCss()).toContain(".addition");
 
@@ -151,7 +160,7 @@ describe("invalid or missing CSS imports", () => {
     });
     await fixture.waitUntilWatched("part.css");
     const workingCss = await fixture.getCss();
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
 
     await fixture.changeCss("part.css", () => rmSync(path.join(fixture.root, "part.css")));
     expect(await fixture.getCss()).toBe(workingCss);
@@ -165,7 +174,7 @@ describe("invalid or missing CSS imports", () => {
   test("creating a missing import sends updated CSS through HMR without a CSS request", async () => {
     const fixture = await createWatchedProject({ "root.css": definePaint("red") }, { hmr: true });
     await fixture.waitUntilWatched("root.css");
-    const state = fixture.project.environmentState("client");
+    const state = fixture.project.environment("client").designSystem;
     await fixture.writeCss("root.css", "@import './added.css';");
     await expect.poll(() => state.cssError).toBeDefined();
     expect(state.cssFiles.has(path.join(fixture.root, "added.css"))).toBe(false);
@@ -205,7 +214,7 @@ test("a CSS edit during a file read makes both waiting requests receive the newe
   await fixture.writeCss("root.css", "@import './added.css';");
   const firstRequest = fixture.getCss();
   await pausedRead.started;
-  const state = fixture.project.environmentState("client");
+  const state = fixture.project.environment("client").designSystem;
   expect(state.cssFiles.has(path.join(fixture.root, "added.css"))).toBe(false);
   expect(state.cssObservedFiles.has(path.join(fixture.root, "added.css"))).toBe(true);
 
@@ -223,6 +232,59 @@ test("a CSS edit during a file read makes both waiting requests receive the newe
   const readsAfterUpdate = cssFilesRead().length;
   expect(await fixture.getCss()).toBe(firstCss);
   expect(cssFilesRead()).toHaveLength(readsAfterUpdate);
+});
+
+test("an accepted CSS reload invalidates SSR producers even when writing vocabulary fails", async () => {
+  const fixture = await createWatchedProject(
+    { "root.css": definePaint("red") + " @stillwind-slot utilities;" },
+    { types: "generated.d.ts" },
+  );
+  await fixture.server.environments.ssr.pluginContainer.buildStart({});
+  await fixture.waitUntilWatched("root.css");
+  const producer = path.join(fixture.root, "producer.ts").replaceAll("\\", "/");
+  writeFileSync(
+    producer,
+    "import { style } from 'stillwind/react'; export const props = style('paint');",
+  );
+  await fixture.server.environments.ssr.transformRequest("/producer.ts");
+  const graph = fixture.server.environments.ssr.moduleGraph;
+  const module = graph.getModuleById(producer);
+  expect(module).toBeDefined();
+  const invalidate = vi.spyOn(graph, "invalidateModule");
+  onTestFinished(() => invalidate.mockRestore());
+  vi.mocked(writeVocabulary).mockImplementationOnce(() => {
+    throw new Error("Cannot write vocabulary");
+  });
+  fixture.project.options.classNamespace = "updated";
+
+  await fixture.writeCss("root.css", definePaint("green") + " @stillwind-slot utilities;");
+  const css = await fixture.getCss("ssr");
+
+  expect(css).toMatch(/color:\s*green/);
+  expect(fixture.project.environment("ssr").designSystem.cssError).toBeDefined();
+  expect(invalidate).toHaveBeenCalledWith(module);
+  expect(fixture.project.environment("ssr").takeThemeChanges()).toContain("producer.ts");
+});
+
+test("deleting a producer while its transform waits for CSS removes the completed input", async () => {
+  const fixture = await createWatchedProject({
+    "root.css": "@utility paint { color: red; } @stillwind-slot utilities;",
+  });
+  await fixture.waitUntilWatched("root.css");
+  await fixture.compileProducer();
+  expect(await fixture.getCss()).toMatch(/color:\s*red/);
+  await fixture.writeCss("root.css", "@utility paint { color: green; } @stillwind-slot utilities;");
+  const pausedRead = await pauseFirstRead(path.join(fixture.root, "root.css"));
+  onTestFinished(pausedRead.resume);
+
+  const transform = fixture.compileProducer();
+  await pausedRead.started;
+  const removal = fixture.project.environment().removeFile(path.join(fixture.root, "producer.ts"));
+  pausedRead.resume();
+  await Promise.all([transform, removal]);
+
+  expect(fixture.project.inputs().size).toBe(0);
+  expect(await fixture.getCss()).not.toMatch(/color:\s*(red|green)/);
 });
 
 async function pauseFirstRead(file: string) {
@@ -246,58 +308,21 @@ async function pauseFirstRead(file: string) {
   };
 }
 
-describe("source names in public CSS maps", () => {
-  const projectRoot = path.resolve("map-project");
-  const otherDrive = path.parse(projectRoot).root.startsWith("C:") ? "D:" : "C:";
-
-  test("a known CSS file inside the project uses a relative source name", () => {
-    const sourceFile = path.join(projectRoot, "root.css");
-
-    const publicMap = publishCssMap(projectRoot, sourceFile);
-
-    expect(publicMap.sources).toEqual(["stillwind-source:/root.css"]);
-    expect(publicMap).not.toHaveProperty("sourcesContent");
-  });
-
-  test("a known CSS file outside the project uses a hashed source name", () => {
-    const sourceFile = path.resolve(projectRoot, "../private.css");
-
-    const publicMap = publishCssMap(projectRoot, sourceFile);
-
-    expect(publicMap.sources).toEqual([expect.stringMatching(/^stillwind-source:[a-f0-9]{64}$/)]);
-  });
-
-  test.skipIf(process.platform !== "win32")(
-    "a CSS file on another drive uses a hashed source name",
-    () => {
-      const sourceFile = `${otherDrive}/private.css`;
-
-      const publicMap = publishCssMap(projectRoot, sourceFile);
-
-      expect(publicMap.sources).toEqual([expect.stringMatching(/^stillwind-source:[a-f0-9]{64}$/)]);
-    },
-  );
-});
-
-function publishCssMap(projectRoot: string, sourceFile: string) {
-  const project = createViteProject({ css: "root.css", types: false });
-  project.settings.projectRoot = projectRoot;
-  project.environmentState().cssFiles.add(sourceFile);
-  const inputMap = new GenMapping();
-  addSegment(inputMap, 0, 0, pathToFileURL(sourceFile).href, 0, 0);
-  return project.publicSourceMap("client", toEncodedMap(inputMap));
-}
-
 async function createWatchedProject(
   files: Record<string, string>,
-  options: { environmentCss?: boolean; hmr?: boolean } = {},
+  options: {
+    environmentCss?: boolean;
+    hmr?: boolean;
+    types?: false | string;
+  } = {},
 ) {
   const root = mkdtempSync(path.join(repositoryRoot, ".test-css-watch-"));
   for (const [filename, content] of Object.entries(files)) {
     writeFileSync(path.join(root, filename), content);
   }
-  const project = createViteProject({ css: "root.css", types: false });
-  const plugin = compilerPlugin(project);
+  const project = createViteProject({ css: "root.css", types: options.types ?? false });
+  const plugins = createVitePlugins(project);
+  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
@@ -310,7 +335,7 @@ async function createWatchedProject(
           }
         },
       },
-      plugin,
+      plugins,
     ],
     logLevel: "silent",
     optimizeDeps: {
@@ -362,7 +387,10 @@ async function createWatchedProject(
     },
     async changeCss(filename: string, change: () => void) {
       const file = path.join(root, filename);
-      const states = [project.environmentState("client"), project.environmentState("ssr")];
+      const states = [
+        project.environment("client").designSystem,
+        project.environment("ssr").designSystem,
+      ];
       const previousRevisions = states.map((state) => state.cssChange);
       change();
       await expect

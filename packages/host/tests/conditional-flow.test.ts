@@ -28,7 +28,6 @@ async function compile(source: string, warnings: string[] = []) {
       () => facts,
       `${source}\nglobalThis.result = { props, events };`,
       path.join(root, "entry.ts"),
-      root,
       {
         resolve: async (specifier, importer) => ({
           id: path.resolve(path.dirname(importer), `${specifier}.ts`),

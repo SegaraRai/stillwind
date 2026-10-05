@@ -7,7 +7,7 @@ import { stillwind } from "@stillwind/integration/vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import vue from "@vitejs/plugin-vue";
 import { build as astroBuild } from "astro";
-import { build, type PluginOption } from "vite";
+import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 
 import { writeFrameworkFixture, type Framework } from "../shared/framework-fixtures.ts";
@@ -59,7 +59,9 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
               types: false,
             }),
           ],
-          build: { inlineStylesheets: "never" },
+          build: {
+            inlineStylesheets: "never",
+          },
         };
         await astroBuild(config);
       } else {
@@ -69,11 +71,16 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
           logLevel: "silent",
           plugins: [
             plugin,
-            (framework === "vue"
-              ? vue()
-              : svelte({ configFile: false })) as unknown as PluginOption,
+            {
+              svelte: () => svelte({ configFile: false }),
+              vue: () => vue(),
+            }[framework](),
           ],
-          build: { minify: false, cssMinify: false, sourcemap: true },
+          build: {
+            minify: false,
+            cssMinify: false,
+            sourcemap: true,
+          },
         };
         await build(config);
       }

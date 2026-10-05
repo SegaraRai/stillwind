@@ -7,6 +7,8 @@ import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { chromium, type Browser, type Page } from "playwright";
 import { expect } from "vite-plus/test";
 
+export type RsbuildApplication = ReturnType<typeof createApplication>;
+
 /** Creates lifecycle and fixture operations; initialize must run before browser contracts. */
 export function createApplication(context: ScenarioContext) {
   const root = context.root;
@@ -140,5 +142,3 @@ export function createApplication(context: ScenarioContext) {
     dispose,
   };
 }
-
-export type RsbuildApplication = ReturnType<typeof createApplication>;

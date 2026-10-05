@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { rspack } from "@rspack/core";
 import { stillwind, type StillwindOptions } from "@stillwind/integration/vite";
-import { StillwindPlugin, stillwindRules } from "@stillwind/integration/webpack";
+import { StillwindPlugin } from "@stillwind/integration/webpack";
 import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 import webpack from "webpack";
@@ -71,10 +71,9 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
           experiments: {
             css: true,
           },
-          plugins: [new StillwindPlugin()],
+          plugins: [new StillwindPlugin(options)],
           module: {
             rules: [
-              ...stillwindRules(options),
               {
                 test: /\.css$/,
                 type: "css",

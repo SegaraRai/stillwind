@@ -18,26 +18,47 @@ import {
 } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 
+/**
+ * Public specifier for the packaged development runtime, resolved through the published Vite
+ * entrypoint.
+ */
 const runtimeEntry = "virtual:stillwind/runtime-entry";
+
+/** Public specifier for the optional runtime that renders development CSS source maps. */
 const sourceMapEntry = "virtual:stillwind/runtime-source-map";
 
+/**
+ * Locates a packaged runtime module beside the published Vite entrypoint.
+ *
+ * @param file - Runtime basename without an extension, such as `runtime` or `runtime-source-map`.
+ * @returns Absolute path to the runtime JavaScript file.
+ */
 function runtimeFile(file: string) {
   return fileURLToPath(new URL(`./${file}.js`, import.meta.resolve("@stillwind/integration/vite")));
 }
 
+/**
+ * Creates hooks that resolve registered Stillwind references and load their generated modules.
+ *
+ * Unregistered references fail through the hook context. Projections compile source for CSS without
+ * importing its application JavaScript.
+ *
+ * @param project - Configured project whose environment registry owns the references and producer
+ * inputs.
+ * @returns Resolution and loading hooks for runtime, producer, projection, fragment, CSS value, and
+ * stylesheet snapshot modules.
+ */
 export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveId" | "load"> {
   const {
     settings,
-    environmentState,
-    inputMap,
+    inputs,
     cssForBrowser,
     moduleRegistry,
     producerSpecifier,
-    resolvePlan,
     documentPlan,
     publish,
-    compile,
   } = project;
+
   return {
     async resolveId(id, importer) {
       const registry = moduleRegistry(this.environment?.name);
@@ -104,7 +125,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         return `// Stillwind producer (vite)
 import { register, synchronize, unregister } from ${JSON.stringify(runtimeSpecifier)};
 
-await synchronize(${environmentState(name).revision});
+await synchronize(${project.environment(name).revision});
 register(${JSON.stringify(producer)});
 if (import.meta.hot) {
   import.meta.hot.prune(() => {
@@ -130,12 +151,9 @@ if (import.meta.hot) {
             }
           : this;
         context.addWatchFile(source);
-        const result = await compile(name, await readFile(file, "utf8"), source, context);
-        const input = inputMap(name).get(source);
-        if (input) {
-          input.manual = false;
-          input.projection = true;
-        }
+        const result = await project
+          .environment(name)
+          .compileProjection(await readFile(file, "utf8"), source, context);
         await publish(name, context);
         return {
           code: `// Stillwind projection (vite)\nimport ${JSON.stringify(producerSpecifier(source, name))};\n`,
@@ -151,15 +169,7 @@ if (import.meta.hot) {
         if (!settings.watching) {
           return "// Stillwind runtime (vite)\nexport {};\n";
         }
-        const plan = await documentPlan(name, this);
-        const revision = environmentState(name).revision;
-        const snapshot = {
-          revision,
-          parts: plan.parts,
-          dependencies: Object.fromEntries(
-            [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
-          ),
-        };
+        const snapshot = await project.snapshot(name, this);
         const endpoint = `${settings.publicBase}__stillwind/css?environment=${encodeURIComponent(name ?? "client")}`;
         return `// Stillwind runtime (vite)
 import { createDevelopmentRuntime } from ${JSON.stringify(runtimeEntry)};
@@ -226,21 +236,18 @@ if (import.meta.hot) {
           this.error("Invalid Stillwind value");
         }
         const sourceId = entry.sourceId;
-        const input = inputMap(name).get(sourceId);
+        const input = inputs(name).get(sourceId);
         if (!input) {
           this.error(`No Stillwind producer for ${sourceId}`);
         }
         this.addWatchFile(cleanModuleId(sourceId));
-        const plan = await resolvePlan(
-          environmentState(name),
-          [input.moduleId],
-          this,
-          !settings.watching,
-        );
+        const plan = await project
+          .environment(name)
+          .modulePlan([input.moduleId], this, !settings.watching);
         for (const producer of plan.producers) {
           this.addWatchFile(resolve(settings.projectRoot, cleanModuleId(producer.module)));
         }
-        for (const file of environmentState(name).cssFiles) {
+        for (const file of project.environment(name).designSystem.cssFiles) {
           this.addWatchFile(file);
         }
         const imports = plan.rawParts.map(

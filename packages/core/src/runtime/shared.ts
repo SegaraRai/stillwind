@@ -1,7 +1,9 @@
 /**
- * Converts inline custom-property values to CSS text. Strings remain authored CSS,
- * numbers have no unit, and URL objects become url(). Boolean true becomes a single
- * space (an empty CSS value that CSSOM does not remove); false becomes initial.
+ * Converts a dynamic value into text for a generated CSS declaration.
+ *
+ * @param value - CSS text, a number, a URL, or a boolean. URLs are quoted and CSS-escaped. True
+ * becomes a space and false becomes `initial`.
+ * @returns CSS value text. Strings and numbers are converted with `String`.
  */
 export function stillwindCssValue(value: URL | string | number | boolean): string {
   if (typeof value === "boolean") {
@@ -17,15 +19,24 @@ export function stillwindCssValue(value: URL | string | number | boolean): strin
   return String(value);
 }
 
-/** A deliberately small clsx-compatible helper used only for static branches. */
+/**
+ * Flattens class contributions and joins nonempty values with spaces.
+ *
+ * @param values - Strings, numbers, bigints, nested arrays, or objects whose truthy values enable
+ * their keys. Other values are ignored.
+ * @returns Class text in contribution order, without deduplication.
+ */
 export function stillwindClsx(...values: readonly unknown[]): string {
   return values.flatMap(flatten).filter(Boolean).join(" ");
 }
 
 /**
- * The development variant of {@link stillwindClsx}: a value that cannot become part of
- * a class attribute is reported instead of being dropped silently. The compiler imports
- * this helper only in development mode.
+ * Checks flattened class contributions before joining them with spaces.
+ *
+ * @param values - Contributions accepted by `stillwindClsx`. Flattening converts numeric values to
+ * strings.
+ * @returns The same class text as `stillwindClsx` when all flattened values are strings.
+ * @throws If flattening produces a non-string value.
  */
 export function stillwindClsxChecked(...values: readonly unknown[]): string {
   for (const value of values.flatMap(flatten)) {
@@ -37,9 +48,10 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
 }
 
 /**
- * Serializes one CSS identifier, matching `CSS.escape` and CSS Syntax "serialize an
- * identifier". A value that is already an identifier is returned unchanged, so the
- * compiled names and the names this function composes agree byte for byte.
+ * Escapes text for use as one CSS identifier.
+ *
+ * @param value - Unescaped identifier text.
+ * @returns `CSS.escape` output when available, otherwise escaped text with NUL replaced by U+FFFD.
  */
 export function stillwindEscapedIdentifier(value: string): string {
   if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
@@ -78,12 +90,12 @@ export function stillwindEscapedIdentifier(value: string): string {
 }
 
 /**
- * Returns a participant's `view-transition-name` by joining its class token and key
- * with `-` and escaping the result for use as a CSS value.
+ * Builds a CSS identifier for one keyed view transition.
  *
- * `value` must be a nonempty token string or a compiled record with that string in `v`.
- * `key` is the string or number passed by the caller. It is converted with String before escaping.
- * Throws TypeError when the token is missing, empty, or not a string.
+ * @param value - Nonempty class token or an object whose `v` property contains that token.
+ * @param key - Key appended to the token after a hyphen using `String`.
+ * @returns The combined token and key escaped as a CSS identifier.
+ * @throws If the value does not supply a nonempty string token.
  */
 export function stillwindViewTransitionName(value: unknown, key: string | number): string {
   const record =
@@ -95,6 +107,13 @@ export function stillwindViewTransitionName(value: unknown, key: string | number
   return stillwindEscapedIdentifier(`${token}-${String(key)}`);
 }
 
+/**
+ * Expands one class contribution into strings without splitting class text.
+ *
+ * @param value - Class text, a number, a bigint, a nested array, or an object with enabled class
+ * keys.
+ * @returns Strings in traversal or object-entry order. Unsupported values produce an empty list.
+ */
 function flatten(value: unknown): string[] {
   if (typeof value === "string" || typeof value === "number" || typeof value === "bigint") {
     return [String(value)];

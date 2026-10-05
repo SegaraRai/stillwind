@@ -67,14 +67,7 @@ for (const [name, filename, originalSource] of fixtures) {
       let facts: TypeScriptFactsService | undefined;
       const session = new NativeProjectSession(loader, true);
       const analyze = (text = source) =>
-        compileModule(
-          session,
-          () => (facts ??= new TypeScriptFactsService(root)),
-          text,
-          id,
-          root,
-          host,
-        );
+        compileModule(session, () => (facts ??= new TypeScriptFactsService(root)), text, id, host);
       try {
         let output = await analyze();
         expect(output?.code).toBeTruthy();
@@ -109,7 +102,6 @@ test("host/semantic/new-service-and-session", async ({ bench, task }) => {
         () => service,
         semantic,
         path.join(root, "perf-semantic.tsx"),
-        root,
         host,
       );
     } finally {

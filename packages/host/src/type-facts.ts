@@ -32,13 +32,36 @@ import { CheckerSource, checkerId, type TypeFactSource } from "./checker-source.
 
 export type { TypeFactSource } from "./checker-source.ts";
 
-/** A failed checker contract, reported at original UTF-8 coordinates. */
+/**
+ * Failure to map, validate, or recover declaration identities for one source. The compiler turns
+ * this error into a source report using its original-coordinate range.
+ */
 export class TypeFactsError extends Error {
+  /** Compiler module identity used to locate the original prepared source. */
   readonly moduleId: string;
+  /**
+   * Inclusive original UTF-8 byte offset when the checker can identify it. Omission permits a
+   * document-scoped report.
+   */
   readonly start?: number;
+  /**
+   * Exclusive original UTF-8 byte offset when known. The compiler uses a source range only when
+   * both endpoints are present.
+   */
   readonly end?: number;
+  /** Issue category and detail passed to native source-failure reporting. */
   readonly issue: NativeSourceIssue;
 
+  /**
+   * Records a checker contract failure in original source coordinates.
+   *
+   * @param moduleId - Compiler identity of the affected source.
+   * @param start - Optional inclusive original UTF-8 byte offset.
+   * @param end - Optional exclusive original UTF-8 byte offset.
+   * @param kind - Native issue category, such as checker mapping, assignment, or identity
+   * resolution.
+   * @param detail - Error message also stored as the issue detail.
+   */
   constructor(
     moduleId: string,
     start: number | undefined,
@@ -54,20 +77,55 @@ export class TypeFactsError extends Error {
   }
 }
 
+/**
+ * Native declaration identity containing its asset kind, declaring module, original byte range, and
+ * binding name.
+ */
 export type IdentityId = NativeIdentity;
+
+/**
+ * Native declaration record carrying an identity, metadata, and the original-byte range of its
+ * producer call.
+ */
 export type AssetRecord = NativeAssetRecord;
+
+/** Semantic value attached to an original UTF-8 expression range for native lowering. */
 export type TypeFact = NativeTypeFact;
 
+/**
+ * Normalizes filesystem names used as keys in the virtual checker overlay.
+ *
+ * @param fileName - Absolute or relative filesystem path.
+ * @returns An absolute path with forward slashes, lowercased on Windows to match case-insensitive
+ * filesystem lookups.
+ */
 const normalize = (fileName: string) => {
   const name = path.resolve(fileName).replaceAll("\\", "/");
   return process.platform === "win32" ? name.toLowerCase() : name;
 };
 
+/**
+ * Traverses a checker AST in preorder.
+ *
+ * @param node - Root visited before its descendants.
+ * @param callback - Operation called once for the root and each child exposed by `forEachChild`.
+ * Thrown errors stop traversal.
+ */
 function visit(node: Node, callback: (node: Node) => void) {
   callback(node);
   node.forEachChild((child) => visit(child, callback));
 }
 
+/**
+ * Decodes a string-literal identity type or union using the current declaration table.
+ *
+ * @param type - Checker type of an identity property, or undefined when the property is
+ * unavailable.
+ * @param identities - Serialized keys mapped to known native declaration identities.
+ * @param kind - Asset family that every candidate must belong to.
+ * @returns Candidates in type-member order, or null if the type is absent, nonliteral, unknown to
+ * the table, or contains a different asset family.
+ */
 function knownIdentities(
   type: Type | undefined,
   identities: ReadonlyMap<string, IdentityId>,
@@ -91,6 +149,13 @@ function knownIdentities(
   return result;
 }
 
+/**
+ * Packages known declarations as a finite native symbolic value.
+ *
+ * @param kind - Asset family shared by the supplied identities.
+ * @param identities - Candidate identities retained in their supplied order.
+ * @returns A finite symbolic value containing a copied candidate array.
+ */
 function symbolic(
   kind: IdentityId["kind"],
   identities: readonly IdentityId[],
@@ -98,19 +163,43 @@ function symbolic(
   return { kind, candidates: { kind: "finite", values: [...identities] } };
 }
 
-/** Registered identities and the core module's canonical unique-symbol brands. */
+/**
+ * Decodes checker types into native declaration candidates using brand properties discovered from
+ * producer modules.
+ */
 class AssetTypeDecoder {
+  /**
+   * Checker for the current project snapshot, used to inspect exported types and their properties.
+   */
   readonly #checker: Checker;
+  /**
+   * All declaration keys registered in the current virtual project, mapped to original native
+   * identities.
+   */
   readonly #identities: ReadonlyMap<string, IdentityId>;
+  /** Checker symbol IDs of modules whose exported asset brands have already been inspected. */
   readonly #modules = new Set<number>();
+  /** Internal names of discovered unique-symbol brand properties mapped to their asset families. */
   readonly #brands = new Map<string, IdentityId["kind"]>();
 
+  /**
+   * Creates a decoder for one checker snapshot and declaration table.
+   *
+   * @param checker - Checker owning all types supplied to this decoder.
+   * @param identities - Serialized identity keys inserted into the project's producer calls.
+   */
   constructor(checker: Checker, identities: ReadonlyMap<string, IdentityId>) {
     this.#checker = checker;
     this.#identities = identities;
   }
 
-  /** Loads canonical unique-symbol properties from a registered producer's core module. */
+  /**
+   * Discovers ref, keyframe, and view-transition brands in a producer type's declaring module.
+   *
+   * @param type - Producer call type from this decoder's checker snapshot. Missing alias modules
+   * and already inspected modules are skipped. The discovered property names are retained for later
+   * decoding.
+   */
   register(type: Type): void {
     const module = type.getAliasSymbol()?.getParent();
     if (!module || this.#modules.has(module.id)) {
@@ -136,6 +225,14 @@ class AssetTypeDecoder {
     }
   }
 
+  /**
+   * Resolves a checker type to finite candidates from a single asset family.
+   *
+   * @param type - Type of a probed expression from the current checker snapshot.
+   * @returns A native value when every union member carries known declarations from the same
+   * family. Otherwise value is null. Recognized still records detected branding or a known asset
+   * type name.
+   */
   decode(type: Type): { value: NativeExportedValue | null; recognized: boolean } {
     const constituents = type.isUnionType() ? type.getTypes() : [type];
     const values: IdentityId[] = [];
@@ -210,21 +307,64 @@ class AssetTypeDecoder {
   }
 }
 
+/**
+ * Virtual project files, checker range mappings, and declaration identities prepared for one
+ * collection request.
+ */
 interface PreparedProject {
+  /**
+   * Normalized absolute filenames mapped to virtual text, including checker sources, helpers,
+   * globals, and project configuration.
+   */
   virtualFiles: Map<string, string>;
+  /**
+   * Checker buffers in source and buffer order, retaining the correspondence to original probes.
+   */
   mappings: CheckerSource[];
+  /**
+   * Serialized identity keys collected from all checker buffers, mapped to their native
+   * declarations.
+   */
   identities: Map<string, IdentityId>;
 }
 
+/**
+ * Cumulative checker lifecycle and filesystem counters for one service. They include recovery
+ * attempts and are not reset between collections.
+ */
 export interface TypeScriptFactsStats {
+  /** Number of API construction attempts, including the initial start and recovery starts. */
   starts: number;
+  /**
+   * Number of snapshot updates that returned a snapshot, including updates followed by a query
+   * failure.
+   */
   snapshots: number;
+  /** Number of snapshot updates made while a previous snapshot was retained. */
   incrementalSnapshots: number;
+  /** Number of recovery restarts attempted after a failure other than `TypeFactsError`. */
   restarts: number;
+  /** Number of checker read callbacks answered with text from the virtual overlay. */
   overlayReads: number;
+  /**
+   * Number of checker read callbacks delegated to the filesystem because the overlay had no text. A
+   * request does not imply a successful disk read.
+   */
   diskReadRequests: number;
 }
 
+/**
+ * Builds checker sources and an in-memory project configuration for semantic queries.
+ *
+ * @param sources - Prepared sources with validated mappings, original probes, and dependency
+ * resolutions.
+ * @param assetsByModuleId - Native declaration records keyed by compiler module identity.
+ * @param configFile - Absolute virtual configuration filename used to locate generated global
+ * declarations.
+ * @returns Virtual text and range mappings without writing any files to disk.
+ * @throws If checker edits or projection maps are invalid, or an original probe has no
+ * checker-buffer correspondence.
+ */
 function prepareProject(
   sources: readonly TypeFactSource[],
   assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -318,30 +458,84 @@ function prepareProject(
   return { virtualFiles, mappings, identities: allIdentities };
 }
 
-/** Owns one TS7 process and a chain of incremental snapshots for a Vite project. */
+/**
+ * Owns a synchronous TypeScript checker API and incrementally updated virtual project. Reuse it
+ * across collections for one root and close it when its caller releases the project.
+ */
 export class TypeScriptFactsService {
+  /**
+   * Live cumulative counters updated by this service. Consumers needing a stable report must copy
+   * their values.
+   */
   readonly stats: TypeScriptFactsStats = {
+    /** @see TypeScriptFactsStats.starts */
     starts: 0,
+    /** @see TypeScriptFactsStats.snapshots */
     snapshots: 0,
+    /** @see TypeScriptFactsStats.incrementalSnapshots */
     incrementalSnapshots: 0,
+    /** @see TypeScriptFactsStats.restarts */
     restarts: 0,
+    /** @see TypeScriptFactsStats.overlayReads */
     overlayReads: 0,
+    /** @see TypeScriptFactsStats.diskReadRequests */
     diskReadRequests: 0,
   };
 
+  /**
+   * Absolute filename of the in-memory `.stillwind-tsconfig.json`. The service does not write it to
+   * disk.
+   */
   readonly #configFile: string;
+  /** Filesystem root supplied as the checker API working directory. */
   readonly #projectRoot: string;
+  /** Active checker API instance, replaced after a recoverable collection failure. */
   #api: API;
+  /**
+   * Whether close has been requested. Subsequent collections reject and repeated close calls do
+   * nothing.
+   */
   #closed = false;
+  /**
+   * Latest retained checker snapshot, also retained after query failures until the next update,
+   * restart, or close.
+   */
   #snapshot: Snapshot | undefined;
+  /**
+   * Current normalized filename overlay read dynamically by the checker API filesystem callbacks.
+   */
   #virtualFiles = new Map<string, string>();
 
+  /**
+   * Starts a checker API for a project root without creating its first snapshot.
+   *
+   * @param projectRoot - Absolute filesystem root used as the API working directory and the virtual
+   * configuration directory.
+   * @throws If the checker API cannot start.
+   */
   constructor(projectRoot: string) {
     this.#projectRoot = projectRoot;
     this.#configFile = path.join(projectRoot, ".stillwind-tsconfig.json");
     this.#api = this.#startApi();
   }
 
+  /**
+   * Collects finite declaration candidates for original-coordinate probes.
+   *
+   * Each call replaces the virtual project contents and updates its snapshot. Known mapping,
+   * assignment, and identity contract errors propagate as `TypeFactsError`. Other query failures
+   * trigger one clean API restart and retry. The service filters diagnostics to those associated
+   * with Stillwind declaration contracts.
+   *
+   * @param sources - Prepared sources and original-byte probes, with validated projection
+   * correspondences where needed.
+   * @param assetsByModuleId - Declaration records keyed by compiler module identity.
+   * @returns Facts keyed by compiler module identity. Facts for the same original range are
+   * deduplicated across buffers. Incompatible values reject. Known types that do not represent
+   * Stillwind assets and unresolved recognition-only probes produce no fact.
+   * @throws If the service is closed, preparation or checker contracts fail, or the API fails. A
+   * failed query retry throws an AggregateError containing both query failures.
+   */
   collect(
     sources: readonly TypeFactSource[],
     assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -369,6 +563,12 @@ export class TypeScriptFactsService {
     }
   }
 
+  /**
+   * Marks the service closed, disposes its retained snapshot, and closes the checker API. Repeated
+   * calls return without further work.
+   *
+   * @throws If snapshot disposal or API cleanup fails.
+   */
   close(): void {
     if (this.#closed) {
       return;
@@ -379,6 +579,13 @@ export class TypeScriptFactsService {
     this.#api.close();
   }
 
+  /**
+   * Starts a checker API whose filesystem callbacks consult the current virtual overlay.
+   *
+   * @returns A new API using the project root, with timing collection enabled. Increments starts
+   * before construction. Read callbacks update the filesystem counters.
+   * @throws If API construction fails.
+   */
   #startApi(): API {
     this.stats.starts += 1;
     return new API({
@@ -405,6 +612,12 @@ export class TypeScriptFactsService {
     });
   }
 
+  /**
+   * Disposes the previous snapshot and API, then replaces the API without clearing virtual files or
+   * counters.
+   *
+   * @throws If cleanup or creation of the replacement API fails.
+   */
   #restartApi(): void {
     this.#snapshot?.dispose();
     this.#snapshot = undefined;
@@ -412,6 +625,20 @@ export class TypeScriptFactsService {
     this.#api = this.#startApi();
   }
 
+  /**
+   * Updates the virtual project snapshot and queries each mapped checker buffer.
+   *
+   * The previous snapshot is disposed after querying. The new snapshot is retained even if queries
+   * fail. Overlay names whose files also exist on disk are reported as changed rather than created
+   * or deleted.
+   *
+   * @param prepared - Complete replacement overlay, checker buffers, and identities from project
+   * preparation.
+   * @returns Deduplicated facts keyed by compiler module identity, while updating snapshot
+   * counters.
+   * @throws If a project or source is missing, a Stillwind assignment diagnostic is found, probes
+   * cannot be decoded, matching buffers disagree, or checker operations fail.
+   */
   #collectPrepared(prepared: PreparedProject): Map<string, TypeFact[]> {
     const changed: string[] = [];
     const created: string[] = [];
@@ -522,7 +749,16 @@ export class TypeScriptFactsService {
   }
 }
 
-/** One-shot convenience API for tests and non-Vite callers. */
+/**
+ * Collects facts with a temporary checker service and closes it afterward.
+ *
+ * @param sources - Prepared sources and their original-byte semantic probes.
+ * @param assetsByModuleId - Native declarations keyed by compiler module identity.
+ * @param projectRoot - Absolute filesystem root for checker resolution.
+ * @returns Facts keyed by compiler module identity, using the same contract as
+ * `TypeScriptFactsService.collect`.
+ * @throws If service startup, fact collection, or cleanup fails.
+ */
 export function collectTypeScriptFacts(
   sources: readonly TypeFactSource[],
   assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -536,20 +772,27 @@ export function collectTypeScriptFacts(
   }
 }
 
-/** Includes nested checker explanations that may carry the declaration identity. */
+/**
+ * Flattens a checker diagnostic and its nested message chain for matching and display.
+ *
+ * @param diagnostic - Checker diagnostic with optional nested messages.
+ * @returns Diagnostic text followed recursively by child messages, separated by newlines.
+ */
 function diagnosticText(diagnostic: Diagnostic): string {
   return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(diagnosticText)].join("\n");
 }
 
 /**
- * Queries the types of expressions in the shadow AST described by `mapping`.
- * `sourceFile` must be the checker source whose offsets are used in that mapping.
- * Returns facts in AST traversal order, with each probe's original UTF-8 range.
+ * Decodes the types of checker expressions matched to original semantic probes.
  *
- * Throws TypeFactsError if a probe has no matching AST expression, even when it is
- * optional. It also throws when a required query needs Stillwind declarations but
- * cannot resolve their identities. Unrecognized optional probes and ordinary
- * expressions that do not represent assets produce no fact.
+ * @param checker - Checker owning the supplied source file and decoder types.
+ * @param sourceFile - Final checker AST for the mapped buffer.
+ * @param mapping - Original probes indexed by exact checker AST start and end positions.
+ * @param decoder - Decoder with asset brands already registered from producer types.
+ * @returns Facts in AST traversal order with original byte ranges. Known types that do not
+ * represent Stillwind assets and unresolved recognition-only requests are omitted.
+ * @throws If a mapped probe has no expression node, or a required query has a missing, unresolved,
+ * or recognized-but-nonfinite declaration type.
  */
 function factsForSource(
   checker: Checker,
@@ -580,6 +823,7 @@ function factsForSource(
       );
     }
   }
+
   const types = checker.getTypeAtLocation(expressions);
   const facts: TypeFact[] = [];
   for (const [index, expression] of expressions.entries()) {
@@ -614,5 +858,6 @@ function factsForSource(
     }
     facts.push({ ...probe, value });
   }
+
   return facts;
 }

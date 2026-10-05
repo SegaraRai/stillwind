@@ -179,7 +179,11 @@ console.log(style('picture'));
 
 async function buildProject(
   files: Record<string, string>,
-  options: { emission?: "single" | "split"; sourcemap?: boolean; plugins?: Plugin[] } = {},
+  options: {
+    emission?: "single" | "split";
+    sourcemap?: boolean;
+    plugins?: Plugin[];
+  } = {},
 ) {
   const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
   const root = mkdtempSync(path.join(packageRoot, ".test-module-css-"));

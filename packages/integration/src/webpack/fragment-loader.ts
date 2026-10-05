@@ -1,5 +1,5 @@
 /** Immutable string fragments remain reconstructible in isolated loader workers. */
-export default function (this: any): string {
+export default function webpackFragmentLoader(this: any): string {
   const encoded = new URLSearchParams(this.resourceQuery).get("css");
   if (!encoded) {
     throw new Error("Missing Stillwind CSS fragment");

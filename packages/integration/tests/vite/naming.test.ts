@@ -24,7 +24,9 @@ test("a configured generator names the classes the plugin emits", async () => {
         stillwind({
           css: path.join(root, "root.css"),
           types: false,
-          naming: { utilityClass: () => "app-class" },
+          naming: {
+            utilityClass: () => "app-class",
+          },
           namingRevision: "test-naming",
         }),
       ],
@@ -75,11 +77,17 @@ test("a stylesheet the producer authors owns the names it writes", async () => {
           stillwind({
             css: path.join(root, "root.css"),
             types: false,
-            naming: { utilityClass: () => "app-class" },
+            naming: {
+              utilityClass: () => "app-class",
+            },
             namingRevision: "test-naming",
           }),
         ],
-        build: { write: false, minify: false, cssMinify: false },
+        build: {
+          write: false,
+          minify: false,
+          cssMinify: false,
+        },
       }),
     ).rejects.toThrow(/app-class/);
   } finally {

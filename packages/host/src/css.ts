@@ -5,18 +5,58 @@ import {
   type NativeCompilerOptions,
   type NativeCssFileInput,
   type NativeCssLoadStep,
+  type NativeCssResource,
 } from "@stillwind/native";
 
 /**
- * The host resolves CSS imports, reads their text, and watches files.
- * Resolved identifiers must be accepted by read and watch.
+ * Host operations that load the CSS graph and preserve document and source-map identities. Resolved
+ * IDs must be accepted by the reader, identity functions, and watcher.
  */
 export interface CssHost {
+  /**
+   * Resolves an import from one CSS file.
+   *
+   * @param specifier - Import request text from the stylesheet.
+   * @param importer - Resolved identity of the importing stylesheet.
+   * @returns A promise for a file identity accepted by the other host operations. Resolution
+   * failures reject.
+   */
   resolve(specifier: string, importer: string): Promise<string>;
+  /**
+   * Reads the text of a resolved CSS file.
+   *
+   * @param id - Identity returned by the resolver, or the resolved root identity.
+   * @returns A promise for stylesheet text. Read failures reject.
+   */
   read(id: string): Promise<string>;
+  /**
+   * Assigns the document identity used by compiler diagnostics.
+   *
+   * @param id - Resolved CSS file identity.
+   * @returns A stable document URI for this file.
+   */
   documentUri(id: string): string;
+  /**
+   * Assigns the source name recorded in CSS source maps.
+   *
+   * @param id - Resolved CSS file identity.
+   * @returns The source identity used for mapping emitted CSS back to this file.
+   */
   sourceMapSource(id: string): string;
+  /**
+   * Registers a resolved CSS file for dependency tracking.
+   *
+   * @param id - Root or dependency identity accepted by the host reader.
+   */
   watch(id: string): void;
+}
+
+/** Completed design-system loader and resource references discovered in its CSS graph. */
+export interface LoadedCssGraph {
+  /** Native loader whose complete CSS graph is ready for compilation or vocabulary generation. */
+  loader: NativeDesignSystemLoader;
+  /** Authored resource references that the adapter must resolve and replace in emitted CSS. */
+  resources: NativeCssResource[];
 }
 
 /**
@@ -32,6 +72,14 @@ export interface CssHost {
  * can reveal more imports without waiting for slower reads.
  * Resolution, read, and native loading errors reject the promise. Reads already
  * started continue, and files already registered with the watcher stay registered.
+ *
+ * @param root - Resolved CSS entrypoint accepted by the host's read and watch operations.
+ * @param options - Compiler settings used when creating a new loader.
+ * @param host - CSS resolver, reader, source identity operations, and dependency watcher.
+ * @param rootContent - Optional entrypoint text that replaces the initial filesystem read.
+ * @param suppliedLoader - Optional configured loader that has not received any CSS input.
+ * @returns A promise for the completed native loader and its authored resource references.
+ * @throws If resolving, reading, or loading the CSS graph fails.
  */
 export async function loadCssGraph(
   root: string,
@@ -39,11 +87,11 @@ export async function loadCssGraph(
   host: CssHost,
   rootContent?: string,
   suppliedLoader?: NativeDesignSystemLoader,
-) {
+): Promise<LoadedCssGraph> {
   const loader = suppliedLoader ?? new NativeDesignSystemLoader(options);
+
   host.watch(root);
-  type LoadStep = NativeCssLoadStep;
-  let resourceReferences: Extract<LoadStep, { kind: "complete" }>["resources"] = [];
+
   const initial = loader.provide(
     0,
     root,
@@ -51,6 +99,8 @@ export async function loadCssGraph(
     host.documentUri(root),
     host.sourceMapSource(root),
   );
+
+  let resourceReferences: Extract<NativeCssLoadStep, { kind: "complete" }>["resources"] = [];
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
@@ -60,7 +110,7 @@ export async function loadCssGraph(
       stopped = true;
       rejectLoad(error);
     };
-    const advance = (step: LoadStep) => {
+    const advance = (step: NativeCssLoadStep) => {
       if (step.kind === "complete") {
         resourceReferences = step.resources;
         stopped = true;
@@ -113,5 +163,9 @@ export async function loadCssGraph(
     };
     advance(initial);
   });
-  return { loader, resources: resourceReferences };
+
+  return {
+    loader,
+    resources: resourceReferences,
+  };
 }

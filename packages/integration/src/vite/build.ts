@@ -1,48 +1,87 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { posix } from "node:path";
 
 import { decodeCssSourceMap } from "@stillwind/host";
-import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
+import { emitBuildCss, emitBuildResources } from "./build-assets.ts";
+import { renderChunkStyles } from "./chunk-styles.ts";
 import { partitionStylesheet } from "./emission.ts";
-import { readableFile } from "./file-access.ts";
 import { runtimeId, projectionPrefix, producerPrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 import { resolveResources } from "./resources.ts";
 
+/**
+ * A production stylesheet manifest that preserves CSS part order and records each producer's
+ * required parts.
+ */
+export interface StylesheetManifest {
+  /** Serialized manifest schema version. Consumers must interpret this structure as version 1. */
+  version: 1;
+  /** SHA-256 fingerprint of the design system, original CSS, and producer artifacts. */
+  revision: string;
+  /**
+   * Stylesheet occurrences in cascade order. Repeated payloads may share a URL but retain distinct
+   * IDs.
+   */
+  parts: {
+    /** Occurrence identity referenced by `modules`. Single emission uses `document`. */
+    id: string;
+    /** Public URL formed from the configured Vite base and emitted asset filename. */
+    href: string;
+  }[];
+  /**
+   * Compiler module identities mapped to required part IDs in manifest order, including shared and
+   * composed styles.
+   */
+  modules: Record<string, string[]>;
+}
+
+/** Emitted CSS references and stylesheet metadata for one Vite environment. */
+export interface BuildOutput {
+  /**
+   * Bundler reference ID for the single document CSS asset. Split emission leaves this undefined.
+   */
+  buildCss?: string;
+  /** Manifest for emitted document styles. Undefined until a build has emitted Stillwind CSS. */
+  manifest?: StylesheetManifest;
+}
+
+/**
+ * Creates production hooks that emit complete document CSS and associate it with rendered chunks.
+ *
+ * @param project - Project whose compiler hooks collect producers and initialize environment
+ * settings.
+ * @returns Hooks for stylesheet emission at render start and CSS association during chunk
+ * rendering.
+ */
 export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "renderChunk"> {
-  const {
-    options,
-    settings,
-    environmentState,
-    inputMap,
-    moduleRegistry,
-    cssForBrowser,
-    publicSourceMap,
-    documentPlan,
-    compile,
-  } = project;
+  const { options, settings, inputs, cssForBrowser, documentPlan, compile } = project;
+
   return {
+    /**
+     * Recovers cached producers from the completed graph and emits CSS, resources, and the
+     * manifest.
+     *
+     * The Vite hook context must expose the completed module graph. Recovered inputs include lazy
+     * modules before the stylesheet receives complete coverage.
+     *
+     * @returns A promise that resolves after build output is stored, or immediately for development
+     * and graphs without document CSS references.
+     */
     async renderStart() {
       if (settings.watching) {
         return;
       }
       const name = this.environment?.name;
-      const state = environmentState(name);
       // The final graph includes lazy modules and cached transforms. Recover inputs
       // from graph metadata before making a complete-coverage claim.
       for (const id of this.getModuleIds()) {
         const metadata = this.getModuleInfo(id)?.meta.stillwind;
-        if (metadata?.input !== undefined && !inputMap(name).has(metadata.id ?? id)) {
+        if (metadata?.input !== undefined && !inputs(name).has(metadata.id ?? id)) {
           await compile(name, metadata.input, metadata.id ?? id, this);
         }
         if (metadata?.projection) {
-          const input = inputMap(name).get(metadata.id ?? id);
-          if (input) {
-            input.projection = true;
-          }
+          await project.environment(name).markProjection(metadata.id ?? id);
         }
       }
       const plan = await documentPlan(name, this, true);
@@ -54,66 +93,15 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
       ) {
         return;
       }
-      const assets = new Map<string, string>();
-      const replacements = new Map<string, string>();
-      for (const [placeholder, resource] of plan.resources) {
-        if (!plan.originalCss.includes(placeholder)) {
-          continue;
-        }
-        const file = await readableFile(resource.id);
-        if (assets.has(file)) {
-          replacements.set(
-            placeholder,
-            JSON.stringify(
-              posix.relative(settings.assetsDirectory, this.getFileName(assets.get(file)!)),
-            ).slice(1, -1),
-          );
-          continue;
-        }
-        const reference = this.emitFile({
-          type: "asset",
-          name: file.replaceAll("\\", "/").split("/").at(-1),
-          source: await readFile(file),
-        });
-        assets.set(file, reference);
-        replacements.set(
-          placeholder,
-          JSON.stringify(
-            posix.relative(settings.assetsDirectory, this.getFileName(reference)),
-          ).slice(1, -1),
-        );
-      }
+      const replacements = await emitBuildResources(
+        this,
+        plan.originalCss,
+        plan.resources,
+        settings.assetsDirectory,
+      );
       const css = resolveResources(plan.originalCss, replacements);
-      const emitCss = async (text: string, sourceMap?: string) => {
-        if (settings.minifyCss) {
-          const input = sourceMap
-            ? `${text}\n/*# sourceMappingURL=data:application/json;base64,${Buffer.from(sourceMap).toString("base64")} */`
-            : text;
-          const result = await transformCss(input, {
-            loader: "css",
-            minify: true,
-            sourcemap: sourceMap ? "external" : false,
-            sourcefile: "stillwind.css",
-          });
-          text = result.code;
-          sourceMap = result.map || undefined;
-        }
-        const hash = createHash("sha256").update(text).digest("hex").slice(0, 16);
-        if (sourceMap) {
-          sourceMap = JSON.stringify(publicSourceMap(name, sourceMap));
-          this.emitFile({
-            type: "asset",
-            fileName: `${settings.assetsDirectory}/stillwind-${hash}.css.map`,
-            source: sourceMap,
-          });
-          text += `\n/*# sourceMappingURL=stillwind-${hash}.css.map */`;
-        }
-        return this.emitFile({
-          type: "asset",
-          fileName: `${settings.assetsDirectory}/stillwind-${hash}.css`,
-          source: text,
-        });
-      };
+      const emitCss = (text: string, sourceMap?: string) =>
+        emitBuildCss(project, name, this, text, sourceMap);
       const href = (reference: string) => settings.publicBase + this.getFileName(reference);
       const revision = createHash("sha256")
         .update(plan.designSystem)
@@ -123,6 +111,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         .update(JSON.stringify(plan.producers))
         .update("\0")
         .digest("hex");
+      const output: BuildOutput = {};
       if (options.emission !== "split") {
         const mapped = settings.sourceMaps
           ? decodeCssSourceMap(
@@ -136,11 +125,11 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
               ),
             )
           : undefined;
-        state.buildCss = await emitCss(css, mapped?.map ? JSON.stringify(mapped.map) : undefined);
-        state.manifest = {
+        output.buildCss = await emitCss(css, mapped?.map ? JSON.stringify(mapped.map) : undefined);
+        output.manifest = {
           version: 1,
           revision,
-          parts: [{ id: "document", href: href(state.buildCss) }],
+          parts: [{ id: "document", href: href(output.buildCss) }],
           modules: Object.fromEntries(
             plan.producers.map((producer) => [producer.module, ["document"]]),
           ),
@@ -166,7 +155,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
           parts.push({ id: `${index}:${part.key}`, href: href(reference) });
         }
         const dependencies = new Map(
-          [...inputMap(name).values()].map((input) => [input.moduleId, input.dependencies]),
+          [...inputs(name).values()].map((input) => [input.moduleId, input.dependencies]),
         );
         const modules = Object.fromEntries(
           plan.producers.map((producer) => {
@@ -188,99 +177,24 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
             ];
           }),
         );
-        state.manifest = { version: 1, revision, parts, modules };
+        output.manifest = { version: 1, revision, parts, modules };
       }
+      project.setBuildOutput(name, output);
       this.emitFile({
         type: "asset",
         fileName: "stillwind-manifest.json",
-        source: JSON.stringify(state.manifest, null, 2),
+        source: JSON.stringify(output.manifest, null, 2),
       });
     },
+    /**
+     * Adds CSS metadata or a split stylesheet loader to a rendered production chunk.
+     *
+     * @param code - Rendered JavaScript for this chunk.
+     * @param chunk - Chunk metadata, updated with the selected CSS files.
+     * @returns A rewritten chunk with a null map for split CSS, otherwise `null`.
+     */
     renderChunk(code, chunk) {
-      const { manifest, buildCss } = environmentState(this.environment?.name);
-      const metadata = chunk as typeof chunk & {
-        viteMetadata?: {
-          importedCss: Set<string>;
-          importedAssets: Set<string>;
-        };
-      };
-      const attachCss = (file: string) => {
-        metadata.viteMetadata ??= {
-          importedCss: new Set(),
-          importedAssets: new Set(),
-          __modules: new Set(),
-        };
-        metadata.viteMetadata.importedCss.add(file);
-      };
-      if (options.emission === "split" && manifest) {
-        const graph = new Set(Object.keys(chunk.modules));
-        if (chunk.facadeModuleId) {
-          graph.add(chunk.facadeModuleId);
-        }
-        for (const id of graph) {
-          for (const dependency of this.getModuleInfo(id)?.importedIds ?? []) {
-            graph.add(dependency);
-          }
-        }
-        const ids = new Set(
-          [...graph].flatMap((id) => {
-            const moduleId =
-              inputMap(this.environment?.name).get(id)?.moduleId ??
-              this.getModuleInfo(id)?.meta.stillwind?.moduleId ??
-              (id.startsWith(producerPrefix)
-                ? (() => {
-                    const entry = moduleRegistry(this.environment?.name).get(id);
-                    return entry?.kind === "producer" ? entry.moduleId : "";
-                  })()
-                : "");
-            return manifest!.modules[moduleId] ?? [];
-          }),
-        );
-        const parts = manifest.parts
-          .filter((part) => ids.has(part.id))
-          .map((part) => ({
-            ...part,
-            order: manifest!.parts.indexOf(part),
-            relative: settings.publicBase === "./" || settings.publicBase === "",
-            href:
-              settings.publicBase === "./" || settings.publicBase === ""
-                ? posix.relative(
-                    posix.dirname(chunk.fileName),
-                    part.href.slice(settings.publicBase.length),
-                  )
-                : part.href,
-          }));
-        if (parts.length) {
-          for (const part of manifest.parts.filter((part) => ids.has(part.id))) {
-            attachCss(part.href.slice(settings.publicBase.length));
-          }
-          return {
-            code: `${code}
-
-/* Stillwind CSS Loader */
-if (typeof document !== "undefined") {
-  for (const p of ${JSON.stringify(parts)}) {
-    const links = [...document.querySelectorAll("link[data-stillwind-part]")];
-    if (links.some((l) => l.dataset.stillwindPart === p.id)) {
-      continue;
-    }
-    const l = document.createElement("link");
-    l.rel = "stylesheet";
-    l.href = p.relative ? new URL(p.href, import.meta.url).href : p.href;
-    l.dataset.stillwindPart = p.id;
-    l.dataset.stillwindOrder = String(p.order);
-    document.head.insertBefore(l, links.find((e) => Number(e.dataset.stillwindOrder) > p.order) ?? null);
-  }
-}
-`,
-            map: null,
-          };
-        }
-      }
-      if (buildCss) {
-        attachCss(this.getFileName(buildCss));
-      }
-      return null;
+      return renderChunkStyles(project, this.environment?.name, this, code, chunk);
     },
   };
 }
