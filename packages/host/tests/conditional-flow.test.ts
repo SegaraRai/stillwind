@@ -511,7 +511,7 @@ test("pure folding and empty-branch removal preserve materialized values", async
   ] as const) {
     const output = await compile(
       [
-        `import { style } from \"stillwind/${framework}\";`,
+        `import { style } from "stillwind/${framework}";`,
         "const events = []; const read = (value) => value;",
         'const props = style({ "--x": read(x) }, { "data-value": x }, { "--y": x + 1 }, enabled && [], "red");',
       ].join("\n"),

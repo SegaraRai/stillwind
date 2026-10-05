@@ -22,7 +22,9 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const definition = (color: string) =>
   `.environment {color:${color};} @utility paint {color:${color};}`;
 const cssReads = () =>
-  vi.mocked(readFile).mock.calls.filter(([file]) => String(file).endsWith(".css"));
+  vi
+    .mocked(readFile)
+    .mock.calls.filter(([file]) => typeof file === "string" && file.endsWith(".css"));
 
 async function fixture(root: string, plugins: Plugin[] = [], hmr = false) {
   const project = createViteProject({ css: "root.css", types: false });
@@ -112,8 +114,8 @@ test("watch events refresh independent client and SSR snapshots without HMR or u
     expect(results[0]).toMatch(/color:\s*green/);
     expect(results[1]).toMatch(/color:\s*blue/);
     expect(results[2]).toBe(results[0]);
-    expect(cssReads().filter(([file]) => String(file) === clientCss)).toHaveLength(1);
-    expect(cssReads().filter(([file]) => String(file) === ssrCss)).toHaveLength(0);
+    expect(cssReads().filter(([file]) => file === clientCss)).toHaveLength(1);
+    expect(cssReads().filter(([file]) => file === ssrCss)).toHaveLength(0);
     await changed(f, ssrCss, () => writeFileSync(ssrCss, definition("purple")));
     expect(await f.css("ssr")).toMatch(/color:\s*purple/);
     expect(await f.css("client")).toMatch(/color:\s*green/);
@@ -209,7 +211,7 @@ test("a change to a newly watched import during reading retries before publishin
     vi.mocked(readFile).mockClear();
     vi.mocked(readFile).mockImplementation(async (...args) => {
       const content = await original.readFile(...args);
-      if (String(args[0]) === added && hold) {
+      if (args[0] === added && hold) {
         hold = false;
         started();
         await gate;
@@ -228,7 +230,7 @@ test("a change to a newly watched import during reading retries before publishin
     const results = await Promise.all([older, newer]);
     expect(results[0]).toMatch(/color:\s*purple/);
     expect(results[1]).toBe(results[0]);
-    expect(cssReads().filter(([file]) => String(file) === added)).toHaveLength(2);
+    expect(cssReads().filter(([file]) => file === added)).toHaveLength(2);
     expect(state.cssApplied).toBe(state.cssChange);
     const count = cssReads().length;
     expect(await f.css()).toBe(results[0]);
