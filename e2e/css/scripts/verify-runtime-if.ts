@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium, type Browser } from "playwright";
-import { build, preview } from "vite-plus";
+import { build, preview } from "vite";
 import { afterAll, beforeAll, test, expect } from "vite-plus/test";
 
 export default function register(context: ScenarioContext): void {

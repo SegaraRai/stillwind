@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { moduleSourceMap } from "@stillwind/host";
@@ -5,11 +6,13 @@ import type { AstroIntegration } from "astro";
 
 import { compilerPlugin } from "../vite/plugin.ts";
 import { createViteProject, type StillwindOptions } from "../vite/project.ts";
+import { registerDevelopmentCss } from "./development.ts";
 
 export type { StillwindOptions } from "../vite/index.ts";
 
 const ID = "virtual:stillwind/astro-styles";
 const CLIENT_ID = ID + "/client";
+const BRIDGE_ID = "@stillwind/integration/internal/astro-development";
 const MARKER = '"__STILLWIND_ASTRO_STYLES_574f6dfce7c69466ab9516fb7fc6199a__"';
 
 /**
@@ -18,6 +21,8 @@ const MARKER = '"__STILLWIND_ASTRO_STYLES_574f6dfce7c69466ab9516fb7fc6199a__"';
 export function stillwind(options: StillwindOptions): AstroIntegration {
   const project = createViteProject(options);
   const plugin = compilerPlugin(project);
+  const bridgeId = randomUUID();
+  let disposeBridge = () => {};
 
   return {
     name: "@stillwind/integration",
@@ -36,8 +41,50 @@ export function stillwind(options: StillwindOptions): AstroIntegration {
               plugin,
               {
                 name: "stillwind:astro-document",
+                configureServer(server) {
+                  disposeBridge();
+                  if (!server.environments.ssr) {
+                    throw new Error("Stillwind Astro requires an SSR environment");
+                  }
+                  const disposers = Object.entries(server.environments)
+                    .filter(([name]) => name !== "client")
+                    .map(([name, environment]) =>
+                      registerDevelopmentCss(`${bridgeId}:${name}`, async () => {
+                        const plan = await project.documentPlan(name, {
+                          resolve: (specifier, importer) =>
+                            environment.pluginContainer.resolveId(specifier, importer),
+                          addWatchFile: (id) => {
+                            server.watcher.add(id);
+                          },
+                        });
+                        return plan.css;
+                      }),
+                    );
+                  const dispose = () => {
+                    for (const dispose of disposers) {
+                      dispose();
+                    }
+                  };
+                  disposeBridge = dispose;
+                  server.httpServer?.once("close", dispose);
+                },
+                closeBundle() {
+                  disposeBridge();
+                },
                 resolveId(source) {
+                  if (source === BRIDGE_ID) {
+                    if (this.environment?.name === "client") {
+                      this.error("Stillwind Astro CSS bridge is server-only");
+                    }
+                    return {
+                      id: source,
+                      external: true,
+                    };
+                  }
                   if (source === ID || source === CLIENT_ID) {
+                    if (source === ID && this.environment?.name === "client") {
+                      this.error("Stillwind Astro styles are server-only");
+                    }
                     return "\0" + source;
                   }
                 },
@@ -68,16 +115,12 @@ if (import.meta.hot) {
                     return;
                   }
                   if (project.settings.watching) {
-                    const endpoint =
-                      project.settings.publicBase + "__stillwind/style.css?environment=ssr";
                     const script = `<script type="module" src="${project.settings.publicBase}@id/__x00__${CLIENT_ID}"></script>`;
                     return `// Stillwind SSR CSS (astro with hot reload)
-export async function getStyles(url) {
-  const response = await fetch(new URL(${JSON.stringify(endpoint)}, url));
-  if (!response.ok) {
-    throw new Error("Stillwind SSR CSS: " + response.status);
-  }
-  return "<style data-stillwind-ssr>" + escapeInlineCss(await response.text()) + "</style>" + ${JSON.stringify(script)};
+import { getDevelopmentCss } from ${JSON.stringify(BRIDGE_ID)};
+
+export async function getStyles() {
+  return "<style data-stillwind-ssr>" + escapeInlineCss(await getDevelopmentCss(${JSON.stringify(`${bridgeId}:${this.environment?.name ?? "ssr"}`)})) + "</style>" + ${JSON.stringify(script)};
 }
 
 function escapeInlineCss(css) {

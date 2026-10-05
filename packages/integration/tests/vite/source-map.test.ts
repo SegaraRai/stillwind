@@ -7,27 +7,181 @@ import { moduleSourceMap } from "@stillwind/host";
 import { stillwind } from "@stillwind/integration/vite";
 import vue from "@vitejs/plugin-vue";
 import { build, createServer } from "vite";
-import { expect, test } from "vite-plus/test";
+import { describe, expect, onTestFinished, test } from "vite-plus/test";
 
-test("Vite development composes linked CSS maps through framework preprocessing", async () => {
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-  const root = mkdtempSync(path.join(repo, ".test-session-"));
+test("JavaScript arguments map to their original positions after a framework adds lines", async () => {
+  const { server, source } = await createPreprocessedProject();
+
+  const transformed = await server.transformRequest("/entry.ts");
+  if (!transformed?.map) {
+    expect.fail("Expected transformed JavaScript with a source map");
+  }
+  const map = new TraceMap(JSON.stringify(transformed.map));
+  const generatedArguments = [...transformed.code.matchAll(/\bprogress\b/g)];
+  const originalArguments = [...source.matchAll(/\bprogress\b/g)];
+
+  expect(generatedArguments).toHaveLength(2);
+  for (const [index, argument] of generatedArguments.entries()) {
+    const original = originalPositionFor(map, positionAt(transformed.code, argument.index));
+    expect(original).toMatchObject({
+      source: expect.stringMatching(/entry\.ts$/),
+      ...positionAt(source, originalArguments[index].index),
+    });
+  }
+});
+
+test("CSS classes map to the original style call after a framework adds lines", async () => {
+  const { server, source } = await createPreprocessedProject();
+  await server.transformRequest("/entry.ts");
+
+  const cssModule = await server.environments.client.pluginContainer.load(
+    "\0stillwind:snapshot.css",
+  );
+  if (!cssModule || typeof cssModule !== "object" || !cssModule.map) {
+    expect.fail("Expected the CSS snapshot module with a source map");
+  }
+  const classOffset = cssModule.code.indexOf(".sw_");
+  expect(classOffset).toBeGreaterThanOrEqual(0);
+  const original = originalPositionFor(
+    new TraceMap(JSON.stringify(cssModule.map)),
+    positionAt(cssModule.code, classOffset),
+  );
+
+  expect(original).toMatchObject({
+    source: expect.stringMatching(/\/entry\.ts$/),
+    ...positionAt(source, source.indexOf("style('red'")),
+  });
+});
+
+describe("maps after removing a macro import and adding CSS imports", () => {
+  test("inserted CSS imports have no position in the original source", () => {
+    const { map } = createImportReplacementMap();
+
+    expect(originalPositionFor(map, { line: 1, column: 0 }).source).toBeNull();
+  });
+
+  test("the generated props object maps to the original style call", () => {
+    const { source, generated, map } = createImportReplacementMap();
+
+    const original = originalPositionFor(
+      map,
+      positionAt(generated, generated.indexOf("className")),
+    );
+
+    expect(original).toEqual({
+      source: "/src/a.tsx",
+      ...positionAt(source, source.indexOf('style("flex")')),
+      name: null,
+    });
+    expect(map.sourcesContent?.[0]).toBe(source);
+  });
+
+  test.each([
+    { location: "code after the style call", text: "log(a)" },
+    { location: "code after an emoji", text: '";\r\nconst a' },
+  ])("$location keeps its original position", ({ text }) => {
+    const { source, generated, map } = createImportReplacementMap();
+
+    const original = originalPositionFor(map, positionAt(generated, generated.indexOf(text)));
+
+    expect(original).toEqual({
+      source: "/src/a.tsx",
+      ...positionAt(source, source.indexOf(text)),
+      name: null,
+    });
+  });
+});
+
+test("a Vue production template's generated class maps to its original style call", async () => {
+  const root = createProjectDirectory();
+  const source = `<script setup lang="ts">
+import { style } from 'stillwind/vue';
+</script>
+<template>
+  <p v-bind="style('red')">日本語 🧭</p>
+</template>`;
   writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
-  const source =
-    "import {style} from 'stillwind/react';\n// 日本語 🧭\nexport const props=style('red', { '--x': progress },\n { 'data-value': data },\n { '--y': progress });";
-  writeFileSync(path.join(root, "entry.ts"), source);
+  writeFileSync(path.join(root, "Component.vue"), source);
+
+  const result = await build({
+    configFile: false,
+    root,
+    logLevel: "silent",
+    plugins: [
+      stillwind({
+        css: path.join(root, "root.css"),
+        types: false,
+      }),
+      vue(),
+    ],
+    build: {
+      write: false,
+      sourcemap: true,
+      minify: false,
+      lib: {
+        entry: path.join(root, "Component.vue"),
+        formats: ["es"],
+      },
+      rollupOptions: {
+        external: ["vue"],
+      },
+    },
+  });
+  const bundle = Array.isArray(result) ? result[0] : result;
+  if (!("output" in bundle)) {
+    expect.fail("Expected a completed Vue build");
+  }
+  const classPositions = bundle.output.flatMap((chunk) => {
+    if (chunk.type !== "chunk" || !chunk.map) {
+      return [];
+    }
+    const map = new TraceMap(chunk.map.toString());
+    return [...chunk.code.matchAll(/sw_[0-9a-z]+/g)].map((match) =>
+      originalPositionFor(map, positionAt(chunk.code, match.index)),
+    );
+  });
+
+  expect(classPositions).toContainEqual({
+    source: expect.stringMatching(/Component\.vue$/),
+    ...positionAt(source, source.indexOf("style('red')")),
+    name: null,
+  });
+});
+
+function createProjectDirectory() {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".test-source-map-"));
+  onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+  return root;
+}
+
+async function createPreprocessedProject() {
+  const root = createProjectDirectory();
+  const source = `import { style } from 'stillwind/react';
+// 日本語 🧭
+export const props = style('red', { '--x': progress },
+  { 'data-value': data },
+  { '--y': progress });`;
+  const entryFile = path.join(root, "entry.ts");
+  writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
+  writeFileSync(entryFile, source);
   const server = await createServer({
     configFile: false,
     root,
+    logLevel: "silent",
     resolve: {
-      alias: { "stillwind/react/runtime": path.join(repo, "packages/core/src/runtime/react.ts") },
+      alias: {
+        "stillwind/react/runtime": fileURLToPath(
+          new URL("../../../core/src/runtime/react.ts", import.meta.url),
+        ),
+      },
     },
     plugins: [
       {
         name: "framework-preprocessing-fixture",
         enforce: "pre",
         transform(code, id) {
-          if (id !== path.join(root, "entry.ts").replaceAll("\\", "/")) {
+          if (id !== entryFile.replaceAll("\\", "/")) {
             return;
           }
           const prefix = "// framework helper\n\n";
@@ -49,55 +203,22 @@ test("Vite development composes linked CSS maps through framework preprocessing"
       middlewareMode: true,
       watch: null,
     },
-    logLevel: "silent",
   });
-  try {
-    const result = await server.transformRequest("/entry.ts");
-    expect(result).toBeTruthy();
-    expect(result!.map).toBeTruthy();
-    const jsMap = new TraceMap(JSON.stringify(result!.map));
-    const generatedProgress = [...result!.code.matchAll(/\bprogress\b/g)];
-    const originalProgress = [...source.matchAll(/\bprogress\b/g)];
-    expect(generatedProgress.length, result!.code).toBe(2);
-    for (let index = 0; index < generatedProgress.length; index++) {
-      const generatedOffset = generatedProgress[index].index!;
-      const originalOffset = originalProgress[index].index!;
-      const origin = originalPositionFor(jsMap, {
-        line: result!.code.slice(0, generatedOffset).split("\n").length,
-        column: generatedOffset - result!.code.lastIndexOf("\n", generatedOffset - 1) - 1,
-      });
-      expect(origin.source?.endsWith("entry.ts"), JSON.stringify(origin)).toBeTruthy();
-      expect(origin.line).toBe(source.slice(0, originalOffset).split("\n").length);
-      expect(origin.column).toBe(originalOffset - source.lastIndexOf("\n", originalOffset - 1) - 1);
-    }
-    const css = await server.environments.client.pluginContainer.load("\0stillwind:snapshot.css");
-    if (!(css && typeof css === "object")) {
-      expect.fail('Unexpected value: css && typeof css === "object"');
-    }
-    expect(css.map, css.code).toBeTruthy();
-    const map = new TraceMap(JSON.stringify(css.map));
-    const offset = css.code.indexOf(".sw_");
-    const prefix = css.code.slice(0, offset);
-    const origin = originalPositionFor(map, {
-      line: prefix.split("\n").length,
-      column: offset - prefix.lastIndexOf("\n") - 1,
-    });
-    expect(origin.source?.endsWith("/entry.ts"), JSON.stringify(origin)).toBeTruthy();
-    expect(origin.line).toBe(3);
-    expect(origin.column).toBe("export const props=".length);
-  } finally {
-    await server.close();
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+  onTestFinished(() => server.close());
+  return {
+    server,
+    source,
+  };
+}
 
-test("maps replacements and untouched UTF-16 positions after removed and inserted imports", () => {
-  const macro = 'import { style } from "stillwind/react";\r\n';
-  const source = macro + 'const emoji = "😀";\r\nconst a = style("flex");\r\nconsole.log(a);';
-  const start = source.indexOf('style("flex")');
-  const replacement = '{ className: "_s_example" }';
-  const compiled = source.slice(0, start) + replacement + source.slice(start + 13);
-  const prefix = 'import "base.css";\nimport "module.css";\n';
+function createImportReplacementMap() {
+  const macroImport = 'import { style } from "stillwind/react";\r\n';
+  const macroCall = 'style("flex")';
+  const source = macroImport + 'const emoji = "😀";\r\nconst a = style("flex");\r\nconsole.log(a);';
+  const callStart = source.indexOf(macroCall);
+  const props = '{ className: "_s_example" }';
+  const compiled = source.slice(0, callStart) + props + source.slice(callStart + macroCall.length);
+  const cssImports = 'import "base.css";\nimport "module.css";\n';
   const map = new TraceMap(
     moduleSourceMap(
       source,
@@ -105,86 +226,28 @@ test("maps replacements and untouched UTF-16 positions after removed and inserte
       "/src/a.tsx",
       [
         {
-          originalStart: start,
-          originalEnd: start + 13,
-          generatedStart: start,
-          generatedEnd: start + replacement.length,
+          originalStart: callStart,
+          originalEnd: callStart + macroCall.length,
+          generatedStart: callStart,
+          generatedEnd: callStart + props.length,
         },
       ],
-      [{ from: 0, to: macro.length }],
-      prefix,
+      [
+        {
+          from: 0,
+          to: macroImport.length,
+        },
+      ],
+      cssImports,
     ),
   );
-  expect(originalPositionFor(map, { line: 1, column: 0 }).source).toBe(null);
-  expect(originalPositionFor(map, { line: 4, column: 20 })).toStrictEqual({
-    source: "/src/a.tsx",
-    line: 3,
-    column: 10,
-    name: null,
-  });
-  expect(originalPositionFor(map, { line: 5, column: 8 })).toStrictEqual({
-    source: "/src/a.tsx",
-    line: 4,
-    column: 8,
-    name: null,
-  });
-  expect(originalPositionFor(map, { line: 3, column: 18 })).toStrictEqual({
-    source: "/src/a.tsx",
-    line: 2,
-    column: 18,
-    name: null,
-  });
-  expect(map.sourcesContent?.[0]).toBe(source);
-});
+  return { source, generated: cssImports + compiled.slice(macroImport.length), map };
+}
 
-test("Vue production inline templates map generated classes to their original macro", async () => {
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-  const root = mkdtempSync(path.join(repo, ".test-session-"));
-  const source = `<script setup lang="ts">
-import { style } from 'stillwind/vue';
-</script>
-<template>
-  <p v-bind="style('red')">日本語 🧭</p>
-</template>`;
-  writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");
-  writeFileSync(path.join(root, "Component.vue"), source);
-  try {
-    const output = await build({
-      configFile: false,
-      root,
-      logLevel: "silent",
-      plugins: [stillwind({ css: path.join(root, "root.css"), types: false }), vue()],
-      build: {
-        write: false,
-        sourcemap: true,
-        minify: false,
-        lib: { entry: path.join(root, "Component.vue"), formats: ["es"] },
-        rollupOptions: { external: ["vue"] },
-      },
-    });
-    const bundle = Array.isArray(output) ? output[0] : output;
-    if (!("output" in bundle)) {
-      expect.fail("Expected a completed build without a watcher");
-    }
-    const positions = bundle.output.flatMap((chunk) => {
-      if (chunk.type !== "chunk" || !chunk.map) {
-        return [];
-      }
-      const map = new TraceMap(chunk.map.toString());
-      return [...chunk.code.matchAll(/sw_[0-9a-z]+/g)].map((match) =>
-        originalPositionFor(map, {
-          line: chunk.code.slice(0, match.index).split("\n").length,
-          column: match.index! - chunk.code.lastIndexOf("\n", match.index! - 1) - 1,
-        }),
-      );
-    });
-    expect(positions).toContainEqual({
-      source: expect.stringMatching(/Component\.vue$/),
-      line: 5,
-      column: 13,
-      name: null,
-    });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+function positionAt(text: string, offset: number) {
+  const prefix = text.slice(0, offset);
+  return {
+    line: prefix.split("\n").length,
+    column: offset - prefix.lastIndexOf("\n") - 1,
+  };
+}

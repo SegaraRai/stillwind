@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { stillwind } from "@stillwind/integration/vite";
 import { stylesheetLinks } from "stillwind/css";
-import { build, createServer, preview } from "vite-plus";
+import { build, createServer, preview } from "vite";
 import { expect } from "vite-plus/test";
 
 import type { EmissionApplication } from "./emission-application.ts";

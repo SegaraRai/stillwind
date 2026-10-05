@@ -8,7 +8,7 @@ import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwi
 import { loadCssGraph } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import type { NativePreparedSource } from "@stillwind/native";
-import { build, createServer } from "vite-plus";
+import { build, createServer } from "vite";
 import { expect, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { stillwind } from "../../packages/integration/src/vite/plugin.ts";

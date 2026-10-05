@@ -5,7 +5,9 @@ import type { Plugin } from "vite";
 
 import { buildHooks } from "./build.ts";
 import { developmentHooks } from "./development.ts";
+import { readableFile } from "./file-access.ts";
 import { createViteProject, type StillwindOptions, type ViteProject } from "./project.ts";
+import { projectionImports } from "./projection-imports.ts";
 import { attachVueSourceMaps } from "./source-maps.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
 
@@ -36,15 +38,18 @@ export function compilerPlugin(project: ViteProject): Plugin {
     ensureSession,
     startSession,
     inputMap,
+    moduleRegistry,
     publish,
     compile,
   } = project;
+  const virtualModules = virtualModuleHooks(project);
+  const cachedVirtualModules = new Map<string, Set<string>>();
   return {
     name: "stillwind",
     enforce: "pre",
     perEnvironmentStartEndDuringDev: true,
     perEnvironmentWatchChangeDuringDev: true,
-    ...virtualModuleHooks(project),
+    ...virtualModules,
     ...buildHooks(project),
     ...developmentHooks(project),
     configResolved(config) {
@@ -64,6 +69,16 @@ export function compilerPlugin(project: ViteProject): Plugin {
       await startSession(name, this);
     },
     shouldTransformCachedModule({ id }) {
+      if (id.startsWith("\0stillwind:")) {
+        const name = this.environment?.name ?? "client";
+        let modules = cachedVirtualModules.get(name);
+        if (!modules) {
+          modules = new Set();
+          cachedVirtualModules.set(name, modules);
+        }
+        modules.add(id);
+        return true;
+      }
       return (
         /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(cleanModuleId(id)) &&
         !id.includes("node_modules")
@@ -74,6 +89,7 @@ export function compilerPlugin(project: ViteProject): Plugin {
         return;
       }
       const name = this.environment?.name;
+      moduleRegistry(name).remove(id, true);
       const state = environmentState(name);
       if (!state.session) {
         return;
@@ -94,6 +110,12 @@ export function compilerPlugin(project: ViteProject): Plugin {
       order: "pre",
       async handler(code, id) {
         const name = this.environment?.name;
+        if (cachedVirtualModules.get(name ?? "client")?.delete(id)) {
+          const load = virtualModules.load;
+          if (typeof load === "function") {
+            return load.call(this, id);
+          }
+        }
         if (isAuthoredStylesheet(id)) {
           const state = environmentState(name);
           await ensureSession(state, this);
@@ -111,15 +133,32 @@ export function compilerPlugin(project: ViteProject): Plugin {
         ) {
           return;
         }
+        const projections = new Map<string, string>();
+        for (const specifier of await projectionImports(code, id, this)) {
+          const source = await this.resolve(specifier.slice(0, -"?stillwind.css".length), id, {
+            skipSelf: true,
+            custom: {
+              "react-router:dot-server": true,
+            },
+          });
+          if (!source || source.external) {
+            this.error(`Cannot resolve Stillwind projection ${specifier}`);
+          }
+          await readableFile(source.id, settings.devServerRef);
+          projections.set(specifier, source.id);
+        }
         if (!/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(code)) {
           const input = inputMap(name).get(id);
           if (input) {
             inputMap(name).delete(id);
+            moduleRegistry(name).remove(id);
             environmentState(name).session?.remove(input.moduleId);
             await publish(name, this);
           }
+          moduleRegistry(name).projections(id, projections);
           return;
         }
+        moduleRegistry(name).projections(id, projections);
         const result = await compile(name, code, id, this);
         await publish(name, this);
         return result;

@@ -16,6 +16,7 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vite-plus": "catalog:"
   }
 }

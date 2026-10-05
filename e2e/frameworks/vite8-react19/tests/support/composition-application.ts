@@ -4,7 +4,7 @@ import path from "node:path";
 import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium, type Browser } from "playwright";
-import { createServer, preview, type InlineConfig } from "vite-plus";
+import { createServer, preview, type InlineConfig } from "vite";
 
 /** Creates lifecycle and fixture operations; initialize must run before browser contracts. */
 export function createApplication(context: ScenarioContext) {

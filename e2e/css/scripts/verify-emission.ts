@@ -6,7 +6,7 @@ import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium } from "playwright";
 import { stylesheetLinks } from "stillwind/css";
-import { build, createServer, preview, type InlineConfig } from "vite-plus";
+import { build, createServer, preview, type InlineConfig } from "vite";
 import { afterAll, beforeAll, describe, test, expect } from "vite-plus/test";
 
 export default function register(context: ScenarioContext): void {

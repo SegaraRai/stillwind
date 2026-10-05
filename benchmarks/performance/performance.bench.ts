@@ -9,7 +9,7 @@ import {
   NativeProjectSession,
   type NativePreparedSource,
 } from "@stillwind/native";
-import { build, createServer, type Plugin, type ViteDevServer } from "vite-plus";
+import { build, createServer, type Plugin, type ViteDevServer } from "vite";
 import { expect, inject, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { compilerPlugin, stillwind } from "../../packages/integration/src/vite/plugin.ts";

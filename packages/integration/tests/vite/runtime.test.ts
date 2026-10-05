@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite-plus";
+import { createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test.each([false, true])(

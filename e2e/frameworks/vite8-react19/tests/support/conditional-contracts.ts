@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { build, createServer, preview } from "vite-plus";
+import { build, createServer, preview } from "vite";
 import { expect } from "vite-plus/test";
 
 import type { ConditionalApplication } from "./conditional-application.ts";

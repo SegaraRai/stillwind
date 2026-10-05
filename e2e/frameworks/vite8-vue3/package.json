@@ -13,6 +13,7 @@
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "6.0.9",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vite-plus": "catalog:"
   }
 }

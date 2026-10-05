@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { posix } from "node:path";
 
-import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
+import { decodeCssSourceMap } from "@stillwind/host";
 import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
 import { partitionStylesheet } from "./emission.ts";
+import { readableFile } from "./file-access.ts";
 import { runtimeId, projectionPrefix, producerPrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 import { resolveResources } from "./resources.ts";
@@ -17,7 +18,9 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
     settings,
     environmentState,
     inputMap,
-    includeSourceContent,
+    moduleRegistry,
+    cssForBrowser,
+    publicSourceMap,
     documentPlan,
     compile,
   } = project;
@@ -52,29 +55,35 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         return;
       }
       const assets = new Map<string, string>();
-      let css = plan.css;
-      for (const match of css.matchAll(/\/@fs\/([^"'\s)]+)/g)) {
-        const file = match[1];
+      const replacements = new Map<string, string>();
+      for (const [placeholder, resource] of plan.resources) {
+        if (!plan.originalCss.includes(placeholder)) {
+          continue;
+        }
+        const file = await readableFile(resource.id);
         if (assets.has(file)) {
+          replacements.set(
+            placeholder,
+            JSON.stringify(
+              posix.relative(settings.assetsDirectory, this.getFileName(assets.get(file)!)),
+            ).slice(1, -1),
+          );
           continue;
         }
         const reference = this.emitFile({
           type: "asset",
-          name: decodeURIComponent(file).split("/").at(-1),
-          source: await readFile(decodeURIComponent(file)),
+          name: file.replaceAll("\\", "/").split("/").at(-1),
+          source: await readFile(file),
         });
         assets.set(file, reference);
-      }
-      const resourceUrls = (text: string) => {
-        for (const [file, reference] of assets) {
-          text = text.replaceAll(
-            `/@fs/${file}`,
+        replacements.set(
+          placeholder,
+          JSON.stringify(
             posix.relative(settings.assetsDirectory, this.getFileName(reference)),
-          );
-        }
-        return text;
-      };
-      css = resourceUrls(css);
+          ).slice(1, -1),
+        );
+      }
+      const css = resolveResources(plan.originalCss, replacements);
       const emitCss = async (text: string, sourceMap?: string) => {
         if (settings.minifyCss) {
           const input = sourceMap
@@ -91,6 +100,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         }
         const hash = createHash("sha256").update(text).digest("hex").slice(0, 16);
         if (sourceMap) {
+          sourceMap = JSON.stringify(publicSourceMap(name, sourceMap));
           this.emitFile({
             type: "asset",
             fileName: `${settings.assetsDirectory}/stillwind-${hash}.css.map`,
@@ -114,21 +124,15 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         .update("\0")
         .digest("hex");
       if (options.emission !== "split") {
-        const replacements = new Map(
-          [...plan.resourceReplacements].map(([key, value]) => [key, resourceUrls(value)]),
-        );
         const mapped = settings.sourceMaps
           ? decodeCssSourceMap(
-              cssWithSourceMap(
+              cssForBrowser(
+                name,
                 {
                   css: plan.originalCss,
                   sourceMap: plan.sourceMap,
                 },
                 replacements,
-                [...inputMap(name).values()].flatMap((input) =>
-                  input.upstream ? [input.upstream] : [],
-                ),
-                includeSourceContent(name),
               ),
             )
           : undefined;
@@ -148,20 +152,8 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         for (const [index, part] of partitions.entries()) {
           let reference = references.get(part.key);
           if (!reference) {
-            const replacements = new Map(
-              [...plan.resourceReplacements].map(([key, value]) => [key, resourceUrls(value)]),
-            );
             const mapped = settings.sourceMaps
-              ? decodeCssSourceMap(
-                  cssWithSourceMap(
-                    part,
-                    replacements,
-                    [...inputMap(name).values()].flatMap((input) =>
-                      input.upstream ? [input.upstream] : [],
-                    ),
-                    includeSourceContent(name),
-                  ),
-                )
+              ? decodeCssSourceMap(cssForBrowser(name, part, replacements))
               : undefined;
             references.set(
               part.key,
@@ -231,16 +223,18 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
           }
         }
         const ids = new Set(
-          [...graph].flatMap(
-            (id) =>
-              manifest!.modules[
-                inputMap(this.environment?.name).get(id)?.moduleId ??
-                  this.getModuleInfo(id)?.meta.stillwind?.moduleId ??
-                  (id.startsWith(producerPrefix)
-                    ? Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8")
-                    : "")
-              ] ?? [],
-          ),
+          [...graph].flatMap((id) => {
+            const moduleId =
+              inputMap(this.environment?.name).get(id)?.moduleId ??
+              this.getModuleInfo(id)?.meta.stillwind?.moduleId ??
+              (id.startsWith(producerPrefix)
+                ? (() => {
+                    const entry = moduleRegistry(this.environment?.name).get(id);
+                    return entry?.kind === "producer" ? entry.moduleId : "";
+                  })()
+                : "");
+            return manifest!.modules[moduleId] ?? [];
+          }),
         );
         const parts = manifest.parts
           .filter((part) => ids.has(part.id))

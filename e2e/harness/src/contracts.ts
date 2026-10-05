@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 
 import type { Page } from "playwright";
 import { expect } from "vite-plus/test";
@@ -193,6 +194,9 @@ export function fixtureContracts(app: FixtureApplication) {
         source,
         mapping.macro,
         mapping.kind === "css",
+        undefined,
+        "start",
+        pathToFileURL(join(app.directory, mapping.file)).href,
       );
     },
     rebuiltCss: async (edit: Edit) => {

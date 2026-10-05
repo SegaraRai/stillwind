@@ -6,6 +6,7 @@ export default defineConfig({
   pack: {
     entry: [
       "src/astro/index.ts",
+      "src/astro/development.ts",
       "src/astro/middleware.ts",
       "src/next/css-loader.ts",
       "src/next/index.ts",

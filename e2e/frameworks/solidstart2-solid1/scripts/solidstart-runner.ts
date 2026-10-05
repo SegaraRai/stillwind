@@ -1,4 +1,4 @@
-import { createBuilder, createServer } from "vite-plus";
+import { createBuilder, createServer } from "vite";
 
 const [mode, root] = process.argv.slice(2);
 process.chdir(root);

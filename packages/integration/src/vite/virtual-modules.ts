@@ -2,10 +2,11 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cleanModuleId, cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
+import { cleanModuleId, decodeCssSourceMap } from "@stillwind/host";
 import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
+import { readableFile } from "./file-access.ts";
 import {
   runtimeId,
   valuePrefix,
@@ -29,9 +30,8 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
     settings,
     environmentState,
     inputMap,
-    includeSourceContent,
-    fragments,
-    fragmentSpecifier,
+    cssForBrowser,
+    moduleRegistry,
     producerSpecifier,
     resolvePlan,
     documentPlan,
@@ -40,6 +40,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
   } = project;
   return {
     async resolveId(id, importer) {
+      const registry = moduleRegistry(this.environment?.name);
       if (id === runtimeEntry) {
         return runtimeFile("runtime");
       }
@@ -47,53 +48,48 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         return runtimeFile("runtime-source-map");
       }
       if (id.endsWith("?stillwind.css")) {
-        // CSS projections do not expose server JavaScript to the client graph.
-        const source = await this.resolve(id.slice(0, -"?stillwind.css".length), importer, {
-          skipSelf: true,
-          custom: {
-            "react-router:dot-server": true,
-          },
-        });
-        if (!source || source.external) {
-          this.error(`Cannot resolve Stillwind projection ${id}`);
+        const registered = registry.projection(id, importer);
+        if (!registered) {
+          this.error("Unregistered Stillwind projection");
         }
-        return projectionPrefix + Buffer.from(cleanModuleId(source.id)).toString("base64url");
+        return registered.replace("virtual:stillwind/", "\0stillwind:");
       }
-      if (id === runtimeSpecifier || id === virtualCssId) {
+      if (id === runtimeSpecifier || id === virtualCssId || id === runtimeId) {
         return runtimeId;
       }
-      if (id === "virtual:stillwind/snapshot.css") {
+      if (id === "virtual:stillwind/snapshot.css" || id === "\0stillwind:snapshot.css") {
         return "\0stillwind:snapshot.css";
       }
-      if (id.startsWith("virtual:stillwind/value:")) {
-        return valuePrefix + id.slice("virtual:stillwind/value:".length);
-      }
-      if (id.startsWith("virtual:stillwind/fragment:")) {
-        return fragmentPrefix + id.slice("virtual:stillwind/fragment:".length);
-      }
-      if (id.startsWith("virtual:stillwind/producer:")) {
-        return producerPrefix + id.slice("virtual:stillwind/producer:".length);
-      }
-      if (id.startsWith("\0stillwind:")) {
-        return id;
+      if (/^(?:virtual:stillwind\/|\0stillwind:)(?:value|fragment|producer|projection):/.test(id)) {
+        if (!registry.get(id)) {
+          this.error("Unregistered Stillwind module");
+        }
+        return id.replace("virtual:stillwind/", "\0stillwind:");
       }
       return undefined;
     },
     async load(id) {
       const name = this.environment?.name;
+      const registry = moduleRegistry(name);
+      const entry = registry.get(id);
+      if (
+        [producerPrefix, projectionPrefix, fragmentPrefix, valuePrefix].some((prefix) =>
+          id.startsWith(prefix),
+        ) &&
+        !entry
+      ) {
+        this.error("Unregistered Stillwind module");
+      }
       if (id === "\0stillwind:snapshot.css") {
         const plan = await documentPlan(name, this);
         return decodeCssSourceMap(
-          cssWithSourceMap(
+          cssForBrowser(
+            name,
             {
               css: plan.originalCss,
               sourceMap: plan.sourceMap,
             },
             plan.resourceReplacements,
-            [...inputMap(name).values()].flatMap((input) =>
-              input.upstream ? [input.upstream] : [],
-            ),
-            includeSourceContent(name),
           ),
         );
       }
@@ -101,7 +97,10 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
         if (!settings.watching) {
           return "// Stillwind producer (vite)\nexport {};\n";
         }
-        const producer = Buffer.from(id.slice(producerPrefix.length), "base64url").toString("utf8");
+        if (entry?.kind !== "producer") {
+          this.error("Invalid Stillwind producer");
+        }
+        const producer = entry.moduleId;
         return `// Stillwind producer (vite)
 import { register, synchronize, unregister } from ${JSON.stringify(runtimeSpecifier)};
 
@@ -115,7 +114,11 @@ if (import.meta.hot) {
 `;
       }
       if (id.startsWith(projectionPrefix)) {
-        const source = Buffer.from(id.slice(projectionPrefix.length), "base64url").toString("utf8");
+        if (entry?.kind !== "projection") {
+          this.error("Invalid Stillwind projection");
+        }
+        const source = entry.sourceId;
+        const file = await readableFile(source, settings.devServerRef);
         // Vite's addWatchFile also creates a JavaScript dependency during import analysis.
         const context = settings.watching
           ? {
@@ -127,7 +130,7 @@ if (import.meta.hot) {
             }
           : this;
         context.addWatchFile(source);
-        const result = await compile(name, await readFile(source, "utf8"), source, context);
+        const result = await compile(name, await readFile(file, "utf8"), source, context);
         const input = inputMap(name).get(source);
         if (input) {
           input.manual = false;
@@ -135,7 +138,7 @@ if (import.meta.hot) {
         }
         await publish(name, context);
         return {
-          code: `// Stillwind projection (vite)\nimport ${JSON.stringify(producerSpecifier(source))};\n`,
+          code: `// Stillwind projection (vite)\nimport ${JSON.stringify(producerSpecifier(source, name))};\n`,
           meta: {
             stillwind: {
               ...result?.meta.stillwind,
@@ -182,27 +185,33 @@ if (import.meta.hot) {
 `;
       }
       if (id.startsWith(fragmentPrefix)) {
-        const key = id.slice(fragmentPrefix.length);
-        let css = settings.watching
-          ? fragments.get(key)
-          : Buffer.from(key, "base64url").toString("utf8");
-        if (css === undefined) {
-          this.error(`Unknown Stillwind CSS fragment ${key}`);
+        if (entry?.kind !== "fragment") {
+          this.error("Invalid Stillwind fragment");
         }
+        let css = entry.css;
         if (!settings.watching && settings.minifyCss) {
           css = (await transformCss(css, { loader: "css", minify: true })).code;
         }
-        const files = [
-          ...new Set([...css.matchAll(/\/@fs\/([^"'\s)]+)/g)].map((match) => match[1])),
-        ];
-        const imports = files.map(
-          (file, index) =>
-            `import asset${index} from ${JSON.stringify(decodeURIComponent(file) + "?url")};\n`,
+        const resources = [...entry.resources];
+        for (const [, resource] of resources) {
+          await readableFile(resource.id, settings.devServerRef);
+        }
+        const imports = resources.map(
+          ([, resource], index) =>
+            `import asset${index} from ${JSON.stringify(resource.id + (resource.id.includes("?") ? "&url" : "?url"))};\n`,
         );
-        const replacements = files
+        if (settings.watching && settings.devSourceMaps) {
+          return [
+            "// Stillwind CSS fragment (vite)\n",
+            ...imports,
+            `import { replaceCssResources } from ${JSON.stringify(sourceMapEntry)};\n`,
+            `export const css = replaceCssResources(${JSON.stringify(css)}, [${resources.map(([placeholder], index) => `[${JSON.stringify(placeholder)}, JSON.stringify(asset${index}).slice(1, -1)]`).join(",")}]);\n`,
+          ].join("");
+        }
+        const replacements = resources
           .map(
-            (file, index) =>
-              `.replaceAll(${JSON.stringify(`/@fs/${file}`)}, JSON.stringify(asset${index}).slice(1, -1))`,
+            ([placeholder], index) =>
+              `.replaceAll(${JSON.stringify(placeholder)}, JSON.stringify(asset${index}).slice(1, -1))`,
           )
           .join("");
         return [
@@ -213,15 +222,15 @@ if (import.meta.hot) {
         ].join("");
       }
       if (id.startsWith(valuePrefix)) {
-        const sourceId = Buffer.from(id.slice(valuePrefix.length), "base64url").toString("utf8");
-        this.addWatchFile(cleanModuleId(sourceId));
-        if (!inputMap(name).has(sourceId)) {
-          await compile(name, await readFile(cleanModuleId(sourceId), "utf8"), sourceId, this);
+        if (entry?.kind !== "value") {
+          this.error("Invalid Stillwind value");
         }
+        const sourceId = entry.sourceId;
         const input = inputMap(name).get(sourceId);
         if (!input) {
           this.error(`No Stillwind producer for ${sourceId}`);
         }
+        this.addWatchFile(cleanModuleId(sourceId));
         const plan = await resolvePlan(
           environmentState(name),
           [input.moduleId],
@@ -234,9 +243,16 @@ if (import.meta.hot) {
         for (const file of environmentState(name).cssFiles) {
           this.addWatchFile(file);
         }
-        const imports = plan.parts.map(
+        const imports = plan.rawParts.map(
           (part, index) =>
-            `import { css as p${index} } from ${JSON.stringify(fragmentSpecifier(part.css))};\n`,
+            `import { css as p${index} } from ${JSON.stringify(
+              registry.fragment(
+                settings.watching && settings.devSourceMaps
+                  ? cssForBrowser(name, part, new Map())
+                  : part.css,
+                plan.resources,
+              ),
+            )};\n`,
         );
         return [
           "// Stillwind CSS value (vite)\n",

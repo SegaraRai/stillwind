@@ -4,7 +4,6 @@ import { cleanModuleId } from "@stillwind/host";
 import type { Plugin, ViteDevServer } from "vite";
 
 import { sendJson } from "./http.ts";
-import { valuePrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 
 /**
@@ -23,6 +22,7 @@ export function developmentHooks(
     watchCssChanges,
     refreshDesignSystem,
     inputMap,
+    valueSpecifier,
     documentPlan,
     publish,
     compile,
@@ -55,7 +55,7 @@ export function developmentHooks(
               ...(input.manual
                 ? [
                     this.environment.moduleGraph.getModuleById(
-                      valuePrefix + Buffer.from(input.id).toString("base64url"),
+                      valueSpecifier(input.id, name).replace("virtual:stillwind/", "\0stillwind:"),
                     ),
                   ].filter((module): module is NonNullable<typeof module> => Boolean(module))
                 : []),

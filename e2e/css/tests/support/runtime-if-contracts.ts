@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { build, preview } from "vite-plus";
+import { build, preview } from "vite";
 import { expect } from "vite-plus/test";
 
 import type { RuntimeIfApplication } from "./runtime-if-application.ts";

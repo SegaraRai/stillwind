@@ -60,8 +60,14 @@ import "../server.server.js?stillwind.css";
 
 The projection compiles that producer and its semantic dependencies without evaluating
 or bundling the server JavaScript. It participates in the document emission plan.
-CSS maps retain source coordinates and omit source contents when a projection is
-present. The source path in its ID permits reconstruction in a fresh process.
+The adapter registers projection imports while transforming their source documents.
+Generated module IDs refer to that environment's registered inputs and resources.
+Direct projection URLs cannot register additional files.
+
+Browser-facing CSS maps retain source coordinates and omit source contents.
+Known client scripts and CSS inside the project use relative `stillwind-source:` names.
+Server sources, component documents, and unrecognized upstream sources use opaque names.
+These names do not identify URLs from which a browser can retrieve the original files.
 
 Framework route splitting must precede Stillwind's transform when it changes producer
 ownership. In TanStack Start, place `stillwind()` after `tanstackStart()` and before

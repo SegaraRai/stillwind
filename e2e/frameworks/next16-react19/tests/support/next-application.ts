@@ -71,6 +71,10 @@ export function createApplication(context: ScenarioContext) {
     const handle = proc;
     proc = undefined;
     if (handle) {
+      // A development page can retry HMR requests while its server is stopped.
+      if (page && !page.isClosed()) {
+        await page.goto("about:blank");
+      }
       await handle.stop();
       context.logs.push(handle.logs());
     }

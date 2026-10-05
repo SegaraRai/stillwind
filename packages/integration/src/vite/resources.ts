@@ -1,6 +1,24 @@
 import { isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
+export interface StylesheetResource {
+  /** Resolver identity, including any resource query. */
+  id: string;
+  /** Canonical absolute path checked before reading or serving the resource. */
+  file: string;
+}
+
+export function resourceReplacements(
+  resources: ReadonlyMap<string, StylesheetResource>,
+): Map<string, string> {
+  return new Map(
+    [...resources].map(([placeholder, resource]) => [
+      placeholder,
+      JSON.stringify(resourceUrl(resource.file)).slice(1, -1),
+    ]),
+  );
+}
+
 export function resourceUrl(file: string): string {
   return `/@fs/${file
     .replaceAll("\\", "/")

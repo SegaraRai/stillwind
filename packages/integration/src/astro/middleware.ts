@@ -5,12 +5,12 @@ import { getStyles } from "virtual:stillwind/astro-styles";
 
 import { insertStyles } from "./document.ts";
 
-export const onRequest = defineMiddleware(async (context, next) => {
+export const onRequest = defineMiddleware(async (_context, next) => {
   const response = await next();
   if (!response.body || !response.headers.get("content-type")?.startsWith("text/html")) {
     return response;
   }
-  const styles = await getStyles(context.request.url);
+  const styles = await getStyles();
   if (!styles) {
     return response;
   }

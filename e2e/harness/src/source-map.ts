@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -24,6 +25,7 @@ export function resolveSourceMapFile(source: string, mapFile: string, projectRoo
  * `sourcePath` is the normalized source suffix; `macro` identifies its first matching call.
  * `start` requires the call's first character. `call-span` permits positions inside a JS call,
  * including arguments that the host maps after minification. CSS always requires `start`.
+ * `sourceUri` also permits the opaque CSS source name derived from that exact URI.
  * Returns the observed position, or unsupported evidence for the declared incorrect source.
  * Throws when no class maps to the requested call or a CSS check requests `call-span`.
  */
@@ -35,6 +37,7 @@ export async function verifyMacroSourceMap(
   css = false,
   knownIncorrectSource?: string,
   position: "start" | "call-span" = "start",
+  sourceUri?: string,
 ) {
   if (css && position !== "start") {
     throw new Error("CSS checks require the start of the macro call");
@@ -53,6 +56,9 @@ export async function verifyMacroSourceMap(
     column: ending.length - ending.lastIndexOf("\n") - 1,
   };
   const candidates = [];
+  const opaqueSource = sourceUri
+    ? `stillwind-source:${createHash("sha256").update(sourceUri).digest("hex")}`
+    : undefined;
   for (const file of await fs.readdir(directory, { recursive: true })) {
     if (!(css ? /\.css$/ : /\.[cm]?js$/).test(file)) {
       continue;
@@ -78,10 +84,14 @@ export async function verifyMacroSourceMap(
         line: before.split("\n").length,
         column: match.index - before.lastIndexOf("\n") - 1,
       });
-      const matchesSource = mapped.source
-        ?.replaceAll("\\", "/")
-        .split(/[?#]/)[0]
-        .endsWith(sourcePath);
+      const matchesOpaque =
+        css &&
+        opaqueSource !== undefined &&
+        map.sources.some(
+          (name, index) => name === opaqueSource && map.resolvedSources[index] === mapped.source,
+        );
+      const matchesSource =
+        matchesOpaque || mapped.source?.replaceAll("\\", "/").split(/[?#]/)[0].endsWith(sourcePath);
       const startsCall = mapped.line === expected.line && mapped.column === expected.column;
       const withinCall =
         mapped.line !== null &&
@@ -90,6 +100,9 @@ export async function verifyMacroSourceMap(
           (mapped.line === expected.line && mapped.column >= expected.column)) &&
         (mapped.line < end.line || (mapped.line === end.line && mapped.column < end.column));
       if (matchesSource && (position === "call-span" ? withinCall : startsCall)) {
+        if (matchesOpaque) {
+          assert.equal(map.sourcesContent, undefined);
+        }
         return { source: sourcePath, line: mapped.line, column: mapped.column, position };
       }
       if (candidates.length < 12) {

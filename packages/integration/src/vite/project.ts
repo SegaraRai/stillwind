@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -20,9 +20,17 @@ import type { ViteDevServer } from "vite";
 import { cssEntrypoint, compilerOptions, writeVocabulary } from "../options.ts";
 import type { StillwindOptions as CommonOptions } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
+import { browserSourceMap } from "./browser-source-map.ts";
+import { readableFile } from "./file-access.ts";
 import { finalizeModuleWithMap } from "./finalize.ts";
 import { sourceModuleId } from "./module-ids.ts";
-import { resourceUrl, resolvedFile, resolveResources } from "./resources.ts";
+import { ModuleRegistry } from "./module-registry.ts";
+import {
+  resourceReplacements,
+  resolvedFile,
+  resolveResources,
+  type StylesheetResource,
+} from "./resources.ts";
 
 export interface StillwindOptions extends CommonOptions {
   /**
@@ -61,7 +69,7 @@ export function createViteProject(options: StillwindOptions) {
      */
     work: Promise<void>;
     session?: NativeProjectSession;
-    resources: Map<string, string>;
+    resources: Map<string, StylesheetResource>;
     /**
      * Files in the last accepted CSS graph. With `watch: null`, their contents are hashed.
      */
@@ -182,6 +190,9 @@ export function createViteProject(options: StillwindOptions) {
   const close = () => {
     stopCssWatching();
     closeTypeFacts();
+    for (const registry of registries.values()) {
+      registry.clear();
+    }
   };
 
   const loadDesignSystem = async (
@@ -218,11 +229,14 @@ export function createViteProject(options: StillwindOptions) {
       undefined,
       session?.newLoader(nativeOptions),
     );
-    const references = new Map<string, string>();
+    const references = new Map<string, StylesheetResource>();
     for (const resource of resourceReferences) {
       const resolved = await resolveCss(resource.specifier, resource.sourceName);
-      const url = resourceUrl(resolved);
-      references.set(resource.placeholder, JSON.stringify(url).slice(1, -1));
+      const file = await readableFile(resolved, settings.devServerRef);
+      references.set(resource.placeholder, {
+        id: resolved,
+        file,
+      });
       dependencies.add(cleanModuleId(resolved));
     }
     return { loader, resources: references };
@@ -323,6 +337,7 @@ export function createViteProject(options: StillwindOptions) {
     return inTurn(state, async () => {
       state.session = undefined;
       inputMap(name).clear();
+      moduleRegistry(name).clear();
       state.buildCss = undefined;
       state.manifest = undefined;
       await ensureSessionInTurn(state, context);
@@ -452,22 +467,71 @@ export function createViteProject(options: StillwindOptions) {
     }
     return map;
   };
-  const includeSourceContent = (name?: string) =>
-    ![...inputMap(name).values()].some((input) => input.projection);
-  const fragments = new Map<string, string>();
-  const fragmentSpecifier = (css: string) => {
-    const key = settings.watching
-      ? createHash("sha256").update(css).digest("hex")
-      : Buffer.from(css).toString("base64url");
-    if (settings.watching) {
-      fragments.set(key, css);
+  const publicSourceMap = (
+    name: string | undefined,
+    map: Parameters<typeof browserSourceMap>[0],
+  ) => {
+    const visible = new Map<string, string>();
+    const add = (id: string) => {
+      const relative = sourceModuleId(settings.projectRoot, cleanModuleId(id));
+      if (relative !== ".." && !relative.startsWith("../") && !isAbsolute(relative)) {
+        visible.set(pathToFileURL(cleanModuleId(id)).href, `stillwind-source:/${relative}`);
+      }
+    };
+    for (const file of environmentState(name).cssFiles) {
+      add(file);
     }
-    return "virtual:stillwind/fragment:" + key;
+    if ((name ?? "client") === "client") {
+      for (const input of inputMap(name).values()) {
+        if (!input.projection && !/\.(?:astro|svelte|vue)$/.test(cleanModuleId(input.id))) {
+          add(input.id);
+        }
+      }
+    }
+    const publicNames = new Set(visible.values());
+    return browserSourceMap(map, (source) => {
+      if (/^stillwind-source:[a-f0-9]{64}$/.test(source) || publicNames.has(source)) {
+        return source;
+      }
+      return (
+        visible.get(source) ??
+        `stillwind-source:${createHash("sha256").update(source).digest("hex")}`
+      );
+    });
   };
-  const producerSpecifier = (id: string) =>
-    `virtual:stillwind/producer:${Buffer.from(sourceModuleId(settings.projectRoot, id)).toString("base64url")}`;
-  const valueSpecifier = (id: string) =>
-    `virtual:stillwind/value:${Buffer.from(id).toString("base64url")}`;
+  const cssForBrowser = (
+    name: string | undefined,
+    output: Parameters<typeof cssWithSourceMap>[0],
+    replacements: ReadonlyMap<string, string>,
+  ) => {
+    const decoded = decodeCssSourceMap(
+      cssWithSourceMap(
+        output,
+        replacements,
+        [...inputMap(name).values()].flatMap((input) => (input.upstream ? [input.upstream] : [])),
+        false,
+      ),
+    );
+    if (!decoded.map) {
+      return decoded.code;
+    }
+    const encoded = Buffer.from(JSON.stringify(publicSourceMap(name, decoded.map))).toString(
+      "base64",
+    );
+    return `${decoded.code}\n/*# sourceMappingURL=data:application/json;base64,${encoded} */`;
+  };
+  const registries = new Map<string, ModuleRegistry>();
+  const moduleRegistry = (name = "client") => {
+    let registry = registries.get(name);
+    if (!registry) {
+      registry = new ModuleRegistry(settings.projectRoot, name);
+      registries.set(name, registry);
+    }
+    return registry;
+  };
+  const producerSpecifier = (id: string, name?: string) =>
+    moduleRegistry(name).source("producer", id);
+  const valueSpecifier = (id: string, name?: string) => moduleRegistry(name).source("value", id);
   const resolvePlan = async (
     state: EnvironmentState,
     modules: string[],
@@ -501,38 +565,37 @@ export function createViteProject(options: StillwindOptions) {
       const resolved = await context.resolve(
         resource.specifier,
         state.compiler!.resolverId(resource.moduleId),
-        { skipSelf: true },
+        {
+          skipSelf: true,
+        },
       );
-      const file = resolvedFile(resolved, `Stillwind resource ${resource.specifier}`);
+      const id = resolvedFile(resolved, `Stillwind resource ${resource.specifier}`);
+      const file = await readableFile(id, settings.devServerRef);
       context.addWatchFile(file);
-      resources.set(resource.placeholder, JSON.stringify(resourceUrl(file)).slice(1, -1));
+      resources.set(resource.placeholder, {
+        id,
+        file,
+      });
     }
+    const replacements = resourceReplacements(resources);
     return {
       ...plan,
       revision,
       originalCss: plan.css,
-      resourceReplacements: resources,
-      css: resolveResources(plan.css, resources),
+      resources,
+      resourceReplacements: replacements,
+      css: resolveResources(plan.css, replacements),
       rawParts: plan.parts,
       parts: plan.parts.map((part) => {
         const name = [...environments].find(([, candidate]) => candidate === state)?.[0];
         const mapped =
           settings.watching && settings.devSourceMaps
-            ? decodeCssSourceMap(
-                cssWithSourceMap(
-                  part,
-                  resources,
-                  [...inputMap(name).values()].flatMap((input) =>
-                    input.upstream ? [input.upstream] : [],
-                  ),
-                  includeSourceContent(name),
-                ),
-              )
+            ? decodeCssSourceMap(cssForBrowser(name, part, replacements))
             : undefined;
         return {
           key: part.key,
           producers: part.producers,
-          css: mapped?.code ?? resolveResources(part.css, resources),
+          css: mapped?.code ?? resolveResources(part.css, replacements),
           map: mapped?.map,
         };
       }),
@@ -639,8 +702,8 @@ export function createViteProject(options: StillwindOptions) {
         },
         {
           stylesheetImports:
-            sfc && options.automatic !== false ? [producerSpecifier(id)] : undefined,
-          moduleCssImport: valueSpecifier(id),
+            sfc && options.automatic !== false ? [producerSpecifier(id, name)] : undefined,
+          moduleCssImport: valueSpecifier(id, name),
         },
       );
       if (!output?.code) {
@@ -652,7 +715,7 @@ export function createViteProject(options: StillwindOptions) {
       const suffix =
         sfc || output.hasModuleCssImport || options.automatic === false
           ? ""
-          : `\nimport ${JSON.stringify(producerSpecifier(id))};\n`;
+          : `\nimport ${JSON.stringify(producerSpecifier(id, name))};\n`;
       const javascript = finalized.code + suffix;
       const sourceMap = moduleSourceMap(
         code,
@@ -715,9 +778,9 @@ export function createViteProject(options: StillwindOptions) {
     ensureSession,
     refreshDesignSystem,
     inputMap,
-    includeSourceContent,
-    fragments,
-    fragmentSpecifier,
+    publicSourceMap,
+    cssForBrowser,
+    moduleRegistry,
     producerSpecifier,
     valueSpecifier,
     resolvePlan,

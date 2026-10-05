@@ -4,52 +4,67 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer, type ViteDevServer } from "vite-plus";
-import { expect, test } from "vite-plus/test";
+import { createServer } from "vite";
+import { expect, onTestFinished, test } from "vite-plus/test";
 
-test("the Vite adapter exposes CSS delivery without application preview endpoints", async () => {
+test.each(["css", "style.css"])(
+  "the %s endpoint rejects an unknown environment",
+  async (endpoint) => {
+    const origin = await startDevelopmentServer();
+
+    const response = await fetch(`${origin}/__stillwind/${endpoint}?environment=missing`);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Unknown environment" });
+  },
+);
+
+test.each([
+  { endpoint: "compile", method: "POST" },
+  { endpoint: "preview?id=missing", method: "GET" },
+  { endpoint: "preview-script?id=missing", method: "GET" },
+])(
+  "the Vite plugin does not serve $method /__stillwind/$endpoint",
+  async ({ endpoint, method }) => {
+    const origin = await startDevelopmentServer();
+
+    const response = await fetch(`${origin}/__stillwind/${endpoint}`, { method });
+
+    expect(response.status).toBe(404);
+  },
+);
+
+async function startDevelopmentServer() {
   const root = await mkdtemp(path.join(tmpdir(), "stillwind-vite-boundary-"));
-  let server: ViteDevServer | undefined;
-  try {
-    server = await createServer({
-      configFile: false,
-      root,
-      appType: "custom",
-      logLevel: "silent",
-      plugins: [
-        stillwind({
-          css: fileURLToPath(new URL("../../../core/index.css", import.meta.url)),
-          types: false,
-        }),
-      ],
-      optimizeDeps: {
-        noDiscovery: true,
-        include: [],
-      },
-      server: {
-        host: "127.0.0.1",
-        port: 0,
-        watch: null,
-      },
-    });
-    await server.listen();
-    const address = server.httpServer!.address();
-    if (!(address && typeof address !== "string")) {
-      expect.fail('Unexpected value: address && typeof address !== "string"');
-    }
-    const origin = `http://127.0.0.1:${address!.port}`;
-    const css = await fetch(`${origin}/__stillwind/css?environment=missing`);
-    expect(css.status).toBe(404);
-    expect(await css.json()).toStrictEqual({ error: "Unknown environment" });
-    const stylesheet = await fetch(`${origin}/__stillwind/style.css?environment=missing`);
-    expect(stylesheet.status).toBe(404);
-    expect(await stylesheet.json()).toStrictEqual({ error: "Unknown environment" });
-    expect((await fetch(`${origin}/__stillwind/compile`, { method: "POST" })).status).toBe(404);
-    for (const path of ["preview", "preview-script"]) {
-      expect((await fetch(`${origin}/__stillwind/${path}?id=missing`)).status).toBe(404);
-    }
-  } finally {
-    await server?.close();
+  const server = await createServer({
+    configFile: false,
+    root,
+    appType: "custom",
+    logLevel: "silent",
+    plugins: [
+      stillwind({
+        css: fileURLToPath(new URL("../../../core/index.css", import.meta.url)),
+        types: false,
+      }),
+    ],
+    optimizeDeps: {
+      noDiscovery: true,
+      include: [],
+    },
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+      watch: null,
+    },
+  });
+  onTestFinished(async () => {
+    await server.close();
     await rm(root, { recursive: true, force: true });
+  });
+  await server.listen();
+  const address = server.httpServer!.address();
+  if (!address || typeof address === "string") {
+    expect.fail("Expected Vite to listen on a TCP port");
   }
-});
+  return `http://127.0.0.1:${address.port}`;
+}

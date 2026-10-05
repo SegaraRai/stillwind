@@ -12,6 +12,7 @@
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vite-plugin-solid": "2.11.14",
     "vite-plus": "catalog:"
   }

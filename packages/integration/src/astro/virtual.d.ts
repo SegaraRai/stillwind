@@ -1,3 +1,3 @@
 declare module "virtual:stillwind/astro-styles" {
-  export function getStyles(url: string): Promise<string>;
+  export function getStyles(): Promise<string>;
 }

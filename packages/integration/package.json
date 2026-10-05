@@ -44,6 +44,10 @@
       "types": "./dist/sveltekit/handle.d.ts",
       "default": "./dist/sveltekit/handle.js"
     },
+    "./internal/astro-development": {
+      "types": "./dist/astro/development.d.ts",
+      "default": "./dist/astro/development.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

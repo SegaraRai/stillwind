@@ -199,7 +199,7 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
   }
 });
 
-test("Vite supplies ready CSS and discovers nested imports before a slow sibling finishes", async () => {
+test("nested CSS imports resolve while a sibling import waits, and CSS keeps import order", async () => {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
   const css = path.join(root, "root.css");
@@ -264,28 +264,22 @@ test("Vite supplies ready CSS and discovers nested imports before a slow sibling
   });
   try {
     await server.pluginContainer.buildStart({});
-    const load = plugin.load;
-    if (typeof load !== "function") {
-      expect.fail("expected load hook");
-    }
-    const output = await load.call(
-      server.pluginContainer as unknown as ThisParameterType<typeof load>,
+    const output = await server.environments.client.pluginContainer.load(
       "\0stillwind:snapshot.css",
     );
     if (!(output && typeof output === "object" && output.map)) {
-      expect.fail('Unexpected value: output && typeof output === "object" && output.map');
-    }
-    if (!output || typeof output !== "object") {
-      expect.fail("expected mapped CSS");
+      expect.fail("Expected the CSS snapshot with a source map");
     }
     expect(output.code).toContain(".first");
     expect(output.code.indexOf(".first")).toBeLessThan(output.code.indexOf(".child"));
     expect(output.code.indexOf(".child")).toBeLessThan(output.code.indexOf(".second"));
-    expect([...resolutions.entries()]).toStrictEqual([
-      ["parallel-first", 1],
-      ["parallel-second", 1],
-      ["parallel-child", 1],
-    ]);
+    expect(resolutions).toEqual(
+      new Map([
+        ["parallel-first", 1],
+        ["parallel-second", 1],
+        ["parallel-child", 1],
+      ]),
+    );
   } finally {
     releaseFirst?.();
     await server.close();
