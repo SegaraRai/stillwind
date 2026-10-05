@@ -34,6 +34,8 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | solidstart2-solid1                     | default    | primary       |
 | sveltekit2-svelte5                     | default    | primary       |
 | sveltekit2-svelte5                     | split      | primary       |
+| sveltekit3-svelte5                     | default    | primary       |
+| sveltekit3-svelte5                     | split      | primary       |
 | tanstackstart1-react19                 | default    | primary       |
 | tanstackstart1-react19                 | split      | primary       |
 | tanstackstart1-react19-server-function | vite       | primary       |

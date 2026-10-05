@@ -8,6 +8,8 @@ To run one application, enter its directory and run `vp run test:e2e`. Its `vp r
 
 For a named common contract, enter a fixture package and run `vp test --run --config acceptance.config.ts -t "reflects component edits"`. The verbose reporter shows the fixture, configuration profile, development or production phase, and contract name.
 
+SvelteKit 3 requires `vp run generate:types` before direct Vitest commands so dependency optimization can resolve `$app/tsconfig`. Its normal tasks declare this prerequisite.
+
 The matrix runs at most three packages concurrently. `STILLWIND_E2E_CONCURRENCY` accepts integers from 1 to 8. Common and specialized tests allocate TCP ports dynamically. `vp run @stillwind-internal/e2e-harness#test:e2e vite8-react19 next16-react19` builds the required artifacts and selects packages by directory name. Interactive fixture tasks use development ports in the 5200 range and preview ports in the 5300 range. `serve` builds first, and TanStack development, build, and typechecking depend on `generate:routes`.
 
 ## Applications
@@ -20,6 +22,7 @@ The matrix runs at most three packages concurrently. `STILLWIND_E2E_CONCURRENCY`
 | Rsbuild 2        | React 19, Preact 11, Solid 1, Vue 3, Svelte 5                            | one package per combination; plain asset/cache application                            |
 | Nuxt 4           | Vue 3                                                                    | SSR, single and split CSS                                                             |
 | SvelteKit 2      | Svelte 5                                                                 | SSR with the Node adapter, single and split CSS                                       |
+| SvelteKit 3      | Svelte 5                                                                 | SSR with the Node adapter, single and split CSS                                       |
 | Astro 7          | plain; React 19 + Svelte 5 + Vue 3; Preact 11 + Solid 1                  | static prerendering and hydrated islands, single and split CSS                        |
 | Next 16          | React 19                                                                 | Turbopack, webpack, and standalone Turbopack rules                                    |
 | React Router 8   | React 19                                                                 | SSR, server-only projection and lazy routes                                           |

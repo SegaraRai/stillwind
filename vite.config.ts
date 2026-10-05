@@ -101,6 +101,7 @@ export default defineConfig(({ mode }) => ({
       "lint:js": {
         command: "vp lint",
         dependsOn: [
+          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
           "@stillwind/host#build",
           "@stillwind/integration#build",
           "@stillwind/native#build",

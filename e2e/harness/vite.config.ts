@@ -33,6 +33,7 @@ export default defineConfig({
         command: "node src/matrix.ts",
         cache: false,
         dependsOn: [
+          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
           "@stillwind/integration#build",
           "@stillwind/native#collect:local",
           "stillwind#build",
@@ -42,6 +43,7 @@ export default defineConfig({
         command: "node src/matrix.ts --support compatibility",
         cache: false,
         dependsOn: [
+          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
           "@stillwind/integration#build",
           "@stillwind/native#collect:local",
           "stillwind#build",
@@ -51,6 +53,7 @@ export default defineConfig({
         command: "node src/matrix.ts --support primary",
         cache: false,
         dependsOn: [
+          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
           "@stillwind/integration#build",
           "@stillwind/native#collect:local",
           "stillwind#build",

@@ -157,10 +157,14 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
   );
   if (mode === "build") {
     const metadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const sveltekit3 =
+      metadata.dependencies?.["@sveltejs/kit"] &&
+      Number(require("@sveltejs/kit/package.json").version.split(".")[0]) >= 3;
     if (
       metadata.dependencies?.["@tanstack/react-start"] ||
       metadata.dependencies?.["@tanstack/solid-start"] ||
-      metadata.dependencies?.["@solidjs/start"]
+      metadata.dependencies?.["@solidjs/start"] ||
+      sveltekit3
     ) {
       await (await vite.createBuilder({ root })).buildApp();
     } else {
