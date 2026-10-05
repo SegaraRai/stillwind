@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@jridgewell/gen-mapping": "^0.3.13",
+    "@jridgewell/remapping": "^2.3.5",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
@@ -66,7 +67,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@jridgewell/trace-mapping": "^0.3.31",
+    "@rsbuild/core": "2.2.4",
     "@rspack/core": "^2.2.8",
     "@stillwind-internal/tools-fixture-css": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",
@@ -77,6 +78,7 @@
     "@vitejs/plugin-vue": "^6.0.9",
     "astro": "^7.3.5",
     "css-loader": "^7.1.5",
+    "next": "16.4.0-canary.25",
     "nuxt": "^4.5.2",
     "stillwind": "workspace:*",
     "svelte": "^5.57.1",
@@ -90,12 +92,20 @@
     "webpack": "^5.111.1"
   },
   "peerDependencies": {
+    "@rsbuild/core": "^2.0.0",
+    "@rspack/core": "^2.0.0",
     "@sveltejs/kit": "^2.0.0 || ^3.0.0",
     "astro": "^6.0.0 || ^7.0.0",
     "nuxt": "^4.0.0",
     "vite": "^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
+    "@rsbuild/core": {
+      "optional": true
+    },
+    "@rspack/core": {
+      "optional": true
+    },
     "@sveltejs/kit": {
       "optional": true
     },

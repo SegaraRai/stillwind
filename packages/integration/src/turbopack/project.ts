@@ -23,12 +23,17 @@ import {
 } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 
-export interface TurbopackLoaderOptions {
-  compiler: StillwindOptions;
+/** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
+export type TurbopackLoaderOptions = {
+  /** Compiler settings after `createLoaderOptions` rejects naming callbacks. */
+  compiler: Omit<StillwindOptions, "naming">;
+  /** Absolute project directory. */
   root: string;
+  /** Entry files whose imports are traversed when reconstructing document CSS. */
   entries: string[];
+  /** Compiler mode, normally `development` or `release`. */
   mode: string;
-}
+};
 
 /** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
 export interface TurbopackProject {

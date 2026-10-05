@@ -2,7 +2,8 @@ import { fileURLToPath } from "node:url";
 
 import type { LoaderContext } from "webpack";
 
-import { requireEmission, type EmissionContext } from "./emission.ts";
+import { requireEmission } from "./emission.ts";
+import { loaderCompletion } from "./source-map-loader.ts";
 
 /**
  * Supplies reconstructed document CSS to the host CSS pipeline through the asynchronous loader
@@ -23,9 +24,8 @@ export default function webpackCssLoader(this: LoaderContext<unknown>) {
     throw new Error("Unknown Stillwind stylesheet request");
   }
   this.cacheable(false);
-  const context = this as unknown as EmissionContext;
-  const css = requireEmission(context).__stillwindCss ?? "";
-  const callback = this.async();
+  const css = requireEmission(this).__stillwindCss ?? "";
+  const callback = loaderCompletion(this);
   void import("@stillwind/host")
     .then(({ decodeCssSourceMap }) => {
       const output = decodeCssSourceMap(css);
@@ -34,7 +34,7 @@ export default function webpackCssLoader(this: LoaderContext<unknown>) {
           source.startsWith("file:") ? fileURLToPath(source).replaceAll("\\", "/") : source,
         );
       }
-      callback(null, output.code, output.map as Parameters<typeof callback>[2]);
+      callback(null, output.code, output.map);
     })
     .catch(callback);
 }

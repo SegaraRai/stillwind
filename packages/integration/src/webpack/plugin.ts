@@ -1,5 +1,5 @@
 import type { StillwindOptions } from "../options.ts";
-import { installEmission, type EmissionCompilation } from "./emission.ts";
+import { installEmission, type EmissionCompilation, type EmissionModule } from "./emission.ts";
 import type { ResolverHost, ResolveSettings, ResolveCallback } from "./host.ts";
 import { stillwindRules } from "./rules.ts";
 
@@ -38,14 +38,13 @@ export class StillwindPlugin {
    * @param compiler - webpack or Rspack compiler with a usable input filesystem and resolver. Call
    * through the bundler's plugin setup before compilation begins.
    */
-  apply(compiler: EmissionCompiler): void {
+  apply<Module extends EmissionModule>(compiler: EmissionCompiler<Module>): void {
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
     this.configureRules(compiler.options.module.rules);
     compiler.hooks.thisCompilation.tap("StillwindEmission", (compilation) => {
       installEmission({
-        // Both bundlers expose these operations, but their module classes differ.
-        _compilation: compilation as unknown as EmissionCompilation,
+        _compilation: compilation,
         fs: compiler.inputFileSystem!,
         mode: compiler.options.mode,
         getResolve(settings) {
@@ -62,10 +61,10 @@ export class StillwindPlugin {
  * Compiler operations shared by webpack and Rspack for installing rules and registering each
  * compilation.
  */
-interface EmissionCompiler {
+interface EmissionCompiler<Module extends EmissionModule> {
   hooks: {
     thisCompilation: {
-      tap(name: string, callback: (compilation: unknown) => void): void;
+      tap(name: string, callback: (compilation: EmissionCompilation<Module>) => void): void;
     };
   };
   inputFileSystem: ResolverHost["fs"] | null;

@@ -33,12 +33,22 @@ export default defineConfig({
     fixedExtension: false,
     dts: true,
     deps: {
-      neverBundle: ["webpack", "astro:middleware", "virtual:stillwind/astro-styles", "$app/paths"],
+      neverBundle: [
+        "@rsbuild/core",
+        "@rspack/core",
+        "next",
+        "webpack",
+        // virtual modules
+        "astro:middleware",
+        "virtual:stillwind/astro-styles",
+        "$app/paths",
+      ],
       alwaysBundle: [
         "@jridgewell/gen-mapping",
-        "@jridgewell/trace-mapping",
-        "@jridgewell/sourcemap-codec",
+        "@jridgewell/remapping",
         "@jridgewell/resolve-uri",
+        "@jridgewell/sourcemap-codec",
+        "@jridgewell/trace-mapping",
       ],
     },
     sourcemap: true,

@@ -1,17 +1,18 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { composeModuleSourceMap, moduleSourceMap } from "@stillwind/host";
+import { composeModuleSourceMap, moduleSourceMap, type UpstreamSourceMap } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
+import { loaderCompletion } from "../webpack/source-map-loader.ts";
 import { createProject, type TurbopackLoaderOptions } from "./project.ts";
 
 export default function turbopackLoader(
   this: LoaderContext<TurbopackLoaderOptions>,
   source: string,
-  inputMap: any,
+  inputMap: UpstreamSourceMap,
 ) {
-  const callback = this.async();
+  const callback = loaderCompletion(this);
   if (!/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(source)) {
     return callback(null, source, inputMap);
   }
@@ -87,7 +88,7 @@ export default function turbopackLoader(
         composeModuleSourceMap(
           moduleSourceMap(source, output.code, this.resourcePath, output.mappings, [], ""),
           inputMap,
-        ) as Parameters<typeof callback>[2],
+        ),
       );
     } finally {
       project.compiler.close();

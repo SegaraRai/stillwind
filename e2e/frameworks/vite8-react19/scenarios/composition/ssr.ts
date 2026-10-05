@@ -4,6 +4,7 @@ import { renderToString } from "react-dom/server";
 import { props } from "./a";
 
 export { props };
+
 export const html = renderToString(
   createElement(
     "div",

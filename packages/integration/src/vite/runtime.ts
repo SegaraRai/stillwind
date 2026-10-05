@@ -4,7 +4,8 @@ export interface StylesheetPart {
   css: string;
   /** Compiler module ids that need this part; an empty list keeps it active unconditionally. */
   producers: string[];
-  map?: EncodedSourceMap;
+  /** Map for this part. Null or omission means that no map is available. */
+  map?: EncodedSourceMap | null;
 }
 
 export interface StylesheetSnapshot {
@@ -15,6 +16,13 @@ export interface StylesheetSnapshot {
   dependencies: Record<string, string[]>;
 }
 
+declare module "vite" {
+  interface CustomEventMap {
+    /** Stylesheet revision, ordered parts, and composition dependencies published by Stillwind. */
+    "stillwind:css": StylesheetSnapshot;
+  }
+}
+
 interface DocumentState {
   revision: number;
   style?: HTMLStyleElement;
@@ -22,6 +30,8 @@ interface DocumentState {
   snapshot?: StylesheetSnapshot;
   pending?: Promise<void>;
 }
+
+const documentKey = Symbol.for("stillwind.document");
 
 /**
  * Reuses document state across runtime instances and applies the initial snapshot.
@@ -35,11 +45,10 @@ export function createDevelopmentRuntime(options: {
   endpoint: string;
   renderCss?: (parts: StylesheetPart[]) => string;
 }) {
-  const key = Symbol.for("stillwind.document");
   const globals = globalThis as typeof globalThis & {
-    [key: symbol]: DocumentState | undefined;
+    [documentKey]?: DocumentState;
   };
-  const state = (globals[key] ??= {
+  const state = (globals[documentKey] ??= {
     revision: -1,
     active: new Set(),
   });

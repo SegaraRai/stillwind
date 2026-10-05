@@ -12,6 +12,14 @@ export interface CssValueResource {
   request: string;
 }
 
+/** CSS and asset references encoded in the query of an isolated fragment loader request. */
+export interface CssFragment {
+  /** CSS text for one stylesheet occurrence. */
+  css: string;
+  /** Resolved assets whose placeholders occur in this fragment. */
+  resources: CssValueResource[];
+}
+
 /**
  * Generates a module that imports CSS fragments and exports their ordered values.
  *
@@ -33,7 +41,7 @@ export function cssValueModule(
       JSON.stringify({
         css: part.css,
         resources: resources.filter((resource) => part.css.includes(resource.placeholder)),
-      }),
+      } satisfies CssFragment),
     ).toString("base64url");
     const request = `!!${fileURLToPath(
       new URL("./fragment-loader.js", import.meta.resolve("@stillwind/integration/webpack")),

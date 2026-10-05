@@ -1,3 +1,4 @@
+import type { UpstreamSourceMap } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
 /**
@@ -6,7 +7,7 @@ import type { LoaderContext } from "webpack";
 export default function webpackSourceLoader(
   this: LoaderContext<unknown>,
   source: string,
-  map: unknown,
+  map: UpstreamSourceMap,
 ) {
   return `// Stillwind source loader (webpack)
 export const source = ${JSON.stringify(String(source))};

@@ -14,7 +14,7 @@ export interface StillwindRule {
   use: (string | { loader: string; options: StillwindOptions; ident: string })[];
 }
 
-function stillwindRules(options: StillwindOptions): StillwindRule[] {
+export function stillwindRules(options: StillwindOptions): StillwindRule[] {
   return [
     {
       test: /\.[cm]?[jt]sx?$/,
@@ -65,5 +65,3 @@ function stillwindRules(options: StillwindOptions): StillwindRule[] {
     },
   ];
 }
-
-export { stillwindRules };

@@ -11,6 +11,7 @@ import {
   moduleSourceMap,
   type CssUpstreamMap,
 } from "@stillwind/host";
+import type { Rollup } from "vite";
 
 import type { IntegrationSession } from "../session.ts";
 import type { CssContext } from "./design-system.ts";
@@ -18,6 +19,20 @@ import { finalizeModuleWithMap } from "./finalize.ts";
 import { sourceModuleId } from "./module-ids.ts";
 import type { ModuleRegistry } from "./module-registry.ts";
 import type { ProjectSettings, StillwindOptions } from "./project.ts";
+
+/** Metadata retained in the Vite module graph to reconstruct a producer from a cached transform. */
+export interface ProducerMetadata {
+  /** Source before Stillwind compilation, absent when a projection produces no compiled code. */
+  input?: string;
+  /** Full Vite source identity, including any query suffix, when compilation succeeds. */
+  id?: string;
+  /** Compiler identity used for stylesheet selection, when compilation succeeds. */
+  moduleId?: string;
+  /** Whether the source imports an explicit CSS value, independently of `automatic`. */
+  manual?: boolean;
+  /** Whether this virtual module supplies an automatic stylesheet projection. */
+  projection?: boolean;
+}
 
 /**
  * Producer source, transformed output, and dependency metadata retained for CSS planning and
@@ -69,7 +84,10 @@ export interface CompileContext extends CssContext {
    *
    * @returns The upstream map supplied by the Vite transform context.
    */
-  getCombinedSourcemap?: () => unknown;
+  getCombinedSourcemap?: () => Pick<
+    Rollup.SourceMap,
+    "version" | "sources" | "names" | "mappings" | "sourcesContent"
+  >;
 }
 
 /** A successful producer compilation, ready to record in the environment and return to Vite. */
@@ -89,16 +107,7 @@ export interface ProducerTransform {
   /** Metadata saved in the Vite module graph across cached transforms. */
   meta: {
     /** Original source and identities used to recover a producer before production emission. */
-    stillwind: {
-      /** Source before Stillwind compilation. */
-      input: string;
-      /** Full Vite source identity, including any query suffix. */
-      id: string;
-      /** Compiler identity used for stylesheet selection. */
-      moduleId: string;
-      /** Whether the source imports an explicit CSS value, independently of `automatic`. */
-      manual: boolean;
-    };
+    stillwind: Required<Pick<ProducerMetadata, "input" | "id" | "moduleId" | "manual">>;
   };
 }
 

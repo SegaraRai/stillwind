@@ -3,7 +3,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cleanModuleId } from "@stillwind/host";
+import { cleanModuleId, type UpstreamSourceMap } from "@stillwind/host";
 
 import { nativeBindingFiles } from "../binding-files.ts";
 import type { ProducerInput } from "./emission.ts";
@@ -91,7 +91,7 @@ export interface CapturedDependency {
   /** Transformed source text consumed by the compiler, without executing its application code. */
   source: string;
   /** Upstream map supplied by preceding loaders, or null when none was supplied. */
-  map: unknown;
+  map: UpstreamSourceMap;
 }
 
 /** Compiler operations and retained dependency captures for one producer loader invocation. */

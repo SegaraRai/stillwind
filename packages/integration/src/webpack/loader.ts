@@ -3,12 +3,11 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { cleanModuleId, type UpstreamSourceMap } from "@stillwind/host";
-import type { LoaderContext } from "webpack";
 
 import { compilerOptions, cssEntrypoint, writeVocabulary } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 import { cssValueModule, type CssValueResource } from "./css-value.ts";
-import { recordProducer, type EmissionContext } from "./emission.ts";
+import { recordProducer } from "./emission.ts";
 import { createLoaderHost, watchCompilerFiles } from "./host.ts";
 import {
   classifyRequest,
@@ -17,6 +16,11 @@ import {
   virtualRequest,
   type LoaderOptions,
 } from "./requests.ts";
+import {
+  loaderCompletion,
+  type LoaderAdditionalData,
+  type SourceTransformContext,
+} from "./source-map-loader.ts";
 import { sourceDescriptor } from "./sources.ts";
 
 /**
@@ -42,20 +46,12 @@ const fingerprint = (source: string) => createHash("sha256").update(source).dige
  * fingerprint.
  */
 export default function webpackLoader(
-  this: LoaderContext<LoaderOptions>,
+  this: SourceTransformContext<LoaderOptions>,
   source: string,
-  inputMap: Parameters<ReturnType<LoaderContext<LoaderOptions>["async"]>>[2],
-  additionalData?: {
-    stillwind?: {
-      sourceTransform?: {
-        resource: string;
-        fingerprint: string;
-      };
-    };
-    [key: string]: unknown;
-  },
+  inputMap: UpstreamSourceMap,
+  additionalData?: LoaderAdditionalData,
 ) {
-  const callback = this.async();
+  const callback = loaderCompletion(this);
   const text = String(source);
   const { projection, cssValue, sfc, id, passthrough } = classifyRequest(
     this.resourcePath,
@@ -65,7 +61,7 @@ export default function webpackLoader(
   // Framework loaders can clone the same rule into a subrequest's chain.
   // Skip only an identical output already produced for this resource.
   if (prior?.resource === id && prior.fingerprint === fingerprint(text)) {
-    return callback(null, source, inputMap, additionalData as Parameters<typeof callback>[3]);
+    return callback(null, source, inputMap, additionalData);
   }
   if (passthrough) {
     return callback(null, source, inputMap);
@@ -173,8 +169,7 @@ export default function webpackLoader(
     }
     const automatic = (!output.hasModuleCssImport && options.automatic !== false) || projection;
     if (automatic) {
-      const context = this as unknown as EmissionContext;
-      recordProducer(context, {
+      recordProducer(this, {
         source: text,
         id,
         root,
@@ -223,15 +218,15 @@ export default function webpackLoader(
       finalized.removed,
       "",
     );
-    const composedMap = host.composeModuleSourceMap(map, inputMap as UpstreamSourceMap);
+    const composedMap = host.composeModuleSourceMap(map, inputMap);
     if (sfc && this.data) {
-      (this.data as { stillwindSourceTransform?: unknown }).stillwindSourceTransform = {
+      this.data.stillwindSourceTransform = {
         code,
         map: composedMap,
         resource: id,
       };
     }
-    const metadata = {
+    const metadata: LoaderAdditionalData = {
       ...additionalData,
       stillwind: {
         coverage: plan.coverage,
@@ -243,12 +238,7 @@ export default function webpackLoader(
         },
       },
     };
-    callback(
-      null,
-      code,
-      composedMap as Parameters<typeof callback>[2],
-      metadata as unknown as Parameters<typeof callback>[3],
-    );
+    callback(null, code, composedMap, metadata);
   })()
     .catch((error) => callback(error))
     .finally(() => compiler?.close());

@@ -1,6 +1,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { SourceMapInput } from "@jridgewell/trace-mapping";
+import type { LoaderContext } from "webpack";
+
+import { loaderCompletion, type LoaderCompletion } from "./source-map-loader.ts";
+
 /**
  * Composes remaining CSS carrier references in the host pipeline's output map.
  *
@@ -19,13 +24,17 @@ import { fileURLToPath } from "node:url";
  * @returns The loader callback's result for passthrough, or undefined while asynchronous
  * composition completes. Decoding and composition failures are delivered to the callback.
  */
-export default function webpackCssMapLoader(this: any, source: string, inputMap: any) {
+export default function webpackCssMapLoader(
+  this: LoaderContext<unknown>,
+  source: string,
+  inputMap: SourceMapInput | SourceMapInput[] | null | undefined,
+) {
   this.addDependency(import.meta.filename);
   const payload = new URLSearchParams(this.resourceQuery).get("stillwind");
   if (!payload || !inputMap) {
-    return this.callback(null, source, inputMap);
+    return (this.callback as LoaderCompletion)(null, source, inputMap);
   }
-  const callback = this.async();
+  const callback = loaderCompletion(this);
   const resource = path.resolve(this.resourcePath).replaceAll("\\", "/");
   void import("@stillwind/host")
     .then(({ decodeCssSourceMap, composeCarrierSourceMap }) => {

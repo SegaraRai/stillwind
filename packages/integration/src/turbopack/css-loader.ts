@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
+import { loaderCompletion } from "../webpack/source-map-loader.ts";
 import { compileGraph, createProject, type TurbopackLoaderOptions } from "./project.ts";
 
 export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOptions>) {
@@ -14,7 +15,7 @@ export function emitStylesheet(
   context: LoaderContext<TurbopackLoaderOptions>,
   entries: () => Promise<string[]>,
 ): void {
-  const callback = context.async();
+  const callback = loaderCompletion(context);
   void (async () => {
     const project = await createProject(context);
     try {
@@ -40,7 +41,7 @@ export function emitStylesheet(
           source.startsWith("file:") ? fileURLToPath(source).replaceAll("\\", "/") : source,
         );
       }
-      callback(null, output.code, output.map as Parameters<typeof callback>[2]);
+      callback(null, output.code, output.map);
     } finally {
       project.compiler.close();
     }

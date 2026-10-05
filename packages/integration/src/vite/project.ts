@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
-import type { ResolvedConfig, ViteDevServer } from "vite";
+import type { InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
 import type { StillwindOptions as CommonOptions } from "../options.ts";
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
@@ -305,7 +305,7 @@ export function createViteProject(options: StillwindOptions): ViteProject {
       settings.devServerRef?.environments[name ?? "client"]?.hot.send({
         type: "custom",
         event: "stillwind:css",
-        data: snapshot,
+        data: snapshot satisfies InferCustomEventPayload<"stillwind:css">,
       });
     });
   };

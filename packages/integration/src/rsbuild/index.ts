@@ -1,10 +1,25 @@
 import { fileURLToPath } from "node:url";
 
+import type { RsbuildPlugin } from "@rsbuild/core";
+import type { RspackOptions } from "@rspack/core";
+
 import type { StillwindOptions } from "../options.ts";
 import { StillwindPlugin } from "../webpack/plugin.ts";
 import { stillwindRules } from "../webpack/rules.ts";
 
 export type { StillwindOptions } from "../options.ts";
+
+/** Rsbuild plugin that uses only the hook for updating the Rspack configuration. */
+export interface StillwindRsbuildPlugin extends RsbuildPlugin {
+  /**
+   * Registers Stillwind's configuration changes through the host's Rspack hook.
+   *
+   * @param api - Host API that accepts a modifier for the mutable Rspack configuration.
+   */
+  setup(api: {
+    modifyRspackConfig(callback: (config: RspackOptions) => RspackOptions): void;
+  }): void;
+}
 
 /**
  * Adapts existing CSS rules for Stillwind document carriers and source-map composition.
@@ -14,17 +29,24 @@ export type { StillwindOptions } from "../options.ts";
  *
  * @param rules - Mutable Rsbuild rule list, including any nested `oneOf` and `rules` lists.
  */
-function configureCssRules(rules: any[]) {
+function configureCssRules(rules: NonNullable<NonNullable<RspackOptions["module"]>["rules"]>) {
   for (const rule of rules) {
     if (!rule || typeof rule !== "object") {
       continue;
     }
     if (rule.test instanceof RegExp && rule.test.test("stillwind-webpack.css")) {
-      rule.exclude = [rule.exclude, /stillwind-webpack\.css$/].filter(Boolean);
+      rule.exclude = [rule.exclude, /stillwind-webpack\.css$/].filter(
+        (condition): condition is NonNullable<typeof condition> => Boolean(condition),
+      );
     }
     if (Array.isArray(rule.use)) {
-      rule.use = rule.use.flatMap((use: any) => {
-        const name = typeof use === "string" ? use : use?.loader;
+      rule.use = rule.use.flatMap((use) => {
+        const name =
+          typeof use === "string"
+            ? use
+            : typeof use === "object" && use !== null
+              ? use.loader
+              : undefined;
         return name === "builtin:lightningcss-loader"
           ? [
               {
@@ -53,10 +75,10 @@ function configureCssRules(rules: any[]) {
  * @returns A plugin whose setup hook adjusts Rspack rules and registers a `StillwindPlugin`
  * instance.
  */
-function pluginStillwind(options: StillwindOptions) {
+export function pluginStillwind(options: StillwindOptions): StillwindRsbuildPlugin {
   return {
     name: "stillwind",
-    setup(api: { modifyRspackConfig(callback: (config: any) => any): void }) {
+    setup(api) {
       api.modifyRspackConfig((config) => {
         config.module ??= {};
         config.module.rules ??= [];
@@ -106,5 +128,3 @@ class RsbuildStillwindPlugin extends StillwindPlugin {
     );
   }
 }
-
-export { pluginStillwind };

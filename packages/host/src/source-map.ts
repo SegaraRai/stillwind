@@ -7,7 +7,7 @@ import {
   toEncodedMap,
   type EncodedSourceMap,
 } from "@jridgewell/gen-mapping";
-import remapping from "@jridgewell/remapping";
+import remapping, { type SourceMap } from "@jridgewell/remapping";
 import { TraceMap, type SourceMapInput } from "@jridgewell/trace-mapping";
 
 /**
@@ -25,7 +25,7 @@ export function composeFrameworkSourceMap(
   generated: SourceMapInput,
   original: SourceMapInput | readonly SourceMapInput[],
   transformedSource: string,
-) {
+): SourceMap {
   const traced = new TraceMap(generated);
   const matches = new Set(
     traced.resolvedSources.filter(
@@ -51,7 +51,7 @@ export function composeCarrierSourceMap(
   generated: SourceMapInput | SourceMapInput[],
   original: SourceMapInput | readonly SourceMapInput[],
   resource: string,
-) {
+): SourceMap {
   return remapping(generated, (source, context) =>
     context.depth === 1 && resolve(source).replaceAll("\\", "/") === resource
       ? (original as SourceMapInput)
@@ -75,7 +75,10 @@ export type UpstreamSourceMap = SourceMapInput | readonly SourceMapInput[] | und
  * @returns The generated map unchanged when no upstream map is supplied, otherwise a composed map.
  * @throws If map decoding fails or a supplied map chain is incompatible.
  */
-export function composeModuleSourceMap(generated: EncodedSourceMap, upstream: UpstreamSourceMap) {
+export function composeModuleSourceMap(
+  generated: EncodedSourceMap,
+  upstream: UpstreamSourceMap,
+): EncodedSourceMap | SourceMap {
   return upstream
     ? remapping(
         [JSON.stringify(generated), ...(Array.isArray(upstream) ? upstream : [upstream])],
@@ -139,7 +142,7 @@ export function moduleSourceMap(
   mappings: readonly CompilerMapping[],
   removed: readonly { from: number; to: number }[],
   prefix: string,
-) {
+): EncodedSourceMap {
   const map = new GenMapping({ file: id });
   setSourceContent(map, id, source);
   const lines = [0];

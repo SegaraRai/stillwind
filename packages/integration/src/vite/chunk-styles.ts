@@ -28,19 +28,13 @@ export function renderChunkStyles(
 ) {
   const { options, settings, inputs, moduleRegistry } = project;
   const { manifest, buildCss } = project.buildOutput(name);
-  const metadata = chunk as typeof chunk & {
-    viteMetadata?: {
-      importedCss: Set<string>;
-      importedAssets: Set<string>;
-    };
-  };
   const attachCss = (file: string) => {
-    metadata.viteMetadata ??= {
+    chunk.viteMetadata ??= {
       importedCss: new Set(),
       importedAssets: new Set(),
       __modules: new Set(),
     };
-    metadata.viteMetadata.importedCss.add(file);
+    chunk.viteMetadata.importedCss.add(file);
   };
   if (options.emission === "split" && manifest) {
     const graph = new Set(Object.keys(chunk.modules));

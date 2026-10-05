@@ -45,36 +45,38 @@ export interface ProducerInput {
  * @param input - Producer source, compiler configuration, and captured dependency sources.
  * @throws If the compilation has no registered emission hook or the loader context has no module.
  */
-export function recordProducer(context: EmissionContext, input: ProducerInput): void {
+export function recordProducer<Module extends EmissionModule>(
+  context: EmissionContext<Module>,
+  input: ProducerInput,
+): void {
   requireEmission(context);
   if (!context._module) {
     throw new Error(incompleteGraphMessage);
   }
-  context._module.buildInfo.stillwind = input;
+  (context._module.buildInfo ??= {}).stillwind = input;
 }
 
 /**
  * Bundler module metadata used to recover cached producer inputs and identify the shared document
  * CSS carrier.
  */
-interface EmissionModule {
+export interface EmissionModule {
   /** Resource path and query used to identify the shared document CSS carrier. */
   resource?: string;
   /** Build metadata retained by the bundler when a module is reused from cache. */
-  buildInfo: {
+  buildInfo?: {
     /** Producer input reconstructed after the compilation graph is complete. */
     stillwind?: ProducerInput;
+    /** Build fields owned by the bundler or other plugins, retained without interpretation. */
+    [key: string]: unknown;
   };
 }
 
 /** Compilation operations required to collect producers and rebuild document CSS carriers. */
-export interface EmissionCompilation {
+export interface EmissionCompilation<Module extends EmissionModule = EmissionModule> {
   hooks: {
     finishModules: {
-      tapPromise(
-        name: string,
-        callback: (modules: Iterable<EmissionModule>) => Promise<void>,
-      ): void;
+      tapPromise(name: string, callback: (modules: Iterable<Module>) => Promise<void>): void;
     };
   };
   fileDependencies: {
@@ -83,7 +85,7 @@ export interface EmissionCompilation {
   warnings: {
     push(error: Error): unknown;
   };
-  rebuildModule(module: EmissionModule, callback: (error: Error | null) => void): void;
+  rebuildModule(module: Module, callback: (error?: Error | null) => void): void;
   /**
    * Reconstructed document CSS, optionally including an inline source map. Undefined before
    * reconstruction.
@@ -95,9 +97,11 @@ export interface EmissionCompilation {
  * Bundler context used to register emission and attach producer metadata to the current
  * compilation.
  */
-export interface EmissionContext extends ResolverHost {
-  _compilation?: EmissionCompilation;
-  _module?: EmissionModule;
+export interface EmissionContext<
+  Module extends EmissionModule = EmissionModule,
+> extends ResolverHost {
+  _compilation?: EmissionCompilation<Module>;
+  _module?: Module;
   /**
    * Bundler mode forwarded to CSS reconstruction. Only `development` selects development
    * compilation.
@@ -115,7 +119,9 @@ export interface EmissionContext extends ResolverHost {
  * producer loaders run.
  * @throws If the context has no compilation with a `finishModules` hook.
  */
-export function installEmission(context: EmissionContext): void {
+export function installEmission<Module extends EmissionModule>(
+  context: EmissionContext<Module>,
+): void {
   const compilation = requireCompilation(context);
   if (installed.has(compilation)) {
     return;
@@ -152,7 +158,7 @@ export function installEmission(context: EmissionContext): void {
  * Compilations whose emission hooks have been registered. Membership is required before automatic
  * loaders record producers.
  */
-const installed = new WeakSet<EmissionCompilation>();
+const installed = new WeakSet<object>();
 
 const incompleteGraphMessage =
   "Automatic Stillwind CSS requires new StillwindPlugin(options) before compilation begins";
@@ -164,7 +170,9 @@ const incompleteGraphMessage =
  * @returns The compilation attached to the context.
  * @throws If the context cannot supply a completed compilation graph.
  */
-function requireCompilation(context: EmissionContext): EmissionCompilation {
+function requireCompilation<Module extends EmissionModule>(
+  context: EmissionContext<Module>,
+): EmissionCompilation<Module> {
   const compilation = context._compilation;
   if (!compilation?.hooks?.finishModules) {
     throw new Error(incompleteGraphMessage);
@@ -179,7 +187,9 @@ function requireCompilation(context: EmissionContext): EmissionCompilation {
  * @returns The compilation holding reconstructed document CSS.
  * @throws If the compilation is missing or its emission hook has not been registered.
  */
-export function requireEmission(context: EmissionContext): EmissionCompilation {
+export function requireEmission<Module extends EmissionModule>(
+  context: EmissionContext<Module>,
+): EmissionCompilation<Module> {
   const compilation = requireCompilation(context);
   if (!installed.has(compilation)) {
     throw new Error(incompleteGraphMessage);

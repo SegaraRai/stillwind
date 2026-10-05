@@ -1,15 +1,14 @@
-export { prepareSource } from "./frameworks/index.ts";
+export { checkerEnvironment, type CheckerBuffer, type CheckerEnvironment } from "./checker.ts";
 export { PreparationError } from "./frameworks/common.ts";
+export { prepareSource } from "./frameworks/index.ts";
 export type {
   ConverterIdentity,
   PreparedSource,
   ProjectInput,
-  ProjectMetadata,
   ProjectionMap,
+  ProjectMetadata,
   ScriptSyntax,
   SourceDocument,
   SourceFormat,
   SourceProjection,
 } from "./protocol.ts";
-export { checkerEnvironment } from "./checker.ts";
-export type { CheckerBuffer, CheckerEnvironment } from "./checker.ts";
