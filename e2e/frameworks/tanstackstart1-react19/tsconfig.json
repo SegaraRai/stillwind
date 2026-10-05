@@ -1,9 +1,9 @@
 {
+  "extends": "../../../tsconfig.strict.json",
   "compilerOptions": {
     "target": "ES2024",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,

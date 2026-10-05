@@ -56,6 +56,29 @@ test("copies application files, excludes artifacts, and edits only its disposabl
   }
 });
 
+test("preserves multiple base configs when copying a framework fixture", async () => {
+  const root = await mkdtemp(join(tmpdir(), "stillwind-e2e-"));
+  const bases = ["astro/tsconfigs/strict", "./tsconfig.local.json", "../tsconfig.base.json"];
+  try {
+    await writeFile(join(root, "tsconfig.json"), JSON.stringify({ extends: bases }));
+    await writeFile(join(root, "tsconfig.local.json"), "{}");
+    const workspace = await createWorkspace(root);
+    try {
+      const config = JSON.parse(await readFile(join(workspace.directory, "tsconfig.json"), "utf8"));
+      expect(config.extends.slice(0, 2)).toEqual(bases.slice(0, 2));
+      expect(join(workspace.directory, config.extends[2])).toBe(join(root, bases[2]));
+      expect(await readFile(join(workspace.directory, config.extends[1]), "utf8")).toBe("{}");
+      expect(JSON.parse(await readFile(join(root, "tsconfig.json"), "utf8")).extends).toEqual(
+        bases,
+      );
+    } finally {
+      await workspace.dispose();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("rejects paths outside the fixture before reading or writing them", () => {
   const root = join(tmpdir(), "fixture");
   expect(() => fixturePath(root, "../outside.ts")).toThrow("escapes fixture");

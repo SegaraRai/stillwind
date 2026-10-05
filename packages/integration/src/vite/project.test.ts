@@ -333,6 +333,7 @@ async function createWatchedProject(
           if (options.environmentCss && id === "environment-css") {
             return path.join(root, this.environment.name === "ssr" ? "ssr.css" : "client.css");
           }
+          return undefined;
         },
       },
       plugins,

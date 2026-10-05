@@ -380,6 +380,7 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
           if (id === "environment-css") {
             return this.environment.name === "ssr" ? ssrCss : clientCss;
           }
+          return undefined;
         },
       },
       plugins,

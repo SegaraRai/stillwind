@@ -56,13 +56,25 @@ export async function createWorkspace(packageRoot: string) {
       });
       if (/^tsconfig.*\.json$/.test(entry)) {
         const config = JSON.parse(await readFile(join(root, entry), "utf8"));
-        if (typeof config.extends === "string" && config.extends.startsWith(".")) {
-          const base = resolve(root, config.extends);
-          const local = relative(root, base);
-          if (local === ".." || local.startsWith(`..${sep}`)) {
-            config.extends = relative(directory, base).split(sep).join("/");
-            await writeFile(join(directory, entry), JSON.stringify(config, null, 2));
+        const bases: string[] =
+          typeof config.extends === "string"
+            ? [config.extends]
+            : Array.isArray(config.extends)
+              ? config.extends
+              : [];
+        const relocated = bases.map((base) => {
+          if (!base.startsWith(".")) {
+            return base;
           }
+          const file = resolve(root, base);
+          const local = relative(root, file);
+          return local === ".." || local.startsWith(`..${sep}`)
+            ? relative(directory, file).split(sep).join("/")
+            : base;
+        });
+        if (bases.some((base, index) => base !== relocated[index])) {
+          config.extends = Array.isArray(config.extends) ? relocated : relocated[0];
+          await writeFile(join(directory, entry), JSON.stringify(config, null, 2));
         }
       }
     }

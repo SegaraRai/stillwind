@@ -66,7 +66,8 @@ export function playground(css: string): Plugin {
         const id = new URL(request.url ?? "", "http://stillwind.local").searchParams.get("id");
         if (!id || !previewBundles.has(id)) {
           response.statusCode = 404;
-          return response.end("Preview expired");
+          response.end("Preview expired");
+          return;
         }
         response.setHeader("content-type", "text/html; charset=utf-8");
         response.setHeader("cache-control", "no-store");
@@ -77,7 +78,8 @@ export function playground(css: string): Plugin {
         const bundle = id ? previewBundles.get(id) : undefined;
         if (!bundle) {
           response.statusCode = 404;
-          return response.end("Preview expired");
+          response.end("Preview expired");
+          return;
         }
         response.setHeader("content-type", "text/javascript; charset=utf-8");
         response.setHeader("cache-control", "no-store");

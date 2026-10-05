@@ -1,7 +1,7 @@
 import { style } from "stillwind/react";
 
 // Non-ASCII text ensures Oxc byte offsets map back from TypeScript UTF-16 positions.
-const _label = "🧭";
+export const label = "🧭";
 
 export const first = style.ref("first");
 export const second = style.ref("second");

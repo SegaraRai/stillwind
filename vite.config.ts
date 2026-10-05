@@ -9,16 +9,34 @@ export default defineConfig(({ mode }) => ({
     svelte: true,
   },
   lint: {
+    categories: {
+      correctness: "error",
+    },
     ignorePatterns: [
       "apps/fixtures-viewer/public/fixtures.json",
       "fixtures/projects/*/expected/**",
       "packages/native/binding.d.ts",
     ],
     options: {
+      denyWarnings: true,
+      reportUnusedDisableDirectives: "error",
       typeAware: true,
     },
     rules: {
-      curly: "warn",
+      curly: "error",
+      eqeqeq: ["error", "always", { null: "ignore" }],
+      "no-unused-vars": [
+        "error",
+        {
+          args: "all",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          ignoreRestSiblings: true,
+          vars: "all",
+        },
+      ],
+      "no-var": "error",
+      "prefer-const": "error",
     },
   },
   test: {
@@ -132,9 +150,13 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       // typecheck
+      "typecheck:root": {
+        command: "tsc --noEmit",
+      },
       typecheck: {
         command: "",
         dependsOn: [
+          "typecheck:root",
           "@stillwind-internal/apps-fixtures-viewer#typecheck",
           "@stillwind-internal/apps-logo-editor#typecheck",
           "@stillwind-internal/apps-play#typecheck",

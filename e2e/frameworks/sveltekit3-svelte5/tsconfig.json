@@ -1,7 +1,6 @@
 {
-  "extends": "$app/tsconfig",
+  "extends": ["$app/tsconfig", "../../../tsconfig.strict.json"],
   "compilerOptions": {
-    "strict": true,
     "allowImportingTsExtensions": true,
     "skipLibCheck": true
   },

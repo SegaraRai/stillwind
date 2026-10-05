@@ -105,6 +105,7 @@ export function stillwind(options: StillwindOptions): AstroIntegration {
                     }
                     return "\0" + source;
                   }
+                  return undefined;
                 },
                 load(source) {
                   if (source === "\0" + CLIENT_ID) {

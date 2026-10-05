@@ -16,7 +16,7 @@ export const props = style('red');
 
 export async function createTestServer() {
   const root = await mkdtemp(path.join(packageRoot, ".test-security-"));
-  let server: ViteDevServer | undefined;
+  let server: ViteDevServer | undefined = undefined;
   onTestFinished(async () => {
     try {
       await server?.close();

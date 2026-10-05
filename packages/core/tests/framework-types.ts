@@ -261,10 +261,10 @@ function explicitRefUses(flag: boolean) {
   const b = react.ref();
   const selected = flag ? a : b;
   react(selected.positionAnchor());
-  // eslint-disable @typescript-eslint/unbound-method
+  /* eslint-disable @typescript-eslint/unbound-method */
   // @ts-expect-error positionAnchor must be called
   react(a.positionAnchor);
-  // eslint-enable
+  /* eslint-enable @typescript-eslint/unbound-method */
   // @ts-expect-error positionAnchor takes no arguments
   a.positionAnchor("unused");
   react(selected, selected.asAnchor([a, selected]), selected.asContainer());
