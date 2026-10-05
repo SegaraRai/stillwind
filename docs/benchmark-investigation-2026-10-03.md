@@ -200,7 +200,7 @@ loaderとcheckerを通常の更新で再作成しない方針は維持する。h
 
 ## 再現と検証
 
-追加benchmarkは`vp run --filter @stillwind/benchmarks bench:research`で実行できる。native内部profileとNode CPU profileのコマンドは[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。native profileを作る際は、同じRustソースに対する編集やbuildを並行して実行しない。
+追加benchmarkは`vp run --filter @stillwind-internal/benchmarks bench:research`で実行できる。native内部profileとNode CPU profileのコマンドは[benchmark README](/F:/Projects/shorth/benchmarks/README.md)に記載した。native profileを作る際は、同じRustソースに対する編集やbuildを並行して実行しない。
 
 追加の正しさ検証は通常のbenchmark packageのtest taskに含まれる。元の3 benchmark taskの実行方法は変更していない。重いnative profileは少数の診断用測定であり、通常の検証では実行しない。
 

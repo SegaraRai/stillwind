@@ -1,8 +1,8 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
-import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
+import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
 
 import { compileFixtureSource } from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";

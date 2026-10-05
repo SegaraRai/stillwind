@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { expectCss, waitForHydration } from "@stillwind/e2e-harness/browser";
-import { availablePort } from "@stillwind/e2e-harness/port";
-import { startNode, waitForServer } from "@stillwind/e2e-harness/process";
-import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
-import { snapshotSources } from "@stillwind/e2e-harness/source";
+import { expectCss, waitForHydration } from "@stillwind-internal/e2e-harness/browser";
+import { availablePort } from "@stillwind-internal/e2e-harness/port";
+import { startNode, waitForServer } from "@stillwind-internal/e2e-harness/process";
+import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
+import { snapshotSources } from "@stillwind-internal/e2e-harness/source";
 import { chromium, type Browser, type Page } from "playwright";
 import { expect } from "vite-plus/test";
 

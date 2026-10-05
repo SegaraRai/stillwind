@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
+import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { stillwind } from "@stillwind/integration/vite";
 import { chromium, type Browser } from "playwright";
 import { build, preview } from "vite-plus";

@@ -1,4 +1,4 @@
-import { fixtureTasks } from "@stillwind/e2e-harness/config";
+import { fixtureTasks } from "@stillwind-internal/e2e-harness/config";
 import react from "@vitejs/plugin-react";
 import { defineConfig, lazyPlugins } from "vite-plus";
 

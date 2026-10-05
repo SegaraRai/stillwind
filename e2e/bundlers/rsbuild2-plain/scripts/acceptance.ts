@@ -4,8 +4,8 @@ import { createServer } from "node:http";
 import path from "node:path";
 
 import { TraceMap, originalPositionFor, sourceContentFor } from "@jridgewell/trace-mapping";
-import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
-import { resolveSourceMapFile } from "@stillwind/e2e-harness/source-map";
+import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
+import { resolveSourceMapFile } from "@stillwind-internal/e2e-harness/source-map";
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, test, expect } from "vite-plus/test";
 

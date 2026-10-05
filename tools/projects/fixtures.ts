@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
+import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import {
   TypeScriptFactsService,
   finalizeModuleWithMap,

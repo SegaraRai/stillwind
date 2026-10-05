@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind-tools/webref",
+  "name": "@stillwind-internal/tools-webref",
   "version": "0.0.0",
   "private": true,
   "description": "Webref data generation for Stillwind",
@@ -9,7 +9,7 @@
     "@webref/css": "catalog:"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

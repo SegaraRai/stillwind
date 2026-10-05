@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@astrojs/compiler": "^4.0.0",
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@volar/typescript": "^2.4.28",
     "@vue/compiler-dom": "^3.5.43",

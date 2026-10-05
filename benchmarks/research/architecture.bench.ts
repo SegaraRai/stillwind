@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
+import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import { loadCssGraph } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import type { NativePreparedSource } from "@stillwind/native";

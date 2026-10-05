@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
-import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
+import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { compileSource } from "@stillwind/native";
 import { chromium, type Browser, type Page } from "playwright";
 import * as runtime from "stillwind/react/runtime";

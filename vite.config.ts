@@ -1,4 +1,4 @@
-import { rustCache, testCache } from "@stillwind-tools/workspace/task-cache";
+import { rustCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
@@ -47,28 +47,28 @@ export default defineConfig(({ mode }) => ({
       generate: {
         command: "",
         dependsOn: [
-          "generate:webref",
-          "generate:tailwind-order",
           "generate:fixtures:projects",
           "generate:fixtures:tailwind",
-          "@stillwind-tools/tailwind#generate:fixtures:tailwind-order",
+          "generate:tailwind-order",
+          "generate:webref",
+          "@stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order",
         ],
       },
       "generate:fixtures:projects": {
         command: "",
-        dependsOn: ["@stillwind-tools/projects#generate:fixtures:projects"],
+        dependsOn: ["@stillwind-internal/tools-projects#generate:fixtures:projects"],
       },
       "generate:fixtures:tailwind": {
         command: "",
-        dependsOn: ["@stillwind-tools/tailwind#generate:fixtures:tailwind"],
+        dependsOn: ["@stillwind-internal/tools-tailwind#generate:fixtures:tailwind"],
       },
       "generate:tailwind-order": {
         command: "",
-        dependsOn: ["@stillwind-tools/tailwind#generate:tailwind-order"],
+        dependsOn: ["@stillwind-internal/tools-tailwind#generate:tailwind-order"],
       },
       "generate:webref": {
         command: "",
-        dependsOn: ["@stillwind-tools/webref#generate:webref"],
+        dependsOn: ["@stillwind-internal/tools-webref#generate:webref"],
       },
       // fmt
       fmt: {
@@ -112,8 +112,8 @@ export default defineConfig(({ mode }) => ({
         command: "cargo clippy --workspace --all-targets -- -D warnings",
         cache: rustCache,
         dependsOn: [
-          "@stillwind-tools/webref#check:generated:webref",
-          "@stillwind-tools/tailwind#check:generated:tailwind-order",
+          "@stillwind-internal/tools-tailwind#check:generated:tailwind-order",
+          "@stillwind-internal/tools-webref#check:generated:webref",
         ],
       },
       // check
@@ -124,34 +124,34 @@ export default defineConfig(({ mode }) => ({
       "check:generated": {
         command: "",
         dependsOn: [
-          "@stillwind-tools/webref#check:generated:webref",
-          "@stillwind-tools/tailwind#check:generated:fixtures:tailwind",
-          "@stillwind-tools/tailwind#check:generated:tailwind-order",
-          "@stillwind-tools/tailwind#check:generated:fixtures:tailwind-order",
+          "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind-order",
+          "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind",
+          "@stillwind-internal/tools-tailwind#check:generated:tailwind-order",
+          "@stillwind-internal/tools-webref#check:generated:webref",
         ],
       },
       // typecheck
       typecheck: {
         command: "",
         dependsOn: [
-          "stillwind#typecheck",
-          "@stillwind/benchmarks#typecheck",
-          "@stillwind/e2e-harness#typecheck:fixtures",
-          "@stillwind/e2e-harness#typecheck",
-          "@stillwind/fixtures-viewer#typecheck",
+          "@stillwind-internal/apps-fixtures-viewer#typecheck",
+          "@stillwind-internal/apps-logo-editor#typecheck",
+          "@stillwind-internal/apps-play#typecheck",
+          "@stillwind-internal/benchmarks#typecheck",
+          "@stillwind-internal/e2e-harness#typecheck:fixtures",
+          "@stillwind-internal/e2e-harness#typecheck",
+          "@stillwind-internal/examples-react#typecheck",
+          "@stillwind-internal/tools-fixture-css#typecheck",
+          "@stillwind-internal/tools-projects#typecheck",
+          "@stillwind-internal/tools-tailwind-compat#typecheck",
+          "@stillwind-internal/tools-tailwind#typecheck",
+          "@stillwind-internal/tools-webref#typecheck",
+          "@stillwind-internal/tools-workspace#typecheck",
           "@stillwind/host#typecheck",
           "@stillwind/integration#typecheck",
-          "@stillwind/logo-editor#typecheck",
           "@stillwind/native#typecheck",
-          "@stillwind/play#typecheck",
           "@stillwind/projection#typecheck",
-          "@stillwind/react-example#typecheck",
-          "@stillwind-tools/fixture-css#typecheck",
-          "@stillwind-tools/projects#typecheck",
-          "@stillwind-tools/tailwind-compat#typecheck",
-          "@stillwind-tools/tailwind#typecheck",
-          "@stillwind-tools/webref#typecheck",
-          "@stillwind-tools/workspace#typecheck",
+          "stillwind#typecheck",
         ],
       },
       // verify
@@ -162,23 +162,23 @@ export default defineConfig(({ mode }) => ({
       // bench
       "bench:architecture": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#bench:architecture"],
+        dependsOn: ["@stillwind-internal/benchmarks#bench:architecture"],
       },
       "bench:compiler": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#bench:compiler"],
+        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler"],
       },
       "bench:host": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#bench:host"],
+        dependsOn: ["@stillwind-internal/benchmarks#bench:host"],
       },
       "bench:research": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#bench:research"],
+        dependsOn: ["@stillwind-internal/benchmarks#bench:research"],
       },
       "bench:source-map": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#bench:source-map"],
+        dependsOn: ["@stillwind-internal/benchmarks#bench:source-map"],
       },
       // test
       test: {
@@ -210,20 +210,20 @@ export default defineConfig(({ mode }) => ({
           ],
         },
         dependsOn: [
-          "@stillwind-tools/tailwind#generate:tailwind-order",
-          "@stillwind-tools/webref#generate:webref",
+          "@stillwind-internal/tools-tailwind#generate:tailwind-order",
+          "@stillwind-internal/tools-webref#generate:webref",
         ],
       },
       "test:fixtures:projects": {
         command: "",
-        dependsOn: ["@stillwind-tools/projects#test:fixtures:projects"],
+        dependsOn: ["@stillwind-internal/tools-projects#test:fixtures:projects"],
       },
       "test:tailwind": {
         command: "",
         dependsOn: [
-          "@stillwind-tools/tailwind-compat#test:tailwind:parity",
-          "@stillwind-tools/tailwind-compat#test:tailwind:property-order",
-          "@stillwind-tools/tailwind-compat#test:tailwind:numeric-domains",
+          "@stillwind-internal/tools-tailwind-compat#test:tailwind:numeric-domains",
+          "@stillwind-internal/tools-tailwind-compat#test:tailwind:parity",
+          "@stillwind-internal/tools-tailwind-compat#test:tailwind:property-order",
         ],
       },
       "test:browser": {
@@ -238,23 +238,23 @@ export default defineConfig(({ mode }) => ({
       },
       "test:performance": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#test:performance"],
+        dependsOn: ["@stillwind-internal/benchmarks#test:performance"],
       },
       "test:performance:full": {
         command: "",
-        dependsOn: ["@stillwind/benchmarks#test:performance:full"],
+        dependsOn: ["@stillwind-internal/benchmarks#test:performance:full"],
       },
       "test:e2e": {
         command: "",
-        dependsOn: ["@stillwind/e2e-harness#test:e2e"],
+        dependsOn: ["@stillwind-internal/e2e-harness#test:e2e"],
       },
       "test:e2e:primary": {
         command: "",
-        dependsOn: ["@stillwind/e2e-harness#test:e2e:primary"],
+        dependsOn: ["@stillwind-internal/e2e-harness#test:e2e:primary"],
       },
       "test:e2e:compatibility": {
         command: "",
-        dependsOn: ["@stillwind/e2e-harness#test:e2e:compatibility"],
+        dependsOn: ["@stillwind-internal/e2e-harness#test:e2e:compatibility"],
       },
     },
   },

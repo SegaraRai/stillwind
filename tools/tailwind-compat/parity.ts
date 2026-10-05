@@ -2,9 +2,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { setImmediate } from "node:timers/promises";
 
-import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
-import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
-import { hasEquivalentDeclarationOrder } from "@stillwind-tools/tailwind/property-order";
+import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
+import { hasEquivalentDeclarationOrder } from "@stillwind-internal/tools-tailwind/property-order";
 
 import {
   comparisonCss,

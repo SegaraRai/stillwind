@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { TraceMap, originalPositionFor, sourceContentFor } from "@jridgewell/trace-mapping";
-import { resolveSourceMapFile } from "@stillwind/e2e-harness/source-map";
+import { resolveSourceMapFile } from "@stillwind-internal/e2e-harness/source-map";
 import { expect } from "vite-plus/test";
 
 import type { RsbuildApplication } from "./rsbuild-application.ts";

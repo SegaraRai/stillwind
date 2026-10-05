@@ -1,4 +1,4 @@
-import { fixtureTasks } from "@stillwind/e2e-harness/config";
+import { fixtureTasks } from "@stillwind-internal/e2e-harness/config";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";

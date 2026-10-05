@@ -6,9 +6,9 @@ import { finished } from "node:stream/promises";
 import { setImmediate } from "node:timers/promises";
 import { createGzip } from "node:zlib";
 
-import { compileTailwindCss } from "@stillwind-tools/tailwind/compiler";
-import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
-import { hasEquivalentDeclarationOrder } from "@stillwind-tools/tailwind/property-order";
+import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
+import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
+import { hasEquivalentDeclarationOrder } from "@stillwind-internal/tools-tailwind/property-order";
 import {
   NativeDesignSystemLoader,
   NativeProjectSession,

@@ -3,7 +3,7 @@
 Shared-vertex geometry editor for Stillwind logo studies. The editable document is a planar graph of points and edges. Colored polygons are derived from its bounded faces.
 
 ```powershell
-vp run --filter @stillwind/logo-editor dev
+vp run --filter @stillwind-internal/apps-logo-editor dev
 ```
 
 Open <http://127.0.0.1:5198/>. This app uses the workspace Vite+ toolchain and has no dependency on the compiler build.
@@ -44,9 +44,9 @@ Convex and concave faces of any corner count can be colored. Collinear points re
 ## Validation
 
 ```powershell
-vp run --filter @stillwind/logo-editor test
-vp run --filter @stillwind/logo-editor typecheck
-vp run --filter @stillwind/logo-editor build
+vp run --filter @stillwind-internal/apps-logo-editor test
+vp run --filter @stillwind-internal/apps-logo-editor typecheck
+vp run --filter @stillwind-internal/apps-logo-editor build
 ```
 
 `src/geometry.ts` owns graph normalization, face discovery, inset geometry, snapping, presets, document validation, and SVG serialization. `src/main.ts` owns canvas interaction, history, local persistence, and the inspector. Geometry tests cover topology changes, shared intersections, face paint inheritance, perpendicular spacing, tapered widths, snap completion, and JSON round trips.

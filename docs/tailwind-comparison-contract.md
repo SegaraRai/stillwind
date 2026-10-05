@@ -75,6 +75,6 @@ local animationは生成時からkeyframes寄与として分離し、CSS文字�
 既存の`@source / @config / @plugin / @reference`を含む3入力ケースは引き続き別機能の対象。除外候補数は2であり、今回の不一致を除外して合格に変えたものではない。候補なしのCSSは出力を直接比較し、classがないだけで未解決と報告しない。
 
 ```powershell
-vp run @stillwind-tools/tailwind-compat#test
-vp run @stillwind-tools/tailwind-compat#analyze:tailwind
+vp run @stillwind-internal/tools-tailwind-compat#test
+vp run @stillwind-internal/tools-tailwind-compat#analyze:tailwind
 ```

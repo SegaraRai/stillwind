@@ -158,8 +158,8 @@ ID **13204** `mask-[url(mask.svg)]`。Tailwindの`url(mask.svg)`に対し、Stil
 ## 再現・証跡
 
 ```powershell
-vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind:inventory
-vp run --filter @stillwind-tools/tailwind-compat typecheck
+vp run --filter @stillwind-internal/tools-tailwind-compat analyze:tailwind:inventory
+vp run --filter @stillwind-internal/tools-tailwind-compat typecheck
 ```
 
 [inventory.ts](../../tools/tailwind-compat/inventory.ts)はnativeをビルドしてから、入力CSSごとにdesign systemを読み込む。同一パスのモジュールを1候補ずつ差し替え、project sessionのCSSを取得する。最初と250使用ごとに既存`compileSource`経路とCSS・classes・diagnosticsを厳密に照合した。**18入力のセッション、71回の照合がすべて一致**した。例外となったimport入力も証跡に保存する。

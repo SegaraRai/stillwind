@@ -8,7 +8,7 @@ To run one application, enter its directory and run `vp run test:e2e`. Its `vp r
 
 For a named common contract, enter a fixture package and run `vp test --run --config acceptance.config.ts -t "reflects component edits"`. The verbose reporter shows the fixture, configuration profile, development or production phase, and contract name.
 
-The matrix runs at most three packages concurrently. `STILLWIND_E2E_CONCURRENCY` accepts integers from 1 to 8. Common and specialized tests allocate TCP ports dynamically. `vp run @stillwind/e2e-harness#test:e2e vite8-react19 next16-react19` builds the required artifacts and selects packages by directory name. Interactive fixture tasks use development ports in the 5200 range and preview ports in the 5300 range. `serve` builds first, and TanStack development, build, and typechecking depend on `generate:routes`.
+The matrix runs at most three packages concurrently. `STILLWIND_E2E_CONCURRENCY` accepts integers from 1 to 8. Common and specialized tests allocate TCP ports dynamically. `vp run @stillwind-internal/e2e-harness#test:e2e vite8-react19 next16-react19` builds the required artifacts and selects packages by directory name. Interactive fixture tasks use development ports in the 5200 range and preview ports in the 5300 range. `serve` builds first, and TanStack development, build, and typechecking depend on `generate:routes`.
 
 ## Applications
 
@@ -64,6 +64,6 @@ Both tiers remain in `vp run test:e2e`. A compatibility classification does not 
 
 Contract priorities live in `harness/src/policy.ts`. CSS rendering, source updates, SSR, interactions, navigation, semantics and build invalidation have high priority. Source maps have low priority in both support tiers. Common reports record each case's contract, priority and expected failure. Specialized suites record the fixture tier and the shared priority definitions alongside their case reports; their combined cases can exercise several contracts.
 
-Run `vp run test:e2e:primary` or `vp run test:e2e:compatibility` for one support tier. `vp run @stillwind/e2e-harness#test:e2e --support primary` or `--support compatibility` also selects a tier. Package names and `STILLWIND_E2E_PROFILE` can further restrict the selection. Framework-independent CSS tests run with either tier unless package names exclude them. `--list` prints the selection without starting servers. Tier selections write separate `matrix-primary.json` and `matrix-compatibility.json` reports.
+Run `vp run test:e2e:primary` or `vp run test:e2e:compatibility` for one support tier. `vp run @stillwind-internal/e2e-harness#test:e2e --support primary` or `--support compatibility` also selects a tier. Package names and `STILLWIND_E2E_PROFILE` can further restrict the selection. Framework-independent CSS tests run with either tier unless package names exclude them. `--list` prints the selection without starting servers. Tier selections write separate `matrix-primary.json` and `matrix-compatibility.json` reports.
 
 [Support inventory](support.md) lists every fixture profile and its declared limitations. Regenerate it with `vp exec node e2e/harness/src/matrix.ts --write-support-doc` after changing manifests, then run `vp fmt e2e/support.md`.

@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-webpack5-svelte5",
+  "name": "@stillwind-internal/e2e-webpack5-svelte5",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "svelte": "5.57.1"
   },
   "devDependencies": {
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@swc/core": "1.16.2",
     "@types/node": "catalog:",

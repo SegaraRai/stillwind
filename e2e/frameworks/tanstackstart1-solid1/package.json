@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-tanstackstart1-solid1",
+  "name": "@stillwind-internal/e2e-tanstackstart1-solid1",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "nitro": "3.0.260903-beta",

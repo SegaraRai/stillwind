@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-sveltekit2-svelte5",
+  "name": "@stillwind-internal/e2e-sveltekit2-svelte5",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "svelte": "5.57.1"
   },
   "devDependencies": {
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@sveltejs/adapter-node": "5.5.7",
     "@sveltejs/vite-plugin-svelte": "7.3.1",

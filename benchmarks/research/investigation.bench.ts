@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
+import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import { compileModule, fileModuleDescriptor, TypeScriptFactsService } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type BenchRunOptions } from "vite-plus/test";

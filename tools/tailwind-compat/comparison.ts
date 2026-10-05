@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
+import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import {
   foldCalcExpressions,
   NativeDesignSystemLoader,

@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-rsbuild2-plain",
+  "name": "@stillwind-internal/e2e-rsbuild2-plain",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
   "devDependencies": {
     "@jridgewell/trace-mapping": "0.3.31",
     "@rsbuild/core": "2.2.4",
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "playwright": "1.63.0",

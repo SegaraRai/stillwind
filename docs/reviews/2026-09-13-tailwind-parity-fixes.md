@@ -14,8 +14,8 @@
 
 ## 検証
 
-- `vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind`: 13,428/13,428。property-orderは12,402候補・38ケースから545制約を検証。
-- `vp run --filter @stillwind-tools/tailwind-compat analyze:tailwind:inventory`: 13,428件、不一致0。73回の直接コンパイル照合。新しい実行結果は `target/tailwind-inventory` に出力し、修正前の棚卸し資料を上書きしない。
+- `vp run --filter @stillwind-internal/tools-tailwind-compat analyze:tailwind`: 13,428/13,428。property-orderは12,402候補・38ケースから545制約を検証。
+- `vp run --filter @stillwind-internal/tools-tailwind-compat analyze:tailwind:inventory`: 13,428件、不一致0。73回の直接コンパイル照合。新しい実行結果は `target/tailwind-inventory` に出力し、修正前の棚卸し資料を上書きしない。
 - 比較契約テスト6件、Edgeブラウザー検証10件通過。filterはCanvasの描画比較（8-bit色変換の丸め差として各channel最大1を許容）、その他はcomputed valueを比較。同名keyframes競合は意図した差を確認する。
 - Rust workspaceのlib/integration tests、doc tests、Clippy全targets、警告をエラー扱いしたrustdocが通過。
 - native・host・Viteテスト、6プロジェクトのfixture再生成と整合確認が通過。

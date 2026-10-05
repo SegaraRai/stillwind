@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-tanstackstart1-react19-server-function",
+  "name": "@stillwind-internal/e2e-tanstackstart1-react19-server-function",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "@jridgewell/trace-mapping": "0.3.31",
     "@rsbuild/core": "2.2.4",
     "@rsbuild/plugin-react": "2.1.0",
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "6.1.1",

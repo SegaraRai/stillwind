@@ -1,4 +1,4 @@
-import { defineFixture } from "@stillwind/e2e-harness";
+import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "rsbuild2-react19",

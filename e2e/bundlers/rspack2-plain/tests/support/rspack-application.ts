@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 
-import type { ScenarioContext } from "@stillwind/e2e-harness/scenario";
+import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { chromium, type Browser, type Page } from "playwright";
 import { expect } from "vite-plus/test";
 

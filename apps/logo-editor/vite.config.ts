@@ -1,4 +1,4 @@
-import { testCache } from "@stillwind-tools/workspace/task-cache";
+import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({

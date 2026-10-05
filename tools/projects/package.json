@@ -1,17 +1,17 @@
 {
-  "name": "@stillwind-tools/projects",
+  "name": "@stillwind-internal/tools-projects",
   "version": "0.0.0",
   "private": true,
   "description": "Stillwind project expectations and fixture viewer data",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@stillwind-tools/fixture-css": "workspace:*",
+    "@stillwind-internal/tools-fixture-css": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

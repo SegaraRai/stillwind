@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-astro7-preact11-solid1",
+  "name": "@stillwind-internal/e2e-astro7-preact11-solid1",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
   "devDependencies": {
     "@astrojs/preact": "6.0.5",
     "@astrojs/solid-js": "7.0.2",
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

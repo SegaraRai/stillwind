@@ -1,5 +1,5 @@
-import { fixtureProfiles } from "@stillwind/e2e-harness";
-import { registerScenario } from "@stillwind/e2e-harness/scenario";
+import { fixtureProfiles } from "@stillwind-internal/e2e-harness";
+import { registerScenario } from "@stillwind-internal/e2e-harness/scenario";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, test } from "vite-plus/test";
 
 import fixture from "../fixture.ts";

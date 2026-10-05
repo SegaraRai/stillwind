@@ -1,4 +1,4 @@
-import { registerFixture } from "@stillwind/e2e-harness/acceptance";
+import { registerFixture } from "@stillwind-internal/e2e-harness/acceptance";
 
 import fixture from "../fixture.ts";
 

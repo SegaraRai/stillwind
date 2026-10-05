@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-astro7-plain",
+  "name": "@stillwind-internal/e2e-astro7-plain",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

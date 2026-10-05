@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-harness",
+  "name": "@stillwind-internal/e2e-harness",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -22,7 +22,7 @@
     "playwright": "1.63.0"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "5.0.1",

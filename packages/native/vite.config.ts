@@ -1,4 +1,4 @@
-import { rustCache, testCache } from "@stillwind-tools/workspace/task-cache";
+import { rustCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
@@ -33,8 +33,8 @@ export default defineConfig(({ mode }) => ({
           output: [".build/native/index.js", ".build/native/*.node", ".build/native/binding.d.ts"],
         },
         dependsOn: [
-          "@stillwind-tools/tailwind#generate:tailwind-order",
-          "@stillwind-tools/webref#generate:webref",
+          "@stillwind-internal/tools-tailwind#generate:tailwind-order",
+          "@stillwind-internal/tools-webref#generate:webref",
         ],
       },
       "build:wasm": {
@@ -46,8 +46,8 @@ export default defineConfig(({ mode }) => ({
           output: ["dist/wasm/**", "!dist/wasm/**/*.tmp"],
         },
         dependsOn: [
-          "@stillwind-tools/tailwind#generate:tailwind-order",
-          "@stillwind-tools/webref#generate:webref",
+          "@stillwind-internal/tools-tailwind#generate:tailwind-order",
+          "@stillwind-internal/tools-webref#generate:webref",
         ],
       },
       "collect:release": {

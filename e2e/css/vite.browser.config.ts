@@ -1,4 +1,4 @@
-import browserConfig from "@stillwind/e2e-harness/browser-config";
+import browserConfig from "@stillwind-internal/e2e-harness/browser-config";
 import { defineConfig, mergeConfig } from "vite-plus";
 
 export default mergeConfig(

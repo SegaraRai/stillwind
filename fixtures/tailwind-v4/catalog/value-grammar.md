@@ -3,7 +3,7 @@
 This compact catalog fixes the Tailwind default-theme acceptance boundary for
 representative unbracketed numeric utility families. It is executable against
 the Tailwind compiler by `tools/tailwind/value-grammar.test.ts`, which runs in
-`vp run @stillwind-tools/tailwind#test`; the
+`vp run @stillwind-internal/tools-tailwind#test`; the
 Stillwind resolver consumes the same expectations in its unit tests.
 
 Arbitrary values are intentionally absent. Tailwind forwards their payloads

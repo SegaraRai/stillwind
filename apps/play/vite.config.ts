@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { testCache } from "@stillwind-tools/workspace/task-cache";
+import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import react from "@vitejs/plugin-react";
 import { defineConfig, lazyPlugins } from "vite-plus";
 

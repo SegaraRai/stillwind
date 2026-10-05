@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-nuxt4-vue3",
+  "name": "@stillwind-internal/e2e-nuxt4-vue3",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@nuxt/cli": "3.29.0",
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",

@@ -19,7 +19,7 @@ enforces a maximum of 500 fixture files.
 
 ```powershell
 vp run generate:fixtures:tailwind
-vp run @stillwind-tools/tailwind#check:generated:fixtures:tailwind
+vp run @stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind
 ```
 
 The check compares the Expected CSS blocks without updating them.
@@ -30,7 +30,7 @@ Generator scripts write files by default; `--check` compares without writing.
 the Rust differential ordering test reads. Update that fixture with:
 
 ```powershell
-vp run @stillwind-tools/tailwind#generate:fixtures:tailwind-order
+vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order
 ```
 
 ## Upstream registration catalog
@@ -60,7 +60,7 @@ The fixture task generates candidate lists before their Expected CSS:
 vp run generate:fixtures:tailwind
 ```
 
-The direct `@stillwind-tools/tailwind#generate:tailwind-registrations` task
+The direct `@stillwind-internal/tools-tailwind#generate:tailwind-registrations` task
 updates catalogs and candidate lists. Its `check:tailwind-registrations`
 counterpart compares them without writing. Run
 `generate:fixtures:tailwind` after it to update Expected CSS. These operations
@@ -68,9 +68,9 @@ write the same Markdown files and must run in sequence.
 
 ## Oracle and comparison packages
 
-`@stillwind-tools/tailwind` owns the pinned upstream compiler, fixture generation,
+`@stillwind-internal/tools-tailwind` owns the pinned upstream compiler, fixture generation,
 and ordering data. It has no dependency on the Stillwind compiler or host.
-`@stillwind-tools/tailwind-compat` uses the native binding to compare Stillwind
+`@stillwind-internal/tools-tailwind-compat` uses the native binding to compare Stillwind
 output with those fixtures and the upstream compiler. Run `vp run test:tailwind`
 for the native comparisons and `vp run test:browser` for browser contracts.
 

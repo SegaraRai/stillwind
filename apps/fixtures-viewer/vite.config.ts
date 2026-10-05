@@ -12,7 +12,7 @@ export default defineConfig({
     tasks: {
       generate: {
         command: "",
-        dependsOn: ["@stillwind-tools/projects#generate:fixtures:projects"],
+        dependsOn: ["@stillwind-internal/tools-projects#generate:fixtures:projects"],
       },
       dev: {
         command: "vp dev",

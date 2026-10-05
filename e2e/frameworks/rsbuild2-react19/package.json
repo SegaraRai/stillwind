@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/e2e-rsbuild2-react19",
+  "name": "@stillwind-internal/e2e-rsbuild2-react19",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   "devDependencies": {
     "@rsbuild/core": "2.2.4",
     "@rsbuild/plugin-react": "2.1.0",
-    "@stillwind/e2e-harness": "workspace:*",
+    "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "19.3.0",

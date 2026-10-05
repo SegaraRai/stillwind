@@ -3,7 +3,7 @@ import path from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { resolveFixtureCss } from "@stillwind-tools/fixture-css/stillwind-css";
+import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import {
   NativeDesignSystemLoader,
   NativeProjectSession,

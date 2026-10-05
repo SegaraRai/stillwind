@@ -1,11 +1,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { parseMarkdownFixtureCases } from "@stillwind-tools/tailwind/markdown-fixtures";
+import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
 import {
   propertyRelations,
   type PropertyRelations,
-} from "@stillwind-tools/tailwind/property-order";
+} from "@stillwind-internal/tools-tailwind/property-order";
 import { transform } from "lightningcss";
 
 import { compileFixtureSource } from "./native-input.ts";

@@ -7,6 +7,12 @@
 - Within each source file, put error definitions first, then items of greatest interest to users, each followed by its supporting items;
   repeat this main-item/supporting-items grouping instead of collecting all helpers or types separately.
 
+## Package Names
+
+- Reserve `stillwind` and `@stillwind/*` for packages that can be published.
+- Use `@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`, `@stillwind-internal/examples-*`, and `@stillwind-internal/tools-*` for private packages under `apps/`, `e2e/`, `examples/`, and `tools/`, respectively.
+- Name the repository root `@stillwind-internal/root` and the benchmark package `@stillwind-internal/benchmarks`.
+
 ## Tests and Verification
 
 - Test current behavior and caller contracts. Do not add tests that only require a previous API, name, file, or implementation to remain absent.

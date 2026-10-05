@@ -59,11 +59,17 @@ See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
 
 This repository contains a pnpm workspace backed by Vite+.
 
+Publishable packages use `stillwind` or `@stillwind/*`. Private packages use
+`@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`,
+`@stillwind-internal/examples-*`, and `@stillwind-internal/tools-*`.
+`@stillwind-internal/root` identifies the repository root, and
+`@stillwind-internal/benchmarks` identifies the benchmark package.
+
 ```powershell
 vp i --frozen-lockfile
 vp run verify
-vp run --filter @stillwind/react-example dev
-vp run --filter @stillwind/play dev
+vp run --filter @stillwind-internal/examples-react dev
+vp run --filter @stillwind-internal/apps-play dev
 ```
 
 Workspace packages declare their Vite+ tasks under `vite.config.ts#run.tasks`; use `vp run`

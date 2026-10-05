@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind-tools/tailwind",
+  "name": "@stillwind-internal/tools-tailwind",
   "version": "0.0.0",
   "private": true,
   "description": "Upstream Tailwind fixtures and ordering data",
@@ -16,7 +16,7 @@
     "tailwindcss": "catalog:"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/css-tree": "^3.2.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",

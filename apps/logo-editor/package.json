@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/logo-editor",
+  "name": "@stillwind-internal/apps-logo-editor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     "polygon-clipping": "^0.15.7"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

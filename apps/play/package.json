@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/play",
+  "name": "@stillwind-internal/apps-play",
   "version": "0.0.0",
   "private": true,
   "description": "Interactive Stillwind compiler playground",
@@ -17,7 +17,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",

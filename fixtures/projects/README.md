@@ -25,7 +25,7 @@ Generate snapshots and compare them with:
 ```powershell
 vp run generate:fixtures:projects
 vp run test:fixtures:projects
-vp run --filter @stillwind/fixtures-viewer build
+vp run --filter @stillwind-internal/apps-fixtures-viewer build
 ```
 
 `generate:fixtures:projects` compiles the whole source graph and uses the same TypeScript

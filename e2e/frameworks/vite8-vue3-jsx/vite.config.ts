@@ -1,4 +1,4 @@
-import { fixtureTasks } from "@stillwind/e2e-harness/config";
+import { fixtureTasks } from "@stillwind-internal/e2e-harness/config";
 import vueJsx from "@vitejs/plugin-vue-jsx";
 import { defineConfig, lazyPlugins } from "vite-plus";
 

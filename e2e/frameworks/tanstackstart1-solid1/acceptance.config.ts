@@ -1,1 +1,1 @@
-export { default } from "@stillwind/e2e-harness/acceptance-config";
+export { default } from "@stillwind-internal/e2e-harness/acceptance-config";

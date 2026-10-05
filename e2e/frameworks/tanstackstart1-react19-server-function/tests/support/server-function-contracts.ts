@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { expectCss, expectClassName } from "@stillwind/e2e-harness/browser";
-import { verifyMacroSourceMap } from "@stillwind/e2e-harness/source-map";
+import { expectCss, expectClassName } from "@stillwind-internal/e2e-harness/browser";
+import { verifyMacroSourceMap } from "@stillwind-internal/e2e-harness/source-map";
 import { type Page } from "playwright";
 import { expect } from "vite-plus/test";
 

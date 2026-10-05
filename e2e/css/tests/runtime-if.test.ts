@@ -1,4 +1,4 @@
-import { registerScenario } from "@stillwind/e2e-harness/scenario";
+import { registerScenario } from "@stillwind-internal/e2e-harness/scenario";
 import { afterAll, beforeAll, test } from "vite-plus/test";
 
 import { createApplication } from "./support/runtime-if-application.ts";

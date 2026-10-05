@@ -178,7 +178,7 @@ cargo fmt --all --check
 vp run --filter @stillwind/native test
 vp run --filter @stillwind/integration test
 vp run test:fixtures:projects
-vp run @stillwind-tools/tailwind-compat#test:tailwind:parity
+vp run @stillwind-internal/tools-tailwind-compat#test:tailwind:parity
 ```
 
 Tests cover snapshot identity and fingerprints, imported source provenance,

@@ -67,23 +67,23 @@ runtime contracts.
 
 ## Tool responsibilities
 
-| Package                            | Responsibility                                                                              | Stillwind prerequisites |
-| ---------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
-| `@stillwind-tools/webref`          | Generate and check Rust Webref data                                                         | None                    |
-| `@stillwind-tools/tailwind`        | Generate upstream expectations, registrations, and ordering data; compare declaration order | None                    |
-| `@stillwind-tools/tailwind-compat` | Compare native output against Tailwind, run browser checks, and report coverage             | Native binding          |
-| `@stillwind-tools/projects`        | Generate or compare project expectations and the viewer catalog                             | Host and native builds  |
-| `@stillwind-tools/fixture-css`     | Load CSS for verification consumers                                                         | Core CSS source files   |
-| `@stillwind-tools/workspace`       | Share task cache configuration                                                              | None                    |
+| Package                                     | Responsibility                                                                              | Stillwind prerequisites |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| `@stillwind-internal/tools-webref`          | Generate and check Rust Webref data                                                         | None                    |
+| `@stillwind-internal/tools-tailwind`        | Generate upstream expectations, registrations, and ordering data; compare declaration order | None                    |
+| `@stillwind-internal/tools-tailwind-compat` | Compare native output against Tailwind, run browser checks, and report coverage             | Native binding          |
+| `@stillwind-internal/tools-projects`        | Generate or compare project expectations and the viewer catalog                             | Host and native builds  |
+| `@stillwind-internal/tools-fixture-css`     | Load CSS for verification consumers                                                         | Core CSS source files   |
+| `@stillwind-internal/tools-workspace`       | Share task cache configuration                                                              | None                    |
 
 Tailwind comparison adapters live beside the comparison that uses them. The CSS
-loader used by integration tests is available as `@stillwind-tools/fixture-css/stillwind-css`.
+loader used by integration tests is available as `@stillwind-internal/tools-fixture-css/stillwind-css`.
 Declaration-order comparison has no dependency on the native compiler; compiling
 fixture candidates belongs to its separate fixture verifier.
 
 Run a focused tool task with, for example,
-`vp run @stillwind-tools/tailwind-compat#test:tailwind:parity` or
-`vp run @stillwind-tools/tailwind-compat#test:tailwind:property-order`.
+`vp run @stillwind-internal/tools-tailwind-compat#test:tailwind:parity` or
+`vp run @stillwind-internal/tools-tailwind-compat#test:tailwind:property-order`.
 `analyze:tailwind:inventory` writes each coverage report under a unique
 `target/tailwind-inventory/run-*` directory. `--output` selects the parent directory.
 The command prints the selected run directory. `analyze:tailwind` prints a
@@ -92,15 +92,15 @@ test prerequisites.
 
 ## Updating generated files
 
-| Task                                                                | Updates                                             |
-| ------------------------------------------------------------------- | --------------------------------------------------- |
-| `vp run generate:fixtures:projects`                                 | Stillwind project expected files and viewer catalog |
-| `vp run generate:fixtures:tailwind`                                 | Tailwind fixture expectations                       |
-| `vp run generate:webref`                                            | Rust Webref property data                           |
-| `vp run generate:tailwind-order`                                    | Rust Tailwind property order                        |
-| `vp run @stillwind-tools/tailwind#generate:fixtures:tailwind-order` | Utility-order fixture                               |
-| `vp run @stillwind-tools/tailwind#generate:tailwind-registrations`  | Registration catalogs and candidate lists           |
-| `vp run @stillwind/native#generate:platform-packages`               | Platform package manifests and runtime dependencies |
+| Task                                                                         | Updates                                             |
+| ---------------------------------------------------------------------------- | --------------------------------------------------- |
+| `vp run generate:fixtures:projects`                                          | Stillwind project expected files and viewer catalog |
+| `vp run generate:fixtures:tailwind`                                          | Tailwind fixture expectations                       |
+| `vp run generate:webref`                                                     | Rust Webref property data                           |
+| `vp run generate:tailwind-order`                                             | Rust Tailwind property order                        |
+| `vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order` | Utility-order fixture                               |
+| `vp run @stillwind-internal/tools-tailwind#generate:tailwind-registrations`  | Registration catalogs and candidate lists           |
+| `vp run @stillwind/native#generate:platform-packages`                        | Platform package manifests and runtime dependencies |
 
 Use `test:*` for behavior and expected-output assertions, `check:*` for static
 consistency, and `verify` for an aggregate that includes both. `generate:*`
@@ -134,9 +134,9 @@ starts, so task discovery works before any build. `vp i` installs JavaScript
 dependencies; native builds also require Rust and the host linker. WASM tasks
 require the WASI Rust target and toolchain, and browser tasks require Chrome.
 
-`tools/workspace` owns the private `@stillwind-tools/workspace` package. It exports
+`tools/workspace` owns the private `@stillwind-internal/tools-workspace` package. It exports
 TypeScript sources directly and has no runtime dependencies. Consumers declare
-it as a development dependency and import `@stillwind-tools/workspace/task-cache`.
+it as a development dependency and import `@stillwind-internal/tools-workspace/task-cache`.
 
 Finite deterministic tasks cache their inputs and outputs automatically. The
 shared configuration adds Rust sources that Cargo may skip reading, tracks

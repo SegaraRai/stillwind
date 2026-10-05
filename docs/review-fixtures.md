@@ -29,8 +29,8 @@ fixture if duplication becomes material.
 ```powershell
 vp run generate:fixtures:projects
 vp run test:fixtures:projects
-vp run --filter @stillwind/fixtures-viewer dev
-vp run --filter @stillwind/fixtures-viewer build
+vp run --filter @stillwind-internal/apps-fixtures-viewer dev
+vp run --filter @stillwind-internal/apps-fixtures-viewer build
 ```
 
 The generation task compiles each complete project, collects TypeScript facts, and

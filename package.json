@@ -1,5 +1,5 @@
 {
-  "name": "@stillwind/root",
+  "name": "@stillwind-internal/root",
   "version": "0.0.0",
   "private": true,
   "description": "Stillwind compiler and Vite workspaces",
@@ -9,7 +9,7 @@
     "@emnapi/core": "2.0.0-alpha.5",
     "@emnapi/runtime": "2.0.0-alpha.5",
     "@napi-rs/cli": "^3.10.6",
-    "@stillwind-tools/workspace": "workspace:*",
+    "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/ui": "catalog:",
     "emnapi": "2.0.0-alpha.5",
