@@ -1,11 +1,16 @@
 import type { PreparedSource, ProjectInput, SourceProjection } from "../protocol.ts";
 
 /**
- * Prepares the original document using its required format and projection filename.
- * Direct documents retain the supplied syntax; component converters supply syntax
- * for generated code. The returned document preserves original code, URI, and upstream
- * mapping, and defaults sourceMapSource to its URI. Input objects are not mutated.
- * Rejects if converter loading or conversion fails.
+ * Prepares an original document for direct parsing or conversion to a generated script.
+ *
+ * Optional converter dependencies are loaded only for the document's format. Input objects are
+ * not mutated.
+ *
+ * @param input - Original document, host identities, and syntax for direct parsing. The projection
+ * filename is passed to component converters, which supply syntax for their generated code.
+ * @returns Parser input with the original text, URI, and upstream map retained. The document's
+ * `sourceMapSource` defaults to its URI when omitted.
+ * @throws If converter loading or conversion fails.
  */
 export async function prepareSource(input: ProjectInput): Promise<PreparedSource> {
   const { document: original, syntax, ...metadata } = input;

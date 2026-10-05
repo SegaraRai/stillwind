@@ -6,39 +6,43 @@ import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 import { PreparationError } from "./frameworks/common.ts";
 import type { PreparedSource } from "./protocol.ts";
 
-/**
- * Checker input with optional independent original UTF-16 script region.
- */
+/** Input text for one independent TypeScript checker file before Stillwind applies checker edits. */
 export interface CheckerBuffer {
+  /** Complete script text or the exact original script body identified by `region`. */
   source: string;
+  /** Syntax used to parse the buffer. JSX expressions require `tsx`. */
   language: "ts" | "tsx";
+  /** Original script bounds when buffer positions map directly into one independent script body. */
   region?: {
+    /** Inclusive UTF-16 offset in the original document corresponding to buffer offset zero. */
     start: number;
+    /** Exclusive UTF-16 offset in the original document, equal to `start + source.length`. */
     end: number;
   };
 }
 
-/** Declarations and optional code buffers needed to check one prepared source. */
+/** Additional declarations and optional independent code buffers needed to check a prepared source. */
 export interface CheckerEnvironment {
   /**
-   * Independent buffers used for Astro projections. The main TSX buffer comes first, followed by
-   * client script buffers in their original source order. Omission uses the prepared source code.
+   * Buffers that replace the default checker input. Astro places the main TSX buffer first, then
+   * client scripts in source order. Omission uses the prepared document or projection code.
    */
   checkerBuffers?: CheckerBuffer[];
-  /** Absolute declaration file paths required by the source format. Direct sources use an empty list. */
+  /** Absolute paths of declarations required by the source format. Direct sources use an empty list. */
   checkerTypes: string[];
 }
 
 /**
- * Selects checker declarations and buffers for the original source format.
+ * Selects checker declarations and separates Astro client scripts from the main TSX buffer.
  *
- * Astro client scripts become independent buffers while the main buffer keeps their line
- * positions. The prepared source is not mutated.
+ * Client script text is replaced with spaces in the main buffer while line breaks are preserved.
+ * The prepared source is not mutated.
  *
- * @param source - Prepared source with projection maps and original script ranges when projected.
- * @returns Declaration paths and any independent buffers needed to check the source. Direct
- * sources require no additional declarations or buffers.
- * @throws If declaration packages cannot be resolved or Astro script mappings are invalid.
+ * @param source - Prepared source with the original text and any projection map and script ranges.
+ * @returns Required declaration paths and any independent checker buffers. Direct and Vue sources
+ * need no additional declarations or buffers from this function.
+ * @throws If declaration packages cannot be resolved or an Astro script cannot be uniquely located
+ * in its projection.
  */
 export function checkerEnvironment(source: PreparedSource): CheckerEnvironment {
   if (source.kind === "direct") {
@@ -86,7 +90,14 @@ export function checkerEnvironment(source: PreparedSource): CheckerEnvironment {
 }
 
 /**
- * Locates a client body using original/generated UTF-16 map points and exact text.
+ * Locates an unchanged Astro client script body in generated code using its source-map points.
+ *
+ * @param source - Projected Astro source whose version 3 map identifies the original document.
+ * @param region - Nonempty original script body with half-open UTF-16 bounds.
+ * @returns The unique inclusive UTF-16 offset at which the complete original body occurs in the
+ * projection and agrees with its mapped points.
+ * @throws {PreparationError} If the map is not version 3 or no unique matching location exists.
+ * @throws If the source map cannot be decoded.
  */
 function clientProjectionStart(
   source: Extract<PreparedSource, { kind: "projected" }>,
@@ -101,6 +112,7 @@ function clientProjectionStart(
       source.projection.converter,
     );
   }
+
   const trace = new TraceMap(source.projection.map.json);
   const selected = trace.sources.indexOf(source.projection.map.source);
   const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
@@ -132,5 +144,6 @@ function clientProjectionStart(
       source.projection.converter,
     );
   }
+
   return [...candidates][0];
 }

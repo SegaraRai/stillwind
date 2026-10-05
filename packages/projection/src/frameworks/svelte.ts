@@ -12,6 +12,18 @@ import {
   type ScriptRegion,
 } from "./common.ts";
 
+/**
+ * Converts a Svelte component to TypeScript and records the original scopes for compiler edits.
+ *
+ * @param source - Complete original Svelte component text.
+ * @param filename - Component filename passed to the parser and converter for diagnostics and maps.
+ * @returns Generated TypeScript and its version 3 map. The instance realm inherits module imports
+ * when both scripts exist. Template edits use the instance realm, or the module realm when only
+ * that script exists. Components without either script have no editable template ranges.
+ * @throws {PreparationError} If the compiler reports a recognized syntax error, script coordinates
+ * are missing or invalid, or the projection map cannot be used.
+ * @throws If converter metadata cannot be loaded or conversion otherwise fails.
+ */
 export function convert(source: string, filename: string): SourceProjection {
   const options = {
     isTsFile: true,
@@ -22,6 +34,7 @@ export function convert(source: string, filename: string): SourceProjection {
     svelte: converterIdentity("svelte", {}).version,
     typescript: ts.version,
   });
+
   let ast: AST.Root;
   let result: SvelteCompiledToTsx;
   try {
@@ -50,6 +63,7 @@ export function convert(source: string, filename: string): SourceProjection {
       originalRange(source, diagnostic.start?.character, diagnostic.end?.character),
     );
   }
+
   const scripts: ScriptRegion[] = [];
   for (const [id, script] of [
     [0, ast.module],
@@ -58,6 +72,7 @@ export function convert(source: string, filename: string): SourceProjection {
     if (!script) {
       continue;
     }
+
     const start = "start" in script.content ? script.content.start : undefined;
     const end = "end" in script.content ? script.content.end : undefined;
     if (typeof start !== "number" || typeof end !== "number") {
@@ -69,6 +84,7 @@ export function convert(source: string, filename: string): SourceProjection {
         converter,
       );
     }
+
     scripts.push({
       id,
       start,
@@ -76,6 +92,7 @@ export function convert(source: string, filename: string): SourceProjection {
       ...(id === 1 && ast.module ? { parent: 0 } : {}),
     });
   }
+
   return {
     syntax: {
       language: "ts",

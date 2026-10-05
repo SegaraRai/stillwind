@@ -13,12 +13,26 @@ import {
   type ScriptRegion,
 } from "./common.ts";
 
+/**
+ * Converts a Vue component to a service script and records original scopes and attribute quotes.
+ *
+ * @param source - Complete original Vue single-file component text.
+ * @param filename - Component filename used by the parser and the Vue language plugin.
+ * @returns Generated TypeScript or TSX with copied Volar mappings and any required global
+ * declarations. The setup realm inherits ordinary script imports when both scripts exist.
+ * Template edits use the setup realm, or the ordinary script realm when only that script exists.
+ * The created virtual code is disposed before this function returns or throws after its creation.
+ * @throws {PreparationError} If component parsing fails, no virtual code or service script is
+ * produced, or original script ranges are invalid.
+ * @throws If converter metadata cannot be loaded or the language plugin otherwise fails.
+ */
 export function convert(source: string, filename: string): SourceProjection {
   const options = vue.getDefaultCompilerOptions();
   const converter = converterIdentity("@vue/language-core", {
     options,
     typescript: ts.version,
   });
+
   const parsed = parse(source, { filename });
   if (parsed.errors.length) {
     const error = parsed.errors[0];
@@ -33,12 +47,14 @@ export function convert(source: string, filename: string): SourceProjection {
         : undefined,
     );
   }
+
   const globals = (
     vue as typeof vue & {
       generateGlobalTypes?: (compilerOptions: typeof options) => string;
     }
   ).generateGlobalTypes?.(options);
   const plugin = vue.createVueLanguagePlugin<string>(ts, {}, options, (id) => id);
+
   const root = plugin.createVirtualCode?.(filename, "vue", ts.ScriptSnapshot.fromString(source), {
     getAssociatedScript: () => undefined,
   });
@@ -51,6 +67,7 @@ export function convert(source: string, filename: string): SourceProjection {
       converter,
     );
   }
+
   try {
     const service = plugin.typescript?.getServiceScript(root);
     if (!service) {
@@ -62,6 +79,7 @@ export function convert(source: string, filename: string): SourceProjection {
         converter,
       );
     }
+
     const scripts: ScriptRegion[] = [];
     const { script, scriptSetup } = parsed.descriptor;
     if (script) {
@@ -79,6 +97,7 @@ export function convert(source: string, filename: string): SourceProjection {
         ...(script ? { parent: 0 } : {}),
       });
     }
+
     return {
       ...(globals
         ? {
@@ -97,7 +116,11 @@ export function convert(source: string, filename: string): SourceProjection {
             sourceOffsets: [...sourceOffsets],
             generatedOffsets: [...generatedOffsets],
             lengths: [...lengths],
-            ...(generatedLengths ? { generatedLengths: [...generatedLengths] } : {}),
+            ...(generatedLengths
+              ? {
+                  generatedLengths: [...generatedLengths],
+                }
+              : {}),
           }),
         ),
       },
@@ -114,6 +137,16 @@ export function convert(source: string, filename: string): SourceProjection {
   }
 }
 
+/**
+ * Splits editable ranges around Vue directive expressions to retain their surrounding quotes.
+ *
+ * @param source - Original component text used to inspect the characters around each expression.
+ * @param root - Parsed template AST, or undefined when no template is available.
+ * @param regions - Sorted editable ranges to update in place. Expressions must be fully contained
+ * in one range to receive quote context.
+ * @returns The same array with contained, quoted directive expressions split into separate ranges.
+ * If the template is absent, the array is unchanged.
+ */
 function quotedRegions(
   source: string,
   root: RootNode | undefined,
@@ -122,6 +155,7 @@ function quotedRegions(
   if (!root) {
     return regions;
   }
+
   const quotes: Array<{
     start: number;
     end: number;
@@ -152,8 +186,8 @@ function quotedRegions(
       }
     }
   }
-
   visit(root);
+
   for (const quote of quotes) {
     const index = regions.findIndex(
       (region) => region.start <= quote.start && quote.end <= region.end,
@@ -170,5 +204,6 @@ function quotedRegions(
       ...(quote.end < region.end ? [{ ...region, start: quote.end }] : []),
     );
   }
+
   return regions;
 }
