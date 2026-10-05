@@ -10,7 +10,7 @@
 ## Package Names
 
 - Reserve `stillwind` and `@stillwind/*` for packages that can be published.
-- Use `@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`, `@stillwind-internal/examples-*`, and `@stillwind-internal/tools-*` for private packages under `apps/`, `e2e/`, `examples/`, and `tools/`, respectively.
+- Use `@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`, and `@stillwind-internal/tools-*` for private packages under `apps/`, `e2e/`, and `tools/`, respectively.
 - Name the repository root `@stillwind-internal/root` and the benchmark package `@stillwind-internal/benchmarks`.
 
 ## Tests and Verification

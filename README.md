@@ -17,9 +17,8 @@ import { style } from "stillwind/react";
 />;
 ```
 
-The React/Vite example is in [`examples/react`](./examples/react). It compiles
-the call above into static classes, keeps only the conditional class join at
-runtime, and emits CSS like:
+Stillwind compiles the call above into static classes, keeps only the conditional
+class join at runtime, and emits CSS like:
 
 ```css
 @layer theme, base, components, utilities;
@@ -60,15 +59,14 @@ See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
 This repository contains a pnpm workspace backed by Vite+.
 
 Publishable packages use `stillwind` or `@stillwind/*`. Private packages use
-`@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`,
-`@stillwind-internal/examples-*`, and `@stillwind-internal/tools-*`.
+`@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`, and
+`@stillwind-internal/tools-*`.
 `@stillwind-internal/root` identifies the repository root, and
 `@stillwind-internal/benchmarks` identifies the benchmark package.
 
 ```powershell
 vp i --frozen-lockfile
 vp run verify
-vp run --filter @stillwind-internal/examples-react dev
 vp run --filter @stillwind-internal/apps-play dev
 ```
 

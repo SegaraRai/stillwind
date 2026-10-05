@@ -5,7 +5,6 @@ packages:
   - e2e/harness
   - e2e/bundlers/*
   - e2e/frameworks/*
-  - examples/*
   - packages/*
   - packages/native/npm/*
   - tools/*
