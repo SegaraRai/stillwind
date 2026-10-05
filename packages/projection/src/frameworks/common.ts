@@ -3,6 +3,54 @@ import { createRequire } from "node:module";
 
 import type { ConverterIdentity, ProjectionMap, SourceProjection } from "../protocol.ts";
 
+/** A known failure in a component parser or its projection. */
+export class PreparationError extends Error {
+  readonly issue: {
+    kind: "syntax" | "projection";
+    detail: string;
+  };
+  readonly converter?: ConverterIdentity;
+  readonly range?: {
+    start: number;
+    end: number;
+  };
+
+  constructor(
+    issue: PreparationError["issue"],
+    converter?: ConverterIdentity,
+    range?: PreparationError["range"],
+  ) {
+    super(issue.detail);
+    this.issue = issue;
+    this.converter = converter;
+    this.range = range;
+  }
+}
+
+/** Returns valid original UTF-16 bounds, or no range when the parser has no usable position. */
+export function originalRange(source: string, start?: number, end?: number) {
+  const boundary = (offset: number) =>
+    offset === 0 ||
+    offset === source.length ||
+    !(
+      source.charCodeAt(offset - 1) >= 0xd800 &&
+      source.charCodeAt(offset - 1) <= 0xdbff &&
+      source.charCodeAt(offset) >= 0xdc00 &&
+      source.charCodeAt(offset) <= 0xdfff
+    );
+  return start !== undefined &&
+    end !== undefined &&
+    Number.isSafeInteger(start) &&
+    Number.isSafeInteger(end) &&
+    start >= 0 &&
+    end >= start &&
+    end <= source.length &&
+    boundary(start) &&
+    boundary(end)
+    ? { start, end }
+    : undefined;
+}
+
 /**
  * An original-buffer script realm with half-open UTF-16 bounds. parent is a realm id.
  */
@@ -48,18 +96,19 @@ export function sourceRegions(
   source: string,
   scripts: ScriptRegion[],
   templateRealm: number | undefined,
+  converter?: ConverterIdentity,
 ) {
   const regions: SourceProjection["editableRegions"] = [];
   let cursor = 0;
   for (const script of [...scripts].sort((a, b) => a.start - b.start)) {
-    if (
-      !Number.isInteger(script.start) ||
-      !Number.isInteger(script.end) ||
-      script.start < cursor ||
-      script.end < script.start ||
-      script.end > source.length
-    ) {
-      throw new Error("Converter returned invalid or overlapping script regions");
+    if (!originalRange(source, script.start, script.end) || script.start < cursor) {
+      throw new PreparationError(
+        {
+          kind: "projection",
+          detail: "Converter returned invalid or overlapping script regions",
+        },
+        converter,
+      );
     }
     if (templateRealm !== undefined && cursor < script.start) {
       regions.push({
@@ -92,9 +141,23 @@ export function sourceRegions(
  * string source name; this check does not validate every source-map field.
  * Throws for serialization/JSON errors or an unsupported sources array.
  */
-export function sourceMapV3(value: string | object): ProjectionMap {
+export function sourceMapV3(value: string | object, converter?: ConverterIdentity): ProjectionMap {
   const json = typeof value === "string" ? value : JSON.stringify(value);
-  const parsed: unknown = JSON.parse(json);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) {
+      throw error;
+    }
+    throw new PreparationError(
+      {
+        kind: "projection",
+        detail: "Converter returned invalid source-map JSON",
+      },
+      converter,
+    );
+  }
   if (
     !parsed ||
     typeof parsed !== "object" ||
@@ -103,7 +166,13 @@ export function sourceMapV3(value: string | object): ProjectionMap {
     parsed.sources.length !== 1 ||
     typeof parsed.sources[0] !== "string"
   ) {
-    throw new Error("Framework projection requires one original source in its map");
+    throw new PreparationError(
+      {
+        kind: "projection",
+        detail: "Framework projection requires one original source in its map",
+      },
+      converter,
+    );
   }
   return {
     kind: "v3",

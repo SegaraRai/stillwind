@@ -8,9 +8,10 @@
 
 use std::collections::BTreeMap;
 
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, Label, LabelScope, Labels};
 use stillwind_ir::{CheckerProjection, CheckerRole, ProjectedSource};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
-use stillwind_source::{ModuleId, ProjectionError, SourceProvenance, Span};
+use stillwind_source::{ModuleId, ProjectionError, SourceFile, SourceProvenance, Span};
 
 use crate::ParsedJavaScript;
 use crate::entry::parse_with_coordinates;
@@ -27,12 +28,16 @@ pub(crate) fn parse_projected(
     projected: &ProjectedSource,
     facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
-) -> Result<(ParsedJavaScript, Vec<SourceProvenance>, CheckerProjection), ProjectionError> {
+) -> Result<(ParsedJavaScript, Vec<SourceProvenance>, CheckerProjection), CompileError> {
     let projection = projected.projection();
     let original = projected.document().file();
     let syntax = projection.syntax();
     let framework = projected.adapter();
     let generated = projection.code();
+    let context = |mut error: CompileError| {
+        add_projection_context(&mut error, projected);
+        error
+    };
     let normalized = normalize_with_language(
         generated,
         original,
@@ -41,7 +46,8 @@ pub(crate) fn parse_projected(
         projection.analysis_id(),
         syntax.language(),
         syntax.module_kind(),
-    )?;
+    )
+    .map_err(context)?;
     let coordinates = |span| {
         normalized
             .original_span(span)
@@ -58,8 +64,10 @@ pub(crate) fn parse_projected(
         original,
         &coordinates,
     );
-    let (ir, mut provenance) = normalized.original_ir(&parsed.module)?;
+    let failure = |error| context(normalized.failure(error, original));
+    let (ir, mut provenance) = normalized.original_ir(&parsed.module).map_err(failure)?;
     parsed.module = ir;
+    validate_macro_references(&parsed, original).map_err(context)?;
     let mut checker = CheckerProjection {
         spans: Vec::new(),
         bindings: normalized.checker_bindings().to_vec(),
@@ -74,7 +82,8 @@ pub(crate) fn parse_projected(
             provenance.push(mapped);
             Ok(mapped.original)
         })
-        .collect::<Result<_, ProjectionError>>()?;
+        .collect::<Result<_, ProjectionError>>()
+        .map_err(failure)?;
     parsed.use_probes = parsed
         .use_probes
         .into_iter()
@@ -88,28 +97,73 @@ pub(crate) fn parse_projected(
             Some(mapped.original)
         })
         .collect();
-    let map_span = |span| {
-        normalized
-            .original_span(span)
-            .map(|provenance| provenance.original)
-    };
     for diagnostic in &mut parsed.diagnostics {
-        for label in &mut diagnostic.labels {
-            label.span = map_span(label.span).unwrap_or(original.full_span());
-        }
+        map_labels(&mut diagnostic.labels, &normalized, original);
+        add_projection_context(diagnostic, projected);
     }
     for finding in &mut parsed.lint_findings {
-        for label in &mut finding.labels {
-            label.span = map_span(label.span).unwrap_or(original.full_span());
-        }
+        map_labels(&mut finding.labels, &normalized, original);
     }
     map_summary(
         &normalized,
         &mut parsed.summary,
         &mut provenance,
         &mut checker,
-    )?;
+    )
+    .map_err(failure)?;
     Ok((parsed, provenance, checker))
+}
+
+fn add_projection_context(error: &mut CompileError, projected: &ProjectedSource) {
+    let converter = projected.projection().converter();
+    error.notes.push(format!(
+        "Source format: {:?}",
+        projected.document().format()
+    ));
+    error.notes.push(format!(
+        "Converter: {}@{}",
+        converter.name, converter.version
+    ));
+}
+
+fn validate_macro_references(
+    parsed: &ParsedJavaScript,
+    original: &SourceFile,
+) -> Result<(), CompileError> {
+    if let Some(specifier) = parsed
+        .module
+        .imports
+        .macros
+        .iter()
+        .flat_map(|import| &import.specifiers)
+        .find(|specifier| specifier.has_unmapped_references)
+    {
+        let mut error = CompileError::for_document(
+            CompileDiagnostic::UnmappedMacroReference {
+                local: specifier.local.clone(),
+                span: specifier.span,
+            },
+            original,
+        );
+        error.labels.push(Label {
+            scope: LabelScope::Range,
+            span: specifier.span,
+            message: Some("macro binding imported here".into()),
+        });
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn map_labels(labels: &mut Labels, normalized: &NormalizedProjection<'_>, original: &SourceFile) {
+    for label in labels {
+        if let Ok(mapped) = normalized.original_span(label.span) {
+            label.span = mapped.original;
+        } else {
+            label.span = original.full_span();
+            label.scope = LabelScope::Document;
+        }
+    }
 }
 
 fn map_summary(

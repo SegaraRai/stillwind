@@ -10,7 +10,9 @@
 use napi::Error;
 use napi_derive::napi;
 use serde::Deserialize;
+use std::sync::Arc;
 
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{
     AdapterKind, AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, PreparedSource,
     ProjectedSource, ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax,
@@ -23,6 +25,98 @@ use stillwind_source::{
 };
 
 use crate::semantic::NativeTypeFact;
+
+/// Known source failures reported by JavaScript projection and checker adapters.
+#[napi(
+    discriminant = "kind",
+    discriminant_case = "lowercase",
+    object_to_js = false
+)]
+pub enum NativeSourceIssue {
+    /// Original component syntax was rejected by its parser.
+    Syntax { detail: String },
+    /// A projection or checker buffer could not be prepared.
+    Projection { detail: String },
+    /// An original expression has no required checker target.
+    Checker { detail: String },
+    /// An assignment lost compatible declaration identities.
+    Assignment { detail: String },
+    /// A value does not carry a finite set of declaration identities.
+    Identity { detail: String },
+}
+
+impl From<NativeSourceIssue> for CompileDiagnostic {
+    fn from(value: NativeSourceIssue) -> Self {
+        match value {
+            NativeSourceIssue::Syntax { detail } => Self::ComponentSyntax { detail },
+            NativeSourceIssue::Projection { detail } => Self::ProjectionPreparation { detail },
+            NativeSourceIssue::Checker { detail } => Self::CheckerTargetUnavailable { detail },
+            NativeSourceIssue::Assignment { detail } => Self::IdentityAssignment { detail },
+            NativeSourceIssue::Identity { detail } => Self::IdentityUnavailable { detail },
+        }
+    }
+}
+
+/// Half-open UTF-16 offsets in the original document; surrogate interiors are invalid.
+#[napi(object, object_to_js = false)]
+pub struct NativeOriginalRange {
+    pub start: u32,
+    pub end: u32,
+}
+
+/// A known failure before native compilation, tied to the attempted original buffer.
+#[napi(object, object_to_js = false)]
+pub struct NativeSourceFailure {
+    pub module_id: String,
+    pub document: NativeSourceDocument,
+    pub issue: NativeSourceIssue,
+    /// Absent when the adapter cannot prove a precise original location.
+    pub range: Option<NativeOriginalRange>,
+    /// Absent for direct scripts or failures before a converter could be loaded.
+    pub converter: Option<NativeConverterIdentity>,
+}
+
+impl NativeSourceFailure {
+    /// Registers the original revision and validates any supplied UTF-16 range.
+    /// Returns a typed failure with converter context, or rejects malformed host input.
+    pub(crate) fn resolve(
+        self,
+        sources: &mut SourceRegistry,
+    ) -> napi::Result<(ModuleId, Arc<SourceFile>, CompileError)> {
+        let document = HostSourceDocument::try_from(self.document)?;
+        let source = sources
+            .register(
+                Some(document.uri),
+                document.source_map_source.as_deref().map(Into::into),
+                document.code,
+            )
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let mut error = if let Some(range) = self.range {
+            let span = projection_span(
+                &CoordinateIndex::new(&source),
+                source.id(),
+                range.start,
+                range.end,
+            )?;
+            source
+                .slice(span)
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            CompileError::new(self.issue.into(), span)
+        } else {
+            CompileError::for_document(self.issue.into(), &source)
+        };
+        error
+            .notes
+            .push(format!("Source format: {:?}", document.format));
+        if let Some(converter) = self.converter {
+            error.notes.push(format!(
+                "Converter: {}@{}",
+                converter.name, converter.version
+            ));
+        }
+        Ok((ModuleId::from(self.module_id), source, error))
+    }
+}
 
 /// Format of the original editable source supplied by the host.
 #[napi(string_enum = "lowercase")]

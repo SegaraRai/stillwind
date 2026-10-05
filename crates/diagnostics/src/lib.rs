@@ -32,7 +32,7 @@ mod report;
 pub use compilation::{
     CompileDiagnostic, CompileError, CompileErrorCode, SourceFailureContext, VariantInputErrorKind,
 };
-pub use label::{DiagnosticInfo, FixAction, Label, Labels, SourceEdit, SourceRange};
+pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit, SourceRange};
 pub use lint::{
     LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding,
     LintKind, LintSettings, LintSeverity, UtilityFailure, collect_lint_directives,

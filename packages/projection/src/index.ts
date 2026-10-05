@@ -1,4 +1,5 @@
 export { prepareSource } from "./frameworks/index.ts";
+export { PreparationError } from "./frameworks/common.ts";
 export type {
   ConverterIdentity,
   PreparedSource,

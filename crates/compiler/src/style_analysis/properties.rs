@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_css::properties_interfere;
-use stillwind_diagnostics::{Label, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{Label, LabelScope, LintDiagnostic, LintFinding};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{ModuleId, Span};
 
@@ -176,6 +176,7 @@ fn provider_finding(
         local_span(style, current),
     );
     finding.info.labels.push(Label {
+        scope: LabelScope::Range,
         span: previous.supply.site.span,
         message: Some("overlapping property source".into()),
     });

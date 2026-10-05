@@ -89,6 +89,8 @@ impl CompileDiagnostic {
         matches!(
             self,
             Self::ProjectionMap { .. }
+                | Self::ProjectionSyntax { .. }
+                | Self::ProjectionPreparation { .. }
                 | Self::ProjectionUnmapped { .. }
                 | Self::ProjectionContent { .. }
                 | Self::InvalidUtf16Offset { .. }

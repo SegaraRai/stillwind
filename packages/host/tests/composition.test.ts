@@ -417,7 +417,7 @@ const props = style(selected, "blue");
       },
       "entry.js",
     ),
-  ).rejects.toThrow(/SHTS002/);
+  ).rejects.toThrow(/SW12004/);
 });
 
 test("checker identity insertion accepts empty commented calls and trailing commas", async () => {

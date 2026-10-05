@@ -6,16 +6,41 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
-/// One highlighted source range with an optional local explanation.
+/// Whether a diagnostic identifies a verified range or applies to the document.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LabelScope {
+    /// The producer identified the highlighted range.
+    #[default]
+    Range,
+    /// The producer cannot identify a range; the span must cover the whole document.
+    Document,
+}
+
+/// A source range or document highlight with an optional local explanation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Label {
+    /// Certainty of the highlighted range.
+    #[serde(default)]
+    pub scope: LabelScope,
     /// Half-open UTF-8 byte range in the identified reporting source. Producers must
     /// supply valid bounds; constructing a label does not validate them.
     pub span: Span,
     /// Text shown next to the range; `None` lets the diagnostic message stand for the
     /// label itself.
     pub message: Option<String>,
+}
+
+impl Label {
+    /// Creates a document label without claiming a precise error position.
+    pub fn document(source: &SourceFile) -> Self {
+        Self {
+            scope: LabelScope::Document,
+            span: source.full_span(),
+            message: None,
+        }
+    }
 }
 
 /// A diagnostic's primary highlight followed by optional related highlights.
@@ -122,6 +147,7 @@ impl DiagnosticInfo {
     pub fn new(span: Span) -> Self {
         Self {
             labels: Labels::new(Label {
+                scope: LabelScope::Range,
                 span,
                 message: None,
             }),

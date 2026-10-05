@@ -3,21 +3,53 @@ import { svelte2tsx } from "svelte2tsx";
 import ts from "typescript";
 
 import type { SourceProjection } from "../protocol.ts";
-import { converterIdentity, sourceMapV3, sourceRegions, type ScriptRegion } from "./common.ts";
+import {
+  converterIdentity,
+  sourceMapV3,
+  sourceRegions,
+  originalRange,
+  PreparationError,
+  type ScriptRegion,
+} from "./common.ts";
 
 export function convert(source: string, filename: string): SourceProjection {
-  const ast = parse(source, {
-    modern: true,
-    filename,
-  });
   const options = {
     isTsFile: true,
     emitOnTemplateError: false,
   } as const;
-  const result = svelte2tsx(source, {
+  const converter = converterIdentity("svelte2tsx", {
     ...options,
-    filename,
+    svelte: converterIdentity("svelte", {}).version,
+    typescript: ts.version,
   });
+  let ast: ReturnType<typeof parse>;
+  let result: ReturnType<typeof svelte2tsx>;
+  try {
+    ast = parse(source, {
+      modern: true,
+      filename,
+    });
+    result = svelte2tsx(source, {
+      ...options,
+      filename,
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || error.name !== "CompileError" || !("code" in error)) {
+      throw error;
+    }
+    const diagnostic = error as Error & {
+      start?: { character: number };
+      end?: { character: number };
+    };
+    throw new PreparationError(
+      {
+        kind: "syntax",
+        detail: error.message,
+      },
+      converter,
+      originalRange(source, diagnostic.start?.character, diagnostic.end?.character),
+    );
+  }
   const scripts: ScriptRegion[] = [];
   for (const [id, script] of [
     [0, ast.module],
@@ -29,7 +61,13 @@ export function convert(source: string, filename: string): SourceProjection {
     const start = "start" in script.content ? script.content.start : undefined;
     const end = "end" in script.content ? script.content.end : undefined;
     if (typeof start !== "number" || typeof end !== "number") {
-      throw new Error("Svelte script has no source coordinates");
+      throw new PreparationError(
+        {
+          kind: "projection",
+          detail: "Svelte script has no source coordinates",
+        },
+        converter,
+      );
     }
     scripts.push({
       id,
@@ -44,13 +82,14 @@ export function convert(source: string, filename: string): SourceProjection {
       moduleKind: "module",
     },
     code: result.code,
-    map: sourceMapV3(result.map),
-    converter: converterIdentity("svelte2tsx", {
-      ...options,
-      svelte: converterIdentity("svelte", {}).version,
-      typescript: ts.version,
-    }),
+    map: sourceMapV3(result.map, converter),
+    converter,
     importRealms: scripts,
-    editableRegions: sourceRegions(source, scripts, ast.instance ? 1 : ast.module ? 0 : undefined),
+    editableRegions: sourceRegions(
+      source,
+      scripts,
+      ast.instance ? 1 : ast.module ? 0 : undefined,
+      converter,
+    ),
   };
 }

@@ -241,7 +241,7 @@ test("anonymous branded styles and transitions retain finite identities", () => 
 
 for (const expression of ["widened", "unregistered", "mixed", "crossKind"]) {
   test(`branded ${expression} reports an unresolved declaration identity`, () => {
-    expect(() => collectBrands([expression])).toThrow(/SHTS003/);
+    expect(() => collectBrands([expression])).toThrow(/finite set of declaration identities/);
   });
 }
 

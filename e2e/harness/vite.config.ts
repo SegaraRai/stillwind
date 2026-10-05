@@ -14,7 +14,7 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/native#build", "@stillwind/integration#build"],
       },
       "typecheck:fixtures": {
         command: "",

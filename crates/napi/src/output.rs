@@ -19,13 +19,13 @@ use stillwind_compiler::{
     ModuleResourceReference, RejectedIdentifier, SymbolOrigin, TransformMapping,
 };
 use stillwind_diagnostics::{
-    DiagnosticSeverity, ResolvedAction, ResolvedDiagnostic, ResolvedEdit, ResolvedLabel,
-    ResolvedLocation,
+    DiagnosticBatch, DiagnosticSeverity, LabelScope, ResolvedAction, ResolvedDiagnostic,
+    ResolvedEdit, ResolvedLabel, ResolvedLocation,
 };
 use stillwind_ir::StyleDependency;
 use stillwind_source::{ModuleId, Span};
 
-use crate::semantic::NativeIdentity;
+use crate::semantic::{NativeIdentity, NativeModuleSummary};
 
 /// Result of compiling one module.
 #[napi(object, object_from_js = false, use_nullable = true)]
@@ -107,6 +107,9 @@ impl From<ResolvedDiagnostic> for BindingReport {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BindingLabel {
+    /// Whether the producer identified a range or only the document.
+    #[napi(ts_type = "'range' | 'document'")]
+    pub scope: String,
     /// Source revision and editor range.
     pub location: BindingLocation,
     /// Explanation for this range, when one was supplied.
@@ -116,6 +119,11 @@ pub struct BindingLabel {
 impl From<ResolvedLabel> for BindingLabel {
     fn from(value: ResolvedLabel) -> Self {
         Self {
+            scope: match value.scope {
+                LabelScope::Range => "range",
+                LabelScope::Document => "document",
+            }
+            .into(),
             location: value.location.into(),
             message: value.message,
         }
@@ -231,6 +239,9 @@ impl From<StyleDependency> for NativeStyleDependency {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BindingDiagnostic {
+    /// Whether the producer identified a range or only the document.
+    #[napi(ts_type = "'range' | 'document'")]
+    pub scope: String,
     /// Stable diagnostic code, such as `SW02003`.
     pub code: String,
     /// Rendered message.
@@ -529,6 +540,37 @@ pub struct NativeDiagnosticBatch {
     pub module: String,
     /// Diagnostics in report order.
     pub reports: Vec<BindingReport>,
+}
+
+impl NativeDiagnosticBatch {
+    /// Copies a resolved batch for the host while the session retains its own batch.
+    pub(crate) fn new(module: &ModuleId, batch: &DiagnosticBatch) -> Self {
+        Self {
+            module: module.as_str().into(),
+            reports: batch.diagnostics.iter().cloned().map(Into::into).collect(),
+        }
+    }
+}
+
+/// Scan outcome; only a verified scan supplies a summary for checker queries.
+// NAPI object conversion does not accept a boxed summary.
+#[allow(clippy::large_enum_variant)]
+#[napi(
+    discriminant = "kind",
+    discriminant_case = "lowercase",
+    object_from_js = false
+)]
+pub enum NativeScanResult {
+    /// Original-coordinate summary from a verified source.
+    Ready {
+        /// Summary to use for dependency traversal and checker queries.
+        summary: NativeModuleSummary,
+    },
+    /// Fatal syntax or projection failures in the original document.
+    Failed {
+        /// Complete reports for the rejected source revision.
+        batch: NativeDiagnosticBatch,
+    },
 }
 
 /// One module's result inside a whole-graph compile.

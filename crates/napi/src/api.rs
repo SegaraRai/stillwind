@@ -16,10 +16,10 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, Reporter, ResolvedDiagnostic,
-    SourceFailureContext, filter_lint_findings,
+    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, LabelScope, LintSettings,
+    Reporter, ResolvedDiagnostic, SourceFailureContext, filter_lint_findings,
 };
-use stillwind_ir::{CheckerRole, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{CheckerRole, ModuleScan, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
 use stillwind_source::{
@@ -29,6 +29,7 @@ use stillwind_source::{
 
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput, BindingReport};
+use crate::output::{NativeDiagnosticBatch, NativeScanResult};
 use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
 use crate::semantic::{
     NativeCheckerBinding, NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe,
@@ -250,6 +251,11 @@ pub(super) fn binding_output_with_batch(
 fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
     let location = &diagnostic.primary.location;
     BindingDiagnostic {
+        scope: match diagnostic.primary.scope {
+            LabelScope::Range => "range",
+            LabelScope::Document => "document",
+        }
+        .into(),
         code: diagnostic.code.clone(),
         message: diagnostic.message.clone(),
         uri: location.uri.as_str().to_owned(),
@@ -400,21 +406,64 @@ pub fn compile_project_input(
     Ok(ProjectBindingOutput { modules })
 }
 
-/// Scans plain or projected input and returns original UTF-8 summary coordinates.
+/// Scans plain or projected input before dependency traversal and checker queries.
+/// Ready summaries use original UTF-8 coordinates. Fatal syntax and projection
+/// failures return resolved reports for the original document.
 ///
 /// # Errors
 ///
-/// Rejects malformed input and projection failures before checker queries are issued.
+/// Rejects malformed host input and failures to resolve diagnostic locations.
 #[napi(strict)]
-pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSummary> {
+pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeScanResult> {
     let source = HostPreparedSource::try_from(source)?;
+    let module = source.module_id().clone();
     let mut registry = SourceRegistry::default();
-    let scan = OxcSourceAnalyzer.scan_input(source.input(&mut registry)?);
-    if let Some(error) = scan.diagnostics.iter().find(|error| {
+    Ok(scan_prepared(&source, &mut registry)?.into_binding(&module))
+}
+
+/// Internal scan outcome that retains typed errors until the host publishes reports.
+pub(super) enum SourceScan {
+    Ready(Box<NativeModuleSummary>),
+    Failed {
+        scan: Box<ModuleScan>,
+        batch: DiagnosticBatch,
+    },
+}
+
+impl SourceScan {
+    pub(super) fn into_binding(self, module: &ModuleId) -> NativeScanResult {
+        match self {
+            Self::Ready(summary) => NativeScanResult::Ready { summary: *summary },
+            Self::Failed { batch, .. } => NativeScanResult::Failed {
+                batch: NativeDiagnosticBatch::new(module, &batch),
+            },
+        }
+    }
+}
+
+/// Scans a prepared source using the caller's registry and resolves fatal reports.
+pub(super) fn scan_prepared(
+    source: &HostPreparedSource,
+    registry: &mut SourceRegistry,
+) -> napi::Result<SourceScan> {
+    let mut scan = OxcSourceAnalyzer.scan_input(source.input(registry)?);
+    let fatal = |error: &CompileError| {
         error.diagnostic.is_projection_failure()
             || matches!(error.diagnostic, CompileDiagnostic::JavaScriptParse)
-    }) {
-        return Err(Error::from_reason(error.to_string()));
+            || matches!(
+                error.diagnostic,
+                CompileDiagnostic::UnmappedMacroReference { .. }
+                    | CompileDiagnostic::CheckerTargetUnavailable { .. }
+            )
+    };
+    if scan.diagnostics.iter().any(fatal) {
+        scan.diagnostics.retain(fatal);
+        let batch = Reporter::collect(&scan.diagnostics, &[], registry, LintSettings::default())
+            .map_err(BindingApiError::from)?;
+        return Ok(SourceScan::Failed {
+            scan: Box::new(scan),
+            batch,
+        });
     }
     let count = |length| u32::try_from(length).map_err(|_| Error::from_reason("too many imports"));
     let mut result = NativeModuleSummary::new(
@@ -465,7 +514,7 @@ pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeModuleSum
                 .0,
         });
     }
-    Ok(result)
+    Ok(SourceScan::Ready(Box::new(result)))
 }
 
 /// Extracts the versioned cross-module summary for a source module.

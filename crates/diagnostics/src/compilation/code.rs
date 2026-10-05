@@ -69,6 +69,7 @@ define_compile_codes! {
     StyleArgumentSpread => "SW01010",
     UnconsumedMacroUse { .. } => "SW01011",
     JavaScriptParse => "SW01012",
+    ComponentSyntax { .. } => "SW01013",
     // 02: utilities and variants
     InvalidVariantInput { .. } => "SW02001",
     InvalidUtilityTemplate => "SW02002",
@@ -179,6 +180,8 @@ define_compile_codes! {
     ProjectionMap { .. } => "SW10001",
     ProjectionUnmapped { .. } => "SW10002",
     ProjectionContent { .. } => "SW10003",
+    ProjectionSyntax { .. } => "SW10007",
+    ProjectionPreparation { .. } => "SW10008",
     InvalidUtf16Offset { .. } => "SW10004",
     InvalidUtf16Position { .. } => "SW10005",
     InvalidUtf8Offset { .. } => "SW10006",
@@ -197,6 +200,9 @@ define_compile_codes! {
     // 12: checker facts
     InvalidSymbolicFacts => "SW12001",
     InvalidTypeScriptFacts => "SW12002",
+    CheckerTargetUnavailable { .. } => "SW12003",
+    IdentityAssignment { .. } => "SW12004",
+    IdentityUnavailable { .. } => "SW12005",
 }
 
 impl std::fmt::Display for CompileErrorCode {

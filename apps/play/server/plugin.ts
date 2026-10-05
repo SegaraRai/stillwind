@@ -33,19 +33,21 @@ export function playground(css: string): Plugin {
                 }
                 previewUrl = `/__stillwind/preview?id=${encodeURIComponent(id)}`;
               } catch (error) {
+                const lines = source.split("\n");
                 output.diagnostics.push({
+                  scope: "document",
                   code: "SHPLAY001",
                   message: error instanceof Error ? error.message : String(error),
                   uri: "untitled:Play.tsx",
                   revision: createHash("sha256").update(source).digest("hex"),
                   start: 0,
-                  end: 0,
+                  end: Buffer.byteLength(source),
                   startUtf16: 0,
-                  endUtf16: 0,
+                  endUtf16: source.length,
                   startLine: 0,
                   startColumn: 0,
-                  endLine: 0,
-                  endColumn: 0,
+                  endLine: lines.length - 1,
+                  endColumn: lines.at(-1)!.length,
                   notes: [],
                 });
               }

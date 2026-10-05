@@ -8,6 +8,199 @@ import { expect, test } from "vite-plus/test";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("scan failures preserve original reports without exposing a partial summary", async () => {
+    const { scanSource } = await import(bindingSpecifier);
+    const original =
+      "<!-- 日本語 🧭 -->\r\n<script>import {style} from 'stillwind/vue';const props=style('pad');</script>";
+    const input = {
+      kind: "projected",
+      moduleId: "broken.vue",
+      document: {
+        uri: sourceUri("broken.vue"),
+        format: "vue",
+        code: original,
+      },
+      projection: {
+        code: "const broken = (",
+        syntax: {
+          language: "ts",
+          moduleKind: "module",
+        },
+        map: {
+          kind: "volar",
+          mappings: [],
+        },
+        converter: {
+          name: "test-converter",
+          version: "1.0.0",
+          optionsFingerprint: "test",
+        },
+        importRealms: [],
+        editableRegions: [],
+      },
+    };
+    const syntax = scanSource(input);
+    expect(syntax).toMatchObject({
+      kind: "failed",
+      batch: {
+        module: "broken.vue",
+        reports: [
+          {
+            code: "SW10007",
+            primary: {
+              scope: "document",
+              location: {
+                uri: sourceUri("broken.vue"),
+                start: 0,
+                end: Buffer.byteLength(original),
+                endUtf16: original.length,
+              },
+            },
+            notes: expect.arrayContaining(["Converter: test-converter@1.0.0"]),
+          },
+        ],
+      },
+    });
+    expect("summary" in syntax).toBe(false);
+    const invalidMap = scanSource({
+      ...input,
+      projection: {
+        ...input.projection,
+        code: "const okay=1;",
+        map: {
+          kind: "v3",
+          source: "broken.vue",
+          json: "{}",
+        },
+      },
+    });
+    expect(invalidMap).toMatchObject({
+      kind: "failed",
+      batch: {
+        reports: [
+          {
+            code: "SW10001",
+            primary: {
+              scope: "document",
+            },
+          },
+        ],
+      },
+    });
+    const validGenerated = "import {style} from 'stillwind/vue';const props=style('pad');";
+    expect(
+      scanSource({
+        ...input,
+        projection: {
+          ...input.projection,
+          code: validGenerated,
+        },
+      }),
+    ).toMatchObject({
+      kind: "failed",
+      batch: {
+        reports: [
+          {
+            code: "SW10002",
+            primary: {
+              scope: "document",
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  test("source failures share native reporting and reject stale semantic artifacts until recovery", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const loader = new NativeDesignSystemLoader();
+    const css = "@utility pad {padding:1px;} @stillwind-slot utilities;";
+    loader.provide(0, "root", css, sourceUri("root"));
+    const session = new NativeProjectSession(loader, true);
+    const source =
+      "// 日本語 🧭\r\nimport {style} from 'stillwind/react';const props=style('pad');";
+    const input = {
+      kind: "direct",
+      moduleId: "attempt.tsx",
+      document: {
+        uri: sourceUri("attempt.tsx"),
+        code: source,
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "module",
+      },
+    };
+    expect(session.compile([input]).modules[0].diagnostics).toEqual([]);
+    const before = session.css();
+    const start = source.indexOf("props");
+    const batch = session.reportSourceFailure({
+      moduleId: input.moduleId,
+      document: input.document,
+      issue: {
+        kind: "checker",
+        detail: "required AST expression is missing",
+      },
+      range: {
+        start,
+        end: start + 5,
+      },
+    });
+    expect(batch.reports[0]).toMatchObject({
+      code: "SW12003",
+      primary: {
+        scope: "range",
+        location: {
+          startUtf16: start,
+          endUtf16: start + 5,
+          start: Buffer.byteLength(source.slice(0, start)),
+          startLine: 1,
+        },
+      },
+    });
+    expect(session.diagnosticBatches()).toEqual([batch]);
+    expect(session.css()).toBe(before);
+    const replacement = session.newLoader();
+    replacement.provide(0, "root", css, sourceUri("root"));
+    expect(() => session.reload(replacement)).toThrow(/SW12003/);
+    expect(session.diagnosticBatches()).toEqual([batch]);
+    expect(session.css()).toBe(before);
+    const surrogate = source.indexOf("🧭") + 1;
+    expect(() =>
+      session.reportSourceFailure({
+        moduleId: input.moduleId,
+        document: input.document,
+        issue: {
+          kind: "checker",
+          detail: "invalid host range",
+        },
+        range: {
+          start: surrogate,
+          end: surrogate + 1,
+        },
+      }),
+    ).toThrow(/UTF-16 offset/);
+    expect(session.diagnosticBatches()).toEqual([batch]);
+    expect(session.compile([input]).modules[0].reports).toEqual([]);
+    expect(session.diagnosticBatches()[0].reports).toEqual([]);
+    const failed = session.scanSource({
+      ...input,
+      document: {
+        ...input.document,
+        code: "const broken = (",
+      },
+    });
+    expect(failed).toMatchObject({
+      kind: "failed",
+      batch: {
+        reports: [{ code: "SW01012" }],
+      },
+    });
+    expect(session.css()).toBe(before);
+    expect(session.diagnosticBatches()).toEqual([failed.batch]);
+  });
+
   test("composition analysis agrees across bindings and refreshes transitive dependents", async () => {
     const {
       compileSource,
@@ -223,7 +416,7 @@ export function registerBindingContract(bindingSpecifier: string) {
   test("native properties use camelCase and enum values follow their declared cases", async () => {
     const { scanSource, NativeDesignSystemLoader } = await import(bindingSpecifier);
     for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
-      const summary = scanSource({
+      const scan = scanSource({
         kind: "direct",
         moduleId: "contract.js",
         document: {
@@ -234,6 +427,8 @@ export function registerBindingContract(bindingSpecifier: string) {
         syntax: { language: "js", moduleKind: "commonjs" },
         framework,
       });
+      expect(scan.kind).toBe("ready");
+      const summary = scan.summary;
       expect(summary.moduleId).toBe("contract.js");
       expect(Object.hasOwn(summary, "typeProbes")).toBeTruthy();
       expect(Object.hasOwn(summary, "module_id")).toBe(false);
@@ -286,7 +481,12 @@ export function registerBindingContract(bindingSpecifier: string) {
       },
       syntax: { language: "tsx", moduleKind: "unambiguous" },
     };
-    expect(scanSource(input).moduleId).toBe(input.moduleId);
+    expect(scanSource(input)).toMatchObject({
+      kind: "ready",
+      summary: {
+        moduleId: input.moduleId,
+      },
+    });
     for (const compile of [
       (source: unknown) =>
         compileProject([source], cssInput("@stillwind-slot utilities;")).modules[0],

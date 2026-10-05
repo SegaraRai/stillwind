@@ -2,10 +2,10 @@
 
 use serde::Serialize;
 
-use stillwind_source::Span;
+use stillwind_source::{SourceFile, Span};
 
 use super::{CompileDiagnostic, CompileErrorCode};
-use crate::DiagnosticInfo;
+use crate::{DiagnosticInfo, Label};
 
 /// One fatal error with its source highlights and supplementary context.
 ///
@@ -24,6 +24,13 @@ pub struct CompileError {
 }
 
 impl CompileError {
+    /// Attaches a document label when no precise original range is available.
+    pub fn for_document(diagnostic: CompileDiagnostic, source: &SourceFile) -> Self {
+        let mut error = Self::new(diagnostic, source.full_span());
+        error.labels[0] = Label::document(source);
+        error
+    }
+
     /// Attaches `span` as the sole primary label, with no source name or notes.
     /// The caller supplies a valid reporting span; rejected coordinates remain in
     /// `diagnostic`.
@@ -60,7 +67,7 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
-    use crate::{Label, LintDiagnostic, LintFinding};
+    use crate::{Label, LabelScope, LintDiagnostic, LintFinding};
 
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
@@ -92,6 +99,7 @@ mod tests {
             span,
         );
         error.labels.push(Label {
+            scope: LabelScope::Range,
             span: Span::new(FileId(8), 0, 3),
             message: Some("previous definition".into()),
         });

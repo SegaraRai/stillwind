@@ -163,9 +163,9 @@ test("disk dependencies gain and lose semantic overlays across snapshots", () =>
         .collect(sources, new Map(sources.map((source) => [source.moduleId, source.assets])))
         .get("entry.ts")!;
     };
-    expect(() => collect(false)).toThrow(/SHTS003/);
+    expect(() => collect(false)).toThrow(/finite set of declaration identities/);
     expect(collect(true).length).toBe(1);
-    expect(() => collect(false)).toThrow(/SHTS003/);
+    expect(() => collect(false)).toThrow(/finite set of declaration identities/);
     expect(collect(true).length).toBe(1);
     expect(service.stats.restarts).toBe(0);
     expect(service.stats.incrementalSnapshots).toBe(3);

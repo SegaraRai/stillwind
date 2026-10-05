@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type TestContext } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import { TypeScriptFactsService, TypeFactsError } from "../src/type-facts.ts";
+import { compileModule, fileModuleDescriptor, CompilationFailure } from "../src/compiler.ts";
+import { TypeScriptFactsService } from "../src/type-facts.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/testss");
 
@@ -104,16 +104,19 @@ for (const ext of ["vue", "svelte", "astro"]) {
     const script = `// 日本語 🧭\nimport {style} from 'stillwind/${ext}';const a=style('red'),b=style('green');let selected=a;if(Math.random())selected=b;const derived=style(selected,'blue');`;
     const files = { [entry]: wrap(ext, script) };
     const compilation = harness(t, files, entry).compile();
-    await expect(compilation).rejects.toBeInstanceOf(TypeFactsError);
-    await expect(compilation).rejects.toMatchObject({
-      code: "SHTS002",
-      moduleId: entry,
-    });
+    await expect(compilation).rejects.toBeInstanceOf(CompilationFailure);
     const error = await compilation.catch((error: unknown) => error);
-    if (!(error instanceof TypeFactsError)) {
-      expect.fail("expected a type facts error");
+    if (!(error instanceof CompilationFailure)) {
+      expect.fail("expected a compilation failure");
     }
-    expect(Buffer.from(files[entry]).subarray(error.start, error.end).toString()).toBe("selected");
+    const report = error.batches[0].reports[0];
+    expect(report.code).toBe("SW12004");
+    expect(error.batches[0].module).toBe(entry);
+    expect(
+      Buffer.from(files[entry])
+        .subarray(report.primary.location.start, report.primary.location.end)
+        .toString(),
+    ).toBe("selected");
   });
   test(`${ext}: explicit unions retain candidates and erased identity is rejected`, async (t) => {
     const entry = `Union.${ext}`;
@@ -123,7 +126,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     const result = await compile();
     expect(result?.composition.length).toBe(2);
     files[entry] = wrap(ext, script.replace("typeof a|typeof b", "any"));
-    await expect(compile()).rejects.toThrow(/SHTS003/);
+    await expect(compile()).rejects.toThrow(/SW12005/);
   });
 }
 test("Astro client imports receive their own typed scope", async (t) => {
@@ -279,7 +282,7 @@ import {style} from 'stillwind/vue';const a=style('red'),b=style('green');let se
   expect(result).toBeTruthy();
   expect(result!.code).toBe(null);
   const error = result!.diagnostics[0];
-  expect(error.code).toBe("SHTS002");
+  expect(error.code).toBe("SW12004");
   expect(source.slice(error.startUtf16, error.endUtf16)).toBe("selected");
   expect(Buffer.from(source).subarray(error.start, error.end).toString()).toBe("selected");
   expect(error.startLine).toBe(2);

@@ -38,6 +38,18 @@ export declare class NativeDesignSystemLoader {
 
 /** Mutable project state for one Vite or CLI session. */
 export declare class NativeProjectSession {
+  /**
+   * Scans a source before checker queries. Fatal failures replace the module's
+   * latest reports and reject its attempted revision without publishing output.
+   * Malformed host transport remains an exception.
+   */
+  scanSource(source: NativePreparedSource): NativeScanResult
+  /**
+   * Resolves a known projection or checker failure in the original revision.
+   * Keeps successful watch output and publishes the attempted diagnostic batch.
+   * Rejects malformed document identities or original coordinates.
+   */
+  reportSourceFailure(failure: NativeSourceFailure): NativeDiagnosticBatch
   /** Returns the latest attempted diagnostics for every retained module. */
   diagnosticBatches(): Array<NativeDiagnosticBatch>
   /**
@@ -147,6 +159,8 @@ export interface BindingAction {
 
 /** One compiler error, in both byte and editor coordinates. */
 export interface BindingDiagnostic {
+  /** Whether the producer identified a range or only the document. */
+  scope: 'range' | 'document'
   /** Stable diagnostic code, such as `SW02003`. */
   code: string
   /** Rendered message. */
@@ -185,6 +199,8 @@ export interface BindingEdit {
 
 /** A highlight and its explanation. */
 export interface BindingLabel {
+  /** Whether the producer identified a range or only the document. */
+  scope: 'range' | 'document'
   /** Source revision and editor range. */
   location: BindingLocation
   /** Explanation for this range, when one was supplied. */
@@ -896,6 +912,12 @@ export interface NativeModuleSummary {
   exports: Array<NativeExport>
 }
 
+/** Half-open UTF-16 offsets in the original document; surrogate interiors are invalid. */
+export interface NativeOriginalRange {
+  start: number
+  end: number
+}
+
 /** Host input with an editable document and explicit parser preparation. */
 export type NativePreparedSource =
   | { kind: 'direct'; /** Editable source document. */
@@ -941,6 +963,13 @@ export interface NativeReload {
   transformedModules: Array<string>
 }
 
+/** Scan outcome; only a verified scan supplies a summary for checker queries. */
+export type NativeScanResult =
+  | { kind: 'ready'; /** Summary to use for dependency traversal and checker queries. */
+  summary: NativeModuleSummary }
+  | { kind: 'failed'; /** Complete reports for the rejected source revision. */
+  batch: NativeDiagnosticBatch }
+
 /** Script dialect requested by the host. */
 export type NativeScriptLanguage = 'js' | 'jsx' | 'ts' | 'tsx' | 'dts'
 
@@ -969,8 +998,27 @@ export interface NativeSourceDocument {
   sourceMapSource?: string
 }
 
+/** A known failure before native compilation, tied to the attempted original buffer. */
+export interface NativeSourceFailure {
+  moduleId: string
+  document: NativeSourceDocument
+  issue: NativeSourceIssue
+  /** Absent when the adapter cannot prove a precise original location. */
+  range?: NativeOriginalRange
+  /** Absent for direct scripts or failures before a converter could be loaded. */
+  converter?: NativeConverterIdentity
+}
+
 /** Format of the original editable source supplied by the host. */
 export type NativeSourceFormat = 'script' | 'jsx' | 'astro' | 'svelte' | 'vue'
+
+/** Known source failures reported by JavaScript projection and checker adapters. */
+export type NativeSourceIssue =
+  | { kind: 'syntax'; detail: string }
+  | { kind: 'projection'; detail: string }
+  | { kind: 'checker'; detail: string }
+  | { kind: 'assignment'; detail: string }
+  | { kind: 'identity'; detail: string }
 
 /** Generated parser buffer and required correspondence to the editable document. */
 export interface NativeSourceProjection {
@@ -1199,13 +1247,15 @@ export interface ProjectModuleOutput {
 export declare function renderStylesheet(moduleCss: string, theme: string, options?: NativeCompilerOptions | undefined | null): string
 
 /**
- * Scans plain or projected input and returns original UTF-8 summary coordinates.
+ * Scans plain or projected input before dependency traversal and checker queries.
+ * Ready summaries use original UTF-8 coordinates. Fatal syntax and projection
+ * failures return resolved reports for the original document.
  *
  * # Errors
  *
- * Rejects malformed input and projection failures before checker queries are issued.
+ * Rejects malformed host input and failures to resolve diagnostic locations.
  */
-export declare function scanSource(source: NativePreparedSource): NativeModuleSummary
+export declare function scanSource(source: NativePreparedSource): NativeScanResult
 
 /**
  * Returns the versioned Stillwind module summary used for cross-module values.

@@ -232,7 +232,7 @@ mod tests {
     use stillwind_source::{FileId, Span};
 
     use super::*;
-    use crate::{Label, LintDiagnostic};
+    use crate::{Label, LabelScope, LintDiagnostic};
 
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
@@ -384,6 +384,7 @@ mod tests {
             primary,
         );
         suppressed.labels.push(Label {
+            scope: LabelScope::Range,
             span: secondary,
             message: None,
         });

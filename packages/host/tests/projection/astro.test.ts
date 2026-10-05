@@ -55,7 +55,11 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
   }
 
   function collect(prepared: PreparedSource) {
-    const summary = scanSource(prepared);
+    const scan = scanSource(prepared);
+    if (scan.kind !== "ready") {
+      expect.fail(JSON.stringify(scan.batch.reports));
+    }
+    const summary = scan.summary;
     const typeFacts = facts
       .collect(
         [
@@ -185,7 +189,24 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
       `<script>${macroImport}${baseDeclaration}${arrow}const derived=style(identity(base),'grid');</script>`,
     );
     expect(prepared.projection.code).toContain(arrow);
-    expect(() => scanSource(prepared)).toThrow(/invalid generated JavaScript/);
+    const result = scanSource(prepared);
+    expect(result).toMatchObject({
+      kind: "failed",
+      batch: {
+        module: prepared.moduleId,
+        reports: [
+          {
+            code: "SW10007",
+            primary: {
+              location: {
+                uri: prepared.document.uri,
+              },
+            },
+            notes: expect.arrayContaining(["Converter: @astrojs/compiler@4.0.0"]),
+          },
+        ],
+      },
+    });
   });
 
   test("server and identical client bodies keep distinct local declaration identities", async () => {
@@ -228,18 +249,18 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
     expect(module.code).toContain(client);
   });
 
-  for (const { name, annotation, errorCode, errorText, errorOffset } of [
+  for (const { name, annotation, issueKind, errorText, errorOffset } of [
     {
       name: "incompatible reassignment",
       annotation: "",
-      errorCode: "SHTS002",
+      issueKind: "assignment",
       errorText: "selected=other",
       errorOffset: 0,
     },
     {
       name: "erased identity",
       annotation: ":unknown",
-      errorCode: "SHTS003",
+      issueKind: "identity",
       errorText: "style(selected,'grid')",
       errorOffset: 6,
     },
@@ -250,7 +271,7 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
       const range = originalRange(code, "selected", code.indexOf(errorText) + errorOffset);
       expect(() => collect(prepared)).toThrow(
         expect.objectContaining({
-          code: errorCode,
+          issue: expect.objectContaining({ kind: issueKind }),
           moduleId: prepared.moduleId,
           ...range,
         }),

@@ -586,12 +586,8 @@ fn generated_exposure_reads_and_nested_completion_reads_keep_import_guards_preci
     }
 }
 
-/// Converter-only reads are flagged instead of breaking macro extraction.
-///
-/// A reference that exists only in generated text cannot be mapped, so it is recorded
-/// as unmapped on the specifier while the mapped references are kept.
 #[test]
-fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_macros() {
+fn converter_only_references_reject_the_scan_before_checker_queries() {
     let input = projected();
     let code = Arc::new(
         SourceFile::new(
@@ -613,14 +609,41 @@ fn converter_only_references_prevent_unsafe_import_deletion_without_blocking_mac
         input.projection().unwrap().converter().clone(),
     );
     let scan = OxcSourceAnalyzer.scan_input(input);
-    assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
-    assert_eq!(scan.local_ir.style_calls.len(), 1);
-    let specifier = &scan.local_ir.imports.macros[0].specifiers[0];
-    assert!(specifier.has_unmapped_references);
-    assert_eq!(specifier.references.len(), 2);
-    for reference in &specifier.references {
-        assert_eq!(scan.source.slice(*reference).unwrap(), "style");
-    }
+    let error = &scan.diagnostics[0];
+    assert!(matches!(
+        error.diagnostic,
+        CompileDiagnostic::UnmappedMacroReference { .. }
+    ));
+    assert_eq!(
+        error.labels[0].scope,
+        stillwind_diagnostics::LabelScope::Document
+    );
+    assert_eq!(scan.source.slice(error.labels[1].span).unwrap(), "style");
+    assert_eq!(
+        scan.local_ir.style_calls,
+        [] as [stillwind_ir::StyleCall; 0]
+    );
+    assert!(scan.type_probes.is_empty());
+}
+
+#[test]
+fn generated_syntax_reports_a_verified_original_range() {
+    let scan = OxcSourceAnalyzer.scan_input(projected_script("const = ;"));
+    let error = &scan.diagnostics[0];
+    assert!(matches!(
+        error.diagnostic,
+        CompileDiagnostic::ProjectionSyntax { .. }
+    ));
+    assert_eq!(
+        error.labels[0].scope,
+        stillwind_diagnostics::LabelScope::Range
+    );
+    assert_eq!(scan.source.slice(error.labels[0].span).unwrap(), "=");
+    assert_eq!(
+        scan.local_ir.style_calls,
+        [] as [stillwind_ir::StyleCall; 0]
+    );
+    assert!(scan.type_probes.is_empty());
 }
 
 /// Finalized projected analyses speak in original coordinates.

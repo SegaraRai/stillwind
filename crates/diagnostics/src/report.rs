@@ -12,13 +12,16 @@ use stillwind_source::{
 };
 
 use crate::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSettings, LintSeverity,
-    SourceRange, filter_lint_findings,
+    CompileDiagnostic, CompileError, LabelScope, LintDiagnostic, LintFinding, LintSettings,
+    LintSeverity, SourceRange, filter_lint_findings,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
 #[derive(Debug, thiserror::Error)]
 pub enum ReportError {
+    /// A document label does not cover the full source revision.
+    #[error("a document label must cover its complete source")]
+    InvalidDocumentLabel,
     /// A source has no host-supplied document identity.
     #[error("source {0} has no URI")]
     MissingUri(String),
@@ -80,6 +83,9 @@ pub struct ResolvedLocation {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedLabel {
+    /// Whether the producer identified a range or only the document.
+    #[serde(default)]
+    pub scope: LabelScope,
     /// Source and coordinates of this highlight.
     pub location: ResolvedLocation,
     /// Explanation displayed next to the highlight.
@@ -147,30 +153,39 @@ pub struct ResolvedDiagnostic {
 }
 
 impl ResolvedDiagnostic {
-    /// Renders the primary range for text-only hosts using one-based line and column numbers.
+    /// Renders a diagnostic for text-only hosts. Range labels use one-based line and
+    /// column numbers. Document labels omit those coordinates.
     pub fn display_text(&self) -> String {
         let at = &self.primary.location;
-        let mut text = format!(
-            "{}:{}:{}-{}:{}: {}: {}",
-            at.uri.as_str(),
-            at.start_position.line + 1,
-            at.start_position.utf16_column + 1,
-            at.end_position.line + 1,
-            at.end_position.utf16_column + 1,
-            self.code,
-            self.message,
-        );
-        for label in &self.related {
-            let at = &label.location;
-            let _ = write!(
-                text,
-                "\n  {}:{}:{}-{}:{}",
+        let mut text = if self.primary.scope == LabelScope::Document {
+            format!("{}: {}: {}", at.uri.as_str(), self.code, self.message)
+        } else {
+            format!(
+                "{}:{}:{}-{}:{}: {}: {}",
                 at.uri.as_str(),
                 at.start_position.line + 1,
                 at.start_position.utf16_column + 1,
                 at.end_position.line + 1,
-                at.end_position.utf16_column + 1
-            );
+                at.end_position.utf16_column + 1,
+                self.code,
+                self.message,
+            )
+        };
+        for label in &self.related {
+            let at = &label.location;
+            if label.scope == LabelScope::Document {
+                let _ = write!(text, "\n  {}", at.uri.as_str());
+            } else {
+                let _ = write!(
+                    text,
+                    "\n  {}:{}:{}-{}:{}",
+                    at.uri.as_str(),
+                    at.start_position.line + 1,
+                    at.start_position.utf16_column + 1,
+                    at.end_position.line + 1,
+                    at.end_position.utf16_column + 1
+                );
+            }
             if let Some(message) = &label.message {
                 text.push_str(": ");
                 text.push_str(message);
@@ -220,6 +235,8 @@ impl DiagnosticCause {
 /// One highlight tied to the exact source revision used for its coordinates.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocatedLabel {
+    /// Whether the producer identified a range or only the document.
+    pub scope: LabelScope,
     /// Validated source revision and byte range.
     pub range: SourceRange,
     /// Explanation shown beside the highlight.
@@ -247,6 +264,7 @@ impl LocatedDiagnostic {
         Self {
             cause,
             primary: LocatedLabel {
+                scope: LabelScope::Range,
                 range: primary,
                 message: None,
             },
@@ -296,10 +314,12 @@ impl LocatedDiagnostic {
         let primary = &info.labels[0];
         let mut diagnostic = Self::new(cause, SourceRange::from_span(sources, primary.span)?);
         diagnostic.primary.message.clone_from(&primary.message);
+        diagnostic.primary.scope = primary.scope;
         diagnostic.related = info.labels[1..]
             .iter()
             .map(|label| {
                 Ok(LocatedLabel {
+                    scope: label.scope,
                     range: SourceRange::from_span(sources, label.span)?,
                     message: label.message.clone(),
                 })
@@ -438,7 +458,14 @@ impl Reporter {
     }
 
     fn resolve_label(label: &LocatedLabel) -> Result<ResolvedLabel, ReportError> {
+        if label.scope == LabelScope::Document
+            && (label.range.start() != 0
+                || label.range.end() != label.range.source().full_span().end.0)
+        {
+            return Err(ReportError::InvalidDocumentLabel);
+        }
         Ok(ResolvedLabel {
+            scope: label.scope,
             location: resolve_location(&label.range)?,
             message: label.message.clone(),
         })
@@ -519,6 +546,39 @@ mod tests {
     }
 
     #[test]
+    fn document_reports_preserve_revision_without_claiming_a_position() {
+        let mut sources = SourceRegistry::default();
+        let source = document(&mut sources, "untitled:component", "日本語😀\r\ntext");
+        let error = CompileError::for_document(
+            CompileDiagnostic::ProjectionPreparation {
+                detail: "ambiguous generated copies".into(),
+            },
+            &source,
+        );
+        let batch = Reporter::collect(&[error], &[], &sources, LintSettings::default()).unwrap();
+        let report = &batch.diagnostics[0];
+        assert_eq!(report.primary.scope, LabelScope::Document);
+        assert_eq!(
+            report.primary.location.revision,
+            Fingerprint::of(source.text()).0
+        );
+        assert_eq!(report.primary.location.end_utf16, 11);
+        assert_eq!(
+            report.display_text(),
+            "untitled:component: SW10008: cannot prepare the component projection: ambiguous generated copies"
+        );
+        let mut invalid = LocatedDiagnostic::new(
+            DiagnosticCause::Compile(CompileDiagnostic::JavaScriptParse),
+            range(&sources, &source, 0, 3),
+        );
+        invalid.primary.scope = LabelScope::Document;
+        assert!(matches!(
+            Reporter::new(LintSettings::default()).report(&invalid),
+            Err(ReportError::InvalidDocumentLabel)
+        ));
+    }
+
+    #[test]
     fn report_resolves_unicode_crlf_and_cross_file_fixes() {
         let mut sources = SourceRegistry::default();
         let first = document(&mut sources, "untitled:main", "a😀\r\nβ");
@@ -528,6 +588,7 @@ mod tests {
             range(&sources, &first, 7, 9),
         );
         finding.related.push(LocatedLabel {
+            scope: LabelScope::Range,
             range: range(&sources, &second, 0, 1),
             message: Some("other".into()),
         });

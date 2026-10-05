@@ -1,10 +1,17 @@
 import { convertToTSX, parse } from "@astrojs/compiler";
 
 import type { SourceProjection } from "../protocol.ts";
-import { converterIdentity, sourceMapV3, sourceRegions, type ScriptRegion } from "./common.ts";
+import {
+  converterIdentity,
+  sourceMapV3,
+  sourceRegions,
+  PreparationError,
+  type ScriptRegion,
+} from "./common.ts";
 
 export async function convert(source: string, filename: string): Promise<SourceProjection> {
   const options = { includeScripts: true };
+  const converter = converterIdentity("@astrojs/compiler", options);
   const [result, parsed] = await Promise.all([
     convertToTSX(source, { ...options, filename }),
     parse(source, { position: true }),
@@ -13,7 +20,13 @@ export async function convert(source: string, filename: string): Promise<SourceP
     (diagnostic) => diagnostic.severity === 1,
   );
   if (errors.length) {
-    throw new Error(errors.map((diagnostic) => diagnostic.text).join("\n"));
+    throw new PreparationError(
+      {
+        kind: "syntax",
+        detail: errors[0].text,
+      },
+      converter,
+    );
   }
   const scripts: ScriptRegion[] = [];
   const frontmatter = parsed.ast.children.find((node) => node.type === "frontmatter");
@@ -23,7 +36,13 @@ export async function convert(source: string, filename: string): Promise<SourceP
     const end = bytes.subarray(0, frontmatter.position.end.offset).toString("utf8").length - 3;
     const start = end - frontmatter.value.length;
     if (source.slice(start, end) !== frontmatter.value || source.slice(end, end + 3) !== "---") {
-      throw new Error("Astro frontmatter coordinates do not match source");
+      throw new PreparationError(
+        {
+          kind: "projection",
+          detail: "Astro frontmatter coordinates do not match source",
+        },
+        converter,
+      );
     }
     scripts.push({ id: 0, start, end });
   }
@@ -33,7 +52,13 @@ export async function convert(source: string, filename: string): Promise<SourceP
     }
     const { start, end } = script.position;
     if (source.slice(start, end) !== script.content) {
-      throw new Error("Astro client script coordinates do not match source");
+      throw new PreparationError(
+        {
+          kind: "projection",
+          detail: "Astro client script coordinates do not match source",
+        },
+        converter,
+      );
     }
     scripts.push({ id: scripts.length + 1, start, end });
   }
@@ -44,15 +69,18 @@ export async function convert(source: string, filename: string): Promise<SourceP
           ["processed-module", "module", "inline"].includes(script.type) &&
           script.content.length > 0,
       )
-      .map((script) => ({ start: script.position.start, end: script.position.end })),
+      .map((script) => ({
+        start: script.position.start,
+        end: script.position.end,
+      })),
     syntax: {
       language: "tsx",
       moduleKind: "module",
     },
     code: result.code,
-    map: sourceMapV3(result.map),
-    converter: converterIdentity("@astrojs/compiler", options),
+    map: sourceMapV3(result.map, converter),
+    converter,
     importRealms: scripts,
-    editableRegions: sourceRegions(source, scripts, frontmatter ? 0 : undefined),
+    editableRegions: sourceRegions(source, scripts, frontmatter ? 0 : undefined, converter),
   };
 }

@@ -219,7 +219,11 @@ for (const { version, core, exposure } of versions) {
     }
 
     function compile(prepared: PreparedSource) {
-      const summary = scanSource(prepared);
+      const scan = scanSource(prepared);
+      if (scan.kind !== "ready") {
+        expect.fail(JSON.stringify(scan.batch.reports));
+      }
+      const summary = scan.summary;
       const otherId = path.join(root, "other.ts");
       const other: PreparedSource = {
         kind: "direct",

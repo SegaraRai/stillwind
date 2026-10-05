@@ -31,13 +31,14 @@ use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, Stylesh
 use stillwind_semantic::{TypeFacts, TypeFactsUpdate};
 use stillwind_source::{Fingerprint, ModuleId, SourceRegistry, SourceUri};
 
-use crate::api::binding_output_with_batch;
+use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{
-    BindingReport, NativeDiagnosticBatch, ProjectBindingOutput, ProjectModuleOutput,
+    BindingReport, NativeDiagnosticBatch, NativeScanResult, ProjectBindingOutput,
+    ProjectModuleOutput,
 };
-use crate::source_input::{HostPreparedSource, NativePreparedSource};
+use crate::source_input::{HostPreparedSource, NativePreparedSource, NativeSourceFailure};
 use crate::stylesheet::{
     NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
     NativeStylesheetOutput, NativeStylesheetPart, NativeStylesheetPlacement, NativeStylesheetPlan,
@@ -334,6 +335,50 @@ pub struct NativeProjectSession {
 
 #[napi]
 impl NativeProjectSession {
+    /// Scans a source before checker queries. Fatal failures replace the module's
+    /// latest reports and reject its attempted revision without publishing output.
+    /// Malformed host transport remains an exception.
+    #[napi]
+    pub fn scan_source(&mut self, source: NativePreparedSource) -> napi::Result<NativeScanResult> {
+        let source = HostPreparedSource::try_from(source)?;
+        let module = source.module_id().clone();
+        let result = scan_prepared(&source, self.session.sources_mut())?;
+        if let SourceScan::Failed { scan, batch } = &result {
+            self.session.reject_source_attempt(
+                module.clone(),
+                scan.source.clone(),
+                scan.diagnostics.clone(),
+            );
+            self.session
+                .publish_diagnostic_batch(module.clone(), batch.clone());
+        }
+        Ok(result.into_binding(&module))
+    }
+
+    /// Resolves a known projection or checker failure in the original revision.
+    /// Keeps successful watch output and publishes the attempted diagnostic batch.
+    /// Rejects malformed document identities or original coordinates.
+    #[napi]
+    pub fn report_source_failure(
+        &mut self,
+        failure: NativeSourceFailure,
+    ) -> napi::Result<NativeDiagnosticBatch> {
+        let (module, source, error) = failure.resolve(self.session.sources_mut())?;
+        let diagnostics = vec![error];
+        let batch = Reporter::collect(
+            &diagnostics,
+            &[],
+            self.session.sources(),
+            LintSettings::default(),
+        )
+        .map_err(|error| Error::from_reason(error.to_string()))?;
+        let result = NativeDiagnosticBatch::new(&module, &batch);
+        self.session
+            .reject_source_attempt(module.clone(), source, diagnostics);
+        self.session.publish_diagnostic_batch(module, batch);
+        Ok(result)
+    }
+
     /// Returns the latest attempted diagnostics for every retained module.
     #[napi]
     pub fn diagnostic_batches(&self) -> Vec<NativeDiagnosticBatch> {

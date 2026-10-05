@@ -5,6 +5,7 @@ export default defineConfig({
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
+        dependsOn: ["@stillwind/integration#build"],
       },
       "test:e2e": {
         command: "vp test --run --config acceptance.config.ts",

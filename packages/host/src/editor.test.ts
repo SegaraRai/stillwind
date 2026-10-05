@@ -70,6 +70,25 @@ test("unsaved source, broken syntax, recovery and macro removal retain explicit 
   await expect(editor.analyze(entry)).rejects.toThrow(/not open/);
 });
 
+test("component conversion failures retain reports and the previous successful preview", async () => {
+  const id = path.join(root, "document.vue");
+  const editor = project();
+  const source =
+    "<script setup>import {style} from 'stillwind/vue';const props=style('red');</script><template><div v-bind='props'/></template>";
+  editor.update({ id, version: 1, source });
+  expect((await editor.analyze(id)).status).toBe("success");
+  editor.update({ id, version: 2, source: "<template><div></template>" });
+  const failed = await editor.analyze(id);
+  expect(failed.status).toBe("partial");
+  expect(failed.error).toBeUndefined();
+  expect(failed.output?.reports[0].code).toBe("SW01013");
+  expect(failed.previousSuccess?.version).toBe(1);
+  editor.update({ id, version: 3, source });
+  const recovered = await editor.analyze(id);
+  expect(recovered.status).toBe("success");
+  expect(recovered.output?.reports).toEqual([]);
+});
+
 test("dependency overlays are used and removing an import stops dependency reads", async () => {
   const editor = project();
   editor.update({

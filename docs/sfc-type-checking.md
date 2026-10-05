@@ -60,11 +60,22 @@ const other = style(identity(flag ? a : b));
 ```
 
 `let selected = a` のまま `b` を代入すると、隠し identity により型が非互換になる。
-該当 checker 診断は `SHTS002` として原文位置で報告する。`any`、`unknown`、
+該当 checker 診断は `SW12004` として原文位置で報告する。`any`、`unknown`、
 `StyleResult<string>`、identity を消す関数引数等で必要な候補が求まらなければ
-`SHTS003`、または native の未解決値診断で拒否する。型情報を失った候補を選択して
+`SW12005`、または native の未解決値診断で拒否する。型情報を失った候補を選択して
 成功扱いにしない。通常のユーティリティ条件式は引き続き Rust の構造的 lowering を使う。
 任意の TS 診断をすべて報告する型検査ツールとしては動作しない。
+
+変換器が原文の構文を拒否した場合は `SW01013`、変換後のコードを解析できない場合は
+`SW10007` として報告する。map の不整合と必須の式・宣言の対応欠落は、
+`SW10001`〜`SW10003` として区別する。必須の checker AST が見つからない場合は
+`SW12003` とし、型情報の欠落とは区別する。
+
+`scanSource` は検証済みの `ready` と診断を持つ `failed` を返す。`failed` は summary を
+持たず、host は依存探索や型問い合わせを続けない。診断は通常モードと collect モードで
+同じ reports を使い、変換器の名前とバージョンを notes に含める。原文位置を検証できない
+label は `scope: "document"` を持つ。watch は失敗した原文 revision の診断を保持し、
+直前に成功した生成物を使う。修正後の成功時に診断と生成物を置き換える。
 
 `StyleResult` の identity は `data-__stillwindStyleIdentity` という readonly の型専用
 文字列 property。Svelte の attachment 用 symbol index signature と共存する。

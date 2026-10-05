@@ -3,7 +3,12 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { cleanModuleId, fileModuleDescriptor, loadCssGraph } from "@stillwind/host";
+import {
+  cleanModuleId,
+  fileModuleDescriptor,
+  loadCssGraph,
+  CompilationFailure,
+} from "@stillwind/host";
 import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
@@ -128,7 +133,7 @@ export async function compileGraph(
     const source = await host.read(id);
     revision.update(id).update("\0").update(source).update("\0");
     const descriptor = fileModuleDescriptor(options.root, id);
-    const summary = scanSource({
+    const scan = scanSource({
       kind: "direct",
       moduleId: descriptor.moduleId,
       document: {
@@ -137,6 +142,10 @@ export async function compileGraph(
       },
       syntax: descriptor.syntax,
     });
+    if (scan.kind === "failed") {
+      throw new CompilationFailure([scan.batch]);
+    }
+    const summary = scan.summary;
     for (const { source: specifier } of summary.moduleSpecifiers) {
       if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {
         continue;

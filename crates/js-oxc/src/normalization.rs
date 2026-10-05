@@ -17,6 +17,7 @@ use oxc::ast_visit::{Visit, walk};
 use oxc::parser::Parser;
 use oxc::span::GetSpan;
 
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{
     AdapterKind, CheckerBinding, CheckerRole, CheckerSpan, FrameworkSpec, ModuleIr,
     ProjectionDecision, ProjectionExpression, ScriptLanguage, ScriptModuleKind,
@@ -49,6 +50,25 @@ pub struct NormalizedProjection<'a> {
 }
 
 impl NormalizedProjection<'_> {
+    /// Converts a mapping failure into a diagnostic in the original document.
+    pub(crate) fn failure(&self, error: ProjectionError, original: &SourceFile) -> CompileError {
+        let mapped = match &error {
+            ProjectionError::Unmapped(span) => self.original_span(*span).ok(),
+            _ => None,
+        };
+        if let Some(mapped) = mapped {
+            CompileError::new(
+                CompileDiagnostic::CheckerTargetUnavailable {
+                    detail: "the generated AST has no target for the required checker operation"
+                        .into(),
+                },
+                mapped.original,
+            )
+        } else {
+            CompileError::for_document(error.into(), original)
+        }
+    }
+
     fn fragments(&self, span: Span) -> Vec<Span> {
         self.segments
             .iter()
@@ -218,7 +238,7 @@ pub fn normalize_projection<'a>(
     analysis_id: FileId,
     language: ScriptLanguage,
     module_kind: ScriptModuleKind,
-) -> Result<NormalizedProjection<'a>, ProjectionError> {
+) -> Result<NormalizedProjection<'a>, CompileError> {
     normalize_with_language(
         generated,
         original,
@@ -238,16 +258,20 @@ pub(crate) fn normalize_with_language<'a>(
     analysis_id: FileId,
     language: ScriptLanguage,
     module_kind: ScriptModuleKind,
-) -> Result<NormalizedProjection<'a>, ProjectionError> {
+) -> Result<NormalizedProjection<'a>, CompileError> {
     if generated.id() == original.id()
         || analysis_id == generated.id()
         || analysis_id == original.id()
     {
-        return Err(ProjectionError::Map(
-            "projection sources require distinct file identities".into(),
+        return Err(CompileError::for_document(
+            CompileDiagnostic::ProjectionMap {
+                detail: "projection sources require distinct file identities".into(),
+            },
+            original,
         ));
     }
-    let index = ProjectionIndex::new(generated, original, map)?;
+    let index = ProjectionIndex::new(generated, original, map)
+        .map_err(|error| CompileError::for_document(error.into(), original))?;
     let allocator = Allocator::default();
     let parsed = Parser::new(
         &allocator,
@@ -256,9 +280,21 @@ pub(crate) fn normalize_with_language<'a>(
     )
     .parse();
     if let Some(diagnostic) = parsed.diagnostics.first() {
-        return Err(ProjectionError::Map(format!(
-            "invalid generated JavaScript: {diagnostic}"
-        )));
+        let cause = CompileDiagnostic::ProjectionSyntax {
+            detail: diagnostic.to_string(),
+        };
+        let mapped = diagnostic.labels.first().and_then(|label| {
+            let start = label.offset();
+            let end = label.offset().checked_add(label.len())?;
+            index
+                .verify_exact(Span::new(generated.id(), start, end))
+                .ok()
+        });
+        return Err(if let Some(mapped) = mapped {
+            CompileError::new(cause, mapped.original)
+        } else {
+            CompileError::for_document(cause, original)
+        });
     }
     let mut visitor = NormalizationVisitor {
         source: generated,
@@ -279,43 +315,50 @@ pub(crate) fn normalize_with_language<'a>(
         ..
     } = visitor;
     let omitted = merge_omissions(omitted);
-    let mut output = String::with_capacity(generated.text().len());
-    let mut cursor = 0;
-    let mut segments = Vec::new();
-    for omission in omitted.into_iter().chain(std::iter::once(Span::new(
-        generated.id(),
-        generated.full_span().end.0,
-        generated.full_span().end.0,
-    ))) {
-        if omission.start.0 < cursor {
-            return Err(ProjectionError::Map(
-                "overlapping normalization candidates".into(),
-            ));
+    let build = || -> Result<NormalizedProjection<'a>, ProjectionError> {
+        let mut output = String::with_capacity(generated.text().len());
+        let mut cursor = 0;
+        let mut segments = Vec::new();
+        for omission in omitted.into_iter().chain(std::iter::once(Span::new(
+            generated.id(),
+            generated.full_span().end.0,
+            generated.full_span().end.0,
+        ))) {
+            if omission.start.0 < cursor {
+                return Err(ProjectionError::Map(
+                    "overlapping normalization candidates".into(),
+                ));
+            }
+            let start = u32::try_from(output.len())
+                .map_err(|_| ProjectionError::Map("normalized source too large".into()))?;
+            output.push_str(generated.slice(Span::new(
+                generated.id(),
+                cursor,
+                omission.start.0,
+            ))?);
+            let end = u32::try_from(output.len())
+                .map_err(|_| ProjectionError::Map("normalized source too large".into()))?;
+            if start != end {
+                segments.push(Segment {
+                    normalized: Span::new(analysis_id, start, end),
+                    projected: Span::new(generated.id(), cursor, omission.start.0),
+                });
+            }
+            cursor = omission.end.0;
         }
-        let start = u32::try_from(output.len())
-            .map_err(|_| ProjectionError::Map("normalized source too large".into()))?;
-        output.push_str(generated.slice(Span::new(generated.id(), cursor, omission.start.0))?);
-        let end = u32::try_from(output.len())
-            .map_err(|_| ProjectionError::Map("normalized source too large".into()))?;
-        if start != end {
-            segments.push(Segment {
-                normalized: Span::new(analysis_id, start, end),
-                projected: Span::new(generated.id(), cursor, omission.start.0),
-            });
-        }
-        cursor = omission.end.0;
-    }
-    let mut normalized = NormalizedProjection {
-        source: SourceFile::new(analysis_id, None, None, output)?,
-        index,
-        segments,
-        expressions: BTreeMap::new(),
-        producers: BTreeMap::new(),
-        ignored,
-        bindings,
+        let mut normalized = NormalizedProjection {
+            source: SourceFile::new(analysis_id, None, None, output)?,
+            index,
+            segments,
+            expressions: BTreeMap::new(),
+            producers: BTreeMap::new(),
+            ignored,
+            bindings,
+        };
+        normalized.record_expressions(expressions);
+        Ok(normalized)
     };
-    normalized.record_expressions(expressions);
-    Ok(normalized)
+    build().map_err(|error| CompileError::for_document(error.into(), original))
 }
 
 fn merge_omissions(mut spans: Vec<Span>) -> Vec<Span> {

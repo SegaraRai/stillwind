@@ -125,7 +125,11 @@ for (const version of ["0.7.56", "0.7.61"]) {
     }
 
     function collect(prepared: PreparedSource) {
-      const summary = scanSource(prepared);
+      const scan = scanSource(prepared);
+      if (scan.kind !== "ready") {
+        expect.fail(JSON.stringify(scan.batch.reports));
+      }
+      const summary = scan.summary;
       const typeFacts = facts
         .collect(
           [
@@ -245,6 +249,29 @@ const __stillwindCheckerHelper\\u0030=0,__stillwindCheckerHelper1=0;`,
       );
     });
 
+    test("duplicated slot macro expressions without original mappings report a conversion failure", async () => {
+      const prepared = await project(component("", '<slot item={style("grid")}></slot>'));
+      const scan = scanSource(prepared);
+      expect(scan).toMatchObject({
+        kind: "failed",
+        batch: {
+          module: prepared.moduleId,
+          reports: [
+            {
+              code: "SW10002",
+              primary: {
+                scope: "document",
+                location: {
+                  uri: prepared.document.uri,
+                },
+              },
+              notes: expect.arrayContaining([`Converter: svelte2tsx@${version}`]),
+            },
+          ],
+        },
+      });
+    });
+
     for (const moduleAttribute of ['context="module"', "module"]) {
       test(`${moduleAttribute}: module and instance scripts retain their import realms`, async () => {
         const prepared = await project(
@@ -279,7 +306,7 @@ const __stillwindCheckerHelper\\u0030=0,__stillwindCheckerHelper1=0;`,
       const start = Buffer.byteLength(code.slice(0, code.indexOf('style(item,"grid")') + 6));
       expect(() => collect(prepared)).toThrow(
         expect.objectContaining({
-          code: "SHTS003",
+          issue: expect.objectContaining({ kind: "identity" }),
           moduleId: prepared.moduleId,
           start,
           end: start + 4,

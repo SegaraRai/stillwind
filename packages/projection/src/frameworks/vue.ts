@@ -5,14 +5,34 @@ import * as vue from "@vue/language-core";
 import ts from "typescript";
 
 import type { SourceProjection } from "../protocol.ts";
-import { converterIdentity, sourceRegions, type ScriptRegion } from "./common.ts";
+import {
+  converterIdentity,
+  sourceRegions,
+  originalRange,
+  PreparationError,
+  type ScriptRegion,
+} from "./common.ts";
 
 export function convert(source: string, filename: string): SourceProjection {
+  const options = vue.getDefaultCompilerOptions();
+  const converter = converterIdentity("@vue/language-core", {
+    options,
+    typescript: ts.version,
+  });
   const parsed = parse(source, { filename });
   if (parsed.errors.length) {
-    throw new Error(parsed.errors.map(String).join("\n"));
+    const error = parsed.errors[0];
+    throw new PreparationError(
+      {
+        kind: "syntax",
+        detail: String(error),
+      },
+      converter,
+      typeof error === "object" && "loc" in error
+        ? originalRange(source, error.loc?.start.offset, error.loc?.end.offset)
+        : undefined,
+    );
   }
-  const options = vue.getDefaultCompilerOptions();
   const globals = (
     vue as typeof vue & {
       generateGlobalTypes?: (compilerOptions: typeof options) => string;
@@ -23,12 +43,24 @@ export function convert(source: string, filename: string): SourceProjection {
     getAssociatedScript: () => undefined,
   });
   if (!root) {
-    throw new Error(`Vue converter did not produce a projection for ${filename}`);
+    throw new PreparationError(
+      {
+        kind: "projection",
+        detail: "Vue converter did not produce a projection",
+      },
+      converter,
+    );
   }
   try {
     const service = plugin.typescript?.getServiceScript(root);
     if (!service) {
-      throw new Error(`Vue converter did not produce a service script for ${filename}`);
+      throw new PreparationError(
+        {
+          kind: "projection",
+          detail: "Vue converter did not produce a service script",
+        },
+        converter,
+      );
     }
     const scripts: ScriptRegion[] = [];
     const { script, scriptSetup } = parsed.descriptor;
@@ -69,15 +101,12 @@ export function convert(source: string, filename: string): SourceProjection {
           }),
         ),
       },
-      converter: converterIdentity("@vue/language-core", {
-        options,
-        typescript: ts.version,
-      }),
+      converter,
       importRealms: scripts,
       editableRegions: quotedRegions(
         source,
         parsed.descriptor.template?.ast,
-        sourceRegions(source, scripts, scriptSetup ? 1 : script ? 0 : undefined),
+        sourceRegions(source, scripts, scriptSetup ? 1 : script ? 0 : undefined, converter),
       ),
     };
   } finally {

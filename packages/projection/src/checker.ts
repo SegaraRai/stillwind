@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 
+import { PreparationError } from "./frameworks/common.ts";
 import type { PreparedSource } from "./protocol.ts";
 
 /**
@@ -63,7 +64,13 @@ function clientProjectionStart(
   region: { start: number; end: number },
 ): number {
   if (source.projection.map.kind !== "v3") {
-    throw new Error("Astro client scripts require a source map");
+    throw new PreparationError(
+      {
+        kind: "projection",
+        detail: "Astro client scripts require a source map",
+      },
+      source.projection.converter,
+    );
   }
   const trace = new TraceMap(source.projection.map.json);
   const selected = trace.sources.indexOf(source.projection.map.source);
@@ -88,7 +95,13 @@ function clientProjectionStart(
     }
   }
   if (candidates.size !== 1) {
-    throw new Error(`Cannot map Astro client script in ${source.moduleId}`);
+    throw new PreparationError(
+      {
+        kind: "projection",
+        detail: "Cannot uniquely map the Astro client script into its checker buffer",
+      },
+      source.projection.converter,
+    );
   }
   return [...candidates][0];
 }

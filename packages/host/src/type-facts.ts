@@ -8,6 +8,7 @@ import type {
   NativeTypeFact,
   NativeSymbolicValue,
   NativeExportedValue,
+  NativeSourceIssue,
 } from "@stillwind/native";
 import type { Node, SourceFile } from "typescript/unstable/ast";
 import {
@@ -27,53 +28,29 @@ import {
   type Diagnostic,
 } from "typescript/unstable/sync";
 
-import { CheckerSource, checkerId, byteToUtf16, type TypeFactSource } from "./checker-source.ts";
+import { CheckerSource, checkerId, type TypeFactSource } from "./checker-source.ts";
 
 export type { TypeFactSource } from "./checker-source.ts";
 
 /** A failed checker contract, reported at original UTF-8 coordinates. */
 export class TypeFactsError extends Error {
   readonly moduleId: string;
-  readonly start: number;
-  readonly end: number;
-  readonly code: string;
+  readonly start?: number;
+  readonly end?: number;
+  readonly issue: NativeSourceIssue;
 
-  constructor(moduleId: string, start: number, end: number, code: string, message: string) {
-    super(`${code}: ${message} (${moduleId}:${start})`);
+  constructor(
+    moduleId: string,
+    start: number | undefined,
+    end: number | undefined,
+    kind: NativeSourceIssue["kind"],
+    detail: string,
+  ) {
+    super(detail);
     this.moduleId = moduleId;
     this.start = start;
     this.end = end;
-    this.code = code;
-  }
-
-  /** Formats original UTF-8 bounds and original UTF-16 editor coordinates. */
-  diagnostic(source: string, uri: string) {
-    const position = (offset: number) => {
-      const utf16 = byteToUtf16(source, offset);
-      const lines = source.slice(0, utf16).split("\n");
-      return {
-        utf16,
-        line: lines.length - 1,
-        column: lines.at(-1)!.length,
-      };
-    };
-    const start = position(this.start),
-      end = position(this.end);
-    return {
-      code: this.code,
-      message: this.message,
-      uri,
-      revision: createHash("sha256").update(source).digest("hex"),
-      start: this.start,
-      end: this.end,
-      startUtf16: start.utf16,
-      endUtf16: end.utf16,
-      startLine: start.line,
-      endLine: end.line,
-      startColumn: start.column,
-      endColumn: end.column,
-      notes: [],
-    };
+    this.issue = { kind, detail };
   }
 }
 
@@ -309,7 +286,7 @@ function prepareProject(
           source.moduleId,
           probe.start,
           probe.end,
-          "SHTS003",
+          "checker",
           "Cannot map this expression to a checker source",
         );
       }
@@ -502,8 +479,8 @@ export class TypeScriptFactsService {
           ),
         );
         if (diagnostic) {
-          const start = mapping.originalOffset(diagnostic.pos) ?? 0;
-          const end = mapping.originalOffset(diagnostic.end, true) ?? start;
+          const start = mapping.originalOffset(diagnostic.pos) ?? undefined;
+          const end = mapping.originalOffset(diagnostic.end, true) ?? undefined;
           const message = diagnosticText(diagnostic).replace(
             /stillwind\/v1:[A-Za-z0-9_-]+/g,
             "declaration identity",
@@ -512,7 +489,7 @@ export class TypeScriptFactsService {
             mapping.source.moduleId,
             start,
             end,
-            "SHTS002",
+            "assignment",
             `TS${diagnostic.code}: ${message} Preserve declaration candidates with an explicit union or a generic parameter.`,
           );
         }
@@ -527,7 +504,7 @@ export class TypeScriptFactsService {
               mapping.source.moduleId,
               fact.start,
               fact.end,
-              "SHTS003",
+              "checker",
               "Ambiguous checker results for this original expression",
             );
           }
@@ -598,7 +575,7 @@ function factsForSource(
         mapping.source.moduleId,
         probe.start,
         probe.end,
-        "SHTS003",
+        "checker",
         "Projected expression has no matching checker AST node",
       );
     }
@@ -629,7 +606,7 @@ function factsForSource(
           mapping.source.moduleId,
           probe.start,
           probe.end,
-          "SHTS003",
+          "identity",
           "Cannot determine a finite set of declaration identities. Preserve the value's inferred type, use an explicit union, or use a generic parameter.",
         );
       }

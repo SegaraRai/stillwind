@@ -17,7 +17,7 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, DiagnosticBatch, filter_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
-use stillwind_source::{FileId, ModuleId, SourceRegistry, SourceRegistryError, Span};
+use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
 use crate::ReservedNames;
 use crate::{DependencyIndex, ProjectStylesheet};
@@ -72,6 +72,12 @@ pub struct SessionReload {
     pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
 }
 
+/// Original source and fatal findings from an attempt that produced no analysis.
+struct RejectedSourceAttempt {
+    source: Arc<SourceFile>,
+    diagnostics: Vec<CompileError>,
+}
+
 /// Keeps the analyses and compiled output for a project.
 ///
 /// Session clones share analyses and compiled modules through `Arc`, so transactions
@@ -82,6 +88,9 @@ pub struct ProjectSession {
     sources: SourceRegistry,
     /// Keeps each module's latest diagnostic batch even if its active output is older.
     reported: BTreeMap<ModuleId, DiagnosticBatch>,
+    /// Attempts rejected before an analysis could be built. Their older artifacts
+    /// remain available in watch mode but cannot satisfy current semantic queries.
+    rejected_sources: BTreeMap<ModuleId, Arc<RejectedSourceAttempt>>,
     /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
     /// Compiler configuration shared by all artifacts in this session.
@@ -152,6 +161,7 @@ impl ProjectSession {
         Self {
             sources,
             reported: BTreeMap::new(),
+            rejected_sources: BTreeMap::new(),
             current: snapshot,
             options,
             identifiers,
@@ -213,6 +223,7 @@ impl ProjectSession {
     /// Publishes the latest attempted reports while retaining active watch artifacts.
     pub fn retain_attempted_diagnostics(&mut self, attempted: &Self) {
         self.reported = attempted.reported.clone();
+        self.rejected_sources = attempted.rejected_sources.clone();
     }
 
     /// Returns the last reported batch for each retained module.
@@ -223,6 +234,29 @@ impl ProjectSession {
     /// Replaces one module's diagnostics for its latest attempted input revision.
     pub fn publish_diagnostic_batch(&mut self, module: ModuleId, batch: DiagnosticBatch) {
         self.reported.insert(module, batch);
+    }
+
+    /// Records an attempt that failed before compilation. `source` and `diagnostics`
+    /// must belong to this session's registry. Watch mode retains published output;
+    /// build mode removes it. A later module update replaces this rejection.
+    pub fn reject_source_attempt(
+        &mut self,
+        module: ModuleId,
+        source: Arc<SourceFile>,
+        diagnostics: Vec<CompileError>,
+    ) {
+        let dependents = self.composition_dependents(&module);
+        if self.mode == SessionMode::Build {
+            self.remove_artifact(&module);
+        }
+        self.rejected_sources.insert(
+            module,
+            Arc::new(RejectedSourceAttempt {
+                source,
+                diagnostics,
+            }),
+        );
+        self.refresh_style_lints(dependents);
     }
 
     /// Retains only script revisions needed for future compilation.
@@ -237,6 +271,9 @@ impl ProjectSession {
             if analysis.source.uri().is_some() {
                 retained.retain(analysis.source.clone())?;
             }
+        }
+        for attempted in self.rejected_sources.values() {
+            retained.retain(attempted.source.clone())?;
         }
         self.sources = retained;
         Ok(())
@@ -319,6 +356,9 @@ impl ProjectSession {
     /// keys differ. This lookup compares stored keys without hashing the IR or changing
     /// the session.
     pub fn current_artifact(&self, module: &ModuleId) -> Option<&CompiledModule> {
+        if self.rejected_sources.contains_key(module) {
+            return None;
+        }
         let analysis = self.analyses.get(module)?;
         if !analysis.diagnostics.is_empty() || !analysis.integration_diagnostics.is_empty() {
             return None;
@@ -395,6 +435,7 @@ impl ProjectSession {
     /// updated in direct and indirect consumers using only artifacts that match current
     /// analyses.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
+        self.rejected_sources.remove(&analysis.module_id);
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         let key = backend.key_for(&analysis);
         self.analysis_keys
@@ -455,6 +496,7 @@ impl ProjectSession {
         let mut dependents = BTreeSet::new();
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         for analysis in analyses {
+            self.rejected_sources.remove(&analysis.module_id);
             self.analysis_keys.insert(
                 analysis.module_id.clone(),
                 Arc::new(backend.key_for(&analysis)),
@@ -476,6 +518,7 @@ impl ProjectSession {
         let removed = self.analyses.remove(module).is_some();
         self.analysis_keys.remove(module);
         self.reported.remove(module);
+        self.rejected_sources.remove(module);
         let dependents = self.composition_dependents(module);
         self.remove_artifact(module);
         self.refresh_style_lints(dependents);
@@ -612,6 +655,7 @@ impl ProjectSession {
         );
         next.sources = self.sources.clone();
         next.reported = self.reported.clone();
+        next.rejected_sources = self.rejected_sources.clone();
         next.authored = self.authored.clone();
         if next.current.fingerprints().content == self.current.fingerprints().content
             && next.options == self.options
@@ -621,7 +665,19 @@ impl ProjectSession {
             next.dependencies = self.dependencies.clone();
         }
         let mut update = SessionReload::default();
+        for (id, attempt) in &self.rejected_sources {
+            update
+                .diagnostics
+                .insert(id.clone(), attempt.diagnostics.clone());
+            if self.mode == SessionMode::Build {
+                next.remove_artifact(id);
+            }
+        }
         for (id, analysis) in &self.analyses {
+            if self.rejected_sources.contains_key(id) {
+                next.analyses.insert(id.clone(), analysis.clone());
+                continue;
+            }
             let changed = next.update_module(analysis.as_ref().clone());
             if !changed.diagnostics.is_empty() {
                 update.diagnostics.insert(id.clone(), changed.diagnostics);

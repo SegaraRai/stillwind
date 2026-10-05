@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { NativeProjectSession } from "@stillwind/native";
+import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "./compiler.ts";
@@ -10,6 +10,7 @@ test("a rejected generator name is reported through the host warnings", async ()
   // A rejected name comes from the host's generator rather than from the source, so it has no
   // position to report as a diagnostic or a lint finding.
   const session = {
+    scanSource,
     compile: () => ({
       modules: [
         {
