@@ -1,0 +1,44 @@
+{
+  "name": "@stillwind/vscode-extension",
+  "version": "0.0.0",
+  "description": "Stillwind language support for VS Code and browser editors",
+  "license": "MIT",
+  "files": [
+    "dist/api",
+    "dist/extension",
+    "dist/*.vsix",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    "./manifest": {
+      "types": "./dist/api/manifest.d.ts",
+      "default": "./dist/api/manifest.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@stillwind/analysis": "workspace:*",
+    "@stillwind/config": "workspace:*",
+    "@stillwind/host": "workspace:*",
+    "@stillwind/language-server": "workspace:*",
+    "@stillwind/native": "workspace:*",
+    "esbuild-wasm": "^0.28.2",
+    "pathe": "^2.0.3",
+    "vscode-languageclient": "^10.1.2",
+    "vscode-languageserver": "^10.1.2"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/vscode": "latest",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

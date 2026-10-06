@@ -3,6 +3,7 @@ packages:
   - benchmarks
   - e2e/css
   - e2e/harness
+  - e2e/play
   - e2e/bundlers/*
   - e2e/frameworks/*
   - packages/*
@@ -11,6 +12,7 @@ packages:
 
 allowBuilds:
   "@parcel/watcher": true
+  "@vscode/vsce-sign": false # VSIX creation does not require package signing.
   "@swc/core": false # Platform binaries are provided by optional dependencies.
   esbuild: true
   sharp: true

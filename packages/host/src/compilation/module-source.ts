@@ -1,6 +1,3 @@
-import { relative } from "node:path";
-import { pathToFileURL } from "node:url";
-
 import type { ProjectInput, ScriptSyntax, SourceDocument } from "@stillwind/projection";
 
 const formatsByExtension: Partial<Record<string, SourceDocument["format"]>> = {
@@ -27,19 +24,6 @@ export type ModuleDescriptor = Pick<
   /** Original document identity and format. The compiler obtains its text through the host. */
   document: Omit<SourceDocument, "code">;
 };
-
-/**
- * Derives a compiler module identity relative to a filesystem root.
- *
- * @param root - Filesystem directory from which the identity is made relative.
- * @param id - Filesystem path to identify. Callers remove resolver queries before using this
- * helper.
- * @returns A relative path with forward slashes. Paths outside the root retain `..` segments. This
- * function does not enforce containment.
- */
-export function compilerModuleId(root: string, id: string): string {
-  return relative(root, id).replaceAll("\\", "/");
-}
 
 /**
  * Infers the source format and parser language from a module path.
@@ -70,28 +54,6 @@ export function fileSourceKind(id: string): {
 }
 
 /**
- * Infers parser metadata from a filesystem path and assigns compiler and checker identities.
- *
- * @param root - Project directory used for relative compiler and projection identities.
- * @param id - Absolute source path, optionally followed by a query or fragment suffix.
- * @returns Metadata for the file after removing its query or fragment suffix.
- */
-export function fileModuleDescriptor(root: string, id: string): ModuleDescriptor {
-  const file = cleanModuleId(id);
-  const { syntax, format } = fileSourceKind(file);
-  return {
-    moduleId: compilerModuleId(root, file),
-    document: {
-      uri: pathToFileURL(file).href,
-      format,
-    },
-    checkerFileName: file,
-    projectionFileName: compilerModuleId(root, file),
-    syntax,
-  };
-}
-
-/**
  * Removes a filesystem identity's query or fragment before a disk operation.
  *
  * @param id - Resolver identity, including any query or fragment suffix.
@@ -116,7 +78,7 @@ export function cleanModuleId(id: string): string {
  * byte.
  */
 export function byteToUtf16(text: string, offset: number): number {
-  const bytes = Buffer.from(text);
+  const bytes = new TextEncoder().encode(text);
   if (
     offset < 0 ||
     offset > bytes.length ||
@@ -124,5 +86,5 @@ export function byteToUtf16(text: string, offset: number): number {
   ) {
     throw new Error("Invalid original UTF-8 boundary");
   }
-  return bytes.subarray(0, offset).toString("utf8").length;
+  return new TextDecoder().decode(bytes.subarray(0, offset)).length;
 }

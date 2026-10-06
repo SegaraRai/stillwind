@@ -7,19 +7,15 @@ export {
   analyzeModule,
   compileModule,
   type CompilerHost,
-  type ModuleCompileOptions,
   type ModuleAnalysis,
+  type ModuleCompileOptions,
   type SemanticDependency,
 } from "./compiler.ts";
-export { CompilationFailure } from "./module-graph.ts";
-export {
-  cleanModuleId,
-  compilerModuleId,
-  fileModuleDescriptor,
-  fileSourceKind,
-  type ModuleDescriptor,
-} from "./module-source.ts";
+export { compilerModuleId, fileModuleDescriptor } from "./filesystem.ts";
 export { finalizeModuleWithMap, type FinalizedModuleEdit } from "./finalize.ts";
+export { CompilationFailure } from "./module-graph.ts";
+export { cleanModuleId, fileSourceKind, type ModuleDescriptor } from "./module-source.ts";
+export type { PreparedSource } from "./protocol.ts";
 export {
   composeCarrierSourceMap,
   composeFrameworkSourceMap,
@@ -28,4 +24,3 @@ export {
   type CompilerMapping,
   type UpstreamSourceMap,
 } from "./source-map.ts";
-export type { PreparedSource } from "./protocol.ts";

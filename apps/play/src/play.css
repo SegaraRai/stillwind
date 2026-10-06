@@ -164,19 +164,6 @@
     height: calc(100% - 41px);
     overflow: auto;
   }
-  .code-editor .cm-editor {
-    min-height: 100%;
-    font-size: 13px;
-  }
-  .code-editor .cm-scroller {
-    font-family: "SFMono-Regular", Consolas, monospace;
-    line-height: 1.6;
-  }
-  .code-editor .cm-gutters {
-    background: #101832;
-    border-right-color: #26345d;
-    color: #60709f;
-  }
   .viewport-switcher {
     display: flex;
     gap: 0.2rem;

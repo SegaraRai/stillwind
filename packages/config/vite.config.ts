@@ -4,7 +4,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   root: import.meta.dirname,
   pack: {
-    entry: ["src/index.ts", "src/node.ts"],
+    entry: ["src/index.ts", "src/browser.ts", "src/node.ts"],
     format: ["esm"],
     fixedExtension: false,
     dts: true,
@@ -17,8 +17,15 @@ export default defineConfig({
         command: "vp pack",
         dependsOn: ["@stillwind/native#build", "@stillwind/projection#build"],
       },
-      typecheck: { command: "tsc --noEmit", dependsOn: ["build"] },
-      test: { command: "vp test --run", cache: testCache, dependsOn: ["build"] },
+      typecheck: {
+        command: "tsc --noEmit",
+        dependsOn: ["build"],
+      },
+      test: {
+        command: "vp test --run",
+        cache: testCache,
+        dependsOn: ["build"],
+      },
     },
   },
 });

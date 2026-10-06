@@ -1,0 +1,12 @@
+{
+  "name": "@stillwind-internal/e2e-play",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "playwright": "^1.58.2",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

@@ -1,64 +1,82 @@
-import { URL } from "node:url";
-
 import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import react from "@vitejs/plugin-react";
-import { defineConfig, lazyPlugins } from "vite-plus";
+import { defineConfig } from "vite-plus";
+
+const headers = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+};
 
 export default defineConfig({
   root: import.meta.dirname,
+  publicDir: "dist/assets-static",
+  resolve: {
+    alias: {
+      "monaco-editor": "@codingame/monaco-vscode-editor-api",
+      vscode: "@codingame/monaco-vscode-extension-api",
+    },
+    dedupe: ["@codingame/monaco-vscode-api"],
+  },
   server: {
     port: 5177,
     strictPort: true,
+    headers,
   },
+  preview: {
+    headers,
+  },
+  build: {
+    outDir: "dist/site",
+    target: "esnext",
+    sourcemap: true,
+  },
+  worker: {
+    format: "es",
+  },
+  optimizeDeps: {
+    exclude: [
+      "@codingame/monaco-vscode-api",
+      "@codingame/monaco-vscode-editor-api",
+      "@codingame/monaco-vscode-extension-api",
+    ],
+  },
+  plugins: [react()],
   test: {
     name: "play",
-    include: ["src/**/*.test.ts", "server/**/*.test.ts"],
+    include: ["src/**/*.test.ts"],
     testTimeout: 60_000,
   },
-  plugins: lazyPlugins(async () => {
-    const { stillwind } = await import("@stillwind/integration/vite");
-    const { playground } = await import(new URL("./server/plugin.ts", import.meta.url).href);
-    return [react(), playground("styles/default-theme.css"), stillwind()];
-  }),
   run: {
     tasks: {
       dev: {
         command: "vp dev",
         cache: false,
-        dependsOn: [
-          "@stillwind/host#build",
-          "@stillwind/integration#build",
-          "@stillwind/native#build",
-          "stillwind#build",
-        ],
+        dependsOn: ["build:assets", "@stillwind/host#build"],
       },
       build: {
         command: "vp build",
-        dependsOn: [
-          "@stillwind/host#build",
-          "@stillwind/integration#build",
-          "@stillwind/native#build",
-          "stillwind#build",
-        ],
+        dependsOn: ["build:assets", "@stillwind/host#build"],
+      },
+      "build:acceptance": {
+        command: "vp build --base=/play/ --outDir=dist/acceptance",
+        dependsOn: ["build:assets", "@stillwind/host#build"],
+      },
+      "build:assets": {
+        command: "node build/assets.ts",
+        cache: {
+          input: [{ auto: true }, "!dist/**"],
+          output: ["dist/assets-static/**"],
+        },
+        dependsOn: ["@stillwind/vscode-extension#build", "stillwind#build"],
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: [
-          "@stillwind/host#build",
-          "@stillwind/integration#build",
-          "@stillwind/native#build",
-          "stillwind#build",
-        ],
+        dependsOn: ["@stillwind/host#build"],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: [
-          "@stillwind/host#build",
-          "@stillwind/integration#build",
-          "@stillwind/native#build",
-          "stillwind#build",
-        ],
+        dependsOn: ["@stillwind/host#build"],
       },
     },
   },

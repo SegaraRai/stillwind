@@ -1,13 +1,8 @@
 import { convertToTSX, parse } from "@astrojs/compiler";
 
+import { PreparationError, type ScriptRegion } from "../preparation.ts";
 import type { SourceProjection } from "../protocol.ts";
-import {
-  converterIdentity,
-  PreparationError,
-  sourceMapV3,
-  sourceRegions,
-  type ScriptRegion,
-} from "./common.ts";
+import { converterIdentity, sourceMapV3, sourceRegions } from "./common.ts";
 
 /**
  * Converts an Astro component to TSX and records original scopes for compiler edits and checking.

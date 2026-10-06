@@ -5,12 +5,11 @@ import { fileURLToPath } from "node:url";
 import { summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import type { TypeFactSource } from "./backend.ts";
+import { TypeFactsError, type TypeFactSource } from "./backend.ts";
 import { identityKey } from "./checker-source.ts";
 import {
   collectTypeScriptFacts,
   resolveTypeFactsEnvironment,
-  TypeFactsError,
   TypeScriptFactsService,
   type AssetRecord,
 } from "./type-facts.ts";

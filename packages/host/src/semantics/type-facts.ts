@@ -6,7 +6,6 @@ import type {
   NativeAssetRecord,
   NativeExportedValue,
   NativeIdentity,
-  NativeSourceIssue,
   NativeSymbolicValue,
   NativeTypeFact,
 } from "@stillwind/native";
@@ -32,58 +31,14 @@ import {
   type Type,
 } from "typescript/unstable/sync";
 
-import type {
-  AvailableFacts,
-  TypeFactSource,
-  TypeFactsBackend,
-  UnverifiedRange,
+import {
+  TypeFactsError,
+  type AvailableFacts,
+  type TypeFactSource,
+  type TypeFactsBackend,
+  type UnverifiedRange,
 } from "./backend.ts";
 import { CheckerSource, checkerId } from "./checker-source.ts";
-
-/**
- * Failure to map, validate, or recover declaration identities for one source. The compiler turns
- * this error into a source report using its original-coordinate range.
- */
-export class TypeFactsError extends Error {
-  /** Compiler module identity used to locate the original prepared source. */
-  readonly moduleId: string;
-  /**
-   * Inclusive original UTF-8 byte offset when the checker can identify it. Omission permits a
-   * document-scoped report.
-   */
-  readonly start?: number;
-  /**
-   * Exclusive original UTF-8 byte offset when known. The compiler uses a source range only when
-   * both endpoints are present.
-   */
-  readonly end?: number;
-  /** Issue category and detail passed to native source-failure reporting. */
-  readonly issue: NativeSourceIssue;
-
-  /**
-   * Records a checker contract failure in original source coordinates.
-   *
-   * @param moduleId - Compiler identity of the affected source.
-   * @param start - Optional inclusive original UTF-8 byte offset.
-   * @param end - Optional exclusive original UTF-8 byte offset.
-   * @param kind - Native issue category, such as checker mapping, assignment, or identity
-   * resolution.
-   * @param detail - Error message also stored as the issue detail.
-   */
-  constructor(
-    moduleId: string,
-    start: number | undefined,
-    end: number | undefined,
-    kind: NativeSourceIssue["kind"],
-    detail: string,
-  ) {
-    super(detail);
-    this.moduleId = moduleId;
-    this.start = start;
-    this.end = end;
-    this.issue = { kind, detail };
-  }
-}
 
 /**
  * Native declaration identity containing its asset kind, declaring module, original byte range, and

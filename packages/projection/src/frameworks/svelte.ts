@@ -2,15 +2,9 @@ import { parse, type AST } from "svelte/compiler";
 import { svelte2tsx, type SvelteCompiledToTsx } from "svelte2tsx";
 import ts from "typescript";
 
+import { originalRange, PreparationError, type ScriptRegion } from "../preparation.ts";
 import type { SourceProjection } from "../protocol.ts";
-import {
-  converterIdentity,
-  originalRange,
-  PreparationError,
-  sourceMapV3,
-  sourceRegions,
-  type ScriptRegion,
-} from "./common.ts";
+import { converterIdentity, sourceMapV3, sourceRegions } from "./common.ts";
 
 /**
  * Converts a Svelte component to TypeScript and records the original scopes for compiler edits.

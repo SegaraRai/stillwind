@@ -3,6 +3,7 @@
  * defines the contract for custom checkers; TypeScriptFactsService implements it for Node using
  * a reusable checker selected by resolveTypeFactsEnvironment.
  */
+export { TypeFactsError } from "./backend.ts";
 export type {
   AvailableFacts,
   CheckerSpan,
@@ -13,7 +14,6 @@ export type {
 } from "./backend.ts";
 export {
   resolveTypeFactsEnvironment,
-  TypeFactsError,
   TypeScriptFactsService,
   type TypeFact,
   type TypeFactsEnvironment,

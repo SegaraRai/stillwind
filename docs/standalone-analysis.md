@@ -216,7 +216,24 @@ the stdio transport. The CLI delegates its LSP command to this entrypoint.
 need a command-line parser.
 
 For a Web Extension or a static editor site, start the browser entrypoint in a
-Worker. It also accepts a MessagePort:
+Worker. It also accepts a MessagePort. `BrowserAnalysisWorkspace` from
+`@stillwind/analysis/browser` supplies the compiler and semantic checker for a
+captured virtual filesystem. Include source files, package metadata, dependency
+declarations, and TypeScript standard libraries in that inventory. Its project
+roots use absolute virtual paths. Open documents replace captured file text.
+
+`loadBrowserConfig` from `@stillwind/config/browser` loads every configured project.
+The embedding supplies an evaluator for browser-compatible configuration modules.
+`resolveBrowserConfig` selects one project and applies inline overrides when a
+build integration needs that selection.
+
+The public [`@stillwind/vscode-extension`](../packages/vscode-extension/README.md)
+package supplies Desktop and Web clients. Its Web server evaluates configuration,
+reads workspace files through VS Code's filesystem provider, and runs the compiler
+and browser checker in a worker. The static [Playground](../apps/play/README.md)
+uses this extension alongside the built-in TypeScript language extension.
+
+An embedding with its own compiler callback can instead use the memory service:
 
 ```ts
 import { createMemoryAnalysisWorkspace } from "@stillwind/analysis/memory";
@@ -281,7 +298,10 @@ configuration, while `AnalysisProject` owns source services and an optional sema
 `createFileSystemAnalysisHost` is exported from `@stillwind/host`.
 The `TypeFactsBackend` contract is exported as a type by `@stillwind/analysis` and
 `@stillwind/host`. Its operations may be asynchronous so an embedding
-application can use a checker worker. The bundled implementation is the Node TypeScript
-backend. Browser applications must provide their own checker backend; the browser LSP
-and WASM test do not establish browser TypeScript cross-module resolution.
+application can use a checker worker. `TypeScriptFactsService` uses the Node
+TypeScript backend. `BrowserTypeFactsService` from `@stillwind/host/browser` uses
+the JavaScript TypeScript checker against virtual files. `BrowserProject` and
+`BrowserAnalysisWorkspace` use it for cross-module declaration identities and
+semantic dependencies. The Playground's separate TS Server provides ordinary
+editor completions, navigation, and TypeScript diagnostics.
 Call `close()` when releasing these objects.

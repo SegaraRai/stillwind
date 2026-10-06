@@ -9,7 +9,7 @@ export default defineConfig({
     testTimeout: 30_000,
   },
   pack: {
-    entry: ["src/index.ts"],
+    entry: ["src/index.ts", "src/browser.ts"],
     format: ["esm"],
     fixedExtension: false,
     dts: true,

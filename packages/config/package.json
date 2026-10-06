@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
     "./node": {
       "types": "./dist/node.d.ts",
       "default": "./dist/node.js"
@@ -25,7 +29,8 @@
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*",
     "esbuild": "^0.28.2",
-    "jiti": "^2.7.0"
+    "jiti": "^2.7.0",
+    "pathe": "^2.0.3"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",

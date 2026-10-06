@@ -1,9 +1,8 @@
-import path from "node:path";
-
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 import type { NativeAssetRecord } from "@stillwind/native";
 import type { CheckerBuffer, PreparedSource } from "@stillwind/projection";
-import { skipTrivia } from "typescript/unstable/ast";
+import * as path from "pathe";
+import ts from "typescript-js";
 
 import { byteToUtf16 } from "../compilation/module-source.ts";
 import type { TypeFactSource } from "./backend.ts";
@@ -40,7 +39,7 @@ export function identityKey(identity: NativeAssetRecord["identity"]): string {
     end: identity.end,
     bindingName: identity.bindingName,
   });
-  return `stillwind-identity/v1:${Buffer.from(serialized).toString("base64url")}`;
+  return `stillwind-identity/v1:${base64url(serialized)}`;
 }
 
 /**
@@ -339,7 +338,7 @@ export class CheckerSource {
         : this.#points.get(generated);
     return original === undefined || original === null
       ? null
-      : Buffer.byteLength(this.#original.slice(0, original));
+      : new TextEncoder().encode(this.#original.slice(0, original)).length;
   }
 }
 
@@ -394,4 +393,19 @@ function projectionPoints(source: PreparedSource): Map<number, number | null> {
     }
   }
   return points;
+}
+
+function base64url(text: string): string {
+  return btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+/, "");
+}
+
+function skipTrivia(text: string, offset: number): number {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true);
+  scanner.setText(text);
+  scanner.resetTokenState(offset);
+  scanner.scan();
+  return scanner.getTokenStart();
 }

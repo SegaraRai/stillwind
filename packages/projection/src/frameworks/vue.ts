@@ -4,14 +4,9 @@ import { parse } from "@vue/compiler-sfc";
 import * as vue from "@vue/language-core";
 import ts from "typescript";
 
+import { originalRange, PreparationError, type ScriptRegion } from "../preparation.ts";
 import type { SourceProjection } from "../protocol.ts";
-import {
-  converterIdentity,
-  originalRange,
-  PreparationError,
-  sourceRegions,
-  type ScriptRegion,
-} from "./common.ts";
+import { converterIdentity, sourceRegions } from "./common.ts";
 
 /**
  * Converts a Vue component to a service script and records original scopes and attribute quotes.

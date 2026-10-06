@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 
-import { PreparationError } from "./frameworks/common.ts";
+import { PreparationError } from "./preparation.ts";
 import type { PreparedSource } from "./protocol.ts";
 
 /** Input text for one independent TypeScript checker file before Stillwind applies checker edits. */

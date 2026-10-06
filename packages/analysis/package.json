@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
     "./memory": {
       "types": "./dist/memory.d.ts",
       "default": "./dist/memory.js"
@@ -28,7 +32,9 @@
   "dependencies": {
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
-    "@stillwind/native": "workspace:*"
+    "@stillwind/native": "workspace:*",
+    "minimatch": "^10.2.6",
+    "pathe": "^2.0.3"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",

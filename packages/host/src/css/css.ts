@@ -1,5 +1,3 @@
-import { setImmediate } from "node:timers";
-
 import {
   NativeDesignSystemLoader,
   type NativeCompilerOptions,
@@ -142,7 +140,7 @@ export async function loadCssGraph(
           });
           if (!queued) {
             queued = true;
-            setImmediate(() => {
+            setTimeout(() => {
               queued = false;
               const responses = ready;
               ready = [];

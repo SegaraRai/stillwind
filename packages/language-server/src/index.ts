@@ -46,6 +46,10 @@ export function createLanguageServer(
   connection: Connection,
   options: LanguageServerOptions,
 ): {
+  /** Waits for queued document and workspace changes before an embedding requests compiler output. */
+  ready(): Promise<void>;
+  /** Reopens workspace configuration and files, then replays the current document buffers. */
+  reload(): Promise<void>;
   /**
    * Stops scheduling analysis, cancels publication, and closes services after queued control work.
    *
@@ -61,6 +65,7 @@ export function createLanguageServer(
   const published = new Set<string>();
 
   let roots: string[] = [];
+  let initializationOptions: unknown;
   let generation = 0;
   let controls = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -88,6 +93,7 @@ export function createLanguageServer(
     errors.clear();
     const opened = await options.openWorkspaces({
       workspaceFolders: roots,
+      initializationOptions,
     });
     for (const [id, error] of opened.errors ?? []) {
       errors.set(id, error);
@@ -235,6 +241,7 @@ export function createLanguageServer(
   };
 
   connection.onInitialize(async (params: InitializeParams) => {
+    initializationOptions = params.initializationOptions;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
     dynamicWatch =
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration === true;
@@ -405,6 +412,12 @@ export function createLanguageServer(
   });
   documents.listen(connection);
   return {
+    ready: () => controls,
+    reload: async () => {
+      control(open);
+      schedule();
+      await controls;
+    },
     dispose,
   };
 }

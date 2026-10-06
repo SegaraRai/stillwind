@@ -1,8 +1,9 @@
 import type {
   BindingReport,
   NativeDiagnosticBatch,
-  NativeProjectSession,
   NativeModuleSummary,
+  NativeProjectSession,
+  NativeTypeFact,
 } from "@stillwind/native";
 import {
   checkerEnvironment,
@@ -14,10 +15,9 @@ import {
 
 import {
   TypeFactsError,
-  type TypeFact,
   type TypeFactsBackend,
   type TypeFactSource,
-} from "../semantics/index.ts";
+} from "../semantics/backend.ts";
 import type {
   CompilerHost,
   ModuleAnalysis,
@@ -509,7 +509,7 @@ export class ModuleGraph {
     };
   }
 
-  async #collectFacts(): Promise<Map<string, TypeFact[]>> {
+  async #collectFacts(): Promise<Map<string, NativeTypeFact[]>> {
     if (!this.#needsTypeFacts) {
       return new Map();
     }

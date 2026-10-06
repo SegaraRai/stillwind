@@ -11,9 +11,17 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
     "./projection": {
       "types": "./dist/projection.d.ts",
       "default": "./dist/projection.js"
+    },
+    "./resolution": {
+      "types": "./dist/resolution.d.ts",
+      "default": "./dist/resolution.js"
     },
     "./package.json": "./package.json"
   },
@@ -26,8 +34,10 @@
     "@stillwind/projection": "workspace:*",
     "minimatch": "^10.2.6",
     "oxc-resolver": "11.24.2",
+    "pathe": "^2.0.3",
     "tinyglobby": "^0.2.17",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "typescript-js": "npm:typescript@^6.0.3"
   },
   "devDependencies": {
     "@astrojs/compiler": "4.0.0",

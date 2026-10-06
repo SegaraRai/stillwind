@@ -4,7 +4,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   root: import.meta.dirname,
   pack: {
-    entry: ["src/index.ts", "src/memory.ts", "src/node.ts", "src/worker.ts"],
+    entry: ["src/index.ts", "src/memory.ts", "src/browser.ts", "src/node.ts", "src/worker.ts"],
     format: ["esm"],
     fixedExtension: false,
     dts: true,

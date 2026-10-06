@@ -1,7 +1,8 @@
 /**
  * URI-based analysis contracts used by language servers and compiler workers.
- * Node adapters are available from `@stillwind/analysis/node`. Browser embeddings supply their
- * compiler and module services through `createMemoryAnalysisWorkspace` in the memory subpath.
+ * Node adapters are available from `@stillwind/analysis/node`. `BrowserAnalysisWorkspace` in
+ * the browser subpath compiles captured virtual files. Embeddings with their own compiler
+ * services can use `createMemoryAnalysisWorkspace` in the memory subpath.
  */
 
 import type { UnverifiedRange } from "@stillwind/host";
@@ -101,6 +102,8 @@ export interface AnalysisWorkspaceService {
 export interface AnalysisWorkspaceContext {
   /** Workspace directory URIs supplied by LSP initialization or the embedding application. */
   workspaceFolders: readonly string[];
+  /** Embedding-specific files or settings supplied with the LSP initialize request. */
+  initializationOptions?: unknown;
 }
 
 /** Opened services and initialization errors, retained independently for each workspace. */
