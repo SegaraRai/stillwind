@@ -8,7 +8,16 @@ import type { LanguageClientOptions } from "vscode-languageclient";
  */
 export function clientOptions(context: vscode.ExtensionContext): LanguageClientOptions {
   const watcher = vscode.workspace.createFileSystemWatcher("**/*");
-  context.subscriptions.push(watcher);
+
+  context.subscriptions.push(
+    watcher,
+    vscode.commands.registerCommand("stillwind.sortUtilities", () =>
+      vscode.commands.executeCommand("editor.action.codeAction", {
+        kind: "source.sort.stillwind",
+        apply: "ifSingle",
+      }),
+    ),
+  );
 
   return {
     documentSelector: [

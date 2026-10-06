@@ -18,7 +18,7 @@
     "./workspace": "./src/workspace.ts"
   },
   "dependencies": {
-    "@jridgewell/trace-mapping": "0.3.31",
+    "@jridgewell/trace-mapping": "catalog:",
     "playwright": "1.63.0"
   },
   "devDependencies": {

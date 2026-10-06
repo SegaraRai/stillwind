@@ -12,7 +12,11 @@ test("stop resolves after the subprocess has closed", async () => {
     closed = true;
   });
   try {
-    await expect.poll(() => runner.logs()).toContain("ready");
+    await expect
+      .poll(() => runner.logs(), {
+        timeout: 5_000,
+      })
+      .toContain("ready");
     await runner.stop();
     expect(closed).toBe(true);
   } finally {

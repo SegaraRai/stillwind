@@ -271,6 +271,7 @@ impl ModuleCompiler {
         };
         let success = diagnostics.is_empty();
         CompiledModule {
+            lint_settings: result.lint_settings,
             style_effects: if success {
                 result.style_effects
             } else {

@@ -2,7 +2,7 @@ import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
 import type { NativeAssetRecord } from "@stillwind/native";
 import type { CheckerBuffer, PreparedSource } from "@stillwind/projection";
 import * as path from "pathe";
-import ts from "typescript-js";
+import ts from "typescript-6";
 
 import { byteToUtf16 } from "../compilation/module-source.ts";
 import type { TypeFactSource } from "./backend.ts";
@@ -350,7 +350,7 @@ export class CheckerSource {
  * to null. Direct sources produce an empty map because their offsets are translated directly.
  * @throws If a version 3 projection map cannot be decoded.
  */
-function projectionPoints(source: PreparedSource): Map<number, number | null> {
+export function projectionPoints(source: PreparedSource): Map<number, number | null> {
   const points = new Map<number, number | null>();
   const add = (generated: number, original: number) => {
     if (points.has(generated) && points.get(generated) !== original) {

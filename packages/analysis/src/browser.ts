@@ -3,7 +3,12 @@ import { BrowserProject, virtualPath } from "@stillwind/host/browser";
 import { minimatch } from "minimatch";
 import { relative, resolve } from "pathe";
 
-import type { AnalysisWorkspaceService, WorkspaceResult } from "./index.ts";
+import type {
+  AnalysisWorkspaceService,
+  EditorRequest,
+  WorkspaceEditorResult,
+  WorkspaceResult,
+} from "./index.ts";
 
 /** Browser workspace with original URIs and a complete virtual dependency inventory. */
 export interface BrowserWorkspaceOptions {
@@ -33,6 +38,23 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   #buildRevision = -1;
   #closed = false;
   #queue: Promise<unknown> = Promise.resolve();
+
+  async #prepareProjects(revision: number, files: ReadonlyMap<string, string>): Promise<void> {
+    if (this.#buildRevision === revision) {
+      return;
+    }
+    await Promise.all(this.#projects?.map((project) => project.close()) ?? []);
+    this.#projects = this.#options.projects.map(
+      (config) =>
+        new BrowserProject({
+          root: config.root!,
+          config,
+          files,
+          documentUri: this.#options.documentUri,
+        }),
+    );
+    this.#buildRevision = revision;
+  }
 
   /** @param options - Evaluated settings and saved files. Create a new service when these change. */
   constructor(options: BrowserWorkspaceOptions) {
@@ -172,6 +194,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
    * @param uri - Source URI in exactly one configured project.
    * @param revision - Workspace revision captured when the application build started.
    * @returns Transformed source, CSS, reports, and generated declarations.
+   * Blocked graphs retain diagnostics and return empty CSS and CSS values.
    * @throws If project selection fails or the build revision became obsolete.
    */
   compile(
@@ -198,19 +221,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         throw new Error(`Expected one Stillwind project for ${uri}`);
       }
 
-      if (this.#buildRevision !== revision) {
-        await Promise.all(this.#projects?.map((project) => project.close()) ?? []);
-        this.#projects = this.#options.projects.map(
-          (config) =>
-            new BrowserProject({
-              root: config.root!,
-              config,
-              files,
-              documentUri: this.#options.documentUri,
-            }),
-        );
-        this.#buildRevision = revision;
-      }
+      await this.#prepareProjects(revision, files);
 
       const project = this.#projects![matches[0].index];
       const graph = await project.analyze(id);
@@ -220,14 +231,48 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
       return {
         graph,
-        css: project.css(),
+        css: graph.generation === "complete" ? project.css() : "",
         declarations: [...project.declarations()],
-        cssValues: [...project.cssValues()],
+        cssValues: graph.generation === "complete" ? [...project.cssValues()] : [],
       };
     });
 
     this.#queue = task.catch(() => {});
 
+    return task;
+  }
+
+  /** @inheritdoc */
+  query(
+    uri: string,
+    request: EditorRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceEditorResult[]> {
+    const revision = this.#revision;
+    const files = this.files();
+    const id = virtualPath(uri);
+    const task = this.#queue.then(async () => {
+      const obsolete = () => this.#closed || signal?.aborted || revision !== this.#revision;
+      if (obsolete()) {
+        return [];
+      }
+      await this.#prepareProjects(revision, files);
+      const results: WorkspaceEditorResult[] = [];
+      for (const [index, config] of this.#options.projects.entries()) {
+        if (!includes(config, id)) {
+          continue;
+        }
+        const result = await this.#projects![index].query(id, request);
+        if (obsolete()) {
+          return [];
+        }
+        if (result) {
+          results.push({ project: index, config: this.#options.config, result });
+        }
+      }
+      return results;
+    });
+    this.#queue = task.catch(() => {});
     return task;
   }
 

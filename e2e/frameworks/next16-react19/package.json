@@ -11,7 +11,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@jridgewell/trace-mapping": "0.3.31",
+    "@jridgewell/trace-mapping": "catalog:",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",

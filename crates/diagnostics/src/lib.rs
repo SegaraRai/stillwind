@@ -34,8 +34,9 @@ pub use compilation::{
 };
 pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit, SourceRange};
 pub use lint::{
-    LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding,
-    LintKind, LintSettings, LintSeverity, UtilityFailure, collect_lint_directives,
+    CanonicalUtilitiesConfig, CanonicalUtilitiesOverride, LintConfig, LintDiagnostic,
+    LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding, LintKind, LintOverrides,
+    LintSettings, LintSeverity, RootFontSize, UtilityFailure, collect_lint_directives,
     filter_lint_findings,
 };
 pub use report::{

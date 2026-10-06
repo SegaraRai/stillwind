@@ -58,9 +58,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@jridgewell/gen-mapping": "^0.3.13",
-    "@jridgewell/remapping": "^2.3.5",
-    "@jridgewell/trace-mapping": "^0.3.31",
+    "@jridgewell/gen-mapping": "catalog:",
+    "@jridgewell/remapping": "catalog:",
+    "@jridgewell/trace-mapping": "catalog:",
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",

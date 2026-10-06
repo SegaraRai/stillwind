@@ -34,6 +34,55 @@ export declare class NativeDesignSystemLoader {
   provideMany(files: Array<NativeCssFileInput>): NativeCssLoadStep
   /** Generates the TypeScript augmentation for the completed snapshot. */
   generateVocabularyTypes(): string
+  /**
+   * Creates editor queries pinned to this completed design system and its compiler options.
+   * Returns an error while CSS loading is incomplete.
+   */
+  editorQuery(): NativeEditorQuery
+}
+
+/** Candidate operations for one immutable design system and explicitly supplied source buffers. */
+export declare class NativeEditorQuery {
+  /** Returns a verified canonical replacement using the effective project lint options, or null. */
+  canonicalCandidate(candidate: string): string | null
+  /** Returns the resolved canonical lint policy used by compilation and Reporter. */
+  canonicalOptions(): NativeCanonicalUtilitiesOptions
+  /**
+   * Reports sorting suggestions through the effective typed settings and common Reporter.
+   * URI and text must identify the exact original document addressed by all byte ranges.
+   */
+  reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>): Array<BindingReport>
+  /** Returns effective lint severities after stylesheet and project configuration. */
+  lintSettings(): Record<string, string>
+  /**
+   * Checks source suppression for an editor lint at an original UTF-8 byte range.
+   * Returns an error for unknown rules or invalid source bounds.
+   */
+  lintSuppressed(source: string, start: number, end: number, rule: string): boolean
+  /** Renders a valid candidate with the main selector replaced by `&`. Invalid candidates return null. */
+  hoverCandidate(candidate: string): string | null
+  /**
+   * Returns a complete CSS preview with line breaks and two-space indentation.
+   * Nesting and fallback declarations are retained. Invalid CSS returns an error.
+   */
+  formatCss(css: string): string
+  /** Completes utilities and variants against a partially typed candidate. */
+  completeCandidate(prefix: string): Array<string>
+  /** Returns -1, 0, or 1 in compiler order, or null if either candidate is unresolved. */
+  compareCandidates(left: string, right: string): number | null
+  /**
+   * Returns whether static base styles can change order without changing any cascaded property.
+   * Nested rules, custom properties, and unsupported declaration syntax retain their order.
+   */
+  canReorderStyles(left: string, right: string): boolean
+  /** Returns active theme values, keyed by their full custom-property names. */
+  themeValues(): Record<string, string>
+  /** Returns the authored spacing scale, or null when no scale is active. */
+  spacingScale(): string | null
+  /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
+  colorRgba(value: string): Array<number> | null
+  /** Returns a concrete candidate color in RGBA, or null for contextual or ambiguous colors. */
+  candidateColor(candidate: string): Array<number> | null
 }
 
 /** Mutable project state for one Vite or CLI session. */
@@ -433,6 +482,16 @@ export type NativeCandidates =
   | { kind: 'finite'; /** The reachable identities. */
   values: Array<NativeIdentity> }
 
+/** Canonical utility options. All omitted fields preserve the previous setting. */
+export interface NativeCanonicalUtilitiesOptions {
+  /** Reporting severity: warn, deny, or off. */
+  severity?: string
+  /** Allows pixel spacing to use the active rem scale. Defaults to true. */
+  pxToRem?: boolean
+  /** Positive finite pixels per rem. Defaults to 16. */
+  rootFontSize?: number
+}
+
 /** A validated generated reference that needs a global helper binding. */
 export interface NativeCheckerBinding {
   /** Name of the global helper declaration. */
@@ -486,6 +545,8 @@ export interface NativeCompileCssInput {
  * Conversion validates prefixes; omitted fields retain [`CompilerOptions`] defaults.
  */
 export interface NativeCompilerOptions {
+  /** Project lint overrides. Omitted fields retain stylesheet severity and canonical defaults. */
+  lint?: NativeLintOptions
   /** Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`. */
   prefix?: string
   /** Prefix for the retained Tailwind-compatibility namespace. */
@@ -659,6 +720,16 @@ export interface NativeDiagnosticBatch {
   reports: Array<BindingReport>
 }
 
+/** A source operation detected by a host's syntax index and reported through the common lint policy. */
+export interface NativeEditorLintEdit {
+  /** Original inclusive UTF-8 byte boundary. */
+  start: number
+  /** Original exclusive UTF-8 byte boundary. */
+  end: number
+  /** Replacement text for this source operation. */
+  replacement: string
+}
+
 /**
  * Named entries preserve arbitrary export names, including `__proto__`.
  * One named entry of a summary map.
@@ -813,6 +884,14 @@ export interface NativeLayerContext {
   template: string
   /** The caller's class namespace. */
   namespace: string
+}
+
+/** Project lint fields applied after CSS configuration. */
+export interface NativeLintOptions {
+  /** Field-wise canonical lint policy overrides. */
+  canonicalUtilities?: NativeCanonicalUtilitiesOptions
+  /** Optional sorting diagnostic severity: warn, deny, or off. Detection is off by default. */
+  sortUtilities?: string
 }
 
 /** The fields of a projection's custom-ident request. */

@@ -1,6 +1,6 @@
 import { parse, type AST } from "svelte/compiler";
 import { svelte2tsx, type SvelteCompiledToTsx } from "svelte2tsx";
-import ts from "typescript";
+import ts from "typescript-6";
 
 import { originalRange, PreparationError, type ScriptRegion } from "../preparation.ts";
 import type { SourceProjection } from "../protocol.ts";

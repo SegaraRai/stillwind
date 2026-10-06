@@ -9,6 +9,7 @@ import {
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/index.ts";
 import { loadCssGraph, type CssHost } from "../css/index.ts";
+import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import {
   TypeScriptFactsService,
   type TypeFactsBackend,
@@ -87,7 +88,20 @@ export class AnalysisProject {
   readonly host: AnalysisHost;
 
   readonly #backend?: () => TypeFactsBackend;
-  readonly #documents = new Map<string, { source: string; version: number }>();
+  readonly #documents = new Map<
+    string,
+    {
+      source: string;
+      version: number;
+    }
+  >();
+  readonly #editors = new Map<
+    string,
+    {
+      revision: number;
+      snapshot: EditorSnapshot;
+    }
+  >();
 
   #semantics?: TypeFactsBackend;
   #revision = 0;
@@ -194,6 +208,28 @@ export class AnalysisProject {
     return task;
   }
 
+  /** Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer. */
+  query(
+    entry: string,
+    request: EditorRequest,
+    signal?: AbortSignal,
+  ): Promise<EditorResult | undefined> {
+    const revision = this.#revision;
+    const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
+    const task = this.#queue.then(async () => {
+      if (this.#closed || this.#discardReason(revision, signal)) {
+        return undefined;
+      }
+      if (this.#editors.get(entry)?.revision !== revision) {
+        await this.#analyzeSnapshot(entry, revision, documents);
+      }
+      const result = this.#editors.get(entry)?.snapshot.query(entry, request);
+      return this.#discardReason(revision, signal) ? undefined : result;
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
   /**
    * Marks the project closed, discards pending results, and waits for queued work before cleanup.
    * Repeated calls return without requesting further cleanup.
@@ -208,6 +244,7 @@ export class AnalysisProject {
     }
 
     this.#closed = true;
+    this.#editors.clear();
     this.#revision++;
     await this.#queue;
 
@@ -265,6 +302,12 @@ export class AnalysisProject {
         graph.sources,
         (id) => this.host.read(id),
       );
+      const editor = new EditorSnapshot(graph, session, loader, this.host.config);
+      result.reports.push(...editor.reports());
+      this.#editors.set(entry, {
+        revision,
+        snapshot: editor,
+      });
       result.status = analysisComplete(graph) ? "complete" : "incomplete";
     } catch (error) {
       result.error = String(error);

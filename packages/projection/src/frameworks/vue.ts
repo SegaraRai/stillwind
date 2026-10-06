@@ -2,7 +2,7 @@ import type {} from "@volar/typescript";
 import { NodeTypes, type RootNode, type TemplateChildNode } from "@vue/compiler-dom";
 import { parse } from "@vue/compiler-sfc";
 import * as vue from "@vue/language-core";
-import ts from "typescript";
+import ts from "typescript-6";
 
 import { originalRange, PreparationError, type ScriptRegion } from "../preparation.ts";
 import type { SourceProjection } from "../protocol.ts";

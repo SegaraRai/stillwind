@@ -2,6 +2,43 @@ import { expect, test } from "vite-plus/test";
 
 import { BrowserProject } from "./index.ts";
 
+test("failed graphs invalidate cached dependencies and keep unrelated CSS", async () => {
+  const project = new BrowserProject({
+    root: "/workspace",
+    config: { css: "theme.css", files: ["*.ts"], typeFacts: false, types: false },
+    files: new Map([
+      [
+        "/workspace/styles.ts",
+        'import {style} from "stillwind/react"; export const card = style("block");',
+      ],
+      [
+        "/workspace/other.ts",
+        'import {style} from "stillwind/react"; export const other = style("flex");',
+      ],
+      [
+        "/workspace/entry.ts",
+        'import {style} from "stillwind/react"; import {card} from "./styles"; export const value = style(card, style("block"));',
+      ],
+      [
+        "/workspace/theme.css",
+        "@utility block { display:block; } @utility flex { display:flex; } @stillwind-slot utilities;",
+      ],
+    ]),
+  });
+  try {
+    await project.analyze("/workspace/styles.ts");
+    await project.analyze("/workspace/other.ts");
+    expect((await project.analyze("/workspace/entry.ts")).generation).toBe("blocked");
+    expect(project.css()).toContain("display:flex");
+    expect(project.css()).not.toContain("display:block");
+    expect([...project.cssValues().keys()]).toEqual(["/workspace/other.ts"]);
+    await project.analyze("/workspace/styles.ts");
+    expect(project.css()).toContain("display:block");
+  } finally {
+    await project.close();
+  }
+});
+
 test("browser projects deliver explicit CSS values and resolve captured SVG resources", async () => {
   const files = new Map([
     [

@@ -35,6 +35,7 @@
 mod candidate;
 mod compiled_module;
 mod compiler;
+mod editor_lint;
 mod generated;
 mod identifiers;
 mod imports;

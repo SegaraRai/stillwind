@@ -1,9 +1,8 @@
-//! Color rewriting for shadow utilities.
+//! CSS color conversion, declaration colors, and rewriting for shadow utilities.
 //!
-//! Two operations live here, both driven by Lightning CSS's color and shadow parsers
-//! rather than by string matching: replacing the authored color of each shadow with a
-//! custom-property override (plus a relative-color fallback when an alpha modifier
-//! applies), and serializing a theme color as an sRGB fallback with alpha.
+//! Lightning CSS supplies color and shadow parsing. [`color_rgba`] resolves concrete
+//! colors for editor displays, and [`css_color_values`] collects them from declarations.
+//! Shadow rewriting preserves custom-property overrides and relative-color fallbacks.
 //!
 //! Authored text is preserved where it matters: a shadow whose color is written last
 //! keeps its exact spelling inside the fallback, so precision the author wrote is not
@@ -13,6 +12,8 @@ use lightningcss::printer::PrinterOptions;
 use lightningcss::properties::box_shadow::BoxShadow;
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::color::CssColor;
+
+use crate::{CssRule, Declaration};
 
 /// Rewrites box-shadow colors with a custom-property override and CSS Color 5
 /// relative-color fallback. This is the semantic operation Tailwind uses for
@@ -157,6 +158,59 @@ pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
     Some(format!("{serialized} / {alpha}"))
 }
 
+/// Converts a fully determined CSS color to sRGB components in the inclusive range 0..=1.
+/// Returns `None` for contextual colors, invalid values, or unsupported conversions.
+#[must_use]
+pub fn color_rgba(value: &str) -> Option<[f64; 4]> {
+    let CssColor::RGBA(color) = CssColor::parse_string(value).ok()?.to_rgb().ok()? else {
+        return None;
+    };
+    Some([color.red, color.green, color.blue, color.alpha].map(|value| f64::from(value) / 255.0))
+}
+
+/// Returns concrete sRGB colors from flat declarations and nested style rules.
+/// The caller resolves theme variables first. Contextual colors and opaque values are skipped.
+#[must_use]
+pub fn css_color_values(css: &str) -> Vec<[f64; 4]> {
+    fn collect(css: &str, depth: usize, output: &mut Vec<[f64; 4]>) {
+        if depth > 64 {
+            return;
+        }
+        if let Some(declarations) = Declaration::parse(css) {
+            for declaration in declarations {
+                if declaration.property == "color"
+                    || declaration.property.ends_with("-color")
+                    || declaration.property.starts_with("--")
+                    || matches!(
+                        declaration.property.as_str(),
+                        "fill" | "stroke" | "background"
+                    )
+                {
+                    let value = declaration
+                        .css
+                        .split_once(':')
+                        .map(|(_, value)| value.trim().trim_end_matches("!important").trim());
+                    if let Some(color) = value.and_then(color_rgba) {
+                        output.push(color);
+                    }
+                }
+            }
+        } else if let Ok(rules) = CssRule::parse(css) {
+            for rule in rules {
+                if !rule.prelude.trim_start().starts_with("@property")
+                    && let Some(body) = rule.body
+                {
+                    collect(&body, depth + 1, output);
+                }
+            }
+        }
+    }
+
+    let mut values = Vec::new();
+    collect(css, 0, &mut values);
+    values
+}
+
 /// Splits `value` into everything before the last top-level whitespace and the
 /// non-empty component after it.
 ///
@@ -198,6 +252,14 @@ pub(super) fn is_css_string(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declaration_colors_include_custom_properties_and_skip_contextual_values() {
+        assert_eq!(
+            css_color_values("& { --gradient-from: red; --size: 1rem; color: currentColor; }"),
+            vec![[1.0, 0.0, 0.0, 1.0]]
+        );
+    }
 
     #[test]
     fn rewrites_each_authored_color_in_a_shadow_list() {

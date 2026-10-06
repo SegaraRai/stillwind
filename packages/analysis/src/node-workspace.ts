@@ -7,6 +7,7 @@ import type {
   AnalysisWorkspaceContext,
   AnalysisWorkspaceService,
   OpenAnalysisWorkspaces,
+  WorkspaceEditorResult,
 } from "./index.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
@@ -44,6 +45,17 @@ export async function openNodeWorkspaces(
       await worker.open(file);
       const accepts = (uri: string) => uri.startsWith("file:");
       workspaces.set(file, {
+        query: async (uri, request, signal) => {
+          if (!accepts(uri) || signal?.aborted) {
+            return [];
+          }
+          const results = await worker.request<WorkspaceEditorResult[]>({
+            method: "query",
+            file: fileURLToPath(uri),
+            request,
+          });
+          return signal?.aborted ? [] : results;
+        },
         update: async (uri, source, version) => {
           if (accepts(uri)) {
             await worker.request({
@@ -51,14 +63,6 @@ export async function openNodeWorkspaces(
               file: fileURLToPath(uri),
               source,
               version,
-            });
-          }
-        },
-        closeDocument: async (uri) => {
-          if (accepts(uri)) {
-            await worker.request({
-              method: "closeDocument",
-              file: fileURLToPath(uri),
             });
           }
         },
@@ -84,7 +88,17 @@ export async function openNodeWorkspaces(
                 },
               }));
         },
-        close: () => worker.close(),
+        closeDocument: async (uri) => {
+          if (accepts(uri)) {
+            await worker.request({
+              method: "closeDocument",
+              file: fileURLToPath(uri),
+            });
+          }
+        },
+        close: async () => {
+          await worker.close();
+        },
       });
     } catch (error) {
       errors.set(file, String(error));

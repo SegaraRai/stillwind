@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, LintOverrides, LintSettings};
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -26,6 +26,8 @@ use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {
+    /// Project lint overrides, applied field by field after stylesheet settings.
+    pub lint: LintOverrides,
     /// Prefix for Stillwind-owned custom properties, for example `--sw-if-<hash>`.
     pub prefix: String,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
@@ -56,6 +58,7 @@ pub struct CompilerOptions {
 impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
+            lint: LintOverrides::default(),
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
             class_namespace: String::new(),
@@ -73,6 +76,11 @@ impl CompilerOptions {
             prefix: self.prefix.clone(),
             tailwind_prefix: self.tailwind_prefix.clone(),
         }
+    }
+
+    /// Returns effective lint settings for this compilation without modifying the design system.
+    pub fn lint_settings(&self, snapshot: &DesignSystemSnapshot) -> LintSettings {
+        self.lint.resolve(&snapshot.theme().config.lint_settings)
     }
 
     /// Checks that the two prefixes are valid and do not conflict, and that the

@@ -20,7 +20,7 @@ test("browser server and memory analysis bundle without Node runtime or CLI depe
     Object.keys(result.metafile!.inputs).some(
       (file) =>
         file.includes("packages/cli/") ||
-        file.includes("typescript/unstable/") ||
+        file.includes("typescript-7/unstable/") ||
         file.includes("worker-client"),
     ),
   ).toBe(false);

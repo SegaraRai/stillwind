@@ -1,7 +1,7 @@
 import { fork, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import type { WorkspaceResult } from "@stillwind/host";
+import type { EditorRequest, WorkspaceResult } from "@stillwind/host";
 
 /** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
 export type WorkerRequest =
@@ -19,6 +19,13 @@ export type WorkerRequest =
       method: "analyze";
       /** Absolute target path. Each project whose scope contains the file returns a result. */
       file: string;
+    }
+  | {
+      method: "query";
+      /** Absolute target file path. */
+      file: string;
+      /** Editor operation in original UTF-16 coordinates. */
+      request: EditorRequest;
     }
   | {
       method: "update";

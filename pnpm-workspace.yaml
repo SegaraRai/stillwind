@@ -24,6 +24,9 @@ patchedDependencies:
 catalogs:
   default:
     "@types/node": ^26.6.4
+    "@jridgewell/gen-mapping": ^0.3.13
+    "@jridgewell/remapping": ^2.3.5
+    "@jridgewell/trace-mapping": ^0.3.31
     "@vitest/ui": 5.0.1
     "@webref/css": 8.7.3
     tailwindcss: 4.3.3
@@ -41,3 +44,6 @@ peerDependencyRules:
     - vite
   allowedVersions:
     vite: "*"
+
+minimumReleaseAgeExclude:
+  - "@nuxt/cli@4.0.0"

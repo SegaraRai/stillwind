@@ -15,8 +15,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@jridgewell/trace-mapping": "^0.3.31",
-    "typescript": "^6.0.3"
+    "@jridgewell/trace-mapping": "catalog:",
+    "typescript-6": "npm:typescript@^6.0.3"
   },
   "devDependencies": {
     "@astrojs/compiler": "^4.0.0",

@@ -50,6 +50,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "analyze":
       return workspace.analyze(request.file);
 
+    case "query":
+      return workspace.query(request.file, request.request);
+
     case "update":
       workspace.update(request.file, request.source, request.version);
       return undefined;

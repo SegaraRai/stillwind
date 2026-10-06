@@ -5,8 +5,10 @@
  * services can use `createMemoryAnalysisWorkspace` in the memory subpath.
  */
 
-import type { UnverifiedRange } from "@stillwind/host";
+import type { UnverifiedRange, EditorRequest, EditorResult } from "@stillwind/host";
 import type { BindingReport } from "@stillwind/native";
+
+export type { EditorRequest, EditorResult } from "@stillwind/host";
 
 /** Analysis results tied to one target and the project revision captured for that request. */
 export interface AnalysisResult {
@@ -60,6 +62,18 @@ export interface WorkspaceResult {
 /** URI-based operations shared by Node hosts and browser compiler workers. */
 export interface AnalysisWorkspaceService {
   /**
+   * Queries optional editor features against captured original documents.
+   * @param uri - Target document URI within a configured project.
+   * @param request - Operation using original UTF-16 offsets.
+   * @param signal - Cancellation discards obsolete results.
+   * @returns Independent project answers. Absence of this method means diagnostic-only support.
+   */
+  query?(
+    uri: string,
+    request: EditorRequest,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceEditorResult[]>;
+  /**
    * Replaces an open document's buffer in every project that may depend on it.
    *
    * @param uri - Document URI, including documents outside the project's target scope.
@@ -96,6 +110,16 @@ export interface AnalysisWorkspaceService {
    * @throws If cleanup fails.
    */
   close(): Promise<void>;
+}
+
+/** Keeps the project identity and source fingerprint of an editor answer. */
+export interface WorkspaceEditorResult {
+  /** Zero-based project index in the evaluated configuration. */
+  project: number;
+  /** Configuration identity used to distinguish overlapping project answers. */
+  config: string;
+  /** Data computed from an immutable source and design-system snapshot. */
+  result: EditorResult;
 }
 
 /** Initialization context without assumptions about filesystem paths or process state. */

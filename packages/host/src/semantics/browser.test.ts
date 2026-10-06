@@ -16,7 +16,9 @@ export const first = style.ref('first');
 export const second = style.ref('second');
 declare const condition: boolean;
 const selected = condition ? first : second;
-selected;`;
+selected;
+export const selectedStyle = style('block');
+selectedStyle;`;
   const file = path.join(root, ".test-browser-facts.ts");
   const virtual = "/workspace/.test-browser-facts.ts";
   const assets = summarizeSource(sourceCode, "entry.ts", "ts", "module").assets;
@@ -26,16 +28,30 @@ selected;`;
     resolverId: id,
     checkerFileName: id,
     projectionFileName: id,
-    document: { uri: "file:///workspace/entry.ts", code: sourceCode, format: "script" },
-    syntax: { language: "ts", moduleKind: "module" },
+    document: {
+      uri: "file:///workspace/entry.ts",
+      code: sourceCode,
+      format: "script",
+    },
+    syntax: {
+      language: "ts",
+      moduleKind: "module",
+    },
     probes: [
-      { start: sourceCode.lastIndexOf("selected;"), end: sourceCode.lastIndexOf("selected;") + 8 },
+      {
+        start: sourceCode.lastIndexOf("selected;"),
+        end: sourceCode.lastIndexOf("selected;") + 8,
+      },
+      {
+        start: sourceCode.lastIndexOf("selectedStyle;"),
+        end: sourceCode.lastIndexOf("selectedStyle;") + "selectedStyle".length,
+      },
     ],
   });
   const files = new Map<string, string>();
   const core = fileURLToPath(new URL("../../../core/", import.meta.url));
   await capture(core, "/workspace/node_modules/stillwind", files);
-  const library = path.join(root, "node_modules/typescript-js/lib");
+  const library = path.join(root, "node_modules/typescript-6/lib");
   for (const name of await readdir(library)) {
     if (name.endsWith(".d.ts")) {
       files.set(
@@ -44,7 +60,11 @@ selected;`;
       );
     }
   }
-  const browser = new BrowserTypeFactsService({ root: "/workspace", files, tsconfig: false });
+  const browser = new BrowserTypeFactsService({
+    root: "/workspace",
+    files,
+    tsconfig: false,
+  });
   const node = new TypeScriptFactsService(resolveTypeFactsEnvironment(root, false));
   try {
     const declarations = new Map([["entry.ts", assets]]);
@@ -55,8 +75,16 @@ selected;`;
       expect.fail("expected a finite candidate set");
     }
     expect(candidates.values).toHaveLength(2);
+    const styles = actual.get("entry.ts")?.[1].value;
+    expect(styles?.kind).toBe("styles");
+    if (styles?.value.candidates.kind !== "finite") {
+      expect.fail("expected finite style candidates");
+    }
+    expect(styles.value.candidates.values).toHaveLength(1);
     expect(actual).toEqual(
-      node.collect([source(file)], declarations, { overlayFiles: new Map([[file, sourceCode]]) }),
+      node.collect([source(file)], declarations, {
+        overlayFiles: new Map([[file, sourceCode]]),
+      }),
     );
     const widened = sourceCode.replace(
       "const selected =",
@@ -66,10 +94,18 @@ selected;`;
       ...source(virtual),
       document: { ...source(virtual).document, code: widened },
       probes: [
-        { start: widened.lastIndexOf("selected;"), end: widened.lastIndexOf("selected;") + 8 },
+        {
+          start: widened.lastIndexOf("selected;"),
+          end: widened.lastIndexOf("selected;") + 8,
+        },
       ],
     };
-    expect(browser.collectAvailable([changed], declarations).unverified).not.toHaveLength(0);
+    expect(
+      browser.collectAvailable(
+        [changed],
+        new Map([["entry.ts", summarizeSource(widened, "entry.ts", "ts", "module").assets]]),
+      ).unverified,
+    ).not.toHaveLength(0);
   } finally {
     browser.close();
     node.close();

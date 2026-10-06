@@ -28,6 +28,7 @@
 )]
 
 mod api;
+mod editor;
 mod fingerprint;
 mod minify;
 mod naming;

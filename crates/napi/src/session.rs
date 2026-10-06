@@ -32,6 +32,7 @@ use stillwind_semantic::{TypeFacts, TypeFactsUpdate};
 use stillwind_source::{Fingerprint, ModuleId, SourceRegistry, SourceUri};
 
 use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
+use crate::editor::NativeEditorQuery;
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{
@@ -270,6 +271,16 @@ impl NativeDesignSystemLoader {
             StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::default())
                 .generate_vocabulary_types(),
         )
+    }
+
+    /// Creates editor queries pinned to this completed design system and its compiler options.
+    /// Returns an error while CSS loading is incomplete.
+    #[napi]
+    pub fn editor_query(&self) -> napi::Result<NativeEditorQuery> {
+        Ok(NativeEditorQuery::new(
+            self.completed()?,
+            self.options.clone(),
+        ))
     }
 }
 
@@ -855,12 +866,12 @@ impl NativeProjectSession {
                 transaction
                     .artifacts()
                     .get(&module_id)
-                    .map(|artifact| artifact.to_module_output(&snapshot))
+                    .map(|artifact| artifact.to_module_output())
                     .unwrap_or_default()
             } else {
                 CompileResult {
                     diagnostics: update.diagnostics,
-                    lint_settings: snapshot.theme().config.lint_settings.clone(),
+                    lint_settings: self.session.options().lint_settings(&snapshot),
                     ..CompileResult::default()
                 }
             };
@@ -882,7 +893,7 @@ impl NativeProjectSession {
                             Error::from_reason("Successful compilation has no current artifact")
                         })?;
                     let (output, _) = binding_output_with_batch(
-                        artifact.to_module_output(&snapshot),
+                        artifact.to_module_output(),
                         &analysis.source,
                         &final_sources,
                     )?;
@@ -919,7 +930,6 @@ impl NativeProjectSession {
     /// Returns an error when a required source snapshot or diagnostic span cannot be
     /// resolved, or source pruning fails. Batches published before an error remain.
     fn refresh_batches(session: &mut ProjectSession) -> napi::Result<()> {
-        let snapshot = session.snapshot();
         let refreshed = session
             .analyses()
             .iter()
@@ -931,7 +941,7 @@ impl NativeProjectSession {
                         CompileResult {
                             diagnostics: artifact.diagnostics.clone(),
                             lint_findings: artifact.lint_findings.clone(),
-                            lint_settings: snapshot.theme().config.lint_settings.clone(),
+                            lint_settings: artifact.lint_settings.clone(),
                             transforms: artifact.code_transforms.clone(),
                             ..CompileResult::default()
                         },

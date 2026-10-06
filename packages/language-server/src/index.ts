@@ -1,6 +1,7 @@
 import type {
   AnalysisWorkspaceService,
   OpenWorkspaces,
+  WorkspaceEditorResult,
   WorkspaceResult,
 } from "@stillwind/analysis";
 import {
@@ -9,6 +10,7 @@ import {
   DidChangeWatchedFilesNotification,
   TextDocuments,
   TextDocumentSyncKind,
+  type CancellationToken,
   type CodeAction,
   type Connection,
   type Diagnostic,
@@ -16,6 +18,13 @@ import {
   type TextDocumentEdit,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+
+import {
+  editorCodeActionKinds,
+  registerEditorFeatures,
+  sourceActions,
+  type EditorQuery,
+} from "./editor.ts";
 
 /** Supplies analysis services and delegates transport exit to the embedding application. */
 export interface LanguageServerOptions {
@@ -33,7 +42,7 @@ export interface LanguageServerOptions {
 }
 
 /**
- * Registers document synchronization, diagnostics, and quick fixes on an LSP connection.
+ * Registers synchronization, diagnostics, fixes, hover, completion, colors, and sorting.
  * Analysis uses captured buffers and suppresses obsolete results. Quick fixes require every edited
  * document to be open and to match the report's source fingerprint.
  *
@@ -240,6 +249,41 @@ export function createLanguageServer(
     }, 40);
   };
 
+  const query: EditorQuery = async (uri, request, token: CancellationToken) => {
+    await controls;
+    const document = documents.get(uri);
+    if (!document || shutdown || token.isCancellationRequested) {
+      return [];
+    }
+    const version = document.version,
+      revision = generation;
+    const controller = new AbortController();
+    const subscription = token.onCancellationRequested(() => controller.abort());
+    const results: WorkspaceEditorResult[] = [];
+    try {
+      for (const workspace of workspaces.values()) {
+        if (workspace.query) {
+          results.push(...(await workspace.query(uri, request, controller.signal)));
+        }
+      }
+      if (
+        token.isCancellationRequested ||
+        revision !== generation ||
+        documents.get(uri)?.version !== version
+      ) {
+        return [];
+      }
+      const { fingerprint } = await import("@stillwind/native");
+      return results.filter((entry) => entry.result.revision === fingerprint(document.getText()));
+    } catch (error) {
+      connection.console.error(String(error));
+      return [];
+    } finally {
+      subscription.dispose();
+    }
+  };
+  registerEditorFeatures(connection, documents, query);
+
   connection.onInitialize(async (params: InitializeParams) => {
     initializationOptions = params.initializationOptions;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
@@ -249,12 +293,22 @@ export function createLanguageServer(
       params.workspaceFolders?.map((folder) => folder.uri) ??
       (params.rootUri ? [params.rootUri] : []);
     await open();
+    const editor = [...workspaces.values()].some((workspace) => workspace.query != null);
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         codeActionProvider: {
-          codeActionKinds: [CodeActionKind.QuickFix],
+          codeActionKinds: [CodeActionKind.QuickFix, ...(editor ? editorCodeActionKinds : [])],
         },
+        hoverProvider: editor,
+        completionProvider: editor
+          ? {
+              resolveProvider: true,
+              triggerCharacters: [":", "-", "/", "[", "("],
+            }
+          : undefined,
+        colorProvider: editor,
+        documentFormattingProvider: editor,
         workspace: {
           workspaceFolders: {
             supported: true,
@@ -322,7 +376,19 @@ export function createLanguageServer(
     schedule();
   });
   connection.onCodeAction(async (params, token) => {
-    const result: CodeAction[] = [];
+    const document = documents.get(params.textDocument.uri);
+    const result: CodeAction[] = document
+      ? await sourceActions(document, params.context.only, token, query)
+      : [];
+    if (
+      params.context.only &&
+      !params.context.only.some(
+        (kind) =>
+          CodeActionKind.QuickFix === kind || CodeActionKind.QuickFix.startsWith(`${kind}.`),
+      )
+    ) {
+      return result;
+    }
     if (token.isCancellationRequested) {
       return result;
     }
@@ -338,6 +404,13 @@ export function createLanguageServer(
             primary.uri !== params.textDocument.uri ||
             primary.endLine < params.range.start.line ||
             primary.startLine > params.range.end.line
+          ) {
+            continue;
+          }
+          if (
+            document &&
+            (primary.endUtf16 < document.offsetAt(params.range.start) ||
+              primary.startUtf16 > document.offsetAt(params.range.end))
           ) {
             continue;
           }

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import ts from "typescript";
+import ts from "typescript-6";
 import { expect, test, vi } from "vite-plus/test";
 import * as core302 from "vue-language-core-3-0-2";
 

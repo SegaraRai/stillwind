@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::StyleDependency;
 use stillwind_semantic::IdentityId;
@@ -107,6 +106,8 @@ pub struct ModuleResourceReference {
 /// output. Applying source edits also checks that their spans are valid.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
+    /// Effective lint settings captured during compilation, including project conversion options.
+    pub lint_settings: stillwind_diagnostics::LintSettings,
     /// Records the effects of this module's own style calls and keeps their source
     /// coordinates. The vector is empty after compilation failure. Hosts use
     /// [`crate::StyleResolver`] to update composition findings when bases change.
@@ -162,14 +163,14 @@ impl CompiledModule {
 
     /// Builds a producer's output without assembling document CSS or support layers.
     ///
-    /// `snapshot` must match this artifact's design-system revision. The returned `css`
-    /// and `module_css` both contain this module's rules. The stylesheet renderer later
+    /// The returned `css` and `module_css` both contain this module's rules and keep
+    /// the lint policy captured during compilation. The stylesheet renderer later
     /// replaces `css` with the document stylesheet and keeps `module_css` for hosts
     /// that send CSS per module.
     ///
     /// The result copies style effects and existing findings without resolving bases
     /// again. Callers must update composition findings when the graph changes.
-    pub fn to_module_output(&self, snapshot: &DesignSystemSnapshot) -> CompileResult {
+    pub fn to_module_output(&self) -> CompileResult {
         let module_css = self.css.to_css();
         CompileResult {
             style_effects: self.style_effects.clone(),
@@ -193,7 +194,7 @@ impl CompiledModule {
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
-            lint_settings: snapshot.theme().config.lint_settings.clone(),
+            lint_settings: self.lint_settings.clone(),
         }
     }
 }

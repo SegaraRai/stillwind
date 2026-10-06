@@ -8,12 +8,68 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::CompilerOptions;
+use stillwind_diagnostics::{
+    CanonicalUtilitiesOverride, LintOverrides, LintSeverity, RootFontSize,
+};
+
+/// Canonical utility options. All omitted fields preserve the previous setting.
+#[napi(object)]
+pub struct NativeCanonicalUtilitiesOptions {
+    /// Reporting severity: warn, deny, or off.
+    pub severity: Option<String>,
+    /// Allows pixel spacing to use the active rem scale. Defaults to true.
+    pub px_to_rem: Option<bool>,
+    /// Positive finite pixels per rem. Defaults to 16.
+    pub root_font_size: Option<f64>,
+}
+
+/// Project lint fields applied after CSS configuration.
+#[napi(object)]
+pub struct NativeLintOptions {
+    /// Field-wise canonical lint policy overrides.
+    pub canonical_utilities: Option<NativeCanonicalUtilitiesOptions>,
+    /// Optional sorting diagnostic severity: warn, deny, or off. Detection is off by default.
+    pub sort_utilities: Option<String>,
+}
+
+impl TryFrom<NativeLintOptions> for LintOverrides {
+    type Error = Error;
+
+    fn try_from(input: NativeLintOptions) -> napi::Result<Self> {
+        let severity = |value: String| {
+            LintSeverity::from_css(&value)
+                .ok_or_else(|| Error::from_reason("lint severity must be warn, deny, or off"))
+        };
+        Ok(Self {
+            canonical_utilities: input
+                .canonical_utilities
+                .map(|config| {
+                    Ok::<_, Error>(CanonicalUtilitiesOverride {
+                        severity: config.severity.map(severity).transpose()?,
+                        px_to_rem: config.px_to_rem,
+                        root_font_size: config
+                            .root_font_size
+                            .map(|value| {
+                                RootFontSize::new(value).ok_or_else(|| {
+                                    Error::from_reason("rootFontSize must be positive and finite")
+                                })
+                            })
+                            .transpose()?,
+                    })
+                })
+                .transpose()?,
+            sort_utilities: input.sort_utilities.map(severity).transpose()?,
+        })
+    }
+}
 
 /// Optional host overrides for prefixes, class identity, and conditional CSS.
 /// Conversion validates prefixes; omitted fields retain [`CompilerOptions`] defaults.
 #[napi(object)]
 #[derive(Default)]
 pub struct NativeCompilerOptions {
+    /// Project lint overrides. Omitted fields retain stylesheet severity and canonical defaults.
+    pub lint: Option<NativeLintOptions>,
     /// Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`.
     pub prefix: Option<String>,
     /// Prefix for the retained Tailwind-compatibility namespace.
@@ -37,6 +93,11 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
     fn try_from(input: NativeCompilerOptions) -> napi::Result<Self> {
         let defaults = Self::default();
         let options = Self {
+            lint: input
+                .lint
+                .map(TryInto::try_into)
+                .transpose()?
+                .unwrap_or_default(),
             prefix: input.prefix.unwrap_or(defaults.prefix),
             tailwind_prefix: input.tailwind_prefix.unwrap_or(defaults.tailwind_prefix),
             class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),

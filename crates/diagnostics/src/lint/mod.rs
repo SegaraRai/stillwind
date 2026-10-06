@@ -14,7 +14,10 @@ mod diagnostic;
 mod finding;
 mod suppression;
 
-pub use config::{LintConfig, LintKind, LintSettings, LintSeverity};
+pub use config::{
+    CanonicalUtilitiesConfig, CanonicalUtilitiesOverride, LintConfig, LintKind, LintOverrides,
+    LintSettings, LintSeverity, RootFontSize,
+};
 pub use diagnostic::{LintDiagnostic, UtilityFailure};
 pub use finding::LintFinding;
 pub use suppression::{

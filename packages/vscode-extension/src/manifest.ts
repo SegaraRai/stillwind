@@ -4,8 +4,7 @@ export const extensionManifest = {
   displayName: "Stillwind",
   publisher: "stillwind",
   version: "0.0.0",
-  description:
-    "Stillwind compiler diagnostics and quick fixes for JavaScript and TypeScript projects",
+  description: "Stillwind diagnostics, CSS hover, completion, colors, and utility sorting",
   license: "MIT",
   engines: {
     vscode: "^1.110.0",
@@ -33,13 +32,29 @@ export const extensionManifest = {
         command: "stillwind.restart",
         title: "Stillwind: Restart Language Server",
       },
-      { command: "stillwind.snapshot", title: "Stillwind: Capture Workspace" },
-      { command: "stillwind.compile", title: "Stillwind: Compile Module" },
+      {
+        command: "stillwind.snapshot",
+        title: "Stillwind: Capture Workspace",
+      },
+      {
+        command: "stillwind.compile",
+        title: "Stillwind: Compile Module",
+      },
+      {
+        command: "stillwind.sortUtilities",
+        title: "Stillwind: Sort Utilities",
+      },
     ],
     menus: {
       commandPalette: [
-        { command: "stillwind.snapshot", when: "false" },
-        { command: "stillwind.compile", when: "false" },
+        {
+          command: "stillwind.snapshot",
+          when: "false",
+        },
+        {
+          command: "stillwind.compile",
+          when: "false",
+        },
       ],
     },
     configuration: {

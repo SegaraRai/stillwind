@@ -11,6 +11,10 @@ import type { PreparedSource, ProjectInput } from "@stillwind/projection";
  * Compiler and design-system settings shared by build integrations and analysis services.
  */
 export interface BaseConfig {
+  /** Lint reporting and safe source normalization. CSS severities apply before these overrides. */
+  lint?: LintOptions;
+  /** Targets for explicit Stillwind sorting and the optional sorting diagnostic. */
+  sort?: UtilitySortOptions;
   /**
    * Project directory, absolute or relative to the configuration file's directory.
    * An inline override uses the application's build root instead. Defaults to that base directory.
@@ -67,6 +71,35 @@ export interface BaseConfig {
    */
   hashLength?: number;
 }
+
+/** Reporting policy for a lint rule. Off disables its diagnostics and automatic fixes. */
+export type LintSeverity = "warn" | "deny" | "off";
+
+/** Settings for canonical utility spelling and compiler ordering. */
+export type LintOptions = {
+  /** Defaults to warn, with spacing conversion enabled at 16 pixels per rem. */
+  "canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
+  /** Enables an optional sorting diagnostic. Omission disables it unless CSS enables it. */
+  "sort-utilities"?: LintSeverity;
+};
+
+/** Controls replacement of equivalent utility spellings. */
+export type CanonicalUtilitiesOptions = {
+  /** Overrides the stylesheet severity. Omission retains it, or warn when unset. */
+  severity?: LintSeverity;
+  /** Converts pixel spacing to rem when the active spacing scale uses rem. Defaults to true. */
+  pxToRem?: boolean;
+  /** Positive finite number of pixels per rem. Defaults to 16. Used only for spacing conversion. */
+  rootFontSize?: number;
+};
+
+/** Controls independent source containers that use compiler ordering. */
+export type UtilitySortOptions = {
+  /** Sorts utilities within each static string or template segment. Defaults to true. */
+  stringLiterals?: boolean;
+  /** Sorts safe array runs, including refs and base styles. Defaults to true. */
+  arrays?: boolean;
+};
 
 /** One project's compiler settings, analysis scope, and source preparation operations. */
 export interface AnalysisProjectConfig extends BaseConfig {
@@ -295,6 +328,20 @@ export function validateConfig(value: unknown): StillwindConfig {
 }
 
 function validCompilerSettings(project: Record<string, unknown>): boolean {
+  if (project.lint !== undefined && !validLintOptions(project.lint)) {
+    return false;
+  }
+  if (
+    project.sort !== undefined &&
+    (!object(project.sort) ||
+      !Object.entries(project.sort).every(
+        ([key, value]) =>
+          ["stringLiterals", "arrays"].includes(key) &&
+          (value === undefined || typeof value === "boolean"),
+      ))
+  ) {
+    return false;
+  }
   const stringSettings = [
     "root",
     "css",
@@ -372,6 +419,8 @@ function validNaming(value: unknown): boolean {
 }
 
 const projectKeys = [
+  "lint",
+  "sort",
   "name",
   "root",
   "tsconfig",
@@ -392,6 +441,43 @@ const projectKeys = [
   "projection",
   "typeFacts",
 ];
+
+function validLintOptions(value: unknown): boolean {
+  if (!object(value)) {
+    return false;
+  }
+  const severity = (value: unknown) =>
+    typeof value === "string" && ["warn", "deny", "off"].includes(value);
+  return Object.entries(value).every(([rule, setting]) => {
+    const fields =
+      rule === "canonical-utilities" ? ["severity", "pxToRem", "rootFontSize"] : undefined;
+    if (setting === undefined && (fields || rule === "sort-utilities")) {
+      return true;
+    }
+    if (rule === "sort-utilities") {
+      return severity(setting);
+    }
+    if (!fields) {
+      return false;
+    }
+    if (typeof setting === "string") {
+      return severity(setting);
+    }
+    return (
+      object(setting) &&
+      Object.entries(setting).every(
+        ([key, option]) =>
+          fields.includes(key) &&
+          (option === undefined ||
+            (key === "severity"
+              ? severity(option)
+              : key === "rootFontSize"
+                ? typeof option === "number" && Number.isFinite(option) && option > 0
+                : typeof option === "boolean")),
+      )
+    );
+  });
+}
 const namingKeys = [
   "utilityClass",
   "refMarker",

@@ -81,6 +81,25 @@ test("static files provide semantic diagnostics, cross-module builds, and React/
     );
     await frame.getByRole("heading", { name: "Updated component" }).waitFor();
     expect(await frame.getByRole("button").innerText()).toBe("Count: 1");
+    await replace(
+      page,
+      buffers,
+      "Component.tsx",
+      'style(card, "p-4 rounded-md")',
+      'style(card, style("p-4 rounded-md"))',
+    );
+    await expect
+      .poll(() => page.locator(".runtime-error").innerText(), { timeout: 30_000 })
+      .toContain("nested style() calls are not supported");
+    await replace(
+      page,
+      buffers,
+      "Component.tsx",
+      'style(card, style("p-4 rounded-md"))',
+      'style(card, "p-4 rounded-md")',
+    );
+    await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
+    expect(await frame.getByRole("button").innerText()).toBe("Count: 1");
     const config = buffers.get("/workspace/stillwind.config.ts")!;
     await replace(
       page,
@@ -130,6 +149,11 @@ test("static files provide semantic diagnostics, cross-module builds, and React/
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("2322");
+    await replace(page, buffers, "Component.tsx", "p-4 rounded-md", "p-[16px] rounded-md");
+    await expect
+      .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
+      .toContain("canonical-utilities");
+    await replace(page, buffers, "Component.tsx", "p-[16px] rounded-md", "p-4 rounded-md");
     await replace(
       page,
       buffers,

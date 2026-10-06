@@ -24,6 +24,15 @@ export function cssEntrypoint(config: BaseConfig): string {
  */
 export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
   return {
+    lint: config.lint && {
+      canonicalUtilities:
+        typeof config.lint["canonical-utilities"] === "string"
+          ? {
+              severity: config.lint["canonical-utilities"],
+            }
+          : config.lint["canonical-utilities"],
+      sortUtilities: config.lint["sort-utilities"],
+    },
     prefix: config.prefix ?? "--sw-",
     tailwindPrefix: config.tailwindPrefix ?? "--tw-",
     classNamespace: config.classNamespace ?? "",

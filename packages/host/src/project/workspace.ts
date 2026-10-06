@@ -6,6 +6,7 @@ import { loadConfiguration } from "@stillwind/config/node";
 import { minimatch } from "minimatch";
 import { glob } from "tinyglobby";
 
+import type { EditorRequest, EditorResult } from "../editor/index.ts";
 import { AnalysisProject, type AnalysisResult } from "./analysis.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
 
@@ -115,6 +116,39 @@ export class AnalysisWorkspace {
           ),
       )
       .sort();
+  }
+
+  /** Keeps editor answers separate when several projects include the same target. */
+  async query(
+    file: string,
+    request: EditorRequest,
+    signal?: AbortSignal,
+  ): Promise<
+    {
+      project: number;
+      config: string;
+      result: EditorResult;
+    }[]
+  > {
+    const results: {
+      project: number;
+      config: string;
+      result: EditorResult;
+    }[] = [];
+    for (const [index, project] of this.projects.entries()) {
+      if (!this.includes(project, file)) {
+        continue;
+      }
+      const result = await project.analysis.query(file, request, signal);
+      if (result) {
+        results.push({
+          project: index,
+          config: project.configFile,
+          result,
+        });
+      }
+    }
+    return results;
   }
 
   /**

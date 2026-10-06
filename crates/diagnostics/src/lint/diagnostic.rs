@@ -18,6 +18,12 @@ use super::LintKind;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
+    /// A source candidate has an equivalent canonical spelling.
+    #[error("prefer canonical utility spelling")]
+    CanonicalUtilities,
+    /// A static source container differs from compiler order.
+    #[error("utilities are not in compiler order")]
+    SortUtilities,
     /// A value import of the style macro is incompatible with the original file format.
     #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
     FrameworkImportMismatch {
@@ -139,6 +145,8 @@ impl LintDiagnostic {
     /// Returns the rule selected by the diagnostic and its utility classification.
     pub const fn kind(&self) -> LintKind {
         match self {
+            Self::CanonicalUtilities => LintKind::CanonicalUtilities,
+            Self::SortUtilities => LintKind::SortUtilities,
             Self::FrameworkImportMismatch { .. } => LintKind::FrameworkImportMismatch,
             Self::MacroArgumentMutation => LintKind::MacroArgumentMutation,
             Self::MacroExecutionBoundary => LintKind::MacroExecutionBoundary,

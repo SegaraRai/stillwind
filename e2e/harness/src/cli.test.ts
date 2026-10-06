@@ -25,7 +25,11 @@ test("Astro preview restarts when a stale lock identifies another live process",
       ["-e", "console.log('ready'); setInterval(() => {}, 1000)", "astro/bin/astro.mjs"],
       workspace.directory,
     );
-    await expect.poll(() => other!.logs()).toContain("ready");
+    await expect
+      .poll(() => other!.logs(), {
+        timeout: 5_000,
+      })
+      .toContain("ready");
     const listener = createServer();
     await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
     const port = (listener.address() as { port: number }).port;

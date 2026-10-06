@@ -77,7 +77,7 @@ impl<'a> StylesheetRenderer<'a> {
         module: &CompiledModule,
         diagnostic_span: Span,
     ) -> CompileResult {
-        let mut result = module.to_module_output(self.snapshot);
+        let mut result = module.to_module_output();
         result.css.clear();
         if module.is_success() {
             match self.render_mapped_stylesheet(&module.css.mapped(), StylesheetPlacement::Document)

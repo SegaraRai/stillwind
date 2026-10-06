@@ -48,7 +48,7 @@ if (!packaging) {
     path.join(browser, "stillwind_native.wasm32-wasi.wasm"),
   );
   await cp(require.resolve("esbuild-wasm/esbuild.wasm"), path.join(browser, "esbuild.wasm"));
-  const library = path.resolve(root, "../host/node_modules/typescript-js/lib");
+  const library = path.resolve(root, "../host/node_modules/typescript-6/lib");
   const libraries: [string, string][] = await Promise.all(
     (await readdir(library))
       .filter((name) => name.endsWith(".d.ts"))
@@ -69,7 +69,10 @@ if (!packaging) {
     JSON.stringify(
       {
         ...extensionManifest,
-        repository: { type: "git", url: "https://github.com/SegaraRai/stillwind" },
+        repository: {
+          type: "git",
+          url: "https://github.com/SegaraRai/stillwind",
+        },
       },
       null,
       2,
@@ -128,7 +131,13 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
     cwd: stage,
     packagePath: path.join(root, `dist/stillwind-${desktop ? "desktop" : "web"}.vsix`),
     dependencies: false,
-    ...(desktop ? { target: `${process.platform}-${process.arch}` } : { target: "web" }),
+    ...(desktop
+      ? {
+          target: `${process.platform}-${process.arch}`,
+        }
+      : {
+          target: "web",
+        }),
   });
 }
 

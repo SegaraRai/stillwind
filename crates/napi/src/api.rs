@@ -396,7 +396,7 @@ pub fn compile_project_input(
         .iter()
         .zip(results)
         .map(|(scan, result)| {
-            let result = result.to_module_output(&snapshot);
+            let result = result.to_module_output();
             Ok(ProjectModuleOutput::new(
                 scan.module_id.clone(),
                 binding_output(result, &scan.source, &registry)?,

@@ -5,7 +5,7 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "catalog:",
-    "playwright": "^1.58.2",
+    "playwright": "^1.63.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

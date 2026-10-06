@@ -38,10 +38,13 @@ use super::symbols::{
 };
 use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
+use crate::editor_lint::detect;
 use crate::identifiers::IdentifierContext;
 use crate::runtime::{RuntimeBindings, encode_projected_edits};
 use crate::transforms::SourceTransform;
-use crate::{CompilerOptions, GeneratedSymbol, StyleResolver, SymbolOrigin, check_style};
+use crate::{
+    CompilerOptions, DesignSystemQuery, GeneratedSymbol, StyleResolver, SymbolOrigin, check_style,
+};
 
 impl Compiler {
     /// Compiles a module that owns source edits, including its runtime imports.
@@ -122,7 +125,9 @@ impl Compiler {
         let theme = snapshot.theme();
         let module_id = &parsed.module_id;
         let options = compiler_options;
-        result.lint_settings.clone_from(&theme.config.lint_settings);
+        result.lint_settings = compiler_options.lint_settings(snapshot);
+        let query = DesignSystemQuery::new(snapshot.clone(), compiler_options.clone());
+        result.lint_findings.extend(detect(source, parsed, &query));
         filter_lint_findings(source, &mut result.lint_findings);
         result
             .diagnostics

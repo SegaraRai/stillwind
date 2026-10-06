@@ -105,7 +105,10 @@ mod tests {
             config.lint_settings.get(LintKind::ValidAnchorScope),
             Some(&LintConfig::ValidAnchorScope(LintSeverity::Deny))
         );
-        assert_eq!(config.lint_settings.iter().count(), 11);
+        assert_eq!(
+            config.lint_settings.iter().count(),
+            LintSettings::with_defaults().iter().count() + 2
+        );
         assert!(
             !config
                 .lint_settings
@@ -133,7 +136,10 @@ mod tests {
         );
         assert_eq!(config.prefix.as_deref(), Some("app"));
         assert_eq!(config.tailwind_prefix.as_deref(), Some("tw"));
-        assert_eq!(config.lint_settings.iter().count(), 11);
+        assert_eq!(
+            config.lint_settings.iter().count(),
+            LintSettings::with_defaults().iter().count() + 2
+        );
         assert_eq!(
             config
                 .lint_settings

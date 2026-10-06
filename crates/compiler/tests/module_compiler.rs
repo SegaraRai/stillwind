@@ -162,7 +162,7 @@ fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
             .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
         assert_eq!(compiled.css.to_css(), output.module_css, "{candidates}");
-        let fragment = compiled.to_module_output(&snapshot);
+        let fragment = compiled.to_module_output();
         assert_eq!(fragment.css, output.module_css);
         assert_eq!(fragment.transforms, output.transforms);
         assert_eq!(
@@ -220,7 +220,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         let compiled = ModuleCompiler::new(snapshot.clone(), options.clone())
             .compile(&analysis, &Identifiers::default());
         assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
-        let fragment = compiled.to_module_output(&snapshot);
+        let fragment = compiled.to_module_output();
         assert_eq!(fragment.diagnostics, [] as [CompileError; 0]);
         assert!(fragment.css.contains("display:flex"));
         assert!(fragment.apply_to_source(&source).is_ok());

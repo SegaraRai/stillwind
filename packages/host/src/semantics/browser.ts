@@ -6,7 +6,7 @@ import type {
 } from "@stillwind/native";
 import { minimatch } from "minimatch";
 import * as path from "pathe";
-import ts from "typescript-js";
+import ts from "typescript-6";
 
 import {
   TypeFactsError,

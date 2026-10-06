@@ -8,6 +8,84 @@ import {
   type StillwindConfigExport,
 } from "./index.ts";
 
+test("lint conversion fields and independent sorting targets are validated", () => {
+  const config = {
+    projects: [
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+        lint: {
+          "canonical-utilities": {
+            rootFontSize: 20.5,
+            pxToRem: false,
+          },
+          "sort-utilities": "off",
+        },
+        sort: {
+          stringLiterals: false,
+          arrays: true,
+        },
+      },
+    ],
+  };
+  expect(validateConfig(config)).toBe(config);
+  for (const rootFontSize of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "16"]) {
+    expect(() =>
+      validateConfig({
+        projects: [
+          {
+            css: "theme.css",
+            files: ["*.tsx"],
+            lint: {
+              "canonical-utilities": { rootFontSize },
+            },
+          },
+        ],
+      }),
+    ).toThrow();
+  }
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          sort: {
+            arrays: "yes",
+          },
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          lint: {
+            "sort-utilities": ["warn"],
+          },
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          lint: {
+            "canonical-utilities": undefined,
+            "sort-utilities": undefined,
+          },
+        },
+      ],
+    }),
+  ).not.toThrow();
+});
+
 test("configuration keeps independent scopes and compiler settings", () => {
   const projects = [
     {

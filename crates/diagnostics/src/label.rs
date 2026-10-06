@@ -184,6 +184,23 @@ impl SourceRange {
         })
     }
 
+    /// Binds an original byte span to an immutable, reportable source snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file identity, boundaries, or document URI are invalid.
+    pub fn from_source(source: Arc<SourceFile>, span: Span) -> Result<Self, SourceRegistryError> {
+        source.slice(span)?;
+        if source.uri().is_none() {
+            return Err(SourceRegistryError::UnreportableSource(span.file));
+        }
+        Ok(Self {
+            source,
+            start: span.start.0,
+            end: span.end.0,
+        })
+    }
+
     /// Returns the exact source snapshot used by this range.
     pub fn source(&self) -> &SourceFile {
         &self.source

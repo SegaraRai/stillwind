@@ -9,6 +9,7 @@ import { relative, resolve, dirname } from "pathe";
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/compiler.ts";
 import { fileSourceKind } from "../compilation/module-source.ts";
 import { loadCssGraph } from "../css/css.ts";
+import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
 import { BrowserTypeFactsService } from "../semantics/browser.ts";
 import { resolveVirtualModule } from "./resolution.ts";
@@ -37,6 +38,7 @@ export interface BrowserProjectOptions {
 
 /** Owns the design system, semantic checker, and compiler artifacts for one immutable snapshot. */
 export class BrowserProject {
+  readonly #editors = new Map<string, EditorSnapshot>();
   readonly #options: BrowserProjectOptions;
   readonly #files: Map<string, string>;
   readonly #facts: BrowserTypeFactsService;
@@ -119,7 +121,11 @@ export class BrowserProject {
         syntax: fileSourceKind(file).syntax,
       });
 
+      const attempted = new Set<string>();
       const host: CompilerHost = {
+        onModule: (moduleId) => {
+          attempted.add(moduleId);
+        },
         describe: descriptor,
         read,
         typeFactsResolution: config.typeFacts !== false,
@@ -164,13 +170,37 @@ export class BrowserProject {
             file === resolve(root, config.types ?? "src/stillwind.generated.d.ts"),
         ),
       );
-      const result = await analyzeModule(
-        this.#session!,
-        () => (config.typeFacts === false ? undefined : this.#facts),
-        id,
-        host,
-        { overlayFiles: this.#files, ambientDeclarations },
-      );
+      let result: ModuleAnalysis;
+      try {
+        result = await analyzeModule(
+          this.#session!,
+          () => (config.typeFacts === false ? undefined : this.#facts),
+          id,
+          host,
+          {
+            overlayFiles: this.#files,
+            ambientDeclarations,
+          },
+        );
+      } catch (error) {
+        this.#invalidate(attempted);
+        throw error;
+      }
+      if (result.generation === "blocked") {
+        // A rejected native transaction can remove previously compiled dependencies.
+        this.#invalidate(attempted);
+      }
+      const editor = new EditorSnapshot(result, this.#session!, this.#loader!, config);
+      for (const report of editor.reports()) {
+        const batch =
+          result.batches.find((batch) =>
+            batch.reports.some((item) => item.primary.location.uri === report.primary.location.uri),
+          ) ?? result.batches[0];
+        if (batch) {
+          batch.reports.push(report);
+        }
+      }
+      this.#editors.set(id, editor);
       this.#cache.set(id, result);
       return result;
     });
@@ -181,8 +211,9 @@ export class BrowserProject {
   }
 
   /**
-   * Returns document CSS for compiled modules. automatic:false includes only shared base CSS.
-   * Local text resources become data URLs; remote URLs retain their authored values.
+   * Returns document CSS for successfully compiled graphs. automatic:false includes
+   * only shared base CSS. Local text resources become data URLs; remote URLs retain
+   * their authored values.
    * @throws If an emitted local resource is absent from the captured files.
    */
   css(): string {
@@ -202,6 +233,16 @@ export class BrowserProject {
       ...plan.resources.map((resource) => ({ ...resource, sourceName: resource.moduleId })),
     ]);
   }
+
+  /** Queries the immutable source graph after ensuring the entry has been analyzed. */
+  async query(id: string, request: EditorRequest): Promise<EditorResult | undefined> {
+    await this.analyze(id);
+    if (this.#closed) {
+      return undefined;
+    }
+    return this.#editors.get(id)?.query(id, request);
+  }
+
   /**
    * Returns CSS values keyed by absolute source path for explicit stillwind/module-css imports.
    * Parts preserve stylesheet occurrence order and include their content fingerprints.
@@ -236,11 +277,25 @@ export class BrowserProject {
   #modules(): string[] {
     return [
       ...new Set(
-        [...this.#cache.values()].flatMap((graph) =>
-          graph.modules.filter((module) => module.code !== null).map((module) => module.moduleId),
-        ),
+        [...this.#cache.values()]
+          .filter((graph) => graph.generation === "complete")
+          .flatMap((graph) =>
+            graph.modules.filter((module) => module.code !== null).map((module) => module.moduleId),
+          ),
       ),
     ];
+  }
+
+  #invalidate(modules: ReadonlySet<string>): void {
+    for (const [id, graph] of this.#cache) {
+      if (
+        modules.has(graph.entry) ||
+        graph.sources.some((source) => modules.has(source.moduleId))
+      ) {
+        this.#cache.delete(id);
+        this.#editors.delete(id);
+      }
+    }
   }
 
   #replaceResources(
@@ -285,6 +340,7 @@ export class BrowserProject {
     this.#closed = true;
     await this.#queue;
     this.#facts.close();
+    this.#editors.clear();
     this.#session = undefined;
     this.#loader = undefined;
   }

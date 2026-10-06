@@ -1,0 +1,193 @@
+import { PassThrough } from "node:stream";
+
+import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
+import { expect, test } from "vite-plus/test";
+import type {
+  CodeAction,
+  CompletionItem,
+  Hover,
+  ColorInformation,
+  ColorPresentation,
+  TextEdit,
+} from "vscode-languageserver";
+import {
+  createConnection,
+  StreamMessageReader,
+  StreamMessageWriter,
+} from "vscode-languageserver/node";
+
+import { createLanguageServer } from "./index.ts";
+
+test("standard LSP requests support lazy completion, hover, colors, and separate fix-all and sort actions", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/entry.tsx";
+  const source =
+    'import {style} from "stillwind/react"; const card=style("p-[16px] flex block hover:bg-brand");';
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                files: ["*.tsx"],
+                css: "theme.css",
+                typeFacts: false,
+                types: false,
+              },
+            ],
+            files: new Map([
+              ["/workspace/entry.tsx", source],
+              [
+                "/workspace/theme.css",
+                `@theme { --spacing:.25rem; --color-brand:red; }
+@utility p-* { padding:--value(--spacing-*, --spacing(), [length]); }
+@utility block { display:block; } @utility flex { display:flex; }
+@utility bg-* { background-color:--value(--color-*, [color]); }
+@variant hover { &:hover { @slot; } } @stillwind-slot utilities;`,
+              ],
+            ]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    const initialized = await client.sendRequest<{
+      capabilities: {
+        hoverProvider: boolean;
+        documentFormattingProvider: boolean;
+      };
+    }>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    expect(initialized.capabilities).toMatchObject({
+      hoverProvider: true,
+      documentFormattingProvider: true,
+    });
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "typescriptreact",
+        version: 1,
+        text: source,
+      },
+    });
+    const position = {
+      line: 0,
+      character: source.indexOf("hover:bg-brand") + 8,
+    };
+    const hover = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: {
+        uri,
+      },
+      position,
+    });
+    expect(JSON.stringify(hover.contents)).toContain("&:hover");
+    const completions = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: {
+        uri,
+      },
+      position: {
+        line: 0,
+        character: source.indexOf("flex"),
+      },
+    });
+    const item = completions.find((item) => item.label === "bg-brand")!;
+    expect(item.documentation).toBeUndefined();
+    const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
+    expect(JSON.stringify(resolved.documentation)).toContain("background-color");
+    const colors = await client.sendRequest<ColorInformation[]>("textDocument/documentColor", {
+      textDocument: {
+        uri,
+      },
+    });
+    expect(colors).toHaveLength(1);
+    const presentations = await client.sendRequest<ColorPresentation[]>(
+      "textDocument/colorPresentation",
+      {
+        textDocument: {
+          uri,
+        },
+        range: colors[0].range,
+        color: {
+          red: 0,
+          green: 0,
+          blue: 1,
+          alpha: 1,
+        },
+      },
+    );
+    expect(presentations[0].textEdit?.newText).toBe("hover:bg-[#0000ff]");
+    const actionParams = {
+      textDocument: {
+        uri,
+      },
+      range: {
+        start: {
+          line: 0,
+          character: 0,
+        },
+        end: {
+          line: 0,
+          character: source.length,
+        },
+      },
+      context: {
+        diagnostics: [],
+        only: ["source.fixAll.stillwind"],
+      },
+    };
+    const fixes = await client.sendRequest<CodeAction[]>("textDocument/codeAction", actionParams);
+    expect(fixes).toHaveLength(1);
+    expect(JSON.stringify(fixes[0].edit)).toContain("p-4");
+    expect(JSON.stringify(fixes[0].edit)).not.toContain("p-4 block");
+    const sorts = await client.sendRequest<CodeAction[]>("textDocument/codeAction", {
+      ...actionParams,
+      context: {
+        diagnostics: [],
+        only: ["source.sort.stillwind"],
+      },
+    });
+    expect(sorts).toHaveLength(1);
+    expect(JSON.stringify(sorts[0].edit)).toContain("p-[16px]");
+    const formatted = await client.sendRequest<TextEdit[]>("textDocument/formatting", {
+      textDocument: {
+        uri,
+      },
+      options: {
+        tabSize: 2,
+        insertSpaces: true,
+      },
+    });
+    expect(formatted.length).toBeGreaterThan(0);
+    await client.sendNotification("textDocument/didChange", {
+      textDocument: {
+        uri,
+        version: 2,
+      },
+      contentChanges: [
+        {
+          text: source.replace("brand", "missing"),
+        },
+      ],
+    });
+    const stale = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
+    expect(stale.documentation).toBeUndefined();
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});

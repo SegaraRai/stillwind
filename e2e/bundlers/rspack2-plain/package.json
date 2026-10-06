@@ -7,7 +7,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@jridgewell/trace-mapping": "0.3.31",
+    "@jridgewell/trace-mapping": "catalog:",
     "@rspack/core": "2.2.8",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

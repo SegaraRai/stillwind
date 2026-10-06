@@ -9,7 +9,7 @@ import type {
   NativeSymbolicValue,
   NativeTypeFact,
 } from "@stillwind/native";
-import type { Node, SourceFile } from "typescript/unstable/ast";
+import type { Node, SourceFile } from "typescript-7/unstable/ast";
 import {
   isCallExpression,
   isElementAccessExpression,
@@ -20,7 +20,7 @@ import {
   isPropertyAccessExpression,
   isSourceFile,
   isStringLiteral,
-} from "typescript/unstable/ast/is";
+} from "typescript-7/unstable/ast/is";
 import {
   API,
   SignatureKind,
@@ -29,7 +29,7 @@ import {
   type Checker,
   type Diagnostic,
   type Type,
-} from "typescript/unstable/sync";
+} from "typescript-7/unstable/sync";
 
 import {
   TypeFactsError,

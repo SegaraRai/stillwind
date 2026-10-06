@@ -11,7 +11,7 @@
 //! Boundaries worth knowing: `resources` finds URLs but never resolves them,
 //! `blocks` scans raw text without understanding declarations, and `output`
 //! describes where authored CSS goes without choosing the host's module or
-//! chunk layout.
+//! chunk layout. `format_css` prints complete stylesheets for editor previews.
 //!
 //! With the `minify` feature, `minify_css` processes complete assets and composes
 //! source maps independently of Stillwind compilation.
@@ -33,6 +33,7 @@ mod colors;
 mod custom_properties;
 mod declarations;
 mod emission;
+mod format;
 mod functions;
 mod math;
 mod output;
@@ -48,6 +49,7 @@ pub use colors::*;
 pub use custom_properties::*;
 pub use declarations::*;
 pub use emission::*;
+pub use format::*;
 pub use functions::*;
 pub use math::*;
 pub use output::*;
