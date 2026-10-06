@@ -3,11 +3,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
-import { compileModule, fileModuleDescriptor, TypeScriptFactsService } from "@stillwind/host";
+import {
+  compileModule,
+  fileModuleDescriptor,
+  TypeScriptFactsService,
+  cssWithSourceMap,
+  decodeCssSourceMap,
+} from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type BenchRunOptions } from "vite-plus/test";
 
-import { cssWithSourceMap, decodeCssSourceMap } from "../../packages/host/src/css-source-map.ts";
 import { cssWithSourceMap as candidate } from "../source-map/candidate.ts";
 import { cssInput } from "../source-map/input.ts";
 
@@ -101,7 +106,12 @@ for (const operation of ["unchanged", "edit"] as const) {
       totalMs: number;
     }> = [];
     const session = new NativeProjectSession(loader, true);
-    const facts = new TypeScriptFactsService(root);
+    const facts = new TypeScriptFactsService({
+      root,
+      project: {
+        kind: "isolated",
+      },
+    });
     const originalCollect = facts.collect.bind(facts);
     const originalCompile = session.compile.bind(session);
     let checkerMs = 0;
@@ -163,7 +173,12 @@ test("host/fresh/phases", async ({ bench, task }) => {
   task.meta.measurement = options;
   await bench("fresh", { async: true }, async () => {
     const start = performance.now();
-    const facts = new TypeScriptFactsService(root);
+    const facts = new TypeScriptFactsService({
+      root,
+      project: {
+        kind: "isolated",
+      },
+    });
     const created = performance.now();
     try {
       output = await compileModule(
@@ -228,7 +243,12 @@ for (const count of [10, 100]) {
   for (const operation of ["unchanged", "edit"] as const) {
     test(`host/graph/${count}/${operation}`, async ({ bench, task }) => {
       const graphRoot = mkdtempSync(path.join(root, ".test-research-graph-"));
-      const service = new TypeScriptFactsService(graphRoot);
+      const service = new TypeScriptFactsService({
+        root: graphRoot,
+        project: {
+          kind: "isolated",
+        },
+      });
       const session = new NativeProjectSession(loader, true);
       let reads = 0;
       let resolves = 0;

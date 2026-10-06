@@ -1,2 +1,3 @@
-export type { StillwindOptions } from "../options.ts";
+export type { StillwindOptions } from "stillwind/config";
+
 export { StillwindPlugin } from "./plugin.ts";

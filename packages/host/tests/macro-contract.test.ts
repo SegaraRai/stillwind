@@ -3,8 +3,8 @@ import path from "node:path";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 test("contract defaults deny builds while warn and off remain configurable", async () => {
   for (const level of [undefined, "warn", "off"] as const) {
@@ -16,7 +16,12 @@ test("contract defaults deny builds while warn and off remain configurable", asy
     );
     const session = new NativeProjectSession(loader, false);
     const warnings: string[] = [];
-    const facts = new TypeScriptFactsService(process.cwd());
+    const facts = new TypeScriptFactsService({
+      root: process.cwd(),
+      project: {
+        kind: "isolated",
+      },
+    });
     const promise = compileModule(
       session,
       () => facts,

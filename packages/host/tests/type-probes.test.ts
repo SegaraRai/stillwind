@@ -1,12 +1,11 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { summarizeSource } from "@stillwind/native";
+import { summarizeSource, type NativeModuleSummary } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { CheckerSource, identityKey, type TypeFactSource } from "../src/checker-source.ts";
-import type { ModuleSummary } from "../src/protocol.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { CheckerSource, identityKey } from "../src/semantics/checker-source.ts";
+import { TypeScriptFactsService, type TypeFactSource } from "../src/semantics/index.ts";
 
 for (const [kind, language] of [
   ["direct", "js"],
@@ -15,7 +14,7 @@ for (const [kind, language] of [
 ] as const) {
   test(`${kind} ${language} checker shadows use identity syntax accepted by their language`, () => {
     const code = 'import { style } from "stillwind/react"; const value = style("p-2");';
-    const summary = summarizeSource(code, "shadow", language, "module") as ModuleSummary;
+    const summary = summarizeSource(code, "shadow", language, "module") as NativeModuleSummary;
     expect(summary.assets.length).toBe(1);
     const prefix = kind === "projected" ? "😀<script>" : "";
     const byteOffset = Buffer.byteLength(prefix);
@@ -121,8 +120,13 @@ export const props = style(selected('infinite'));`;
     "probe-document.ts",
     "ts",
     "unambiguous",
-  ) as ModuleSummary;
-  const service = new TypeScriptFactsService(root);
+  ) as NativeModuleSummary;
+  const service = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   try {
     const facts = service
       .collect(

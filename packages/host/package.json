@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./projection": {
+      "types": "./dist/projection.d.ts",
+      "default": "./dist/projection.js"
+    },
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -19,6 +23,11 @@
     "@jridgewell/trace-mapping": "^0.3.31",
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*",
+    "jiti": "^2.7.0",
+    "minimatch": "^10.2.6",
+    "oxc-resolver": "11.24.2",
+    "stillwind": "workspace:*",
+    "tinyglobby": "^0.2.17",
     "typescript": "^7.0.2"
   },
   "devDependencies": {
@@ -26,7 +35,6 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@vue/compiler-sfc": "^3.5.43",
-    "stillwind": "workspace:*",
     "svelte": "^5.57.1",
     "typescript": "^7.0.2",
     "vite-plus": "catalog:",

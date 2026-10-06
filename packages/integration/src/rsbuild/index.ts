@@ -2,12 +2,12 @@ import { fileURLToPath } from "node:url";
 
 import type { RsbuildPlugin } from "@rsbuild/core";
 import type { RspackOptions } from "@rspack/core";
+import type { StillwindOptions } from "stillwind/config";
 
-import type { StillwindOptions } from "../options.ts";
 import { StillwindPlugin } from "../webpack/plugin.ts";
 import { stillwindRules } from "../webpack/rules.ts";
 
-export type { StillwindOptions } from "../options.ts";
+export type { StillwindOptions } from "stillwind/config";
 
 /** Rsbuild plugin that uses only the hook for updating the Rspack configuration. */
 export interface StillwindRsbuildPlugin extends RsbuildPlugin {

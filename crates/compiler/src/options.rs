@@ -2,11 +2,10 @@
 //!
 //! [`CompilerOptions`] travels with one compilation. It carries the Stillwind-owned
 //! property prefix, the separately configurable Tailwind-compatibility prefix, the
-//! caller's class namespace, the runtime-conditional output strategy, and the optional
-//! policy that reports relationship utilities. [`CompilerOptions::resolved`] pins both
-//! prefixes to the snapshot's own configuration, so a caller that passes stale options
-//! still compiles against the theme it handed over. Every generated text that carries
-//! a prefix is substituted by
+//! caller's class namespace and the runtime-conditional output strategy.
+//! [`CompilerOptions::resolved`] pins both prefixes to the snapshot's own
+//! configuration, so a caller that passes stale options still compiles against the
+//! theme it handed over. Every generated text that carries a prefix is substituted by
 //! this module's `rewrite_generated`; the two namespaces must stay distinct, because a
 //! consumer that recognizes one must not match the other.
 
@@ -31,9 +30,6 @@ pub struct CompilerOptions {
     pub prefix: String,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
     pub tailwind_prefix: String,
-    /// When set, `group`/`peer`-style relationship candidates are reported through the
-    /// `prefer-typed-relationships` lint. Candidate compilation still proceeds.
-    pub forbid_tailwind_relationships: bool,
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
     pub class_namespace: String,
@@ -62,7 +58,6 @@ impl Default for CompilerOptions {
         Self {
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
-            forbid_tailwind_relationships: false,
             class_namespace: String::new(),
             use_css_if: false,
             naming_revision: String::new(),

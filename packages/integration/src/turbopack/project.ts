@@ -5,22 +5,20 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   cleanModuleId,
+  CompilationFailure,
+  compilerOptions,
+  cssEntrypoint,
   fileModuleDescriptor,
   loadCssGraph,
-  CompilationFailure,
   type CompilerHost,
   type LoadedCssGraph,
 } from "@stillwind/host";
 import { scanSource } from "@stillwind/native";
+import type { StillwindOptions } from "stillwind/config";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import {
-  compilerOptions,
-  cssEntrypoint,
-  writeVocabulary,
-  type StillwindOptions,
-} from "../options.ts";
+import { writeVocabulary } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 
 /** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */

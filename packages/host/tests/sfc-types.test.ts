@@ -4,8 +4,12 @@ import { fileURLToPath } from "node:url";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type TestContext } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor, CompilationFailure } from "../src/compiler.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import {
+  CompilationFailure,
+  compileModule,
+  fileModuleDescriptor,
+} from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../integration/testss");
 
@@ -26,7 +30,12 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
     "@utility red {color:red;} @utility blue {color:blue;} @utility green {color:green;} @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, true),
-    facts = new TypeScriptFactsService(root);
+    facts = new TypeScriptFactsService({
+      root,
+      project: {
+        kind: "isolated",
+      },
+    });
   t.onTestFinished(() => facts.close());
   const compile = (options: { diagnostics?: "collect" } = {}) =>
     compileModule(

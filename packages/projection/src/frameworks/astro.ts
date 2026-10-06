@@ -3,9 +3,9 @@ import { convertToTSX, parse } from "@astrojs/compiler";
 import type { SourceProjection } from "../protocol.ts";
 import {
   converterIdentity,
+  PreparationError,
   sourceMapV3,
   sourceRegions,
-  PreparationError,
   type ScriptRegion,
 } from "./common.ts";
 

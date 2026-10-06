@@ -28,6 +28,7 @@
 )]
 
 mod api;
+mod fingerprint;
 mod minify;
 mod naming;
 mod options;
@@ -38,7 +39,8 @@ mod source_input;
 mod stylesheet;
 
 pub use api::*;
-pub use minify::*;
+pub use fingerprint::fingerprint;
+pub use minify::{NativeCssMinifyOptions, NativeMinifiedCss, minify_css};
 pub use output::{
     BindingOutput, BindingRejectedIdentifier, ProjectBindingOutput, ProjectModuleOutput,
 };

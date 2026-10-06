@@ -8,6 +8,47 @@ import { expect, test } from "vite-plus/test";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("fingerprints accept UTF-8 text and bytes and match diagnostic source revisions", async () => {
+    const { fingerprint, compileSource } = await import(bindingSpecifier);
+    expect(fingerprint("")).toBe(
+      "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+    );
+    const source = `/*${"日本語 🧭\r\n".repeat(1024)}*/\r\nimport {style} from "stillwind/react";export const props=style("missing");`;
+    const revision = fingerprint(source);
+    expect(fingerprint(new TextEncoder().encode(source))).toBe(revision);
+    expect(fingerprint(source.replaceAll("\r\n", "\n"))).not.toBe(revision);
+    const output = compileSource(
+      oneShotInput(source, "revision.tsx", "@stillwind-slot utilities;"),
+    );
+    expect(output.reports[0].primary.location.revision).toBe(revision);
+  });
+
+  test("diagnostic collection keeps local utilities when external declarations cannot be lowered", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(0, "root.css", "@stillwind-slot utilities;", sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    const source = {
+      kind: "direct",
+      moduleId: "partial.tsx",
+      document: {
+        uri: sourceUri("partial.tsx"),
+        format: "jsx",
+        code: 'import {style} from "stillwind/react";import {external} from "./missing";export const a=style(external);export const local=style("missing");',
+      },
+      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      typeFacts: [],
+    };
+    const reports = session.diagnose([source])[0].reports;
+    expect(reports.map((report: { code: string }) => report.code)).toEqual(
+      expect.arrayContaining(["SW03001", "unknown-utility"]),
+    );
+    expect(session.diagnosticBatches()).toEqual([]);
+    const output = session.compile([source]).modules[0];
+    expect(output.code).toBeNull();
+    expect(output.css).toBe("");
+  });
+
   test("scan failures preserve original reports without exposing a partial summary", async () => {
     const { scanSource } = await import(bindingSpecifier);
     const original =
@@ -461,6 +502,27 @@ export function registerBindingContract(bindingSpecifier: string) {
         expect(output.reports[0].severity).toBe(severity === "deny" ? "error" : "warning");
       }
       expect(output.code).toBeTruthy();
+    }
+  });
+
+  test("CSS alone controls detection and severity of typed relationship findings", async () => {
+    const { compileSource } = await import(bindingSpecifier);
+    const source = "import {style} from 'stillwind/react';export const props=style('@sm:flex');";
+    for (const severity of ["off", "warn", "deny"]) {
+      const output = compileSource(
+        oneShotInput(
+          source,
+          "relationships.tsx",
+          `@utility flex{display:flex} @stillwind-slot utilities; @stillwind{prefer-typed-relationships:${severity};}`,
+        ),
+      );
+      const findings = output.reports.filter(
+        (report: { code: string }) => report.code === "prefer-typed-relationships",
+      );
+      expect(findings.length).toBe(severity === "off" ? 0 : 1);
+      if (severity !== "off") {
+        expect(findings[0].severity).toBe(severity === "deny" ? "error" : "warning");
+      }
     }
   });
 

@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import type { StillwindOptions } from "../options.ts";
+import type { StillwindOptions } from "stillwind/config";
+
 import { loaderOptionsId } from "./rules.ts";
 
 /** Compiler options carried by a loader rule or an encoded SFC subrequest. */

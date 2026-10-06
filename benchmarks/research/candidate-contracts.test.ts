@@ -1,7 +1,7 @@
+import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { cssWithSourceMap, decodeCssSourceMap } from "../../packages/host/src/css-source-map.ts";
 import { cssWithSourceMap as candidate } from "../source-map/candidate.ts";
 
 test("candidate matches native plans with authored CSS, several modules and resources", () => {

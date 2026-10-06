@@ -39,6 +39,15 @@ export declare class NativeDesignSystemLoader {
 /** Mutable project state for one Vite or CLI session. */
 export declare class NativeProjectSession {
   /**
+   * Collects local diagnostics from available IR without generating or publishing artifacts.
+   * Type facts may cover only some expressions. Unresolved lowering remains in the reports.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed inputs, duplicate module identities, or invalid report ranges.
+   */
+  diagnose(sources: Array<NativePreparedSource>): Array<NativeDiagnosticBatch>
+  /**
    * Scans a source before checker queries. Fatal failures replace the module's
    * latest reports and reject its attempted revision without publishing output.
    * Malformed host transport remains an exception.
@@ -339,6 +348,9 @@ export declare function compileProject(sources: Array<NativePreparedSource>, css
  */
 export declare function compileSource(input: NativeCompileSourceInput, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
+/** Returns the compiler's lowercase hexadecimal fingerprint of UTF-8 text or raw bytes. */
+export declare function fingerprint(content: string | Uint8Array): string
+
 /**
  * Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
  * Exposed so parity and integration tools compare both compilers after the same
@@ -470,20 +482,14 @@ export interface NativeCompileCssInput {
 }
 
 /**
- * Optional host overrides for prefixes, lint policy, class identity, and conditional
- * CSS. Conversion validates prefixes; omitted fields retain [`CompilerOptions`]
- * defaults.
+ * Optional host overrides for prefixes, class identity, and conditional CSS.
+ * Conversion validates prefixes; omitted fields retain [`CompilerOptions`] defaults.
  */
 export interface NativeCompilerOptions {
   /** Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`. */
   prefix?: string
   /** Prefix for the retained Tailwind-compatibility namespace. */
   tailwindPrefix?: string
-  /**
-   * Whether Tailwind relationship candidates produce the nonfatal typed-relationship
-   * lint.
-   */
-  forbidTailwindRelationships?: boolean
   /** Identifier namespace for generated class names. */
   classNamespace?: string
   /**

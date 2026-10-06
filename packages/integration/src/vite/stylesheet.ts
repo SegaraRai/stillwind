@@ -5,8 +5,12 @@ import { cssForBrowser, type BrowserCssSources } from "./browser-css.ts";
 import type { CssContext, DesignSystem } from "./design-system.ts";
 import { readableFile } from "./file-access.ts";
 import type { ProjectSettings } from "./project.ts";
-import { resourceReplacements, resolvedFile, resolveResources } from "./resources.ts";
-import type { StylesheetResource } from "./resources.ts";
+import {
+  resolvedFile,
+  resolveResources,
+  resourceReplacements,
+  type StylesheetResource,
+} from "./resources.ts";
 
 /**
  * A rendered stylesheet with resolved resources and browser-ready parts, retaining native

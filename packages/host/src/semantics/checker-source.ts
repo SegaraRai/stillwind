@@ -1,62 +1,12 @@
 import path from "node:path";
 
 import { TraceMap, decodedMappings } from "@jridgewell/trace-mapping";
-import type { NativeAssetRecord, NativeCheckerBinding } from "@stillwind/native";
-import type { PreparedSource, CheckerBuffer } from "@stillwind/projection";
+import type { NativeAssetRecord } from "@stillwind/native";
+import type { CheckerBuffer, PreparedSource } from "@stillwind/projection";
 import { skipTrivia } from "typescript/unstable/ast";
 
-/** Original UTF-8 expression range and its validated projected UTF-16 range. */
-export interface CheckerSpan {
-  /** Correspondence role matched when mapping a producer, expression, or module specifier. */
-  role: string;
-  /** Inclusive UTF-8 byte offset in the original document. */
-  start: number;
-  /** Exclusive UTF-8 byte offset in the original document, at or after `start`. */
-  end: number;
-  /** Inclusive UTF-16 offset in the unedited projected parser buffer. */
-  projectedStart: number;
-  /** Exclusive UTF-16 offset in the projected buffer, at or after `projectedStart`. */
-  projectedEnd: number;
-}
-
-/** Original-coordinate requests for one module and its optional parser projection. */
-export type TypeFactSource = PreparedSource & {
-  /**
-   * Original expressions queried for lowering or optional macro recognition. Every probe must
-   * match an expression in a checker AST.
-   */
-  probes: readonly {
-    /** Inclusive UTF-8 byte offset of the original expression. */
-    start: number;
-    /** Exclusive UTF-8 byte offset of the original expression. */
-    end: number;
-    /**
-     * True makes unresolved identities optional for macro recognition. Otherwise missing or
-     * unresolved types and nonfinite Stillwind candidates are errors.
-     */
-    recognitionOnly?: boolean;
-  }[];
-  /** Validated original-byte to projected-UTF-16 correspondences from the frontend. */
-  checkerSpans?: readonly CheckerSpan[];
-  /** Validated generated references that must use their global helper declarations. */
-  checkerBindings?: readonly NativeCheckerBinding[];
-  /** Alternative checker buffers, including independent Astro client modules. */
-  checkerBuffers?: readonly CheckerBuffer[];
-  /** Absolute framework declaration files included in the checker project. */
-  checkerTypes?: readonly string[];
-  /** Import resolutions used to rewrite checker module paths. */
-  resolutions?: readonly {
-    /**
-     * Full resolved source identity. The checker rewrites this to the matching checker filename
-     * when one is supplied.
-     */
-    id: string;
-    /** Inclusive UTF-8 byte offset of the original module string literal, including its quotes. */
-    start: number;
-    /** Exclusive UTF-8 byte offset of the original module string literal. */
-    end: number;
-  }[];
-};
+import { byteToUtf16 } from "../compilation/module-source.ts";
+import type { TypeFactSource } from "./backend.ts";
 
 /** Checker-only insertion/replacement in input-buffer UTF-16 coordinates. */
 interface ShadowEdit {
@@ -91,28 +41,6 @@ export function identityKey(identity: NativeAssetRecord["identity"]): string {
     bindingName: identity.bindingName,
   });
   return `stillwind-identity/v1:${Buffer.from(serialized).toString("base64url")}`;
-}
-
-/**
- * Converts an original UTF-8 byte boundary to a UTF-16 offset for slicing JavaScript text.
- *
- * @param text - Original document text.
- * @param offset - Integer byte offset from zero through the UTF-8 byte length, at a character
- * boundary.
- * @returns Length of the text before that boundary in UTF-16 code units.
- * @throws If the offset is negative, exceeds the byte length, or points into a UTF-8 continuation
- * byte.
- */
-export function byteToUtf16(text: string, offset: number): number {
-  const bytes = Buffer.from(text);
-  if (
-    offset < 0 ||
-    offset > bytes.length ||
-    (offset < bytes.length && (bytes[offset] & 0xc0) === 0x80)
-  ) {
-    throw new Error("Invalid original UTF-8 boundary");
-  }
-  return bytes.subarray(0, offset).toString("utf8").length;
 }
 
 /**

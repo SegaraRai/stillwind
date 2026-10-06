@@ -23,6 +23,8 @@
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
+    "@stillwind/analysis": "workspace:*",
+    "@stillwind/language-server": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "5.0.1",

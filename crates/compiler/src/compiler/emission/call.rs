@@ -39,7 +39,6 @@ impl<'a> CallEmitter<'a> {
         let emitter = Self {
             source: inputs.source,
             module_id: inputs.module_id,
-            options: inputs.options,
             identifiers: inputs.identifiers,
             theme: inputs.theme,
             call: inputs.call,

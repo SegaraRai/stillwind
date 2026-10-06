@@ -1,17 +1,152 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { identityKey, type TypeFactSource } from "./checker-source.ts";
-import { collectTypeScriptFacts, TypeFactsError, type AssetRecord } from "./type-facts.ts";
+import type { TypeFactSource } from "./backend.ts";
+import { identityKey } from "./checker-source.ts";
+import {
+  collectTypeScriptFacts,
+  resolveTypeFactsEnvironment,
+  TypeFactsError,
+  TypeScriptFactsService,
+  type AssetRecord,
+} from "./type-facts.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
+test("TypeScript environment selection fixes the config path and permits isolated defaults", async () => {
+  const directory = await mkdtemp(path.join(root, ".test-type-facts-"));
+  try {
+    expect(resolveTypeFactsEnvironment(directory)).toEqual({
+      root: directory,
+      project: {
+        kind: "isolated",
+      },
+    });
+    await writeFile(path.join(directory, "tsconfig.json"), "{}");
+    await writeFile(path.join(directory, "tsconfig.app.json"), "{}");
+    expect(resolveTypeFactsEnvironment(directory)).toEqual({
+      root: directory,
+      project: {
+        kind: "configured",
+        configPath: path.join(directory, "tsconfig.json"),
+      },
+    });
+    expect(resolveTypeFactsEnvironment(directory, "tsconfig.app.json").project).toEqual({
+      kind: "configured",
+      configPath: path.join(directory, "tsconfig.app.json"),
+    });
+    expect(resolveTypeFactsEnvironment(directory, false).project).toEqual({ kind: "isolated" });
+    expect(() => resolveTypeFactsEnvironment(directory, "missing.json")).toThrow(/does not exist/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("collections retain configured declarations, replace imported overlays, and explicitly include ambient declarations", async () => {
+  const directory = await mkdtemp(path.join(root, ".test-type-facts-"));
+  let service: TypeScriptFactsService | undefined;
+  try {
+    await writeFile(
+      path.join(directory, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          module: "esnext",
+          moduleResolution: "bundler",
+        },
+        include: ["**/*.ts"],
+      }),
+    );
+    await writeFile(path.join(directory, "global.d.ts"), "type GlobalChosen<T> = T;");
+    await writeFile(path.join(directory, "unrelated.ts"), "throw new Error('unrelated runtime');");
+    const moduleId = "entry.ts";
+    const fileName = path.join(directory, moduleId);
+    const code = `import {style} from 'stillwind/react';
+import type {Chosen} from './chosen';
+const local = style.ref('local');
+declare const selected: Chosen<typeof local>;
+selected;`;
+    const assets = summarizeSource(code, moduleId, "ts", "module").assets;
+    const start = Buffer.byteLength(code.slice(0, code.lastIndexOf("selected;")));
+    const source: TypeFactSource = {
+      kind: "direct",
+      moduleId,
+      resolverId: fileName,
+      checkerFileName: fileName,
+      projectionFileName: fileName,
+      document: {
+        uri: `untitled:${moduleId}`,
+        code,
+        format: "script",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
+      probes: [
+        {
+          start,
+          end: start + "selected".length,
+        },
+      ],
+    };
+    service = new TypeScriptFactsService(resolveTypeFactsEnvironment(directory));
+    const overlayFiles = new Map([
+      [path.join(directory, "chosen.d.ts"), "export type Chosen<T> = Forced<GlobalChosen<T>>;"],
+      [
+        path.join(directory, "unreferenced.d.ts"),
+        'declare module "stillwind/react" { export const style: never; }',
+      ],
+    ]);
+    const ambientDeclarations = new Map([
+      [path.join(directory, "forced.d.mts"), "declare global {type Forced<T> = T;} export {};"],
+    ]);
+    const declarations = new Map([[moduleId, assets]]);
+    const first = service.collect([source], declarations, {
+      overlayFiles,
+      ambientDeclarations,
+    });
+    expect(first.get(moduleId)?.[0].value.value.candidates).toEqual({
+      kind: "finite",
+      values: [assets[0].identity],
+    });
+    expect([...service.dependencies].some((file) => file.endsWith("unrelated.ts"))).toBe(false);
+    overlayFiles.set(path.join(directory, "chosen.d.ts"), "export type Chosen<T> = unknown;");
+    expect(() =>
+      service!.collect([source], declarations, {
+        overlayFiles,
+        ambientDeclarations,
+      }),
+    ).toThrow(TypeFactsError);
+    overlayFiles.set(
+      path.join(directory, "chosen.d.ts"),
+      "export type Chosen<T> = Forced<GlobalChosen<T>>;",
+    );
+    expect(() =>
+      service!.collect([source], declarations, {
+        overlayFiles,
+      }),
+    ).toThrow(TypeFactsError);
+    expect(
+      service.collect([source], declarations, {
+        overlayFiles,
+        ambientDeclarations,
+      }),
+    ).toEqual(first);
+    expect(service.stats.starts).toBe(1);
+  } finally {
+    service?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 function collect(expressions: readonly string[], recognitionOnly = false) {
-  const declarations = `import { style } from '../../core/src/frameworks/react.ts';
-import type { StyleRef } from '../../core/src/macro/index.ts';
+  const declarations = `import { style } from '../../../core/src/frameworks/react.ts';
+import type { StyleRef } from '../../../core/src/macro/index.ts';
 const a = style.ref('a');
 const b = style.ref('b');
 declare const enabled: boolean;
@@ -56,7 +191,12 @@ declare const widened: StyleRef;
     probes,
   };
   return {
-    facts: collectTypeScriptFacts([source], new Map([[moduleId, assets]]), root).get(moduleId)!,
+    facts: collectTypeScriptFacts([source], new Map([[moduleId, assets]]), {
+      root,
+      project: {
+        kind: "isolated",
+      },
+    }).get(moduleId)!,
     assets,
     probes,
   };
@@ -161,7 +301,12 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
     ]),
   );
   const identities = assets.get("scope-facts-producer.ts")!.map((asset) => asset.identity);
-  const facts = collectTypeScriptFacts(sources, assets, root).get("scope-facts-consumer.ts")!;
+  const facts = collectTypeScriptFacts(sources, assets, {
+    root,
+    project: {
+      kind: "isolated",
+    },
+  }).get("scope-facts-consumer.ts")!;
   expect(facts).toStrictEqual(
     probes.map((probe, index) => ({
       ...probe,
@@ -216,7 +361,12 @@ const refUse=target.asAnchor(),variant=target('hover:'),animationUse=frames(''),
     probes,
   };
   return {
-    facts: collectTypeScriptFacts([source], new Map([[moduleId, assets]]), root).get(moduleId)!,
+    facts: collectTypeScriptFacts([source], new Map([[moduleId, assets]]), {
+      root,
+      project: {
+        kind: "isolated",
+      },
+    }).get(moduleId)!,
     assets,
   };
 }

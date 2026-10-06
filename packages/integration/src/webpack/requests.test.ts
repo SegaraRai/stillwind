@@ -1,8 +1,8 @@
 import path from "node:path";
 
+import type { StillwindOptions } from "stillwind/config";
 import { expect, test } from "vite-plus/test";
 
-import type { StillwindOptions } from "../options.ts";
 import { classifyRequest, requestOptions, virtualRequest } from "./requests.ts";
 import { loaderOptionsId } from "./rules.ts";
 
@@ -36,7 +36,9 @@ test("SFC virtual requests carry reconstructible configuration", () => {
 test("SFC naming callbacks use the registered rule configuration", () => {
   const options: StillwindOptions = {
     css: "./root.css",
-    naming: { utilityClass: (_context, hash) => "custom-" + hash.toString("hex") },
+    naming: {
+      utilityClass: (_context, hash) => "custom-" + hash.toString("hex"),
+    },
     namingRevision: "test",
   };
   const resource = path.resolve("component.svelte");

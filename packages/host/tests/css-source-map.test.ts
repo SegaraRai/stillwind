@@ -6,8 +6,8 @@ import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { cssWithSourceMap, decodeCssSourceMap } from "../src/css-source-map.ts";
-import { composeModuleSourceMap, moduleSourceMap } from "../src/source-map.ts";
+import { composeModuleSourceMap, moduleSourceMap } from "../src/compilation/index.ts";
+import { cssWithSourceMap, decodeCssSourceMap } from "../src/css/index.ts";
 
 const location = (text: string, offset: number) => {
   const prefix = text.slice(0, offset);

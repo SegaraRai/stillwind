@@ -54,6 +54,10 @@ for static arguments, reactive reads, execution boundaries, and diagnostics.
 See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
 `if(...):utility`, and the shared `useCssIf` compiler option.
 
+See [standalone analysis](docs/standalone-analysis.md) for `stillwind lint`, the
+language server, and `stillwind/config`. Analysis can use a project's Vite
+resolver or an independent filesystem host.
+
 ## Workspace
 
 This repository contains a pnpm workspace backed by Vite+.
@@ -226,8 +230,9 @@ for migration compatibility, including named markers and responsive container
 variants. Stillwind's `style.ref()` declares independent element identities, and
 `ref("hover").in(parent)` constrains a selector at its use site.
 Projects that want to enforce that model can set
-`forbidTailwindRelationships: true` in the Vite plugin options; compatibility
-syntax then emits the `prefer-typed-relationships` lint finding.
+`@stillwind { prefer-typed-relationships: deny; }` in CSS. Compatibility syntax
+then emits an error-level lint finding. `warn` reports it as a warning, and `off`
+disables detection.
 
 Ref provider checks match marker attachments within the same `style()` call.
 Calls that contain composition suppress missing-attachment warnings because a

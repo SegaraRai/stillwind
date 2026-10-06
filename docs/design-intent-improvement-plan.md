@@ -212,7 +212,7 @@ identity のハッシュ計算は不変。Unicode・空白・記号付き ref �
 - [x] `docs/macro-contract.md` を、React の規約を前提としない Stillwind の引数契約へ更新する。
 
 対象: `crates/js-oxc/src/contract.rs`、`crates/diagnostics`、policy の解決・公開、
-`packages/host/src/compiler.ts` / `editor.ts`、CLI/native の出力。
+`packages/host/src/compilation/compiler.ts` / `editor.ts`、CLI/native の出力。
 
 実装: mutation と suspension/import は suppressible lint とし、既定 policy を `deny` とする。
 class/JSX 自体と Hook 風の関数名では診断しない。構造抽出不能な入力は既存 compile error を維持する。

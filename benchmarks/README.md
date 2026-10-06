@@ -18,7 +18,7 @@ Initial fixture construction, correctness assertions, and fingerprint generation
 
 To filter cases, enter `benchmarks/` and run, for example, `vp test bench compiler/compiler.bench.ts --run --mode benchmark -t "graph/single-edit"`. Configure reporters and `--outputFile` when a JSON report is needed.
 
-The CSS-map candidate indexes mapping starts, advances source cursors and scans placeholders with a compiled pattern. It is used only by the benchmark and its colocated behavior tests. The production host still indexes source positions and searches resource replacements in `packages/host/src/css-source-map.ts`. Both benchmark variants use the current source identity and upstream-map contracts. Candidate correctness tests run in the ordinary JS test suite.
+The CSS-map candidate indexes mapping starts, advances source cursors and scans placeholders with a compiled pattern. It is used only by the benchmark and its colocated behavior tests. The production host still indexes source positions and searches resource replacements in `packages/host/src/css/css-source-map.ts`. Both benchmark variants use the current source identity and upstream-map contracts. Candidate correctness tests run in the ordinary JS test suite.
 
 `vp run --filter @stillwind-internal/benchmarks bench:research` measures checker phases, synthetic graphs with files on disk, loader reuse, and source-map variants. The source-map replacement-count cases deliberately use keys absent from the CSS to measure lookup cost. The graph edit appends a comment to the entry; it does not change the imported declarations. Phase probes include timing overhead. See `research/evidence.json` and `../docs/benchmark-investigation-2026-10-03.md` for results and limitations.
 

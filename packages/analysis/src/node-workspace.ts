@@ -1,0 +1,75 @@
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { findConfiguration } from "@stillwind/host";
+
+import type {
+  AnalysisWorkspaceContext,
+  AnalysisWorkspaceService,
+  OpenAnalysisWorkspaces,
+} from "./index.ts";
+import { AnalysisWorker } from "./worker-client.ts";
+
+/** Opens isolated Node hosts for file workspaces or one explicitly selected configuration. */
+export async function openNodeWorkspaces(
+  context: AnalysisWorkspaceContext,
+  config?: string,
+): Promise<OpenAnalysisWorkspaces> {
+  const workspaces = new Map<string, AnalysisWorkspaceService>();
+  const errors = new Map<string, string>();
+  const paths = config
+    ? [path.resolve(config)]
+    : (context.workspaceFolders.length
+        ? context.workspaceFolders
+        : [pathToFileURL(process.cwd()).href]
+      ).map((uri) => (uri.startsWith("file:") ? findConfiguration(fileURLToPath(uri)) : undefined));
+  if (paths.some((file) => !file) || !paths.length) {
+    errors.set("configuration", "Cannot find stillwind.config.ts for the workspace");
+  }
+  for (const file of new Set(paths.filter((file): file is string => Boolean(file)))) {
+    const worker = new AnalysisWorker();
+    try {
+      await worker.open(file);
+      const accepts = (uri: string) => uri.startsWith("file:");
+      workspaces.set(file, {
+        update: async (uri, source, version) => {
+          if (accepts(uri)) {
+            await worker.request({ method: "update", file: fileURLToPath(uri), source, version });
+          }
+        },
+        closeDocument: async (uri) => {
+          if (accepts(uri)) {
+            await worker.request({ method: "closeDocument", file: fileURLToPath(uri) });
+          }
+        },
+        analyze: async (uri, signal) => {
+          if (!accepts(uri) || signal?.aborted) {
+            return [];
+          }
+          const results = await worker.analyze(fileURLToPath(uri));
+          return signal?.aborted
+            ? []
+            : results.map(({ project, config, result }) => ({
+                project,
+                config,
+                result: {
+                  entry: result.entry,
+                  revision: result.revision,
+                  status: result.status,
+                  reports: result.reports,
+                  error: result.error,
+                  dependencies: result.graph?.dependencies,
+                  unverified: result.graph?.unverified,
+                  generation: result.graph?.generation,
+                },
+              }));
+        },
+        close: () => worker.close(),
+      });
+    } catch (error) {
+      errors.set(file, String(error));
+      await worker.close();
+    }
+  }
+  return { workspaces, errors };
+}

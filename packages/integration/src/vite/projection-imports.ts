@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
-import { cleanModuleId, fileSourceKind, prepareSource } from "@stillwind/host";
+import { cleanModuleId, fileSourceKind } from "@stillwind/host";
+import { prepareSource } from "@stillwind/host/projection";
 import { transform } from "esbuild";
 
 /** Finds literal projection imports in a source document without evaluating its code. */

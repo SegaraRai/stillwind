@@ -3,34 +3,42 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type {
-  NativeIdentity,
   NativeAssetRecord,
-  NativeTypeFact,
-  NativeSymbolicValue,
   NativeExportedValue,
+  NativeIdentity,
   NativeSourceIssue,
+  NativeSymbolicValue,
+  NativeTypeFact,
 } from "@stillwind/native";
 import type { Node, SourceFile } from "typescript/unstable/ast";
 import {
+  isCallExpression,
+  isElementAccessExpression,
+  isExportDeclaration,
   isExpression,
   isIdentifier,
-  isCallExpression,
+  isImportDeclaration,
   isPropertyAccessExpression,
-  isElementAccessExpression,
+  isSourceFile,
+  isStringLiteral,
 } from "typescript/unstable/ast/is";
 import {
   API,
-  TypeFlags,
   SignatureKind,
-  type Checker,
   Snapshot,
-  type Type,
+  TypeFlags,
+  type Checker,
   type Diagnostic,
+  type Type,
 } from "typescript/unstable/sync";
 
-import { CheckerSource, checkerId, type TypeFactSource } from "./checker-source.ts";
-
-export type { TypeFactSource } from "./checker-source.ts";
+import type {
+  AvailableFacts,
+  TypeFactSource,
+  TypeFactsBackend,
+  UnverifiedRange,
+} from "./backend.ts";
+import { CheckerSource, checkerId } from "./checker-source.ts";
 
 /**
  * Failure to map, validate, or recover declaration identities for one source. The compiler turns
@@ -81,7 +89,7 @@ export class TypeFactsError extends Error {
  * Native declaration identity containing its asset kind, declaring module, original byte range, and
  * binding name.
  */
-export type IdentityId = NativeIdentity;
+type IdentityId = NativeIdentity;
 
 /**
  * Native declaration record carrying an identity, metadata, and the original-byte range of its
@@ -160,7 +168,13 @@ function symbolic(
   kind: IdentityId["kind"],
   identities: readonly IdentityId[],
 ): NativeSymbolicValue {
-  return { kind, candidates: { kind: "finite", values: [...identities] } };
+  return {
+    kind,
+    candidates: {
+      kind: "finite",
+      values: [...identities],
+    },
+  };
 }
 
 /**
@@ -333,7 +347,7 @@ interface PreparedProject {
  * attempts and are not reset between collections.
  */
 export interface TypeScriptFactsStats {
-  /** Number of API construction attempts, including the initial start and recovery starts. */
+  /** Number of API construction attempts, including starts after invalidation or query failure. */
   starts: number;
   /**
    * Number of snapshot updates that returned a snapshot, including updates followed by a query
@@ -353,14 +367,81 @@ export interface TypeScriptFactsStats {
   diskReadRequests: number;
 }
 
+/** TypeScript settings inherited by the generated project used for semantic queries. */
+export type TypeScriptProject =
+  | {
+      readonly kind: "configured";
+      /** Absolute path to the consumer's tsconfig. */
+      readonly configPath: string;
+    }
+  | {
+      readonly kind: "isolated";
+    };
+
+/** Fixed filesystem and TypeScript settings shared by collections in one checker service. */
+export interface TypeFactsEnvironment {
+  /** Absolute directory used for checker resolution and generated configuration paths. */
+  readonly root: string;
+  /** Settings inherited by the checker. Isolated projects use Stillwind's compiler defaults. */
+  readonly project: TypeScriptProject;
+}
+
+/**
+ * Selects the TypeScript environment before starting a checker.
+ *
+ * @param root - Filesystem project directory, resolved to an absolute path.
+ * @param tsconfig - Absolute or root-relative config path. Omission selects an existing root
+ * `tsconfig.json`. False selects isolated defaults even when that file exists.
+ * @returns Fixed settings without evaluating configuration or starting the checker.
+ * @throws If an explicitly selected path is empty or its configuration file does not exist.
+ */
+export function resolveTypeFactsEnvironment(
+  root: string,
+  tsconfig?: string | false,
+): TypeFactsEnvironment {
+  root = path.resolve(root);
+  if (typeof tsconfig === "string" && !tsconfig.trim()) {
+    throw new Error("TypeScript configuration path must not be empty");
+  }
+  const configPath = path.resolve(root, typeof tsconfig === "string" ? tsconfig : "tsconfig.json");
+  if (typeof tsconfig === "string" && !existsSync(configPath)) {
+    throw new Error(`TypeScript configuration does not exist: ${configPath}`);
+  }
+  return {
+    root,
+    project:
+      tsconfig !== false && existsSync(configPath)
+        ? {
+            kind: "configured",
+            configPath,
+          }
+        : {
+            kind: "isolated",
+          },
+  };
+}
+
+/**
+ * File contents captured for one collection. Ambient declarations override overlays at matching
+ * paths. Prepared checker sources and the generated configuration override both maps.
+ */
+export interface TypeFactsInputs {
+  /** Absolute paths to replacement text. Files participate only when the checker references them. */
+  overlayFiles?: ReadonlyMap<string, string>;
+  /** Absolute declaration paths to text. Every supplied declaration becomes a project root file. */
+  ambientDeclarations?: ReadonlyMap<string, string>;
+}
+
 /**
  * Builds checker sources and an in-memory project configuration for semantic queries.
  *
  * @param sources - Prepared sources with validated mappings, original probes, and dependency
  * resolutions.
  * @param assetsByModuleId - Native declaration records keyed by compiler module identity.
- * @param configFile - Absolute virtual configuration filename used to locate generated global
- * declarations.
+ * @param shadowTsconfigPath - Absolute filename of the generated in-memory TypeScript project.
+ * @param project - Consumer configuration to inherit, or isolated compiler defaults.
+ * @param inputs - Captured file replacements and declarations required by this collection.
+ * @param configuredDeclarations - Declaration files selected by the consumer's tsconfig.
  * @returns Virtual text and range mappings without writing any files to disk.
  * @throws If checker edits or projection maps are invalid, or an original probe has no
  * checker-buffer correspondence.
@@ -368,9 +449,17 @@ export interface TypeScriptFactsStats {
 function prepareProject(
   sources: readonly TypeFactSource[],
   assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
-  configFile: string,
+  shadowTsconfigPath: string,
+  project: TypeScriptProject,
+  inputs: TypeFactsInputs,
+  configuredDeclarations: readonly string[],
 ): PreparedProject {
-  const virtualFiles = new Map<string, string>();
+  const virtualFiles = new Map(
+    [...(inputs.overlayFiles ?? []), ...(inputs.ambientDeclarations ?? [])].map(([name, text]) => [
+      normalize(name),
+      text,
+    ]),
+  );
   const mappings: CheckerSource[] = [];
   const allIdentities = new Map<string, IdentityId>();
   const globals = new Set<string>();
@@ -380,7 +469,7 @@ function prepareProject(
     if (declarations) {
       const fingerprint = createHash("sha256").update(declarations).digest("hex").slice(0, 16);
       const id = normalize(
-        path.join(path.dirname(configFile), `.stillwind-globals-${fingerprint}.d.ts`),
+        path.join(path.dirname(shadowTsconfigPath), `.stillwind-globals-${fingerprint}.d.ts`),
       );
       virtualFiles.set(id, declarations);
       globals.add(id);
@@ -433,62 +522,76 @@ function prepareProject(
     }
   }
   virtualFiles.set(
-    normalize(configFile),
+    normalize(shadowTsconfigPath),
     JSON.stringify({
+      ...(project.kind === "configured"
+        ? {
+            extends: project.configPath,
+          }
+        : {}),
       compilerOptions: {
         allowJs: true,
         checkJs: true,
-        jsx: "preserve",
-        module: "esnext",
-        moduleResolution: "bundler",
+        ...(project.kind === "isolated"
+          ? {
+              jsx: "preserve",
+              module: "esnext",
+              moduleResolution: "bundler",
+              strict: true,
+              target: "esnext",
+              types: [],
+            }
+          : {}),
         noEmit: true,
         skipLibCheck: true,
-        strict: true,
-        target: "esnext",
         allowImportingTsExtensions: true,
-        types: [],
       },
       files: [
+        ...configuredDeclarations,
+        ...[...(inputs.ambientDeclarations?.keys() ?? [])].map(normalize),
         ...globals,
         ...mappings.map((mapping) => mapping.id),
         ...new Set(sources.flatMap((source) => source.checkerTypes ?? [])),
       ],
+      include: [],
+      exclude: [],
     }),
   );
-  return { virtualFiles, mappings, identities: allIdentities };
+  return {
+    virtualFiles,
+    mappings,
+    identities: allIdentities,
+  };
 }
 
 /**
  * Owns a synchronous TypeScript checker API and incrementally updated virtual project. Reuse it
  * across collections for one root and close it when its caller releases the project.
  */
-export class TypeScriptFactsService {
+export class TypeScriptFactsService implements TypeFactsBackend {
+  /** Paths observed by disk reads and existence checks, including missing paths and overlay checks. */
+  readonly dependencies = new Set<string>();
   /**
    * Live cumulative counters updated by this service. Consumers needing a stable report must copy
    * their values.
    */
   readonly stats: TypeScriptFactsStats = {
-    /** @see TypeScriptFactsStats.starts */
     starts: 0,
-    /** @see TypeScriptFactsStats.snapshots */
     snapshots: 0,
-    /** @see TypeScriptFactsStats.incrementalSnapshots */
     incrementalSnapshots: 0,
-    /** @see TypeScriptFactsStats.restarts */
     restarts: 0,
-    /** @see TypeScriptFactsStats.overlayReads */
     overlayReads: 0,
-    /** @see TypeScriptFactsStats.diskReadRequests */
     diskReadRequests: 0,
   };
 
+  readonly #project: TypeScriptProject;
+  /** Filesystem root supplied as the checker API working directory. */
+  readonly #projectRoot: string;
   /**
    * Absolute filename of the in-memory `.stillwind-tsconfig.json`. The service does not write it to
    * disk.
    */
-  readonly #configFile: string;
-  /** Filesystem root supplied as the checker API working directory. */
-  readonly #projectRoot: string;
+  readonly #shadowTsconfigPath: string;
   /** Active checker API instance, replaced after a recoverable collection failure. */
   #api: API;
   /**
@@ -509,13 +612,14 @@ export class TypeScriptFactsService {
   /**
    * Starts a checker API for a project root without creating its first snapshot.
    *
-   * @param projectRoot - Absolute filesystem root used as the API working directory and the virtual
-   * configuration directory.
+   * @param environment - Absolute filesystem root and selected TypeScript settings. The service
+   * copies these settings and uses them for its lifetime. Create a new service to change them.
    * @throws If the checker API cannot start.
    */
-  constructor(projectRoot: string) {
-    this.#projectRoot = projectRoot;
-    this.#configFile = path.join(projectRoot, ".stillwind-tsconfig.json");
+  constructor(environment: TypeFactsEnvironment) {
+    this.#project = { ...environment.project };
+    this.#projectRoot = environment.root;
+    this.#shadowTsconfigPath = path.join(environment.root, ".stillwind-tsconfig.json");
     this.#api = this.#startApi();
   }
 
@@ -530,6 +634,9 @@ export class TypeScriptFactsService {
    * @param sources - Prepared sources and original-byte probes, with validated projection
    * correspondences where needed.
    * @param assetsByModuleId - Declaration records keyed by compiler module identity.
+   * @param inputs - Complete replacement overlay and ambient declarations for this collection.
+   * Omission removes the previous collection's supplied files. The service copies their contents
+   * before updating its snapshot and does not modify the supplied maps.
    * @returns Facts keyed by compiler module identity. Facts for the same original range are
    * deduplicated across buffers. Incompatible values reject. Known types that do not represent
    * Stillwind assets and unresolved recognition-only probes produce no fact.
@@ -539,13 +646,92 @@ export class TypeScriptFactsService {
   collect(
     sources: readonly TypeFactSource[],
     assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
+    inputs: TypeFactsInputs = {},
   ): Map<string, TypeFact[]> {
+    return this.#collect(sources, assetsByModuleId, inputs, false).facts;
+  }
+
+  /** Retains available facts and records expressions that require information the checker lacks. */
+  collectAvailable(
+    sources: readonly TypeFactSource[],
+    assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
+    inputs: TypeFactsInputs = {},
+  ): AvailableFacts {
+    return this.#collect(sources, assetsByModuleId, inputs, true);
+  }
+
+  /** Resolves authored import and export requests using module symbols in the selected tsconfig. */
+  resolveModules(
+    sources: readonly TypeFactSource[],
+    assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
+    inputs: TypeFactsInputs = {},
+  ): Map<string, Map<string, string>> {
     if (this.#closed) {
       throw new Error("TypeScript facts service is closed");
     }
-    const prepared = prepareProject(sources, assetsByModuleId, this.#configFile);
+    const prepared = prepareProject(
+      sources.map((source) => ({ ...source, probes: [] })),
+      assetsByModuleId,
+      this.#shadowTsconfigPath,
+      this.#project,
+      inputs,
+      this.#configuredDeclarations(inputs),
+    );
+    const project = this.#updateProject(prepared);
+    const result = new Map<string, Map<string, string>>();
+    for (const mapping of prepared.mappings) {
+      const file = project.program.getSourceFile(mapping.id);
+      if (!file) {
+        continue;
+      }
+      const resolutions = result.get(mapping.source.resolverId) ?? new Map<string, string>();
+      result.set(mapping.source.resolverId, resolutions);
+      visit(file, (node) => {
+        if (
+          !(isImportDeclaration(node) || isExportDeclaration(node)) ||
+          !node.moduleSpecifier ||
+          !isStringLiteral(node.moduleSpecifier)
+        ) {
+          return;
+        }
+        const symbol = project.checker.getSymbolAtLocation(node.moduleSpecifier);
+        const declaration = symbol?.declarations.find((declaration) => {
+          const node = declaration.resolve(project);
+          return (
+            node !== undefined && (isSourceFile(node) || node.getSourceFile().isDeclarationFile)
+          );
+        });
+        if (declaration) {
+          const fileName = declaration.resolve(project)!.getSourceFile().fileName;
+          const original = sources.find(
+            (source) => normalize(checkerId(source)) === normalize(fileName),
+          );
+          resolutions.set(node.moduleSpecifier.text, original?.resolverId ?? fileName);
+        }
+      });
+    }
+    return result;
+  }
+
+  #collect(
+    sources: readonly TypeFactSource[],
+    assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
+    inputs: TypeFactsInputs,
+    available: boolean,
+  ): AvailableFacts {
+    if (this.#closed) {
+      throw new Error("TypeScript facts service is closed");
+    }
+    const prepared = prepareProject(
+      sources,
+      assetsByModuleId,
+      this.#shadowTsconfigPath,
+      this.#project,
+      inputs,
+      this.#configuredDeclarations(inputs),
+    );
     try {
-      return this.#collectPrepared(prepared);
+      return this.#collectPrepared(prepared, available);
     } catch (firstError) {
       if (firstError instanceof TypeFactsError) {
         throw firstError;
@@ -553,7 +739,7 @@ export class TypeScriptFactsService {
       this.stats.restarts += 1;
       this.#restartApi();
       try {
-        return this.#collectPrepared(prepared);
+        return this.#collectPrepared(prepared, available);
       } catch (retryError) {
         throw new AggregateError(
           [firstError, retryError],
@@ -580,6 +766,46 @@ export class TypeScriptFactsService {
   }
 
   /**
+   * Discards cached disk contents and the retained snapshot while keeping the selected environment.
+   * The next collection opens a new project. Calls after close have no effect.
+   *
+   * @throws If checker cleanup or restart fails.
+   */
+  invalidate(): void {
+    if (!this.#closed) {
+      this.#restartApi();
+    }
+  }
+
+  /**
+   * Reads the consumer's declaration roots using the captured configuration overlays. Ordinary
+   * source files selected by the consumer remain outside the generated project's root files.
+   *
+   * @param inputs - File replacements used while parsing the selected configuration.
+   * @returns Declaration filenames selected by TypeScript, or an empty list for isolated settings.
+   * Restores the overlay used by the retained snapshot before returning or throwing.
+   * @throws If TypeScript cannot parse the selected configuration or its inherited files.
+   */
+  #configuredDeclarations(inputs: TypeFactsInputs): readonly string[] {
+    if (this.#project.kind === "isolated") {
+      return [];
+    }
+    const previous = this.#virtualFiles;
+    this.#virtualFiles = new Map(
+      [...(inputs.overlayFiles ?? []), ...(inputs.ambientDeclarations ?? [])].map(
+        ([name, text]) => [normalize(name), text],
+      ),
+    );
+    try {
+      return this.#api
+        .parseConfigFile(this.#project.configPath)
+        .fileNames.filter((file) => /\.d\.[cm]?ts$/i.test(file));
+    } finally {
+      this.#virtualFiles = previous;
+    }
+  }
+
+  /**
    * Starts a checker API whose filesystem callbacks consult the current virtual overlay.
    *
    * @returns A new API using the project root, with timing collection enabled. Increments starts
@@ -598,10 +824,14 @@ export class TypeScriptFactsService {
             ? true
             : undefined;
         },
-        fileExists: (fileName) => (this.#virtualFiles.has(normalize(fileName)) ? true : undefined),
+        fileExists: (fileName) => {
+          this.dependencies.add(fileName);
+          return this.#virtualFiles.has(normalize(fileName)) ? true : undefined;
+        },
         readFile: (fileName) => {
           const overlay = this.#virtualFiles.get(normalize(fileName));
           if (overlay === undefined) {
+            this.dependencies.add(fileName);
             this.stats.diskReadRequests += 1;
           } else {
             this.stats.overlayReads += 1;
@@ -625,21 +855,8 @@ export class TypeScriptFactsService {
     this.#api = this.#startApi();
   }
 
-  /**
-   * Updates the virtual project snapshot and queries each mapped checker buffer.
-   *
-   * The previous snapshot is disposed after querying. The new snapshot is retained even if queries
-   * fail. Overlay names whose files also exist on disk are reported as changed rather than created
-   * or deleted.
-   *
-   * @param prepared - Complete replacement overlay, checker buffers, and identities from project
-   * preparation.
-   * @returns Deduplicated facts keyed by compiler module identity, while updating snapshot
-   * counters.
-   * @throws If a project or source is missing, a Stillwind assignment diagnostic is found, probes
-   * cannot be decoded, matching buffers disagree, or checker operations fail.
-   */
-  #collectPrepared(prepared: PreparedProject): Map<string, TypeFact[]> {
+  /** Replaces virtual files and retains the new snapshot after releasing the previous one. */
+  #updateProject(prepared: PreparedProject) {
     const changed: string[] = [];
     const created: string[] = [];
     const deleted: string[] = [];
@@ -658,94 +875,115 @@ export class TypeScriptFactsService {
     this.#virtualFiles = prepared.virtualFiles;
 
     const next = this.#snapshot
-      ? this.#api.updateSnapshot({ fileChanges: { changed, created, deleted } })
-      : this.#api.updateSnapshot({ openProjects: [this.#configFile] });
+      ? this.#api.updateSnapshot({
+          fileChanges: {
+            changed,
+            created,
+            deleted,
+          },
+        })
+      : this.#api.updateSnapshot({
+          openProjects: [this.#shadowTsconfigPath],
+        });
     this.stats.snapshots += 1;
     if (this.#snapshot) {
       this.stats.incrementalSnapshots += 1;
     }
-    try {
-      const project = next.getProject(this.#configFile);
-      if (!project) {
-        throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+    this.#snapshot?.dispose();
+    this.#snapshot = next;
+    const project = next.getProject(this.#shadowTsconfigPath);
+    if (!project) {
+      throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+    }
+    return project;
+  }
+
+  #collectPrepared(prepared: PreparedProject, available: boolean): AvailableFacts {
+    const project = this.#updateProject(prepared);
+    const unverified: UnverifiedRange[] = [];
+    const result = new Map<string, TypeFact[]>();
+    const decoder = new AssetTypeDecoder(project.checker, prepared.identities);
+    const producers: Node[] = [];
+    for (const mapping of prepared.mappings) {
+      const file = project.program.getSourceFile(mapping.id);
+      if (!file) {
+        continue;
       }
-      const result = new Map<string, TypeFact[]>();
-      const decoder = new AssetTypeDecoder(project.checker, prepared.identities);
-      const producers: Node[] = [];
-      for (const mapping of prepared.mappings) {
-        const file = project.program.getSourceFile(mapping.id);
-        if (!file) {
-          continue;
+      visit(file, (node) => {
+        if (isCallExpression(node) && mapping.producers.has(`${node.getStart(file)}:${node.end}`)) {
+          producers.push(node);
         }
-        visit(file, (node) => {
-          if (
-            isCallExpression(node) &&
-            mapping.producers.has(`${node.getStart(file)}:${node.end}`)
-          ) {
-            producers.push(node);
-          }
-        });
+      });
+    }
+    for (const type of project.checker.getTypeAtLocation(producers)) {
+      if (type) {
+        decoder.register(type);
       }
-      for (const type of project.checker.getTypeAtLocation(producers)) {
-        if (type) {
-          decoder.register(type);
-        }
+    }
+    for (const mapping of prepared.mappings) {
+      const sourceFile = project.program.getSourceFile(mapping.id);
+      if (!sourceFile) {
+        throw new Error(`TypeScript 7 omitted ${mapping.id}`);
       }
-      for (const mapping of prepared.mappings) {
-        const sourceFile = project.program.getSourceFile(mapping.id);
-        if (!sourceFile) {
-          throw new Error(`TypeScript 7 omitted ${mapping.id}`);
-        }
-        const diagnostics = [
-          ...project.program.getSyntacticDiagnostics(mapping.id),
-          ...project.program.getSemanticDiagnostics(mapping.id),
-        ];
-        const diagnostic = diagnostics.find((d) =>
-          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
-            diagnosticText(d),
-          ),
+      const diagnostics = [
+        ...project.program.getSyntacticDiagnostics(mapping.id),
+        ...project.program.getSemanticDiagnostics(mapping.id),
+      ];
+      const diagnostic = diagnostics.find((d) =>
+        /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+          diagnosticText(d),
+        ),
+      );
+      if (diagnostic) {
+        const start = mapping.originalOffset(diagnostic.pos) ?? undefined;
+        const end = mapping.originalOffset(diagnostic.end, true) ?? undefined;
+        const message = diagnosticText(diagnostic).replace(
+          /stillwind\/v1:[A-Za-z0-9_-]+/g,
+          "declaration identity",
         );
-        if (diagnostic) {
-          const start = mapping.originalOffset(diagnostic.pos) ?? undefined;
-          const end = mapping.originalOffset(diagnostic.end, true) ?? undefined;
-          const message = diagnosticText(diagnostic).replace(
-            /stillwind\/v1:[A-Za-z0-9_-]+/g,
-            "declaration identity",
-          );
+        const error = new TypeFactsError(
+          mapping.source.moduleId,
+          start,
+          end,
+          "assignment",
+          `TS${diagnostic.code}: ${message} Preserve declaration candidates with an explicit union or a generic parameter.`,
+        );
+        if (!available) {
+          throw error;
+        }
+        unverified.push({ moduleId: error.moduleId, start, end, reason: error.message });
+      }
+      const facts = factsForSource(
+        project.checker,
+        sourceFile,
+        mapping,
+        decoder,
+        available ? unverified : undefined,
+      );
+      const previous = result.get(mapping.source.moduleId) ?? [];
+      for (const fact of facts) {
+        const existing = previous.find(
+          (value) => value.start === fact.start && value.end === fact.end,
+        );
+        if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value)) {
           throw new TypeFactsError(
             mapping.source.moduleId,
-            start,
-            end,
-            "assignment",
-            `TS${diagnostic.code}: ${message} Preserve declaration candidates with an explicit union or a generic parameter.`,
+            fact.start,
+            fact.end,
+            "checker",
+            "Ambiguous checker results for this original expression",
           );
         }
-        const facts = factsForSource(project.checker, sourceFile, mapping, decoder);
-        const previous = result.get(mapping.source.moduleId) ?? [];
-        for (const fact of facts) {
-          const existing = previous.find(
-            (value) => value.start === fact.start && value.end === fact.end,
-          );
-          if (existing && JSON.stringify(existing.value) !== JSON.stringify(fact.value)) {
-            throw new TypeFactsError(
-              mapping.source.moduleId,
-              fact.start,
-              fact.end,
-              "checker",
-              "Ambiguous checker results for this original expression",
-            );
-          }
-          if (!existing) {
-            previous.push(fact);
-          }
+        if (!existing) {
+          previous.push(fact);
         }
-        result.set(mapping.source.moduleId, previous);
       }
-      return result;
-    } finally {
-      this.#snapshot?.dispose();
-      this.#snapshot = next;
+      result.set(mapping.source.moduleId, previous);
     }
+    return {
+      facts: result,
+      unverified,
+    };
   }
 }
 
@@ -754,19 +992,20 @@ export class TypeScriptFactsService {
  *
  * @param sources - Prepared sources and their original-byte semantic probes.
  * @param assetsByModuleId - Native declarations keyed by compiler module identity.
- * @param projectRoot - Absolute filesystem root for checker resolution.
- * @returns Facts keyed by compiler module identity, using the same contract as
- * `TypeScriptFactsService.collect`.
+ * @param environment - Fixed filesystem root and TypeScript settings for the temporary checker.
+ * @param inputs - File replacements and declarations required by this collection.
+ * @returns Facts keyed by compiler module identity. The temporary checker is closed before returning.
  * @throws If service startup, fact collection, or cleanup fails.
  */
 export function collectTypeScriptFacts(
   sources: readonly TypeFactSource[],
   assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
-  projectRoot: string,
+  environment: TypeFactsEnvironment,
+  inputs: TypeFactsInputs = {},
 ): Map<string, TypeFact[]> {
-  const service = new TypeScriptFactsService(projectRoot);
+  const service = new TypeScriptFactsService(environment);
   try {
-    return service.collect(sources, assetsByModuleId);
+    return service.collect(sources, assetsByModuleId, inputs);
   } finally {
     service.close();
   }
@@ -799,6 +1038,7 @@ function factsForSource(
   sourceFile: SourceFile,
   mapping: CheckerSource,
   decoder: AssetTypeDecoder,
+  unverified?: UnverifiedRange[],
 ): TypeFact[] {
   const expressions: Node[] = [];
   const matched = new Set<string>();
@@ -814,13 +1054,22 @@ function factsForSource(
   });
   for (const [key, probe] of mapping.probes) {
     if (!matched.has(key)) {
-      throw new TypeFactsError(
+      const error = new TypeFactsError(
         mapping.source.moduleId,
         probe.start,
         probe.end,
         "checker",
         "Projected expression has no matching checker AST node",
       );
+      if (!unverified) {
+        throw error;
+      }
+      unverified.push({
+        moduleId: error.moduleId,
+        start: error.start,
+        end: error.end,
+        reason: error.message,
+      });
     }
   }
 
@@ -832,9 +1081,7 @@ function factsForSource(
     const decoded = type && decoder.decode(type);
     const value = decoded?.value;
     if (!value) {
-      // Recognition queries only identify Stillwind receivers for unconsumed-use diagnostics.
-      // Missing facts leave the receiver as ordinary JavaScript without an error.
-      if (probe.recognitionOnly) {
+      if (probe.recognitionOnly && !unverified) {
         continue;
       }
       if (
@@ -846,17 +1093,29 @@ function factsForSource(
             isElementAccessExpression(expression))) ||
         decoded?.recognized
       ) {
-        throw new TypeFactsError(
+        const error = new TypeFactsError(
           mapping.source.moduleId,
           probe.start,
           probe.end,
           "identity",
           "Cannot determine a finite set of declaration identities. Preserve the value's inferred type, use an explicit union, or use a generic parameter.",
         );
+        if (!unverified) {
+          throw error;
+        }
+        unverified.push({
+          moduleId: error.moduleId,
+          start: error.start,
+          end: error.end,
+          reason: error.message,
+        });
       }
       continue;
     }
-    facts.push({ ...probe, value });
+    facts.push({
+      ...probe,
+      value,
+    });
   }
 
   return facts;

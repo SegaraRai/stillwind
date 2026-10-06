@@ -1,6 +1,7 @@
 import { expect, test } from "vite-plus/test";
 
-import { CheckerSource, identityKey, type TypeFactSource } from "./checker-source.ts";
+import type { TypeFactSource } from "./backend.ts";
+import { CheckerSource, identityKey } from "./checker-source.ts";
 
 test("checker declaration identity has its own namespace", () => {
   const key = identityKey({

@@ -144,7 +144,7 @@ ID **176, 5258** `drop-shadow-none`、**2939** `backdrop-blur-none`、**3566** `
 
 ID **13204** `mask-[url(mask.svg)]`。Tailwindの`url(mask.svg)`に対し、Stillwindは`url(__stillwind_js_resource_…__)`を返す。native出力の`resources`にはそのplaceholderに対応する`owner:"src/Parity.tsx"`, `specifier:"mask.svg"`が存在することを確認した。
 
-これは[host/css-source-map.ts](../../packages/host/src/css-source-map.ts)等でホストが扱う資源参照。比較器はCSS文字列だけでなくresource対応表と相対URLの基準を扱う必要がある。この棚卸しでは実ファイルのバンドラー解決は検証していないため、ホスト統合の合格ともコアのmask未対応とも数えない。
+これは[host/css-source-map.ts](../../packages/host/src/css/css-source-map.ts)等でホストが扱う資源参照。比較器はCSS文字列だけでなくresource対応表と相対URLの基準を扱う必要がある。この棚卸しでは実ファイルのバンドラー解決は検証していないため、ホスト統合の合格ともコアのmask未対応とも数えない。
 
 ### I. importアダプター例外 — 4件
 

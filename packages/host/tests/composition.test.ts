@@ -6,8 +6,8 @@ import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/nativ
 import * as runtime from "stillwind/react/runtime";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 async function compile(files: Record<string, string>, entry = "entry.ts") {
   const root = path.dirname(fileURLToPath(import.meta.url));
@@ -18,7 +18,12 @@ async function compile(files: Record<string, string>, entry = "entry.ts") {
     "@utility red { color: red; } @utility blue { color: blue; } @utility green { color: green; } @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, false);
-  const facts = new TypeScriptFactsService(root);
+  const facts = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   try {
     const output = await compileModule(session, () => facts, files[entry], path.join(root, entry), {
       resolve: async (specifier, importer) => ({
@@ -327,7 +332,7 @@ test("composition follows imported and re-exported style producers", async () =>
     "@utility red { color: red; }\n@utility blue { color: blue; }\n@utility green { color: green; }\n@stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, false);
-  const facts = new TypeScriptFactsService(root);
+  const facts = new TypeScriptFactsService({ root: root, project: { kind: "isolated" } });
   try {
     const compile = () =>
       compileModule(session, () => facts, files.get("entry.ts")!, path.join(root, "entry.ts"), {

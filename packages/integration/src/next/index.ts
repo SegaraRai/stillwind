@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
 
 import type { NextConfig } from "next";
+import type { StillwindOptions } from "stillwind/config";
 import type { Configuration } from "webpack";
 
-import type { StillwindOptions } from "../options.ts";
-import { createRules, loaderPath, createLoaderOptions } from "../turbopack/rules.ts";
+import { createLoaderOptions, createRules, loaderPath } from "../turbopack/rules.ts";
 
-export type { StillwindOptions } from "../options.ts";
+export type { StillwindOptions } from "stillwind/config";
 
 const loader = loaderPath("loader.js");
 const cssLoader = fileURLToPath(

@@ -138,7 +138,7 @@ transactionの原子性は維持する。不変なanalysis、CSS artifact、依�
 |        300 |            24.80ms |                    3.39ms |            6.77ms |
 |       1000 |           235.27ms |                   11.02ms |           50.60ms |
 
-fanoutの1000件でも入力は約45KBである。[loadCssGraph()](/F:/Projects/shorth/packages/host/src/css.ts:25)はread完了ごとに`provide()`し、[loader](/F:/Projects/shorth/crates/design-system/src/loading/state.rs:262)はそのたびに到達済みgraphの順序と未完了requestを調べ直す。batch応答は同じsnapshotのvocabularyを返しながら、処理回数を減らした。
+fanoutの1000件でも入力は約45KBである。[loadCssGraph()](/F:/Projects/shorth/packages/host/src/css/css.ts:25)はread完了ごとに`provide()`し、[loader](/F:/Projects/shorth/crates/design-system/src/loading/state.rs:262)はそのたびに到達済みgraphの順序と未完了requestを調べ直す。batch応答は同じsnapshotのvocabularyを返しながら、処理回数を減らした。
 
 全I/Oの完了を待ってから一括処理する方式へ単純に変えてはいけない。既存テストは、遅い兄弟importを待つ間に先に読めた子のimportを開始する契約を守っている。完了済みの応答だけをまとめ、追加のrequestは直ちに開始する方式か、loader側のpendingとcycle検証を更新単位で処理する方式を検討する。chainでは展開途中の文字列とmappingを各祖先へ複製するため、depthに応じた保存量も別に検討する。
 

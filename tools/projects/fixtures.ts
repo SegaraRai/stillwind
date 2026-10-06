@@ -151,7 +151,12 @@ function compileProject(root: string, manifest: Manifest): CompiledFixtureProjec
       ),
     ]),
   );
-  const service = new TypeScriptFactsService(repositoryRoot);
+  const service = new TypeScriptFactsService({
+    root: repositoryRoot,
+    project: {
+      kind: "isolated",
+    },
+  });
   const assets = new Map(
     [...summaries].map(([sourcePath, summary]) => [sourcePath, summary.assets] as const),
   );

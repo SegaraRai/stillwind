@@ -234,7 +234,6 @@ impl CallEmitter<'_> {
                 let contribution = LiteralContribution::resolve(
                     value,
                     &plan,
-                    self.options,
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,

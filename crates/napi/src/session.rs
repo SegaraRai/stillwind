@@ -19,7 +19,7 @@ use napi_derive::napi;
 
 use stillwind_compiler::{
     CompileResult, CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers,
-    MappedStylesheet, StylesheetPlacement, StylesheetRenderer,
+    MappedStylesheet, ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
@@ -335,6 +335,66 @@ pub struct NativeProjectSession {
 
 #[napi]
 impl NativeProjectSession {
+    /// Collects local diagnostics from available IR without generating or publishing artifacts.
+    /// Type facts may cover only some expressions. Unresolved lowering remains in the reports.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed inputs, duplicate module identities, or invalid report ranges.
+    #[napi(strict)]
+    pub fn diagnose(
+        &self,
+        env: Env,
+        sources: Vec<NativePreparedSource>,
+    ) -> napi::Result<Vec<NativeDiagnosticBatch>> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
+        let sources = sources
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<napi::Result<Vec<HostPreparedSource>>>()?;
+        let mut ids = BTreeSet::new();
+        for source in &sources {
+            if !ids.insert(source.module_id()) {
+                return Err(Error::from_reason(format!(
+                    "Duplicate Stillwind module identity: {}",
+                    source.module_id()
+                )));
+            }
+        }
+        let mut registry = self.session.sources().fork_empty();
+        let scans = sources
+            .iter()
+            .map(|source| {
+                Ok::<_, Error>(OxcSourceAnalyzer.scan_input(source.input(&mut registry)?))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        for source in &self.session.snapshot().sources().sources {
+            if source.source.uri().is_some() {
+                registry
+                    .retain(source.source.clone())
+                    .map_err(|error| Error::from_reason(error.to_string()))?;
+            }
+        }
+        let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
+        let compiler = ModuleCompiler::new(self.session.snapshot(), self.session.options().clone());
+        scans
+            .iter()
+            .map(|scan| {
+                let analysis =
+                    OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
+                let result = compiler.diagnose(&analysis, self.session.identifiers());
+                let batch = Reporter::collect(
+                    &result.diagnostics,
+                    &result.lint_findings,
+                    &registry,
+                    result.lint_settings,
+                )
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+                Ok(NativeDiagnosticBatch::new(&scan.module_id, &batch))
+            })
+            .collect()
+    }
+
     /// Scans a source before checker queries. Fatal failures replace the module's
     /// latest reports and reject its attempted revision without publishing output.
     /// Malformed host transport remains an exception.

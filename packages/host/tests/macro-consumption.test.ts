@@ -1,11 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileProject, summarizeSource } from "@stillwind/native";
+import { compileProject, summarizeSource, type NativeModuleSummary } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import type { ModuleSummary } from "../src/protocol.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 test("checker identities reject unconsumed imported, aliased and finite dynamic uses", () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
@@ -13,7 +12,12 @@ test("checker identities reject unconsumed imported, aliased and finite dynamic 
 export const a=style.ref(); export const b=style.ref();
 export const animation=style.keyframes({from:'opacity-0'});
 export const transition=style.viewTransition({old:'opacity-0'});`;
-  const service = new TypeScriptFactsService(root);
+  const service = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   try {
     for (const expression of [
       "alias.asAnchor()",
@@ -64,7 +68,7 @@ export const invalid=${expression};`;
           entry.moduleId,
           "ts",
           "unambiguous",
-        ) as ModuleSummary,
+        ) as NativeModuleSummary,
       }));
       const facts = service.collect(
         sources.map((entry) => ({ ...entry, probes: entry.summary.typeProbes })),

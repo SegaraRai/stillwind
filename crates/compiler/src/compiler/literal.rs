@@ -19,7 +19,6 @@ use super::utilities::resolve::{
     CompiledUtility, resolve_utility_targets, unresolved_utility_kind,
 };
 use super::variants::document_scoped_selector;
-use crate::CompilerOptions;
 
 /// Rules and class names collected before they are assigned to a class unit.
 ///
@@ -84,7 +83,6 @@ impl LiteralContribution {
     pub(super) fn resolve(
         value: &Spanned<String>,
         plan: &StyleVariantPlan,
-        options: &CompilerOptions,
         theme: &ThemeIndex,
         diagnostics: &mut Vec<CompileError>,
         lint_findings: &mut Vec<LintFinding>,
@@ -108,11 +106,10 @@ impl LiteralContribution {
                 ));
                 continue;
             }
-            if (options.forbid_tailwind_relationships
-                || theme
-                    .config
-                    .lint_settings
-                    .enabled_for_detection(LintKind::PreferTypedRelationships))
+            if theme
+                .config
+                .lint_settings
+                .enabled_for_detection(LintKind::PreferTypedRelationships)
                 && is_tailwind_relationship_candidate(&raw, theme)
             {
                 lint_findings.push(LintFinding::new(

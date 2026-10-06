@@ -47,7 +47,7 @@ token spans. [Oxc parser](https://oxc.rs/docs/guide/usage/parser.html) and
 
 Tailwind relationship primitives (`group`, `peer`, `container`, and container
 variants) are nevertheless accepted as a migration layer. The optional
-`forbidTailwindRelationships` lint policy reports `SHLINT001` so teams can move
+`prefer-typed-relationships` CSS lint setting reports findings so teams can move
 to typed `style.ref()` relationships without reducing compiler
 compatibility.
 

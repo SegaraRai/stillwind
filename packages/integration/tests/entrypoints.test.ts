@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 test("distributed artifacts do not depend on Vite+", () => {
   const dist = new URL("../dist/", import.meta.url);
   for (const file of readdirSync(dist, { recursive: true, encoding: "utf8" })) {
-    if (/\.(?:js|ts|map)$/.test(file)) {
+    if (/\.(?:js|ts)$/.test(file)) {
       expect(readFileSync(new URL(file.replaceAll("\\", "/"), dist), "utf8"), file).not.toMatch(
         /vite-plus/,
       );

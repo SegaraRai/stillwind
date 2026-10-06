@@ -1,4 +1,4 @@
-import type { CssLocations } from "../../packages/host/src/css-source-map.ts";
+import type { CssLocations } from "@stillwind/host";
 
 export function cssInput(rules: number, exact = true) {
   const css = Array.from(

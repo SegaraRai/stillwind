@@ -219,7 +219,6 @@ fn run() -> Result<(), CommandError> {
         prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
         tailwind_prefix: optional_argument("--tailwind-prefix")
             .unwrap_or_else(|| "--tw-".to_owned()),
-        forbid_tailwind_relationships: has_flag("--forbid-tailwind-relationships"),
         use_css_if: has_flag("--use-css-if"),
         ..CompilerOptions::default()
     };

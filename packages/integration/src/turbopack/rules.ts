@@ -1,7 +1,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { cssEntrypoint, type StillwindOptions } from "../options.ts";
+import { cssEntrypoint } from "@stillwind/host";
+import type { StillwindOptions } from "stillwind/config";
+
 import type { TurbopackLoaderOptions } from "./project.ts";
 
 export interface TurbopackOptions extends Omit<StillwindOptions, "naming"> {

@@ -1,11 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { compileProject, summarizeSource } from "@stillwind/native";
+import { compileProject, summarizeSource, type NativeModuleSummary } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import type { ModuleSummary } from "../src/protocol.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 const cssInput = (content: string) => ({
   content,
@@ -20,7 +19,12 @@ test("direct ref variants preserve imported conditional refs with use-site scope
 export const scope = style.ref('scope');
 export const a = style.ref('a');
 export const b = style.ref('b');`;
-  const service = new TypeScriptFactsService(root);
+  const service = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   try {
     const outputs = [];
     for (const expression of [
@@ -58,7 +62,7 @@ export const props = style(${expression});`;
           source.moduleId,
           "tsx",
           "unambiguous",
-        ) as ModuleSummary,
+        ) as NativeModuleSummary,
       }));
       const facts = service.collect(
         sources.map((source) => ({ ...source, probes: source.summary.typeProbes })),

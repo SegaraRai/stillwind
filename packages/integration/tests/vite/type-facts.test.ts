@@ -1,16 +1,17 @@
-import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
-import { TypeScriptFactsService, type ModuleSummary } from "@stillwind/host";
+import { TypeScriptFactsService } from "@stillwind/host";
 import { stillwind } from "@stillwind/integration/vite";
 import {
   compileProject,
   foldCalcExpressions,
-  summarizeSource,
   NativeDesignSystemLoader,
   NativeProjectSession,
+  summarizeSource,
+  type NativeModuleSummary,
 } from "@stillwind/native";
 import { build } from "vite";
 import { expect, test } from "vite-plus/test";
@@ -26,10 +27,32 @@ const cssInput = (content: string) => ({
   sourceMapSource: "untitled:root.css",
 });
 
-test("Vite aliases select the same asset in the host and checker", async () => {
+test("Vite aliases and explicit TypeScript settings select the same asset in the host and checker", async () => {
   const root = mkdtempSync(path.join(path.dirname(fixtureRoot), "../../.test-session-"));
   const put = (name: string, text: string) => writeFileSync(path.join(root, name), text);
   put("index.html", '<script type="module" src="/entry.ts"></script>');
+  put(
+    "tsconfig.json",
+    JSON.stringify({
+      compilerOptions: {
+        types: [],
+      },
+      files: [],
+    }),
+  );
+  put(
+    "tsconfig.app.json",
+    JSON.stringify({
+      extends: "./tsconfig.json",
+      compilerOptions: {
+        module: "esnext",
+        moduleResolution: "bundler",
+        strict: true,
+      },
+      files: ["app.d.ts"],
+    }),
+  );
+  put("app.d.ts", "type Asset<T> = T;");
   put(
     "root.css",
     "@utility chosen {color:rgb(11,22,33)} @stillwind-slot utilities; @stillwind-slot keyframes;",
@@ -40,7 +63,7 @@ test("Vite aliases select the same asset in the host and checker", async () => {
   );
   put(
     "entry.ts",
-    "import {style} from 'stillwind/react'; import {token} from '@selected'; console.log(style(token('')));",
+    "import {style} from 'stillwind/react'; import {token} from '@selected'; declare const selected: Asset<typeof token>; console.log(style(selected('')));",
   );
   try {
     const result = await build({
@@ -56,6 +79,7 @@ test("Vite aliases select the same asset in the host and checker", async () => {
         stillwind({
           css: path.join(root, "root.css"),
           types: false,
+          tsconfig: "tsconfig.app.json",
         }),
       ],
       build: {
@@ -100,14 +124,24 @@ const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   .map((source) => ({
     ...source,
     probes: (
-      summarizeSource(source.document.code, source.moduleId, "tsx", "unambiguous") as ModuleSummary
+      summarizeSource(
+        source.document.code,
+        source.moduleId,
+        "tsx",
+        "unambiguous",
+      ) as NativeModuleSummary
     ).typeProbes,
   }));
 
 const summaries = new Map(
   sources.map((source) => [
     source.moduleId,
-    summarizeSource(source.document.code, source.moduleId, "tsx", "unambiguous") as ModuleSummary,
+    summarizeSource(
+      source.document.code,
+      source.moduleId,
+      "tsx",
+      "unambiguous",
+    ) as NativeModuleSummary,
   ]),
 );
 
@@ -134,7 +168,12 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
     "native compilation must not implement cross-module propagation on its own",
   ).toBeTruthy();
 
-  const service = new TypeScriptFactsService(repositoryRoot);
+  const service = new TypeScriptFactsService({
+    root: repositoryRoot,
+    project: {
+      kind: "isolated",
+    },
+  });
   const assets = new Map(
     [...summaries].map(([sourcePath, summary]) => [sourcePath, summary.assets] as const),
   );

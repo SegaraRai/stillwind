@@ -62,7 +62,16 @@ function compilerPlugin(project: ViteProject): Plugin {
     enforce: "pre",
     perEnvironmentStartEndDuringDev: true,
     perEnvironmentWatchChangeDuringDev: true,
-    ...virtualModules,
+    resolveId(id, importer, options) {
+      if (typeof virtualModules.resolveId === "function") {
+        return virtualModules.resolveId.call(this, id, importer, options);
+      }
+    },
+    load(id, options) {
+      if (typeof virtualModules.load === "function") {
+        return virtualModules.load.call(this, id, options);
+      }
+    },
     ...transformHooks(project, virtualModules),
     configResolved(config) {
       project.configure(config);

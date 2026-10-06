@@ -12,15 +12,25 @@
   "exports": {
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
-    "./module-css": {
-      "types": "./dist/module-css.d.ts",
-      "default": "./dist/module-css.js"
+    "./preflight.css": "./css/preflight.css",
+    "./theme.css": "./css/theme.css",
+    "./utilities.css": "./css/utilities.css",
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
     },
     "./css": {
       "types": "./dist/css.d.ts",
       "default": "./dist/css.js"
     },
-    "./preflight.css": "./css/preflight.css",
+    "./module-css": {
+      "types": "./dist/module-css.d.ts",
+      "default": "./dist/module-css.js"
+    },
+    "./macro": {
+      "types": "./dist/macro/index.d.ts",
+      "default": "./dist/macro/index.js"
+    },
     "./react": {
       "types": "./dist/frameworks/react.d.ts",
       "default": "./dist/frameworks/react.js"
@@ -73,13 +83,11 @@
       "types": "./dist/runtime/solid.d.ts",
       "default": "./dist/runtime/solid.js"
     },
-    "./theme.css": "./css/theme.css",
-    "./utilities.css": "./css/utilities.css",
-    "./macro": {
-      "types": "./dist/macro/index.d.ts",
-      "default": "./dist/macro/index.js"
-    },
     "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@stillwind/native": "workspace:*",
+    "@stillwind/projection": "workspace:*"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",

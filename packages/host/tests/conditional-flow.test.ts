@@ -8,9 +8,8 @@ import * as runtime from "stillwind/react/runtime";
 import * as svelteRuntime from "stillwind/svelte/runtime";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import { moduleSourceMap } from "../src/source-map.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { compileModule, fileModuleDescriptor, moduleSourceMap } from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 async function compile(source: string, warnings: string[] = []) {
   const root = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +20,12 @@ async function compile(source: string, warnings: string[] = []) {
     "@utility red { color: red } @utility blue { color: blue } @utility green { color: green } @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, false);
-  const facts = new TypeScriptFactsService(root);
+  const facts = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   try {
     const output = await compileModule(
       session,

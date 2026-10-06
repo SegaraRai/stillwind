@@ -1,6 +1,7 @@
-import type { StillwindOptions } from "../options.ts";
+import type { StillwindOptions } from "stillwind/config";
+
 import { installEmission, type EmissionCompilation, type EmissionModule } from "./emission.ts";
-import type { ResolverHost, ResolveSettings, ResolveCallback } from "./host.ts";
+import type { ResolveCallback, ResolverHost, ResolveSettings } from "./host.ts";
 import { stillwindRules } from "./rules.ts";
 
 /**

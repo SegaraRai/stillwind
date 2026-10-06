@@ -14,7 +14,10 @@ export function finalizeModule(code: string, stylesheetSpecifier?: string): stri
  * Half-open UTF-16 range removed from the compiled buffer during host finalization. The current
  * finalizer returns no removed ranges.
  */
-export type FinalizedModuleEdit = { from: number; to: number };
+export type FinalizedModuleEdit = {
+  from: number;
+  to: number;
+};
 
 /**
  * Finalizes compiled JavaScript and describes the inserted prefix for source-map generation.

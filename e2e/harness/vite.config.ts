@@ -8,13 +8,13 @@ export default defineConfig({
   test: {
     name: "e2e-harness",
     include: ["src/**/*.test.ts"],
-    exclude: ["src/wasm-browser.test.ts"],
+    exclude: ["src/wasm-browser.test.ts", "src/language-server-browser.test.ts"],
   },
   run: {
     tasks: {
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/native#build"],
+        dependsOn: ["@stillwind/native#build", "@stillwind/language-server#build"],
       },
       "typecheck:fixtures": {
         command: "",
@@ -27,7 +27,7 @@ export default defineConfig({
       "test:wasm": {
         command: "vp test --run --config vite.browser.config.ts",
         cache: false,
-        dependsOn: ["@stillwind/native#collect:local"],
+        dependsOn: ["@stillwind/native#collect:local", "@stillwind/language-server#build"],
       },
       "test:e2e": {
         command: "node src/matrix.ts",

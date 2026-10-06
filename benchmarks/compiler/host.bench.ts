@@ -67,7 +67,19 @@ for (const [name, filename, originalSource] of fixtures) {
       let facts: TypeScriptFactsService | undefined;
       const session = new NativeProjectSession(loader, true);
       const analyze = (text = source) =>
-        compileModule(session, () => (facts ??= new TypeScriptFactsService(root)), text, id, host);
+        compileModule(
+          session,
+          () =>
+            (facts ??= new TypeScriptFactsService({
+              root,
+              project: {
+                kind: "isolated",
+              },
+            })),
+          text,
+          id,
+          host,
+        );
       try {
         let output = await analyze();
         expect(output?.code).toBeTruthy();
@@ -95,7 +107,12 @@ test("host/semantic/new-service-and-session", async ({ bench, task }) => {
     "Includes checker subprocess creation and closure; dynamic imports and converters remain loaded. Uses synthetic local modules without a disk dependency graph.";
   let output: Awaited<ReturnType<typeof compileModule>>;
   await bench("host/semantic/new-service-and-session", { async: true }, async () => {
-    const service = new TypeScriptFactsService(root);
+    const service = new TypeScriptFactsService({
+      root,
+      project: {
+        kind: "isolated",
+      },
+    });
     try {
       output = await compileModule(
         new NativeProjectSession(loader, true),

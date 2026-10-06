@@ -120,7 +120,7 @@ CSS carrier取得は元の1000モジュールケースでも中央値0.80msだ�
 | 同じ入力              | 0.97 |            0.59 |           0.28 |
 | redとblueを交互に編集 | 2.61 |            2.22 |           0.29 |
 
-checkerは各caseで1回だけ起動し、21 snapshotのうち20件がincremental snapshotだった。restartはなかった。[TypeScriptFactsService.collect()](/F:/Projects/shorth/packages/host/src/type-facts.ts:342)は同じ入力でもsnapshotを更新し、diagnosticsとfactsを取り直す。入力が変わらない場合のfacts再利用には、依存ファイル、設定、type declaration、resolution、overlay、probeと宣言identity等の改訂を含める必要がある。
+checkerは各caseで1回だけ起動し、21 snapshotのうち20件がincremental snapshotだった。restartはなかった。[TypeScriptFactsService.collect()](/F:/Projects/shorth/packages/host/src/semantics/type-facts.ts:342)は同じ入力でもsnapshotを更新し、diagnosticsとfactsを取り直す。入力が変わらない場合のfacts再利用には、依存ファイル、設定、type declaration、resolution、overlay、probeと宣言identity等の改訂を含める必要がある。
 
 fresh serviceの追加測定は中央値47.11ms、平均49.93msだった。平均の内訳はservice生成21.13ms、最初のcompile28.57ms、close呼び出し0.23msである。最初のcompileにはcheckerのproject初期化等も入る。closeはsnapshotのdisposeとchildのkillを要求する処理であり、OS上の終了完了を待つ測定ではない。JavaScriptのdynamic importやconverterは既に読み込まれている。
 
@@ -131,7 +131,7 @@ fresh serviceの追加測定は中央値47.11ms、平均49.93msだった。平�
 |         10 |             6.90 |              9.96 |
 |        100 |           209.75 |            226.84 |
 
-[compileModule()](/F:/Projects/shorth/packages/host/src/compiler.ts:156)は呼び出しごとに要求されたdependencyを読み、nativeにまとめて渡す。100 producerのケースではwarmupと5 sampleの合計で600回ずつreadとresolveが発生した。checkerのrestartはなかった。
+[compileModule()](/F:/Projects/shorth/packages/host/src/compilation/compiler.ts:156)は呼び出しごとに要求されたdependencyを読み、nativeにまとめて渡す。100 producerのケースではwarmupと5 sampleの合計で600回ずつreadとresolveが発生した。checkerのrestartはなかった。
 
 この結果は実プロジェクト全体の測定ではなく、fan-outのある合成入力である。ただし、元の依存グラフを持たないhost benchmarkをそのまま開発時の応答時間と解釈できないことは確認できた。NAPIのbatch処理改善と、hostが保持するprepared sourceや依存改訂の再利用を一緒に設計することを推奨する。disk I/Oの時間割合はこのケースでは分離していない。
 

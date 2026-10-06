@@ -98,11 +98,12 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
         FileId(1), None, None,
         "import { style } from \"stillwind/react\"; const child = style(\"group-hover:flex @sm:grid\");",
     ).unwrap();
-    let theme = css::source(FileId(2), "@import \"stillwind\";").unwrap();
-    let options = CompilerOptions {
-        forbid_tailwind_relationships: true,
-        ..CompilerOptions::default()
-    };
+    let theme = css::source(
+        FileId(2),
+        "@import \"stillwind\"; @stillwind { prefer-typed-relationships: warn; }",
+    )
+    .unwrap();
+    let options = CompilerOptions::default();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,

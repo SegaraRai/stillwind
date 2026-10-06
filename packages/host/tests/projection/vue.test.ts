@@ -11,7 +11,7 @@ import * as core316 from "vue-language-core-3-1-6";
 import * as core320 from "vue-language-core-3-2-0";
 import * as core3312 from "vue-language-core-3-3-12";
 
-import { TypeScriptFactsService } from "../../src/type-facts.ts";
+import { TypeScriptFactsService } from "../../src/semantics/index.ts";
 
 const versions = [
   {
@@ -193,7 +193,12 @@ for (const { version, core, exposure } of versions) {
         generateGlobalTypes: "generateGlobalTypes" in core ? core.generateGlobalTypes : undefined,
       }));
       ({ prepareSource: prepare } = await import("@stillwind/projection"));
-      facts = new TypeScriptFactsService(root);
+      facts = new TypeScriptFactsService({
+        root,
+        project: {
+          kind: "isolated",
+        },
+      });
     });
 
     afterAll(() => {

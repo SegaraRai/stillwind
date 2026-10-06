@@ -163,7 +163,7 @@ TS6 一本化には従来の同期 CompilerHost API を使え、SDK 系統を一
 修正は両版で共通だった。現在の TS7 checker を TS6 へ移植する利点が確認できないため
 TS7 を維持する。converter が TS7 SDK を扱えるようになれば projection 側を個別に移行できる。
 
-現在のchecker統合は [type-facts.ts](../packages/host/src/type-facts.ts)、SFCの検証は [sfc-types.test.ts](../packages/host/tests/sfc-types.test.ts)。
+現在のchecker統合は [type-facts.ts](../packages/host/src/semantics/type-facts.ts)、SFCの検証は [sfc-types.test.ts](../packages/host/tests/sfc-types.test.ts)。
 本番の結合テストは `packages/host/tests/sfc-types.test.ts` にあり、推移的 import、
 Unicode 原文位置、編集後の snapshot、framework props / loops、各種 asset、型エラー、
 Astro client script を検証する。

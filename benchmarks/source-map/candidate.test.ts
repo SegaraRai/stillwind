@@ -1,7 +1,7 @@
 import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
+import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
 import { expect, test } from "vite-plus/test";
 
-import { cssWithSourceMap, decodeCssSourceMap } from "../../packages/host/src/css-source-map.ts";
 import { cssWithSourceMap as candidate } from "./candidate.ts";
 import { cssInput } from "./input.ts";
 

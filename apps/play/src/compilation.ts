@@ -1,4 +1,6 @@
-export type PlayOutput = import("@stillwind/host").CompilerOutput & {
+import type { BindingOutput } from "@stillwind/native";
+
+export type PlayOutput = BindingOutput & {
   previewUrl: string | null;
 };
 

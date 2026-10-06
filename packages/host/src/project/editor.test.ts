@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { NativeDesignSystemLoader } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { fileModuleDescriptor } from "./compiler.ts";
+import { fileModuleDescriptor } from "../compilation/index.ts";
 import { EditorProject } from "./editor.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));

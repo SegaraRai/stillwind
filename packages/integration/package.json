@@ -28,6 +28,10 @@
       "types": "./dist/rspack/index.d.ts",
       "default": "./dist/rspack/index.js"
     },
+    "./sveltekit/handle": {
+      "types": "./dist/sveltekit/handle.d.ts",
+      "default": "./dist/sveltekit/handle.js"
+    },
     "./turbopack": {
       "types": "./dist/turbopack/index.d.ts",
       "default": "./dist/turbopack/index.js"
@@ -39,10 +43,6 @@
     "./webpack": {
       "types": "./dist/webpack/index.d.ts",
       "default": "./dist/webpack/index.js"
-    },
-    "./sveltekit/handle": {
-      "types": "./dist/sveltekit/handle.d.ts",
-      "default": "./dist/sveltekit/handle.js"
     },
     "./internal/astro-development": {
       "types": "./dist/astro/development.d.ts",
@@ -80,7 +80,6 @@
     "css-loader": "^7.1.5",
     "next": "16.4.0-canary.25",
     "nuxt": "^4.5.2",
-    "stillwind": "workspace:*",
     "svelte": "^5.57.1",
     "svelte-loader": "^3.2.4",
     "swc-loader": "^0.2.7",

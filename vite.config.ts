@@ -50,9 +50,12 @@ export default defineConfig(({ mode }) => ({
               "apps/play/vite.config.ts",
               "benchmarks/vite.config.ts",
               "e2e/harness/vite.config.ts",
+              "packages/analysis/vite.config.ts",
+              "packages/cli/vite.config.ts",
               "packages/core/vite.config.ts",
               "packages/host/vite.config.ts",
               "packages/integration/vite.config.ts",
+              "packages/language-server/vite.config.ts",
               "packages/native/vite.config.ts",
               "packages/projection/vite.config.ts",
               "tools/tailwind-compat/vite.config.ts",
@@ -121,6 +124,7 @@ export default defineConfig(({ mode }) => ({
         dependsOn: [
           "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
           "@stillwind/host#build",
+          "@stillwind/cli#build",
           "@stillwind/integration#build",
           "@stillwind/native#build",
           "@stillwind/projection#build",
@@ -170,6 +174,9 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/tools-webref#typecheck",
           "@stillwind-internal/tools-workspace#typecheck",
           "@stillwind/host#typecheck",
+          "@stillwind/cli#typecheck",
+          "@stillwind/analysis#typecheck",
+          "@stillwind/language-server#typecheck",
           "@stillwind/integration#typecheck",
           "@stillwind/native#typecheck",
           "@stillwind/projection#typecheck",
@@ -212,6 +219,7 @@ export default defineConfig(({ mode }) => ({
         cache: testCache,
         dependsOn: [
           "@stillwind/host#build",
+          "@stillwind/cli#build",
           "@stillwind/integration#build",
           "@stillwind/native#build",
           "@stillwind/native#typecheck",
@@ -256,7 +264,7 @@ export default defineConfig(({ mode }) => ({
       "test:wasm": {
         command: "vp test --run --mode wasm",
         cache: false,
-        dependsOn: ["@stillwind/native#collect:local"],
+        dependsOn: ["@stillwind/native#collect:local", "@stillwind/language-server#build"],
       },
       "test:performance": {
         command: "",

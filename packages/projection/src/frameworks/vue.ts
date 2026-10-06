@@ -7,9 +7,9 @@ import ts from "typescript";
 import type { SourceProjection } from "../protocol.ts";
 import {
   converterIdentity,
-  sourceRegions,
   originalRange,
   PreparationError,
+  sourceRegions,
   type ScriptRegion,
 } from "./common.ts";
 

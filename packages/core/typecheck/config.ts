@@ -1,0 +1,84 @@
+import {
+  defineConfig,
+  type SourceProvider,
+  type ProjectionProvider,
+  type StillwindConfig,
+  type StillwindConfigExport,
+  type StillwindConfigFactory,
+} from "../src/config.ts";
+
+defineConfig({
+  projects: [
+    {
+      css: "theme.css",
+      files: ["**/*.tsx"],
+      tsconfig: "tsconfig.app.json",
+      sources: { kind: "filesystem" },
+    },
+  ],
+});
+
+const synchronous = defineConfig(() => ({
+  projects: [{ css: "theme.css", files: ["*.tsx"], sources: { kind: "filesystem" } }],
+}));
+const synchronousSettings: StillwindConfig = synchronous();
+
+const asynchronous = defineConfig(async () => ({
+  projects: [{ css: "theme.css", files: ["*.tsx"], typeFacts: false }],
+}));
+const asynchronousSettings: Promise<StillwindConfig> = asynchronous();
+
+const promised: Promise<StillwindConfig> = defineConfig(
+  Promise.resolve({ projects: [{ css: "theme.css", files: ["*.tsx"] }] }),
+);
+
+export function preserveExport(config: StillwindConfigExport): StillwindConfigExport {
+  return defineConfig(config);
+}
+
+export function preserveFactory(config: StillwindConfigFactory): StillwindConfigFactory {
+  return defineConfig(config);
+}
+
+// @ts-expect-error Configuration factories must return project settings.
+void defineConfig(() => "invalid");
+// @ts-expect-error Asynchronous configuration factories must resolve to project settings.
+void defineConfig(async () => "invalid");
+// @ts-expect-error Configuration promises must resolve to project settings.
+void defineConfig(Promise.resolve("invalid"));
+
+void synchronousSettings;
+void asynchronousSettings;
+void promised;
+
+const custom: SourceProvider = {
+  kind: "custom",
+  supports: () => true,
+  load: async () => {
+    throw new Error("Not used in type checks");
+  },
+};
+
+const projection: ProjectionProvider = {
+  kind: "custom",
+  prepare: async () => {
+    throw new Error("Not used in type checks");
+  },
+};
+
+void custom;
+void projection;
+
+// @ts-expect-error Custom source providers require a load operation.
+const missingLoad: SourceProvider = { kind: "custom", supports: () => true };
+// @ts-expect-error Custom projection providers require a prepare operation.
+const missingProjection: ProjectionProvider = { kind: "custom" };
+void missingLoad;
+void missingProjection;
+export function sourceLoad(provider: SourceProvider) {
+  if (provider.kind === "custom") {
+    return provider.load.bind(provider);
+  }
+  // @ts-expect-error Filesystem providers do not carry custom source operations.
+  return provider.load;
+}

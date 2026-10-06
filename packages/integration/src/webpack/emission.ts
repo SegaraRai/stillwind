@@ -1,6 +1,6 @@
 import type { CssUpstreamMap } from "@stillwind/host";
+import type { StillwindOptions } from "stillwind/config";
 
-import type { StillwindOptions } from "../options.ts";
 import { compilationStyles } from "./compilation-styles.ts";
 import { createCompilationHost, type ResolverHost } from "./host.ts";
 

@@ -1,8 +1,16 @@
-import { NativeProjectSession, type NativeDesignSystemLoader } from "@stillwind/native";
+import {
+  NativeProjectSession,
+  type NativeDesignSystemLoader,
+  type BindingOutput,
+} from "@stillwind/native";
 
-import { cleanModuleId, compileModule, type CompilerHost } from "./compiler.ts";
-import type { CompilerOutput } from "./protocol.ts";
-import { TypeScriptFactsService, type TypeScriptFactsStats } from "./type-facts.ts";
+import { cleanModuleId, compileModule, type CompilerHost } from "../compilation/index.ts";
+import {
+  TypeScriptFactsService,
+  resolveTypeFactsEnvironment,
+  type TypeFactsEnvironment,
+  type TypeScriptFactsStats,
+} from "../semantics/index.ts";
 
 /** Versioned source buffer that can replace a filesystem read during editor analysis. */
 export interface EditorDocument {
@@ -44,7 +52,7 @@ export interface EditorAnalysis {
    * Current compilation output, including reports for partial results when available. Stale or
    * cancelled analysis removes this field.
    */
-  output?: CompilerOutput;
+  output?: BindingOutput;
   /**
    * Caught exception message. Compiler reports returned in collect mode do not populate this field.
    */
@@ -69,7 +77,7 @@ export interface EditorAnalysis {
     /** Project revision captured by the successful analysis. */
     revision: number;
     /** Successful compiler output retained for editor preview. */
-    output: CompilerOutput;
+    output: BindingOutput;
   };
 }
 
@@ -85,7 +93,6 @@ export class EditorProject {
    * unsuccessful attempts.
    */
   readonly #successes = new Map<string, NonNullable<EditorAnalysis["previousSuccess"]>>();
-
   /**
    * Project change counter used to reject results whose source or dependencies changed during
    * analysis.
@@ -104,6 +111,7 @@ export class EditorProject {
    * on every analysis.
    */
   readonly designSystem: () => NativeDesignSystemLoader;
+  readonly #typeFactsEnvironment: TypeFactsEnvironment;
 
   /**
    * Creates an editor project without opening documents or creating a checker.
@@ -111,11 +119,19 @@ export class EditorProject {
    * @param root - Filesystem project root used for checker resolution.
    * @param host - Source descriptors, dependency resolver, and reader used by analysis.
    * @param designSystem - Factory returning a loaded design system for each independent analysis.
+   * @param typeFactsEnvironment - Fixed checker settings whose root matches this project. Omission
+   * selects an existing root tsconfig or isolated defaults.
    */
-  constructor(root: string, host: CompilerHost, designSystem: () => NativeDesignSystemLoader) {
+  constructor(
+    root: string,
+    host: CompilerHost,
+    designSystem: () => NativeDesignSystemLoader,
+    typeFactsEnvironment = resolveTypeFactsEnvironment(root),
+  ) {
     this.root = root;
     this.host = host;
     this.designSystem = designSystem;
+    this.#typeFactsEnvironment = typeFactsEnvironment;
   }
 
   /**
@@ -207,7 +223,7 @@ export class EditorProject {
       const output = await compileModule(
         session,
         () => {
-          facts ??= new TypeScriptFactsService(this.root);
+          facts ??= new TypeScriptFactsService(this.#typeFactsEnvironment);
           return facts;
         },
         document.source,
@@ -230,7 +246,12 @@ export class EditorProject {
           watch: (dependency) => dependencies.add(dependency),
           warn: () => {},
         },
-        { diagnostics: "collect" },
+        {
+          diagnostics: "collect",
+          typeFactsInputs: {
+            overlayFiles: new Map([...overlays].map(([id, value]) => [id, value.source])),
+          },
+        },
       );
       assertActive();
       result.output = output;

@@ -3,8 +3,8 @@ import path from "node:path";
 import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "./compiler.ts";
-import type { TypeScriptFactsService } from "./type-facts.ts";
+import type { TypeScriptFactsService } from "../semantics/type-facts.ts";
+import { compileModule, fileModuleDescriptor } from "./index.ts";
 
 test("a rejected generator name is reported through the host warnings", async () => {
   // A rejected name comes from the host's generator rather than from the source, so it has no

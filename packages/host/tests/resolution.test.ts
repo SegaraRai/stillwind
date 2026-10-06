@@ -1,12 +1,12 @@
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { summarizeSource, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
+import { NativeDesignSystemLoader, NativeProjectSession, summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { cleanModuleId, compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import { cleanModuleId, compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 test("distinct resolver identities cannot share a module identity", async () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
@@ -67,7 +67,12 @@ test("checker follows per-importer host aliases and barrel resolutions", async (
     "@utility red {color:red} @utility blue {color:blue} @stillwind-slot utilities;",
   );
   const session = new NativeProjectSession(loader, false);
-  const facts = new TypeScriptFactsService(root);
+  const facts = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   const reads: string[] = [];
   try {
     const compile = () =>
@@ -154,7 +159,7 @@ test("disk dependencies gain and lose semantic overlays across snapshots", () =>
   };
   const entry = source("entry.ts", entrySource);
   const token = source("token.ts", tokenSource);
-  const service = new TypeScriptFactsService(root);
+  const service = new TypeScriptFactsService({ root: root, project: { kind: "isolated" } });
   try {
     const collect = (includeToken: boolean) => {
       const sources = includeToken ? [entry, token] : [entry];
@@ -194,7 +199,7 @@ test("external package runtime exports do not replace declaration resolution", a
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "root.css", "@stillwind-slot utilities;");
   const session = new NativeProjectSession(loader, false);
-  const service = new TypeScriptFactsService(root);
+  const service = new TypeScriptFactsService({ root: root, project: { kind: "isolated" } });
   try {
     const output = await compileModule(
       session,

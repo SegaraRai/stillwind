@@ -2,9 +2,14 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { cleanModuleId, type CssUpstreamMap } from "@stillwind/host";
+import {
+  cleanModuleId,
+  compilerOptions,
+  cssEntrypoint,
+  type CssUpstreamMap,
+} from "@stillwind/host";
 
-import { compilerOptions, cssEntrypoint, writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 import type { ProducerInput } from "./emission.ts";
 import type { CompilationHost } from "./host.ts";

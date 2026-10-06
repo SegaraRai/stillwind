@@ -1,4 +1,5 @@
 import {
+  fingerprint,
   compileSource,
   compileProject,
   summarizeSource,
@@ -10,6 +11,10 @@ import type { NativePreparedSource, NativeStylesheetSelection } from "../binding
 
 // Checked by tsc; the generated declarations must describe actual JS values.
 export function verifyNativeTypes() {
+  const revision: string = fingerprint("日本語 🧭");
+  const byteRevision: string = fingerprint(new Uint8Array([0, 255]));
+  void revision;
+  void byteRevision;
   const sources: NativePreparedSource[] = [
     {
       kind: "direct",

@@ -1,9 +1,28 @@
 # Stillwind host orchestration
 
-`@stillwind/host` shares CSS loading, semantic compilation, runtime finalization,
-and JavaScript source mapping between bundler adapters. It does not own a global
-runtime module graph. Build with `vp run --filter @stillwind/host build` before
-using the package from a fresh checkout.
+`@stillwind/host` shares CSS loading, semantic compilation, output finalization,
+and source mapping between bundler adapters and standalone analysis services.
+Build with `vp run --filter @stillwind/host build` before using the package from a
+fresh checkout.
+
+## Responsibility and public API
+
+Consumers import host services from `@stillwind/host`. The package entrypoint
+collects the explicit exports in each responsibility's `index.ts`:
+
+| Directory          | Responsibility                                                          | Main public operations                                                                  |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/compilation/` | Module compilation, source identities, JavaScript finalization and maps | `compileModule`, `analyzeModule`, `fileModuleDescriptor`, `finalizeModuleWithMap`       |
+| `src/semantics/`   | Semantic backend contracts and the reusable Node checker                | `TypeFactsBackend`, `TypeScriptFactsService`, `resolveTypeFactsEnvironment`             |
+| `src/css/`         | Stylesheet loading, resource URLs and CSS maps                          | `loadCssGraph`, `cssWithSourceMap`, `decodeCssSourceMap`                                |
+| `src/project/`     | Configuration, captured documents and analysis lifetimes                | `AnalysisWorkspace`, `AnalysisProject`, `EditorProject`, `createFileSystemAnalysisHost` |
+
+Each directory keeps its implementation and unit tests together. Its `index.ts`
+selects operations and input/result contracts for callers. Modules such as
+`module-graph.ts`, `checker-source.ts` and `diagnostic-map.ts` contain internal
+implementation; their implementation classes and helpers are not package APIs.
+Integration tests under `tests/` can inspect these internals when the tested
+contract spans several modules.
 
 ## Editor previews
 

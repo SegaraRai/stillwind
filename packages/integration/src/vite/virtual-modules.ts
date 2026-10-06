@@ -8,12 +8,12 @@ import type { Plugin } from "vite";
 
 import { readableFile } from "./file-access.ts";
 import {
-  runtimeId,
-  valuePrefix,
   fragmentPrefix,
-  projectionPrefix,
   producerPrefix,
+  projectionPrefix,
+  runtimeId,
   runtimeSpecifier,
+  valuePrefix,
   virtualCssId,
 } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";

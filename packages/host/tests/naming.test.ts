@@ -3,8 +3,8 @@ import path from "node:path";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import type { TypeScriptFactsService } from "../src/type-facts.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
+import type { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 test("host name generators decide the names the compiler writes", async () => {
   const loader = new NativeDesignSystemLoader();

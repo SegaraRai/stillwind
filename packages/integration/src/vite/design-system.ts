@@ -4,10 +4,10 @@ import { readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { cleanModuleId, loadCssGraph } from "@stillwind/host";
+import { cleanModuleId, compilerOptions, cssEntrypoint, loadCssGraph } from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { compilerOptions, cssEntrypoint, writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../options.ts";
 import { IntegrationSession } from "../session.ts";
 import { readableFile } from "./file-access.ts";
 import type { ProjectSettings, StillwindOptions } from "./project.ts";

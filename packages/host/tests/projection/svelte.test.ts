@@ -6,7 +6,7 @@ import type { prepareSource, PreparedSource } from "@stillwind/projection";
 import { compile as compileSvelte } from "svelte/compiler";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vite-plus/test";
 
-import { TypeScriptFactsService } from "../../src/type-facts.ts";
+import { TypeScriptFactsService } from "../../src/semantics/index.ts";
 
 const projectionRequire = createRequire(import.meta.resolve("@stillwind/projection/package.json"));
 const converterPath = projectionRequire.resolve("svelte2tsx");
@@ -95,7 +95,12 @@ for (const version of ["0.7.56", "0.7.61"]) {
       vi.resetModules();
       vi.doMock(converterPath, () => ({ svelte2tsx: convert }));
       ({ prepareSource: prepare } = await import("@stillwind/projection"));
-      facts = new TypeScriptFactsService(root);
+      facts = new TypeScriptFactsService({
+        root,
+        project: {
+          kind: "isolated",
+        },
+      });
     });
 
     afterAll(() => {

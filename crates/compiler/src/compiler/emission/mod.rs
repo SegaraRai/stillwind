@@ -63,8 +63,6 @@ pub(super) struct CallEmitter<'a> {
     source: &'a SourceFile,
     /// Module identity used for generated names.
     module_id: &'a ModuleId,
-    /// Compiler configuration for generated identities and output.
-    options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
     identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry for this compilation.

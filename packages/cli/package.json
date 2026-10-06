@@ -1,0 +1,33 @@
+{
+  "name": "@stillwind/cli",
+  "version": "0.0.0",
+  "description": "Command wrappers for Stillwind tools",
+  "license": "MIT",
+  "bin": {
+    "stillwind": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@stillwind/analysis": "workspace:*",
+    "@stillwind/language-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-import type { StillwindOptions } from "../options.ts";
+import type { StillwindOptions } from "stillwind/config";
 
 export function loaderOptionsId(options: StillwindOptions): string {
   return "stillwind-" + createHash("sha256").update(JSON.stringify(options)).digest("hex");

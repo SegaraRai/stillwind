@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
+import type { StillwindOptions as CommonOptions } from "stillwind/config";
 import type { InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
-import type { StillwindOptions as CommonOptions } from "../options.ts";
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
 import type { BuildOutput } from "./build.ts";

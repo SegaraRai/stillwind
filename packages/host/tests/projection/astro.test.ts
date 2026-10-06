@@ -5,7 +5,7 @@ import { compileProject, scanSource } from "@stillwind/native";
 import { checkerEnvironment, prepareSource, type PreparedSource } from "@stillwind/projection";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 
-import { TypeScriptFactsService } from "../../src/type-facts.ts";
+import { TypeScriptFactsService } from "../../src/semantics/index.ts";
 
 const root = path.resolve(import.meta.dirname, "../../../integration/testss");
 const filename = path.join(root, "Projection.astro");
@@ -34,7 +34,12 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
   let facts: TypeScriptFactsService;
 
   beforeAll(() => {
-    facts = new TypeScriptFactsService(root);
+    facts = new TypeScriptFactsService({
+      root,
+      project: {
+        kind: "isolated",
+      },
+    });
   });
 
   afterAll(() => facts?.close());

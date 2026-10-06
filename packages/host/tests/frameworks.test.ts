@@ -2,17 +2,25 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { transform as compileAstro } from "@astrojs/compiler";
-import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
-import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
+import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
+import {
+  compileProject,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+  type ProjectBindingOutput,
+} from "@stillwind/native";
 import { checkerEnvironment, prepareSource, type PreparedSource } from "@stillwind/projection";
 import { compileScript, parse as parseVue } from "@vue/compiler-sfc";
 import { compile as compileSvelte } from "svelte/compiler";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor, fileSourceKind } from "../src/compiler.ts";
-import type { ProjectCompilerOutput } from "../src/protocol.ts";
-import { moduleSourceMap } from "../src/source-map.ts";
-import { TypeScriptFactsService } from "../src/type-facts.ts";
+import {
+  compileModule,
+  fileModuleDescriptor,
+  fileSourceKind,
+  moduleSourceMap,
+} from "../src/compilation/index.ts";
+import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 const cssInput = (content: string) => ({
   content,
@@ -135,7 +143,12 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
     path.dirname(fileURLToPath(import.meta.url)),
     "../../integration/testss",
   );
-  const facts = new TypeScriptFactsService(root);
+  const facts = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   t.onTestFinished(() => facts.close());
   const loader = new NativeDesignSystemLoader();
   loader.provide(
@@ -189,7 +202,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
         cssInput(
           "@utility flex { display: flex; } @utility grid { display: grid; } @stillwind-slot utilities;",
         ),
-      ) as ProjectCompilerOutput
+      ) as ProjectBindingOutput
     ).modules[0]!;
   const input = await prepareSource({
     resolverId: "/src/Bad.vue",
@@ -387,7 +400,7 @@ for (const { extension, source, name, imports } of [
       cssInput(
         "@utility flex { display: flex; } @utility grid { display: grid; } @stillwind-slot utilities;",
       ),
-    ) as ProjectCompilerOutput;
+    ) as ProjectBindingOutput;
     const module = output.modules[0]!;
     expect(module.diagnostics).toStrictEqual([]);
     if (source.includes("const base = style")) {

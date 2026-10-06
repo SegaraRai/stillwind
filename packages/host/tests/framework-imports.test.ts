@@ -2,13 +2,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
-import { compileProject, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import { prepareSource } from "@stillwind/projection";
+import {
+  compileProject,
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+  type ProjectBindingOutput,
+} from "@stillwind/native";
+import { prepareSource, type ProjectInput } from "@stillwind/projection";
 import * as vueRuntime from "stillwind/vue/runtime";
 import { expect, test } from "vite-plus/test";
 
-import { compileModule, fileModuleDescriptor } from "../src/compiler.ts";
-import type { ProjectCompilerOutput, ProjectInput } from "../src/protocol.ts";
+import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const rule = "framework-import-mismatch";
@@ -35,7 +39,7 @@ async function compileFixture(
     name: "framework-imports.css",
     uri: "untitled:framework-imports.css",
     sourceMapSource: "untitled:framework-imports.css",
-  }) as ProjectCompilerOutput;
+  }) as ProjectBindingOutput;
   expect(output.modules.length).toBe(1);
   return output.modules[0]!;
 }

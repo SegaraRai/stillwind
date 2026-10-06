@@ -2,8 +2,8 @@ import { readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { loadCssGraph, type CompilerOutput } from "@stillwind/host";
-import { NativeProjectSession } from "@stillwind/native";
+import { loadCssGraph } from "@stillwind/host";
+import { NativeProjectSession, type ProjectModuleOutput } from "@stillwind/native";
 import type { ViteDevServer } from "vite-plus";
 
 export async function compilePlayground(
@@ -11,7 +11,7 @@ export async function compilePlayground(
   theme: string,
   css: string,
   server: ViteDevServer,
-): Promise<CompilerOutput> {
+): Promise<ProjectModuleOutput> {
   const resolveImport = async (specifier: string, importer: string) => {
     const result = await server.pluginContainer.resolveId(specifier, importer);
     if (!result || result.external) {

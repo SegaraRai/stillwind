@@ -5,10 +5,10 @@ import ts from "typescript";
 import type { SourceProjection } from "../protocol.ts";
 import {
   converterIdentity,
-  sourceMapV3,
-  sourceRegions,
   originalRange,
   PreparationError,
+  sourceMapV3,
+  sourceRegions,
   type ScriptRegion,
 } from "./common.ts";
 

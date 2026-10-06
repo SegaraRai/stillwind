@@ -33,6 +33,36 @@ pub struct ModuleCompiler {
 }
 
 impl ModuleCompiler {
+    /// Checks the available IR without returning generated artifacts or publishing a module.
+    ///
+    /// Frontend failures remain diagnostics. Other calls that the frontend could lower still
+    /// contribute local utility findings. The caller must preserve the analysis source registry.
+    pub fn diagnose(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompileResult {
+        let mut local = module.clone();
+        local.diagnostics.clear();
+        let context = identifiers.context(self.options.hash_length);
+        let result = Compiler::compile_support_with_snapshot(
+            &local.source,
+            &local,
+            &self.design_system,
+            &self.options,
+            &context,
+        );
+        let mut diagnostics = module.diagnostics.clone();
+        diagnostics.extend(result.diagnostics);
+        diagnostics.extend(
+            module.integration_diagnostics.iter().map(|error| {
+                CompileError::new(error.diagnostic.clone(), module.source.full_span())
+            }),
+        );
+        CompileResult {
+            diagnostics,
+            lint_findings: result.lint_findings,
+            lint_settings: result.lint_settings,
+            ..CompileResult::default()
+        }
+    }
+
     /// Creates a compiler that keeps the supplied `design_system` snapshot.
     ///
     /// Resolves prefixes in `options` against the snapshot so output uses the theme's
