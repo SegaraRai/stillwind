@@ -9,6 +9,35 @@ import { expect, onTestFinished, test } from "vite-plus/test";
 import webpack from "webpack";
 
 for (const backend of ["webpack", "rspack"] as const) {
+  test(`${backend} reads an async project configuration with StillwindPlugin`, async () => {
+    const { root, build } = await compilerFixture(backend, "config");
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      `
+      import { defineConfig } from "stillwind/config";
+      export default defineConfig(async () => ({ projects: [{
+        css: "root.css", files: ["*.js"], automatic: false, types: false,
+      }] }));
+    `,
+    );
+    await build();
+    const global: { css?: string } = {};
+    runInNewContext(await readFile(path.join(root, "dist/main.js"), "utf8"), {
+      globalThis: global,
+      self: {},
+    });
+    expect(global.css).toMatch(/color:\s*red/);
+  });
+
+  test(`${backend} rejects ambiguous project selection before compiling`, async () => {
+    const { root, build } = await compilerFixture(backend, "config");
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.js"]},{css:"root.css",files:["*.ts"]}]}',
+    );
+    await expect(build()).rejects.toThrow("Cannot select one Stillwind project");
+  });
+
   test(`${backend} supplies explicit CSS values with automatic output disabled in the plugin`, async () => {
     const { root, build } = await compilerFixture(backend, "plugin");
     await build();
@@ -42,15 +71,15 @@ test("the internal loader supplies explicit CSS values without a plugin", async 
 
 test("automatic output through the internal loader requires the compilation plugin", async () => {
   const { build } = await compilerFixture("webpack", "automatic-loader");
-  await expect(build()).rejects.toThrow(/requires new StillwindPlugin\(options\)/);
+  await expect(build()).rejects.toThrow(/requires new StillwindPlugin\(config\)/);
 });
 
 async function compilerFixture(
   backend: "webpack" | "rspack",
-  transport: "plugin" | "explicit-loader" | "automatic-loader",
+  transport: "plugin" | "explicit-loader" | "automatic-loader" | "config",
 ) {
   const root = await mkdtemp(fileURLToPath(new URL("../../.test-configuration-", import.meta.url)));
-  const options = {
+  const config = {
     css: "root.css",
     automatic: transport === "automatic-loader",
     types: false as const,
@@ -71,10 +100,15 @@ async function compilerFixture(
     experiments: {
       css: true,
     },
-    plugins: transport === "plugin" ? [new StillwindPlugin(options)] : [],
+    plugins:
+      transport === "plugin"
+        ? [new StillwindPlugin(config)]
+        : transport === "config"
+          ? [new StillwindPlugin()]
+          : [],
     module: {
       rules:
-        transport === "plugin"
+        transport === "plugin" || transport === "config"
           ? []
           : [
               {
@@ -84,7 +118,7 @@ async function compilerFixture(
                     loader: fileURLToPath(
                       import.meta.resolve("@stillwind/integration/internal/webpack-loader"),
                     ),
-                    options,
+                    options: config,
                   },
                 ],
               },

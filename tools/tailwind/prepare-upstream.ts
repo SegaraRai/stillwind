@@ -6,7 +6,9 @@ import installed from "tailwindcss/package.json" with { type: "json" };
 
 import { prepareTailwindSource, refreshTailwindSource, type TailwindSource } from "./upstream.ts";
 
-parseArgs({ options: {} });
+parseArgs({
+  options: {},
+});
 
 const sourceFile = resolve(import.meta.dirname, "upstream-source.json");
 let source: TailwindSource | undefined;
@@ -29,7 +31,10 @@ if (!source || source.version !== installed.version) {
     sourceFile,
   });
 } else {
-  await prepareTailwindSource({ ...options, source });
+  await prepareTailwindSource({
+    ...options,
+    source,
+  });
 }
 
 console.log(`Prepared Tailwind ${source.version} source at ${source.revision}`);

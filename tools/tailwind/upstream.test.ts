@@ -61,7 +61,12 @@ function fixture(name = "tailwindcss", version = "4.3.3") {
 
 test("downloads pinned URLs and reuses verified files without network access", async () => {
   const { source, files, download } = fixture();
-  const options = { source, cacheDirectory, expectedVersion: source.version, download };
+  const options = {
+    source,
+    cacheDirectory,
+    expectedVersion: source.version,
+    download,
+  };
   const directory = await prepareTailwindSource(options);
   expect(directory).toBe(join(cacheDirectory, source.revision));
   for (const [file, content] of Object.entries(files)) {
@@ -75,7 +80,12 @@ test("downloads pinned URLs and reuses verified files without network access", a
     await utimes(join(directory, file), 1, 1);
   }
   const offline = vi.fn(async () => expect.fail("A verified cache must not download files"));
-  expect(await prepareTailwindSource({ ...options, download: offline })).toBe(directory);
+  expect(
+    await prepareTailwindSource({
+      ...options,
+      download: offline,
+    }),
+  ).toBe(directory);
   expect(offline).not.toHaveBeenCalled();
   for (const file of Object.keys(files)) {
     expect((await stat(join(directory, file))).mtimeMs).toBe(1000);
@@ -115,7 +125,12 @@ test.each(["modified", "incomplete"])(
   "rejects a %s cache without downloading or writing",
   async (state) => {
     const { source, download } = fixture();
-    const options = { source, cacheDirectory, expectedVersion: source.version, download };
+    const options = {
+      source,
+      cacheDirectory,
+      expectedVersion: source.version,
+      download,
+    };
     const directory = await prepareTailwindSource(options);
     const file = join(directory, "packages/tailwindcss/src/utilities.ts");
     if (state === "modified") {

@@ -16,13 +16,24 @@ import {
 
 import { cleanModuleId, type PreparedSource } from "../compilation/index.ts";
 
-/** Traces reports through loader maps. Edits require unchanged text across the mapped range. */
+/**
+ * Maps reports through upstream loader maps to their original source documents.
+ *
+ * @param reports - Reports with byte offsets and UTF-16 locations in prepared source documents.
+ * @param sources - Prepared sources whose document metadata supplies upstream maps.
+ * @param read - Reads original file text when the map has no embedded content, or when a label
+ * needs a document-level fallback. Identities passed here are absolute file paths.
+ * @returns Reports with original positions and content fingerprints. Unmappable labels become
+ * document-scoped. An action is retained only when every edit maps to an unchanged text range.
+ * @throws If required source reads or upstream map decoding fail.
+ */
 export async function mapAnalysisReports(
   reports: readonly BindingReport[],
   sources: readonly PreparedSource[],
   read: (id: string) => Promise<string>,
 ): Promise<BindingReport[]> {
   const documents = new Map(sources.map((source) => [source.document.uri, source]));
+
   const mapLocation = async (
     location: BindingLocation,
     exact: boolean,
@@ -105,6 +116,7 @@ export async function mapAnalysisReports(
       endColumn: end.column!,
     };
   };
+
   const label = async (value: BindingLabel): Promise<BindingLabel> => {
     const mapped = await mapLocation(value.location, false);
     if (mapped) {
@@ -140,6 +152,7 @@ export async function mapAnalysisReports(
       scope: "document",
     };
   };
+
   return Promise.all(
     reports.map(async (report) => {
       const actions: BindingReport["actions"] = [];

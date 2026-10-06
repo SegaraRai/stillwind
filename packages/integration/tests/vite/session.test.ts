@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stillwind } from "@stillwind/integration/vite";
-import { createServer } from "vite";
+import { createServer, resolveConfig } from "vite";
 import { expect, test } from "vite-plus/test";
 
 test("query modules retain independent CSS and deletion removes all derivatives of a file", async () => {
@@ -302,6 +302,15 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
     css,
     types: false,
   });
+  await resolveConfig(
+    {
+      root,
+      configFile: false,
+      plugins,
+      logLevel: "silent",
+    },
+    "build",
+  );
   const [plugin] = plugins;
   const buildStart = plugin.buildStart;
   if (typeof buildStart !== "function") {

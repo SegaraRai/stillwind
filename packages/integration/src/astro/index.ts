@@ -5,10 +5,10 @@ import { moduleSourceMap } from "@stillwind/host";
 import type { AstroIntegration } from "astro";
 
 import { createVitePlugins } from "../vite/plugin.ts";
-import { createViteProject, type StillwindOptions } from "../vite/project.ts";
+import { createViteProject, type IntegrationConfig } from "../vite/project.ts";
 import { registerDevelopmentCss } from "./development.ts";
 
-export type { StillwindOptions } from "../vite/index.ts";
+export type { IntegrationConfig } from "../vite/index.ts";
 
 /** Virtual server module imported by Astro middleware to obtain document stylesheet markup. */
 const ID = "virtual:stillwind/astro-styles";
@@ -31,12 +31,15 @@ const MARKER = '"__STILLWIND_ASTRO_STYLES_574f6dfce7c69466ab9516fb7fc6199a__"';
  * Development SSR reads current CSS through a server bridge and embeds it in HTML. Production SSR
  * inserts links from the stylesheet manifest.
  *
- * @param options - Compiler and Vite emission options shared by the client and server environments.
+ * @param config - File discovery, project selection, compiler overrides, and Vite CSS emission.
+ * Omission discovers stillwind.config.ts from Astro's application root when Vite is configured.
  * @returns An Astro integration that installs Stillwind Vite plugins, middleware, and document
  * stylesheet modules.
  */
-export function stillwind(options: StillwindOptions): AstroIntegration {
-  const project = createViteProject(options);
+export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
+  let applicationRoot: string | undefined;
+
+  const project = createViteProject(config, () => applicationRoot);
   const plugins = createVitePlugins(project);
   const bridgeId = randomUUID();
 
@@ -45,7 +48,8 @@ export function stillwind(options: StillwindOptions): AstroIntegration {
   return {
     name: "@stillwind/integration",
     hooks: {
-      "astro:config:setup"({ updateConfig, addMiddleware }) {
+      "astro:config:setup"({ config: astroConfig, updateConfig, addMiddleware }) {
+        applicationRoot = fileURLToPath(astroConfig.root);
         addMiddleware({
           entrypoint: fileURLToPath(new URL("./middleware.js", import.meta.url)).replaceAll(
             "\\",

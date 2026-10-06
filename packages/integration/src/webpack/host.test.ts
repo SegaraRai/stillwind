@@ -56,7 +56,7 @@ test("reconstruction uses captured query sources and rejects uncaptured derivati
     id: path.resolve("module.ts") + "?generated",
     source: "producer source",
     root: path.resolve("."),
-    options: { css: "./root.css" },
+    config: { css: "./root.css" },
     manual: false,
     dependencies: [{ id: file + "?first", source: "captured source" }],
   };

@@ -10,7 +10,12 @@ const destination = new URL("../../crates/css/assets/webref-properties.rs", impo
 const {
   values: { check },
 } = parseArgs({
-  options: { check: { type: "boolean", default: false } },
+  options: {
+    check: {
+      type: "boolean",
+      default: false,
+    },
+  },
 });
 
 function rustString(value: string): string {

@@ -5,7 +5,7 @@ import {
   type StillwindConfig,
   type StillwindConfigExport,
   type StillwindConfigFactory,
-} from "../src/config.ts";
+} from "../src/index.ts";
 
 defineConfig({
   projects: [

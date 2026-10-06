@@ -6,10 +6,12 @@ import {
   cleanModuleId,
   compilerOptions,
   cssEntrypoint,
+  cssWithSourceMap,
+  loadCssGraph,
   type CssUpstreamMap,
 } from "@stillwind/host";
 
-import { writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import type { ProducerInput } from "./emission.ts";
 import type { CompilationHost } from "./host.ts";
@@ -23,7 +25,7 @@ import { sourceDescriptor } from "./sources.ts";
  * selection. The temporary compiler closes after reconstruction.
  *
  * @param producers - Nonempty list of producers from the completed graph. Every producer must use
- * the same root and options.
+ * the same root and config.
  * @param io - Compilation host that reads captured dependency sources and resolves CSS, scripts,
  * and assets.
  * @param mode - Bundler mode. Only `development` selects development compilation.
@@ -41,12 +43,11 @@ export async function compilationStyles(
   watch: (id: string) => void,
   warn: (message: string) => void,
 ): Promise<string> {
-  const host = await import("@stillwind/host");
-  const { options, root } = producers[0];
+  const { config, root } = producers[0];
   const readDependency = io.dependencyReader(producers);
-  const loaded = await host.loadCssGraph(
-    path.resolve(root, cssEntrypoint(options)),
-    compilerOptions(options),
+  const loaded = await loadCssGraph(
+    path.resolve(root, cssEntrypoint(config)),
+    compilerOptions(config),
     {
       read: io.read,
       resolve: io.resolveCss,
@@ -55,18 +56,18 @@ export async function compilationStyles(
       watch,
     },
   );
-  writeVocabulary(loaded.loader, root, options);
+  writeVocabulary(loaded.loader, root, config);
   const compiler = new IntegrationSession(
     root,
     loaded.loader,
-    options,
+    config,
     false,
     mode === "development" ? "development" : "release",
   );
   const selection: string[] = [];
   try {
     for (const input of producers) {
-      if (input.root !== root || JSON.stringify(input.options) !== JSON.stringify(options)) {
+      if (input.root !== root || JSON.stringify(input.config) !== JSON.stringify(config)) {
         throw new Error("A compilation must use one Stillwind design system");
       }
       const output = await compiler.compile(
@@ -107,7 +108,7 @@ export async function compilationStyles(
       );
       replacements.set(resource.placeholder, JSON.stringify(request).slice(1, -1));
     }
-    return host.cssWithSourceMap(
+    return cssWithSourceMap(
       plan,
       replacements,
       producers.flatMap((input) =>

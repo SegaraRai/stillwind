@@ -18,7 +18,7 @@ import type { CssContext } from "./design-system.ts";
 import { finalizeModuleWithMap } from "./finalize.ts";
 import { sourceModuleId } from "./module-ids.ts";
 import type { ModuleRegistry } from "./module-registry.ts";
-import type { ProjectSettings, StillwindOptions } from "./project.ts";
+import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 
 /** Metadata retained in the Vite module graph to reconstruct a producer from a cached transform. */
 export interface ProducerMetadata {
@@ -120,7 +120,7 @@ export interface ProducerTransform {
  *
  * @param compiler - Initialized session for the current environment.
  * @param settings - Configured root used to derive compiler and checker file identities.
- * @param options - Compiler options, including whether document CSS is automatic.
+ * @param config - Compiler config, including whether document CSS is automatic.
  * @param registry - Virtual reference registry for the same environment.
  * @param code - Source text before Stillwind transformation.
  * @param id - Full Vite identity of the source, including any query suffix.
@@ -134,7 +134,7 @@ export interface ProducerTransform {
 export async function compileProducer(
   compiler: IntegrationSession,
   settings: ProjectSettings,
-  options: StillwindOptions,
+  config: IntegrationConfig,
   registry: ModuleRegistry,
   code: string,
   id: string,
@@ -183,7 +183,7 @@ export async function compileProducer(
     },
     {
       stylesheetImports:
-        sfc && options.automatic !== false ? [registry.source("producer", id)] : undefined,
+        sfc && config.automatic !== false ? [registry.source("producer", id)] : undefined,
       moduleCssImport: registry.source("value", id),
     },
   );
@@ -199,7 +199,7 @@ export async function compileProducer(
       }
     : finalizeModuleWithMap(output.code, false);
   const suffix =
-    sfc || output.hasModuleCssImport || options.automatic === false
+    sfc || output.hasModuleCssImport || config.automatic === false
       ? ""
       : `\nimport ${JSON.stringify(registry.source("producer", id))};\n`;
   const javascript = finalized.code + suffix;
@@ -225,7 +225,7 @@ export async function compileProducer(
     code,
     id,
     moduleId: output.moduleId,
-    manual: output.hasModuleCssImport || options.automatic === false,
+    manual: output.hasModuleCssImport || config.automatic === false,
     javascript,
     dependencies: output.compositionModules,
   };

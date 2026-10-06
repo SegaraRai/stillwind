@@ -19,7 +19,10 @@ const {
   values: { check },
 } = parseArgs({
   options: {
-    check: { type: "boolean", default: false },
+    check: {
+      type: "boolean",
+      default: false,
+    },
   },
 });
 const write = !check;

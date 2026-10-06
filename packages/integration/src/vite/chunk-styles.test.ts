@@ -70,7 +70,7 @@ test("the generated loader inserts missing links in manifest order and keeps exi
 
 test("single emission attaches its CSS asset without adding a loader", () => {
   const { project, context, chunk } = fixture("/app/", { buildCss: "single-reference" });
-  project.options.emission = "single";
+  project.config.emission = "single";
 
   expect(renderChunkStyles(project, "client", context, "entry();", chunk)).toBeNull();
   expect(chunk.viteMetadata?.importedCss).toEqual(new Set(["assets/single.css"]));
@@ -112,14 +112,35 @@ function fixture(base: string, output?: BuildOutput) {
   };
   const registryId = `${producerPrefix}cached`;
   const project = {
-    options: { emission: "split" },
-    settings: { publicBase: base },
+    config: {
+      emission: "split",
+    },
+    settings: {
+      publicBase: base,
+    },
     buildOutput: (name: string) => {
       expect(name).toBe("client");
       return output ?? { manifest };
     },
-    inputs: () => new Map([["/main.ts", { moduleId: "main" }]]),
-    moduleRegistry: () => new Map([[registryId, { kind: "producer", moduleId: "main" }]]),
+    inputs: () =>
+      new Map([
+        [
+          "/main.ts",
+          {
+            moduleId: "main",
+          },
+        ],
+      ]),
+    moduleRegistry: () =>
+      new Map([
+        [
+          registryId,
+          {
+            kind: "producer",
+            moduleId: "main",
+          },
+        ],
+      ]),
   } as unknown as ViteProject;
   const infos = new Map([
     [

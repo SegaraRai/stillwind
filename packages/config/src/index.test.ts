@@ -6,7 +6,7 @@ import {
   validateConfig,
   type StillwindConfig,
   type StillwindConfigExport,
-} from "./config.ts";
+} from "./index.ts";
 
 test("configuration keeps independent scopes and compiler settings", () => {
   const projects = [
@@ -29,7 +29,14 @@ test("configuration keeps independent scopes and compiler settings", () => {
 test.each(["function", "async function", "promise"])(
   "%s exports retain their form until configuration resolution",
   async (kind) => {
-    const config: StillwindConfig = { projects: [{ css: "theme.css", files: ["*.tsx"] }] };
+    const config: StillwindConfig = {
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+        },
+      ],
+    };
     let calls = 0;
     const create = () => {
       calls++;
@@ -50,11 +57,21 @@ test.each(["function", "async function", "promise"])(
 );
 
 test("resolved factory and promise values are validated", async () => {
-  await expect(resolveConfig(async () => ({ projects: [] }))).rejects.toThrow(
-    "nonempty projects array",
-  );
   await expect(
-    resolveConfig(Promise.resolve({ projects: [{ files: ["*.tsx"] }] })),
+    resolveConfig(async () => ({
+      projects: [],
+    })),
+  ).rejects.toThrow("nonempty projects array");
+  await expect(
+    resolveConfig(
+      Promise.resolve({
+        projects: [
+          {
+            files: ["*.tsx"],
+          },
+        ],
+      }),
+    ),
   ).rejects.toThrow("must specify CSS");
 });
 

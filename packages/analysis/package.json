@@ -26,6 +26,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*"
   },

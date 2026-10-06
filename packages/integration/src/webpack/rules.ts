@@ -1,20 +1,46 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-import type { StillwindOptions } from "stillwind/config";
+import type { InlineConfig } from "@stillwind/config";
 
-export function loaderOptionsId(options: StillwindOptions): string {
-  return "stillwind-" + createHash("sha256").update(JSON.stringify(options)).digest("hex");
+/**
+ * Derives the webpack rule identifier used by inline SFC loader requests.
+ *
+ * @param config - The same configuration values registered on the loader rule. JSON serialization
+ * omits callbacks, so namingRevision must distinguish changed naming implementations.
+ * @returns A stillwind-prefixed SHA-256 hash of the serialized configuration.
+ * @throws If the configuration cannot be serialized as JSON.
+ */
+export function loaderOptionsId(config: InlineConfig): string {
+  return "stillwind-" + createHash("sha256").update(JSON.stringify(config)).digest("hex");
 }
 
+/** webpack-compatible producer and source-map rules, also consumed by Rspack. */
 export interface StillwindRule {
   test: RegExp;
   exclude?: RegExp;
   enforce?: "pre" | "post";
-  use: (string | { loader: string; options: StillwindOptions; ident: string })[];
+  use: (
+    | string
+    | {
+        loader: string;
+        /** Discovery and inline settings retained by the rule and evaluated by its producer loader. */
+        options: InlineConfig;
+        /** Registered rule identity referenced by requests that retain naming callbacks. */
+        ident: string;
+      }
+  )[];
 }
 
-export function stillwindRules(options: StillwindOptions): StillwindRule[] {
+/**
+ * Builds producer, document CSS, and SFC source-map loader rules without evaluating configuration.
+ *
+ * @param config - Discovery and inline settings shared by producer rules. The object is retained.
+ * @returns Rules using absolute paths in the installed integration package. The host provides its
+ * CSS pipeline and registers StillwindPlugin when automatic document CSS is required.
+ * @throws If loader resolution or configuration serialization fails.
+ */
+export function stillwindRules(config: InlineConfig): StillwindRule[] {
   return [
     {
       test: /\.[cm]?[jt]sx?$/,
@@ -25,8 +51,8 @@ export function stillwindRules(options: StillwindOptions): StillwindRule[] {
           loader: fileURLToPath(
             new URL("./loader.js", import.meta.resolve("@stillwind/integration/webpack")),
           ),
-          options,
-          ident: loaderOptionsId(options),
+          options: config,
+          ident: loaderOptionsId(config),
         },
       ],
     },
@@ -39,8 +65,8 @@ export function stillwindRules(options: StillwindOptions): StillwindRule[] {
           loader: fileURLToPath(
             new URL("./loader.js", import.meta.resolve("@stillwind/integration/webpack")),
           ),
-          options,
-          ident: loaderOptionsId(options),
+          options: config,
+          ident: loaderOptionsId(config),
         },
       ],
     },

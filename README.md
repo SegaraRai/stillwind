@@ -103,12 +103,25 @@ Stillwind-owned CSS identifiers and Tailwind-compatible internal properties use
 separate configurable namespaces:
 
 ```ts
-stillwind({
-  theme: "./src/stillwind.css",
-  prefix: "--sw-",
-  tailwindPrefix: "--tw-",
+// stillwind.config.ts
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      prefix: "--sw-",
+      tailwindPrefix: "--tw-",
+    },
+  ],
 });
 ```
+
+The Vite integration reads this configuration with `stillwind()`. Other integrations
+keep their plugin or wrapper APIs and use the same configuration discovery. Use `configFile`
+to select another path, or override individual settings inline. Set `configFile: false`
+when supplying the entire compiler configuration inline.
 
 Both prefixes must start with `--`, end with `-`, and differ from each other.
 

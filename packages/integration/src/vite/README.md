@@ -88,7 +88,7 @@ Framework-specific packages under `e2e/frameworks` are separate acceptance probe
 passing the emission probe does not establish every framework's streaming or HMR behavior.
 
 The factory returns compiler, development, and build plugins that share one project.
-Keep `plugins: [stillwind(options)]` in the Vite configuration. Vite flattens the
+Keep `plugins: [stillwind(config)]` in the Vite configuration. Vite flattens the
 returned array. The compiler owns initialization and disposal for each environment;
 the development plugin serves CSS and handles HMR, and the build plugin emits CSS
 assets and links them to chunks.

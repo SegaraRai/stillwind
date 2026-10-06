@@ -55,7 +55,7 @@ export interface BuildOutput {
  * rendering.
  */
 export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "renderChunk"> {
-  const { options, settings, inputs, cssForBrowser, documentPlan, compile } = project;
+  const { config, settings, inputs, cssForBrowser, documentPlan, compile } = project;
 
   return {
     /**
@@ -112,7 +112,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         .update("\0")
         .digest("hex");
       const output: BuildOutput = {};
-      if (options.emission !== "split") {
+      if (config.emission !== "split") {
         const mapped = settings.sourceMaps
           ? decodeCssSourceMap(
               cssForBrowser(

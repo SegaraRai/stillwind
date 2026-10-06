@@ -1,11 +1,11 @@
 import path from "node:path";
 
-import type { StillwindOptions } from "stillwind/config";
+import type { BaseConfig, InlineConfig } from "@stillwind/config";
 
 import { loaderOptionsId } from "./rules.ts";
 
 /** Compiler options carried by a loader rule or an encoded SFC subrequest. */
-export type LoaderOptions = StillwindOptions & {
+export type LoaderOptions = InlineConfig & {
   /**
    * Base64url-encoded JSON configuration for an SFC subrequest. Omit when the rule supplies options
    * directly.
@@ -60,7 +60,7 @@ export function classifyRequest(resourcePath: string, resourceQuery = ""): Produ
  * @returns Decoded options when `stillwindOptions` is present, otherwise the supplied object.
  * @throws If encoded configuration is not valid JSON.
  */
-export function requestOptions(supplied: LoaderOptions): StillwindOptions {
+export function requestOptions(supplied: LoaderOptions): InlineConfig {
   return supplied.stillwindOptions
     ? JSON.parse(Buffer.from(supplied.stillwindOptions, "base64url").toString("utf8"))
     : supplied;
@@ -86,24 +86,29 @@ export function relativeRequest(from: string, to: string): string {
  *
  * @param resourcePath - Absolute path of the original producer.
  * @param sfc - Whether the producer is an Astro, Svelte, or Vue file.
- * @param options - Compiler options used for the original producer.
+ * @param config - Compiler config used for the original producer.
  * @param loaderPath - Absolute path of the producer loader.
  * @param query - Stillwind query text without a leading `?`.
+ * @param identityConfig - Original inline settings registered on the loader rule. When evaluated
+ * config contains naming callbacks, this selects that rule instead of serializing callbacks.
+ * Defaults to config when file evaluation has not changed the registered settings.
  * @returns A relative resource request for scripts, or an inline loader request for SFCs.
+ * @throws If SFC settings cannot be serialized for their inline request.
  */
 export function virtualRequest(
   resourcePath: string,
   sfc: boolean,
-  options: StillwindOptions,
+  config: BaseConfig,
   loaderPath: string,
   query: string,
+  identityConfig: InlineConfig = config,
 ): string {
   if (!sfc) {
     return `${relativeRequest(path.dirname(resourcePath), resourcePath)}?${query}`;
   }
 
-  const configuration = options.naming
-    ? "??" + loaderOptionsId(options)
-    : "?stillwindOptions=" + Buffer.from(JSON.stringify(options)).toString("base64url");
+  const configuration = config.naming
+    ? "??" + loaderOptionsId(identityConfig)
+    : "?stillwindOptions=" + Buffer.from(JSON.stringify(config)).toString("base64url");
   return `!!${loaderPath.replaceAll("\\", "/")}${configuration}!${resourcePath.replaceAll("\\", "/")}?${query}`;
 }

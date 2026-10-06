@@ -19,15 +19,39 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 /** Supplies analysis services and delegates transport exit to the embedding application. */
 export interface LanguageServerOptions {
+  /**
+   * Opens services at initialization and after saves, watched file changes, configuration changes,
+   * or workspace folder changes. Previous services are closed first. Open buffers are replayed.
+   */
   openWorkspaces: OpenWorkspaces;
+  /**
+   * Handles the LSP exit notification using the embedding's transport or process policy.
+   *
+   * @param shutdown - Whether shutdown or explicit disposal was requested before exit.
+   */
   onExit?(shutdown: boolean): void;
 }
 
-/** Registers LSP handlers on a caller-owned connection. The caller starts and disposes its transport. */
+/**
+ * Registers document synchronization, diagnostics, and quick fixes on an LSP connection.
+ * Analysis uses captured buffers and suppresses obsolete results. Quick fixes require every edited
+ * document to be open and to match the report's source fingerprint.
+ *
+ * @param connection - Caller-owned connection. Call listen after registration and dispose the
+ * transport when finished. Diagnostic locations must use original documents and UTF-16 positions.
+ * @param options - Workspace factory and optional exit handler. This server owns the opened services.
+ * @returns Cleanup for the analysis services. It does not dispose the connection or its transport.
+ */
 export function createLanguageServer(
   connection: Connection,
   options: LanguageServerOptions,
 ): {
+  /**
+   * Stops scheduling analysis, cancels publication, and closes services after queued control work.
+   *
+   * @returns The same cleanup promise on repeated calls.
+   * @throws An AggregateError if any service fails to close.
+   */
   dispose(): Promise<void>;
 } {
   const documents = new TextDocuments(TextDocument);

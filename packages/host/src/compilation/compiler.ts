@@ -19,11 +19,22 @@ import type { ModuleDescriptor } from "./module-source.ts";
  * identities.
  */
 export interface CompilerHost {
-  /** Uses the semantic backend to resolve imports before consulting source-provider metadata. */
+  /** Requests checker import resolutions. A non-null host resolve result still takes precedence. */
   typeFactsResolution?: boolean;
-  /** Returns host-loaded parser input, including its original document and projection. */
+  /**
+   * Loads source before or after preparation, including its original document and projection.
+   *
+   * @param id - Full resolver identity. The returned resolverId must equal this value.
+   * @returns Original input for preparation or a prepared source. Omission uses describe and read.
+   * @throws If loading or preparation fails.
+   */
   load?(id: string): Promise<ProjectInput | PreparedSource>;
-  /** Whether the resolved module supplies source that Stillwind can analyze. */
+  /**
+   * Determines whether a resolved dependency supplies source that Stillwind can analyze.
+   *
+   * @param id - Full resolved identity, including query suffixes.
+   * @returns Whether source traversal can continue. Omission checks for supported JS/TS and SFC extensions.
+   */
   supports?(id: string): boolean;
   /**
    * Describes one resolved source before it is scanned or compiled.
@@ -102,22 +113,36 @@ export interface ModuleCompileOptions {
 
 /** One semantic import observed while answering an entry's type probes. */
 export interface SemanticDependency {
+  /** Full resolver identity of the importing source. */
   importer: string;
+  /** Authored import request text. */
   specifier: string;
+  /** Resolved identity, when resolution succeeded. */
   id?: string;
+  /**
+   * Resolved means analyzable source. External modules and dependencies handled through checker
+   * declarations (`types`) are not traversed. Unresolved or unsupported dependencies leave analysis incomplete.
+   */
   status: "resolved" | "external" | "unresolved" | "unsupported" | "types";
 }
 
 /** Current reports and sources for the semantic graph demanded by one entry. */
 export interface ModuleAnalysis {
+  /** Compiler identity of the entry after loading its descriptor. */
   entry: string;
+  /** Traversal covers dependencies demanded by semantic probes, rather than all application imports. */
   coverage: "observed";
+  /** Outputs produced by native project compilation, including diagnostic-only outputs. */
   modules: ProjectModuleOutput[];
+  /** Structured diagnostic batches keyed by compiler module identity. */
   batches: NativeDiagnosticBatch[];
+  /** Prepared original sources retained for mapping reports, including sources that later fail scanning. */
   sources: PreparedSource[];
+  /** Import requests and their resolution or support status observed during traversal. */
   dependencies: SemanticDependency[];
-  /** Information unavailable for additional checks or declaration-specific code generation. */
+  /** Original UTF-8 ranges that lack information needed for semantic checks or code generation. */
   unverified: UnverifiedRange[];
+  /** Blocked when compiler errors or missing facts needed for lowering prevent reliable code generation. */
   generation: "complete" | "blocked";
 }
 
@@ -128,12 +153,13 @@ export interface ModuleAnalysis {
  * The caller owns the initialized session and the lazy checker service.
  *
  * @param session - Native project session with an initialized design system.
- * @param factsService - Supplies a checker configured for the host's TypeScript environment.
+ * @param factsService - Supplies a checker configured for the host's TypeScript environment,
+ * or undefined when semantic facts are unavailable.
  * @param id - Full resolver identity of the entry, including query suffixes.
  * @param host - Source loading, resolution, metadata, and dependency tracking operations.
  * @param typeFactsInputs - Captured overlays and ambient declarations for this analysis.
  * @returns Reports and sources for the semantic dependencies demanded by the entry.
- * @throws If entry I/O or native transport operations fail.
+ * @throws If entry I/O fails, a host changes resolver identity, or native transport operations fail.
  */
 export async function analyzeModule(
   session: NativeProjectSession,
@@ -187,13 +213,10 @@ export async function analyzeModule(
  * The host descriptor supplies the module identity and parser metadata for each source.
  * Type facts are requested lazily for original-coordinate probes in JS/TS or SFC inputs.
  *
- * Returns the entry output with composition metadata, or undefined when normal mode
- * has no generated entry code. Collect mode retains compiler diagnostics across outputs.
- * Normal mode throws on compiler diagnostics and deny-level lint findings.
- * Checker contract errors use original coordinates and participate in collect mode.
- * Known syntax, projection, and checker contract failures use the shared reports.
- * Host I/O, checker process, and malformed native transport failures propagate.
- * Session updates, watches, and warnings are not rolled back on failure.
+ * Collect mode retains compiler and checker reports, including known syntax and projection
+ * failures. The default throw mode rejects compiler diagnostics and deny-level lint findings.
+ * Host I/O, checker process, and malformed native transport failures propagate in both modes.
+ * Failed compilation can still update the session, register watches, and send warnings.
  *
  * @param session - Native project session with an initialized design system.
  * @param factsService - Supplies the type-facts service when the source graph needs semantic facts.
@@ -232,7 +255,10 @@ async function compileGraph(
     const descriptor = entryInput ?? {
       resolverId: id,
       ...host.describe(id),
-      document: { ...host.describe(id).document, code },
+      document: {
+        ...host.describe(id).document,
+        code,
+      },
     };
     const entrySource = await graph.prepare(descriptor);
     const entrySummary = graph.scan(entrySource);

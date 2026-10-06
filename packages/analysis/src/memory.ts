@@ -2,9 +2,13 @@ import type { AnalysisResult, AnalysisWorkspaceService, WorkspaceResult } from "
 
 /** Compiler input captured from URI documents before asynchronous compilation starts. */
 export interface MemoryAnalysisInput {
+  /** Requested target URI accepted by the embedding's includes callback. */
   uri: string;
+  /** Workspace change counter captured when the request was queued. */
   revision: number;
+  /** Original text of all open documents, keyed by URI. The snapshot is independent of later updates. */
   documents: ReadonlyMap<string, string>;
+  /** Optional cancellation signal. The workspace also checks it before and after calling compile. */
   signal?: AbortSignal;
 }
 
@@ -12,17 +16,42 @@ export interface MemoryAnalysisInput {
 export interface MemoryAnalysisOptions {
   /** Identifies the project in diagnostics. It need not be a filesystem path. */
   config: string;
+  /**
+   * Tests whether this workspace owns a target. Dependency buffers can be outside this scope.
+   *
+   * @param uri - Requested target URI.
+   * @returns Whether compile should run for this target.
+   */
   includes(uri: string): boolean;
+  /**
+   * Runs the embedding's compiler against one captured snapshot.
+   *
+   * @param input - Target, revision, open buffers, and optional cancellation signal.
+   * @returns Reports and coverage information for the captured revision. Complete describes analysis
+   * coverage. It does not imply that every report is successful.
+   * @throws If compiler or module services fail. The workspace returns the error as an incomplete result.
+   */
   compile(input: MemoryAnalysisInput): Promise<
     Pick<AnalysisResult, "reports" | "dependencies" | "unverified" | "generation" | "error"> & {
       status: "complete" | "incomplete";
     }
   >;
-  /** Runs after pending compilations finish, releasing resources owned by the compiler. */
+  /**
+   * Releases resources after queued compilations finish. Called once during workspace closure.
+   *
+   * @returns Nothing, or a promise for asynchronous cleanup.
+   * @throws If resource cleanup fails. The workspace's close promise rejects.
+   */
   close?(): void | Promise<void>;
 }
 
-/** Serializes in-memory analyses and suppresses results from obsolete document revisions. */
+/**
+ * Serializes in-memory analyses and discards reports from obsolete document revisions.
+ *
+ * @param options - Project membership, compiler operation, and optional resource cleanup.
+ * @returns A URI-based service. It supplies snapshots to compile but performs no module resolution
+ * itself. Closing waits for queued work and calls the cleanup operation once.
+ */
 export function createMemoryAnalysisWorkspace(
   options: MemoryAnalysisOptions,
 ): AnalysisWorkspaceService {

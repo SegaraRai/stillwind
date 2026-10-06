@@ -20,17 +20,27 @@ export default defineConfig({
     tasks: {
       build: {
         command: "vp pack",
-        dependsOn: ["@stillwind/native#build", "@stillwind/projection#build", "stillwind#build"],
+        dependsOn: [
+          "@stillwind/config#build",
+          "@stillwind/native#build",
+          "@stillwind/projection#build",
+        ],
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/native#build", "@stillwind/projection#build", "stillwind#build"],
+        dependsOn: [
+          "@stillwind/config#build",
+          "@stillwind/native#build",
+          "@stillwind/projection#build",
+          "stillwind#build",
+        ],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
         dependsOn: [
           "build",
+          "@stillwind/config#build",
           "@stillwind/native#build",
           "@stillwind/projection#build",
           "stillwind#build",

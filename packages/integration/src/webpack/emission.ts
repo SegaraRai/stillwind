@@ -1,5 +1,6 @@
+import type { BaseConfig } from "@stillwind/config";
+import type { ResolvedIntegrationConfig } from "@stillwind/config/node";
 import type { CssUpstreamMap } from "@stillwind/host";
-import type { StillwindOptions } from "stillwind/config";
 
 import { compilationStyles } from "./compilation-styles.ts";
 import { createCompilationHost, type ResolverHost } from "./host.ts";
@@ -13,7 +14,7 @@ export interface ProducerInput {
   /** Absolute project root against which compiler module identities are resolved. */
   root: string;
   /** Compiler configuration shared by every producer in this compilation. */
-  options: StillwindOptions;
+  config: BaseConfig;
   /**
    * Whether this producer is excluded from automatic document CSS and supplies explicit CSS values.
    */
@@ -53,7 +54,8 @@ export function recordProducer<Module extends EmissionModule>(
   if (!context._module) {
     throw new Error(incompleteGraphMessage);
   }
-  (context._module.buildInfo ??= {}).stillwind = input;
+  context._module.buildInfo ??= {};
+  context._module.buildInfo.stillwind = input;
 }
 
 /**
@@ -74,6 +76,12 @@ export interface EmissionModule {
 
 /** Compilation operations required to collect producers and rebuild document CSS carriers. */
 export interface EmissionCompilation<Module extends EmissionModule = EmissionModule> {
+  /** Settings evaluated by StillwindPlugin before the build run, reused by producer loaders. */
+  __stillwindConfiguration?: ResolvedIntegrationConfig;
+  /** Missing configuration candidates whose creation must trigger a watch rebuild. */
+  missingDependencies: {
+    add(id: string): unknown;
+  };
   hooks: {
     finishModules: {
       tapPromise(name: string, callback: (modules: Iterable<Module>) => Promise<void>): void;
@@ -161,7 +169,7 @@ export function installEmission<Module extends EmissionModule>(
 const installed = new WeakSet<object>();
 
 const incompleteGraphMessage =
-  "Automatic Stillwind CSS requires new StillwindPlugin(options) before compilation begins";
+  "Automatic Stillwind CSS requires new StillwindPlugin(config) before compilation begins";
 
 /**
  * Obtains the compilation operations needed to reconstruct document CSS.

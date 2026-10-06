@@ -10,8 +10,6 @@ export default defineConfig({
     const { stillwind } = await import("@stillwind/integration/vite");
     return [
       stillwind({
-        css: "src/styles.css",
-        types: false,
         emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
       }),
       svelte(),

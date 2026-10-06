@@ -1,11 +1,11 @@
 import path from "node:path";
 
+import type { BaseConfig } from "@stillwind/config";
 import {
   NativeProjectSession,
   type BindingReport,
   type NativeDesignSystemLoader,
 } from "@stillwind/native";
-import type { StillwindOptions } from "stillwind/config";
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/index.ts";
 import { loadCssGraph, type CssHost } from "../css/index.ts";
@@ -23,10 +23,18 @@ import { compilerOptions, cssEntrypoint } from "./options.ts";
  * and installs captured document contents before asking this backend to resolve or load modules.
  */
 export interface AnalysisHost extends CompilerHost {
+  /**
+   * Checks whether a resolved target can be analyzed by this host.
+   *
+   * @param id - Full resolver identity of the target.
+   * @returns Whether load can supply supported source for the identity.
+   */
   supports(id: string): boolean;
   /** Absolute project directory used for identities, CSS paths, and generated declarations. */
   root: string;
-  options: StillwindOptions;
+  /** Compiler settings fixed for this host's lifetime. Relative CSS and declaration paths use root. */
+  config: BaseConfig;
+  /** CSS resolution and reads using the same captured document buffers as source loading. */
   css: CssHost;
   /** Fixed TypeScript settings selected when this host opens. */
   readonly typeFactsEnvironment: TypeFactsEnvironment;
@@ -36,26 +44,46 @@ export interface AnalysisHost extends CompilerHost {
    * Replaces all buffers used by subsequent source and CSS reads.
    *
    * @param documents - Absolute file paths to captured text. Missing entries use backend reads.
+   * @returns A promise that resolves when subsequent reads can use the supplied snapshot.
    */
   setDocuments(documents: ReadonlyMap<string, string>): Promise<void>;
-  /** Discards backend caches after disk changes. It must not overlap resolution or loads. */
+  /**
+   * Discards backend caches before the next transaction. Must not overlap resolution or loads.
+   *
+   * @returns A promise that resolves when cached reads and resolutions have been invalidated.
+   */
   invalidate(): Promise<void>;
-  /** Releases backend resources after its pending operations have completed. */
+  /**
+   * Releases backend resources. The caller first waits for pending host operations.
+   *
+   * @returns A promise for cleanup completion.
+   * @throws If backend cleanup fails.
+   */
   close(): Promise<void>;
 }
 
 /** Result of an unpublished analysis at one project revision. */
 export interface AnalysisResult {
+  /** Entry resolver identity supplied to analyze. */
   entry: string;
+  /** Project change counter captured when analysis was queued. */
   revision: number;
+  /**
+   * Complete describes available analysis inputs, even if reports contain compiler errors.
+   * Incomplete retains partial findings or an exception. Stale and cancelled omit reports and graph.
+   */
   status: "complete" | "incomplete" | "stale" | "cancelled";
+  /** Findings mapped to original document URIs and zero-based UTF-16 positions. */
   reports: BindingReport[];
+  /** Observed semantic graph, including dependency status and unavailable facts. Omitted on discard or early failure. */
   graph?: ModuleAnalysis;
+  /** Caught exception as text. Compiler reports alone do not populate this field. */
   error?: string;
 }
 
 /** Owns overlays, a reusable checker, and serialized transactions for one host. */
 export class AnalysisProject {
+  /** Owned host. The project serializes its operations and closes it during cleanup. */
   readonly host: AnalysisHost;
 
   readonly #backend?: () => TypeFactsBackend;
@@ -83,12 +111,20 @@ export class AnalysisProject {
     this.#backend = backend;
   }
 
-  /** Returns a copy of checker counters when semantic analysis has started the checker. */
+  /** Returns a copy of Node checker counters, or undefined before creation or when a custom backend is used. */
   get checkerStats(): TypeScriptFactsStats | undefined {
     return this.#facts && { ...this.#facts.stats };
   }
 
-  /** Stores text at an increasing version and makes pending results stale. */
+  /**
+   * Stores an unsaved buffer and advances the revision used to discard pending results.
+   *
+   * @param id - File path resolved from the process working directory when relative.
+   * @param source - Complete original document text.
+   * @param version - Safe integer greater than the open buffer's version. An identical buffer and
+   * version have no effect. A document can restart its version sequence after closeDocument.
+   * @throws If the version is invalid or does not increase for a changed open buffer.
+   */
   update(id: string, source: string, version: number): void {
     id = path.resolve(id);
     const previous = this.#documents.get(id);
@@ -107,7 +143,12 @@ export class AnalysisProject {
     this.#cssDirty ||= id.endsWith(".css");
   }
 
-  /** Removes an unsaved buffer so subsequent transactions use the disk file. */
+  /**
+   * Removes an unsaved buffer and advances the revision when one existed.
+   *
+   * @param id - File path, resolved in the same way as update. Later reads use the host's source
+   * provider. Unknown paths have no effect.
+   */
   closeDocument(id: string): void {
     id = path.resolve(id);
     if (this.#documents.delete(id)) {
@@ -117,7 +158,7 @@ export class AnalysisProject {
     }
   }
 
-  /** Makes pending results stale; the next transaction rebuilds CSS and backend caches. */
+  /** Makes pending results stale. The next transaction rebuilds CSS and backend caches. */
   invalidate(): void {
     this.#revision++;
     this.#dirty = true;
@@ -128,7 +169,8 @@ export class AnalysisProject {
   /**
    * Queues analysis using the document contents and revision captured when this method is called.
    *
-   * @param entry - Full resolver identity of a supported target.
+   * @param entry - Full resolver identity of a supported target. Membership filtering is performed
+   * by AnalysisWorkspace, not by this project.
    * @param signal - Optional cancellation checked before and after queued work. Cancellation
    * discards results without interrupting a checker query that has already started.
    * @returns Reports for the entry and demanded semantic dependencies. Host failures appear as
@@ -157,6 +199,8 @@ export class AnalysisProject {
    * Repeated calls return without requesting further cleanup.
    *
    * @throws If checker or backend cleanup fails.
+   * @returns A promise that resolves after queued analysis and cleanup. Repeated calls made after
+   * closure starts return immediately. They do not wait for the first call's cleanup.
    */
   async close(): Promise<void> {
     if (this.#closed) {
@@ -209,7 +253,7 @@ export class AnalysisProject {
         loader,
         false,
         "development",
-        this.host.options.naming,
+        this.host.config.naming,
       );
       const graph = await analyzeModule(session, () => this.#semanticBackend(), entry, this.host, {
         overlayFiles: documents,
@@ -246,9 +290,9 @@ export class AnalysisProject {
 
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
-      const css = path.resolve(this.host.root, cssEntrypoint(this.host.options));
+      const css = path.resolve(this.host.root, cssEntrypoint(this.host.config));
       this.#loader = (
-        await loadCssGraph(css, compilerOptions(this.host.options), this.host.css)
+        await loadCssGraph(css, compilerOptions(this.host.config), this.host.css)
       ).loader;
     }
     return this.#loader;
@@ -256,9 +300,9 @@ export class AnalysisProject {
 
   #ambientDeclarations(loader: NativeDesignSystemLoader): Map<string, string> {
     const declarations = new Map<string, string>();
-    if (this.host.options.types !== false) {
+    if (this.host.config.types !== false) {
       declarations.set(
-        path.resolve(this.host.root, this.host.options.types ?? "src/stillwind.generated.d.ts"),
+        path.resolve(this.host.root, this.host.config.types ?? "src/stillwind.generated.d.ts"),
         loader.generateVocabularyTypes(),
       );
     }

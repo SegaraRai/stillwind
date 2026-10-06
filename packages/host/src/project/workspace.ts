@@ -1,10 +1,9 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
-import { createJiti } from "jiti";
+import type { AnalysisProjectConfig } from "@stillwind/config";
+import { loadConfiguration } from "@stillwind/config/node";
 import { minimatch } from "minimatch";
-import { resolveConfig, type AnalysisProjectConfig } from "stillwind/config";
 import { glob } from "tinyglobby";
 
 import { AnalysisProject, type AnalysisResult } from "./analysis.ts";
@@ -12,21 +11,29 @@ import { createFileSystemAnalysisHost } from "./filesystem.ts";
 
 /** A project's configuration and results, retained independently when scopes overlap. */
 export interface WorkspaceProject {
+  /** Evaluated project settings. Relative root and scope globs use configFile's directory and host root. */
   config: AnalysisProjectConfig;
+  /** Absolute path of the configuration that owns this project. */
   configFile: string;
+  /** Owned analysis state. Buffers outside this project's target scope can still be dependencies. */
   analysis: AnalysisProject;
 }
 
 /** Analysis results for one explicitly enumerated target in one project. */
 export interface WorkspaceResult {
+  /** Zero-based index into the workspace's projects array. */
   project: number;
+  /** Absolute configuration path used to group this result. */
   config: string;
+  /** Captured result whose reports have been filtered to this project's configured scope. */
   result: AnalysisResult;
 }
 
-/** Loads configuration without a disk cache, then owns all selected project hosts. */
+/** Owns every project in one evaluated configuration and keeps overlapping scopes independent. */
 export class AnalysisWorkspace {
+  /** Absolute path evaluated when this workspace opened. Reopen the workspace to apply configuration changes. */
   readonly configFile: string;
+  /** Owned project hosts in configuration order. The caller must not mutate this array. */
   readonly projects: WorkspaceProject[];
 
   private constructor(configFile: string, projects: WorkspaceProject[]) {
@@ -34,10 +41,16 @@ export class AnalysisWorkspace {
     this.projects = projects;
   }
 
-  /** Opens all projects, closing already opened hosts if any project fails to initialize. */
+  /**
+   * Evaluates configuration and opens every project, closing earlier hosts if initialization fails.
+   *
+   * @param configFile - Trusted configuration path. Relative paths use the process working directory.
+   * @returns A workspace that owns its project hosts. Close it when replacing the configuration.
+   * @throws If configuration evaluation or project initialization fails.
+   */
   static async open(configFile: string): Promise<AnalysisWorkspace> {
     configFile = path.resolve(configFile);
-    const config = await resolveConfig(await loadConfiguration(configFile));
+    const { config } = await loadConfiguration(configFile);
     const projects: WorkspaceProject[] = [];
     try {
       for (const project of config.projects) {
@@ -55,7 +68,14 @@ export class AnalysisWorkspace {
     }
   }
 
-  /** Matches project scope independently of whether the file has been saved to disk. */
+  /**
+   * Matches target scope independently of whether the source exists on disk.
+   *
+   * @param project - Project whose root, include globs, and exclusions define membership.
+   * @param file - Absolute file path to test.
+   * @returns Whether the path matches files without matching excludes, node_modules, or .git.
+   * Dependency traversal does not use this filter.
+   */
   includes(project: WorkspaceProject, file: string): boolean {
     const name = path.relative(project.analysis.host.root, file).replaceAll("\\", "/");
     const matches = (pattern: string) => minimatch(name, pattern, { dot: true });
@@ -65,7 +85,15 @@ export class AnalysisWorkspace {
     );
   }
 
-  /** Enumerates configured targets separately from imports demanded by the compiler. */
+  /**
+   * Enumerates existing target files independently of dependency traversal.
+   *
+   * @param project - Project whose files and excludes globs are relative to its host root.
+   * @param patterns - Optional additional include globs relative to the same root. An empty list
+   * adds no filtering. These patterns cannot expand the configured scope.
+   * @returns Sorted absolute target paths. Unsaved files absent from disk are not enumerated.
+   * @throws If filesystem enumeration fails.
+   */
   async targets(project: WorkspaceProject, patterns?: string[]): Promise<string[]> {
     const files = await glob(project.config.files, {
       cwd: project.analysis.host.root,
@@ -89,26 +117,46 @@ export class AnalysisWorkspace {
       .sort();
   }
 
-  /** Updates all hosts because an open file may be a dependency outside their target scope. */
+  /**
+   * Updates all hosts because an open file can be a dependency outside their target scope.
+   *
+   * @param file - File path resolved by each project from the process working directory if relative.
+   * @param source - Complete unsaved document text.
+   * @param version - Increasing safe integer for the open buffer. Identical repeated updates have no effect.
+   * @throws If a project rejects the version. Updates already applied to earlier projects are retained.
+   */
   update(file: string, source: string, version: number): void {
     for (const project of this.projects) {
       project.analysis.update(file, source, version);
     }
   }
 
+  /**
+   * Removes a buffer from every project so later reads use its source provider.
+   *
+   * @param file - File path resolved in the same way as update. Unknown buffers have no effect.
+   */
   closeDocument(file: string): void {
     for (const project of this.projects) {
       project.analysis.closeDocument(file);
     }
   }
 
+  /** Advances every project revision and requests CSS and resolver cache refresh before its next analysis. */
   invalidate(): void {
     for (const project of this.projects) {
       project.analysis.invalidate();
     }
   }
 
-  /** Returns one result for each project containing this target. */
+  /**
+   * Analyzes a target separately in every matching project and filters reports to each scope.
+   *
+   * @param file - Absolute target path. The file need not exist on disk when an open buffer supplies it.
+   * @param signal - Optional cancellation checked by each project's queued analysis.
+   * @returns Results in project order, or an empty list when no project includes the target.
+   * Dependency information remains available even when its reports lie outside the target scope.
+   */
   async analyze(file: string, signal?: AbortSignal): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
@@ -123,7 +171,14 @@ export class AnalysisWorkspace {
     return results;
   }
 
-  /** Analyzes every selected target, including files unreachable from an application entry. */
+  /**
+   * Analyzes every selected target, including files unreachable from an application entry.
+   *
+   * @param patterns - Optional additional globs relative to each project's root. Empty or omitted
+   * filters check every configured target.
+   * @returns Scoped results in project order, then sorted target order. Overlapping memberships remain separate.
+   * @throws If target enumeration fails. Analysis failures are represented in individual results.
+   */
   async lint(patterns?: string[]): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
@@ -160,7 +215,12 @@ export class AnalysisWorkspace {
     };
   }
 
-  /** Closes every host, reporting cleanup errors only after all hosts have been closed. */
+  /**
+   * Closes every project and waits for all cleanup attempts before reporting failures.
+   *
+   * @returns A promise that resolves after project cleanup.
+   * @throws An AggregateError containing all project cleanup failures.
+   */
   async close(): Promise<void> {
     const results = await Promise.allSettled(
       this.projects.map((project) => project.analysis.close()),
@@ -172,31 +232,4 @@ export class AnalysisWorkspace {
       throw new AggregateError(errors, "Failed to close Stillwind analysis hosts");
     }
   }
-}
-
-/** Finds the nearest standalone configuration above a directory. */
-export function findConfiguration(directory: string): string | undefined {
-  let current = path.resolve(directory);
-  for (;;) {
-    const candidate = path.join(current, "stillwind.config.ts");
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return undefined;
-    }
-    current = parent;
-  }
-}
-
-/** Evaluates trusted host configuration with no persistent transpilation or module cache. */
-async function loadConfiguration(file: string): Promise<unknown> {
-  const jiti = createJiti(pathToFileURL(path.resolve(file)).href, {
-    fsCache: false,
-    moduleCache: false,
-  });
-  return jiti.import(file, {
-    default: true,
-  });
 }

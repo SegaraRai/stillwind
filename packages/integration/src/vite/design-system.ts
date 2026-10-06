@@ -7,10 +7,10 @@ import { pathToFileURL } from "node:url";
 import { cleanModuleId, compilerOptions, cssEntrypoint, loadCssGraph } from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import { readableFile } from "./file-access.ts";
-import type { ProjectSettings, StillwindOptions } from "./project.ts";
+import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolvedFile, type StylesheetResource } from "./resources.ts";
 
 /** Vite operations needed to resolve design-system CSS and record files used by compilation. */
@@ -108,12 +108,12 @@ export class DesignSystem {
    * Creates design-system state without loading CSS or opening a compiler session.
    *
    * @param settings - Shared project settings configured before initialization.
-   * @param options - Compiler options that identify the CSS entrypoint and generated vocabulary
+   * @param config - Compiler options that identify the CSS entrypoint and generated vocabulary
    * destination.
    */
   constructor(
     private readonly settings: ProjectSettings,
-    private readonly options: StillwindOptions,
+    private readonly config: IntegrationConfig,
   ) {}
 
   /**
@@ -204,7 +204,7 @@ export class DesignSystem {
       this.#compiler = new IntegrationSession(
         this.settings.projectRoot,
         loaded.loader,
-        this.options,
+        this.config,
         this.settings.watching,
         this.settings.compilerMode,
       );
@@ -216,7 +216,7 @@ export class DesignSystem {
       this.cssApplied = this.cssAttempted = change;
       this.cssError = undefined;
       onInitialize();
-      writeVocabulary(loaded.loader, this.settings.projectRoot, this.options);
+      writeVocabulary(loaded.loader, this.settings.projectRoot, this.config);
       return;
     }
   }
@@ -276,7 +276,7 @@ export class DesignSystem {
         this.cssVersion = nextVersion;
         this.cssApplied = this.cssAttempted = change;
         this.cssError = undefined;
-        writeVocabulary(loaded.loader, this.settings.projectRoot, this.options);
+        writeVocabulary(loaded.loader, this.settings.projectRoot, this.config);
         return;
       } catch (error) {
         if (this.settings.cssWatching && change !== this.cssChange) {
@@ -320,7 +320,7 @@ export class DesignSystem {
     };
     const result = await loadDesignSystem(
       this.settings,
-      this.options,
+      this.config,
       async (specifier, importer) =>
         resolvedFile(
           await context.resolve(specifier, importer, { skipSelf: true }),
@@ -355,7 +355,7 @@ export interface DesignSystemRevision extends LoadedDesignSystem {
  *
  * @param settings - Configured project root and optional development server used to check resource
  * access.
- * @param options - Compiler settings and the CSS entrypoint, resolved against the project root.
+ * @param config - Compiler settings and the CSS entrypoint, resolved against the project root.
  * @param resolveImport - Resolves a specifier relative to its importer and returns a file identity.
  * @param dependencies - Mutable set receiving files required by the CSS graph and its resources.
  * @param session - Existing native session used to create a compatible loader during reload.
@@ -366,13 +366,13 @@ export interface DesignSystemRevision extends LoadedDesignSystem {
  */
 async function loadDesignSystem(
   settings: ProjectSettings,
-  options: StillwindOptions,
+  config: IntegrationConfig,
   resolveImport: (specifier: string, importer: string) => Promise<string>,
   dependencies: Set<string>,
   session?: NativeProjectSession,
   watch: (file: string) => void = () => {},
 ): Promise<LoadedDesignSystem> {
-  const entry = resolve(settings.projectRoot, cssEntrypoint(options));
+  const entry = resolve(settings.projectRoot, cssEntrypoint(config));
   watch(entry);
   const root = realpathSync(entry);
   const resolveCss = async (specifier: string, importer: string) => {
@@ -383,7 +383,7 @@ async function loadDesignSystem(
     watch(cleanModuleId(file));
     return file;
   };
-  const nativeOptions = compilerOptions(options);
+  const nativeOptions = compilerOptions(config);
   const { loader, resources: resourceReferences } = await loadCssGraph(
     root,
     nativeOptions,
@@ -410,7 +410,10 @@ async function loadDesignSystem(
     });
     dependencies.add(cleanModuleId(resolved));
   }
-  return { loader, resources: references };
+  return {
+    loader,
+    resources: references,
+  };
 }
 
 /**

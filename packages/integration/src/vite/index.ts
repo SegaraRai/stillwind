@@ -1,1 +1,1 @@
-export { stillwind, type StillwindOptions } from "./plugin.ts";
+export { stillwind, type IntegrationConfig } from "./plugin.ts";

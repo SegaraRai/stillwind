@@ -192,7 +192,9 @@ function compareBucket(
 
 export function verifyPropertyOrderParity(
   fixtureRoot: string,
-  options: { fileFilter?: string } = {},
+  options: {
+    fileFilter?: string;
+  } = {},
 ): PropertyOrderParityResult {
   const relations = propertyRelations();
   const caseRoot = join(fixtureRoot, "cases");

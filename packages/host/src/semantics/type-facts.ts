@@ -651,7 +651,17 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     return this.#collect(sources, assetsByModuleId, inputs, false).facts;
   }
 
-  /** Retains available facts and records expressions that require information the checker lacks. */
+  /**
+   * Updates the checker snapshot and retains facts for queries that can be verified.
+   *
+   * @param sources - Prepared sources and original UTF-8 probes with validated checker correspondences.
+   * @param assetsByModuleId - Declaration records grouped by compiler module identity.
+   * @param inputs - Complete overlays and ambient declarations for this call. Omission removes
+   * files supplied by the previous call.
+   * @returns Verified facts and unavailable original ranges. Unavailable queries do not discard
+   * facts collected for other expressions.
+   * @throws If the service is closed, project preparation fails, or checker restart and retry fail.
+   */
   collectAvailable(
     sources: readonly TypeFactSource[],
     assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -660,7 +670,18 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     return this.#collect(sources, assetsByModuleId, inputs, true);
   }
 
-  /** Resolves authored import and export requests using module symbols in the selected tsconfig. */
+  /**
+   * Resolves authored imports and exports using module symbols in the selected TypeScript settings.
+   *
+   * @param sources - Prepared sources whose checker buffers contain the authored module requests.
+   * Probes are ignored during resolution.
+   * @param assetsByModuleId - Declaration records used to expose generated helper types.
+   * @param inputs - Complete overlays and ambient declarations for this snapshot.
+   * @returns Request-to-identity maps grouped by source resolver identity. Prepared checker paths
+   * map back to resolver identities. Other resolutions retain checker filenames, including declarations.
+   * Requests without a matching module symbol are omitted.
+   * @throws If the service is closed, project preparation fails, or checker resolution fails.
+   */
   resolveModules(
     sources: readonly TypeFactSource[],
     assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -1028,10 +1049,13 @@ function diagnosticText(diagnostic: Diagnostic): string {
  * @param sourceFile - Final checker AST for the mapped buffer.
  * @param mapping - Original probes indexed by exact checker AST start and end positions.
  * @param decoder - Decoder with asset brands already registered from producer types.
+ * @param unverified - Optional array to append unavailable original ranges to. Supplying it keeps
+ * other facts usable when a probe lacks an expression or a finite declaration type.
  * @returns Facts in AST traversal order with original byte ranges. Known types that do not
- * represent Stillwind assets and unresolved recognition-only requests are omitted.
- * @throws If a mapped probe has no expression node, or a required query has a missing, unresolved,
- * or recognized-but-nonfinite declaration type.
+ * represent Stillwind assets produce no fact. Strict queries skip unresolved recognition-only
+ * probes. Partial queries record their unavailable ranges instead.
+ * @throws Without unverified, if a probe has no expression node or a required query has a missing,
+ * unresolved, or recognized-but-nonfinite declaration type. Checker query failures can also propagate.
  */
 function factsForSource(
   checker: Checker,

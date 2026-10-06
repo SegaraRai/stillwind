@@ -52,7 +52,12 @@ const catalogPath = path.join(repositoryRoot, "apps/fixtures-viewer/public/fixtu
 const {
   values: { check },
 } = parseArgs({
-  options: { check: { type: "boolean", default: false } },
+  options: {
+    check: {
+      type: "boolean",
+      default: false,
+    },
+  },
 });
 
 function normalize(value: string) {

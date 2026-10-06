@@ -26,7 +26,7 @@ export function renderChunkStyles(
   code: string,
   chunk: Rollup.RenderedChunk,
 ) {
-  const { options, settings, inputs, moduleRegistry } = project;
+  const { config, settings, inputs, moduleRegistry } = project;
   const { manifest, buildCss } = project.buildOutput(name);
   const attachCss = (file: string) => {
     chunk.viteMetadata ??= {
@@ -36,7 +36,7 @@ export function renderChunkStyles(
     };
     chunk.viteMetadata.importedCss.add(file);
   };
-  if (options.emission === "split" && manifest) {
+  if (config.emission === "split" && manifest) {
     const graph = new Set(Object.keys(chunk.modules));
     if (chunk.facadeModuleId) {
       graph.add(chunk.facadeModuleId);

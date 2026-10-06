@@ -96,6 +96,13 @@ export class ModuleGraph {
    * Uses a caller-owned session, host, and lazy semantic backend for one entry.
    * Supplying `analysis` retains unavailable dependencies and partial facts in that result.
    * Omitting it keeps checker and dependency failures strict.
+   *
+   * @param session - Initialized native session. The caller retains ownership.
+   * @param factsService - Lazy backend for checker queries, or undefined when unavailable.
+   * @param host - Stable source descriptors, loading, and resolver operations for this graph.
+   * @param options - Diagnostic policy and captured checker inputs for one compilation.
+   * @param analysis - Optional result object to populate with observed sources, dependencies,
+   * reports, and unavailable ranges.
    */
   constructor(
     readonly session: NativeProjectSession,
@@ -105,6 +112,13 @@ export class ModuleGraph {
     readonly analysis?: ModuleAnalysis,
   ) {}
 
+  /**
+   * Prepares source and retains it for report mapping, even if a later scan fails.
+   *
+   * @param input - Original or already prepared source. Preparation must preserve resolverId.
+   * @returns Prepared source. onModule runs before preparation and does not imply success.
+   * @throws If preparation fails or changes the resolver identity. PreparationError becomes CompilationFailure.
+   */
   async prepare(input: ProjectInput | PreparedSource): Promise<PreparedSource> {
     this.host.onModule?.(input.moduleId, input.resolverId);
     try {
@@ -123,6 +137,13 @@ export class ModuleGraph {
     }
   }
 
+  /**
+   * Scans a prepared source without registering it in dependency traversal.
+   *
+   * @param source - Source with validated original document and projection correspondences.
+   * @returns Native summary of imports, declarations, and semantic probes.
+   * @throws CompilationFailure when scanning returns source diagnostics.
+   */
   scan(source: PreparedSource): NativeModuleSummary {
     const result = this.session.scanSource(source);
     if (result.kind === "failed") {
@@ -131,10 +152,23 @@ export class ModuleGraph {
     return result.summary;
   }
 
+  /**
+   * Looks up a summary retained during dependency traversal.
+   *
+   * @param moduleId - Compiler identity of the source.
+   * @returns Its cached summary, or undefined when traversal did not retain one.
+   */
   summary(moduleId: string): NativeModuleSummary | undefined {
     return this.#summaries.get(moduleId);
   }
 
+  /**
+   * Finds the host identity registered for a compiler module.
+   *
+   * @param moduleId - Compiler identity registered by dependency collection.
+   * @returns Full resolver identity, including any query suffix.
+   * @throws If the compiler refers to an unregistered module.
+   */
   resolverId(moduleId: string): string {
     const id = this.#resolverIds.get(moduleId);
     if (id === undefined) {
@@ -143,6 +177,15 @@ export class ModuleGraph {
     return id;
   }
 
+  /**
+   * Registers the entry and loads dependencies demanded by its semantic probes.
+   *
+   * @param entry - Prepared entry source.
+   * @param entrySummary - Successful scan of that entry, with the same module identity.
+   * @returns A promise that resolves after traversal. Analysis mode retains unresolved and
+   * unsupported dependencies rather than failing the whole graph.
+   * @throws If strict traversal fails or source identities conflict.
+   */
   async collectDependencies(
     entry: PreparedSource,
     entrySummary: NativeModuleSummary,
@@ -188,6 +231,14 @@ export class ModuleGraph {
     }
   }
 
+  /**
+   * Attaches semantic facts and CSS value imports to the retained graph sources.
+   *
+   * @param entry - Registered entry whose transport imports remain unchanged.
+   * @returns Copies of retained sources with native type facts. Analysis mode records unavailable
+   * queries, while strict compilation requires a backend when facts are needed.
+   * @throws If strict checker collection or a checker source contract fails.
+   */
   async collectTypedSources(entry: PreparedSource) {
     const facts = await this.#collectFacts();
     return [...this.#sources.values()].map((source) => ({
@@ -198,6 +249,12 @@ export class ModuleGraph {
     }));
   }
 
+  /**
+   * Converts a known checker failure to a report in original source coordinates.
+   *
+   * @param error - Failure caught during compilation.
+   * @returns CompilationFailure for TypeFactsError whose source was prepared, otherwise the input.
+   */
   failure(error: unknown): unknown {
     if (!(error instanceof TypeFactsError)) {
       return error;

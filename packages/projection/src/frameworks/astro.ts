@@ -21,7 +21,9 @@ import {
  * @throws If converter metadata cannot be loaded or conversion otherwise fails.
  */
 export async function convert(source: string, filename: string): Promise<SourceProjection> {
-  const options = { includeScripts: true };
+  const options = {
+    includeScripts: true,
+  };
   const converter = converterIdentity("@astrojs/compiler", options);
 
   const [result, parsed] = await Promise.all([
@@ -80,7 +82,11 @@ export async function convert(source: string, filename: string): Promise<SourceP
         converter,
       );
     }
-    scripts.push({ id: scripts.length + 1, start, end });
+    scripts.push({
+      id: scripts.length + 1,
+      start,
+      end,
+    });
   }
 
   return {

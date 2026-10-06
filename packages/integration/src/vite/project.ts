@@ -1,8 +1,10 @@
-import { resolve } from "node:path";
+import { watch } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
+import type { InlineConfig } from "@stillwind/config";
+import { resolveIntegrationConfig } from "@stillwind/config/node";
 import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
-import type { StillwindOptions as CommonOptions } from "stillwind/config";
 import type { InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
@@ -13,8 +15,8 @@ import type { CssContext } from "./design-system.ts";
 import { ViteEnvironment, type CssSnapshot } from "./environment.ts";
 import type { StylesheetPlan } from "./stylesheet.ts";
 
-/** Compiler configuration for Vite and adapters that share its stylesheet emission. */
-export interface StillwindOptions extends CommonOptions {
+/** File selection and compiler overrides for Vite, Astro, and Nuxt, with CSS emission placement. */
+export interface IntegrationConfig extends InlineConfig {
   /**
    * Production CSS placement. `single` emits one document stylesheet. `split` emits ordered parts
    * selected by chunks. Defaults to `single`.
@@ -60,8 +62,11 @@ export interface ProjectSettings {
  * environments.
  */
 export interface ViteProject {
-  /** Compiler options shared by all environments for this integration instance. */
-  options: StillwindOptions;
+  /**
+   * Evaluated compiler settings shared by all environments. Empty before configure. reconfiguration
+   * replaces the fields of this same object so plugin hooks retain the current settings.
+   */
+  config: IntegrationConfig;
   /** Mutable settings initialized by the compiler plugin before environment startup. */
   settings: ProjectSettings;
   /**
@@ -72,15 +77,37 @@ export interface ViteProject {
    */
   environment: (name?: string) => ViteEnvironment;
   /**
-   * Updates shared settings from resolved Vite configuration and closes existing type facts.
+   * Evaluates Stillwind settings and replaces all existing compiler environments.
    *
    * @param config - Resolved configuration for this project. Call before starting environments.
+   * @returns A promise that resolves after settings and configuration watch paths are updated.
+   * Previously obtained environments must not be used after successful reconfiguration.
+   * @throws If configuration evaluation or closing an existing environment fails.
    */
-  configure: (config: ResolvedConfig) => void;
+  configure: (config: ResolvedConfig) => Promise<void>;
+  /** Absolute configuration dependencies and missing discovery candidates. Callers must not mutate this set. */
+  configurationFiles: Set<string>;
+  /**
+   * Marks build configuration dirty when a watched path can affect its evaluation.
+   *
+   * @param id - Changed filesystem path, resolved to an absolute path for comparison.
+   * @returns Whether the path belongs to configurationFiles. Other changes have no effect.
+   */
+  configurationChanged: (id: string) => boolean;
+  /**
+   * Reevaluates settings when configurationChanged marked them dirty and configure has already run.
+   *
+   * @returns A promise that resolves after reconfiguration, or immediately when no refresh is needed.
+   * @throws If configuration evaluation or environment cleanup fails.
+   */
+  refreshConfiguration: () => Promise<void>;
   /**
    * Attaches a development server and replaces any previously registered CSS watch listener.
    *
-   * @param server - Active Vite server. A null watch configuration disables event tracking.
+   * @param server - Active Vite server. Call after configure so watch paths are known. A null watch
+   * configuration disables event tracking. Configuration changes restart the server. CSS changes
+   * invalidate existing environments.
+   * @throws If a directory watcher for a missing configuration candidate cannot be created.
    */
   attachServer: (server: ViteDevServer) => void;
   /** Closes type-facts services in existing environments while retaining native compiler state. */
@@ -208,10 +235,16 @@ export interface ViteProject {
  * Call `configure` before environment initialization, then `attachServer` when serving. Close the
  * project when its build or server lifetime ends.
  *
- * @param options - Compiler configuration and production CSS emission mode.
+ * @param supplied - Configuration discovery, compiler overrides, and production CSS emission mode.
+ * Omission reads stillwind.config.ts when configure runs.
+ * @param applicationRoot - Called during each configuration evaluation. Its directory overrides
+ * Vite's root as the base for discovery and inline paths. Undefined uses Vite's root.
  * @returns An unconfigured project whose environments are created lazily.
  */
-export function createViteProject(options: StillwindOptions): ViteProject {
+export function createViteProject(
+  supplied: IntegrationConfig = {},
+  applicationRoot: () => string | undefined = () => undefined,
+): ViteProject {
   const settings: ProjectSettings = {
     watching: false,
     cssWatching: false,
@@ -223,12 +256,18 @@ export function createViteProject(options: StillwindOptions): ViteProject {
     devSourceMaps: false,
     minifyCss: true,
   };
+  const config: IntegrationConfig = {};
+  const configurationFiles = new Set<string>();
+  let resolvedViteConfig: ResolvedConfig | undefined;
+  let configurationDirty = false;
+  let configurationDependencies: string[] = [];
+  let missingConfigurations: string[] = [];
 
   const environments = new Map<string, ViteEnvironment>();
   const environment = (name = "client") => {
     let state = environments.get(name);
     if (!state) {
-      state = new ViteEnvironment(name, settings, options, (ids) => {
+      state = new ViteEnvironment(name, settings, config, (ids) => {
         if (name === "client") {
           return;
         }
@@ -250,16 +289,33 @@ export function createViteProject(options: StillwindOptions): ViteProject {
     }
   };
 
-  const configure = (config: ResolvedConfig) => {
-    settings.projectRoot = resolve(config.root, options.root ?? ".");
-    settings.assetsDirectory = config.build.assetsDir;
-    settings.publicBase = config.base;
-    settings.sourceMaps = Boolean(config.build.sourcemap);
-    settings.devSourceMaps = Boolean(config.css.devSourcemap);
-    settings.minifyCss = config.build.cssMinify !== false;
-    settings.watching = config.command === "serve";
+  const configure = async (viteConfig: ResolvedConfig) => {
+    const { emission, ...inline } = supplied;
+    const resolved = await resolveIntegrationConfig(inline, applicationRoot() ?? viteConfig.root);
+    for (const state of environments.values()) {
+      state.close();
+    }
+    environments.clear();
+    for (const key of Object.keys(config) as (keyof IntegrationConfig)[]) {
+      delete config[key];
+    }
+    Object.assign(config, resolved.config, { emission });
+    configurationFiles.clear();
+    configurationDependencies = resolved.dependencies;
+    missingConfigurations = resolved.missing;
+    for (const file of [...resolved.dependencies, ...resolved.missing]) {
+      configurationFiles.add(file);
+    }
+    resolvedViteConfig = viteConfig;
+    configurationDirty = false;
+    settings.projectRoot = resolve(viteConfig.root, config.root ?? ".");
+    settings.assetsDirectory = viteConfig.build.assetsDir;
+    settings.publicBase = viteConfig.base;
+    settings.sourceMaps = Boolean(viteConfig.build.sourcemap);
+    settings.devSourceMaps = Boolean(viteConfig.css.devSourcemap);
+    settings.minifyCss = viteConfig.build.cssMinify !== false;
+    settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
-    closeTypeFacts();
   };
 
   let stopCssWatching = () => {};
@@ -276,16 +332,33 @@ export function createViteProject(options: StillwindOptions): ViteProject {
         return;
       }
       const path = resolve(file);
+      if (configurationFiles.has(path)) {
+        void server.restart();
+        return;
+      }
       for (const state of environments.values()) {
         state.changed(path);
       }
     };
     const stop = () => {
+      for (const watcher of discoveryWatchers) {
+        watcher.close();
+      }
       server.watcher.off("all", changed);
       server.httpServer?.off("close", stop);
       settings.cssWatching = false;
     };
+    // Missing files in ancestor directories need nonrecursive watches. Adding them to Vite's
+    // recursive watcher can include every sibling project above the application root.
+    const discoveryWatchers = [...new Set(missingConfigurations.map(dirname))].map((directory) =>
+      watch(directory, (_event, filename) => {
+        if (filename && configurationFiles.has(resolve(directory, String(filename)))) {
+          void server.restart();
+        }
+      }),
+    );
     server.watcher.on("all", changed);
+    server.watcher.add(configurationDependencies);
     server.httpServer?.once("close", stop);
     stopCssWatching = stop;
   };
@@ -311,7 +384,20 @@ export function createViteProject(options: StillwindOptions): ViteProject {
   };
 
   return {
-    options,
+    config,
+    configurationFiles,
+    configurationChanged: (id) => {
+      if (!configurationFiles.has(resolve(id))) {
+        return false;
+      }
+      configurationDirty = true;
+      return true;
+    },
+    refreshConfiguration: async () => {
+      if (configurationDirty && resolvedViteConfig) {
+        await configure(resolvedViteConfig);
+      }
+    },
     settings,
     environment,
     configure,

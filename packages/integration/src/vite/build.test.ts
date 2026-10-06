@@ -94,7 +94,7 @@ function buildFixture(emission: "single" | "split") {
   });
   let output: BuildOutput | undefined;
   const project = {
-    options: {
+    config: {
       emission,
     },
     settings: {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vite-plus/test";
 
-import { writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../config.ts";
 import { createVitePlugins } from "./plugin.ts";
 import { createViteProject } from "./project.ts";
 
@@ -18,8 +18,8 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
-vi.mock("../options.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../options.ts")>();
+vi.mock("../config.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../config.ts")>();
   return {
     ...original,
     writeVocabulary: vi.fn(original.writeVocabulary),
@@ -255,7 +255,7 @@ test("an accepted CSS reload invalidates SSR producers even when writing vocabul
   vi.mocked(writeVocabulary).mockImplementationOnce(() => {
     throw new Error("Cannot write vocabulary");
   });
-  fixture.project.options.classNamespace = "updated";
+  fixture.project.config.classNamespace = "updated";
 
   await fixture.writeCss("root.css", definePaint("green") + " @stillwind-slot utilities;");
   const css = await fixture.getCss("ssr");

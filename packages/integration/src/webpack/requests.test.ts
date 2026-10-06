@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { StillwindOptions } from "stillwind/config";
+import type { BaseConfig } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { classifyRequest, requestOptions, virtualRequest } from "./requests.ts";
@@ -23,18 +23,22 @@ test.each([
 });
 
 test("SFC virtual requests carry reconstructible configuration", () => {
-  const options: StillwindOptions = { css: "./root.css", automatic: false, types: false };
+  const config: BaseConfig = {
+    css: "./root.css",
+    automatic: false,
+    types: false,
+  };
   const resource = path.resolve("component.vue");
   const loader = path.resolve("loader.js");
-  const request = virtualRequest(resource, true, options, loader, "stillwind.css");
+  const request = virtualRequest(resource, true, config, loader, "stillwind.css");
   const encoded = request.match(/\?stillwindOptions=([^!]+)!/)?.[1];
   expect(encoded).toBeTruthy();
-  expect(requestOptions({ stillwindOptions: encoded })).toEqual(options);
+  expect(requestOptions({ stillwindOptions: encoded })).toEqual(config);
   expect(request.endsWith(`${resource.replaceAll("\\", "/")}?stillwind.css`)).toBe(true);
 });
 
 test("SFC naming callbacks use the registered rule configuration", () => {
-  const options: StillwindOptions = {
+  const config: BaseConfig = {
     css: "./root.css",
     naming: {
       utilityClass: (_context, hash) => "custom-" + hash.toString("hex"),
@@ -43,11 +47,11 @@ test("SFC naming callbacks use the registered rule configuration", () => {
   };
   const resource = path.resolve("component.svelte");
   const loader = path.resolve("loader.js");
-  expect(virtualRequest(resource, true, options, loader, "stillwind-module-css")).toBe(
-    `!!${loader.replaceAll("\\", "/")}??${loaderOptionsId(options)}!${resource.replaceAll("\\", "/")}?stillwind-module-css`,
+  expect(virtualRequest(resource, true, config, loader, "stillwind-module-css")).toBe(
+    `!!${loader.replaceAll("\\", "/")}??${loaderOptionsId(config)}!${resource.replaceAll("\\", "/")}?stillwind-module-css`,
   );
-  expect(requestOptions(options)).toBe(options);
-  expect(virtualRequest(path.resolve("module.ts"), false, options, loader, "stillwind.css")).toBe(
+  expect(requestOptions(config)).toBe(config);
+  expect(virtualRequest(path.resolve("module.ts"), false, config, loader, "stillwind.css")).toBe(
     "./module.ts?stillwind.css",
   );
 });

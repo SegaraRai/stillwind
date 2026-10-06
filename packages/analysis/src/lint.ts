@@ -1,20 +1,41 @@
 import path from "node:path";
 
-import { findConfiguration, type WorkspaceResult } from "@stillwind/host";
+import { findConfiguration } from "@stillwind/config/node";
+import type { WorkspaceResult } from "@stillwind/host";
 
 import { AnalysisWorker } from "./worker-client.ts";
 
 /** Lint results preserve project membership and identify incomplete analysis. */
 export interface LintResult {
+  /** Absolute path of the evaluated configuration. */
   config: string;
+  /** Target results in configured project order, including overlapping project memberships. */
   results: WorkspaceResult[];
-  /** 0 for successful checks, 1 for compiler errors or denied lint, 2 for incomplete execution. */
+  /**
+   * - 0: successful checks
+   * - 1: compiler errors or denied lint
+   * - 2: incomplete execution
+   */
   exitCode: 0 | 1 | 2;
 }
 
-/** Runs the configured scopes in an isolated analysis process and closes all hosts afterward. */
+/**
+ * Analyzes configured target scopes in a child process and closes it before returning.
+ *
+ * @param options - Configuration discovery and optional target filters. Omission checks all
+ * configured targets from the process working directory.
+ * @returns Results and an exit code. Empty target selection or incomplete analysis returns code 2.
+ * @throws If configuration discovery, worker initialization, target enumeration, or cleanup fails.
+ */
 export async function lint(
-  options: { config?: string; cwd?: string; patterns?: string[] } = {},
+  options: {
+    /** Explicit configuration path, absolute or relative to cwd. Omission searches upward from cwd. */
+    config?: string;
+    /** Directory for configuration discovery and relative config paths. Defaults to process.cwd(). */
+    cwd?: string;
+    /** Additional globs relative to each project root. Omission or an empty list retains all configured targets. */
+    patterns?: string[];
+  } = {},
 ): Promise<LintResult> {
   const cwd = options.cwd ?? process.cwd();
   const config = options.config ? path.resolve(cwd, options.config) : findConfiguration(cwd);
@@ -37,7 +58,13 @@ export async function lint(
   }
 }
 
-/** Renders each finding once per project, including failures without a source range. */
+/**
+ * Formats findings and incomplete analysis for terminal output.
+ *
+ * @param result - Lint results whose reports use original document locations.
+ * @returns Text with one-based line and column positions. Duplicate findings are removed per
+ * project. Findings from overlapping projects remain separate. Successful results can return empty text.
+ */
 export function formatLint(result: LintResult): string {
   const lines: string[] = [];
   const seen = new Set<string>();

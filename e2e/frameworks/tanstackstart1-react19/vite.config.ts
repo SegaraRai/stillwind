@@ -13,8 +13,6 @@ export default defineConfig({
     return [
       tanstackStart(),
       stillwind({
-        css: "src/styles.css",
-        types: false,
         emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
       }),
       nitro(),

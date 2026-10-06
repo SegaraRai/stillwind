@@ -5,7 +5,7 @@ import type { BuildOutput } from "./build.ts";
 import { compileProducer, type CompileContext, type ProducerInput } from "./compile.ts";
 import { DesignSystem, type CssContext, type DesignSystemStatus } from "./design-system.ts";
 import { ModuleRegistry } from "./module-registry.ts";
-import type { ProjectSettings, StillwindOptions } from "./project.ts";
+import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolveStylesheet, type StylesheetPlan } from "./stylesheet.ts";
 
 /** A development stylesheet snapshot and producer dependency graph for one environment. */
@@ -54,17 +54,17 @@ export class ViteEnvironment {
    *
    * @param name - Vite environment name used for virtual module identities and runtime snapshots.
    * @param settings - Shared project settings that must be configured before compilation starts.
-   * @param options - Compiler options shared by the project.
+   * @param config - Compiler options shared by the project.
    * @param invalidate - Invalidates Vite source identities whose JavaScript changes after a
    * design-system reload.
    */
   constructor(
     readonly name: string,
     private readonly settings: ProjectSettings,
-    private readonly options: StillwindOptions,
+    private readonly config: IntegrationConfig,
     private readonly invalidate: (ids: readonly string[]) => void,
   ) {
-    this.#designSystem = new DesignSystem(settings, options);
+    this.#designSystem = new DesignSystem(settings, config);
   }
 
   /**
@@ -218,7 +218,7 @@ export class ViteEnvironment {
       const output = await compileProducer(
         this.#designSystem.compiler,
         this.settings,
-        this.options,
+        this.config,
         this.registry,
         code,
         id,

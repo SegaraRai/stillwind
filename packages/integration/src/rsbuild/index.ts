@@ -2,12 +2,12 @@ import { fileURLToPath } from "node:url";
 
 import type { RsbuildPlugin } from "@rsbuild/core";
 import type { RspackOptions } from "@rspack/core";
-import type { StillwindOptions } from "stillwind/config";
+import type { InlineConfig } from "@stillwind/config";
 
 import { StillwindPlugin } from "../webpack/plugin.ts";
 import { stillwindRules } from "../webpack/rules.ts";
 
-export type { StillwindOptions } from "stillwind/config";
+export type { InlineConfig as IntegrationConfig } from "@stillwind/config";
 
 /** Rsbuild plugin that uses only the hook for updating the Rspack configuration. */
 export interface StillwindRsbuildPlugin extends RsbuildPlugin {
@@ -17,7 +17,7 @@ export interface StillwindRsbuildPlugin extends RsbuildPlugin {
    * @param api - Host API that accepts a modifier for the mutable Rspack configuration.
    */
   setup(api: {
-    modifyRspackConfig(callback: (config: RspackOptions) => RspackOptions): void;
+    modifyRspackConfig(callback: (options: RspackOptions) => RspackOptions): void;
   }): void;
 }
 
@@ -70,21 +70,21 @@ function configureCssRules(rules: NonNullable<NonNullable<RspackOptions["module"
 /**
  * Creates an Rsbuild plugin that installs Stillwind compilation and CSS rules.
  *
- * @param options - Compiler configuration containing a CSS entrypoint, shared by the generated
- * loader rules.
+ * @param config - Configuration discovery and inline overrides shared by the generated rules.
  * @returns A plugin whose setup hook adjusts Rspack rules and registers a `StillwindPlugin`
  * instance.
  */
-export function pluginStillwind(options: StillwindOptions): StillwindRsbuildPlugin {
+export function pluginStillwind(config: InlineConfig = {}): StillwindRsbuildPlugin {
   return {
     name: "stillwind",
     setup(api) {
-      api.modifyRspackConfig((config) => {
-        config.module ??= {};
-        config.module.rules ??= [];
-        configureCssRules(config.module.rules);
-        (config.plugins ??= []).push(new RsbuildStillwindPlugin(options));
-        return config;
+      api.modifyRspackConfig((options) => {
+        options.module ??= {};
+        options.module.rules ??= [];
+        configureCssRules(options.module.rules);
+        options.plugins ??= [];
+        options.plugins.push(new RsbuildStillwindPlugin(config));
+        return options;
       });
     },
   };
@@ -103,7 +103,7 @@ class RsbuildStillwindPlugin extends StillwindPlugin {
    * @param rules - Mutable Rspack rule list already configured by Rsbuild.
    */
   protected override configureRules(rules: unknown[]): void {
-    const [javascript, ...stylesheets] = stillwindRules(this.options);
+    const [javascript, ...stylesheets] = stillwindRules(this.config);
     // Framework pre-loaders must split routes/server functions before CSS
     // ownership is determined. Appending a normal loader still runs before SWC.
     delete javascript.enforce;

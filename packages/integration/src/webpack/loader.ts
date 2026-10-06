@@ -2,14 +2,19 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   compilerOptions,
+  composeModuleSourceMap,
   cssEntrypoint,
+  finalizeModuleWithMap,
+  loadCssGraph,
+  moduleSourceMap,
   type UpstreamSourceMap,
 } from "@stillwind/host";
 
-import { writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import { cssValueModule, type CssValueResource } from "./css-value.ts";
 import { recordProducer } from "./emission.ts";
@@ -78,16 +83,8 @@ export default function webpackLoader(
   ) {
     return callback(null, source, inputMap);
   }
-  const options = requestOptions(this.getOptions());
-  if (!options.css && !options.theme) {
-    return callback(new Error("Stillwind requires a CSS entrypoint"));
-  }
-  if (options.naming) {
-    this.cacheable(false);
-  }
+  const supplied = requestOptions(this.getOptions());
   let compiler: IntegrationSession | undefined;
-  const request = (query: string) =>
-    virtualRequest(this.resourcePath, sfc, options, import.meta.filename, query);
   const {
     read,
     readDependency,
@@ -99,22 +96,36 @@ export default function webpackLoader(
     warn,
   } = createLoaderHost(this, import.meta.filename);
   void (async () => {
-    const host = await import("@stillwind/host");
+    const configuration =
+      this._compilation?.__stillwindConfiguration ??
+      (await resolveIntegrationConfig(supplied, this.rootContext));
+    for (const file of configuration.dependencies) {
+      this.addDependency(file);
+    }
+    for (const file of configuration.missing) {
+      this.addMissingDependency(file);
+    }
+    const { config } = configuration;
+    if (config.naming) {
+      this.cacheable(false);
+    }
+    const request = (query: string) =>
+      virtualRequest(this.resourcePath, sfc, config, import.meta.filename, query, supplied);
     watchCompilerFiles(watch);
-    const root = path.resolve(this.rootContext, options.root ?? ".");
-    const css = path.resolve(root, cssEntrypoint(options));
-    const loaded = await host.loadCssGraph(css, compilerOptions(options), {
+    const root = path.resolve(this.rootContext, config.root ?? ".");
+    const css = path.resolve(root, cssEntrypoint(config));
+    const loaded = await loadCssGraph(css, compilerOptions(config), {
       resolve: resolveCss,
       read,
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
     });
-    writeVocabulary(loaded.loader, root, options);
+    writeVocabulary(loaded.loader, root, config);
     compiler = new IntegrationSession(
       root,
       loaded.loader,
-      options,
+      config,
       false,
       this.mode === "development" ? "development" : "release",
     );
@@ -131,7 +142,7 @@ export default function webpackLoader(
       },
       {
         stylesheetImports:
-          sfc && !projection && !cssValue && options.automatic !== false
+          sfc && !projection && !cssValue && config.automatic !== false
             ? [request("stillwind.css")]
             : undefined,
         moduleCssImport: request("stillwind-module-css"),
@@ -154,7 +165,7 @@ export default function webpackLoader(
       if (!resolved) {
         throw new Error(`Cannot resolve Stillwind resource ${resource.specifier} from ${owner}`);
       }
-      watch(host.cleanModuleId(resolved));
+      watch(cleanModuleId(resolved));
       if (plan.css.includes(resource.placeholder)) {
         valueResources.push({
           placeholder: resource.placeholder,
@@ -172,13 +183,13 @@ export default function webpackLoader(
     if (cssValue) {
       return callback(null, cssValueModule(plan.parts, valueResources), null);
     }
-    const automatic = (!output.hasModuleCssImport && options.automatic !== false) || projection;
+    const automatic = (!output.hasModuleCssImport && config.automatic !== false) || projection;
     if (automatic) {
       recordProducer(this, {
         source: text,
         id,
         root,
-        options,
+        config: config,
         manual: false,
         upstream: inputMap
           ? {
@@ -209,13 +220,13 @@ export default function webpackLoader(
     if (projection) {
       return callback(null, cssImport);
     }
-    const finalized = host.finalizeModuleWithMap(output.code);
+    const finalized = finalizeModuleWithMap(output.code);
     // Append synthetic imports so RSC directives remain the first statements.
     const code =
       sfc || !automatic
         ? finalized.code
         : finalized.code.slice(finalized.prefix.length) + "\n" + finalized.prefix + cssImport;
-    const map = host.moduleSourceMap(
+    const map = moduleSourceMap(
       text,
       output.code,
       this.resourcePath,
@@ -223,7 +234,7 @@ export default function webpackLoader(
       finalized.removed,
       "",
     );
-    const composedMap = host.composeModuleSourceMap(map, inputMap);
+    const composedMap = composeModuleSourceMap(map, inputMap);
     if (sfc && this.data) {
       this.data.stillwindSourceTransform = {
         code,

@@ -3,7 +3,13 @@ import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
 
 import { createLanguageServer } from "./index.ts";
 
-/** Starts the stdio transport with isolated Node analysis hosts. */
+/**
+ * Starts a stdio LSP connection with isolated Node analysis processes.
+ *
+ * @param config - Explicit configuration path, resolved from the process working directory.
+ * Omission discovers configurations from client workspace folders, or the working directory.
+ * The process exits with code 0 after shutdown followed by exit, or code 1 after exit alone.
+ */
 export function startLanguageServer(config?: string): void {
   const connection = createConnection(ProposedFeatures.all, process.stdin, process.stdout);
   createLanguageServer(connection, {

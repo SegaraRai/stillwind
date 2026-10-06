@@ -2,14 +2,20 @@ import { addPluginTemplate, defineNuxtModule } from "nuxt/kit";
 import type { NuxtModule } from "nuxt/schema";
 import type { UserConfig, ViteDevServer } from "vite";
 
-import { stillwind as vitePlugin, type StillwindOptions } from "../vite/index.ts";
+import type { IntegrationConfig } from "../vite/index.ts";
+import { createVitePlugins } from "../vite/plugin.ts";
+import { createViteProject } from "../vite/project.ts";
 
-export type { StillwindOptions } from "../vite/index.ts";
+export type { IntegrationConfig } from "../vite/index.ts";
 
 /**
  * Adds the Vite compiler and development SSR stylesheet transport to a Nuxt application.
+ *
+ * @param config - File discovery, project selection, inline compiler overrides, and CSS emission.
+ * Omission reads stillwind.config.ts relative to Nuxt's application root during Vite configuration.
+ * @returns A Nuxt module that registers the Vite plugins and client stylesheet handling.
  */
-export function stillwind(options: StillwindOptions): NuxtModule {
+export function stillwind(config: IntegrationConfig = {}): NuxtModule {
   return defineNuxtModule({
     meta: {
       name: "@stillwind/integration",
@@ -17,9 +23,12 @@ export function stillwind(options: StillwindOptions): NuxtModule {
     setup(_, nuxt) {
       let ssr: ViteDevServer | undefined;
 
-      nuxt.hook("vite:extendConfig", (config) => {
-        const vite = config as UserConfig;
-        (vite.plugins ??= []).unshift(vitePlugin(options));
+      nuxt.hook("vite:extendConfig", (viteConfig) => {
+        const vite = viteConfig as UserConfig;
+        vite.plugins ??= [];
+        vite.plugins.unshift(
+          createVitePlugins(createViteProject(config, () => nuxt.options.rootDir)),
+        );
       });
 
       nuxt.hook("vite:serverCreated", (server, { isClient }) => {

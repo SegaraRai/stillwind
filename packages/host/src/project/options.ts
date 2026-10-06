@@ -1,44 +1,34 @@
-import path from "node:path";
-
+import type { BaseConfig } from "@stillwind/config";
 import type { NativeCompilerOptions } from "@stillwind/native";
-import type { AnalysisProjectConfig, StillwindOptions } from "stillwind/config";
 
-/** Returns the configured stylesheet request. The caller resolves it against its project root. */
-export function cssEntrypoint(options: StillwindOptions): string {
-  const entry = options.css ?? options.theme;
+/**
+ * Selects the design-system stylesheet request.
+ *
+ * @param config - Compiler settings. css takes precedence over the theme alias.
+ * @returns The authored path without resolving it. The caller applies the project root.
+ * @throws If neither setting supplies a nonempty stylesheet path.
+ */
+export function cssEntrypoint(config: BaseConfig): string {
+  const entry = config.css ?? config.theme;
   if (!entry) {
     throw new Error("Stillwind requires a CSS-first entrypoint (`css`)");
   }
   return entry;
 }
 
-/** Projects host defaults into the native compiler settings. CSS resolves definition settings. */
-export function compilerOptions(options: StillwindOptions): NativeCompilerOptions {
+/**
+ * Applies host defaults to settings passed to a native design-system loader.
+ *
+ * @param config - Shared compiler settings. Naming callbacks are passed separately to sessions.
+ * @returns Native loader options. CSS evaluation supplies utility and variant definitions.
+ */
+export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
   return {
-    prefix: options.prefix ?? "--sw-",
-    tailwindPrefix: options.tailwindPrefix ?? "--tw-",
-    classNamespace: options.classNamespace ?? "",
-    useCssIf: options.useCssIf ?? false,
-    namingRevision: options.namingRevision ?? "",
-    hashLength: options.hashLength,
-  };
-}
-
-/** Resolves shared project paths before passing these settings to any build integration. */
-export function resolveProjectOptions(
-  project: AnalysisProjectConfig,
-  directory: string,
-): StillwindOptions & { root: string } {
-  const {
-    files: _files,
-    exclude: _exclude,
-    sources: _sources,
-    projection: _projection,
-    typeFacts: _typeFacts,
-    ...options
-  } = project;
-  return {
-    ...options,
-    root: path.resolve(directory, project.root ?? "."),
+    prefix: config.prefix ?? "--sw-",
+    tailwindPrefix: config.tailwindPrefix ?? "--tw-",
+    classNamespace: config.classNamespace ?? "",
+    useCssIf: config.useCssIf ?? false,
+    namingRevision: config.namingRevision ?? "",
+    hashLength: config.hashLength,
   };
 }

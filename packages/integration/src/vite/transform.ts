@@ -42,6 +42,9 @@ export function transformHooks(
       );
     },
     async watchChange(id, change) {
+      if (project.configurationChanged(id)) {
+        return;
+      }
       if (change.event !== "delete") {
         return;
       }

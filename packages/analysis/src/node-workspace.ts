@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { findConfiguration } from "@stillwind/host";
+import { findConfiguration } from "@stillwind/config/node";
 
 import type {
   AnalysisWorkspaceContext,
@@ -10,13 +10,24 @@ import type {
 } from "./index.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
-/** Opens isolated Node hosts for file workspaces or one explicitly selected configuration. */
+/**
+ * Opens one isolated Node analysis process for each distinct configuration.
+ *
+ * @param context - Workspace directory URIs. File URIs use upward configuration discovery.
+ * Other URI schemes cannot open Node workspaces. An empty list uses the process working directory.
+ * @param config - Optional explicit configuration path, resolved from the process working directory.
+ * When supplied, it replaces discovery from workspace folders.
+ * @returns Services keyed by absolute configuration path and separate initialization errors.
+ * Services accept file URIs, forward buffers to their workers, and discard cancelled results.
+ * @throws If converting a malformed file URI or closing a failed worker throws.
+ */
 export async function openNodeWorkspaces(
   context: AnalysisWorkspaceContext,
   config?: string,
 ): Promise<OpenAnalysisWorkspaces> {
   const workspaces = new Map<string, AnalysisWorkspaceService>();
   const errors = new Map<string, string>();
+
   const paths = config
     ? [path.resolve(config)]
     : (context.workspaceFolders.length
@@ -26,6 +37,7 @@ export async function openNodeWorkspaces(
   if (paths.some((file) => !file) || !paths.length) {
     errors.set("configuration", "Cannot find stillwind.config.ts for the workspace");
   }
+
   for (const file of new Set(paths.filter((file): file is string => Boolean(file)))) {
     const worker = new AnalysisWorker();
     try {
@@ -34,12 +46,20 @@ export async function openNodeWorkspaces(
       workspaces.set(file, {
         update: async (uri, source, version) => {
           if (accepts(uri)) {
-            await worker.request({ method: "update", file: fileURLToPath(uri), source, version });
+            await worker.request({
+              method: "update",
+              file: fileURLToPath(uri),
+              source,
+              version,
+            });
           }
         },
         closeDocument: async (uri) => {
           if (accepts(uri)) {
-            await worker.request({ method: "closeDocument", file: fileURLToPath(uri) });
+            await worker.request({
+              method: "closeDocument",
+              file: fileURLToPath(uri),
+            });
           }
         },
         analyze: async (uri, signal) => {
@@ -71,5 +91,9 @@ export async function openNodeWorkspaces(
       await worker.close();
     }
   }
-  return { workspaces, errors };
+
+  return {
+    workspaces,
+    errors,
+  };
 }

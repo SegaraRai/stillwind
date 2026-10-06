@@ -3,6 +3,8 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import type { BaseConfig, InlineConfig } from "@stillwind/config";
+import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   CompilationFailure,
@@ -14,18 +16,17 @@ import {
   type LoadedCssGraph,
 } from "@stillwind/host";
 import { scanSource } from "@stillwind/native";
-import type { StillwindOptions } from "stillwind/config";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import { writeVocabulary } from "../options.ts";
+import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 
 /** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
 export type TurbopackLoaderOptions = {
-  /** Compiler settings after `createLoaderOptions` rejects naming callbacks. */
-  compiler: Omit<StillwindOptions, "naming">;
-  /** Absolute project directory. */
+  /** Configuration file selection and serializable inline settings. */
+  compiler: Omit<InlineConfig, "naming">;
+  /** Application directory captured when the integration creates its rules. */
   root: string;
   /** Entry files whose imports are traversed when reconstructing document CSS. */
   entries: string[];
@@ -35,8 +36,8 @@ export type TurbopackLoaderOptions = {
 
 /** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
 export interface TurbopackProject {
-  /** Loader options containing the absolute project root, entry selection, and compiler settings. */
-  options: TurbopackLoaderOptions;
+  /** Evaluated compiler settings with an absolute project root, captured entry selection, and mode. */
+  options: Omit<TurbopackLoaderOptions, "compiler"> & { compiler: BaseConfig };
   /** Initialized compiler. The caller must close it after compilation or stylesheet reconstruction. */
   compiler: IntegrationSession;
   /** Filesystem, source metadata, resolver, dependency watcher, and warning operations. */
@@ -69,21 +70,35 @@ export interface TurbopackHost extends CompilerHost {
 /**
  * Loads the design system and creates a compiler for a Turbopack or Next loader invocation.
  *
- * Compiler runtime files and CSS dependencies are registered with the loader context. Vocabulary
- * declarations are written unless disabled by compiler options.
+ * Configuration is evaluated independently in each loader invocation. Configuration dependencies,
+ * missing discovery candidates, compiler files, and CSS dependencies are registered with the host.
+ * Vocabulary declarations are written unless disabled by compiler settings.
  *
- * @param context - Loader context containing compiler options, an absolute root, filesystem
- * access, resolution operations, and dependency tracking.
+ * @param context - Loader context containing serializable discovery settings, the captured
+ * application directory, filesystem access, resolver operations, and dependency tracking.
  * @returns A promise for the initialized project. The caller owns the compiler's lifetime.
- * @throws If the CSS graph cannot be resolved or read, or initialization or vocabulary writing fails.
+ * @throws If configuration evaluation or project selection fails, the CSS graph cannot be loaded,
+ * or compiler initialization or vocabulary writing fails.
  */
 export async function createProject(
   context: LoaderContext<TurbopackLoaderOptions>,
 ): Promise<TurbopackProject> {
-  const options = context.getOptions();
+  const supplied = context.getOptions();
+  const configuration = await resolveIntegrationConfig(supplied.compiler, supplied.root);
+  const options = {
+    ...supplied,
+    compiler: configuration.config,
+    root: configuration.config.root,
+  };
   const watch = (id: string) => {
     context.addDependency(id);
   };
+  for (const file of configuration.dependencies) {
+    watch(file);
+  }
+  for (const file of configuration.missing) {
+    context.addMissingDependency(file);
+  }
   for (const file of nativeBindingFiles()) {
     watch(file);
   }
@@ -149,8 +164,13 @@ export async function createProject(
       // Next checks boundary markers when it builds server and client modules.
       // They provide no styles for this graph and do not use its loader resolver.
       isBuiltin(specifier) || specifier === "server-only" || specifier === "client-only"
-        ? { id: specifier, external: true }
-        : { id: await resolveJs(specifier, importer) },
+        ? {
+            id: specifier,
+            external: true,
+          }
+        : {
+            id: await resolveJs(specifier, importer),
+          },
     warn: (message: string) => {
       context.emitWarning(new Error(message));
     },
@@ -164,7 +184,16 @@ export async function createProject(
   };
 }
 
-/** Reconstructs all entry-reachable producers before requesting one document plan. */
+/**
+ * Compiles entry-reachable local JS/TS producers and requests one document stylesheet plan.
+ *
+ * @param entries - Entry paths, absolute or relative to the evaluated project root. Statically
+ * named imports, including lazy imports, are followed. Dynamic request expressions are not traversed.
+ * @param project - Initialized loader project. The caller closes its compiler after this operation.
+ * @returns A document plan selecting automatic producers, with a revision derived from visited
+ * source paths and contents. Explicit CSS values remain owned by their modules.
+ * @throws If source resolution, reading, scanning, compilation, or stylesheet planning fails.
+ */
 export async function compileGraph(entries: readonly string[], project: TurbopackProject) {
   const { options, compiler, host } = project;
   const pending = entries.map((entry) => path.resolve(options.root, entry));

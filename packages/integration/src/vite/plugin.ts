@@ -2,22 +2,22 @@ import type { Plugin } from "vite";
 
 import { buildHooks } from "./build.ts";
 import { developmentHooks } from "./development.ts";
-import { createViteProject, type StillwindOptions, type ViteProject } from "./project.ts";
+import { createViteProject, type IntegrationConfig, type ViteProject } from "./project.ts";
 import { attachVueSourceMaps } from "./source-maps.ts";
 import { transformHooks } from "./transform.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
 
-export type { StillwindOptions } from "./project.ts";
+export type { IntegrationConfig } from "./project.ts";
 
 /**
  * Creates Vite plugins that share compiler state across development and production.
  *
- * @param options - Compiler options and CSS emission mode for this integration instance.
+ * @param config - File discovery, project selection, compiler overrides, and CSS emission mode.
  * @returns Plugins for compilation, development CSS delivery, and production emission. Use the
- * array as `plugins: [stillwind(options)]`.
+ * array as `plugins: [stillwind()]` to use the project's configuration file.
  */
-export function stillwind(options: StillwindOptions): Plugin[] {
-  return createVitePlugins(createViteProject(options));
+export function stillwind(config: IntegrationConfig = {}): Plugin[] {
+  return createVitePlugins(createViteProject(config));
 }
 
 /**
@@ -73,8 +73,8 @@ function compilerPlugin(project: ViteProject): Plugin {
       }
     },
     ...transformHooks(project, virtualModules),
-    configResolved(config) {
-      project.configure(config);
+    async configResolved(config) {
+      await project.configure(config);
       attachVueSourceMaps(config.plugins, project);
     },
     configureServer(server) {
@@ -82,6 +82,10 @@ function compilerPlugin(project: ViteProject): Plugin {
       server.httpServer?.once("close", project.closeTypeFacts);
     },
     async buildStart() {
+      await project.refreshConfiguration();
+      for (const file of project.configurationFiles) {
+        this.addWatchFile(file);
+      }
       await project.environment(this.environment?.name).start(this);
     },
     closeBundle() {

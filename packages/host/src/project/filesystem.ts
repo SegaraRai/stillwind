@@ -2,22 +2,31 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import type { AnalysisProjectConfig } from "@stillwind/config";
+import { resolveProjectConfig } from "@stillwind/config/node";
 import { ResolverFactory } from "oxc-resolver";
-import type { AnalysisProjectConfig } from "stillwind/config";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
 import { resolveTypeFactsEnvironment } from "../semantics/index.ts";
 import type { AnalysisHost } from "./analysis.ts";
-import { resolveProjectOptions } from "./options.ts";
 
-/** Creates source and CSS services using the settings in stillwind.config.ts. */
+/**
+ * Creates a Node analysis host with captured buffers, source providers, and CSS resolution.
+ * Script imports use the semantic backend, with optional custom source resolution as a fallback.
+ *
+ * @param config - One evaluated project. Custom source and projection callbacks receive the
+ * buffers installed by setDocuments. Prepared inputs bypass custom projection preparation.
+ * @param directory - Configuration directory used to resolve a relative project root.
+ * @returns An owned host with fixed TypeScript settings. CSS and checker creation remain lazy.
+ * @throws If TypeScript settings cannot be selected or the CSS resolver cannot be initialized.
+ */
 export function createFileSystemAnalysisHost(
   config: AnalysisProjectConfig,
   directory: string,
 ): AnalysisHost {
-  const options = resolveProjectOptions(config, directory);
-  const root = options.root!;
-  const typeFactsEnvironment = resolveTypeFactsEnvironment(root, options.tsconfig);
+  const resolvedConfig = resolveProjectConfig(config, directory);
+  const root = resolvedConfig.root!;
+  const typeFactsEnvironment = resolveTypeFactsEnvironment(root, resolvedConfig.tsconfig);
   const cssResolver = new ResolverFactory({
     extensions: [".css"],
     conditionNames: ["style", "import", "default"],
@@ -35,7 +44,7 @@ export function createFileSystemAnalysisHost(
 
   return {
     root,
-    options,
+    config: resolvedConfig,
     typeFactsResolution: true,
     typeFacts: config.typeFacts,
     typeFactsEnvironment,

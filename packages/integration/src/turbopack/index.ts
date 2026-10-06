@@ -1,1 +1,1 @@
-export { stillwindRules, type TurbopackOptions, type TurbopackRule } from "./rules.ts";
+export { stillwindRules, type IntegrationConfig, type TurbopackRule } from "./rules.ts";

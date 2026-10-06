@@ -1,4 +1,4 @@
-import { fileURLToPath, URL } from "node:url";
+import { URL } from "node:url";
 
 import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import react from "@vitejs/plugin-react";
@@ -18,13 +18,7 @@ export default defineConfig({
   plugins: lazyPlugins(async () => {
     const { stillwind } = await import("@stillwind/integration/vite");
     const { playground } = await import(new URL("./server/plugin.ts", import.meta.url).href);
-    return [
-      react(),
-      playground("styles/default-theme.css"),
-      stillwind({
-        theme: fileURLToPath(new URL("./styles/default-theme.css", import.meta.url)),
-      }),
-    ];
+    return [react(), playground("styles/default-theme.css"), stillwind()];
   }),
   run: {
     tasks: {

@@ -18,7 +18,12 @@ const version = JSON.parse(
 const {
   values: { check },
 } = parseArgs({
-  options: { check: { type: "boolean", default: false } },
+  options: {
+    check: {
+      type: "boolean",
+      default: false,
+    },
+  },
 });
 const system = await load(readFileSync(require.resolve("tailwindcss/theme.css"), "utf8"));
 

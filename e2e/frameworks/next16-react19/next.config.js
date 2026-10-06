@@ -10,11 +10,6 @@ while (!existsSync(join(workspace, "pnpm-workspace.yaml")) && dirname(workspace)
   workspace = dirname(workspace);
 }
 
-const options = {
-  css: "root.css",
-  root,
-};
-
 export default process.env.STILLWIND_E2E_STANDALONE === "1"
   ? {
       agentRules: false,
@@ -22,17 +17,13 @@ export default process.env.STILLWIND_E2E_STANDALONE === "1"
       turbopack: {
         root: workspace,
         rules: stillwindRules({
-          ...options,
           entries: ["app/layout.jsx", "app/page.jsx", "app/lazy/page.jsx"],
         }),
       },
     }
-  : withStillwind(
-      {
-        productionBrowserSourceMaps: true,
-        turbopack: {
-          root: workspace,
-        },
+  : withStillwind({
+      productionBrowserSourceMaps: true,
+      turbopack: {
+        root: workspace,
       },
-      options,
-    );
+    });

@@ -14,7 +14,12 @@ const version = JSON.parse(
 const {
   values: { check },
 } = parseArgs({
-  options: { check: { type: "boolean", default: false } },
+  options: {
+    check: {
+      type: "boolean",
+      default: false,
+    },
+  },
 });
 const css = `
 @utility order-many { color:red; color:blue; --extra:; }

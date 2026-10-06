@@ -1,14 +1,15 @@
 import { fileURLToPath } from "node:url";
 
+import type { InlineConfig } from "@stillwind/config";
 import type { NextConfig } from "next";
-import type { StillwindOptions } from "stillwind/config";
 import type { Configuration } from "webpack";
 
 import { createLoaderOptions, createRules, loaderPath } from "../turbopack/rules.ts";
 
-export type { StillwindOptions } from "stillwind/config";
+export type { InlineConfig as IntegrationConfig } from "@stillwind/config";
 
 const loader = loaderPath("loader.js");
+
 const cssLoader = fileURLToPath(
   new URL("./css-loader.js", import.meta.resolve("@stillwind/integration/next")),
 );
@@ -16,36 +17,38 @@ const cssLoader = fileURLToPath(
 /**
  * Adds Stillwind rules while preserving the application's Next configuration and webpack hook.
  *
- * @param config - Existing Next configuration, including optional Turbopack rules and webpack hook.
- * @param options - Compiler settings with a CSS entrypoint. Loader options must be serializable.
+ * @param nextConfig - Existing Next configuration, including optional Turbopack rules and webpack hook.
+ * @param config - Configuration discovery and inline compiler overrides. Inline values must be
+ * serializable; callbacks can be declared in the configuration file.
  * @returns A copy with Stillwind rules appended to both bundler configurations. The original
  * webpack hook runs before Stillwind appends its rules.
- * @throws If a CSS entrypoint is missing or naming callbacks cannot be serialized.
+ * @throws If inline naming callbacks cannot be serialized. Loaders report configuration errors
+ * when the bundler evaluates the settings.
  */
-function withStillwind<T extends object>(config: T, options: StillwindOptions): T;
+export function withStillwind<T extends object>(nextConfig: T, config?: InlineConfig): T;
 
-function withStillwind(config: NextConfig = {}, options?: StillwindOptions) {
+export function withStillwind(nextConfig: NextConfig = {}, config: InlineConfig = {}) {
   const loaderOptions = {
-    ...createLoaderOptions(options!, []),
-    extensions: config.pageExtensions ?? ["tsx", "ts", "jsx", "js"],
+    ...createLoaderOptions(config, []),
+    extensions: nextConfig.pageExtensions ?? ["tsx", "ts", "jsx", "js"],
   };
-  const rules = { ...config.turbopack?.rules };
+  const rules = { ...nextConfig.turbopack?.rules };
   for (const [pattern, rule] of Object.entries(createRules(loaderOptions, cssLoader))) {
     const previous = rules[pattern];
     rules[pattern] = previous ? [...(Array.isArray(previous) ? previous : [previous]), rule] : rule;
   }
   return {
-    ...config,
+    ...nextConfig,
     turbopack: {
-      ...config.turbopack,
+      ...nextConfig.turbopack,
       rules,
     },
     webpack(
       webpackConfig: Configuration,
       context: Parameters<NonNullable<NextConfig["webpack"]>>[1],
     ) {
-      const result: Configuration = config.webpack
-        ? config.webpack(webpackConfig, context)
+      const result: Configuration = nextConfig.webpack
+        ? nextConfig.webpack(webpackConfig, context)
         : webpackConfig;
       result.module ??= {};
       result.module.rules ??= [];
@@ -54,16 +57,24 @@ function withStillwind(config: NextConfig = {}, options?: StillwindOptions) {
           test: /\.[cm]?[jt]sx?$/,
           exclude: /node_modules/,
           enforce: "pre",
-          use: [{ loader, options: loaderOptions }],
+          use: [
+            {
+              loader,
+              options: loaderOptions,
+            },
+          ],
         },
         {
           test: /stillwind-turbopack\.css$/,
-          use: [{ loader: cssLoader, options: loaderOptions }],
+          use: [
+            {
+              loader: cssLoader,
+              options: loaderOptions,
+            },
+          ],
         },
       );
       return result;
     },
   };
 }
-
-export { withStillwind };

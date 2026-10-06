@@ -32,8 +32,6 @@ export default defineConfig({
     const { default: adapter } = await import("@sveltejs/adapter-node");
     return [
       stillwind({
-        css: "src/styles.css",
-        types: false,
         emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
       }),
       sveltekit({

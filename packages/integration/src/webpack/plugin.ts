@@ -1,4 +1,5 @@
-import type { StillwindOptions } from "stillwind/config";
+import type { InlineConfig } from "@stillwind/config";
+import { resolveIntegrationConfig, type ResolvedIntegrationConfig } from "@stillwind/config/node";
 
 import { installEmission, type EmissionCompilation, type EmissionModule } from "./emission.ts";
 import type { ResolveCallback, ResolverHost, ResolveSettings } from "./host.ts";
@@ -9,17 +10,14 @@ import { stillwindRules } from "./rules.ts";
  */
 export class StillwindPlugin {
   /**
-   * Creates a plugin with the compiler configuration shared by its loader rules.
+   * Retains configuration selection and overrides for the plugin's loader rules.
+   * Files are evaluated in beforeRun and watchRun. The resulting settings are shared by that run's
+   * compilations. Constructor execution does not evaluate configuration.
    *
-   * @param options - Configuration containing a `css` or `theme` entrypoint. Relative entrypoint
-   * paths use the project root selected by applying `options.root` to the bundler root.
-   * @throws If neither CSS entrypoint is supplied.
+   * @param config - Configuration discovery, project selection, and inline compiler overrides.
+   * Omission discovers stillwind.config.ts from the compiler context or process working directory.
    */
-  constructor(protected readonly options: StillwindOptions) {
-    if (!options.css && !options.theme) {
-      throw new Error("Stillwind requires a CSS entrypoint");
-    }
-  }
+  constructor(protected readonly config: InlineConfig = {}) {}
 
   /**
    * Prepends Stillwind rules before framework plugins can clone the rule list.
@@ -30,11 +28,13 @@ export class StillwindPlugin {
    * @param rules - Mutable rule list from the compiler configuration.
    */
   protected configureRules(rules: unknown[]): void {
-    rules.unshift(...stillwindRules(this.options));
+    rules.unshift(...stillwindRules(this.config));
   }
 
   /**
-   * Installs loader rules and registers CSS reconstruction for each new compilation.
+   * Installs loader rules, configuration evaluation hooks, and CSS reconstruction hooks.
+   * Evaluation errors fail the build run. Existing and missing configuration dependencies are
+   * registered on each compilation for watch tracking.
    *
    * @param compiler - webpack or Rspack compiler with a usable input filesystem and resolver. Call
    * through the bundler's plugin setup before compilation begins.
@@ -43,7 +43,26 @@ export class StillwindPlugin {
     compiler.options.module ??= {};
     compiler.options.module.rules ??= [];
     this.configureRules(compiler.options.module.rules);
+    let configuration: ResolvedIntegrationConfig | undefined;
+    const configure = async () => {
+      configuration = await resolveIntegrationConfig(
+        this.config,
+        compiler.options.context ?? process.cwd(),
+      );
+    };
+    compiler.hooks.beforeRun.tapPromise("StillwindConfiguration", configure);
+    compiler.hooks.watchRun.tapPromise("StillwindConfiguration", configure);
     compiler.hooks.thisCompilation.tap("StillwindEmission", (compilation) => {
+      if (!configuration) {
+        throw new Error("Stillwind configuration has not been initialized");
+      }
+      compilation.__stillwindConfiguration = configuration;
+      for (const file of configuration.dependencies) {
+        compilation.fileDependencies.add(file);
+      }
+      for (const file of configuration.missing) {
+        compilation.missingDependencies.add(file);
+      }
       installEmission({
         _compilation: compilation,
         fs: compiler.inputFileSystem!,
@@ -64,12 +83,19 @@ export class StillwindPlugin {
  */
 interface EmissionCompiler<Module extends EmissionModule> {
   hooks: {
+    beforeRun: {
+      tapPromise(name: string, callback: () => Promise<void>): void;
+    };
+    watchRun: {
+      tapPromise(name: string, callback: () => Promise<void>): void;
+    };
     thisCompilation: {
       tap(name: string, callback: (compilation: EmissionCompilation<Module>) => void): void;
     };
   };
   inputFileSystem: ResolverHost["fs"] | null;
   options: {
+    context?: string;
     mode?: string;
     module?: {
       rules?: unknown[];

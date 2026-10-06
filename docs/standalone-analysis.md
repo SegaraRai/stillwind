@@ -55,27 +55,55 @@ global declarations read by the checker. Target enumeration always excludes
 `node_modules` and `.git`. Matching projects run independently, including overlapping
 scopes. Results identify the configuration path and the project array index.
 
-Build integrations accept the same `StillwindOptions` exported by `stillwind/config`.
-Resolve a configured project's root before passing its options to any integration:
+Build integrations discover the nearest `stillwind.config.ts` from the application root.
+For Vite, use `stillwind()` without duplicating compiler settings:
 
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite-plus";
-import { resolveProjectOptions } from "@stillwind/host";
 import { stillwind } from "@stillwind/integration/vite";
-import { resolveConfig } from "stillwind/config";
-import config from "./stillwind.config.ts";
 
-const resolved = await resolveConfig(config);
-
-export default defineConfig({
-  plugins: [stillwind(resolveProjectOptions(resolved.projects[0], import.meta.dirname))],
-});
+export default defineConfig({ plugins: [stillwind()] });
 ```
 
-This shares CSS, naming, namespace, vocabulary, and TypeScript settings. Build-specific
-settings such as Vite CSS emission stay in the integration configuration. Lint levels
-remain in CSS:
+Each integration keeps its bundler's plugin or wrapper form. webpack and Rspack use
+`new StillwindPlugin()`, Rsbuild uses `pluginStillwind()`, and Next uses
+`withStillwind(nextConfig)`. Standalone Turbopack uses `stillwindRules({ entries })`.
+These entrypoints accept the same configuration discovery and inline override options.
+Pass those options as the second argument to `withStillwind`.
+
+`stillwind({ configFile: "config/stillwind.config.ts" })` selects another file, relative
+to the application root. An explicit file must exist. `configFile: false` disables
+file loading; supply a CSS entrypoint inline in that case. Other inline compiler
+settings override the selected project's settings. Undefined preserves the file's
+value, false remains explicit, and arrays replace previous arrays. Nested objects merge
+recursively; changing a provider's kind replaces that provider.
+
+Project `name` is optional. `stillwind({ project: "web" })` selects a matching name;
+names must be unique. Without a name, a single project is selected automatically.
+With several projects, the integration chooses the deepest project root containing
+the application root (or the inline root override). No match or several matches at
+that root produce a configuration error. Analysis continues to run every matching
+project independently.
+
+A root in the configuration file is relative to its directory. An inline root is
+relative to the application root. CSS, tsconfig, and generated declaration paths
+use the resulting project root. Analysis scope settings do not filter the bundler's
+module graph. Build-specific settings such as Vite CSS emission stay in the
+integration configuration.
+
+`@stillwind/config` owns the shared definitions, export evaluation, validation, and
+merge operation. `stillwind/config` re-exports that public API. `@stillwind/config/node`
+owns discovery, trusted JS/TS evaluation, project selection, and path resolution.
+Browser consumers can resolve an in-memory export through the shared entrypoint.
+
+Vite restarts its server when a configuration dependency changes. Production watch
+builds and webpack/Rspack compilations evaluate settings again before compiling.
+Next and Turbopack pass configuration references to loaders; configuration callbacks
+stay in the file rather than being serialized into loader options. Inline naming
+callbacks remain unsupported by these loaders.
+
+Lint levels remain in CSS:
 
 ```css
 @import "stillwind";

@@ -86,6 +86,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@stillwind/config": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*"
   },

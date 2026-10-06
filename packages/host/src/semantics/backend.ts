@@ -56,26 +56,43 @@ export type TypeFactSource = PreparedSource & {
 
 /** An original UTF-8 range whose dependency or checker information could not be verified. */
 export interface UnverifiedRange {
+  /** Compiler module identity of the original document. */
   moduleId: string;
+  /** Inclusive original UTF-8 byte offset. Omission identifies unavailable information for the module. */
   start?: number;
+  /** Exclusive original UTF-8 byte offset when a specific expression range is known. */
   end?: number;
+  /** Explanation of the missing dependency, checker result, or source correspondence. */
   reason: string;
 }
 
 /** Captured declarations and source buffers supplied to a semantic backend. */
 export interface SemanticInputs {
+  /** Captured original text keyed by absolute checker file path. Entries override filesystem reads. */
   overlayFiles?: ReadonlyMap<string, string>;
+  /** Generated declaration text keyed by absolute checker file path, supplied without writing to disk. */
   ambientDeclarations?: ReadonlyMap<string, string>;
 }
 
 /** Available facts remain usable when other expressions cannot be verified. */
 export interface AvailableFacts {
+  /** Available native facts grouped by compiler module identity. */
   facts: Map<string, NativeTypeFact[]>;
+  /** Ranges for queries that could not be verified. Facts for other queries remain usable. */
   unverified: UnverifiedRange[];
 }
 
 /** Semantic queries implemented by a Node checker or an embedding application's checker worker. */
 export interface TypeFactsBackend {
+  /**
+   * Resolves imports using the checker environment before source-provider fallback resolution.
+   *
+   * @param sources - Prepared sources with original probes and checker correspondences.
+   * @param assets - Compiler declaration metadata grouped by module identity.
+   * @param inputs - Captured overlays and generated declarations for the same analysis.
+   * @returns Import request to resolved identity maps, grouped by source resolver identity.
+   * @throws If checker setup or resolution cannot complete.
+   */
   resolveModules(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -83,16 +100,45 @@ export interface TypeFactsBackend {
   ):
     | ReadonlyMap<string, ReadonlyMap<string, string>>
     | Promise<ReadonlyMap<string, ReadonlyMap<string, string>>>;
+  /**
+   * Collects semantic facts and validates declaration contracts for required probes.
+   *
+   * @param sources - Prepared sources with original UTF-8 probe ranges.
+   * @param assets - Compiler declarations grouped by module identity.
+   * @param inputs - Captured overlays and declarations. Omission permits backend reads.
+   * @returns Native facts grouped by compiler module identity.
+   * @throws If a required type, declaration identity, or source correspondence cannot be verified.
+   */
   collect(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
     inputs?: SemanticInputs,
   ): Map<string, NativeTypeFact[]> | Promise<Map<string, NativeTypeFact[]>>;
+  /**
+   * Keeps verified facts while recording unavailable queries.
+   *
+   * @param sources - Prepared sources with original UTF-8 probe ranges.
+   * @param assets - Compiler declarations grouped by module identity.
+   * @param inputs - Captured overlays and declarations for this analysis.
+   * @returns Facts for successful queries and original ranges with explanations for other queries.
+   * @throws If backend setup or transport fails before partial results can be produced.
+   */
   collectAvailable(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
     inputs?: SemanticInputs,
   ): AvailableFacts | Promise<AvailableFacts>;
+  /**
+   * Discards cached filesystem state before subsequent queries. Call between analysis transactions.
+   *
+   * @returns Nothing, or a promise that resolves after invalidation.
+   */
   invalidate(): void | Promise<void>;
+  /**
+   * Releases checker resources after pending queries complete.
+   *
+   * @returns Nothing, or a promise that resolves after cleanup.
+   * @throws If checker cleanup fails.
+   */
   close(): void | Promise<void>;
 }
