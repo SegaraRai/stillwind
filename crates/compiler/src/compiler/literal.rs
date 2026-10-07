@@ -127,8 +127,7 @@ impl LiteralContribution {
             }
             contribution.canonical.push_str(&canonical_candidate);
             contribution.canonical.push('\0');
-            let resolved_input = raw.strip_prefix("tw:").unwrap_or(&raw);
-            match resolve_utility_targets(resolved_input, theme) {
+            match resolve_utility_targets(&raw, theme) {
                 Ok(Some(mut resolved)) => {
                     if theme
                         .config()
