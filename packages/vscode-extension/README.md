@@ -6,7 +6,19 @@ Add `stillwind.config.ts` to your workspace. Set `stillwind.configFile` to selec
 
 Hover over a utility, `style()` call, or its bound variable to see the generated CSS with the main selector written as `&`. Completion includes utilities, variants, and theme values from the active design system. Completion details load CSS when the selected item is resolved. Concrete colors have inline swatches and color picker edits.
 
-`Stillwind: Sort Utilities` and document formatting sort strings and safe array elements. Refs precede base styles, and base styles precede utility strings. Dynamic expressions and unresolved entries separate runs. Base styles keep their relative order when their properties can interfere. Comments and duplicate entries are retained.
+`Stillwind: Sort Utilities` invokes the `source.sort.stillwind` Code Action. Utility strings use compiler ordering. Arrays, argument lists, and object properties use stable groups: each ref's markers then projections, bases, utilities, custom properties, and attributes. Entries within each group keep their authored order. Unsupported expressions and comments separate runs. Set `sort.attributes` to sort aria-/data- attribute names independently; it defaults to false.
+
+Use a document formatter such as Prettier or Oxfmt for layout and whitespace. Stillwind provides sorting and lint fixes as Code Actions. To run them on explicit saves alongside your formatter, configure VS Code:
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.stillwind": "explicit",
+    "source.sort.stillwind": "explicit"
+  }
+}
+```
 
 Canonical utility lint defaults to `warn`. Pixel spacing can become rem-based utilities when the active spacing scale uses rem; other domains, such as border width, retain their units. `source.fixAll.stillwind` applies enabled lint fixes. `source.sort.stillwind` sorts independently of lint severity. Sorting diagnostics are disabled by default.
 

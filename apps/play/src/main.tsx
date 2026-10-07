@@ -178,6 +178,18 @@ function Play() {
           <div className="panel-bar">
             <strong>{active.replace("/workspace/", "")}</strong>
             <span>Monaco / VS Code</span>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await workspace.current?.format();
+                } catch (error) {
+                  setError(String(error));
+                }
+              }}
+            >
+              Format
+            </button>
           </div>
           <div className="code-editor" ref={editor} />
         </section>

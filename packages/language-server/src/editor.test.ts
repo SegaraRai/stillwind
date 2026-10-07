@@ -8,7 +8,6 @@ import type {
   Hover,
   ColorInformation,
   ColorPresentation,
-  TextEdit,
 } from "vscode-languageserver";
 import {
   createConnection,
@@ -64,7 +63,7 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     const initialized = await client.sendRequest<{
       capabilities: {
         hoverProvider: boolean;
-        documentFormattingProvider: boolean;
+        codeActionProvider: { codeActionKinds: string[] };
       };
     }>("initialize", {
       rootUri: "file:///workspace",
@@ -72,7 +71,12 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     });
     expect(initialized.capabilities).toMatchObject({
       hoverProvider: true,
-      documentFormattingProvider: true,
+      codeActionProvider: {
+        codeActionKinds: expect.arrayContaining([
+          "source.fixAll.stillwind",
+          "source.sort.stillwind",
+        ]),
+      },
     });
     await client.sendNotification("textDocument/didOpen", {
       textDocument: {
@@ -160,16 +164,6 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     });
     expect(sorts).toHaveLength(1);
     expect(JSON.stringify(sorts[0].edit)).toContain("p-[16px]");
-    const formatted = await client.sendRequest<TextEdit[]>("textDocument/formatting", {
-      textDocument: {
-        uri,
-      },
-      options: {
-        tabSize: 2,
-        insertSpaces: true,
-      },
-    });
-    expect(formatted.length).toBeGreaterThan(0);
     await client.sendNotification("textDocument/didChange", {
       textDocument: {
         uri,

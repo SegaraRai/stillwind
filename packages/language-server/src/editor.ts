@@ -212,31 +212,6 @@ export function registerEditorFeatures(
           items.findIndex((other) => JSON.stringify(item) === JSON.stringify(other)) === index,
       );
   });
-  connection.onDocumentFormatting(async (params, token) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return null;
-    }
-    const entries = await query(
-      document.uri,
-      {
-        kind: "sort",
-      },
-      token,
-    );
-    if (
-      !entries.length ||
-      entries.some(
-        (entry) => JSON.stringify(entry.result.edits) !== JSON.stringify(entries[0].result.edits),
-      )
-    ) {
-      return null;
-    }
-    return (entries[0].result.edits ?? []).map((edit) => ({
-      range: offsets(document, edit),
-      newText: edit.newText,
-    }));
-  });
 }
 
 /** Builds separate project actions; conflicting project edits are never combined into one action. */

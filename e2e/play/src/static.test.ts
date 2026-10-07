@@ -7,7 +7,7 @@ import { expect, test } from "vite-plus/test";
 
 import { exampleFiles } from "../../../apps/play/src/workspace/example.ts";
 
-test("static files provide semantic diagnostics, cross-module builds, and React/CSS HMR", async () => {
+test("static files provide document formatting, semantic diagnostics, cross-module builds, and React/CSS HMR", async () => {
   const directory = resolve(import.meta.dirname, "../../../apps/play/dist/acceptance");
   const requests: string[] = [];
   const server = createServer(async (request, response) => {
@@ -72,6 +72,28 @@ test("static files provide semantic diagnostics, cross-module builds, and React/
       )
       .not.toBe("rgba(0, 0, 0, 0)");
     await frame.getByRole("button", { name: "Count: 0" }).click();
+    await page.getByRole("button", { name: "Component.tsx", exact: true }).click();
+    await page.getByRole("button", { name: "Format", exact: true }).click();
+    const input = page.locator(".monaco-editor textarea.inputarea");
+    await expect
+      .poll(
+        async () =>
+          (await page.locator(".monaco-editor .view-lines").innerText()).replaceAll("\u00a0", " "),
+        { timeout: 10_000 },
+      )
+      .toContain("return (");
+    await input.focus();
+    await page.keyboard.press("Control+a");
+    const formatted = await input.inputValue();
+    expect(formatted).toContain('style("px-4 py-2 text-white bg-accent rounded-md")');
+    buffers.set("/workspace/Component.tsx", formatted);
+    await replace(
+      page,
+      buffers,
+      "Component.tsx",
+      formatted,
+      exampleFiles.get("/workspace/Component.tsx")!,
+    );
     await replace(
       page,
       buffers,

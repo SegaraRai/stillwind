@@ -308,7 +308,6 @@ export function createLanguageServer(
             }
           : undefined,
         colorProvider: editor,
-        documentFormattingProvider: editor,
         workspace: {
           workspaceFolders: {
             supported: true,
