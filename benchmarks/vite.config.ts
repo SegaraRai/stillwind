@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => ({
       retainSamples: true,
     },
     environment: "node",
+    fileParallelism: !mode.startsWith("benchmark") && !mode.startsWith("performance"),
     execArgv:
       mode.startsWith("benchmark") || mode.startsWith("performance")
         ? ["--experimental-transform-types"]
@@ -106,13 +107,13 @@ export default defineConfig(({ mode }) => ({
       },
       "test:performance": {
         command:
-          "vp test bench performance/performance.bench.ts --run --mode performance --reporter default --reporter json --outputFile results/performance.json",
+          "vp test bench performance/performance.bench.ts compiler/sorting.bench.ts --run --mode performance --reporter default --reporter json --outputFile results/performance.json",
         cache: false,
         dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "test:performance:full": {
         command:
-          "vp test bench performance/performance.bench.ts --run --mode performance-full --reporter default --reporter json --outputFile results/performance-full.json",
+          "vp test bench performance/performance.bench.ts compiler/sorting.bench.ts --run --mode performance-full --reporter default --reporter json --outputFile results/performance-full.json",
         cache: false,
         dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },

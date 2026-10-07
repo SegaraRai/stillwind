@@ -1,4 +1,6 @@
-# ソートの性能調査
+# ソートの性能調査（旧実装の測定記録）
+
+この文書と `sorting-evidence.json` は、分類による安定ソートへ変更する前の測定記録である。以下の実装説明は測定時のコードを指す。現在の契約と測定は [ソートの改善](sorting-optimization-2026-10-07.md) を参照する。base引数の順序はCSS優先順位を決めないため、現在のソートはbase本文やCSSの干渉を調べない。
 
 有効なcandidateの1回の比較は、今回の入力ではnativeで約0.004〜0.021ms、Node WASMで約0.007〜0.036msだった。ソート全体では、逆順100要素のutility配列が約30〜61ms、100個のbase style配列が約2.5〜3.4秒かかる。base styleでは、候補を探すAST走査とasset検索が時間の大部分を占める。
 
@@ -101,21 +103,17 @@ candidate previewはsnapshot内で再利用する。ソートの比較、base候
 
 utility配列の初回preview生成はキャッシュで削減できる。比較やbaseのAST検索が大きな費用を占める入力では、再要求でも時間がほとんど減らない。文字列のソートはpreviewを使用しない。
 
-## 改善する順序
+## 現在の実装との違い
 
-1. `SourceIndex`の構築時にassetのUTF-16位置とAST nodeとの対応を索引化する。baseのcall expression、候補列、純粋なbaseかどうかもasset単位で保持する。`pureBase()`とCSSの取得が同じ候補列を再利用すれば、各baseについてAST全体を2回走査する処理を取り除ける。これは今回の最大の費用を扱う変更になる。
-2. immutableなdesign-system snapshotに、variantのgroup位置などの順序metadataを準備する。実際に現れたcandidateは一度解決して順序キーを保持し、その後の比較でキーを使う。任意値を含む全candidateを事前列挙する必要はない。tailwindのproperty順、themeで決まるvariant値、無効なcandidate、解決エラーを保持する契約を先に定める。
-3. utility区間を一括でRustへ渡し、candidateを一度ずつ解決してソートするAPIを検討する。JS/Rust間を比較ごとに往復する費用を減らせる。ref、base、コメント、未解決要素の境界はhostが保持する。
-4. 配列の安全性を満たす区間で、比較回数を減らすalgorithmを使う。base同士の交換は部分的に許されるため、通常の `Array.sort()` への置換だけでは現在の契約を保てない。utilityだけの区間を先に扱い、干渉するbaseについては元の前後関係を制約として保持する。全pairの安全性確認が必要な場合、その確認自体には二乗の費用が残る。
-5. 文字列のtoken化と配列内のtoken list分割を一度だけ行う。baseのCSSも一度parseしてpropertyの影響を保持し、安全性判定ではその結果を比較する。これらはcandidateの順序や交換の制約を変えずに重複処理を削減できる。
+現在は入力種別を使って安定ソートする。各refのmarkerとprojections、bases、utilities、custom props、attributesの順に並べ、同じ分類内では元順を保つ。base本文の検査とソート用のCSS干渉判定を削除した。utility文字列内部の順序ソートは別処理で、準備したcandidateキーを一括で取得して比較する。aria-/data-属性名のソートは `sort.attributes: true` で独立して有効にする。
 
-pairごとの比較結果だけをcacheしても、逆順100要素の初回では4950pairが異なるため、同じcandidateの解決を繰り返す費用が残る。candidateごとのキーとassetごとの索引を準備する方が、初回の要求にも効果がある。
+以下の生の測定結果は比較の根拠として保存している。現在のbenchmarkは新しい契約を検証するため、旧配列ソートの出力やCSS干渉判定回数は再現しない。
 
 ## 再実行と根拠
 
-- `vp run bench:sorting`: native、115件。
-- `vp run bench:sorting:wasm`: Node WASM、同じ115件。
-- `vp run bench:sorting:profile`: nativeでrefと干渉するbaseの内訳、6件。
+- 測定時の `vp run bench:sorting`: native、115件。
+- 測定時の `vp run bench:sorting:wasm`: Node WASM、同じ115件。
+- 測定時の `vp run bench:sorting:profile`: nativeでrefとbaseの内訳、6件。
 
 すべての測定で、対象binding、結果の変更有無、繰り返し要求のeditsを検証した。比較回数を数える処理はtimerの外にあり、実際のsnapshotが返すeditsと一致することを確認した。通常のreportはignoredな `benchmarks/results/` に出力する。生のsample、実行環境、production sourceのSHA-256、測定時のbenchmark sourceのSHA-256は [sorting-evidence.json](../benchmarks/compiler/sorting-evidence.json) に保存している。測定後にbenchmarkの条件文へ波括弧と説明コメントを追加したが、測定する処理は変えていない。
 

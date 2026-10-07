@@ -137,9 +137,9 @@ export function cssWithSourceMap(
   const { css, sourceMap } = output;
   const positions = sourceMap.sources.map(({ content }) => {
     const result = new Map<number, [number, number]>();
-    let byte = 0,
-      line = 0,
-      column = 0;
+    let byte = 0;
+    let line = 0;
+    let column = 0;
     for (const char of content) {
       result.set(byte, [line, column]);
       byte += Buffer.byteLength(char);
@@ -156,11 +156,11 @@ export function cssWithSourceMap(
   const names = sourceMap.sources.map(({ sourceMapSource }) => sourceMapSource);
   const map = new GenMapping();
   names.forEach((name, index) => setSourceContent(map, name, sourceMap.sources[index].content));
-  let result = "",
-    byte = 0,
-    line = 0,
-    column = 0,
-    entryIndex = 0;
+  let result = "";
+  let byte = 0;
+  let line = 0;
+  let column = 0;
+  let entryIndex = 0;
   const entries = [...sourceMap.entries].sort((a, b) => a.generatedStart - b.generatedStart);
   const edits = [...replacements];
   for (let offset = 0; offset < css.length;) {

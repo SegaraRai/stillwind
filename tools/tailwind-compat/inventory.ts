@@ -36,28 +36,41 @@ const outputRoot = createInventoryOutput(
   outputIndex === -1 ? undefined : process.argv[outputIndex + 1],
 );
 console.log(`Inventory output: ${outputRoot}`);
+
 const evidence = createGzip();
 const evidenceFile = createWriteStream(join(outputRoot, "mismatches.jsonl.gz"));
 evidence.pipe(evidenceFile);
+
 const started = performance.now();
 const counts: Record<string, number> = {};
 const rows: Record<string, unknown>[] = [];
 const exclusions: Record<string, unknown>[] = [];
-const sessions = new Map<string, { session: NativeProjectSession; css: string; uses: number }>();
+const sessions = new Map<
+  string,
+  {
+    session: NativeProjectSession;
+    css: string;
+    uses: number;
+  }
+>();
+
 let directChecks = 0;
 let checked = 0;
 
 // The inventory and CI gate share the documented semantic comparison contract.
 const minify = comparisonCss;
+
 function selector(candidate: string): string {
   const escaped = candidate.replaceAll(/[^a-zA-Z0-9_-]/g, (value) =>
     value.codePointAt(0)! >= 0x80 ? value : `\\${value}`,
   );
   return /^\d/.test(candidate) ? `\\3${candidate[0]} ${escaped.slice(1)}` : escaped;
 }
+
 function equivalent(a: string, b: string): boolean {
   return a === b || hasEquivalentDeclarationOrder(a, b);
 }
+
 function withoutEmptyTheme(css: string): string {
   const ast = parse(css);
   if (ast.type !== "StyleSheet") {
@@ -76,9 +89,11 @@ function withoutEmptyTheme(css: string): string {
   });
   return generate(ast);
 }
+
 function tokens(css: string): string {
   return generate(parse(css, { parseCustomProperty: true }));
 }
+
 function withoutMetadata(css: string): string {
   const ast = parse(css);
   if (ast.type !== "StyleSheet") {
@@ -95,8 +110,11 @@ function withoutMetadata(css: string): string {
   });
   return generate(ast);
 }
+
 function withoutRegisteredFallbacks(css: string): string {
-  const ast = parse(css, { parseCustomProperty: true });
+  const ast = parse(css, {
+    parseCustomProperty: true,
+  });
   const initials = new Map<string, string>();
   walk(ast, {
     visit: "Atrule",
@@ -134,9 +152,13 @@ function withoutRegisteredFallbacks(css: string): string {
   });
   return generate(ast);
 }
-function shape(css: string): { properties: string[]; rules: string[] } {
-  const properties: string[] = [],
-    rules: string[] = [];
+
+function shape(css: string): {
+  properties: string[];
+  rules: string[];
+} {
+  const properties: string[] = [];
+  const rules: string[] = [];
   walk(parse(css, { parseCustomProperty: true }), {
     enter(node: CssNode) {
       if (node.type === "Declaration") {
@@ -150,29 +172,33 @@ function shape(css: string): { properties: string[]; rules: string[] } {
       }
     },
   });
-  return { properties: properties.sort(), rules };
+  return {
+    properties: properties.sort(),
+    rules,
+  };
 }
+
 function classify(expected: string, received: string): string {
-  const a = withoutEmptyTheme(expected),
-    b = withoutEmptyTheme(received);
+  const a = withoutEmptyTheme(expected);
+  const b = withoutEmptyTheme(received);
   if (equivalent(a, b)) {
     return "empty-theme-layer-only";
   }
-  const ta = tokens(a),
-    tb = tokens(b);
+  const ta = tokens(a);
+  const tb = tokens(b);
   if (equivalent(ta, tb)) {
     return "value-token-format";
   }
-  const fa = withoutRegisteredFallbacks(a),
-    fb = withoutRegisteredFallbacks(b);
+  const fa = withoutRegisteredFallbacks(a);
+  const fb = withoutRegisteredFallbacks(b);
   if (equivalent(fa, fb)) {
     return "registered-initial-fallback";
   }
   if (equivalent(withoutMetadata(ta), withoutMetadata(tb))) {
     return "property-registration-or-support";
   }
-  const sa = shape(ta),
-    sb = shape(tb);
+  const sa = shape(ta);
+  const sb = shape(tb);
   if (JSON.stringify(sa.rules) !== JSON.stringify(sb.rules)) {
     return "selector-or-rule-structure";
   }
@@ -240,8 +266,8 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
       });
       const expected = comparisonCss(tailwind, frames);
       let category: string;
-      let actual = "",
-        received = "";
+      let actual = "";
+      let received = "";
       let diagnostics: unknown[] = [];
       let resources: unknown[] = [];
       try {
@@ -340,7 +366,9 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
   );
 }
 evidence.end();
+
 await finished(evidenceFile);
+
 writeFileSync(
   join(outputRoot, "index.json"),
   JSON.stringify(
@@ -357,6 +385,7 @@ writeFileSync(
     2,
   ) + "\n",
 );
+
 console.log(
   JSON.stringify({
     checked,

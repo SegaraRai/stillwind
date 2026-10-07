@@ -2,6 +2,37 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("ordering batches preserve compiler order, duplicates, unresolved candidates, and theme revisions", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const load = (definitions: string) => {
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(0, "theme.css", definitions, "file:///theme.css");
+      return loader.editorQuery();
+    };
+    const first = load(
+      "@utility a { color:red; } @utility b { color:blue; } @variant hover { &:hover { @slot; } }",
+    );
+    const values = ["b", "hover:a", "a", "a", "unknown", "unknown:a"];
+    const ranks = first.candidateRanks(values);
+    expect(ranks).toEqual([1, 2, 0, 0, null, null]);
+    expect(first.candidateRanks([])).toEqual([]);
+    for (let a = 0; a < values.length; a++) {
+      for (let b = 0; b < values.length; b++) {
+        const expected = first.compareCandidates(values[a], values[b]);
+        expect(ranks[a] == null || ranks[b] == null ? null : Math.sign(ranks[a]! - ranks[b]!)).toBe(
+          expected,
+        );
+      }
+    }
+    const second = load("@utility b { color:blue; } @utility a { color:red; }");
+    expect(second.candidateRanks(["a", "b"])).toEqual([1, 0]);
+    expect(first.candidateRanks(["a", "b"])).toEqual([0, 1]);
+    const malformed = load(
+      "@utility bad-* { @stillwind-require-properties invalid; color:--value([color]); }",
+    );
+    expect(() => malformed.candidateRanks(["bad-[red]"])).toThrow(/bad-\*/);
+  });
+
   test("canonical queries preserve aliases, required registrations, and modifier branches", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader();
@@ -108,8 +139,6 @@ export function registerEditorContract(specifier: string): void {
     expect(query.colorRgba("currentColor")).toBeNull();
     expect(query.candidateColor("hover:bg-brand")).toEqual([1, 0, 0, 1]);
     expect(query.candidateColor("bg-[currentColor]")).toBeNull();
-    expect(query.canReorderStyles("&{padding:1rem}", "&{color:red}")).toBe(true);
-    expect(query.canReorderStyles("&{margin:1rem}", "&{margin-left:2rem}")).toBe(false);
     expect(query.completeCandidate("hov")).toContain("hover:");
     expect(query.completeCandidate("group-hov")).toContain("group-hover:");
     expect(query.completeCandidate("!bg-br")).toContain("!bg-brand");

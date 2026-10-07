@@ -163,8 +163,8 @@ function quotedRegions(
         if (prop.type !== NodeTypes.DIRECTIVE || !prop.exp) {
           continue;
         }
-        const start = prop.exp.loc.start.offset,
-          end = prop.exp.loc.end.offset;
+        const start = prop.exp.loc.start.offset;
+        const end = prop.exp.loc.end.offset;
         const quote = source[start - 1];
         if ((quote === '"' || quote === "'") && source[end] === quote) {
           quotes.push({

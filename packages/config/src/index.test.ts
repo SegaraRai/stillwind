@@ -24,6 +24,7 @@ test("lint conversion fields and independent sorting targets are validated", () 
         sort: {
           stringLiterals: false,
           arrays: true,
+          attributes: true,
         },
       },
     ],
@@ -51,7 +52,7 @@ test("lint conversion fields and independent sorting targets are validated", () 
           css: "theme.css",
           files: ["*.tsx"],
           sort: {
-            arrays: "yes",
+            attributes: "yes",
           },
         },
       ],

@@ -108,9 +108,9 @@ function replaceClasses(
   selector: string,
   names: ReadonlySet<string>,
 ): { selector: string; owned: boolean } {
-  let result = "",
-    owned = false,
-    quote = "";
+  let result = "";
+  let owned = false;
+  let quote = "";
   for (let index = 0; index < selector.length; index++) {
     const character = selector[index];
     if (character === "\\") {

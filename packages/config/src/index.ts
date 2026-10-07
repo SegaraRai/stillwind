@@ -93,12 +93,18 @@ export type CanonicalUtilitiesOptions = {
   rootFontSize?: number;
 };
 
-/** Controls independent source containers that use compiler ordering. */
+/** Controls input grouping and independent utility and attribute ordering. */
 export type UtilitySortOptions = {
   /** Sorts utilities within each static string or template segment. Defaults to true. */
   stringLiterals?: boolean;
-  /** Sorts safe array runs, including refs and base styles. Defaults to true. */
+  /**
+   * Groups arrays, argument lists, and object entries by input kind. Defaults to true.
+   * Each ref's marker precedes its projections; bases, utilities, custom properties,
+   * and attributes follow. Each group retains its original order.
+   */
   arrays?: boolean;
+  /** Sorts aria-/data- names within adjacent attribute entries. Defaults to false. */
+  attributes?: boolean;
 };
 
 /** One project's compiler settings, analysis scope, and source preparation operations. */
@@ -336,7 +342,7 @@ function validCompilerSettings(project: Record<string, unknown>): boolean {
     (!object(project.sort) ||
       !Object.entries(project.sort).every(
         ([key, value]) =>
-          ["stringLiterals", "arrays"].includes(key) &&
+          ["stringLiterals", "arrays", "attributes"].includes(key) &&
           (value === undefined || typeof value === "boolean"),
       ))
   ) {

@@ -116,8 +116,8 @@ function clientProjectionStart(
   const trace = new TraceMap(source.projection.map.json);
   const selected = trace.sources.indexOf(source.projection.map.source);
   const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
-  const generated = lines(source.projection.code),
-    original = lines(source.document.code);
+  const generated = lines(source.projection.code);
+  const original = lines(source.document.code);
   const text = source.document.code.slice(region.start, region.end);
   const candidates = new Set<number>();
   for (const [line, segments] of decodedMappings(trace).entries()) {

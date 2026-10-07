@@ -5,7 +5,7 @@ Run one timing task at a time after other builds and tests have finished:
 - `vp run test:performance` checks canonical utility queries, 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
 - `vp run test:performance:full` also checks a palette with 1000 colors, 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
 
-The quick suite has 25 tests, and the full suite has 32 tests. Each measurement uses three samples. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
+The quick suite has 25 general cases plus 208 sorting cases. The full suite has 32 general cases plus the same sorting cases. General measurements use three samples; sorting normally uses nine, with three for stress cases. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
 
 `vp run verify` checks the budget helper's behavior. Run the performance tasks separately to check timing on your machine.
 
@@ -59,6 +59,21 @@ Each CSS graph also has a root file and one JS producer. The CSS edit test chang
 | 10,000                     |               300 / 1000 |                         5 / 15 |
 
 These cases measure two operations: creating a design-system snapshot and editing JS after the snapshot is loaded. The registry contains the listed number of unused utilities. Each producer has one style call with a string literal.
+
+## Sorting targets
+
+`bench:sorting` and `bench:sorting:wasm` also enforce these limits. They measure input grouping, ordering within utility strings, attribute name sorting, and editor snapshot construction. Grouping uses input kinds and preserves the order inside each category. Base bodies and CSS interference are not inspected.
+
+| Sorting measurement                    | Soft / hard (ms) |
+| -------------------------------------- | ---------------: |
+| 256 cached comparisons                 |      2.56 / 25.6 |
+| Rank batch, at most 100 candidates     |           2 / 10 |
+| Rank batch, 1000 candidates            |         20 / 100 |
+| Editor sorting, at most 100 inputs     |            1 / 5 |
+| Editor sorting, 1000 inputs            |          10 / 30 |
+| Snapshot and source index construction |         30 / 300 |
+
+The comparison limits correspond to 0.01 / 0.1ms per call. Rank batches include preparation, sorting, and the binding boundary. Fresh source queries begin without candidate keys; repeated queries reuse them. Construction is measured separately and excludes compilation. The mixed cases use six categories of entries, rounded up to a multiple of six. See [the sorting report](../../docs/sorting-optimization-2026-10-07.md) for results and limits.
 
 ## Measurement boundaries
 

@@ -305,3 +305,25 @@ the JavaScript TypeScript checker against virtual files. `BrowserProject` and
 semantic dependencies. The Playground's separate TS Server provides ordinary
 editor completions, navigation, and TypeScript diagnostics.
 Call `close()` when releasing these objects.
+
+## Editor sorting
+
+`sort.arrays` groups direct arrays, `style()` argument lists, and object entries by input kind. It defaults to true. Ref groups retain their first appearance order, with each ref's marker before its projections. Bases, utilities, custom properties, and attributes follow. Entries in each category retain their original order. A base can contain variants, custom properties, or composed styles; the sorter uses its identity without inspecting its body or CSS.
+
+`sort.stringLiterals` defaults to true and sorts utility tokens inside each static string or template segment using compiler order. This does not reorder separate utility array elements. Unknown utility tokens delimit sortable string runs.
+
+`sort.attributes` defaults to false. Set it to true to sort adjacent `aria-` and `data-` property names. It works independently of the other two options. Duplicate names keep their original order. Spreads, unsupported expressions, ambiguous comments, and unmapped source regions delimit sortable input runs. Explicit sorting is available when sorting diagnostics are off; lint fixes respect source suppression.
+
+```ts
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "theme.css",
+      files: ["src/**/*.tsx"],
+      sort: { arrays: true, stringLiterals: true, attributes: true },
+    },
+  ],
+});
+```

@@ -15,7 +15,13 @@ test("checker declaration identity has its own namespace", () => {
     '{"kind":"ref","moduleId":"src/a.tsx","start":2,"end":6,"bindingName":"item"}',
   );
   expect(
-    identityKey({ bindingName: "item", end: 6, start: 2, moduleId: "src/a.tsx", kind: "ref" }),
+    identityKey({
+      bindingName: "item",
+      end: 6,
+      start: 2,
+      moduleId: "src/a.tsx",
+      kind: "ref",
+    }),
   ).toBe(key);
   expect(key).toMatch(/^stillwind-identity\/v1:/);
 });
@@ -23,8 +29,8 @@ test("checker declaration identity has its own namespace", () => {
 test("one authored producer can stamp distinct generated copies once each", () => {
   const original = "const value=style('flex');";
   const generated = `${original}\n${original}`;
-  const callStart = original.indexOf("style("),
-    callEnd = original.indexOf(")") + 1;
+  const callStart = original.indexOf("style(");
+  const callEnd = original.indexOf(")") + 1;
   const asset = {
     identity: {
       kind: "style" as const,
@@ -104,12 +110,26 @@ __VLS_unwrap('authored');`;
     resolverId: "HelperNames.vue",
     checkerFileName: "HelperNames.vue",
     projectionFileName: "HelperNames.vue",
-    document: { code: original, uri: "untitled:HelperNames.vue", format: "vue" },
+    document: {
+      code: original,
+      uri: "untitled:HelperNames.vue",
+      format: "vue",
+    },
     projection: {
       code: generated,
-      syntax: { language: "ts", moduleKind: "module" },
-      map: { kind: "volar", mappings: [] },
-      converter: { name: "test", version: "1", optionsFingerprint: "1" },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
+      map: {
+        kind: "volar",
+        mappings: [],
+      },
+      converter: {
+        name: "test",
+        version: "1",
+        optionsFingerprint: "1",
+      },
       importRealms: [],
       editableRegions: [],
     },
@@ -122,7 +142,16 @@ __VLS_unwrap('authored');`;
       },
     ],
   };
-  const shadow = new CheckerSource(source, { source: generated, language: "ts" }, 0, [], new Map());
+  const shadow = new CheckerSource(
+    source,
+    {
+      source: generated,
+      language: "ts",
+    },
+    0,
+    [],
+    new Map(),
+  );
   expect(shadow.text).toContain(original);
   expect(shadow.text).toContain(
     "__stillwindCheckerHelper2(value, {} as import('vue').Ref<unknown>)",

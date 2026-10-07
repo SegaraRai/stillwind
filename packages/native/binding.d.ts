@@ -71,10 +71,13 @@ export declare class NativeEditorQuery {
   /** Returns -1, 0, or 1 in compiler order, or null if either candidate is unresolved. */
   compareCandidates(left: string, right: string): number | null
   /**
-   * Returns whether static base styles can change order without changing any cascaded property.
-   * Nested rules, custom properties, and unsupported declaration syntax retain their order.
+   * Returns ranks for full candidate spellings in input order, with null for unresolved inputs.
+   * Equal candidates share a rank. Ranks apply only to this batch.
+   *
+   * # Errors
+   * Returns malformed matching utility requirements or a rank that exceeds `u32`.
    */
-  canReorderStyles(left: string, right: string): boolean
+  candidateRanks(candidates: Array<string>): Array<number | undefined | null>
   /** Returns active theme values, keyed by their full custom-property names. */
   themeValues(): Record<string, string>
   /** Returns the authored spacing scale, or null when no scale is active. */

@@ -6,7 +6,7 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery};
-use stillwind_css::{CssRule, Declaration, color_rgba, format_css};
+use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, Reporter, SourceEdit, SourceRange,
@@ -182,36 +182,20 @@ impl NativeEditorQuery {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    /// Returns whether static base styles can change order without changing any cascaded property.
-    /// Nested rules, custom properties, and unsupported declaration syntax retain their order.
+    /// Returns ranks for full candidate spellings in input order, with null for unresolved inputs.
+    /// Equal candidates share a rank. Ranks apply only to this batch.
+    ///
+    /// # Errors
+    /// Returns malformed matching utility requirements or a rank that exceeds `u32`.
     #[napi]
-    #[allow(clippy::unused_self)] // CSS comparisons share the editor query transport.
-    pub fn can_reorder_styles(&self, left: String, right: String) -> bool {
-        let declarations = |css: &str| -> Option<Vec<Declaration>> {
-            CssRule::parse(css)
-                .ok()?
-                .into_iter()
-                .map(|rule| {
-                    let values = Declaration::parse(rule.body.as_deref()?)?;
-                    values
-                        .iter()
-                        .all(|value| !value.property.starts_with("--"))
-                        .then_some(values)
-                })
-                .collect::<Option<Vec<_>>>()
-                .map(|items| items.into_iter().flatten().collect())
-        };
-        let Some(left) = declarations(&left) else {
-            return false;
-        };
-        let Some(right) = declarations(&right) else {
-            return false;
-        };
-        !left.is_empty()
-            && !right.is_empty()
-            && left
-                .iter()
-                .all(|left| right.iter().all(|right| !left.interferes(right)))
+    pub fn candidate_ranks(&self, candidates: Vec<String>) -> napi::Result<Vec<Option<u32>>> {
+        self.query
+            .candidate_ranks(&candidates.iter().map(String::as_str).collect::<Vec<_>>())
+            .map_err(|error| Error::from_reason(error.to_string()))?
+            .into_iter()
+            .map(|rank| rank.map(u32::try_from).transpose())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| Error::from_reason("Too many candidates in one sorting batch"))
     }
 
     /// Returns active theme values, keyed by their full custom-property names.

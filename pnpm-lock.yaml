@@ -1944,6 +1944,9 @@ importers:
       '@stillwind/analysis':
         specifier: workspace:*
         version: link:../../packages/analysis
+      '@stillwind/host':
+        specifier: workspace:*
+        version: link:../../packages/host
       '@stillwind/language-server':
         specifier: workspace:*
         version: link:../../packages/language-server

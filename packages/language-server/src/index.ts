@@ -255,8 +255,8 @@ export function createLanguageServer(
     if (!document || shutdown || token.isCancellationRequested) {
       return [];
     }
-    const version = document.version,
-      revision = generation;
+    const version = document.version;
+    const revision = generation;
     const controller = new AbortController();
     const subscription = token.onCancellationRequested(() => controller.abort());
     const results: WorkspaceEditorResult[] = [];

@@ -3,8 +3,8 @@ import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { ModuleAnalysis } from "../compilation/compiler.ts";
-import { byteToUtf16 } from "../compilation/module-source.ts";
 import { projectionPoints } from "../semantics/checker-source.ts";
+import type { InputOrder } from "./input-order.ts";
 
 /** A literal in a compiler-recognized style input, with decoded-to-source boundaries. */
 export interface UtilityLiteral {
@@ -17,18 +17,20 @@ export interface UtilityLiteral {
   boundaries: number[];
 }
 
-/** A style input array whose elements can be classified without evaluating user code. */
-export interface StyleArray {
+/** An array, argument list, or object written directly in a style input. */
+export interface StyleInputContainer {
   source: PreparedSource;
-  node: ts.ArrayLiteralExpression;
-  /** Variants inherited from named groups around this array. */
-  prefix: string;
+  node: ts.ArrayLiteralExpression | ts.CallExpression | ts.ObjectLiteralExpression;
 }
 
-/** Native producer identities provide authority; the TypeScript binder supplies lexical aliases. */
+/**
+ * Indexes producer identities, lexical aliases, and sortable inputs in one source graph.
+ * Native producer identities provide authority; the TypeScript binder resolves aliases.
+ * The graph and its source buffers must remain unchanged while this index is used.
+ */
 export class SourceIndex {
   readonly literals: UtilityLiteral[] = [];
-  readonly arrays: StyleArray[] = [];
+  readonly containers: StyleInputContainer[] = [];
   readonly files = new Map<
     string,
     {
@@ -37,7 +39,9 @@ export class SourceIndex {
     }
   >();
 
-  readonly #assets = new Map<string, NativeAssetRecord[]>();
+  /** Original UTF-16 call ranges identify the producers in each module. */
+  readonly #assets = new Map<string, Map<string, NativeAssetRecord>>();
+  readonly #nodeAssets = new WeakMap<ts.Node, NativeAssetRecord | undefined>();
   readonly #points = new Map<string, Map<number, number | null>>();
   readonly #checker: ts.TypeChecker;
   readonly #mutated = new Set<ts.Symbol>();
@@ -53,10 +57,16 @@ export class SourceIndex {
         true,
         ts.ScriptKind.TSX,
       );
-      this.files.set(fileName, { source, ast });
+      this.files.set(fileName, {
+        source,
+        ast,
+      });
       this.#points.set(source.moduleId, projectionPoints(source));
       const scan = session.scanSource(source);
-      this.#assets.set(source.moduleId, scan.kind === "ready" ? scan.summary.assets : []);
+      this.#assets.set(
+        source.moduleId,
+        assetRanges(source.document.code, scan.kind === "ready" ? scan.summary.assets : []),
+      );
     }
 
     const host: ts.CompilerHost = {
@@ -129,11 +139,17 @@ export class SourceIndex {
 
     for (const { source, ast } of this.files.values()) {
       walk(ast, (node) => {
-        if (
-          ts.isCallExpression(node) &&
-          (this.asset(source, node)?.identity.kind === "style" ||
-            this.#styleImport(node.expression))
-        ) {
+        if (!ts.isCallExpression(node)) {
+          return;
+        }
+        const asset = this.asset(source, node);
+        if (asset?.identity.kind === "style" || this.#styleImport(node.expression)) {
+          if (node.arguments.length > 1) {
+            this.containers.push({
+              source,
+              node,
+            });
+          }
           for (const argument of node.arguments) {
             this.#input(source, argument);
           }
@@ -172,39 +188,100 @@ export class SourceIndex {
     });
   }
 
-  pureBase(asset: NativeAssetRecord): boolean {
-    return this.baseCandidates(asset) !== undefined;
-  }
-
-  /** Returns static candidates for a base without attributes, conditions, or composed expressions. */
-  baseCandidates(asset: NativeAssetRecord): string[] | undefined {
-    const file = [...this.files.values()].find(
-      ({ source }) => source.moduleId === asset.identity.moduleId,
-    );
-    if (!file) {
-      return undefined;
+  /** Classifies direct input syntax and bound identities without reading base bodies or CSS. */
+  inputOrder(source: PreparedSource, node: ts.Node): InputOrder {
+    if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+      if (ts.isComputedPropertyName(node.name)) {
+        return {
+          kind: "barrier",
+        };
+      }
+      const name = ts.isStringLiteralLike(node.name) ? node.name.text : node.name.getText();
+      if (name.startsWith("--")) {
+        return {
+          kind: "customProperties",
+        };
+      }
+      if (!name.endsWith(":") && /^(?:aria|data)-/.test(name)) {
+        return {
+          kind: "attributes",
+          name,
+        };
+      }
+      return name.endsWith(":") || name === "class"
+        ? {
+            kind: "utilities",
+          }
+        : {
+            kind: "barrier",
+          };
     }
-    let call: ts.CallExpression | undefined;
-    walk(file.ast, (node) => {
-      if (ts.isCallExpression(node) && this.asset(file.source, node) === asset) {
-        call = node;
+    if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node)) {
+      return {
+        kind: "utilities",
+      };
+    }
+    const asset = this.asset(source, node);
+    if (asset?.identity.kind === "style") {
+      return {
+        kind: "bases",
+      };
+    }
+    if (asset?.identity.kind === "ref") {
+      return {
+        kind: "ref",
+        identity: JSON.stringify(asset.identity),
+        projection: false,
+      };
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ["asAnchor", "asContainer", "positionAnchor"].includes(node.expression.name.text)
+    ) {
+      const ref = this.asset(source, node.expression.expression);
+      if (ref?.identity.kind === "ref") {
+        return {
+          kind: "ref",
+          identity: JSON.stringify(ref.identity),
+          projection: true,
+        };
       }
-    });
-    const tokens: string[] = [];
-    const collect = (node: ts.Node): boolean => {
-      if (ts.isStringLiteralLike(node)) {
-        tokens.push(...node.text.trim().split(/\s+/).filter(Boolean));
-        return true;
+    }
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node) ||
+      ts.isNonNullExpression(node)
+    ) {
+      return this.inputOrder(source, node.expression);
+    }
+    if (ts.isArrayLiteralExpression(node) || ts.isObjectLiteralExpression(node)) {
+      const elements = ts.isArrayLiteralExpression(node) ? node.elements : node.properties;
+      const orders = elements.map((element) => this.inputOrder(source, element));
+      const first = orders[0];
+      if (
+        first &&
+        first.kind !== "barrier" &&
+        first.kind !== "ref" &&
+        orders.every((order) => order.kind === first.kind)
+      ) {
+        return first.kind === "attributes"
+          ? {
+              kind: "attributes",
+            }
+          : first;
       }
-      return ts.isArrayLiteralExpression(node) && node.elements.every(collect);
+    }
+    return {
+      kind: "barrier",
     };
-    return call?.arguments.every(collect) ? tokens : undefined;
   }
 
   range(source: PreparedSource, node: ts.Node): [number, number] | undefined {
     const ast = node.getSourceFile();
-    const start = node.getStart(ast),
-      end = node.end;
+    const start = node.getStart(ast);
+    const end = node.end;
     if (source.kind === "direct") {
       return [start, end];
     }
@@ -230,20 +307,21 @@ export class SourceIndex {
     return undefined;
   }
 
-  asset(
+  asset(source: PreparedSource, node: ts.Node): NativeAssetRecord | undefined {
+    if (!this.#nodeAssets.has(node)) {
+      this.#nodeAssets.set(node, this.#resolveAsset(source, node, new Set()));
+    }
+    return this.#nodeAssets.get(node);
+  }
+
+  #resolveAsset(
     source: PreparedSource,
     node: ts.Node,
-    seen = new Set<ts.Symbol>(),
+    seen: Set<ts.Symbol>,
   ): NativeAssetRecord | undefined {
     const range = this.range(source, node);
     if (range) {
-      const found = this.#assets
-        .get(source.moduleId)
-        ?.find(
-          (asset) =>
-            byteToUtf16(source.document.code, asset.callStart) === range[0] &&
-            byteToUtf16(source.document.code, asset.callEnd) === range[1],
-        );
+      const found = this.#assets.get(source.moduleId)?.get(`${range[0]}:${range[1]}`);
       if (found) {
         return found;
       }
@@ -254,7 +332,7 @@ export class SourceIndex {
       ts.isSatisfiesExpression(node) ||
       ts.isNonNullExpression(node)
     ) {
-      return this.asset(source, node.expression, seen);
+      return this.#resolveAsset(source, node.expression, seen);
     }
     let symbol = this.#checker.getSymbolAtLocation(node);
     if (!symbol || this.#mutated.has(symbol) || seen.has(symbol)) {
@@ -271,7 +349,7 @@ export class SourceIndex {
     const declaration = symbol.valueDeclaration;
     if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
       const owner = this.files.get(declaration.getSourceFile().fileName)?.source;
-      return owner ? this.asset(owner, declaration.initializer, seen) : undefined;
+      return owner ? this.#resolveAsset(owner, declaration.initializer, seen) : undefined;
     }
     return undefined;
   }
@@ -304,7 +382,10 @@ export class SourceIndex {
         this.#literal(source, span.literal, prefix);
       }
     } else if (ts.isArrayLiteralExpression(node)) {
-      this.arrays.push({ source, node, prefix });
+      this.containers.push({
+        source,
+        node,
+      });
       for (const element of node.elements) {
         this.#input(source, element, prefix);
       }
@@ -327,6 +408,10 @@ export class SourceIndex {
     ) {
       this.#input(source, node.expression, prefix);
     } else if (ts.isObjectLiteralExpression(node)) {
+      this.containers.push({
+        source,
+        node,
+      });
       for (const property of node.properties) {
         if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
           continue;
@@ -368,6 +453,36 @@ export class SourceIndex {
   }
 }
 
+/** Converts native call boundaries in one source traversal. Invalid UTF-8 boundaries throw. */
+function assetRanges(
+  text: string,
+  assets: readonly NativeAssetRecord[],
+): Map<string, NativeAssetRecord> {
+  const offsets = [...new Set(assets.flatMap((asset) => [asset.callStart, asset.callEnd]))].sort(
+    (a, b) => a - b,
+  );
+  const positions = new Map<number, number>();
+  let byte = 0;
+  let utf16 = 0;
+  for (const offset of offsets) {
+    while (byte < offset && utf16 < text.length) {
+      const point = text.codePointAt(utf16)!;
+      byte += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+      utf16 += point > 0xffff ? 2 : 1;
+    }
+    if (byte !== offset) {
+      throw new Error("Invalid original UTF-8 boundary");
+    }
+    positions.set(offset, utf16);
+  }
+  return new Map(
+    assets.map((asset) => [
+      `${positions.get(asset.callStart)}:${positions.get(asset.callEnd)}`,
+      asset,
+    ]),
+  );
+}
+
 function checkerName(name: string): string {
   return name.replaceAll("\\", "/");
 }
@@ -381,7 +496,12 @@ export function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
 function decodeLiteral(
   raw: string,
   start: number,
-): { text: string; boundaries: number[] } | undefined {
+):
+  | {
+      text: string;
+      boundaries: number[];
+    }
+  | undefined {
   let text = "";
   const boundaries = [start];
   for (let index = 0; index < raw.length;) {

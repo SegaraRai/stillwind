@@ -70,8 +70,8 @@ describe("shared topology", () => {
   });
 
   test("a dangling interior segment does not destroy the containing face", () => {
-    const d = square(),
-      p = addPoint(d, { x: 100, y: 100 }, 4.5);
+    const d = square();
+    const p = addPoint(d, { x: 100, y: 100 }, 4.5);
     connect(d, 1, p.id);
     expect(faces(d)).toHaveLength(1);
     expect(totalArea(d)).toBeCloseTo(176 * 176);
@@ -89,8 +89,8 @@ describe("shared topology", () => {
   });
 
   test("splitting a painted face transfers its paint to the new faces", () => {
-    const d = square(),
-      before = faces(d);
+    const d = square();
+    const before = faces(d);
     d.paints[before[0].key] = { color: "#123456", visible: false };
     const paint = structuredClone(d.paints);
     connect(d, 1, 3);
@@ -214,8 +214,8 @@ describe("arbitrary polygon fills", () => {
     [0, 100],
   ];
   test("concave polygons keep their color and inset with the same perpendicular gap", () => {
-    const points = polygon(lShape),
-      regions = insetRegions(points);
+    const points = polygon(lShape);
+    const regions = insetRegions(points);
     expect(regions).toHaveLength(1);
     expect(area(regions[0][0])).toBeCloseTo(5616);
     const d: Drawing = {
@@ -310,8 +310,8 @@ describe("whole drawing transformations", () => {
       for (const f of faces(d)) {
         expect(d.paints[f.key]).toEqual(paints.get(signature(f.ids)));
       }
-      const original = before.points[1],
-        actual = d.points[1];
+      const original = before.points[1];
+      const actual = d.points[1];
       const expected =
         operation === "clockwise"
           ? { x: 480 - original.y, y: original.x }

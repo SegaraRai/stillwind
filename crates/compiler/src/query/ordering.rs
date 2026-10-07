@@ -1,21 +1,23 @@
-//! Candidate comparisons use the compiler's utility and variant order.
+//! Candidate ordering reuses prepared keys for comparisons and relative ranks.
 
+use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use stillwind_design_system::{UtilityResolutionError, compare_variant_sequences, resolve_variant};
+use stillwind_design_system::{
+    ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, resolve_variant,
+};
 
 use super::DesignSystemQuery;
 use crate::candidate::CandidateResolver;
 
 impl DesignSystemQuery {
-    /// Compares two valid candidates using the compiler's variant and utility order.
-    ///
-    /// Returns `None` if either utility or any of its variants cannot be resolved.
-    /// Callers decide how to preserve unresolved text and expression boundaries;
-    /// this comparison does not rewrite source or normalize candidate spelling.
+    /// Compares candidates using the compiler's variant and utility order.
+    /// Returns `None` if either candidate cannot resolve. Each valid candidate's key
+    /// and each unresolved spelling are retained for this immutable query.
     ///
     /// # Errors
-    ///
     /// Returns a malformed requirement from a matching utility definition.
     pub fn compare_candidates(
         &self,
@@ -23,33 +25,95 @@ impl DesignSystemQuery {
         right: &str,
     ) -> Result<Option<Ordering>, UtilityResolutionError> {
         let theme = self.context.design_system.theme();
-        let resolve = |raw| {
-            Ok(CandidateResolver::resolve(raw, theme)?.filter(|resolved| {
+        let Some(left_key) = self.ordering.key(left, theme)? else {
+            return Ok(None);
+        };
+        let Some(right_key) = self.ordering.key(right, theme)? else {
+            return Ok(None);
+        };
+        Ok(Some(left_key.compare(left, &right_key, right)))
+    }
+
+    /// Assigns relative ranks to `candidates` using one batch of prepared keys.
+    /// Output positions match the input. Unresolved candidates return `None`, and
+    /// candidates with equal ordering keys and spellings share a rank. Ranks apply
+    /// only to this batch and cannot be compared with ranks from another call.
+    ///
+    /// # Errors
+    /// Returns the first malformed matching utility requirement in input order.
+    pub fn candidate_ranks(
+        &self,
+        candidates: &[&str],
+    ) -> Result<Vec<Option<usize>>, UtilityResolutionError> {
+        let theme = self.context.design_system.theme();
+        let mut valid = Vec::new();
+        for (index, raw) in candidates.iter().enumerate() {
+            if let Some(key) = self.ordering.key(raw, theme)? {
+                valid.push((index, *raw, key));
+            }
+        }
+        valid.sort_by(|(_, left, a), (_, right, b)| a.compare(left, b, right));
+        let mut ranks = vec![None; candidates.len()];
+        let mut rank = 0;
+        for (position, (index, raw, key)) in valid.iter().enumerate() {
+            if position > 0 {
+                let (_, previous, previous_key) = &valid[position - 1];
+                if previous_key.compare(previous, key, raw) != Ordering::Equal {
+                    rank += 1;
+                }
+            }
+            ranks[*index] = Some(rank);
+        }
+        Ok(ranks)
+    }
+}
+
+/// Retains candidate keys without holding another reference to their owning snapshot.
+#[derive(Clone, Debug, Default)]
+pub(super) struct CandidateOrdering {
+    keys: RefCell<HashMap<String, Option<Arc<CandidateOrder>>>>,
+}
+
+impl CandidateOrdering {
+    fn key(
+        &self,
+        raw: &str,
+        theme: &ThemeIndex,
+    ) -> Result<Option<Arc<CandidateOrder>>, UtilityResolutionError> {
+        if let Some(key) = self.keys.borrow().get(raw) {
+            return Ok(key.clone());
+        }
+        let key = CandidateResolver::resolve(raw, theme)?
+            .filter(|resolved| {
                 resolved
                     .candidate
                     .variants
                     .iter()
                     .all(|variant| resolve_variant(variant, theme).is_some())
-            }))
-        };
-        let Some(left_resolved) = resolve(left)? else {
-            return Ok(None);
-        };
-        let Some(right_resolved) = resolve(right)? else {
-            return Ok(None);
-        };
-        Ok(Some(
-            compare_variant_sequences(
-                &left_resolved.candidate.variants,
-                &right_resolved.candidate.variants,
-                theme,
-            )
-            .then_with(|| {
-                left_resolved
-                    .order
-                    .compare(left, &right_resolved.order, right)
-            }),
-        ))
+            })
+            .map(|resolved| {
+                Arc::new(CandidateOrder {
+                    variants: VariantSequenceOrder::new(&resolved.candidate.variants, theme),
+                    utility: resolved.order,
+                })
+            });
+        self.keys.borrow_mut().insert(raw.to_owned(), key.clone());
+        Ok(key)
+    }
+}
+
+/// Holds the resolved metadata needed to compare one candidate.
+#[derive(Debug)]
+struct CandidateOrder {
+    variants: VariantSequenceOrder,
+    utility: UtilityOrder,
+}
+
+impl CandidateOrder {
+    fn compare(&self, left: &str, other: &Self, right: &str) -> Ordering {
+        self.variants
+            .compare(&other.variants)
+            .then_with(|| self.utility.compare(left, &other.utility, right))
     }
 }
 
@@ -170,5 +234,16 @@ mod tests {
             query.compare_candidates("a", "unknown-utility").unwrap(),
             None
         );
+        let values = ["hover:b", "a", "b", "a", "unknown:a", "unknown-utility"];
+        let ranks = query.candidate_ranks(&values).unwrap();
+        assert_eq!(ranks, [Some(2), Some(0), Some(1), Some(0), None, None]);
+        for (left, a) in values.iter().enumerate() {
+            for (right, b) in values.iter().enumerate() {
+                assert_eq!(
+                    ranks[left].zip(ranks[right]).map(|(a, b)| a.cmp(&b)),
+                    query.compare_candidates(a, b).unwrap()
+                );
+            }
+        }
     }
 }

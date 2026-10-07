@@ -29,6 +29,7 @@ pub use resolution::{CandidateHover, CandidateResolution};
 
 use canonical::CanonicalIndex;
 use context::QueryContext;
+use ordering::CandidateOrdering;
 
 /// Answers candidate questions against one immutable snapshot.
 ///
@@ -39,6 +40,7 @@ pub struct DesignSystemQuery {
     context: QueryContext,
     canonical_index: Arc<CanonicalIndex>,
     canonical_cache: RefCell<BTreeMap<String, Option<String>>>,
+    ordering: CandidateOrdering,
 }
 
 impl DesignSystemQuery {
@@ -54,6 +56,7 @@ impl DesignSystemQuery {
             context,
             canonical_index,
             canonical_cache: RefCell::new(BTreeMap::new()),
+            ordering: CandidateOrdering::default(),
         }
     }
 

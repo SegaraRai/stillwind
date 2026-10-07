@@ -184,15 +184,15 @@ export class EditorSnapshot {
               this.#candidates,
               this.#sort,
               seed,
-              (start, end) =>
-                request.kind === "sort" ||
-                !this.#query.lintSuppressed(
-                  source.document.code,
-                  bytes(source.document.code, start),
-                  bytes(source.document.code, end),
-                  "sort-utilities",
-                ),
-              (asset) => this.#baseEffects(asset),
+              request.kind === "sort"
+                ? undefined
+                : (start, end) =>
+                    !this.#query.lintSuppressed(
+                      source.document.code,
+                      bytes(source.document.code, start),
+                      bytes(source.document.code, end),
+                      "sort-utilities",
+                    ),
             )
           : seed;
       return result;
@@ -306,8 +306,8 @@ export class EditorSnapshot {
       return result;
     }
 
-    const start = token?.start ?? request.offset,
-      end = token?.end ?? request.offset;
+    const start = token?.start ?? request.offset;
+    const end = token?.end ?? request.offset;
     const decoded = literal.boundaries.findIndex((position) => position >= request.offset);
     const decodedStart = literal.boundaries.indexOf(start);
     const prefix = literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded));
@@ -338,9 +338,7 @@ export class EditorSnapshot {
     const edits =
       this.#sortSeverity === "off"
         ? []
-        : sortSource(source, this.#index, this.#candidates, this.#sort, [], undefined, (asset) =>
-            this.#baseEffects(asset),
-          );
+        : sortSource(source, this.#index, this.#candidates, this.#sort);
     const reports = this.#query.reportSortEdits(
       source.document.uri,
       source.document.code,
@@ -351,12 +349,6 @@ export class EditorSnapshot {
       })),
     );
     this.#reports.set(source.moduleId, reports);
-  }
-
-  #baseEffects(asset: NonNullable<ReturnType<SourceIndex["asset"]>>): string {
-    const tokens = this.#index.baseCandidates(asset);
-    const css = tokens?.map((token) => this.#candidates.preview(token));
-    return css?.every((value) => value !== null) ? css.join("\n") : "";
   }
 }
 

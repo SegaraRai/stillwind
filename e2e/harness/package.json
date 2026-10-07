@@ -24,6 +24,7 @@
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/analysis": "workspace:*",
+    "@stillwind/host": "workspace:*",
     "@stillwind/language-server": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",

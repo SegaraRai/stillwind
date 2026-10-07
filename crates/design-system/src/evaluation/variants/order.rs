@@ -12,6 +12,7 @@
 //! deterministic.
 
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_syntax::{Variant, VariantKind};
@@ -303,6 +304,89 @@ pub fn compare_variant_sequences(
     })
 }
 
+/// Prepared registry positions and theme values for a variant stack in one snapshot.
+/// Keys can be compared repeatedly without consulting the theme. Callers must prepare
+/// both keys from the same theme revision.
+#[derive(Clone, Debug)]
+pub struct VariantSequenceOrder {
+    /// Groups appear in descending registry order; each retains its first source variant.
+    groups: Vec<(usize, VariantGroupOrder)>,
+}
+
+impl VariantSequenceOrder {
+    /// Resolves ordering metadata for `variants` against immutable `theme`.
+    /// Repeated positions use the first variant, matching [`compare_variant_sequences`].
+    #[must_use]
+    pub fn new(variants: &[Variant], theme: &ThemeIndex) -> Self {
+        let mut groups = BTreeMap::new();
+        for variant in variants {
+            groups
+                .entry(variant_order(variant, theme))
+                .or_insert_with(|| VariantGroupOrder::new(variant, theme));
+        }
+        Self {
+            groups: groups.into_iter().rev().collect(),
+        }
+    }
+
+    /// Compares this key with `other`, which must use the same theme revision.
+    #[must_use]
+    pub fn compare(&self, other: &Self) -> Ordering {
+        self.groups
+            .iter()
+            .map(|(position, _)| position)
+            .cmp(other.groups.iter().map(|(position, _)| position))
+            .then_with(|| {
+                self.groups
+                    .iter()
+                    .zip(&other.groups)
+                    .map(|((_, left), (_, right))| left.compare(right))
+                    .find(|order| *order != Ordering::Equal)
+                    .unwrap_or(Ordering::Equal)
+            })
+    }
+}
+
+/// Stores the resolved inputs for a tie within one registry group.
+#[derive(Clone, Debug)]
+struct VariantGroupOrder {
+    /// Fallback spelling for groups without comparable sort values.
+    raw: String,
+    inner: Option<Box<VariantSequenceOrder>>,
+    direction: Option<BuiltinVariantSortDirection>,
+    /// Theme token text or a decoded arbitrary capture.
+    value: Option<String>,
+}
+
+impl VariantGroupOrder {
+    fn new(variant: &Variant, theme: &ThemeIndex) -> Self {
+        Self {
+            raw: variant.raw.clone(),
+            inner: compound_inner_variant(variant, theme)
+                .map(|inner| Box::new(VariantSequenceOrder::new(&[inner], theme))),
+            direction: builtin_variant_for_order(variant, theme)
+                .and_then(|definition| definition.sort.as_ref())
+                .and_then(|sort| sort.direction),
+            value: variant_sort_value(variant, theme),
+        }
+    }
+
+    fn compare(&self, other: &Self) -> Ordering {
+        if let (Some(left), Some(right)) = (&self.inner, &other.inner) {
+            let order = left.compare(right);
+            if order != Ordering::Equal {
+                return order;
+            }
+        }
+        if let Some(direction) = self.direction
+            && let (Some(left), Some(right)) = (&self.value, &other.value)
+        {
+            return compare_sort_values(left, right, direction).then_with(|| left.cmp(right));
+        }
+        self.raw.cmp(&other.raw)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -398,6 +482,62 @@ mod tests {
         assert_eq!(compare_variant_sequences(&[], &[], &theme), Ordering::Equal);
     }
 
+    #[test]
+    fn prepared_keys_preserve_numeric_compound_and_repeated_group_comparisons() {
+        let theme = ThemeBuilder {
+            registry: Arc::new(BuiltinDefinitions::from_css(
+                "@stillwind-theme-namespace --breakpoint-* [length];
+                @stillwind-variant hover { &:hover { @slot; } }
+                @stillwind-variant focus { &:focus { @slot; } }
+                @stillwind-variant min-* (sort: --breakpoint-*, direction: asc) { @media (width >= --value(--breakpoint-*, [length])) { @slot; } }
+                @stillwind-variant max-* (sort: --breakpoint-*, direction: desc) { @media (width < --value(--breakpoint-*, [length])) { @slot; } }
+                @stillwind-variant group-* (value: [variant]) { &:is(:where(.group):--value() *) { @slot; } }",
+            )),
+            ..Default::default()
+        }.finish();
+        let key = |raw| VariantSequenceOrder::new(&parse_candidate(raw).unwrap().variants, &theme);
+        assert_eq!(
+            key("min-[2px]:flex").compare(&key("min-[10px]:flex")),
+            Ordering::Less
+        );
+        assert_eq!(
+            key("max-[2px]:flex").compare(&key("max-[10px]:flex")),
+            Ordering::Greater
+        );
+        assert_eq!(
+            key("min-[1rem]:flex").compare(&key("min-[2px]:flex")),
+            Ordering::Greater
+        );
+        let values = [
+            "flex",
+            "hover:flex",
+            "focus:hover:flex",
+            "hover:focus:flex",
+            "hover:hover:flex",
+            "min-[10px]:flex",
+            "min-[2px]:flex",
+            "min-[1rem]:flex",
+            "max-[2px]:flex",
+            "max-[10px]:flex",
+            "group-hover:flex",
+            "group-focus:flex",
+            "group-group-hover:flex",
+            "unknown:flex",
+        ];
+        for left in values {
+            for right in values {
+                let a = parse_candidate(left).unwrap().variants;
+                let b = parse_candidate(right).unwrap().variants;
+                assert_eq!(
+                    VariantSequenceOrder::new(&a, &theme)
+                        .compare(&VariantSequenceOrder::new(&b, &theme)),
+                    compare_variant_sequences(&a, &b, &theme),
+                    "{left} vs {right}"
+                );
+            }
+        }
+    }
+
     proptest::proptest! {
         #[test]
         fn same_unit_numeric_comparison_is_antisymmetric(a in 0u16..1000, b in 0u16..1000) {
@@ -476,6 +616,9 @@ mod sequence_property_tests {
                     .collect::<Vec<_>>()
             };
             let (a, b, c) = (stack(&left), stack(&middle), stack(&right));
+            let prepared_a = VariantSequenceOrder::new(&a, &theme);
+            let prepared_b = VariantSequenceOrder::new(&b, &theme);
+            proptest::prop_assert_eq!(prepared_a.compare(&prepared_b), compare_variant_sequences(&a, &b, &theme));
             let ab = compare_variant_sequences(&a, &b, &theme);
             let ba = compare_variant_sequences(&b, &a, &theme);
             proptest::prop_assert_eq!(compare_variant_sequences(&a, &a, &theme), Ordering::Equal);

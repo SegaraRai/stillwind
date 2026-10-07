@@ -63,10 +63,10 @@ function entryPositions(sourceMap: CssLocations) {
     groups[entry.source].push(entry);
   }
   sourceMap.sources.forEach(({ content }, source) => {
-    let byte = 0,
-      offset = 0,
-      line = 0,
-      column = 0;
+    let byte = 0;
+    let offset = 0;
+    let line = 0;
+    let column = 0;
     const entries = groups[source].sort((a, b) => a.originalStart - b.originalStart);
     for (const entry of entries) {
       while (byte < entry.originalStart) {
@@ -80,10 +80,10 @@ function entryPositions(sourceMap: CssLocations) {
           column += char.length;
         }
       }
-      let cursorByte = byte,
-        cursorOffset = offset,
-        cursorLine = line,
-        cursorColumn = column;
+      let cursorByte = byte;
+      let cursorOffset = offset;
+      let cursorLine = line;
+      let cursorColumn = column;
       result.set(entry, {
         at(target) {
           while (cursorByte < target) {
@@ -120,11 +120,11 @@ export function cssWithSourceMap(
   const names = sourceMap.sources.map(({ sourceMapSource }) => sourceMapSource);
   const map = new GenMapping();
   names.forEach((name, index) => setSourceContent(map, name, sourceMap.sources[index].content));
-  let result = "",
-    byte = 0,
-    line = 0,
-    column = 0,
-    entryIndex = 0;
+  let result = "";
+  let byte = 0;
+  let line = 0;
+  let column = 0;
+  let entryIndex = 0;
   const entries = [...sourceMap.entries].sort((a, b) => a.generatedStart - b.generatedStart);
   const keys = [...replacements.keys()];
   const compilerKeys = keys.every((key) =>

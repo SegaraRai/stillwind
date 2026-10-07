@@ -27,9 +27,9 @@ pub use utilities::{
     UtilityPropertySort, UtilityResolutionError, resolve_animation_option, resolve_utility,
 };
 pub use variants::{
-    VariantApplication, VariantDeclaration, compare_variant_sequences, compatibility_marker_class,
-    document_scoped_selector, is_condition_variant, is_tailwind_relationship_candidate,
-    resolve_variant,
+    VariantApplication, VariantDeclaration, VariantSequenceOrder, compare_variant_sequences,
+    compatibility_marker_class, document_scoped_selector, is_condition_variant,
+    is_tailwind_relationship_candidate, resolve_variant,
 };
 
 pub(crate) use programs::UtilityPrograms;

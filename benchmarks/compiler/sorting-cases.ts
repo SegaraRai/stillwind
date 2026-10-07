@@ -1,13 +1,7 @@
 import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
-import {
-  NativeDesignSystemLoader,
-  NativeProjectSession,
-  type NativeAssetRecord,
-} from "@stillwind/native";
+import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
 import { analyzeModule } from "../../packages/host/src/compilation/compiler.ts";
-import type { CandidateQueries } from "../../packages/host/src/editor/candidates.ts";
-import type { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
 
 const css = resolveFixtureCss('@import "stillwind"; @theme { --color-brand:red; }');
 
@@ -48,14 +42,4 @@ export async function prepareSortingSource(loader: NativeDesignSystemLoader, bod
     warn: () => {},
   });
   return { entry, source, session, graph };
-}
-
-/** Returns joined previews for `asset`'s static candidates, or empty CSS when a candidate is unresolved. */
-export function baseStyleCss(
-  index: SourceIndex,
-  candidates: CandidateQueries,
-  asset: NativeAssetRecord,
-): string {
-  const values = index.baseCandidates(asset)?.map((token) => candidates.preview(token));
-  return values?.every((value) => value !== null) ? values.join("\n") : "";
 }

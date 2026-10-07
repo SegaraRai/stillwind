@@ -7,7 +7,8 @@ import { CandidateQueries } from "../../packages/host/src/editor/candidates.ts";
 import { EditorSnapshot, type EditorEdit } from "../../packages/host/src/editor/snapshot.ts";
 import { applyEdits, sortSource } from "../../packages/host/src/editor/sort.ts";
 import { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
-import { baseStyleCss, loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
+import { assertBudget, budgets } from "../performance/budgets.ts";
+import { loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
 
 const repeated: BenchRunOptions = { iterations: 9, time: 0, warmupIterations: 2, warmupTime: 0 };
 const stress: BenchRunOptions = { ...repeated, iterations: 3, warmupIterations: 1 };
@@ -28,7 +29,8 @@ for (const mode of ["authored", "tailwind"] as const) {
     ["self", "hover:p-4", "hover:p-4", 0],
     ["unresolved", "external-class", "p-4", null],
   ] as const) {
-    test(`sorting/${mode}/compare-256/${name}`, async ({ bench, task }) => {
+    test(`sorting/${mode}/compare-256/${name}`, async (context) => {
+      const { bench, task } = context;
       const baseline = query.compareCandidates(left, right);
       if (name !== "variant-stack") {
         expect(baseline).toBe(expected);
@@ -38,13 +40,19 @@ for (const mode of ["authored", "tailwind"] as const) {
       let answer: number | null;
       task.meta.measurement = repeated;
       task.meta.notes =
-        "256 comparisons; divide batch latency by 256 for one comparison. The production comparator has no candidate-result cache.";
-      await bench("compare-batch", { async: false }, () => {
+        "256 comparisons; divide batch latency by 256 for one comparison. Prepared candidate keys are retained by this immutable query.";
+      const results = await bench("compare-batch", { async: false }, () => {
         for (let i = 0; i < 256; i++) {
           answer = query.compareCandidates(left, right);
         }
       }).run(repeated);
       expect(answer!).toBe(baseline);
+      await assertBudget(
+        context,
+        "256 cached candidate comparisons",
+        results,
+        budgets.sorting.cachedComparisonBatch,
+      );
     });
   }
 
@@ -70,7 +78,7 @@ for (const mode of ["authored", "tailwind"] as const) {
           loader,
           `const value=style(${body});`,
           shape,
-          order !== "sorted",
+          shape === "string" && order !== "sorted",
         );
       }
     }
@@ -91,7 +99,7 @@ for (const mode of ["authored", "tailwind"] as const) {
       loader,
       `const value=style(${body});`,
       shape,
-      true,
+      shape === "string",
     );
   }
 
@@ -107,57 +115,102 @@ for (const mode of ["authored", "tailwind"] as const) {
     stress,
   );
 
+  for (const count of [10, 100, 1000]) {
+    const declarations = 'const base=style({"hover:":"p-4"}); const ref=style.ref();';
+    const groups = Array.from(
+      { length: Math.ceil(count / 6) },
+      (_, i) => `{"data-value":${i}},{"--value":${i}},"p-${i + 1}",base,ref.asContainer(),ref`,
+    );
+    registerSource(
+      `${mode}/array/mixed/${count}`,
+      loader,
+      `${declarations} const value=style([${groups.join(",")}]);`,
+      "array",
+      true,
+      count === 1000 ? stress : repeated,
+    );
+  }
+  for (const count of [10, 100, 1000]) {
+    const values = Array.from({ length: count }, (_, i) => `md:hover:p-${i + 1}`);
+    for (const reuse of ["fresh", "repeated"] as const) {
+      test(`sorting/${mode}/ranks/${count}/${reuse}`, async (context) => {
+        const { bench, task } = context;
+        let current = loader.editorQuery();
+        const expected = current.candidateRanks(values);
+        let result: ReturnType<typeof current.candidateRanks>;
+        task.meta.measurement = repeated;
+        task.meta.notes =
+          "Batch resolves and sorts numeric candidate ranks; query creation is outside the timer.";
+        const results = await bench(
+          "candidate-ranks",
+          {
+            async: false,
+            beforeEach: () => {
+              if (reuse === "fresh") {
+                current = loader.editorQuery();
+              }
+            },
+          },
+          () => {
+            result = current.candidateRanks(values);
+          },
+        ).run(repeated);
+        expect(result!).toEqual(expected);
+        await assertBudget(
+          context,
+          "candidate ranks",
+          results,
+          count <= 100 ? budgets.sorting.ranks100 : budgets.sorting.ranks1000,
+        );
+      });
+    }
+  }
+
+  for (const count of [100, 1000]) {
+    const names = Array.from(
+      { length: count },
+      (_, i) => `data-${String(i).padStart(4, "0")}`,
+    ).reverse();
+    registerSource(
+      `${mode}/object/attributes/${count}`,
+      loader,
+      `const value=style({${names.map((name) => `${JSON.stringify(name)}:1`).join(",")}});`,
+      "array",
+      true,
+      count === 1000 ? stress : repeated,
+      true,
+    );
+  }
+
   if (mode === "authored") {
-    const properties = independentProperties(query, 100);
+    const properties = publishedProperties(100);
     for (const count of [10, 30, 100]) {
-      for (const kind of ["refs", "bases-disjoint", "bases-conflicting"] as const) {
+      for (const kind of ["refs", "bases-distinct-properties", "bases-shared-property"] as const) {
         const names = Array.from({ length: count }, (_, i) => `item${String(i).padStart(4, "0")}`);
         const declarations = names
           .map(
             (name, i) =>
-              `const ${name}=${kind === "refs" ? "style.ref()" : `style(${JSON.stringify(kind === "bases-disjoint" ? `[${properties[i]}:initial]` : `p-${i + 1}`)})`};`,
+              `const ${name}=${kind === "refs" ? "style.ref()" : `style(${JSON.stringify(kind === "bases-distinct-properties" ? `[${properties[i]}:initial]` : `p-${i + 1}`)})`};`,
           )
           .join("\n");
         const source = `${declarations}\nconst value=style([${[...names].reverse().join(",")}]);`;
-        registerSource(
-          `${mode}/array/${kind}/${count}`,
-          loader,
-          source,
-          "array",
-          kind !== "bases-conflicting",
-        );
+        registerSource(`${mode}/array/${kind}/${count}`, loader, source, "array", false);
       }
     }
   }
 }
 
-/**
- * Selects `count` published properties whose declarations pass `query`'s safety check
- * against every previously selected property. Throws when too few properties qualify.
- */
-function independentProperties(
-  query: ReturnType<NativeDesignSystemLoader["editorQuery"]>,
-  count: number,
-): string[] {
+/** Returns `count` distinct published properties for inputs with different base bodies. */
+function publishedProperties(count: number): string[] {
   const definitions = readFileSync(
     new URL("../../crates/css/assets/webref-properties.rs", import.meta.url),
     "utf8",
   );
-  const selected: string[] = [];
-  for (const match of definitions.matchAll(/name: "([a-z][a-z-]*)"/gu)) {
-    const property = match[1];
-    if (
-      selected.every((other) =>
-        query.canReorderStyles(`&{${property}:initial;}`, `&{${other}:initial;}`),
-      )
-    ) {
-      selected.push(property);
-      if (selected.length === count) {
-        return selected;
-      }
-    }
-  }
-  throw new Error(`Only ${selected.length} independent CSS properties were found`);
+  const properties = [
+    ...new Set([...definitions.matchAll(/name: "([a-z][a-z-]*)"/gu)].map((match) => match[1])),
+  ];
+  expect(properties.length).toBeGreaterThanOrEqual(count);
+  return properties.slice(0, count);
 }
 
 /** Measures actual editor sorting after CSS loading, compilation, and syntax indexing. */
@@ -168,16 +221,24 @@ function registerSource(
   shape: "string" | "array",
   changes: boolean,
   options = repeated,
+  attributes = false,
 ): void {
-  for (const reuse of ["fresh", "repeated"] as const) {
-    test(`sorting/source/${name}/${reuse}`, async ({ bench, task }) => {
-      const { entry, source, session, graph } = await prepareSortingSource(loader, body);
+  let prepared: ReturnType<typeof prepareSortingSource> | undefined;
+  for (const reuse of ["fresh", "repeated", "construction"] as const) {
+    test(`sorting/source/${name}/${reuse}`, async (context) => {
+      const { bench, task } = context;
+      const { entry, source, session, graph } = await (prepared ??= prepareSortingSource(
+        loader,
+        body,
+      ));
       expect(
         graph.batches
           .flatMap((batch) => batch.reports)
           .filter((report) => report.severity === "error"),
       ).toEqual([]);
-      const config = { sort: { stringLiterals: shape === "string", arrays: shape === "array" } };
+      const config = {
+        sort: { stringLiterals: shape === "string", arrays: shape === "array", attributes },
+      };
       const create = () => new EditorSnapshot(graph, session, loader, config);
       let snapshot = create();
       const expected = snapshot.query(entry, { kind: "sort" })!.edits!;
@@ -185,17 +246,18 @@ function registerSource(
       const expectedSource = applyEdits(source, expected);
 
       const candidates = new CandidateQueries(loader.editorQuery());
-      const compare = candidates.compare.bind(candidates);
-      const canReorder = candidates.canReorderStyles.bind(candidates);
-      let comparisons = 0,
-        styleComparisons = 0;
-      candidates.compare = (a, b) => {
-        comparisons++;
-        return compare(a, b);
-      };
-      candidates.canReorderStyles = (a, b) => {
-        styleComparisons++;
-        return canReorder(a, b);
+      const order = candidates.order.bind(candidates);
+      let comparisons = 0;
+      let rankBatches = 0;
+      let candidateCount = 0;
+      candidates.order = (values) => {
+        rankBatches++;
+        candidateCount += new Set(values).size;
+        const compare = order(values);
+        return (a, b) => {
+          comparisons++;
+          return compare(a, b);
+        };
       };
       const index = new SourceIndex(graph, session);
       const instrumented = sortSource(
@@ -205,27 +267,31 @@ function registerSource(
         config.sort,
         [],
         undefined,
-        (asset) => baseStyleCss(index, candidates, asset),
       );
       expect(applyEdits(source, instrumented)).toBe(expectedSource);
       task.meta.measurement = options;
       task.meta.notes = JSON.stringify({
         comparisons,
-        styleComparisons,
+        rankBatches,
+        candidateCount,
         sourceUtf16: source.length,
         edits: expected.length,
         generation: graph.generation,
         unverified: graph.unverified.length,
         boundary:
-          "EditorSnapshot.query(sort); excludes CSS loading, compilation, SourceIndex construction, transport, and applying edits",
+          reuse === "construction"
+            ? "new EditorSnapshot including SourceIndex; excludes compilation, query, transport, and applying edits"
+            : "EditorSnapshot.query(sort); excludes CSS loading, compilation, SourceIndex construction, transport, and applying edits",
         cache:
           reuse === "fresh"
-            ? "new snapshot per sample; preview cache empty"
-            : "same snapshot after first sort; previews reused; comparisons still resolve candidates",
+            ? "new snapshot per sample; ordering keys empty"
+            : reuse === "repeated"
+              ? "same snapshot after first sort; prepared candidate keys reused"
+              : "new snapshot and source index; keys empty",
       });
       let edits: EditorEdit[];
-      await bench(
-        "editor-sort",
+      const results = await bench(
+        reuse === "construction" ? "editor-construction" : "editor-sort",
         {
           async: false,
           beforeEach: () => {
@@ -235,10 +301,26 @@ function registerSource(
           },
         },
         () => {
-          edits = snapshot.query(entry, { kind: "sort" })!.edits!;
+          if (reuse === "construction") {
+            snapshot = create();
+          } else {
+            edits = snapshot.query(entry, { kind: "sort" })!.edits!;
+          }
         },
       ).run(options);
-      expect(edits!).toEqual(expected);
+      expect(
+        reuse === "construction" ? snapshot.query(entry, { kind: "sort" })!.edits! : edits!,
+      ).toEqual(expected);
+      await assertBudget(
+        context,
+        reuse === "construction" ? "editor construction" : "editor sort",
+        results,
+        reuse === "construction"
+          ? budgets.sorting.construction
+          : Number(name.split("/").at(-1)) <= 100
+            ? budgets.sorting.query100
+            : budgets.sorting.query1000,
+      );
     });
   }
 }

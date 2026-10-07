@@ -22,6 +22,7 @@ function wrap(ext: string, script: string, template = "", module = false) {
   }
   return `<script ${module ? "module" : ""} lang="ts">\n${script}\n</script>\n${template}`;
 }
+
 function harness(t: TestContext, files: Record<string, string>, entry: string) {
   const loader = new NativeDesignSystemLoader();
   loader.provide(
@@ -29,15 +30,19 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
     "theme.css",
     "@utility red {color:red;} @utility blue {color:blue;} @utility green {color:green;} @stillwind-slot utilities;",
   );
-  const session = new NativeProjectSession(loader, true),
-    facts = new TypeScriptFactsService({
-      root,
-      project: {
-        kind: "isolated",
-      },
-    });
+  const session = new NativeProjectSession(loader, true);
+  const facts = new TypeScriptFactsService({
+    root,
+    project: {
+      kind: "isolated",
+    },
+  });
   t.onTestFinished(() => facts.close());
-  const compile = (options: { diagnostics?: "collect" } = {}) =>
+  const compile = (
+    options: {
+      diagnostics?: "collect";
+    } = {},
+  ) =>
     compileModule(
       session,
       () => facts,
@@ -46,7 +51,9 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
       {
         resolve: async (specifier, importer) =>
           specifier.startsWith(".")
-            ? { id: path.resolve(path.dirname(importer), specifier) }
+            ? {
+                id: path.resolve(path.dirname(importer), specifier),
+              }
             : null,
         read: async (id) => {
           const text = files[path.relative(root, id)];
@@ -65,12 +72,17 @@ function harness(t: TestContext, files: Record<string, string>, entry: string) {
       },
       options,
     );
-  return { compile, session, facts };
+  return {
+    compile,
+    session,
+    facts,
+  };
 }
+
 for (const ext of ["vue", "svelte", "astro"]) {
   test(`${ext}: transitive SFC declarations, generics and original Unicode identity survive edits`, async (t) => {
-    const entry = `Typed.${ext}`,
-      producer = `Base.${ext}`;
+    const entry = `Typed.${ext}`;
+    const producer = `Base.${ext}`;
     const script = `// 日本語 🧭\nimport {style} from 'stillwind/${ext}';\nimport {base} from './barrel.ts';\nimport {identity} from './helper.ts';\nconst derived=style(identity(base),'blue');`;
     const template = ext === "vue" ? '<div v-bind="derived" />' : "<div {...derived}></div>";
     const files = {
@@ -107,10 +119,13 @@ for (const ext of ["vue", "svelte", "astro"]) {
     expect(facts.stats.restarts).toBe(0);
     expect(facts.stats.incrementalSnapshots).toBe(1);
   });
+
   test(`${ext}: incompatible reassignment is an original-coordinate compile error`, async (t) => {
     const entry = `Invalid.${ext}`;
     const script = `// 日本語 🧭\nimport {style} from 'stillwind/${ext}';const a=style('red'),b=style('green');let selected=a;if(Math.random())selected=b;const derived=style(selected,'blue');`;
-    const files = { [entry]: wrap(ext, script) };
+    const files = {
+      [entry]: wrap(ext, script),
+    };
     const compilation = harness(t, files, entry).compile();
     await expect(compilation).rejects.toBeInstanceOf(CompilationFailure);
     const error = await compilation.catch((error: unknown) => error);
@@ -126,10 +141,13 @@ for (const ext of ["vue", "svelte", "astro"]) {
         .toString(),
     ).toBe("selected");
   });
+
   test(`${ext}: explicit unions retain candidates and erased identity is rejected`, async (t) => {
     const entry = `Union.${ext}`;
     const script = `import {style} from 'stillwind/${ext}';const a=style('red'),b=style('green');let selected:typeof a|typeof b=a;if(Math.random())selected=b;const derived=style(selected,'blue');`;
-    const files = { [entry]: wrap(ext, script) };
+    const files = {
+      [entry]: wrap(ext, script),
+    };
     const { compile } = harness(t, files, entry);
     const result = await compile();
     expect(result?.composition.length).toBe(2);
@@ -137,6 +155,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     await expect(compile()).rejects.toThrow(/SW12005/);
   });
 }
+
 test("Astro client imports receive their own typed scope", async (t) => {
   const files = {
     "Client.astro": `<script>\n// 🧭\nimport {style} from 'stillwind/astro';import {base} from './client-base.ts';const props=style(base,'blue');console.log(props);\n</script>`,
@@ -165,15 +184,18 @@ for (const ext of ["vue", "svelte", "astro"]) {
       script += `interface Props {enabled:boolean} const {enabled}=Astro.props;`;
       template = `<div {...style(enabled?a:b,'blue')}></div>{choices.map(item=><div {...style(item,'blue')}/> )}`;
     }
-    const files = { [entry]: wrap(ext, script, template) };
+    const files = {
+      [entry]: wrap(ext, script, template),
+    };
     const result = await harness(t, files, entry).compile();
     expect(result?.code).toBeTruthy();
     expect(result!.diagnostics).toStrictEqual([]);
     expect(result!.composition.length).toBe(ext === "svelte" ? 5 : 4);
   });
+
   test(`${ext}: imported refs, keyframes and transitions keep original declaration positions`, async (t) => {
-    const entry = `Assets.${ext}`,
-      producer = `AssetsBase.${ext}`;
+    const entry = `Assets.${ext}`;
+    const producer = `AssetsBase.${ext}`;
     const script = `import {style} from 'stillwind/${ext}';import {r,k,v} from './${producer}';const selected=k;const transition=v;const props=style(r,selected(''),transition);`;
     const files = {
       [entry]: wrap(ext, script),
@@ -199,6 +221,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     expect(assets.length, JSON.stringify(result!.symbols)).toBeGreaterThanOrEqual(3);
   });
 }
+
 test("Astro identical client script bodies retain separate scopes", async (t) => {
   const body = `import {style} from 'stillwind/astro';import {base} from './same.ts';const props=style(base,'blue');`;
   const files = {
@@ -285,7 +308,13 @@ test("SFC checker errors participate in collect mode with original editor coordi
     `// 日本語 🧭
 import {style} from 'stillwind/vue';const a=style('red'),b=style('green');let selected=a;if(Math.random())selected=b;const props=style(selected);`,
   );
-  const { compile } = harness(t, { [entry]: source }, entry);
+  const { compile } = harness(
+    t,
+    {
+      [entry]: source,
+    },
+    entry,
+  );
   const result = await compile({ diagnostics: "collect" });
   expect(result).toBeTruthy();
   expect(result!.code).toBe(null);

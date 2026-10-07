@@ -8,8 +8,8 @@ const empty: Drawing = { version: 1, points: [], edges: [], paints: {}, nextId: 
 describe("square starting geometry", () => {
   test("both presets cover the entire square, including separately selectable corners", () => {
     for (const blank of [true, false]) {
-      const d = preset(blank),
-        fs = faces(d);
+      const d = preset(blank);
+      const fs = faces(d);
       expect(fs.reduce((sum, f) => sum + area(f.polygon), 0)).toBeCloseTo(360 * 360);
       expect(d.points.every((p) => p.x >= 60 && p.x <= 420 && p.y >= 60 && p.y <= 420)).toBe(true);
       for (const p of [
@@ -52,8 +52,8 @@ describe("division grid", () => {
     });
   });
   test("independent axes and no grid retain drawing coordinates", () => {
-    const d = preset(),
-      before = JSON.stringify(d);
+    const d = preset();
+    const before = JSON.stringify(d);
     const settings = { mode: "independent" as const, shared: 24, x: 12, y: 0 };
     expect(gridSpacing(settings)).toEqual({ x: 30, y: 0, origin: 60, extent: 360 });
     expect(snap(empty, { x: 91, y: 83 }, null, 4, gridSpacing(settings)).point).toEqual({

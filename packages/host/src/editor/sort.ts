@@ -3,41 +3,55 @@ import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { CandidateQueries } from "./candidates.ts";
+import { orderInputs, type InputOrderItem } from "./input-order.ts";
 import type { EditorEdit } from "./snapshot.ts";
 import type { SourceIndex, UtilityLiteral } from "./source-index.ts";
 
-/** Sorts safe source containers, composing supplied lint fixes before ordering their contents. */
+/**
+ * Sorts recognized literals and arrays in `source` using `options` and the active
+ * design system in `candidates`. `index` must describe the unchanged source graph.
+ * `seed` contains nonoverlapping edits in original UTF-16 coordinates. The result
+ * composes these edits with sorting edits, also in original coordinates.
+ * `allows` can reject exchanged ranges, for example to preserve lint suppression.
+ */
 export function sortSource(
   source: PreparedSource,
   index: SourceIndex,
   candidates: CandidateQueries,
   options: UtilitySortOptions,
   seed: EditorEdit[] = [],
-  allows: (start: number, end: number) => boolean = () => true,
-  baseCss: (asset: NonNullable<ReturnType<SourceIndex["asset"]>>) => string = () => "",
+  allows?: (start: number, end: number) => boolean,
 ): EditorEdit[] {
   let edits = [...seed];
+  const permits = allows ?? (() => true);
 
   if (options.stringLiterals !== false) {
-    for (const literal of index.literals.filter((literal) => literal.source === source)) {
-      const start = literal.boundaries[0],
-        end = literal.boundaries.at(-1)!;
-      if (!allows(start, end)) {
-        continue;
-      }
-
-      const tokens = [...literal.text.matchAll(/\S+/gu)].map((match) => {
-        const edit = seed.find(
-          (edit) =>
-            edit.start === literal.boundaries[match.index] &&
-            edit.end === literal.boundaries[match.index + match[0].length],
-        );
-        return edit ? decodeReplacement(edit.newText, literal) : match[0];
+    const literals = index.literals
+      .filter(
+        (literal) =>
+          literal.source === source && permits(literal.boundaries[0], literal.boundaries.at(-1)!),
+      )
+      .map((literal) => {
+        const matches = [...literal.text.matchAll(/\S+/gu)];
+        const original = matches.map((match) => match[0]);
+        const tokens = matches.map((match) => {
+          const edit = seed.find(
+            (edit) =>
+              edit.start === literal.boundaries[match.index] &&
+              edit.end === literal.boundaries[match.index + match[0].length],
+          );
+          return edit ? decodeReplacement(edit.newText, literal) : match[0];
+        });
+        return { literal, original, tokens };
       });
-      const sorted = sortRuns(tokens, (a, b) =>
-        candidates.compare(literal.prefix + a, literal.prefix + b),
-      );
-      if (sorted.every((token, position) => token === literal.text.match(/\S+/gu)?.[position])) {
+    const compare = candidates.order(
+      literals.flatMap(({ literal, tokens }) => tokens.map((token) => literal.prefix + token)),
+    );
+    for (const { literal, original, tokens } of literals) {
+      const start = literal.boundaries[0];
+      const end = literal.boundaries.at(-1)!;
+      const sorted = sortRuns(tokens, (a, b) => compare(literal.prefix + a, literal.prefix + b));
+      if (sorted.every((token, position) => token === original[position])) {
         continue;
       }
 
@@ -54,16 +68,24 @@ export function sortSource(
     }
   }
 
-  if (options.arrays !== false) {
-    const arrays = index.arrays
-      .filter((array) => array.source === source)
+  if (options.arrays !== false || options.attributes === true) {
+    const containers = index.containers
+      .filter((container) => container.source === source)
+      .filter(
+        (container) => options.arrays !== false || ts.isObjectLiteralExpression(container.node),
+      )
       .sort((a, b) => a.node.end - a.node.pos - (b.node.end - b.node.pos));
-    for (const array of arrays) {
-      const items = [...array.node.elements].map((node) => {
+    for (const container of containers) {
+      const elements = ts.isArrayLiteralExpression(container.node)
+        ? container.node.elements
+        : ts.isCallExpression(container.node)
+          ? container.node.arguments
+          : container.node.properties;
+      const items = [...elements].map((node) => {
         const range = index.range(source, node);
         const offset = range ? range[0] - node.getStart() : 0;
-        const start = node.getFullStart() + offset,
-          end = range?.[1] ?? 0;
+        const start = node.getFullStart() + offset;
+        const end = range?.[1] ?? 0;
         const text = range
           ? applyEdits(
               source.document.code.slice(start, end),
@@ -76,68 +98,37 @@ export function sortSource(
                 })),
             )
           : "";
-        let rank = -1,
-          name = "",
-          css = "";
-        if (ts.isStringLiteralLike(node)) {
-          const parsed = ts.createSourceFile(
-            "literal.ts",
-            `const value=${text};`,
-            ts.ScriptTarget.Latest,
-            true,
-          );
-          const declaration = (parsed.statements[0] as ts.VariableStatement | undefined)
-            ?.declarationList?.declarations[0];
-          const literal = declaration?.initializer;
-          if (
-            literal &&
-            ts.isStringLiteralLike(literal) &&
-            literal.text.trim() &&
-            literal.text
-              .trim()
-              .split(/\s+/)
-              .every((token) => candidates.preview(array.prefix + token))
-          ) {
-            rank = 2;
-            name = literal.text.trim();
-          }
-        } else {
-          const asset = index.asset(source, node);
-          if (asset?.identity.kind === "ref" && ts.isIdentifier(node)) {
-            rank = 0;
-            name = node.getText();
-          }
-          if (asset?.identity.kind === "style" && ts.isIdentifier(node) && index.pureBase(asset)) {
-            rank = 1;
-            name = node.getText();
-            css = baseCss(asset);
-          }
-        }
-        const ambiguousComment =
-          /^[^\r\n]*(?:\/\/|\/\*)/.test(text) && node.pos > array.node.getStart() + 1;
+        const order: InputOrderItem["order"] = index.inputOrder(source, node);
+        const enabledOrder =
+          options.arrays !== false || order.kind === "attributes"
+            ? order
+            : {
+                kind: "barrier" as const,
+              };
+        const ambiguousComment = /^[^\r\n]*(?:\/\/|\/\*)/.test(text) && node.pos > elements.pos;
         return {
           node,
           start,
           end,
           text,
-          rank:
+          order:
             range &&
             !ambiguousComment &&
             source.document.code.slice(start, end) ===
               node.getSourceFile().text.slice(node.getFullStart(), node.end)
-              ? rank
-              : -1,
-          name,
-          css,
+              ? enabledOrder
+              : {
+                  kind: "barrier" as const,
+                },
         };
       });
 
       for (let position = 0; position < items.length; position++) {
-        const item = items[position],
-          next = items[position + 1];
+        const item = items[position];
+        const next = items[position + 1];
         const tail = source.document.code.slice(
           item.end,
-          next?.start ?? index.range(source, array.node)?.[1] ?? item.end,
+          next?.start ?? index.range(source, container.node)?.[1] ?? item.end,
         );
         const attachedToPrevious =
           /^[^\r\n]*(?:\/\/|\/\*)/.test(tail) ||
@@ -146,40 +137,13 @@ export function sortSource(
               next.text.slice(0, next.text.length - (next.node.end - next.node.getStart())),
             ));
         if (attachedToPrevious) {
-          item.rank = -1;
+          item.order = {
+            kind: "barrier",
+          };
         }
       }
 
-      const sorted = [...items];
-      for (let position = 1; position < sorted.length; position++) {
-        for (let cursor = position; cursor > 0; cursor--) {
-          const left = sorted[cursor - 1],
-            right = sorted[cursor];
-          if (
-            left.rank < 0 ||
-            right.rank < 0 ||
-            (left.rank === 1 &&
-              right.rank === 1 &&
-              !candidates.canReorderStyles(left.css, right.css)) ||
-            !allows(Math.min(left.start, right.start), Math.max(left.end, right.end))
-          ) {
-            break;
-          }
-          const order =
-            left.rank - right.rank ||
-            (left.rank === 2
-              ? compareLists(left.name, right.name, candidates)
-              : left.name < right.name
-                ? -1
-                : left.name > right.name
-                  ? 1
-                  : 0);
-          if (order <= 0) {
-            break;
-          }
-          [sorted[cursor - 1], sorted[cursor]] = [right, left];
-        }
-      }
+      const sorted = orderInputs(items, options.attributes === true, allows);
 
       if (sorted.every((item, position) => item === items[position])) {
         continue;
@@ -196,7 +160,7 @@ export function sortSource(
         while (position < items.length && items[position] !== sorted[position]) {
           position++;
         }
-        if (items.slice(start, position).some((item) => item.rank < 0)) {
+        if (items.slice(start, position).some((item) => item.order.kind === "barrier")) {
           continue;
         }
 
@@ -274,16 +238,4 @@ function sortRuns(
     }
   }
   return result;
-}
-
-function compareLists(left: string, right: string, candidates: CandidateQueries): number {
-  const a = left.split(/\s+/),
-    b = right.split(/\s+/);
-  for (let position = 0; position < Math.min(a.length, b.length); position++) {
-    const comparison = candidates.compare(a[position], b[position]);
-    if (comparison) {
-      return comparison;
-    }
-  }
-  return a.length - b.length;
 }

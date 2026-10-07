@@ -260,8 +260,8 @@ export class CheckerSource {
    * @throws If either original byte boundary is invalid.
    */
   targets(start: number, end: number, role: string): Array<[number, number]> {
-    const a = byteToUtf16(this.#original, start),
-      b = byteToUtf16(this.#original, end);
+    const a = byteToUtf16(this.#original, start);
+    const b = byteToUtf16(this.#original, end);
     if (this.buffer.region) {
       return a >= this.buffer.region.start && b <= this.buffer.region.end
         ? [[a - this.buffer.region.start, b - this.buffer.region.start]]
@@ -380,8 +380,8 @@ export function projectionPoints(source: PreparedSource): Map<number, number | n
       0,
       ...[...text.matchAll(/\n/g)].map((match) => match.index + 1),
     ];
-    const generated = lines(source.projection.code),
-      original = lines(source.document.code);
+    const generated = lines(source.projection.code);
+    const original = lines(source.document.code);
     const trace = new TraceMap(map.json);
     const selected = trace.sources.indexOf(map.source);
     for (const [line, segments] of decodedMappings(trace).entries()) {

@@ -18,6 +18,14 @@ export interface Budget {
  * Targets for each scenario and input size.
  */
 export const budgets = {
+  sorting: {
+    cachedComparisonBatch: { soft: 3, hard: 30 },
+    ranks100: { soft: 2, hard: 10 },
+    ranks1000: { soft: 20, hard: 100 },
+    query100: { soft: 1, hard: 5 },
+    query1000: { soft: 10, hard: 30 },
+    construction: { soft: 30, hard: 300 },
+  },
   canonical: {
     named: { soft: 0.01, hard: 0.1 },
     spacing: { soft: 0.1, hard: 1 },
