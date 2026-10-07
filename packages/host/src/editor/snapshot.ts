@@ -74,6 +74,11 @@ export type EditorRequest =
     }
   | {
       kind: "sort";
+      /** Half-open original UTF-16 ranges that sorting must leave untouched. */
+      protectedRanges?: readonly {
+        start: number;
+        end: number;
+      }[];
     }
   | {
       kind: "colorPresentation";
@@ -163,12 +168,16 @@ export class EditorSnapshot {
               this.#graph.batches
                 .flatMap((batch) => batch.reports)
                 .filter((report) => report.code !== "sort-utilities")
-                .flatMap((report) => report.actions[0]?.edits ?? [])
-                .filter(
-                  (edit) =>
-                    edit.location.uri === source.document.uri &&
-                    edit.location.revision === result.revision,
-                )
+                .flatMap((report) => {
+                  const edits = report.actions[0]?.edits ?? [];
+                  return edits.every(
+                    (edit) =>
+                      edit.location.uri === source.document.uri &&
+                      edit.location.revision === result.revision,
+                  )
+                    ? edits
+                    : [];
+                })
                 .map((edit) => ({
                   start: edit.location.startUtf16,
                   end: edit.location.endUtf16,
@@ -185,7 +194,12 @@ export class EditorSnapshot {
               this.#sort,
               seed,
               request.kind === "sort"
-                ? undefined
+                ? request.protectedRanges?.length
+                  ? (start, end) =>
+                      !request.protectedRanges!.some(
+                        (range) => start < range.end && range.start < end,
+                      )
+                  : undefined
                 : (start, end) =>
                     !this.#query.lintSuppressed(
                       source.document.code,

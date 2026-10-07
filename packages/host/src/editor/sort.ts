@@ -34,20 +34,22 @@ export function sortSource(
       .map((literal) => {
         const matches = [...literal.text.matchAll(/\S+/gu)];
         const original = matches.map((match) => match[0]);
-        const tokens = matches.map((match) => {
-          const edit = seed.find(
-            (edit) =>
-              edit.start === literal.boundaries[match.index] &&
-              edit.end === literal.boundaries[match.index + match[0].length],
-          );
-          return edit ? decodeReplacement(edit.newText, literal) : match[0];
+        const spellings = matches.map((match) => {
+          const start = literal.boundaries[match.index];
+          const end = literal.boundaries[match.index + match[0].length];
+          const edit = seed.find((edit) => edit.start === start && edit.end === end);
+          return {
+            token: edit ? decodeReplacement(edit.newText, literal) : match[0],
+            text: edit?.newText ?? source.document.code.slice(start, end),
+          };
         });
-        return { literal, original, tokens };
+        const tokens = spellings.map((spelling) => spelling.token);
+        return { literal, original, tokens, matches, spellings };
       });
     const compare = candidates.order(
       literals.flatMap(({ literal, tokens }) => tokens.map((token) => literal.prefix + token)),
     );
-    for (const { literal, original, tokens } of literals) {
+    for (const { literal, original, tokens, matches, spellings } of literals) {
       const start = literal.boundaries[0];
       const end = literal.boundaries.at(-1)!;
       const sorted = sortRuns(tokens, (a, b) => compare(literal.prefix + a, literal.prefix + b));
@@ -55,11 +57,34 @@ export function sortSource(
         continue;
       }
 
-      let position = 0;
-      const newText = escapeContent(
-        literal.text.replace(/\S+/gu, () => sorted[position++]),
-        literal,
-      );
+      let cursor = start;
+      let newText = "";
+      const queues = new Map<
+        string,
+        {
+          texts: string[];
+          position: number;
+        }
+      >();
+      for (const spelling of spellings) {
+        let queue = queues.get(spelling.token);
+        if (!queue) {
+          queue = {
+            texts: [],
+            position: 0,
+          };
+          queues.set(spelling.token, queue);
+        }
+        queue.texts.push(spelling.text);
+      }
+      for (const [position, match] of matches.entries()) {
+        const tokenStart = literal.boundaries[match.index];
+        const tokenEnd = literal.boundaries[match.index + match[0].length];
+        const queue = queues.get(sorted[position])!;
+        newText += source.document.code.slice(cursor, tokenStart) + queue.texts[queue.position++];
+        cursor = tokenEnd;
+      }
+      newText += source.document.code.slice(cursor, end);
       edits = absorb(edits, {
         start,
         end,

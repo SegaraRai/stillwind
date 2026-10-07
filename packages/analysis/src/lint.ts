@@ -1,8 +1,6 @@
-import path from "node:path";
-
-import { findConfiguration } from "@stillwind/config/node";
 import type { WorkspaceResult } from "@stillwind/host";
 
+import { resolveRewriteConfig, rewriteFiles, type RewriteOptions } from "./rewrite-files.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
 /** Lint results preserve project membership and identify incomplete analysis. */
@@ -11,6 +9,8 @@ export interface LintResult {
   config: string;
   /** Target results in configured project order, including overlapping project memberships. */
   results: WorkspaceResult[];
+  /** Files whose bytes changed when fix was requested. */
+  changed?: string[];
   /**
    * - 0: successful checks
    * - 1: compiler errors or denied lint
@@ -24,24 +24,28 @@ export interface LintResult {
  *
  * @param options - Configuration discovery and optional target filters. Omission checks all
  * configured targets from the process working directory.
- * @returns Results and an exit code. Empty target selection or incomplete analysis returns code 2.
+ * @returns Results and an exit code. Readonly lint returns code 2 for empty selection or incomplete analysis.
  * @throws If configuration discovery, worker initialization, target enumeration, or cleanup fails.
+ * Fix mode also throws when planning or saving fails, including empty selection and incomplete analysis.
  */
 export async function lint(
-  options: {
-    /** Explicit configuration path, absolute or relative to cwd. Omission searches upward from cwd. */
-    config?: string;
-    /** Directory for configuration discovery and relative config paths. Defaults to process.cwd(). */
-    cwd?: string;
-    /** Additional globs relative to each project root. Omission or an empty list retains all configured targets. */
-    patterns?: string[];
+  options: RewriteOptions & {
+    /** Applies converged fixes and reports findings from the final source buffers. */
+    fix?: boolean;
   } = {},
 ): Promise<LintResult> {
-  const cwd = options.cwd ?? process.cwd();
-  const config = options.config ? path.resolve(cwd, options.config) : findConfiguration(cwd);
-  if (!config) {
-    throw new Error(`Cannot find stillwind.config.ts above ${cwd}`);
+  if (options.fix) {
+    const result = await rewriteFiles(options, "fixes", true);
+    return {
+      ...result,
+      exitCode: result.results.some(({ result }) =>
+        result.reports.some((report) => report.severity === "error"),
+      )
+        ? 1
+        : 0,
+    };
   }
+  const config = resolveRewriteConfig(options);
   const worker = new AnalysisWorker();
   try {
     await worker.open(config);

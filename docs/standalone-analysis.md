@@ -1,7 +1,7 @@
 # Standalone analysis
 
 Stillwind analysis reads source and semantic information without starting a bundler.
-`@stillwind/cli` wraps lint and stdio commands. `@stillwind/analysis` owns analysis
+`@stillwind/cli` wraps sorting, lint, and stdio commands. `@stillwind/analysis` owns analysis
 services, and `@stillwind/language-server` owns LSP handlers and Node/browser transports.
 The LSP can run independently of the CLI.
 
@@ -157,13 +157,16 @@ not return usable CSS or code for a module whose generation requires the unavail
 ## CLI and editor behavior
 
 ```sh
+stillwind fmt
+stillwind fmt --check
 stillwind lint
+stillwind lint --fix
 stillwind lint 'src/**/*.tsx' --format json
 stillwind lint --config ./tools/stillwind.config.ts
 stillwind lsp --stdio
 ```
 
-Without `--config`, lint searches upward from the working directory. The language
+Without `--config`, the CLI searches upward from the working directory. The language
 server searches from each workspace folder. CLI globs narrow the configured
 scopes. Target enumeration includes files that the application never imports.
 Each target's cross-module analysis follows the semantic imports needed by its
@@ -172,6 +175,18 @@ type probes; results report `coverage: "observed"`.
 Lint exits with `0` after complete checks without error reports, `1` for compiler
 errors or deny-level findings, and `2` for initialization failures, incomplete
 analysis, or an empty target selection. Warnings preserve exit code `0`.
+
+`fmt` sorts recognized Stillwind inputs independently of sorting lint severity and source lint
+suppression. It leaves layout and utility spelling intact. `fmt --check` writes nothing and returns
+`1` when sorting would change a file. Use `stillwind fmt && vp fmt` to apply sorting and general
+formatting. The [Prettier plugin](../packages/prettier-plugin/README.md) performs sorting within
+Prettier's parser pipeline.
+
+`lint --fix` applies enabled automatic fixes until they converge and reports findings from the
+final source buffers. Source lint suppression still applies. Both commands compare original and
+final bytes and only save changed files. They preserve modification times for unchanged files.
+Planning fails before saving when analysis is incomplete or overlapping projects disagree on
+the replacement text. See the [CLI reference](../packages/cli/README.md) for saving and exit codes.
 
 The language server keeps unsaved buffers for dependencies as well as targets.
 Each project serializes analysis and reuses its checker. A changed revision
@@ -212,8 +227,9 @@ connection.listen();
 
 `@stillwind/language-server/node` also exports `startLanguageServer(config?)` for
 the stdio transport. The CLI delegates its LSP command to this entrypoint.
-`@stillwind/analysis/node` exports `lint` and `formatLint` for callers that do not
-need a command-line parser.
+`@stillwind/analysis/node` exports `format`, `lint`, and `formatLint` for callers that do not
+need a command-line parser. `SourceFormatter` sorts unsaved buffers without saving them and
+refreshes configuration for each request.
 
 For a Web Extension or a static editor site, start the browser entrypoint in a
 Worker. It also accepts a MessagePort. `BrowserAnalysisWorkspace` from

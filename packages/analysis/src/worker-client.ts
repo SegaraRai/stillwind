@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import type { EditorRequest, WorkspaceResult } from "@stillwind/host";
 
+import type { RewriteInput, RewriteResult } from "./rewrite.ts";
+
 /** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
 export type WorkerRequest =
   | {
@@ -13,7 +15,16 @@ export type WorkerRequest =
   | {
       method: "lint";
       /** Additional target globs relative to each project root. Omission checks all configured targets. */
-      patterns?: string[];
+      patterns?: readonly string[];
+    }
+  | {
+      method: "targets";
+      patterns?: readonly string[];
+    }
+  | {
+      method: "rewrite";
+      inputs: readonly RewriteInput[];
+      operation: "sort" | "fixes";
     }
   | {
       method: "analyze";
@@ -63,7 +74,10 @@ export class AnalysisWorker {
   readonly #child: ChildProcess;
   readonly #pending = new Map<
     number,
-    { resolve: (value: unknown) => void; reject: (error: Error) => void }
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+    }
   >();
   readonly #closed: Promise<void>;
 
@@ -171,10 +185,27 @@ export class AnalysisWorker {
    * @returns Results in project order and sorted target order within each project.
    * @throws If the workspace has not opened, enumeration fails, or transport fails.
    */
-  lint(patterns?: string[]): Promise<WorkspaceResult[]> {
+  lint(patterns?: readonly string[]): Promise<WorkspaceResult[]> {
     return this.request({
       method: "lint",
       patterns,
+    });
+  }
+
+  /** Returns distinct targets in configured scopes, filtered by project-relative globs. */
+  targets(patterns?: readonly string[]): Promise<string[]> {
+    return this.request({
+      method: "targets",
+      patterns,
+    });
+  }
+
+  /** Computes replacements from captured buffers without writing files. Throws on incomplete or conflicting results. */
+  rewrite(inputs: readonly RewriteInput[], operation: "sort" | "fixes"): Promise<RewriteResult[]> {
+    return this.request({
+      method: "rewrite",
+      inputs,
+      operation,
     });
   }
 

@@ -54,9 +54,13 @@ for static arguments, reactive reads, execution boundaries, and diagnostics.
 See [experimental runtime CSS conditions](docs/runtime-if.md) for `--if(...)`,
 `if(...):utility`, and the shared `useCssIf` compiler option.
 
-See [standalone analysis](docs/standalone-analysis.md) for `stillwind lint`, the
+See [standalone analysis](docs/standalone-analysis.md) for `stillwind fmt`, `stillwind lint`, the
 language server, and `stillwind/config`. Analysis can use a project's Vite
 resolver or an independent filesystem host.
+
+Use `stillwind fmt && vp fmt` to sort Stillwind inputs before general formatting.
+The [Prettier plugin](packages/prettier-plugin/README.md) combines sorting with Prettier.
+Both `stillwind fmt` and `stillwind lint --fix` save only files whose content changed.
 
 ## Workspace
 

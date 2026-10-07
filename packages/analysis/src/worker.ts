@@ -1,8 +1,10 @@
 import { AnalysisWorkspace } from "@stillwind/host";
 
+import { SourceRewriter } from "./rewrite.ts";
 import type { WorkerRequest } from "./worker-client.ts";
 
 let workspace: AnalysisWorkspace | undefined;
+let rewriter: SourceRewriter | undefined;
 
 process.on("message", (message: { id: number; request: WorkerRequest }) => {
   void handle(message.request).then(
@@ -33,6 +35,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     await workspace?.close();
     workspace = undefined;
     workspace = await AnalysisWorkspace.open(request.config);
+    rewriter = new SourceRewriter(workspace);
     return undefined;
   }
 
@@ -44,8 +47,20 @@ async function handle(request: WorkerRequest): Promise<unknown> {
   }
 
   switch (request.method) {
+    case "targets": {
+      const files = await Promise.all(
+        workspace.projects.map((project) =>
+          workspace!.targets(project, request.patterns ? [...request.patterns] : undefined),
+        ),
+      );
+      return [...new Set(files.flat())].sort();
+    }
+
+    case "rewrite":
+      return rewriter!.rewrite(request.inputs, request.operation);
+
     case "lint":
-      return workspace.lint(request.patterns);
+      return workspace.lint(request.patterns ? [...request.patterns] : undefined);
 
     case "analyze":
       return workspace.analyze(request.file);

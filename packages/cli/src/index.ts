@@ -1,1 +1,7 @@
-export { lint, formatLint, type LintResult } from "@stillwind/analysis/node";
+export {
+  format,
+  formatLint,
+  lint,
+  type FormatResult,
+  type LintResult,
+} from "@stillwind/analysis/node";

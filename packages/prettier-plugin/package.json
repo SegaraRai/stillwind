@@ -1,0 +1,46 @@
+{
+  "name": "prettier-plugin-stillwind",
+  "version": "0.0.0",
+  "description": "Stillwind utility sorting for Prettier",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@stillwind/analysis": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "prettier": "^3.9.9",
+    "prettier-plugin-astro": "^1.1.0",
+    "prettier-plugin-svelte": "^4.1.1",
+    "svelte": "^5.57.1",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "prettier": ">=3.7.0 <4",
+    "prettier-plugin-astro": ">=0.14 <2",
+    "prettier-plugin-svelte": ">=3 <5"
+  },
+  "peerDependenciesMeta": {
+    "prettier-plugin-astro": {
+      "optional": true
+    },
+    "prettier-plugin-svelte": {
+      "optional": true
+    }
+  }
+}
