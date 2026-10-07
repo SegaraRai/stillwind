@@ -10,9 +10,10 @@ use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
 use super::super::completion::value_namespaces;
+use super::preview::{CanonicalPreview, Normalization, dimension, spacing_properties};
 use super::values::ThemeValueIndex;
 use super::variants::VariantIndex;
-use super::{CanonicalPreview, Normalization, QueryContext, dimension, spacing_properties};
+use crate::query::QueryContext;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Signature {

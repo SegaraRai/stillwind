@@ -35,3 +35,7 @@ blake3.workspace = true
 [[test]]
 name = "static_compile"
 path = "tests/static_compile/mod.rs"
+
+[[test]]
+name = "compilation_contracts"
+path = "tests/compilation_contracts/mod.rs"

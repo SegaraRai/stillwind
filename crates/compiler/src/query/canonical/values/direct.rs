@@ -10,7 +10,9 @@ use stillwind_css::{
     take_property_requirements,
 };
 
+use super::super::preview::{convert_pixel_dimensions, dimension};
 use crate::query::QueryContext;
+use crate::query::completion::value_namespaces;
 
 #[derive(Debug, Default)]
 pub(super) struct DirectValues {
@@ -39,9 +41,7 @@ impl DirectValues {
                 root.to_owned(),
                 definitions
                     .iter()
-                    .flat_map(|definition| {
-                        crate::query::completion::value_namespaces(&definition.body, "--value")
-                    })
+                    .flat_map(|definition| value_namespaces(&definition.body, "--value"))
                     .collect(),
             );
             if let Some(namespaces) = copied_namespaces(
@@ -241,9 +241,7 @@ fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BT
             {
                 return false;
             }
-            let domains: BTreeSet<_> = crate::query::completion::value_namespaces(value, "--value")
-                .into_iter()
-                .collect();
+            let domains: BTreeSet<_> = value_namespaces(value, "--value").into_iter().collect();
             if domains.is_empty() || !captured.insert(declaration.property) {
                 return false;
             }
@@ -298,7 +296,7 @@ fn modifier_preserves_value(body: &str) -> bool {
             {
                 return false;
             }
-            if crate::query::completion::value_namespaces(value, "--value-literal")
+            if value_namespaces(value, "--value-literal")
                 .iter()
                 .any(|namespace| namespace != "--color-")
             {
@@ -369,10 +367,10 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<String> {
         && query
             .spacing_scale()
             .as_deref()
-            .and_then(super::super::dimension)
+            .and_then(dimension)
             .is_some_and(|(_, unit)| unit == "rem")
     {
-        values.push(super::super::convert_pixel_dimensions(
+        values.push(convert_pixel_dimensions(
             value,
             options.root_font_size.get(),
         ));

@@ -83,7 +83,7 @@
 
 最新測定と先の有効な測定の生のsample、実行環境、base revision、変更したRust sourceのSHA-256は [canonical-evidence.json](../benchmarks/compiler/canonical-evidence.json) に保持している。パレットの測定は、最大1000個の異なる色を使用する。通常のJSON reportは `benchmarks/results/` に出力し、Gitでは追跡しない。
 
-関連する実装は [canonical](../crates/compiler/src/query/canonical.rs)、[値索引](../crates/compiler/src/query/canonical/values.rs)、[共有する値索引](../crates/compiler/src/query/canonical/values/direct.rs)、[不変なテーマ](../crates/design-system/src/theme/index.rs)、[utilityの解析準備](../crates/design-system/src/evaluation/programs.rs)、[snapshotのanalysis](../crates/design-system/src/snapshot/analysis.rs) にある。
+関連する実装は [canonical](../crates/compiler/src/query/canonical/mod.rs)、[値索引](../crates/compiler/src/query/canonical/values/index.rs)、[共有する値索引](../crates/compiler/src/query/canonical/values/direct.rs)、[不変なテーマ](../crates/design-system/src/theme/index.rs)、[utilityの解析準備](../crates/design-system/src/evaluation/programs.rs)、[snapshotのanalysis](../crates/design-system/src/snapshot/analysis.rs) にある。
 
 ## 動作検証
 

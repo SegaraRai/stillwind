@@ -8,26 +8,28 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
 use stillwind_design_system::{
-    ResolvedUtility, ThemeTokenMode, builtin_property_definitions, resolve_utility,
+    ResolvedUtility, ThemeTokenMode, UtilityResolutionError, builtin_property_definitions,
+    resolve_utility,
 };
+use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
-mod direct;
-
-use super::index::policy;
-use super::{CanonicalPreview, Normalization};
+use super::super::index::{policy, rank};
+use super::super::preview::{CanonicalPreview, Normalization};
+use super::direct::DirectValues;
 use crate::query::QueryContext;
+use crate::query::completion::value_namespaces;
 
 #[derive(Debug, Default)]
-pub(super) struct ThemeValueIndex {
+pub(in super::super) struct ThemeValueIndex {
     groups: BTreeMap<Normalization, ValueMatches>,
     covered: BTreeSet<String>,
-    direct: direct::DirectValues,
+    direct: DirectValues,
 }
 
 impl ThemeValueIndex {
-    pub(super) fn prepare(query: &QueryContext, labels: &BTreeSet<String>) -> Self {
+    pub(in super::super) fn prepare(query: &QueryContext, labels: &BTreeSet<String>) -> Self {
         let mut index = Self {
-            direct: direct::DirectValues::prepare(query),
+            direct: DirectValues::prepare(query),
             ..Self::default()
         };
         let mut preparation = ValuePreparation::new(query);
@@ -37,9 +39,7 @@ impl ThemeValueIndex {
             };
             let namespaces: BTreeSet<_> = definitions
                 .iter()
-                .flat_map(|definition| {
-                    crate::query::completion::value_namespaces(&definition.body, "--value")
-                })
+                .flat_map(|definition| value_namespaces(&definition.body, "--value"))
                 .collect();
             for namespace in namespaces {
                 preparation.namespace(&mut index, root, &namespace, labels);
@@ -47,21 +47,25 @@ impl ThemeValueIndex {
         }
         for groups in index.groups.values_mut() {
             for names in groups.signatures.values_mut() {
-                names.sort_by(|left, right| super::index::rank(left, right));
+                names.sort_by(|left, right| rank(left, right));
             }
         }
         index
     }
 
-    pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<String>, suffix: &str) -> bool {
+    pub(in super::super) fn modifier_preserves_value(
+        &self,
+        roots: &BTreeSet<String>,
+        suffix: &str,
+    ) -> bool {
         self.direct.modifier_preserves_value(roots, suffix)
     }
 
-    pub(super) fn covers(&self, label: &str) -> bool {
+    pub(in super::super) fn covers(&self, label: &str) -> bool {
         self.covered.contains(label) || self.direct.covers(label)
     }
 
-    pub(super) fn value_labels(
+    pub(in super::super) fn value_labels(
         &self,
         query: &QueryContext,
         roots: &BTreeSet<String>,
@@ -70,7 +74,7 @@ impl ThemeValueIndex {
         self.direct.matching(query, roots, value)
     }
 
-    pub(super) fn matching(
+    pub(in super::super) fn matching(
         &self,
         query: &QueryContext,
         original: &CanonicalPreview,
@@ -94,15 +98,12 @@ impl ThemeValueIndex {
 
 struct ValuePreparation<'a> {
     query: &'a QueryContext,
-    options: stillwind_diagnostics::CanonicalUtilitiesConfig,
+    options: CanonicalUtilitiesConfig,
     scale: Option<String>,
     values: BTreeMap<String, Option<String>>,
     registered: Vec<String>,
     required_values: BTreeMap<String, Vec<bool>>,
-    resolved: BTreeMap<
-        String,
-        Result<Option<ResolvedUtility>, stillwind_design_system::UtilityResolutionError>,
-    >,
+    resolved: BTreeMap<String, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
     signatures: HashMap<(String, Normalization), Option<Arc<str>>>,
 }
 

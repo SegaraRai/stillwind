@@ -2,6 +2,7 @@
 
 ## Responsibility and Colocation
 
+- When a Rust module has child files, use `foo/mod.rs` and `foo/*.rs`. Do not combine `foo.rs` with a sibling `foo/` directory.
 - Actively colocate new code by related responsibility, not by item kind. Define errors and types alongside the code that constructs them;
   do not create kind-based files such as `errors.rs` or `types.rs`. Keep each struct immediately followed by its impl blocks.
 - Within each source file, put error definitions first, then items of greatest interest to users, each followed by its supporting items;
