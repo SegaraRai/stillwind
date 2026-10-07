@@ -28,7 +28,7 @@ export default defineComponent({
         <div
           data-testid="main-conditional"
           {...style("m-[40px]", phase.value > 0 && (phase.value > 1 ? "m-[16px]" : "m-[24px]"), {
-            "aria-busy": String(phase.value > 0),
+            "aria-busy": phase.value > 0 ? "true" : "false",
           })}
         >
           Conditional

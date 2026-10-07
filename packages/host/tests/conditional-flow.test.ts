@@ -541,7 +541,7 @@ test("pure folding and empty-branch removal preserve materialized values", async
 test("macro mutations and execution boundaries fail builds by default", async () => {
   for (const [expression, code] of [
     ["value++", "macro-argument-mutation"],
-    ["import('module')", "macro-execution-boundary"],
+    ["(import('module'), 1)", "macro-execution-boundary"],
   ]) {
     await expect(
       compile(

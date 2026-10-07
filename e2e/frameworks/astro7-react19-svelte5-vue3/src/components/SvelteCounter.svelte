@@ -21,7 +21,7 @@
 <div
   data-testid="svelte-conditional"
   {...style("m-[40px]", phase > 0 && (phase > 1 ? "m-[16px]" : "m-[24px]"), {
-    "aria-busy": String(phase > 0),
+    "aria-busy": phase > 0 ? "true" : "false",
   })}
 >
   Conditional

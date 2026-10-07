@@ -1,3 +1,4 @@
+import type { StyleMacro } from "stillwind/macro";
 import { expect, test } from "vite-plus/test";
 
 const frameworks = [
@@ -11,7 +12,8 @@ const frameworks = [
 
 for (const [framework, load] of frameworks) {
   test(`${framework} reports missing integration for every uncompiled macro`, async () => {
-    const { style } = await load();
+    const { style: frameworkStyle } = await load();
+    const style: StyleMacro = frameworkStyle;
     for (const call of [
       () => style("flex"),
       () => style.ref(),

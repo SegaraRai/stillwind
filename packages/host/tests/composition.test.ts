@@ -290,7 +290,7 @@ globalThis.result = { a, b, props };
 
 test("rejects unknown, props-bearing, nested, and incompatible-framework bases", async () => {
   for (const [body, error] of [
-    ['const base = { className: "user" };\nconst props = style(base, "blue");', /SW03001/],
+    ['const base = { className: "user" };\nconst props = style(base, "blue");', /SW12004/],
     [
       'const a = style("red");\nconst b = style("green", { "data-x": 1 });\nconst merged = style(a, b);\nconst props = style(merged, "blue");',
       /SW06005/,

@@ -22,7 +22,7 @@ const scriptProps = style("p-[7px]");
     data-testid="main-conditional"
     v-bind="
       style('m-[40px]', phase > 0 && (phase > 1 ? 'm-[16px]' : 'm-[24px]'), {
-        'aria-busy': String(phase > 0),
+        'aria-busy': phase > 0 ? 'true' : 'false',
       })
     "
   >
