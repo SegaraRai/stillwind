@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { comparisonCss, parityFixture, fixtureThemeKeyframes } from "./comparison.ts";
+import { comparisonCss, fixtureThemeKeyframes } from "./comparison.ts";
 
 test("reserved layers and empty custom-property whitespace are explicit equivalences", () => {
   expect(comparisonCss("@layer utilities{.x{--empty: ;display:flex}}")).toBe(
@@ -59,16 +59,6 @@ test("only upstream theme-owned keyframes adopt the preset slot", () => {
     comparisonCss(`@media print{@layer theme{${frame}}}`),
   );
   expect(comparisonCss(frame, new Set())).not.toBe(comparisonCss(`@layer theme{${frame}}`));
-});
-
-test("prefix migration is explicit and source(none) leaves manual candidates available", () => {
-  const fixture = parityFixture('@import "tailwindcss" prefix(tw) source(none);');
-  expect(fixture.css).toBe('@import "tailwindcss";');
-  expect(fixture.candidate("tw:hover:flex")).toBe("hover:flex");
-  expect(() => fixture.candidate("flex")).toThrow();
-  expect(() =>
-    parityFixture('@import "tailwindcss" prefix(a);@import "tailwindcss" prefix(b);'),
-  ).toThrow();
 });
 
 test("malformed CSS must not be recovered into an accepted output", () => {

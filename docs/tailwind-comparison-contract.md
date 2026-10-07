@@ -8,10 +8,9 @@ StillwindはCSSの解釈を比較する。文字列の整形・minifyはコア�
 
 1. **レイヤー順の予約**：比較用の共通環境で`properties, theme, base, components, utilities`を事前に宣言する。この環境で重複するトップレベル順序宣言は比較から除く。Stillwindの生成物から空レイヤーを削除するわけではない。その他のレイヤー、レイヤー本体、その条件は保持する。入力順の保持やcarrierの順序はStillwind固有テストで別途検証する。
 2. **theme由来keyframesの配置**：既定Stillwind CSSはkeyframes slotをthemeレイヤーに置く。Tailwindがレイヤー外へ出したtheme由来定義だけを、比較用の期待値ではthemeレイヤーに配置する。Stillwind側を移動して合格させない。定義名・内容・条件の差は失敗する。任意のauthored keyframesは対象外。この契約により同名keyframesの競合時はTailwind既定配置と異なり、利用側の上位レイヤーから上書きできる。レイヤー外のslotを選ぶ構成は別の配置契約になる。
-3. **prefix移行**：Stillwindは生成したクラス名を管理するため、Tailwindの`prefix(tw)`付きfixtureは入力修飾子と候補の`tw:`を両コンパイラーへの投入前に対応付ける。これは移行後utilityの比較であり、StillwindがTailwindのprefix構文を受理するという保証ではない。異なるprefixの混在やprefixが欠けた候補は拒否する。
-4. **明示候補とsource(none)**：fixtureは候補を明示的に渡すので、このimport修飾子を取り除いても候補集合は変わらない。自動ソース検出はこの比較の対象外。その他の未知のimport修飾子を黙って無視しない。
-5. **ホスト資源参照**：nativeの`resources`に記録されたplaceholderのみをspecifierへ解決する。fixtureではCSSとJSの資源参照に共通の仮想基準を与える。実際のowner相対パス、出力URL、sourcemapはホスト統合テストで検証する。未知のplaceholderを消したり任意のURLを同一視したりしない。
-6. **backgroundの対応判定**：`@supports`条件内では、同じ値を持つ`background-image`と`background`を比較上同一視する。Stillwindは短い`background`を生成できる。値、条件の論理構造、ルール本体の差は保持する。通常のスタイル宣言はこの例外の対象外。
+3. **明示候補とsource(none)**：fixtureは候補を明示的に渡すので、このimport修飾子を取り除いても候補集合は変わらない。自動ソース検出はこの比較の対象外。その他の未知のimport修飾子を黙って無視しない。
+4. **ホスト資源参照**：nativeの`resources`に記録されたplaceholderのみをspecifierへ解決する。fixtureではCSSとJSの資源参照に共通の仮想基準を与える。実際のowner相対パス、出力URL、sourcemapはホスト統合テストで検証する。未知のplaceholderを消したり任意のURLを同一視したりしない。
+5. **backgroundの対応判定**：`@supports`条件内では、同じ値を持つ`background-image`と`background`を比較上同一視する。Stillwindは短い`background`を生成できる。値、条件の論理構造、ルール本体の差は保持する。通常のスタイル宣言はこの例外の対象外。
 
 空custom propertyの前後空白はCSSの空値として同一視する。空値、未定義、guaranteed-invalid valueは区別する。その他の表記は比較側のCSS parser・calc評価・Lightning CSSで正規化する。壊れたCSSをerror recoveryで合格させない。
 
