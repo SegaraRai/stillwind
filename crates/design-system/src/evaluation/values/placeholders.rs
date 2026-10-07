@@ -10,13 +10,13 @@
 //! prefix, with a slash modifier kept separately; a fraction domain is the one case
 //! where the two are reassembled, and only when both sides are unsigned integers.
 
-use stillwind_css::{declaration_ranges, find_css_functions};
+use stillwind_css::{CssFunctionMatch, declaration_ranges};
 use stillwind_syntax::Value;
 
 use super::arbitrary::alpha;
 use super::colors::{CompatColorMode, resolve_compat_color, resolve_shadow_color};
 use super::domains::{resolve_value_domains, split_domains};
-use super::expansion::expand_placeholders;
+use super::expansion::{expand_placeholders, matching_functions};
 use super::macros::{
     resolve_literal_value_placeholder, resolve_theme_suffix_placeholder,
     resolve_value_map_placeholder,
@@ -36,6 +36,98 @@ const PLACEHOLDERS: &[&str] = &[
     "--compat-color",
     "--stillwind-builtin-shadow-color",
 ];
+
+/// A declaration whose executable placeholders all use the ordinary value family.
+#[derive(Debug)]
+pub(in super::super) struct PreparedValues {
+    body: String,
+    calls: Vec<CssFunctionMatch>,
+}
+
+impl PreparedValues {
+    pub(in super::super) fn parse(body: &str) -> Option<Self> {
+        let calls = matching_functions(body, PLACEHOLDERS);
+        let mut end = 0;
+        for call in &calls {
+            if PLACEHOLDERS[call.name_index] != "--value" || call.start < end {
+                return None;
+            }
+            end = call.end?;
+        }
+        Some(Self {
+            body: body.to_owned(),
+            calls,
+        })
+    }
+
+    pub(in super::super) fn is_static(&self) -> bool {
+        self.calls.is_empty()
+    }
+
+    pub(in super::super) fn resolve(
+        &self,
+        utility_name: &str,
+        name: &str,
+        modifier: Option<&Value>,
+        theme: &ThemeIndex,
+    ) -> Option<String> {
+        if !self.calls.is_empty() && (self.body.len() > 1_048_576 || self.calls.len() > 4096) {
+            return None;
+        }
+        let capture = utility_name
+            .strip_suffix('*')
+            .and_then(|prefix| name.strip_prefix(prefix));
+        let mut output = String::with_capacity(self.body.len());
+        let mut cursor = 0;
+        for call in &self.calls {
+            let value =
+                resolve_value(&self.body[call.arguments.clone()], capture, modifier, theme)?;
+            // An authored inline token can introduce further compiler functions.
+            if PLACEHOLDERS.iter().any(|marker| value.contains(marker)) {
+                return resolve_css_placeholders(
+                    &self.body,
+                    utility_name,
+                    name,
+                    modifier,
+                    theme,
+                    CompatColorMode::Legacy,
+                );
+            }
+            output.push_str(&self.body[cursor..call.start]);
+            output.push_str(&value);
+            if output.len() > 1_048_576 {
+                return None;
+            }
+            cursor = call.end?;
+        }
+        output.push_str(&self.body[cursor..]);
+        if !self.calls.is_empty() && output.len() > 1_048_576 {
+            return None;
+        }
+        Some(output)
+    }
+}
+
+fn resolve_value(
+    domains: &str,
+    capture: Option<&str>,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+) -> Option<String> {
+    let fraction = domains
+        .contains("--fraction()")
+        .then(|| {
+            capture.zip(modifier).and_then(|(capture, modifier)| {
+                let Value::Named(modifier) = modifier else {
+                    return None;
+                };
+                (capture.parse::<u16>().is_ok() && modifier.parse::<u16>().is_ok())
+                    .then(|| format!("{capture}/{modifier}"))
+            })
+        })
+        .flatten();
+    resolve_value_domains(domains, fraction.as_deref().or(capture), theme)
+}
 
 /// Resolves all placeholders in `body` for one candidate.
 ///
@@ -67,28 +159,7 @@ pub(crate) fn resolve_css_placeholders(
                 resolve_theme_suffix_placeholder(arguments, capture, theme)
             }
             "--value-map" => resolve_value_map_placeholder(arguments, capture),
-            "--value" => {
-                let domains = arguments;
-                // The candidate grammar deliberately represents the slash in `w-1/2` as a
-                // modifier. Value domains that explicitly opt into fractions can reassemble
-                // that spelling without changing slash semantics for color opacity, fonts, or
-                // arbitrary modifiers.
-                let fraction_capture = if domains.contains("--fraction()") {
-                    capture.zip(modifier).and_then(|(capture, modifier)| {
-                        let modifier = match modifier {
-                            Value::Named(value) => value,
-                            Value::Arbitrary(_) | Value::CssVariable(_) => return None,
-                        };
-                        (capture.parse::<u16>().is_ok() && modifier.parse::<u16>().is_ok())
-                            .then(|| format!("{capture}/{modifier}"))
-                    })
-                } else {
-                    None
-                };
-                let capture = fraction_capture.as_deref().or(capture);
-                let replacement = resolve_value_domains(domains, capture, theme)?;
-                Some(replacement)
-            }
+            "--value" => resolve_value(arguments, capture, modifier, theme),
             "--modifier" => {
                 let modifier = modifier?;
                 let domains = arguments;
@@ -140,14 +211,14 @@ pub(crate) fn resolve_css_placeholders(
             _ => None,
         },
     )?;
-    find_css_functions(&body, PLACEHOLDERS, 0)
+    matching_functions(&body, PLACEHOLDERS)
         .is_empty()
         .then_some(body)
 }
 
 /// Removes each declaration selected by an empty modifier guard once.
 fn remove_modifier_none(body: &mut String, modifier: Option<&Value>) -> Option<()> {
-    let matches = find_css_functions(body, &["--modifier-none"], 0);
+    let matches = matching_functions(body, &["--modifier-none"]);
     if matches.is_empty() {
         return Some(());
     }
@@ -180,6 +251,24 @@ fn remove_modifier_none(body: &mut String, modifier: Option<&Value>) -> Option<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_values_keep_expansion_limits_and_recursive_token_behavior() {
+        let theme = ThemeIndex::default();
+        let body = format!("width:{};", "--value([number]) ".repeat(4097));
+        let prepared = PreparedValues::parse(&body).unwrap();
+        assert!(prepared.resolve("x-*", "x-[1]", None, &theme).is_none());
+        assert!(
+            resolve_css_placeholders(&body, "x-*", "x-[1]", None, &theme, CompatColorMode::Legacy)
+                .is_none()
+        );
+        let body = "content:'--value([number])';width:--value([number]);";
+        let prepared = PreparedValues::parse(body).unwrap();
+        assert_eq!(
+            prepared.resolve("x-*", "x-[1]", None, &theme),
+            resolve_css_placeholders(body, "x-*", "x-[1]", None, &theme, CompatColorMode::Legacy)
+        );
+    }
 
     #[test]
     fn batch_resolution_preserves_phase_barrier_and_rejects_reintroduced_families() {

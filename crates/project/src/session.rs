@@ -145,7 +145,7 @@ impl ProjectSession {
         }
         let sources = sources.fork_empty();
         let mut reserved = ReservedNames::default();
-        reserved.collect(&snapshot.theme().custom_css);
+        reserved.collect(snapshot.theme().custom_css());
         for source in &snapshot.sources().sources {
             reserved.collect(source.source.text());
         }
@@ -154,7 +154,7 @@ impl ProjectSession {
         reserved.custom_properties.extend(
             snapshot
                 .theme()
-                .tokens
+                .tokens()
                 .iter()
                 .map(|token| token.name.value.clone()),
         );

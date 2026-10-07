@@ -4,10 +4,12 @@
 //! consult a process-global registry: two snapshots built from different CSS stay
 //! independent, and no load can leak definitions into another.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use stillwind_css::{CustomPropertyDefinition, ValueType, parse_property_definitions};
 
+use super::utility_lookup::UtilityLookup;
 use crate::{
     BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, ThemeNamespace,
     parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
@@ -19,73 +21,125 @@ use crate::{
 
 /// Immutable registries parsed from the CSS supplied by a host.
 ///
-/// `utilities`, `variants`, and the metadata collections stay in authored order,
-/// including repeated names; consumers resolve duplicates by their own documented
-/// precedence rules and may not sort these vectors.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// Utility, variant, property, and animation-option definitions retain authored order
+/// and repeated names. Candidate matching preserves each layer's precedence.
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct BuiltinDefinitions {
-    /// The exact CSS this value was parsed from. It participates in snapshot
-    /// fingerprints, so an upstream definition change invalidates artifacts even when
-    /// the parsed structures happen to compare equal.
-    pub source: String,
-    /// All `@stillwind-utility` definitions in authored order.
-    pub utilities: Vec<CustomUtility>,
-    /// All `@stillwind-variant` definitions in authored order.
-    pub variants: Vec<CustomVariant>,
-    /// All `@stillwind-property` definitions in authored order.
-    pub properties: Vec<CustomPropertyDefinition>,
-    /// Exact-name utilities, grouped without losing authored order.
-    pub builtin_exact: HashMap<String, Vec<CustomUtility>>,
-    /// Wildcard utilities, which are matched by longest name prefix.
-    pub wildcards: Vec<CustomUtility>,
-    /// Source order for arbitrary properties, used when a utility body sets several of
-    /// them and declaration order is observable.
-    pub arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
-    /// Animation option definitions, kept apart from ordinary utilities so option
-    /// spellings never become utilities.
-    pub animation_options: Vec<CustomUtility>,
-    /// Animation option name to the property it rewrites.
-    pub animation_property_mappings: BTreeMap<String, String>,
-    /// Declaration format name to its serialized value grammar.
-    pub declaration_formats: BTreeMap<String, String>,
-    /// Candidate patterns identifying compatibility relationships.
-    pub relationships: BTreeSet<String>,
-    /// Utilities that emit only a marker class and no declarations.
-    pub marker_utilities: BTreeSet<String>,
-    /// Namespace to the prefix a token name omits when it is referenced.
-    pub omit_token_prefixes: Vec<(String, String)>,
-    /// Theme namespace names in the order utilities consume them.
-    pub theme_order: Vec<String>,
-    /// CSS-authored value types per namespace.
-    pub theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
+    source: String,
+    utilities: Vec<Arc<CustomUtility>>,
+    variants: Vec<Arc<CustomVariant>>,
+    properties: Vec<Arc<CustomPropertyDefinition>>,
+    utility_lookup: UtilityLookup,
+    arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
+    animation_options: Vec<Arc<CustomUtility>>,
+    animation_property_mappings: BTreeMap<String, String>,
+    declaration_formats: BTreeMap<String, String>,
+    relationships: BTreeSet<String>,
+    marker_utilities: BTreeSet<String>,
+    omit_token_prefixes: Vec<(String, String)>,
+    theme_order: Vec<String>,
+    theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
 }
 
 impl BuiltinDefinitions {
+    /// The exact CSS this value was parsed from. It participates in snapshot
+    /// fingerprints, so an upstream definition change invalidates artifacts even when
+    /// the parsed structures happen to compare equal.
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+
+    /// All `@stillwind-utility` definitions in authored order.
+    pub fn utilities(&self) -> &[Arc<CustomUtility>] {
+        &self.utilities
+    }
+
+    /// All `@stillwind-variant` definitions in authored order.
+    pub fn variants(&self) -> &[Arc<CustomVariant>] {
+        &self.variants
+    }
+
+    /// All `@stillwind-property` definitions in authored order.
+    pub fn properties(&self) -> &[Arc<CustomPropertyDefinition>] {
+        &self.properties
+    }
+
+    /// Source order for arbitrary properties, used when a utility body sets several of
+    /// them and declaration order is observable.
+    pub fn arbitrary_property_order(&self) -> &[BuiltinArbitraryPropertyOrder] {
+        &self.arbitrary_property_order
+    }
+
+    /// Animation option definitions, kept apart from ordinary utilities so option
+    /// spellings never become utilities.
+    pub fn animation_options(&self) -> &[Arc<CustomUtility>] {
+        &self.animation_options
+    }
+
+    /// Animation option name to the property it rewrites.
+    pub fn animation_property_mappings(&self) -> &BTreeMap<String, String> {
+        &self.animation_property_mappings
+    }
+
+    /// Declaration format name to its serialized value grammar.
+    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+        &self.declaration_formats
+    }
+
+    /// Candidate patterns identifying compatibility relationships.
+    pub fn relationships(&self) -> &BTreeSet<String> {
+        &self.relationships
+    }
+
+    /// Utilities that emit only a marker class and no declarations.
+    pub fn marker_utilities(&self) -> &BTreeSet<String> {
+        &self.marker_utilities
+    }
+
+    /// Namespace to the prefix a token name omits when it is referenced.
+    pub fn omit_token_prefixes(&self) -> &[(String, String)] {
+        &self.omit_token_prefixes
+    }
+
+    /// Theme namespace names in the order utilities consume them.
+    pub fn theme_order(&self) -> &[String] {
+        &self.theme_order
+    }
+
+    /// CSS-authored value types per namespace.
+    pub fn theme_namespace_types(&self) -> &BTreeMap<ThemeNamespace, Vec<ValueType>> {
+        &self.theme_namespace_types
+    }
+
+    pub(crate) fn matching_utilities(&self, name: &str) -> Vec<&CustomUtility> {
+        self.utility_lookup.matching(name, &self.utilities, true)
+    }
+
     /// Parses every registry that can be expressed as CSS from `css`.
     ///
     /// Utility bodies retain their CSS token spelling, including meaningful whitespace.
     pub fn from_css(css: &str) -> Self {
-        let utilities = parse_builtin_utility_definitions(css);
-        let mut builtin_exact = HashMap::<String, Vec<CustomUtility>>::new();
-        let mut wildcards = Vec::new();
-        for utility in &utilities {
-            if utility.name.ends_with('*') {
-                wildcards.push(utility.clone());
-            } else {
-                builtin_exact
-                    .entry(utility.name.clone())
-                    .or_default()
-                    .push(utility.clone());
-            }
-        }
+        let utilities: Vec<_> = parse_builtin_utility_definitions(css)
+            .into_iter()
+            .map(Arc::new)
+            .collect();
+        let utility_lookup = UtilityLookup::new(&utilities);
         Self {
             source: css.into(),
-            animation_options: parse_builtin_animation_option_definitions(css),
+            animation_options: parse_builtin_animation_option_definitions(css)
+                .into_iter()
+                .map(Arc::new)
+                .collect(),
             utilities,
-            builtin_exact,
-            wildcards,
-            variants: parse_builtin_variant_definitions(css),
-            properties: parse_property_definitions(css),
+            utility_lookup,
+            variants: parse_builtin_variant_definitions(css)
+                .into_iter()
+                .map(Arc::new)
+                .collect(),
+            properties: parse_property_definitions(css)
+                .into_iter()
+                .map(Arc::new)
+                .collect(),
             arbitrary_property_order: parse_builtin_arbitrary_property_order(css),
             animation_property_mappings: parse_animation_option_property_mappings(css),
             declaration_formats: parse_declaration_formats(css),

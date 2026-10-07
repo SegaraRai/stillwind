@@ -116,7 +116,7 @@ impl<'a> StylesheetRenderer<'a> {
         let stylesheet = self
             .snapshot
             .theme()
-            .output_template
+            .output_template()
             .source_identity
             .clone();
         self.identifiers
@@ -174,7 +174,7 @@ impl<'a> StylesheetRenderer<'a> {
         placement: StylesheetPlacement,
     ) -> Result<MappedStylesheet, CompileDiagnostic> {
         render_mapped(
-            &self.snapshot.theme().output_template,
+            self.snapshot.theme().output_template(),
             self.snapshot.theme(),
             module_css,
             &self.options,

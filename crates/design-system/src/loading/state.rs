@@ -29,7 +29,8 @@ use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
     DesignSystemLoadStep,
 };
-use crate::{DesignSystemOptions, DesignSystemSnapshot, parse_theme};
+use crate::theme::parser::parse_theme_builder;
+use crate::{DesignSystemOptions, DesignSystemSnapshot};
 
 /// Why a load could not produce a snapshot.
 ///
@@ -287,7 +288,7 @@ impl DesignSystemLoader {
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), None, None, output.text.as_str())?;
-        let mut theme = parse_theme(&source, &name).map_err(|mut error| {
+        let mut theme = parse_theme_builder(&source, &name).map_err(|mut error| {
             // Whole-expansion failures use the root when no contiguous original span exists.
             for label in &mut error.labels {
                 label.span = output
@@ -312,7 +313,7 @@ impl DesignSystemLoader {
         self.graph.mappings = output.mappings;
         self.graph.resources = output.resources;
         let snapshot = DesignSystemSnapshot::from_loaded_theme(
-            theme,
+            theme.finish(),
             self.options.clone(),
             std::mem::take(&mut self.graph),
         )
@@ -324,7 +325,7 @@ impl DesignSystemLoader {
     /// Registers one supplied buffer, or reuses the earlier parse of the same
     /// name after checking that the content is identical.
     ///
-    /// The per-source `parse_theme` call is a validation pass: it rejects
+    /// The per-source parse is a validation pass: it rejects
     /// unterminated blocks and invalid CSS for this file before the expensive
     /// expansion, and its result is discarded because a source cannot be fully
     /// interpreted until its imports are inlined. Import parsing is recorded
@@ -356,7 +357,7 @@ impl DesignSystemLoader {
         let source = self.registry.register(uri, source_map_source, content)?;
         let imports =
             imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
-        parse_theme(&source, &name)?;
+        parse_theme_builder(&source, &name)?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;

@@ -3,26 +3,24 @@
 use stillwind_css::{css_color_values, find_css_functions, split_css_function_arguments};
 use stillwind_design_system::{ThemeNamespace, UtilityResolutionError};
 
-use super::DesignSystemQuery;
+use super::{DesignSystemQuery, QueryContext};
 
 impl DesignSystemQuery {
     /// Returns active theme values by their full custom-property names.
     /// Values keep their authored CSS spelling, including references to other tokens.
     pub fn theme_values(&self) -> Vec<(String, String)> {
-        self.design_system
-            .theme()
-            .active_tokens()
+        self.context
+            .design_system
+            .tokens()
             .iter()
+            .flat_map(|(_, tokens)| tokens)
             .map(|token| (token.name.value.clone(), token.value.value.clone()))
             .collect()
     }
 
     /// Returns the scale used by spacing utilities, or `None` when it is absent.
     pub fn spacing_scale(&self) -> Option<String> {
-        self.design_system
-            .theme()
-            .scale(ThemeNamespace::Spacing)
-            .map(|token| token.value.value.clone())
+        self.context.spacing_scale()
     }
 
     /// Returns a concrete candidate color when every emitted color agrees, or `None` otherwise.
@@ -38,7 +36,7 @@ impl DesignSystemQuery {
         let Some(preview) = self.hover_candidate(candidate)? else {
             return Ok(None);
         };
-        let Some(css) = self.resolve_theme_values(&preview.css) else {
+        let Some(css) = self.context.resolve_theme_values(&preview.css) else {
             return Ok(None);
         };
         let values = css_color_values(&css);
@@ -51,6 +49,16 @@ impl DesignSystemQuery {
                     .all(|(a, b)| (a - b).abs() <= 1.0 / 255.0)
             })
         }))
+    }
+}
+
+impl QueryContext {
+    /// Returns the scale used by spacing utilities, or `None` when it is absent.
+    pub(super) fn spacing_scale(&self) -> Option<String> {
+        self.design_system
+            .theme()
+            .scale(ThemeNamespace::Spacing)
+            .map(|token| token.value.value.clone())
     }
 
     /// Substitutes known theme variables in `input`. Unknown variables retain their spelling.
@@ -65,7 +73,11 @@ impl DesignSystemQuery {
                     continue;
                 }
                 let (name, _) = split_css_function_arguments(&css[function.arguments]);
-                if let Some(token) = self.design_system.theme().custom_property(name)
+                if let Some(token) = self
+                    .design_system
+                    .tokens()
+                    .get(name)
+                    .and_then(|tokens| tokens.first())
                     && let Some(end) = function.end
                 {
                     edits.push((function.start..end, token.value.value.clone()));

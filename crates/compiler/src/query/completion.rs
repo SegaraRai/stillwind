@@ -78,7 +78,7 @@ impl DesignSystemQuery {
             .into_iter()
             .map(|label| CompletionItem {
                 label,
-                revision: self.design_system.revision(),
+                revision: self.context.design_system.revision(),
             })
             .collect())
     }
@@ -91,7 +91,7 @@ impl DesignSystemQuery {
         utility_partial: &str,
         flags: usize,
     ) -> Result<BTreeSet<String>, UtilityResolutionError> {
-        let theme = self.design_system.theme();
+        let theme = self.context.design_system.theme();
         let mut completions = BTreeSet::new();
         let modifier = last_top_level(partial, '/');
         let input = modifier.map_or(partial, |index| &partial[index + 1..]);
@@ -136,15 +136,15 @@ impl DesignSystemQuery {
 
     fn valid_variant(&self, text: &str) -> bool {
         parse_candidate(&format!("{text}:[color:red]")).is_some_and(|candidate| {
-            candidate
-                .variants
-                .iter()
-                .all(|variant| resolve_variant(variant, self.design_system.theme()).is_some())
+            candidate.variants.iter().all(|variant| {
+                resolve_variant(variant, self.context.design_system.theme()).is_some()
+            })
         })
     }
 
     fn value_domains(&self, input: &str, modifier: bool) -> BTreeSet<String> {
         let mut domains = self
+            .context
             .design_system
             .utilities()
             .iter()
@@ -162,7 +162,8 @@ impl DesignSystemQuery {
             .collect::<BTreeSet<_>>();
         if !modifier {
             domains.extend(
-                self.design_system
+                self.context
+                    .design_system
                     .variants()
                     .iter()
                     .filter(|(name, _)| {
@@ -177,8 +178,9 @@ impl DesignSystemQuery {
     }
 
     pub(super) fn utility_vocabulary_for(&self, prefix: &str) -> BTreeSet<String> {
-        let theme = self.design_system.theme();
+        let theme = self.context.design_system.theme();
         let mut vocabulary: BTreeSet<_> = self
+            .context
             .design_system
             .utilities()
             .names()
@@ -201,7 +203,7 @@ impl DesignSystemQuery {
                 }
             }
         }
-        for (name, definitions) in self.design_system.utilities().iter() {
+        for (name, definitions) in self.context.design_system.utilities().iter() {
             if let Some(root) = name.strip_suffix('*') {
                 if !root.starts_with(prefix) && !prefix.starts_with(root) {
                     continue;
@@ -222,8 +224,9 @@ impl DesignSystemQuery {
     }
 
     fn variant_vocabulary(&self) -> BTreeSet<String> {
-        let theme = self.design_system.theme();
+        let theme = self.context.design_system.theme();
         let mut variant_names: BTreeSet<_> = self
+            .context
             .design_system
             .variants()
             .iter()
@@ -234,7 +237,7 @@ impl DesignSystemQuery {
             })
             .map(|(name, _)| name.to_owned())
             .collect();
-        for (_, definitions) in self.design_system.variants().iter() {
+        for (_, definitions) in self.context.design_system.variants().iter() {
             for definition in definitions {
                 if let Some((prefix, suffix)) = definition.wildcard_parts() {
                     for namespace in value_namespaces(&definition.body, "--value") {
@@ -271,7 +274,7 @@ impl DesignSystemQuery {
         if depth > 64 {
             return labels;
         }
-        for (_, definitions) in self.design_system.variants().iter() {
+        for (_, definitions) in self.context.design_system.variants().iter() {
             for definition in definitions {
                 if definition.value_type != Some(BuiltinVariantValueType::Variant) {
                     continue;

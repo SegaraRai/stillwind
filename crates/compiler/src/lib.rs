@@ -73,6 +73,7 @@ pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::CompilerOptions;
 pub use query::{
     CandidateHover, CandidateResolution, CompletionInput, CompletionItem, DesignSystemQuery,
+    prepare_canonical_index,
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use style_analysis::{

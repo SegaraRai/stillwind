@@ -1,8 +1,12 @@
 import { execFileSync } from "node:child_process";
 
-import { beforeEach, type BenchRunOptions } from "vite-plus/test";
+import { beforeEach, inject, type BenchRunOptions } from "vite-plus/test";
 
 declare module "vite-plus/test" {
+  interface ProvidedContext {
+    benchmarkWasm: boolean;
+  }
+
   interface TaskMeta {
     environment?: {
       timestamp: string;
@@ -12,10 +16,21 @@ declare module "vite-plus/test" {
       arch: string;
     };
     measurement?: Pick<BenchRunOptions, "iterations" | "time" | "warmupIterations" | "warmupTime">;
+    canonicalBrowser?: {
+      userAgent: string;
+      measurements: {
+        scenario: string;
+        samples: number[];
+      }[];
+    };
     fingerprint?: string;
     notes?: string;
     rules?: number;
   }
+}
+
+if (inject("benchmarkWasm")) {
+  process.env.NAPI_RS_FORCE_WASI = "error";
 }
 
 const revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();

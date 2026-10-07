@@ -2,6 +2,71 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("canonical queries preserve aliases, required registrations, and modifier branches", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@theme { --*:initial; --spacing-gap:1rem; --color-a:red; --color-b:blue; --color-special-a:blue; --color-alias:var(--color-a); --text-body:1rem; --leading-tight:1.25rem; }
+@property --flag { syntax:'*'; inherits:false; initial-value:0; }
+@utility tone-* { @stillwind-require-properties --flag; &:hover { color:--value(--color-*, [color]); outline-color:var(--color-alias); content:'var(--color-a)'; } }
+@utility text-* { font-size:--value(--text-*, [length]); line-height:--modifier(--leading-*, [length]); }
+@utility -m-* { margin:calc(--value(--spacing-*, [length]) * -1); }
+@utility red { @stillwind-require-properties --flag; color:red; }
+@utility overlap-* { color:--value(--color-*, [color]); opacity:--modifier(number); }
+@utility overlap-special-* { color:--value(--color-*, [color]); opacity:--modifier(number); }
+@utility overlap-a { color:blue; opacity:--modifier(number); }
+@utility overlap-alias { color:blue; opacity:--modifier(number); }
+@stillwind-slot utilities;`,
+      "file:///theme.css",
+    );
+    const query = loader.editorQuery();
+    expect(query.canonicalCandidate("tone-[#f00]")).toBe("tone-a");
+    expect(query.canonicalCandidate("tone-[#00f]")).toBe("tone-b");
+    expect(query.canonicalCandidate("text-[1rem]/tight")).toBe("text-body/tight");
+    expect(query.canonicalCandidate("[margin:-1rem]")).toBe("-m-gap");
+    expect(query.canonicalCandidate("[color:red]")).toBeNull();
+    expect(query.canonicalCandidate("overlap-[rgb(255_0_0)]/50")).toBe("overlap-special-a/50");
+  });
+
+  test("CSS loading prepares canonical indexes without reporting unused requirement errors", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    const loaded = loader.provide(
+      0,
+      "theme.css",
+      "@utility good { color:red; } @utility bad-* { @stillwind-require-properties invalid; color:--value([color]); }",
+      "file:///theme.css",
+    );
+    expect(loaded.kind).toBe("complete");
+    const query = loader.editorQuery();
+    expect(query.hoverCandidate("good")).not.toBeNull();
+    expect(() => query.canonicalCandidate("bad-[red]")).toThrow(/bad-\*/);
+  });
+
+  test("canonical indexes preserve old snapshots and isolate theme reloads", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    const css = (value: string) =>
+      `@theme { --color-*:initial; --color-brand:${value}; }
+@utility bg-* { background-color:--value(--color-*, [color]); }
+@variant over { &:hover { @slot; } }
+@stillwind-slot utilities;`;
+    loader.provide(0, "theme.css", css("red"), "file:///theme.css");
+    const original = loader.editorQuery();
+    expect(original.canonicalCandidate("bg-[#f00]")).toBe("bg-brand");
+    expect(original.canonicalCandidate("[&:hover]:bg-brand")).toBe("over:bg-brand");
+    expect(loader.editorQuery().canonicalCandidate("bg-[#f00]")).toBe("bg-brand");
+    const reloaded = new NativeDesignSystemLoader();
+    reloaded.provide(0, "theme.css", css("blue"), "file:///theme.css");
+    const updated = reloaded.editorQuery();
+    expect(updated.canonicalCandidate("bg-[#f00]")).toBeNull();
+    expect(updated.canonicalCandidate("bg-[#00f]")).toBe("bg-brand");
+    expect(original.canonicalCandidate("bg-[#f00]")).toBe("bg-brand");
+    expect(original.canonicalCandidate("bg-[#00f]")).toBeNull();
+  });
+
   test("editor queries and compiler diagnostics share canonical options and source suppression", async () => {
     const { NativeDesignSystemLoader, NativeProjectSession, fingerprint } = await import(specifier);
     const loader = new NativeDesignSystemLoader({

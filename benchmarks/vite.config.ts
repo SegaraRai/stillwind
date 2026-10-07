@@ -11,19 +11,26 @@ export default defineConfig(({ mode }) => ({
       retainSamples: true,
     },
     environment: "node",
+    execArgv:
+      mode.startsWith("benchmark") || mode.startsWith("performance")
+        ? ["--experimental-transform-types"]
+        : [],
     provide: {
       performanceFull: mode === "performance-full",
+      benchmarkWasm: mode === "benchmark-wasm",
     },
-    setupFiles: mode === "benchmark" || mode.startsWith("performance") ? ["./setup.ts"] : [],
+    setupFiles:
+      mode.startsWith("benchmark") || mode.startsWith("performance") ? ["./setup.ts"] : [],
     testTimeout: (
       {
         benchmark: 600_000,
+        "benchmark-wasm": 600_000,
         "performance-full": 120_000,
         performance: 30_000,
       } as Record<string, number | undefined>
     )[mode],
     experimental: {
-      viteModuleRunner: mode !== "benchmark" && !mode.startsWith("performance"),
+      viteModuleRunner: !mode.startsWith("benchmark") && !mode.startsWith("performance"),
     },
   },
   run: {
@@ -36,7 +43,7 @@ export default defineConfig(({ mode }) => ({
       },
       "bench:compiler": {
         command:
-          "vp test bench compiler/compiler.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/compiler.json",
+          "vp test bench compiler/canonical.bench.ts compiler/compiler.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/compiler.json",
         cache: false,
         dependsOn: ["@stillwind/native#build"],
       },
@@ -45,6 +52,36 @@ export default defineConfig(({ mode }) => ({
           "vp test bench compiler/host.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/host.json",
         cache: false,
         dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
+      },
+      "bench:compiler:browser": {
+        command:
+          "vp test --run --config vite.browser.config.ts --reporter default --reporter json --outputFile results/canonical-browser.json",
+        cache: false,
+        dependsOn: ["@stillwind/native#collect:local"],
+      },
+      "bench:compiler:wasm": {
+        command:
+          "vp test bench compiler/canonical.bench.ts --run --mode benchmark-wasm --reporter default --reporter json --outputFile results/canonical-wasm.json",
+        cache: false,
+        dependsOn: ["@stillwind/native#collect:local"],
+      },
+      "bench:sorting": {
+        command:
+          "vp test bench compiler/sorting.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/sorting-native.json",
+        cache: false,
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
+      },
+      "bench:sorting:wasm": {
+        command:
+          "vp test bench compiler/sorting.bench.ts --run --mode benchmark-wasm --reporter default --reporter json --outputFile results/sorting-wasm.json",
+        cache: false,
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#collect:local"],
+      },
+      "bench:sorting:profile": {
+        command:
+          "vp test bench compiler/sorting-profile.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/sorting-profile.json",
+        cache: false,
+        dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
       },
       "bench:research": {
         command:

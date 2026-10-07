@@ -6,6 +6,8 @@
 //! supplied. A package import stays a host request, and parse failures keep a typed
 //! `#[source]` cause and a span in the supplied buffer.
 
+use std::sync::Arc;
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry, SourceUri};
 use stillwind_syntax::parse_candidate;
@@ -261,7 +263,10 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(snapshot.utilities().get("flex").is_some());
     assert_eq!(snapshot.utilities().get("custom").unwrap().len(), 2);
     assert!(snapshot.fingerprints().utilities.contains_key("flex"));
-    assert!(snapshot.builtins().is_some());
+    assert!(Arc::ptr_eq(
+        &snapshot.utilities().get("flex").unwrap()[0],
+        &snapshot.builtins().utilities()[0]
+    ));
     let unselected = DesignSystemSnapshot::from_source(
         &SourceFile::new(FileId(1), None, None, "@theme { --color-brand:red; }").unwrap(),
         CssSourceName::from("test.css"),
@@ -269,8 +274,8 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     )
     .unwrap();
     assert_eq!(
-        unselected.builtins().unwrap().utilities,
-        [] as [CustomUtility; 0]
+        unselected.builtins().utilities(),
+        [] as [Arc<CustomUtility>; 0]
     );
     assert!(unselected.utilities().get("flex").is_none());
 }

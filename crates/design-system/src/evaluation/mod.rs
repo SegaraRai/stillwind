@@ -1,17 +1,17 @@
 //! Candidate evaluation: turning authored spellings into declarations and selectors
 //! using only the definitions a snapshot holds.
 //!
-//! Evaluation is pure. Every entry point takes a [`crate::ThemeIndex`] and returns
-//! values; nothing is cached between calls, so two snapshots built from different CSS
-//! cannot influence one another, and the same input always produces the same output for
-//! one snapshot.
+//! Entry points borrow the immutable [`crate::ThemeIndex`]. The theme owns effective
+//! token lookup and parsed utility programs, which its clones and snapshots share.
 //!
 //! The modules below split the work by subject: [`builtins`] reads the selected
 //! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
 //! typed value domains and placeholders, and [`variants`] produces selector
-//! applications and their ordering.
+//! applications and their ordering. [`programs`] prepares utility syntax and
+//! declaration branches.
 
 mod builtins;
+mod programs;
 mod syntax;
 mod utilities;
 mod values;
@@ -31,6 +31,8 @@ pub use variants::{
     document_scoped_selector, is_condition_variant, is_tailwind_relationship_candidate,
     resolve_variant,
 };
+
+pub(crate) use programs::UtilityPrograms;
 
 #[cfg(test)]
 mod tests;

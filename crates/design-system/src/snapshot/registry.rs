@@ -6,7 +6,9 @@
 //! that order changes.
 //!
 //! Iteration order is the name order of an ordered map, so callers that need authored
-//! order must read the underlying definition vectors instead.
+//! order must read the underlying definition vectors instead. These merged views serve
+//! lexical iteration and fingerprints. Candidate matching uses each layer's index and
+//! its precedence; both views share the same immutable definition values.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -57,6 +59,14 @@ impl<T> DefinitionRegistry<T> {
     /// Iterates names in ascending order.
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.entries.keys().map(String::as_str)
+    }
+
+    /// Returns names starting with `prefix`, in lexical order.
+    pub fn names_with_prefix<'a>(&'a self, prefix: &'a str) -> impl Iterator<Item = &'a str> {
+        self.entries
+            .range(prefix.to_owned()..)
+            .take_while(move |(name, _)| name.starts_with(prefix))
+            .map(|(name, _)| name.as_str())
     }
 }
 

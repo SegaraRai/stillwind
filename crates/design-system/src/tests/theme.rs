@@ -4,6 +4,8 @@
 //! modes, namespace resets, CSS-first configuration, and the rule that importing the
 //! package is what selects the built-in definitions and default tokens.
 
+use std::sync::Arc;
+
 use stillwind_css::CssOutputNode;
 use stillwind_diagnostics::LintKind;
 
@@ -23,9 +25,9 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
 
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
-    assert_eq!(theme.tokens.len(), 2);
-    assert_eq!(theme.tokens[0].name.value, "--color-accent");
-    assert_eq!(source.slice(theme.tokens[1].value.span).unwrap(), "1rem");
+    assert_eq!(theme.tokens().len(), 2);
+    assert_eq!(theme.tokens()[0].name.value, "--color-accent");
+    assert_eq!(source.slice(theme.tokens()[1].value.span).unwrap(), "1rem");
     assert_eq!(theme.value("color", "accent"), Some("oklch(.6 .2 250)"));
     assert!(theme.token("spacing", "missing").is_none());
 }
@@ -96,10 +98,10 @@ fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
 
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
-    assert_eq!(theme.config.prefix.as_deref(), Some("--app-"));
+    assert_eq!(theme.config().prefix.as_deref(), Some("--app-"));
     assert!(
         theme
-            .config
+            .config()
             .lint_settings
             .enabled_for_detection(LintKind::PreferTypedRelationships)
     );
@@ -141,7 +143,10 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         .unwrap(),
     )
     .unwrap();
-    assert_eq!(individual.registry.utilities, [] as [CustomUtility; 0]);
+    assert_eq!(
+        individual.registry().utilities(),
+        [] as [Arc<CustomUtility>; 0]
+    );
     assert!(individual.scale(ThemeNamespace::Spacing).is_none());
 
     let with_builtins = parse_fixture_theme(&SourceFile::new(
@@ -149,7 +154,10 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap())
         .unwrap();
-    assert_ne!(with_builtins.registry.utilities, [] as [CustomUtility; 0]);
+    assert_ne!(
+        with_builtins.registry().utilities(),
+        [] as [Arc<CustomUtility>; 0]
+    );
     assert_eq!(
         with_builtins
             .scale(ThemeNamespace::Spacing)
@@ -162,10 +170,13 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         &SourceFile::new(FileId(7), None, None, "@import \"stillwind\";").unwrap(),
     )
     .unwrap();
-    assert_ne!(aggregate.registry.utilities, [] as [CustomUtility; 0]);
-    assert_ne!(aggregate.tokens, [] as [ThemeToken; 0]);
-    assert!(aggregate.custom_css.contains("box-sizing"));
-    assert_ne!(aggregate.output_template.nodes, [] as [CssOutputNode; 0]);
+    assert_ne!(
+        aggregate.registry().utilities(),
+        [] as [Arc<CustomUtility>; 0]
+    );
+    assert_ne!(aggregate.tokens(), [] as [Arc<ThemeToken>; 0]);
+    assert!(aggregate.custom_css().contains("box-sizing"));
+    assert_ne!(aggregate.output_template().nodes, [] as [CssOutputNode; 0]);
 
     let external_import = parse_theme(
         &SourceFile::new(
@@ -251,7 +262,7 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
         ".25rem"
     );
     assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
-    assert_eq!(theme.tokens[2].kind, ThemeTokenKind::Custom);
+    assert_eq!(theme.tokens()[2].kind, ThemeTokenKind::Custom);
 }
 
 #[test]
@@ -335,9 +346,9 @@ fn separates_compiler_property_definitions_from_authored_property_rules() {
 
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
-    assert_eq!(theme.properties.len(), 1);
-    assert_eq!(theme.properties[0].name, "--example-value");
-    assert!(theme.authored_properties.contains("--authored-value"));
+    assert_eq!(theme.properties().len(), 1);
+    assert_eq!(theme.properties()[0].name, "--example-value");
+    assert!(theme.authored_properties().contains("--authored-value"));
     assert!(!theme.custom_css().contains("@stillwind-property"));
     assert!(theme.custom_css().contains("@property --authored-value"));
 }
@@ -352,12 +363,12 @@ fn extracts_block_custom_variant() {
     )
     .unwrap();
     let theme = parse_fixture_theme(&source).expect("theme");
-    assert_eq!(theme.variants.len(), 1);
-    assert_eq!(theme.variants[0].name, "theme-dark");
+    assert_eq!(theme.variants().len(), 1);
+    assert_eq!(theme.variants()[0].name, "theme-dark");
     assert!(
-        theme.variants[0].body.contains("@slot"),
+        theme.variants()[0].body.contains("@slot"),
         "{:?}",
-        theme.variants[0].body
+        theme.variants()[0].body
     );
 }
 

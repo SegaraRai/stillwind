@@ -18,6 +18,24 @@ export interface Budget {
  * Targets for each scenario and input size.
  */
 export const budgets = {
+  canonical: {
+    named: { soft: 0.01, hard: 0.1 },
+    spacing: { soft: 0.1, hard: 1 },
+    "color-match": { soft: 0.1, hard: 1 },
+    "color-miss": { soft: 0.1, hard: 1 },
+    "property-miss": { soft: 0.1, hard: 1 },
+    "variant-miss": { soft: 0.1, hard: 1 },
+    "color-modifier-match": { soft: 0.1, hard: 1 },
+    "color-modifier-miss": { soft: 0.1, hard: 1 },
+    preparation: { soft: 200, hard: 300 },
+    cachedBatch: { soft: 1, hard: 5 },
+    repeated100: { soft: 5, hard: 15 },
+    unique100: { soft: 15, hard: 30 },
+  },
+  canonicalPalette: {
+    100: { soft: 0.1, hard: 1 },
+    1000: { soft: 0.1, hard: 1 },
+  },
   build: {
     10: { soft: 250, hard: 750 },
     100: { soft: 1000, hard: 2000 },

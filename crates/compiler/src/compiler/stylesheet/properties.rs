@@ -46,7 +46,7 @@ pub(super) fn render_used_properties(
     explicit: &[String],
 ) -> PropertyOutput {
     let builtin_properties = builtin_property_definitions(theme);
-    let definitions = builtin_properties.iter().chain(&theme.properties);
+    let definitions = builtin_properties.iter().chain(theme.properties());
     let mut required = definitions
         .clone()
         .filter_map(|property| {
@@ -94,7 +94,7 @@ pub(super) fn render_used_properties(
             // Authored @property declarations take precedence over compiler
             // defaults, including when they intentionally reuse a builtin name.
             if !required.contains(&name)
-                || theme.authored_properties.contains(&name)
+                || theme.authored_properties().contains(&name)
                 || !seen.insert(name.clone())
             {
                 return None;

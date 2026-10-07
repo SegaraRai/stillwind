@@ -22,6 +22,7 @@ use stillwind_css::{
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
+use super::builder::ThemeBuilder;
 use super::config::{StillwindConfig, extract_stillwind_config};
 use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
@@ -50,6 +51,19 @@ pub fn parse_theme(
     source: &SourceFile,
     source_identity: &CssSourceName,
 ) -> Result<ThemeIndex, CompileError> {
+    parse_theme_builder(source, source_identity).map(ThemeBuilder::finish)
+}
+
+/// Collects declarations from `source` without preparing evaluation data. The loader
+/// can map token and template spans before freezing the result.
+///
+/// # Errors
+///
+/// Returns the same CSS and definition failures as [`parse_theme`].
+pub(crate) fn parse_theme_builder(
+    source: &SourceFile,
+    source_identity: &CssSourceName,
+) -> Result<ThemeBuilder, CompileError> {
     parse_theme_contents(source, source_identity)
         .map_err(|kind| CompileError::new(kind, source.full_span()))
 }
@@ -62,7 +76,7 @@ pub fn parse_theme(
 fn parse_theme_contents(
     source: &SourceFile,
     source_identity: &CssSourceName,
-) -> Result<ThemeIndex, CompileDiagnostic> {
+) -> Result<ThemeBuilder, CompileDiagnostic> {
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
     }
@@ -153,7 +167,7 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
 /// Collects the tokens of every `@theme` block, applying each block's mode to the
 /// declarations it contains.
 ///
-/// Only tokens are filled in; the remaining `ThemeIndex` fields are defaults, because
+/// Only tokens are filled in; the remaining builder fields are defaults, because
 /// they depend on the whole buffer and are assembled by [`parse_theme`].
 ///
 /// # Errors
@@ -162,7 +176,7 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
 pub(crate) fn extract_theme_tokens(
     file: FileId,
     css: &str,
-) -> Result<ThemeIndex, CompileDiagnostic> {
+) -> Result<ThemeBuilder, CompileDiagnostic> {
     let mut tokens = Vec::new();
     for (range, modifier) in theme_blocks(css)? {
         let mode = ThemeTokenMode::parse(&modifier);
@@ -173,7 +187,7 @@ pub(crate) fn extract_theme_tokens(
             mode,
         )?);
     }
-    Ok(ThemeIndex {
+    Ok(ThemeBuilder {
         variant_positions: BTreeMap::new(),
         utility_positions: BTreeMap::new(),
         output_template: CssOutputTemplate::default(),
@@ -202,14 +216,20 @@ mod tests {
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
         let source = SourceFile::new(FileId(1), None, None, format!("{BUILTIN_REGISTRY_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-        assert_eq!(theme.tokens.len(), 1);
-        assert_eq!(theme.tokens[0].name.value, "--color-local");
-        assert!(theme.registry.builtin_exact.contains_key("flex"));
-        assert!(theme.custom_css.contains("content:'@theme'"));
+        assert_eq!(theme.tokens().len(), 1);
+        assert_eq!(theme.tokens()[0].name.value, "--color-local");
         assert!(
-            !strip_css_comments(&theme.custom_css).contains("@stillwind"),
+            theme
+                .registry()
+                .utilities()
+                .iter()
+                .any(|utility| utility.name == "flex")
+        );
+        assert!(theme.custom_css().contains("content:'@theme'"));
+        assert!(
+            !strip_css_comments(theme.custom_css()).contains("@stillwind"),
             "{}",
-            theme.custom_css
+            theme.custom_css()
         );
     }
 
@@ -268,7 +288,7 @@ mod panic_regressions {
         assert_eq!(
             parse_theme(&source, &CssSourceName::from("test.css"))
                 .unwrap()
-                .utilities
+                .utilities()
                 .len(),
             1
         );

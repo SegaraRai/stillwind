@@ -22,7 +22,7 @@ impl DesignSystemQuery {
         left: &str,
         right: &str,
     ) -> Result<Option<Ordering>, UtilityResolutionError> {
-        let theme = self.design_system.theme();
+        let theme = self.context.design_system.theme();
         let resolve = |raw| {
             Ok(CandidateResolver::resolve(raw, theme)?.filter(|resolved| {
                 resolved

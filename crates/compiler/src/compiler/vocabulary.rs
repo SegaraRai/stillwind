@@ -14,8 +14,8 @@ pub(crate) fn render_vocabulary_types(theme: &ThemeIndex) -> String {
     let mut utilities = Vec::new();
     {
         utilities.extend(builtin_utility_names(theme));
-        utilities.extend(theme.utilities.iter().map(|utility| utility.name.clone()));
-        for token in &theme.tokens {
+        utilities.extend(theme.utilities().iter().map(|utility| utility.name.clone()));
+        for token in theme.tokens() {
             let Some((namespace, name)) = token.name.value.trim_start_matches("--").split_once('-')
             else {
                 continue;
@@ -37,8 +37,8 @@ pub(crate) fn render_vocabulary_types(theme: &ThemeIndex) -> String {
     let mut variants = Vec::new();
     {
         variants.extend(builtin_variant_names(theme));
-        variants.extend(theme.variants.iter().map(|variant| variant.name.clone()));
-        variants.extend(theme.tokens.iter().filter_map(|token| {
+        variants.extend(theme.variants().iter().map(|variant| variant.name.clone()));
+        variants.extend(theme.tokens().iter().filter_map(|token| {
             if let ThemeTokenKind::Token {
                 namespace: ThemeNamespace::Breakpoint,
                 name,

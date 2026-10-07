@@ -172,6 +172,7 @@ mod tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
+    use crate::theme::builder::ThemeBuilder;
 
     #[test]
     fn fractions_reject_zero_negative_and_overflowing_denominators() {
@@ -187,10 +188,11 @@ mod tests {
 
     #[test]
     fn arbitrary_values_and_variables_must_match_namespace_types() {
-        let configured = ThemeIndex {
+        let configured = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }
+        .finish();
         assert_eq!(
             typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]", &configured),
             Some("2px".into())

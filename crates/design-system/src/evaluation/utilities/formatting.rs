@@ -25,10 +25,10 @@ pub(crate) fn resolve_declaration_value(
     theme: &ThemeIndex,
     builtin: bool,
 ) -> String {
-    let formats = if theme.declaration_formats.is_empty() {
+    let formats = if theme.declaration_formats().is_empty() {
         builtin_declaration_formats(theme)
     } else {
-        &theme.declaration_formats
+        theme.declaration_formats()
     };
     if !builtin
         && !declaration_ranges(declaration).iter().any(|range| {
@@ -65,13 +65,15 @@ pub(crate) fn resolve_declaration_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::builder::ThemeBuilder;
 
     #[test]
     fn preserves_authored_values_and_supplies_only_required_length_types() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             declaration_formats: [("--distance".into(), "zero-length".into())].into(),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }
+        .finish();
         assert_eq!(
             resolve_declaration_value(
                 "--distance:0;content:'var(--x) calc(1 + 2),var(--y)';width:calc(1px + 2px);transform:var(--x);",

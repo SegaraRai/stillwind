@@ -5,9 +5,12 @@
 //! compares candidates using compiler order. [`completion`] offers utility, variant,
 //! and theme labels, and [`canonical`] finds equivalent spellings under the active lint
 //! policy. [`theme`] exposes theme values and resolves colors for editor decorations.
+//! [`context`] evaluates CSS and retrieves shared canonical indexes for queries and
+//! [`prepare_canonical_index`], which loaders can use before exposing a revision.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::LintSettings;
@@ -16,6 +19,7 @@ use crate::CompilerOptions;
 
 mod canonical;
 mod completion;
+mod context;
 mod ordering;
 mod resolution;
 mod theme;
@@ -23,38 +27,50 @@ mod theme;
 pub use completion::{CompletionInput, CompletionItem};
 pub use resolution::{CandidateHover, CandidateResolution};
 
+use canonical::CanonicalIndex;
+use context::QueryContext;
+
 /// Answers candidate questions against one immutable snapshot.
 ///
 /// Holding the snapshot rather than a project keeps editor answers independent of
 /// module state and deterministic for as long as the revision does not change.
 #[derive(Clone, Debug)]
 pub struct DesignSystemQuery {
+    context: QueryContext,
+    canonical_index: Arc<CanonicalIndex>,
     canonical_cache: RefCell<BTreeMap<String, Option<String>>>,
-    /// Immutable revision against which every answer from this query object is
-    /// computed.
-    design_system: DesignSystemSnapshot,
-    /// Compiler configuration used for preview generation and name allocation.
-    options: CompilerOptions,
 }
 
 impl DesignSystemQuery {
     /// Creates a query pinned to `design_system`.
     ///
     /// The options' prefixes are resolved against the snapshot so rendered previews
-    /// match what a compilation would emit.
+    /// match what a compilation would emit. The first query for a snapshot and its
+    /// spacing conversion policy prepares indexes; later queries share that preparation.
     pub fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
-        let options = options.resolved(&design_system);
+        let context = QueryContext::new(design_system, options);
+        let canonical_index = context.canonical_index();
         Self {
+            context,
+            canonical_index,
             canonical_cache: RefCell::new(BTreeMap::new()),
-            design_system,
-            options,
         }
     }
 
     /// Returns effective lint settings after stylesheet severity and project overrides.
     pub fn lint_settings(&self) -> LintSettings {
-        self.options.lint_settings(&self.design_system)
+        self.context
+            .options
+            .lint_settings(&self.context.design_system)
     }
+}
+
+/// Prepares canonical spelling indexes for `design_system` and effective `options`.
+/// CSS loaders can call this before publishing a snapshot. Query construction uses
+/// the same cache, including when a caller skips this step. Malformed utility
+/// requirements remain deferred until a matching candidate is evaluated.
+pub fn prepare_canonical_index(design_system: &DesignSystemSnapshot, options: &CompilerOptions) {
+    QueryContext::new(design_system.clone(), options.clone()).canonical_index();
 }
 
 /// Finds a delimiter outside arbitrary values, selectors, functions, and escaped text.

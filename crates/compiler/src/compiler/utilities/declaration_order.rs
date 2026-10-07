@@ -54,10 +54,10 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
 ) -> String {
-    let formats = if theme.declaration_formats.is_empty() {
+    let formats = if theme.declaration_formats().is_empty() {
         builtin_declaration_formats(theme)
     } else {
-        &theme.declaration_formats
+        theme.declaration_formats()
     };
     combine_declarations_with_formats(utilities, formats)
 }

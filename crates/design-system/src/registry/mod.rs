@@ -17,6 +17,7 @@ mod definitions;
 pub(super) mod formats;
 pub(super) mod order;
 pub(super) mod utilities;
+pub(crate) mod utility_lookup;
 pub(super) mod variants;
 
 pub use definitions::BuiltinDefinitions;

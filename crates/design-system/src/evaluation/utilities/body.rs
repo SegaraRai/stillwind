@@ -73,6 +73,7 @@ impl UtilityResolution {
 }
 
 /// Resolves one definition body against a candidate name and modifier.
+/// `utility` must belong to `theme` or its selected built-in registry.
 ///
 /// Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
 /// the candidate carries a modifier no branch consumes, or when no declaration group
@@ -88,22 +89,61 @@ pub(crate) fn resolve_css_utility_body(
     modifier: Option<&Value>,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    if utility.body.contains("@slot") {
+    let Some(prepared) = theme.programs().body(&utility.body) else {
         return Ok(None);
+    };
+    let body = prepared.as_ref().map_err(|source| UtilityResolutionError {
+        name: utility.name.clone(),
+        source: *source,
+    })?;
+    Ok(body
+        .as_ref()
+        .and_then(|body| resolve_valid_utility_body(utility, name, modifier, theme, body)))
+}
+
+/// Structural utility syntax retained by the immutable evaluator.
+#[derive(Debug)]
+pub(crate) struct PreparedUtilityBody {
+    body: String,
+    selector: Option<String>,
+    parent_body: Option<String>,
+    nested: Vec<ParsedNestedUtilityRule>,
+    required_properties: Vec<String>,
+    consumes_modifier: bool,
+}
+
+impl PreparedUtilityBody {
+    pub(crate) fn parse(text: &str) -> Result<Option<Self>, PropertyRequirementError> {
+        if text.contains("@slot") {
+            return Ok(None);
+        }
+        let (text, required_properties) = take_property_requirements(text)?;
+        let Some((selector, direct, parent_body)) = split_utility_selector(&text) else {
+            return Ok(None);
+        };
+        let Some((body, nested)) = split_nested_conditions(direct) else {
+            return Ok(None);
+        };
+        let consumes_modifier = body.contains("--modifier")
+            || body.contains("--fraction()")
+            || nested
+                .iter()
+                .any(|rule| rule.body.contains("--modifier") || rule.body.contains("--fraction()"));
+        Ok(Some(Self {
+            body,
+            selector,
+            parent_body: parent_body.map(str::to_owned),
+            nested,
+            required_properties,
+            consumes_modifier,
+        }))
     }
-    let (body, required_properties) =
-        take_property_requirements(&utility.body).map_err(|source| UtilityResolutionError {
-            name: utility.name.clone(),
-            source,
-        })?;
-    Ok(resolve_valid_utility_body(
-        utility,
-        name,
-        modifier,
-        theme,
-        &body,
-        required_properties,
-    ))
+
+    pub(crate) fn declaration_groups(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.body.as_str())
+            .chain(self.parent_body.as_deref())
+            .chain(self.nested.iter().map(|rule| rule.body.as_str()))
+    }
 }
 
 #[allow(clippy::too_many_lines)] // One definition body resolves base, nested, and parent branches.
@@ -112,11 +152,13 @@ fn resolve_valid_utility_body(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-    body: &str,
-    required_properties: Vec<String>,
+    prepared: &PreparedUtilityBody,
 ) -> Option<UtilityResolution> {
-    let (selector, body, parent_body) = split_utility_selector(body)?;
-    let (body, nested) = split_nested_conditions(body)?;
+    let body = &prepared.body;
+    let nested = &prepared.nested;
+    let selector = prepared.selector.clone();
+    let parent_body = prepared.parent_body.as_deref();
+    let required_properties = prepared.required_properties.clone();
     let resolve = |body: &str| {
         resolve_css_declarations(
             body,
@@ -132,15 +174,11 @@ fn resolve_valid_utility_body(
     // accepting `bg-red-500/not-an-opacity` merely because another overload happened to
     // define modifiers. Fractions are the one exception: their slash is deliberately
     // reassembled by `--fraction()`.
-    let consumes_modifier = body.contains("--modifier")
-        || body.contains("--fraction()")
-        || nested
-            .iter()
-            .any(|rule| rule.body.contains("--modifier") || rule.body.contains("--fraction()"));
+    let consumes_modifier = prepared.consumes_modifier;
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
-    let declarations = resolve(&body)?;
+    let declarations = resolve(body)?;
     let declaration = declarations.base;
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
@@ -161,7 +199,7 @@ fn resolve_valid_utility_body(
         body,
     } in nested
     {
-        for (condition, body) in expand_theme_wildcard_nested(&condition, &body, theme) {
+        for (condition, body) in expand_theme_wildcard_nested(condition, body, theme) {
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()");
@@ -173,7 +211,7 @@ fn resolve_valid_utility_body(
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
                     compatibility: false,
-                    at_rule,
+                    at_rule: *at_rule,
                     condition,
                     declaration,
                     inside: true,
@@ -208,8 +246,8 @@ fn resolve_valid_utility_body(
             selector: None,
             nested: Vec::new(),
             additional,
-            builtin_order: match theme.config.utility_order {
-                UtilityOrderMode::Authored => theme.utility_positions.get(&utility.name).copied(),
+            builtin_order: match theme.config().utility_order {
+                UtilityOrderMode::Authored => theme.utility_positions().get(&utility.name).copied(),
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
@@ -221,8 +259,8 @@ fn resolve_valid_utility_body(
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
-            builtin_order: match theme.config.utility_order {
-                UtilityOrderMode::Authored => theme.utility_positions.get(&utility.name).copied(),
+            builtin_order: match theme.config().utility_order {
+                UtilityOrderMode::Authored => theme.utility_positions().get(&utility.name).copied(),
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),

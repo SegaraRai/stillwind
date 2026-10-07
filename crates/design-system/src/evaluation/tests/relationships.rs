@@ -10,6 +10,7 @@ use stillwind_test_support::assertions::css_tokens;
 
 use super::*;
 use crate::parse_utility_definitions;
+use crate::theme::builder::ThemeBuilder;
 
 #[test]
 fn preserves_supports_and_media_conditions_from_css_utilities() {
@@ -112,10 +113,11 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
 #[test]
 fn resolves_numeric_css_domains_and_default_filter_tokens() {
     let theme = theme();
-    let custom_theme = ThemeIndex {
+    let custom_theme = ThemeBuilder {
         utilities: parse_utility_definitions("@utility tab-* { tab-size: --value(integer); }"),
-        ..ThemeIndex::default()
-    };
+        ..Default::default()
+    }
+    .finish();
 
     assert_css_eq!(
         resolve_utility("tab-8", &custom_theme).unwrap().declaration,

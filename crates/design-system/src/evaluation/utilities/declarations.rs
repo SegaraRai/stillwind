@@ -14,7 +14,7 @@
 use stillwind_syntax::Value;
 
 use super::super::values::colors::CompatColorMode;
-use super::super::values::placeholders::resolve_css_placeholders;
+use super::super::values::placeholders::{PreparedValues, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
 use crate::ThemeIndex;
 
@@ -28,7 +28,79 @@ pub(crate) struct ResolvedCssDeclarations {
     pub(crate) compat_modern: Vec<String>,
 }
 
-/// Resolves each declaration independently. `@utility` overloads are often
+/// Parsed declaration boundaries and branch requirements shared by snapshot evaluation.
+#[derive(Debug)]
+pub(crate) struct PreparedDeclarations {
+    declarations: Vec<PreparedDeclaration>,
+    uses_placeholder: bool,
+    uses_value: bool,
+    requires_modifier: bool,
+    required_declarations: usize,
+}
+
+impl PreparedDeclarations {
+    pub(crate) fn parse(body: &str, theme: &ThemeIndex) -> Self {
+        let declarations: Vec<_> = split_css_declarations(body)
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        let uses_placeholder = declarations.iter().any(|declaration| {
+            declaration.contains("--value(")
+                || declaration.contains("--value-literal(")
+                || declaration.contains("--value-map(")
+                || declaration.contains("--modifier(")
+                || declaration.contains("--modifier-map(")
+                || declaration.contains("--modifier-none()")
+                || declaration.contains("--alpha(")
+                || declaration.contains("--compat-color(")
+                || declaration.contains("--stillwind-builtin-shadow-color(")
+        });
+        let uses_value = declarations.iter().any(|declaration| {
+            declaration.contains("--value(") || declaration.contains("--value-literal(")
+        });
+        let requires_modifier = declarations
+            .iter()
+            .any(|declaration| declaration.contains("--modifier("));
+        let required_declarations = declarations
+            .iter()
+            .filter(|declaration| declaration.contains("--stillwind-builtin-shadow-color("))
+            .count();
+        Self {
+            declarations: declarations
+                .into_iter()
+                .map(|text| PreparedDeclaration::new(text, theme))
+                .collect(),
+            uses_placeholder,
+            uses_value,
+            requires_modifier,
+            required_declarations,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct PreparedDeclaration {
+    text: String,
+    values: Option<PreparedValues>,
+    static_builtin: Option<String>,
+    static_project: Option<String>,
+}
+
+impl PreparedDeclaration {
+    fn new(text: String, theme: &ThemeIndex) -> Self {
+        let values = PreparedValues::parse(&text);
+        let is_static = values.as_ref().is_some_and(PreparedValues::is_static);
+        Self {
+            static_builtin: is_static.then(|| resolve_declaration_value(&text, theme, true)),
+            static_project: is_static.then(|| resolve_declaration_value(&text, theme, false)),
+            values,
+            text,
+        }
+    }
+}
+
+/// Resolves each declaration independently. `body` contains a registered declaration
+/// group or a group produced by expanding theme wildcards. `@utility` overloads are often
 /// intentionally broad: a single body can expose both color and length forms. A failed
 /// typed placeholder must remove only the incompatible declaration, never the
 /// compatible siblings.
@@ -43,35 +115,30 @@ pub(crate) fn resolve_css_declarations(
     theme: &ThemeIndex,
     builtin: bool,
 ) -> Option<ResolvedCssDeclarations> {
-    let declarations = split_css_declarations(body);
-    let uses_placeholder = declarations.iter().any(|declaration| {
-        declaration.contains("--value(")
-            || declaration.contains("--value-literal(")
-            || declaration.contains("--value-map(")
-            || declaration.contains("--modifier(")
-            || declaration.contains("--modifier-map(")
-            || declaration.contains("--modifier-none()")
-            || declaration.contains("--alpha(")
-            || declaration.contains("--compat-color(")
-            || declaration.contains("--stillwind-builtin-shadow-color(")
-    });
-    let uses_value = declarations.iter().any(|declaration| {
-        declaration.contains("--value(") || declaration.contains("--value-literal(")
-    });
-    let requires_modifier = declarations
-        .iter()
-        .any(|declaration| declaration.contains("--modifier("));
-    let required_declarations = declarations
-        .iter()
-        .filter(|declaration| declaration.contains("--stillwind-builtin-shadow-color("))
-        .count();
+    let expanded;
+    let prepared = if let Some(prepared) = theme.programs().declarations(body) {
+        prepared
+    } else {
+        // Theme wildcard expansion substitutes token names into nested declarations.
+        // Those generated groups differ from the registered syntax.
+        expanded = PreparedDeclarations::parse(body, theme);
+        &expanded
+    };
+    let PreparedDeclarations {
+        declarations,
+        uses_placeholder,
+        uses_value,
+        requires_modifier,
+        required_declarations,
+    } = prepared;
     let mut resolved_placeholder = false;
     let mut resolved_value = false;
     let mut resolved_modifier = false;
     let mut resolved_required_declarations = 0;
     let mut output = ResolvedCssDeclarations::default();
 
-    for authored_declaration in declarations {
+    for authored in declarations {
+        let authored_declaration = &authored.text;
         let contains_placeholder = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(")
             || authored_declaration.contains("--value-map(")
@@ -85,16 +152,33 @@ pub(crate) fn resolve_css_declarations(
         let contains_required = authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_value = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(");
-        if let Some(declaration) = resolve_css_placeholders(
-            authored_declaration,
-            utility_name,
-            name,
-            modifier,
-            theme,
-            CompatColorMode::Legacy,
-        ) && !declaration.trim().is_empty()
+        let static_value = if builtin {
+            &authored.static_builtin
+        } else {
+            &authored.static_project
+        };
+        let resolved = if let Some(value) = static_value {
+            Some(value.clone())
+        } else if let Some(values) = &authored.values {
+            values.resolve(utility_name, name, modifier, theme)
+        } else {
+            resolve_css_placeholders(
+                authored_declaration,
+                utility_name,
+                name,
+                modifier,
+                theme,
+                CompatColorMode::Legacy,
+            )
+        };
+        if let Some(declaration) = resolved
+            && !declaration.trim().is_empty()
         {
-            let declaration = resolve_declaration_value(&declaration, theme, builtin);
+            let declaration = if static_value.is_some() {
+                declaration
+            } else {
+                resolve_declaration_value(&declaration, theme, builtin)
+            };
             resolved_placeholder |= contains_placeholder;
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
@@ -124,14 +208,14 @@ pub(crate) fn resolve_css_declarations(
     // Static declarations in a functional body are supporting declarations, not an
     // independent branch. For example the generic `translate-*` body must not emit
     // `translate: …` when none of its typed values match.
-    (!uses_placeholder || resolved_placeholder)
+    (!*uses_placeholder || resolved_placeholder)
         .then_some(())
         // A modifier-only sibling (such as `text-*/leading`) cannot make an unresolved
         // value branch valid. This is what prevents a color token from being
         // misinterpreted as a spacing value merely because both spellings use a slash.
-        .filter(|()| !uses_value || resolved_value)
-        .filter(|()| !requires_modifier || resolved_modifier)
-        .filter(|()| resolved_required_declarations == required_declarations)
+        .filter(|()| !*uses_value || resolved_value)
+        .filter(|()| !*requires_modifier || resolved_modifier)
+        .filter(|()| resolved_required_declarations == *required_declarations)
         .map(|()| output)
 }
 
@@ -177,7 +261,10 @@ pub(crate) fn split_css_declarations(body: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
+
     use super::*;
+    use crate::parse_theme;
 
     #[test]
     fn declarations_split_outside_strings_and_functions_only() {
@@ -190,7 +277,9 @@ mod tests {
 
     #[test]
     fn unmatched_dynamic_branch_cannot_emit_static_supporting_declarations() {
-        let theme = ThemeIndex::default();
+        let source = SourceFile::new(FileId(1), None, None,
+            "@utility w-* { display:block;width:--value([length]); } @utility x-* { width:--value([length]);color:--value([color]); }").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert!(
             resolve_css_declarations(
                 "display:block;width:--value([length]);",

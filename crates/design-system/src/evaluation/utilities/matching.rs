@@ -16,27 +16,11 @@ use std::collections::HashSet;
 use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
-use super::super::builtins::registry::builtin_utilities;
 use super::super::values::arbitrary::decode_arbitrary;
 use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
 use crate::{CustomUtility, ThemeIndex};
-
-/// Definitions whose name matches `name`: the exact definition plus any wildcard family
-/// whose prefix matches, in reverse authored order.
-pub(crate) fn matching_utilities<'a>(
-    utilities: &'a [CustomUtility],
-    name: &'a str,
-) -> impl Iterator<Item = &'a CustomUtility> {
-    utilities.iter().rev().filter(move |utility| {
-        utility.name == name
-            || utility
-                .name
-                .strip_suffix('*')
-                .is_some_and(|prefix| name.starts_with(prefix))
-    })
-}
 
 /// Resolves a named candidate through the registry layers.
 ///
@@ -77,7 +61,7 @@ pub(crate) fn resolve_user_css_utility(
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
-        matching_utilities(&theme.utilities, lookup),
+        theme.matching_utilities(lookup).into_iter(),
         lookup,
         modifier,
         theme,
@@ -98,13 +82,7 @@ pub(crate) fn resolve_builtin_css_utility(
     let lookup = negative.then(|| format!("-{name}"));
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
-        matching_utilities(&builtin_utilities(theme).wildcards, lookup).chain(
-            builtin_utilities(theme)
-                .builtin_exact
-                .get(lookup)
-                .into_iter()
-                .flat_map(|utilities| utilities.iter().rev()),
-        ),
+        theme.registry().matching_utilities(lookup).into_iter(),
         lookup,
         modifier,
         theme,
@@ -402,6 +380,5 @@ mod tests {
             utility_branch_specificity(&exact, "w-1")
                 > utility_branch_specificity(&wildcard, "w-1")
         );
-        assert_eq!(matching_utilities(&[exact, wildcard], "missing").count(), 0);
     }
 }

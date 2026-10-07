@@ -12,6 +12,7 @@
 //! deterministic.
 
 use std::cmp::Ordering;
+use std::sync::Arc;
 
 use stillwind_syntax::{Variant, VariantKind};
 
@@ -43,7 +44,7 @@ pub(crate) fn direct_builtin_variant<'a>(
                 .map(|_| (variant.name.len() - 1, variant))
         })
         .max_by_key(|(specificity, _)| *specificity)
-        .map(|(_, variant)| variant)
+        .map(|(_, variant)| variant.as_ref())
 }
 
 /// The theme namespace named by a sort key such as `--breakpoint-*`.
@@ -57,15 +58,18 @@ pub(crate) fn bare_builtin_variant<'a>(
     value: &str,
     theme: &'a ThemeIndex,
 ) -> Option<&'a CustomVariant> {
-    builtin_variants(theme).iter().find(|variant| {
-        let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
-            return false;
-        };
-        let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
-            return false;
-        };
-        theme.token_in(namespace, value).is_some()
-    })
+    builtin_variants(theme)
+        .iter()
+        .map(Arc::as_ref)
+        .find(|variant| {
+            let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
+                return false;
+            };
+            let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
+                return false;
+            };
+            theme.token_in(namespace, value).is_some()
+        })
 }
 
 /// Resolves a parsed variant to the definition that orders it.
@@ -98,7 +102,7 @@ pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
 /// everything registered.
 pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
     let custom = if let VariantKind::Named(value) = &variant.kind {
-        registered_variant_candidates(&theme.variants, value)
+        registered_variant_candidates(theme.variants(), value)
             .first()
             .map(|(definition, _)| *definition)
     } else {
@@ -110,11 +114,11 @@ pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
     let group = variant_group(variant);
     builtin_variants(theme)
         .iter()
-        .chain(&theme.variants)
+        .chain(theme.variants())
         .filter(|candidate| variant_group(candidate) == group)
         .filter_map(|candidate| {
             theme
-                .variant_positions
+                .variant_positions()
                 .get(&candidate.name)
                 .copied()
                 .or(candidate.builtin_order)
@@ -235,14 +239,17 @@ pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    let capture = compound_variant_capture(&theme.variants, value)
+    let capture = compound_variant_capture(theme.variants(), value)
         .or_else(|| compound_variant_capture(builtin_variants(theme), value))?;
     Some(parse_nested_variant(split_variant_modifier(&capture).0))
 }
 
 /// The capture of the first definition whose declared value type is a variant stack, so
 /// the capture can be parsed as an inner variant.
-pub(crate) fn compound_variant_capture(variants: &[CustomVariant], value: &str) -> Option<String> {
+pub(crate) fn compound_variant_capture(
+    variants: &[Arc<CustomVariant>],
+    value: &str,
+) -> Option<String> {
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {
@@ -304,6 +311,7 @@ mod tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
+    use crate::theme::builder::ThemeBuilder;
 
     #[test]
     fn sorting_compares_magnitudes_only_within_the_same_unit() {
@@ -327,12 +335,12 @@ mod tests {
     /// comparison is total: equal stacks compare equal and every pair is antisymmetric.
     #[test]
     fn compare_variant_sequences_orders_by_registry_position() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
             )),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }.finish();
         let variant = |text: &str| parse_candidate(text).unwrap().variants[0].clone();
         let early = variant("early:flex");
         let late = variant("late:flex");
@@ -415,14 +423,15 @@ mod sequence_property_tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
+    use crate::theme::builder::ThemeBuilder;
 
     fn theme() -> ThemeIndex {
-        ThemeIndex {
+        ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
             )),
-            ..ThemeIndex::default()
-        }
+            ..Default::default()
+        }.finish()
     }
 
     fn registered_variants() -> Vec<Variant> {

@@ -107,7 +107,7 @@ impl LiteralContribution {
                 continue;
             }
             if theme
-                .config
+                .config()
                 .lint_settings
                 .enabled_for_detection(LintKind::PreferTypedRelationships)
                 && is_tailwind_relationship_candidate(&raw, theme)
@@ -131,7 +131,7 @@ impl LiteralContribution {
             match resolve_utility_targets(resolved_input, theme) {
                 Ok(Some(mut resolved)) => {
                     if theme
-                        .config
+                        .config()
                         .lint_settings
                         .enabled_for_detection(LintKind::RequireElementScope)
                         && let Some(candidate) = parse_candidate(&utility.value.raw)

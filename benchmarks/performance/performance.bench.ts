@@ -14,6 +14,12 @@ import { expect, inject, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { createVitePlugins, stillwind } from "../../packages/integration/src/vite/plugin.ts";
 import { createViteProject } from "../../packages/integration/src/vite/project.ts";
+import {
+  canonicalCases,
+  canonicalLoader,
+  canonicalPalette,
+  canonicalSource,
+} from "../compiler/canonical-cases.ts";
 import { assertBudget, budgets } from "./budgets.ts";
 
 const full = inject("performanceFull");
@@ -24,6 +30,116 @@ const options: BenchRunOptions = {
   warmupIterations: 1,
   warmupTime: 0,
 };
+
+for (const scenario of canonicalCases) {
+  test(`canonical/cold-query/${scenario.name}`, async (context) => {
+    const loader = canonicalLoader();
+    let query = loader.editorQuery();
+    let answer: string | null;
+    context.task.meta.measurement = options;
+    const result = await context
+      .bench(
+        "canonical",
+        {
+          async: false,
+          beforeEach: () => {
+            query = loader.editorQuery();
+          },
+        },
+        () => {
+          answer = query.canonicalCandidate(scenario.candidate);
+        },
+      )
+      .run(options);
+    expect(answer!).toBe(scenario.expected);
+    await assertBudget(context, "canonical", result, budgets.canonical[scenario.name]);
+  });
+}
+
+test("canonical/prepare-css-revision", async (context) => {
+  let query = canonicalLoader().editorQuery();
+  context.task.meta.measurement = options;
+  const result = await context
+    .bench("load-css-and-index", { async: false }, () => {
+      query = canonicalLoader().editorQuery();
+    })
+    .run(options);
+  expect(query.canonicalCandidate("[border-color:#123456]")).toBeNull();
+  await assertBudget(context, "load-css-and-index", result, budgets.canonical.preparation);
+});
+
+test("canonical/cached-2000", async (context) => {
+  const query = canonicalLoader().editorQuery();
+  expect(query.canonicalCandidate("bg-[#123456]")).toBeNull();
+  let answer: string | null;
+  context.task.meta.measurement = options;
+  const result = await context
+    .bench("cached-batch", { async: false }, () => {
+      for (let i = 0; i < 2000; i++) {
+        answer = query.canonicalCandidate("bg-[#123456]");
+      }
+    })
+    .run(options);
+  expect(answer!).toBeNull();
+  await assertBudget(context, "cached-batch", result, budgets.canonical.cachedBatch);
+});
+
+for (const count of (full ? [100, 1000] : [100]) as (100 | 1000)[]) {
+  test(`canonical/palette/${count}`, async (context) => {
+    const loader = canonicalPalette(count);
+    let query = loader.editorQuery();
+    let answer: string | null;
+    context.task.meta.measurement = options;
+    const result = await context
+      .bench(
+        "color-miss",
+        {
+          async: false,
+          beforeEach: () => {
+            query = loader.editorQuery();
+          },
+        },
+        () => {
+          answer = query.canonicalCandidate("bg-[rgb(171_205_239)]");
+        },
+      )
+      .run(options);
+    expect(answer!).toBeNull();
+    await assertBudget(context, "color-miss", result, budgets.canonicalPalette[count]);
+  });
+}
+
+for (const unique of [false, true]) {
+  test(`canonical/module/${unique ? "unique" : "repeated"}/100`, async (context) => {
+    const loader = canonicalLoader();
+    const source = canonicalSource(100, unique);
+    let session = new NativeProjectSession(loader, false);
+    let reports: ReturnType<NativeProjectSession["diagnose"]>;
+    context.task.meta.measurement = options;
+    const result = await context
+      .bench(
+        "diagnose",
+        {
+          async: false,
+          beforeEach: () => {
+            session = new NativeProjectSession(loader, false);
+          },
+        },
+        () => {
+          reports = session.diagnose([source]);
+        },
+      )
+      .run(options);
+    expect(reports!).toHaveLength(1);
+    expect(reports![0].reports).toEqual([]);
+    await assertBudget(
+      context,
+      "diagnose",
+      result,
+      unique ? budgets.canonical.unique100 : budgets.canonical.repeated100,
+    );
+  });
+}
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 

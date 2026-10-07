@@ -4,6 +4,16 @@ use std::collections::BTreeSet;
 
 use stillwind_css::{CssFunctionMatch, find_css_functions};
 
+/// Skips tokenization when every requested function name is absent.
+/// Escaped identifiers still require the CSS parser to decode their spelling.
+pub(in super::super) fn matching_functions(input: &str, names: &[&str]) -> Vec<CssFunctionMatch> {
+    if !input.contains('\\') && !names.iter().any(|name| input.contains(name)) {
+        Vec::new()
+    } else {
+        find_css_functions(input, names, 0)
+    }
+}
+
 /// Single-family wrapper of [`expand_placeholders`].
 pub(in super::super) fn expand_placeholder(
     body: &mut String,
@@ -23,7 +33,7 @@ pub(in super::super) fn expand_placeholders(
     names: &[&str],
     mut resolve: impl FnMut(&str, &str) -> Option<String>,
 ) -> Option<()> {
-    let mut matches = find_css_functions(body, names, 0);
+    let mut matches = matching_functions(body, names);
     // Limits apply only to executable expansion, not large authored strings/data URLs.
     if matches.is_empty() {
         return Some(());
@@ -44,7 +54,7 @@ pub(in super::super) fn expand_placeholders(
             &mut |arguments| resolve(name, arguments),
         )?;
         if phase + 1 < names.len() {
-            matches = find_css_functions(&working, names, 0);
+            matches = matching_functions(&working, names);
         }
     }
     *body = working;
@@ -88,7 +98,7 @@ impl Expansion<'_> {
                 return None;
             }
             let replacement = resolve(&input[found.arguments.clone()])?;
-            let nested = find_css_functions(&replacement, &[self.name], 0);
+            let nested = matching_functions(&replacement, &[self.name]);
             let expanded = self.expand_matches(&replacement, nested.iter(), resolve)?;
             self.active.remove(invocation);
             if output

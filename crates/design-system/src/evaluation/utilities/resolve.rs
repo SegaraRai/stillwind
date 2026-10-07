@@ -1,12 +1,14 @@
 //! The public utility-resolution entry points.
 //!
 //! Resolution is stateless: the same candidate and theme always produce the same
-//! result, and nothing is memoized between calls. Candidates that fail to parse, match
+//! result. An immutable provider can reuse token lookups and parsed programs between
+//! calls. Candidates that fail to parse, match
 //! no definition, or match a branch that rejects their value all produce [`None`]; a
 //! caller that needs to distinguish "unknown utility" from "wrong value type" should
 //! read the diagnostics of the layer above.
 
 use std::fmt::Write;
+use std::sync::Arc;
 
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
@@ -15,7 +17,7 @@ use super::super::builtins::registry::{
 };
 use super::body::{UtilityResolution, UtilityResolutionError};
 use super::formatting::finalize_declaration;
-use super::matching::{matching_utilities, resolve_css_utility_branches, resolve_named_utility};
+use super::matching::{resolve_css_utility_branches, resolve_named_utility};
 use super::nested::NestedUtilityRule;
 use super::order::{UtilityOrder, UtilityPropertySort};
 use crate::{ThemeIndex, UtilityOrderMode};
@@ -91,7 +93,7 @@ pub fn resolve_utility(
             resolution
         }
     };
-    let order = match theme.config.utility_order {
+    let order = match theme.config().utility_order {
         UtilityOrderMode::Authored => UtilityOrder::Authored(resolution.builtin_order),
         UtilityOrderMode::Tailwind => {
             let groups = std::iter::once(resolution.declaration.as_str())
@@ -182,7 +184,17 @@ pub fn resolve_animation_option(
         return project_animation_option_utility(raw, theme);
     };
     if let Some(resolution) = resolve_css_utility_branches(
-        matching_utilities(builtin_animation_options(theme), name),
+        builtin_animation_options(theme)
+            .iter()
+            .rev()
+            .map(Arc::as_ref)
+            .filter(|utility| {
+                utility.name == *name
+                    || utility
+                        .name
+                        .strip_suffix('*')
+                        .is_some_and(|prefix| name.starts_with(prefix))
+            }),
         name,
         modifier.as_ref(),
         theme,
@@ -240,6 +252,7 @@ mod tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
+    use crate::theme::builder::ThemeBuilder;
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
         super::resolve_utility(raw, theme).unwrap()
@@ -255,18 +268,20 @@ mod tests {
 
     #[test]
     fn css_registries_are_isolated_without_process_defaults() {
-        let first = ThemeIndex {
+        let first = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-utility sample { color: red; }",
             )),
-            ..ThemeIndex::default()
-        };
-        let second = ThemeIndex {
+            ..Default::default()
+        }
+        .finish();
+        let second = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-utility sample { color: blue; }",
             )),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }
+        .finish();
         assert_eq!(
             resolve_utility("sample", &first).unwrap().declaration,
             "color:red;"
@@ -285,12 +300,12 @@ mod tests {
 
     #[test]
     fn animation_projection_keeps_only_mapped_properties_and_rejects_variants() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(
                 "@stillwind-animation-option-property transition-duration: animation-duration;\n@stillwind-animation-option-property transition-timing-function: animation-timing-function;",
             )),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }.finish();
         assert_eq!(
             project_animation_option_utility("[transition-duration:120ms]", &theme).as_deref(),
             Some("animation-duration:120ms;")

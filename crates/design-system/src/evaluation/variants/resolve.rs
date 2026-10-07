@@ -12,6 +12,8 @@
 //! rather than about evaluation: relational marker classes and the relationship-pattern
 //! query used by ref APIs.
 
+use std::sync::Arc;
+
 use cssparser::{Parser, Token};
 
 use stillwind_css::selector_uses_subject;
@@ -201,7 +203,7 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
     };
     let matches_pattern = |value: &str| {
         theme
-            .relationship_patterns
+            .relationship_patterns()
             .iter()
             .chain(builtin_relationship_patterns(theme).iter())
             .any(|pattern| {
@@ -238,7 +240,7 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
     let Utility::Named { name, modifier } = candidate.utility else {
         return None;
     };
-    if !theme.marker_utilities.contains(name.as_str())
+    if !theme.marker_utilities().contains(name.as_str())
         && !builtin_marker_utilities(theme).contains(name.as_str())
     {
         return None;
@@ -258,7 +260,7 @@ pub fn is_condition_variant(value: &str, theme: &ThemeIndex) -> bool {
     if let Some(application) = resolve_registered_variant(value, theme) {
         return matches!(application, VariantApplication::Conditional(_));
     }
-    registered_variant_candidates(&theme.variants, value)
+    registered_variant_candidates(theme.variants(), value)
         .into_iter()
         .chain(registered_variant_candidates(
             builtin_variants(theme),
@@ -285,7 +287,7 @@ pub(crate) fn resolve_registered_variant(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
-    if let Some(application) = resolve_registered_variant_from(&theme.variants, value, theme) {
+    if let Some(application) = resolve_registered_variant_from(theme.variants(), value, theme) {
         return Some(application);
     }
     resolve_registered_variant_from(builtin_variants(theme), value, theme)
@@ -312,7 +314,7 @@ pub(crate) fn resolve_bare_registered_variant(
 
 /// Resolves the first definition in `variants` whose name captures `value`.
 pub(crate) fn resolve_registered_variant_from(
-    variants: &[CustomVariant],
+    variants: &[Arc<CustomVariant>],
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {

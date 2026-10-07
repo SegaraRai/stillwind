@@ -1,101 +1,215 @@
-//! The parsed theme and its token queries.
+//! Immutable authored definitions and shared evaluation data for one CSS revision.
 //!
-//! The index holds exactly what the supplied CSS declared, in authored order, with the
-//! output template and the selected built-in definitions alongside it. Queries that
-//! answer "what is active" or "what is required" compute their answer from the token
-//! list instead of maintaining a second index, so a reset, a redefinition, and a
-//! dependency all stay consistent with the authored order.
-//!
-//! [`ThemeIndex::active_tokens`] is the single definition of token effectiveness: a
-//! later declaration replaces an earlier one, and a namespace reset removes the tokens
-//! it covers. Every other lookup goes through it.
+//! Token lookup applies resets and replacements once. Clones share declarations,
+//! effective token positions, candidate lookup, and parsed utility programs.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 
+use super::builder::ThemeBuilder;
 use super::config::StillwindConfig;
-use super::declarations::{ThemeToken, ThemeTokenKind};
+use super::declarations::ThemeToken;
 use super::namespace::ThemeNamespace;
 use super::references::resolve_theme_references;
+use super::tokens::TokenLookup;
+use crate::evaluation::UtilityPrograms;
 use crate::registry::utilities::CustomUtility;
+use crate::registry::utility_lookup::UtilityLookup;
 use crate::registry::variants::CustomVariant;
 use crate::{BuiltinDefinitions, ThemeReferenceError, ThemeTokenMode};
 
-/// Everything one parsed CSS buffer declared, before it is resolved into a snapshot.
-///
-/// The fields are the authored data, not a resolved lookup view: `tokens` keeps
-/// superseded declarations and resets, so queries must go through the methods below
-/// rather than reading the vector directly.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct ThemeIndex {
-    /// First declaration offsets after imports are expanded, shared by user and built-in variants.
-    pub variant_positions: BTreeMap<String, usize>,
-    /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
-    pub utility_positions: BTreeMap<String, usize>,
-    /// Structured output positions from the authored entry CSS.
-    pub output_template: CssOutputTemplate,
-    /// Built-in definitions selected by this CSS; empty when it imports none.
-    pub registry: Arc<BuiltinDefinitions>,
-    /// Every token in authored order, including resets and superseded values.
-    pub tokens: Vec<ThemeToken>,
-    /// Authored CSS outside definition blocks, retained verbatim.
-    pub custom_css: String,
-    /// User `@utility` definitions in authored order.
-    pub utilities: Vec<CustomUtility>,
-    /// User variant definitions grouped by syntax form; source order within each form.
-    pub variants: Vec<CustomVariant>,
-    /// Compiler-owned `@stillwind-property` definitions in authored order.
-    pub properties: Vec<CustomPropertyDefinition>,
-    /// Utility names whose declarations provide compatibility marker classes.
-    pub marker_utilities: BTreeSet<String>,
-    /// Generic serialization formats attached to CSS declarations.
-    pub declaration_formats: BTreeMap<String, String>,
-    /// Candidate patterns identifying compatibility relationships, such as `group-*`.
-    pub relationship_patterns: BTreeSet<String>,
-    /// Property names declared by authored `@property` rules.
-    pub authored_properties: BTreeSet<String>,
-    /// Resolved `@stillwind-config` values for this stylesheet.
-    pub config: StillwindConfig,
+#[derive(Debug, Eq, PartialEq)]
+struct ThemeDeclarations {
+    variant_positions: BTreeMap<String, usize>,
+    utility_positions: BTreeMap<String, usize>,
+    output_template: CssOutputTemplate,
+    registry: Arc<BuiltinDefinitions>,
+    tokens: Vec<Arc<ThemeToken>>,
+    custom_css: String,
+    utilities: Vec<Arc<CustomUtility>>,
+    variants: Vec<Arc<CustomVariant>>,
+    properties: Vec<Arc<CustomPropertyDefinition>>,
+    marker_utilities: BTreeSet<String>,
+    declaration_formats: BTreeMap<String, String>,
+    relationship_patterns: BTreeSet<String>,
+    authored_properties: BTreeSet<String>,
+    config: StillwindConfig,
 }
 
+#[derive(Debug)]
+struct ThemeData {
+    declarations: ThemeDeclarations,
+    tokens: TokenLookup,
+    utilities: UtilityLookup,
+    programs: OnceLock<UtilityPrograms>,
+}
+
+/// Owns one immutable stylesheet's authored declarations and evaluation data.
+/// Clones share the same definitions and preparation. Parsing new CSS creates a new index.
+#[derive(Clone, Debug)]
+pub struct ThemeIndex {
+    inner: Arc<ThemeData>,
+}
+
+impl Default for ThemeIndex {
+    fn default() -> Self {
+        ThemeBuilder::default().finish()
+    }
+}
+
+impl PartialEq for ThemeIndex {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.declarations == other.inner.declarations
+    }
+}
+
+impl Eq for ThemeIndex {}
+
 impl ThemeIndex {
+    pub(crate) fn new(builder: ThemeBuilder) -> Self {
+        let declarations = ThemeDeclarations {
+            variant_positions: builder.variant_positions,
+            utility_positions: builder.utility_positions,
+            output_template: builder.output_template,
+            registry: builder.registry,
+            tokens: builder.tokens.into_iter().map(Arc::new).collect(),
+            custom_css: builder.custom_css,
+            utilities: builder.utilities.into_iter().map(Arc::new).collect(),
+            variants: builder.variants.into_iter().map(Arc::new).collect(),
+            properties: builder.properties.into_iter().map(Arc::new).collect(),
+            marker_utilities: builder.marker_utilities,
+            declaration_formats: builder.declaration_formats,
+            relationship_patterns: builder.relationship_patterns,
+            authored_properties: builder.authored_properties,
+            config: builder.config,
+        };
+        let tokens = TokenLookup::new(&declarations.tokens);
+        let utilities = UtilityLookup::new(&declarations.utilities);
+        let theme = Self {
+            inner: Arc::new(ThemeData {
+                declarations,
+                tokens,
+                utilities,
+                programs: OnceLock::new(),
+            }),
+        };
+        theme.programs();
+        theme
+    }
+
+    pub(crate) fn programs(&self) -> &UtilityPrograms {
+        self.inner
+            .programs
+            .get_or_init(|| UtilityPrograms::new(self))
+    }
+
+    pub(crate) fn matching_utilities(&self, name: &str) -> Vec<&CustomUtility> {
+        self.inner.utilities.matching(name, self.utilities(), false)
+    }
+
+    pub(crate) fn active_token_definitions(&self) -> impl Iterator<Item = &Arc<ThemeToken>> {
+        self.inner
+            .tokens
+            .active
+            .values()
+            .map(|index| &self.inner.declarations.tokens[*index])
+    }
+
+    /// First declaration offsets after imports are expanded, shared by user and built-in variants.
+    pub fn variant_positions(&self) -> &BTreeMap<String, usize> {
+        &self.inner.declarations.variant_positions
+    }
+
+    /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
+    pub fn utility_positions(&self) -> &BTreeMap<String, usize> {
+        &self.inner.declarations.utility_positions
+    }
+
+    /// Structured output positions from the authored entry CSS.
+    pub fn output_template(&self) -> &CssOutputTemplate {
+        &self.inner.declarations.output_template
+    }
+
+    /// Built-in definitions selected by this CSS; empty when it imports none.
+    pub fn registry(&self) -> &Arc<BuiltinDefinitions> {
+        &self.inner.declarations.registry
+    }
+
+    /// Every token in authored order, including resets and superseded values.
+    pub fn tokens(&self) -> &[Arc<ThemeToken>] {
+        &self.inner.declarations.tokens
+    }
+
+    /// User `@utility` definitions in authored order.
+    pub fn utilities(&self) -> &[Arc<CustomUtility>] {
+        &self.inner.declarations.utilities
+    }
+
+    /// User variant definitions grouped by syntax form; source order within each form.
+    pub fn variants(&self) -> &[Arc<CustomVariant>] {
+        &self.inner.declarations.variants
+    }
+
+    /// Compiler-owned `@stillwind-property` definitions in authored order.
+    pub fn properties(&self) -> &[Arc<CustomPropertyDefinition>] {
+        &self.inner.declarations.properties
+    }
+
+    /// Utility names whose declarations provide compatibility marker classes.
+    pub fn marker_utilities(&self) -> &BTreeSet<String> {
+        &self.inner.declarations.marker_utilities
+    }
+
+    /// Generic serialization formats attached to CSS declarations.
+    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+        &self.inner.declarations.declaration_formats
+    }
+
+    /// Candidate patterns identifying compatibility relationships, such as `group-*`.
+    pub fn relationship_patterns(&self) -> &BTreeSet<String> {
+        &self.inner.declarations.relationship_patterns
+    }
+
+    /// Property names declared by authored `@property` rules.
+    pub fn authored_properties(&self) -> &BTreeSet<String> {
+        &self.inner.declarations.authored_properties
+    }
+
+    /// CSS-authored `@stillwind` settings for this stylesheet.
+    pub fn config(&self) -> &StillwindConfig {
+        &self.inner.declarations.config
+    }
+
     /// The named token in `namespace`, or `None` when it is not active.
     #[must_use]
     pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
-        self.active_tokens().into_iter().find(|token| {
-            token.kind
-                == (ThemeTokenKind::Token {
-                    namespace,
-                    name: name.to_owned(),
-                })
-        })
+        let index = self.inner.tokens.named.get(&namespace)?.get(name)?;
+        Some(&self.inner.declarations.tokens[*index])
     }
 
     /// Every active named token in `namespace`, ordered by custom-property name.
     #[must_use]
     pub fn tokens_in(&self, namespace: ThemeNamespace) -> Vec<&ThemeToken> {
-        self.active_tokens()
+        self.inner
+            .tokens
+            .named
+            .get(&namespace)
             .into_iter()
-            .filter(|token| {
-                matches!(
-                    token.kind,
-                    ThemeTokenKind::Token {
-                        namespace: token_namespace,
-                        ..
-                    } if token_namespace == namespace
-                )
-            })
+            .flat_map(BTreeMap::values)
+            .map(|index| self.inner.declarations.tokens[*index].as_ref())
             .collect()
     }
 
     /// The namespace's scalar scale token, when one is active.
     #[must_use]
     pub fn scale(&self, namespace: ThemeNamespace) -> Option<&ThemeToken> {
-        self.active_tokens()
-            .into_iter()
-            .find(|token| token.kind == ThemeTokenKind::Scale(namespace))
+        self.inner
+            .tokens
+            .scales
+            .get(&namespace)
+            .map(|index| self.inner.declarations.tokens[*index].as_ref())
     }
 
     /// Looks up a token by authored namespace text and bare name.
@@ -109,9 +223,7 @@ impl ThemeIndex {
             return self.token_in(namespace, name);
         }
         let expected = format!("--{namespace}-{name}");
-        self.active_tokens()
-            .into_iter()
-            .find(|token| token.name.value == expected)
+        self.custom_property(&expected)
     }
 
     /// The authored value of a token, looked up as [`Self::token`] does.
@@ -124,9 +236,11 @@ impl ThemeIndex {
     /// The active token with exactly this custom-property name, if any.
     #[must_use]
     pub fn custom_property(&self, name: &str) -> Option<&ThemeToken> {
-        self.active_tokens()
-            .into_iter()
-            .find(|token| token.name.value == name)
+        self.inner
+            .tokens
+            .active
+            .get(name)
+            .map(|index| self.inner.declarations.tokens[*index].as_ref())
     }
 
     /// Lowers build-time `--theme()` references in a theme-token value.
@@ -153,29 +267,7 @@ impl ThemeIndex {
     /// by custom-property name because the effective values are stored in a `BTreeMap`.
     #[must_use]
     pub fn active_tokens(&self) -> Vec<&ThemeToken> {
-        let mut values = BTreeMap::new();
-        let mut clear_all = false;
-        for token in &self.tokens {
-            if token.name.value == "--*" && token.value.value == "initial" {
-                values.clear();
-                clear_all = true;
-                continue;
-            }
-            if let Some(namespace) = token
-                .name
-                .value
-                .strip_prefix("--")
-                .and_then(|value| value.strip_suffix("-*"))
-                && token.value.value == "initial"
-            {
-                values.retain(|name: &String, _| !name.starts_with(&format!("--{namespace}-")));
-                continue;
-            }
-            if clear_all || token.name.value.starts_with("--") {
-                values.insert(token.name.value.clone(), token);
-            }
-        }
-        values.into_values().collect()
+        self.active_token_definitions().map(Arc::as_ref).collect()
     }
 
     /// Selects tokens referenced by CSS and their transitive dependencies, then applies
@@ -194,7 +286,7 @@ impl ThemeIndex {
         let tokens = self.active_tokens();
         let mut required = custom_property_references(css);
         if include_preflight {
-            required.extend(custom_property_references(&self.custom_css));
+            required.extend(custom_property_references(self.custom_css()));
         }
         for token in &tokens {
             if matches!(token.mode, ThemeTokenMode::Static)
@@ -232,11 +324,10 @@ impl ThemeIndex {
             .collect()
     }
 
-    /// CSS outside of `@theme` blocks, retained verbatim for custom properties, theme
-    /// selectors, layers, and ordinary authored CSS.
+    /// Authored CSS outside compile-time definition blocks, retained verbatim.
     #[must_use]
     pub fn custom_css(&self) -> &str {
-        &self.custom_css
+        &self.inner.declarations.custom_css
     }
 
     /// The last authored user utility with this exact name.
@@ -245,19 +336,21 @@ impl ThemeIndex {
     /// prefix matching.
     #[must_use]
     pub fn utility(&self, name: &str) -> Option<&CustomUtility> {
-        self.utilities
+        self.utilities()
             .iter()
             .rev()
             .find(|utility| utility.name == name)
+            .map(Arc::as_ref)
     }
 
     /// The last authored user variant with this exact name.
     #[must_use]
     pub fn variant(&self, name: &str) -> Option<&CustomVariant> {
-        self.variants
+        self.variants()
             .iter()
             .rev()
             .find(|variant| variant.name == name)
+            .map(Arc::as_ref)
     }
 }
 
@@ -269,8 +362,29 @@ mod tests {
     use crate::theme::declarations::extract_theme_declarations;
 
     #[test]
+    fn clones_share_declarations_and_preparation_without_affecting_new_themes() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme { --color-brand:red; } @utility brand { color:red; }",
+        )
+        .unwrap();
+        let theme = crate::parse_theme(&source, &CssSourceName::from("theme.css")).unwrap();
+        let clone = theme.clone();
+        assert!(Arc::ptr_eq(&theme.utilities()[0], &clone.utilities()[0]));
+        assert!(std::ptr::eq(theme.programs(), clone.programs()));
+        let replacement =
+            SourceFile::new(FileId(2), None, None, "@theme { --color-brand:blue; }").unwrap();
+        let replacement =
+            crate::parse_theme(&replacement, &CssSourceName::from("theme.css")).unwrap();
+        assert_eq!(replacement.value("color", "brand"), Some("blue"));
+        assert_eq!(clone.value("color", "brand"), Some("red"));
+    }
+
+    #[test]
     fn resets_and_redefinitions_select_only_effective_tokens() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             tokens: extract_theme_declarations(
                 FileId(1),
                 "--color-old:red;--color-*:initial;--color-new:blue;--color-new:green;",
@@ -278,8 +392,9 @@ mod tests {
                 ThemeTokenMode::Default,
             )
             .unwrap(),
-            ..ThemeIndex::default()
-        };
+            ..ThemeBuilder::default()
+        }
+        .finish();
         assert_eq!(theme.active_tokens().len(), 1);
         assert_eq!(theme.value("color", "old"), None);
         assert_eq!(theme.value("color", "new"), Some("green"));
@@ -292,7 +407,7 @@ mod tests {
             Some("var(--color-new)")
         );
         // Reset then redefinition keeps the last value, in name order.
-        let ordered = ThemeIndex {
+        let ordered = ThemeBuilder {
             tokens: extract_theme_declarations(
                 FileId(1),
                 "--color-z:red;--color-a:blue;--color-*:initial;--color-z:green;--color-a:black;",
@@ -300,8 +415,9 @@ mod tests {
                 ThemeTokenMode::Default,
             )
             .unwrap(),
-            ..ThemeIndex::default()
-        };
+            ..ThemeBuilder::default()
+        }
+        .finish();
         let tokens = ordered.active_tokens();
         assert_eq!(
             tokens
@@ -340,7 +456,7 @@ mod tests {
 
     #[test]
     fn transitive_token_dependencies_terminate_even_on_cycles() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             tokens: extract_theme_declarations(
                 FileId(1),
                 "--color-a:var(--color-b);--color-b:var(--color-a);--color-unused:red;",
@@ -348,8 +464,9 @@ mod tests {
                 ThemeTokenMode::Default,
             )
             .unwrap(),
-            ..ThemeIndex::default()
-        };
+            ..ThemeBuilder::default()
+        }
+        .finish();
         let names = theme
             .tokens_required_by("color:var(--color-a)", false, &[])
             .iter()

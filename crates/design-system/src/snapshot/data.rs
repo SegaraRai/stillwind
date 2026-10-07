@@ -10,19 +10,21 @@
 //! identical.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSettings, SourceFailureContext};
 use stillwind_source::{
     CssSourceName, Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span,
 };
 
-use super::{PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry};
+use super::analysis::SnapshotAnalyses;
+use super::{
+    PropertyRegistry, ThemeRegistry, UtilityRegistry, UtilitySearchIndex, VariantRegistry,
+};
 use crate::{
     BuiltinDefinitions, CssFileRequest, CssSourceGraph, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_definitions,
-    builtin_theme_order,
+    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_theme_order,
 };
 
 /// Reports why a snapshot could not be created from supplied CSS.
@@ -138,6 +140,8 @@ pub struct DefinitionFingerprints {
 /// let callers read it without changing it or taking ownership.
 #[derive(Debug)]
 struct DesignSystemData {
+    /// Analyses keyed by settings and shared for this resolved revision.
+    analyses: SnapshotAnalyses,
     /// Process-local identity allocated for this successful snapshot.
     revision: DesignSystemRevision,
     /// Resolved theme and authored output template used by evaluators.
@@ -162,14 +166,14 @@ struct DesignSystemData {
     sources: CssSourceGraph,
     /// Effective utility definitions grouped by name.
     utilities: UtilityRegistry,
+    /// Lazily parsed search metadata shared by every clone of this snapshot.
+    utility_search: OnceLock<UtilitySearchIndex>,
     /// Effective variant definitions grouped by name.
     variants: VariantRegistry,
     /// Custom-property registrations grouped by name.
     properties: PropertyRegistry,
     /// Effective theme tokens grouped by custom-property name.
     tokens: ThemeRegistry,
-    /// Selected built-in definitions, or None when no built-in registry is loaded.
-    builtins: Option<Arc<BuiltinDefinitions>>,
     /// Maps property names to templates for serializing authored declarations.
     declaration_formats: BTreeMap<String, String>,
     /// Registered relationship names used to validate relationship-aware candidates.
@@ -242,86 +246,57 @@ impl DesignSystemSnapshot {
         sources: CssSourceGraph,
     ) -> Result<Self, CompileDiagnostic> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
-        if let Some(prefix) = &theme.config.prefix {
+        if let Some(prefix) = &theme.config().prefix {
             config.prefix.clone_from(prefix);
         }
-        if let Some(prefix) = &theme.config.tailwind_prefix {
+        if let Some(prefix) = &theme.config().tailwind_prefix {
             config.tailwind_prefix.clone_from(prefix);
         }
         config.validate()?;
         // Source IDs are allocated as host reads complete; provenance must not
         // participate in semantic identity or asynchronous load order.
-        let mut semantic_template = theme.output_template.clone();
+        let mut semantic_template = theme.output_template().clone();
         semantic_template.map_origins(|_| None);
         let config_hash = Fingerprint::of(format!("{config:?}"));
         let ordering = Fingerprint::of(format!(
             "{:?}{:?}{:?}{:?}{:?}",
             semantic_template,
             builtin_theme_order(&theme),
-            theme.variant_positions,
-            theme.utility_positions,
-            theme.config.utility_order,
+            theme.variant_positions(),
+            theme.utility_positions(),
+            theme.config().utility_order,
         ));
-        let lint_settings = Fingerprint::of(format!("{:?}", theme.config.lint_settings));
-        let builtins = Some(builtin_definitions(&theme));
-        let mut declaration_formats = builtins.as_ref().map_or_else(BTreeMap::new, |definitions| {
-            definitions.declaration_formats.clone()
-        });
-        declaration_formats.extend(theme.declaration_formats.clone());
-        let mut relationships = builtins.as_ref().map_or_else(BTreeSet::new, |definitions| {
-            definitions.relationships.clone()
-        });
-        relationships.extend(theme.relationship_patterns.clone());
-        let utility_registry =
-            UtilityRegistry::new(
-                builtins
-                    .iter()
-                    .flat_map(|definitions| {
-                        definitions.utilities.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        })
-                    })
-                    .chain(
-                        theme.utilities.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        }),
-                    ),
-            );
-        let variant_registry =
-            VariantRegistry::new(
-                builtins
-                    .iter()
-                    .flat_map(|definitions| {
-                        definitions.variants.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        })
-                    })
-                    .chain(
-                        theme.variants.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        }),
-                    ),
-            );
-        let property_registry =
-            PropertyRegistry::new(
-                builtins
-                    .iter()
-                    .flat_map(|definitions| {
-                        definitions.properties.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        })
-                    })
-                    .chain(
-                        theme.properties.iter().map(|definition| {
-                            (definition.name.clone(), Arc::new(definition.clone()))
-                        }),
-                    ),
-            );
+        let lint_settings = Fingerprint::of(format!("{:?}", theme.config().lint_settings));
+        let builtins = theme.registry();
+        let mut declaration_formats = builtins.declaration_formats().clone();
+        declaration_formats.extend(theme.declaration_formats().clone());
+        let mut relationships = builtins.relationships().clone();
+        relationships.extend(theme.relationship_patterns().clone());
+        let utility_registry = UtilityRegistry::new(
+            builtins
+                .utilities()
+                .iter()
+                .chain(theme.utilities())
+                .map(|definition| (definition.name.clone(), Arc::clone(definition))),
+        );
+        let variant_registry = VariantRegistry::new(
+            builtins
+                .variants()
+                .iter()
+                .chain(theme.variants())
+                .map(|definition| (definition.name.clone(), Arc::clone(definition))),
+        );
+        let property_registry = PropertyRegistry::new(
+            builtins
+                .properties()
+                .iter()
+                .chain(theme.properties())
+                .map(|definition| (definition.name.clone(), Arc::clone(definition))),
+        );
         let token_registry = ThemeRegistry::new(
             theme
-                .active_tokens()
-                .iter()
-                .map(|token| (token.name.value.clone(), Arc::new((*token).clone()))),
+                .active_token_definitions()
+                .map(|token| (token.name.value.clone(), Arc::clone(token))),
         );
         let theme_tokens = theme
             .active_tokens()
@@ -338,30 +313,28 @@ impl DesignSystemSnapshot {
             .collect();
         // Include ordered definitions, including duplicate/reset tokens, but never source IDs or spans.
         let tokens: Vec<_> = theme
-            .tokens
+            .tokens()
             .iter()
             .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode))
             .collect();
         let content = Fingerprint::of(format!(
             "{}\0{config:?}\0{tokens:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
             env!("CARGO_PKG_VERSION"),
-            theme.utilities,
-            theme.variants,
-            theme.properties,
+            theme.utilities(),
+            theme.variants(),
+            theme.properties(),
             semantic_template,
-            theme.config,
-            theme.marker_utilities,
-            theme.declaration_formats,
-            theme.relationship_patterns,
-            theme.authored_properties,
-            theme.custom_css
+            theme.config(),
+            theme.marker_utilities(),
+            theme.declaration_formats(),
+            theme.relationship_patterns(),
+            theme.authored_properties(),
+            theme.custom_css()
         ));
         let content = Fingerprint::of(format!(
             "{}\0{}\0{:?}\0",
             content.0,
-            builtins
-                .as_ref()
-                .map_or("", |definitions| definitions.source.as_str()),
+            builtins.source(),
             semantic_template,
         ));
         let utilities = utility_registry.fingerprints();
@@ -369,14 +342,15 @@ impl DesignSystemSnapshot {
         let properties = property_registry.fingerprints();
         Ok(Self {
             inner: Arc::new(DesignSystemData {
+                analyses: SnapshotAnalyses::default(),
                 revision: DesignSystemRevision(NEXT_REVISION.fetch_add(1, Ordering::Relaxed)),
                 theme,
                 sources,
                 utilities: utility_registry,
+                utility_search: OnceLock::new(),
                 variants: variant_registry,
                 properties: property_registry,
                 tokens: token_registry,
-                builtins,
                 declaration_formats,
                 relationships,
                 config,
@@ -450,6 +424,14 @@ impl DesignSystemSnapshot {
         &self.inner.utilities
     }
 
+    /// Returns shared metadata for searching utilities by property or name prefix.
+    /// The first call builds the index. Later calls and snapshot clones reuse it.
+    pub fn utility_search(&self) -> &UtilitySearchIndex {
+        self.inner
+            .utility_search
+            .get_or_init(|| UtilitySearchIndex::new(&self.inner.utilities))
+    }
+
     /// Returns declaration formats after project CSS overrides the selected built-ins.
     pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
         &self.inner.declaration_formats
@@ -463,7 +445,7 @@ impl DesignSystemSnapshot {
     /// Authored lint severities, mapped from rule name to `warn`, `deny`, or `off`.
     /// Lint policy never changes generated CSS or generated names.
     pub fn lint_settings(&self) -> &LintSettings {
-        &self.inner.theme.config.lint_settings
+        &self.inner.theme.config().lint_settings
     }
 
     /// Variants from the selected built-ins and from the project CSS, grouped by name.
@@ -483,16 +465,54 @@ impl DesignSystemSnapshot {
         &self.inner.tokens
     }
 
-    /// The built-in definition set selected by the loaded CSS. Current construction
-    /// returns `Some` even for an empty registry; emptiness is not represented by
-    /// `None`.
-    pub fn builtins(&self) -> Option<&Arc<BuiltinDefinitions>> {
-        self.inner.builtins.as_ref()
+    /// The built-in definitions selected by the loaded CSS; empty when it imports none.
+    pub fn builtins(&self) -> &Arc<BuiltinDefinitions> {
+        self.inner.theme.registry()
+    }
+
+    /// Prepares and shares an analysis for this revision and `key`.
+    /// The key must include every setting that affects `init`. The initializer runs
+    /// once across snapshot clones. Dependencies between analyses must not form cycles.
+    /// The result must not retain this snapshot, which would form an ownership cycle.
+    pub fn analysis<T: std::any::Any + Send + Sync>(
+        &self,
+        key: Fingerprint,
+        init: impl FnOnce() -> T,
+    ) -> Arc<T> {
+        self.inner.analyses.get_or_init(key, init)
     }
 
     /// The parsed theme, including token spans into the original supplied buffers and
     /// the authored output template.
     pub fn theme(&self) -> &ThemeIndex {
         &self.inner.theme
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_source::FileId;
+
+    use super::*;
+
+    #[test]
+    fn name_groups_share_authored_definitions_and_effective_tokens() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme { --color-brand:red; } @utility brand { color:red; }",
+        )
+        .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("theme.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let utility = &snapshot.utilities().get("brand").unwrap()[0];
+        assert!(Arc::ptr_eq(utility, &snapshot.theme().utilities()[0]));
+        let token = &snapshot.tokens().get("--color-brand").unwrap()[0];
+        assert!(Arc::ptr_eq(token, &snapshot.theme().tokens()[0]));
     }
 }

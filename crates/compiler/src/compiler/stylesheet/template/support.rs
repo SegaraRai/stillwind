@@ -37,7 +37,7 @@ pub(super) struct SupportSelection<'a> {
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
     identifiers: &'a IdentifierContext,
-    /// Selected indices in `theme.tokens`, deduplicated and sorted numerically.
+    /// Selected indices in `theme.tokens()`, deduplicated and sorted numerically.
     /// Theme definitions determine the order in which these indices are emitted.
     tokens: BTreeSet<usize>,
     /// First whitespace-delimited words of selected animation-token values, in
@@ -96,7 +96,7 @@ impl<'a> SupportSelection<'a> {
         }
         let builtin = builtin_property_definitions(theme);
         if explicit.iter().any(|name| {
-            !builtin.iter().chain(&theme.properties).any(|property| {
+            !builtin.iter().chain(theme.properties()).any(|property| {
                 property.name == *name || options.rewrite_generated(&property.name) == *name
             })
         }) {
@@ -104,13 +104,13 @@ impl<'a> SupportSelection<'a> {
         }
         let required = theme.tokens_required_by(&used, false, builtin_omit_token_prefixes(theme));
         let tokens = theme
-            .tokens
+            .tokens()
             .iter()
             .enumerate()
             .filter_map(|(index, token)| {
                 required
                     .iter()
-                    .any(|required| std::ptr::eq(*required, token))
+                    .any(|required| std::ptr::eq(*required, token.as_ref()))
                     .then_some(index)
             })
             .collect();
@@ -212,13 +212,14 @@ impl<'a> SupportSelection<'a> {
 
     /// Selects one theme block's live declarations and requested animation definitions.
     ///
-    /// `tokens` contains indices into `self.theme.tokens`, in definition order. The two flags
-    /// select declaration and keyframe output independently. Declarations retain their
-    /// token origins; selected frames use the block's `origin`. The result has no
-    /// selector or layer wrapper. Runtime conditionals use `self.options`; lowered
-    /// token declarations map to the original value span rather than separate name/value spans.
-    /// Unselected or out-of-range indices and unresolved theme references are omitted.
-    /// Declarations precede keyframes when both output flags are set.
+    /// `tokens` contains indices into `self.theme.tokens()`, in definition order. The
+    /// two flags select declaration and keyframe output independently. Declarations
+    /// retain their token origins; selected frames use the block's `origin`. The result
+    /// has no selector or layer wrapper. Runtime conditionals use `self.options`;
+    /// lowered token declarations map to the original value span rather than separate
+    /// name/value spans. Unselected or out-of-range indices and unresolved theme
+    /// references are omitted. Declarations precede keyframes when both output flags
+    /// are set.
     ///
     /// # Errors
     ///
@@ -236,7 +237,7 @@ impl<'a> SupportSelection<'a> {
         let mut output = MappedStylesheet::default();
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
-            if let Some(token) = self.theme.tokens.get(*index) {
+            if let Some(token) = self.theme.tokens().get(*index) {
                 let Some(value) = resolve_theme_value(self.theme, &token.value.value)? else {
                     continue;
                 };

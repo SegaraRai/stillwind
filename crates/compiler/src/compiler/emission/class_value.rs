@@ -34,7 +34,7 @@ impl CallEmitter<'_> {
         };
         if !self
             .theme
-            .config
+            .config()
             .lint_settings
             .enabled_for_detection(LintKind::RequireElementScope)
         {

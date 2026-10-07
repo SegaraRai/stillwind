@@ -20,6 +20,7 @@ use napi_derive::napi;
 use stillwind_compiler::{
     CompileResult, CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers,
     MappedStylesheet, ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
+    prepare_canonical_index,
 };
 use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
@@ -212,6 +213,7 @@ impl NativeDesignSystemLoader {
                     .collect(),
             }),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
+                prepare_canonical_index(&snapshot, &self.options);
                 let output = NativeCssLoadStep::Complete {
                     revision: snapshot.revision().0.to_string(),
                     resources: snapshot

@@ -1,0 +1,2814 @@
+{
+  "baseRevision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+  "unit": "milliseconds",
+  "comparisonBaseline": "canonical-baseline-2026-10-07.json",
+  "rustSourceSha256": {
+    "crates/compiler/src/candidate.rs": "659cd1bcdf9b07a76efacb5e2c39f5df11a3dd14d1d93188e58f05d7745429e6",
+    "crates/compiler/src/compiler/animation_options.rs": "19d8ea944ffa931d6abb36e9eb7895996341ad99f71929d84dc4544639cfd037",
+    "crates/compiler/src/compiler/class_units.rs": "f5d83f11b53ac2ca78b28b2d0bff912201c924540c775b5dc9def84d96af6a36",
+    "crates/compiler/src/compiler/emission/class_value.rs": "c112eea9bd399dc2fa14fe160765d789ede5b0e1bdfc2ccb71a2dff1285239c0",
+    "crates/compiler/src/compiler/emission/keyframes_use.rs": "694028b75bc6e515d467a7b6fa580f459377d4b0b1edb9b15517018bbc4fa408",
+    "crates/compiler/src/compiler/emission/mod.rs": "67eb01e875e83e7211ef0646d1202796062bc6942c205fd3415e7c61ec116ad5",
+    "crates/compiler/src/compiler/literal.rs": "8e0f45bee7100c518d4d3e6a77e5a773412270bc059336926bcfb15b01084d08",
+    "crates/compiler/src/compiler/style_variants.rs": "129b7f24d42b683a48a2ef338006793529a822f855a9d0760b28316d3a7b3714",
+    "crates/compiler/src/compiler/stylesheet/authored_directives.rs": "16a706d1aafaa8fc21e8643f4118bc12a1d474e000bcce5bf3c6ccbad6112922",
+    "crates/compiler/src/compiler/stylesheet/properties.rs": "5ae3b40ab4e5299010d89f3d0ad1a77244169d2b3ca2dfa3a7c1372bd674c3fe",
+    "crates/compiler/src/compiler/stylesheet/render.rs": "a478a29453c15c58bb1adf682f5c3c52fd72b7915c3ffa7eaabb7f1a38ace37c",
+    "crates/compiler/src/compiler/stylesheet/template/assemble.rs": "20e22cf79062f155d1236ee1d7905429607a0568fcbe04f40c60000a27854317",
+    "crates/compiler/src/compiler/stylesheet/template/emit.rs": "3e096304571ada5fb731c60cd31fb0f8b47c116991f829cb7fd1d094bfab2317",
+    "crates/compiler/src/compiler/stylesheet/template/support.rs": "829f8656642a5e61f7a2ada114312c09a0f1957a508ef892468f96b80eccddf5",
+    "crates/compiler/src/compiler/stylesheet/template/tests.rs": "95f5a92f6fdab9f65db6ab47268f368acee31c6ba4254f5254b97e578cdc24b3",
+    "crates/compiler/src/compiler/utilities/declaration_order.rs": "cee94449f74b26a908d2dcaf8e31a08fcb2f492246ee2301f54f73cf48b869ee",
+    "crates/compiler/src/compiler/utilities/emission.rs": "8c4b62ddfe3df0358765520ac114a496aec5a2da371213d34ff0ece6d181216f",
+    "crates/compiler/src/compiler/utilities/render.rs": "d49baeb179333d9a6ff5cd48290a2a9587486be0a0bb22627198f0c135b43fc9",
+    "crates/compiler/src/compiler/utilities/resolve.rs": "7adcd0a2228454195df4a92da26ded70a30a3973638c09e3b4ddd75e683f5dd4",
+    "crates/compiler/src/compiler/variants.rs": "9b8bfc792a7c716a76a7fc03ed7b8c6eebc019b383ee026cd2e4741f6287b640",
+    "crates/compiler/src/compiler/vocabulary.rs": "0b45cc2cc5d79ea3ae5f479950d9dd718c9235763290268a772b8271c72d7f2f",
+    "crates/compiler/src/lib.rs": "514414b3f310a82a6d203d3b89d643aa176469664ecf13484d3297b5fd1c8dad",
+    "crates/compiler/src/options.rs": "15e20b7f5eb5075a5ff342d6960bab0c0d719fded1cdf522c403d5c859743396",
+    "crates/compiler/src/query/canonical.rs": "a189fd20642073981ce400bf62f29dbabbb6606fa25706defe22752a1ff57da2",
+    "crates/compiler/src/query/canonical/index.rs": "46a262e4341404731dfa39278566e7d390b354c6faa3f72606591e973ecfc756",
+    "crates/compiler/src/query/canonical/values.rs": "0b6ad2f65a5ffc2de51d71ab07db2793b1604b1aa72ca5c361f91cc76a5d3898",
+    "crates/compiler/src/query/canonical/values/direct.rs": "c1232a51ab205de844703e89d306e7d97936af425be4f3da04d0d02029318f86",
+    "crates/compiler/src/query/canonical/variants.rs": "69451e3e0d87af9de98ee1d4439f2634b4b12c12b59a15ed81997ad7017951a2",
+    "crates/compiler/src/query/completion.rs": "606d8f2b8c044fd947142d1cccabd04c02a3da1520ae3858515167062dcef6d5",
+    "crates/compiler/src/query/context.rs": "0753d66e1dfc2514251f4cfe3a964bb75dd223975f45b99951b47fee3c18e258",
+    "crates/compiler/src/query/mod.rs": "3f1c0aa7958e0f2f8504bd6cffdbd7bf1f54d9879ef0ebcc9a49b108f4deca96",
+    "crates/compiler/src/query/ordering.rs": "c5f9dd7d5aa6d70976c29b5945071d980a82422ade063dfead01a3656cdbd25d",
+    "crates/compiler/src/query/resolution.rs": "ccd383bb37fcbb78e8e915ed6a17fe818b2f572920b9977285db22fa78a1d63a",
+    "crates/compiler/src/query/theme.rs": "2e12de5d055beef5411ed6b837f64d0534018f6515b548b008d9935fc1bb961b",
+    "crates/compiler/src/renderer.rs": "3ce6f72494eaf7005970ceb83f794dfe4ff5fe9aa869ed55cf4f3d3371e0cf51",
+    "crates/design-system/src/evaluation/builtins/metadata.rs": "56f02b3acdcd2ad40cc0780b4b606f54492529d413450d3f3f97e40fa36cdcf1",
+    "crates/design-system/src/evaluation/builtins/registry.rs": "16a6fe40c72dc668fa40cb331be211f13b7489075d12957c591db313f4e623c6",
+    "crates/design-system/src/evaluation/mod.rs": "bfd60e4d913d37bee329d7a88b7c4f01962fe2a1408845c47da16bf37a2b1a0c",
+    "crates/design-system/src/evaluation/programs.rs": "5f178d216f6e4ea63ab3b63370004e7fed60327973dd4a0452fb79219cfd7244",
+    "crates/design-system/src/evaluation/tests/registry.rs": "ce213dd3ae0758331b60207e4f597aa81c9c27aa8784a1bf682ef03cca693c52",
+    "crates/design-system/src/evaluation/tests/relationships.rs": "69ee4a01cdf11459a6db6c71b6d252591e22312bd5daf79bad4f8cc2a9c5f6ec",
+    "crates/design-system/src/evaluation/tests/utility_domains.rs": "926f14c954d3f7f4596dc3bcae7ee4e259bed02a7da63bc5479e885ec82026e3",
+    "crates/design-system/src/evaluation/utilities/body.rs": "29dbd381a29ea6997d43741ff41385b39f4f3f015e32730799408175af9cf3ae",
+    "crates/design-system/src/evaluation/utilities/declarations.rs": "0cd22dee73191b1665cc33a80119cef63ef5c5f9a497f609ac811135d5c02fa7",
+    "crates/design-system/src/evaluation/utilities/formatting.rs": "b7309e1ca7144368a3d3f9266c516d2e0e9d505a2012d04d4c4326780d394d51",
+    "crates/design-system/src/evaluation/utilities/matching.rs": "39bef89dd3f8fda1aa5a8cbc9a25b0164a60839d8461f5e3135d62c3cd2e02e8",
+    "crates/design-system/src/evaluation/utilities/resolve.rs": "fb15bcad5d2f613e6c60bf101e2624b12aa4a27e395370d82316302a7920d455",
+    "crates/design-system/src/evaluation/values/expansion.rs": "a355302d937b5f9e7f88d93f78c6f9de9801348808b2dd05ffcdfddc92a3809e",
+    "crates/design-system/src/evaluation/values/placeholders.rs": "4440144f0f4652ac3a95d13be7b06b6adadf919225cd4298c3854ff126a93948",
+    "crates/design-system/src/evaluation/values/theme.rs": "76d2dc7f166d56915697efe2c097d069285a8862d3020a38f0abd32ef5c810fb",
+    "crates/design-system/src/evaluation/variants/order.rs": "310be755bca2397baa93b1e6d8f7c6e2238b4b3d39d0f2456b098d9cecac1535",
+    "crates/design-system/src/evaluation/variants/resolve.rs": "865fac28f33195c413dbf267d75dc6744edfd49f4c078b69e2dda663a3076a47",
+    "crates/design-system/src/evaluation/variants/substitution.rs": "b91932c6513ac9d1e46ce011526dc9cac361dbec1374fa06918d8181cd213e13",
+    "crates/design-system/src/loading/state.rs": "3d3c8c28718d0505b9d31cafd6db03d0f5ad7fc3fc81016ddaca2ae570cf4d83",
+    "crates/design-system/src/loading/tests.rs": "c6fe0027aaa670fbf363535c5b6e32a4983873d92cee4d18f4d4525c2be50989",
+    "crates/design-system/src/registry/definitions.rs": "0ccb471d5e0e428491ae69150943a1180530afb30833bc3820926b25345f7c6e",
+    "crates/design-system/src/registry/mod.rs": "92f1bc20489af1aab1606914e1df3c85a09da2495e6285e550d9e648000475f2",
+    "crates/design-system/src/registry/utility_lookup.rs": "7ee2b351e7652d858feefcee3ddf6c7e7d9683de53de0d09a00fe4baadd4ebb1",
+    "crates/design-system/src/snapshot/analysis.rs": "bc3e733123166f78579f628ce9e05cc06883302ad15ef9b5127de472138a9953",
+    "crates/design-system/src/snapshot/data.rs": "cf172e7d62fef706e8954d418bce8cce7d2550dd7ce4987bcd70982e4bb96564",
+    "crates/design-system/src/snapshot/mod.rs": "2e6331d58a19bc88017165d8aa80c0e92e8d4b19dc2f4b46512648e9e2f3c8b2",
+    "crates/design-system/src/snapshot/registry.rs": "0cb8042634244eb0a62bdeaa7cd22ba3a0a7325e0b3df6df3eb4fd260cfa8ffe",
+    "crates/design-system/src/snapshot/utility_search.rs": "342fbdcf884586867380f7b180548c321a6e20005ff7480b25698121ebaccd1f",
+    "crates/design-system/src/tests/theme.rs": "170a1f75ef2265f4d04d9ae780498758e5aacb1ad18de35b92460221c7b9fa23",
+    "crates/design-system/src/theme/builder.rs": "b74f41ba7a51cec2b161f53a58ecaddcae1902d0a62e9816695542384ef4f1fc",
+    "crates/design-system/src/theme/index.rs": "0ff7eb10528c163c6309faf976765941ab5adb8b1983e810432dd29c7d18c111",
+    "crates/design-system/src/theme/mod.rs": "bfe14b6313abb7f9a23be542c988d72553b9f70a14ea38d5db241446efcc447a",
+    "crates/design-system/src/theme/parser.rs": "afee4aabebbab064ba36f7db033148f96741dc60ee336e8d633fb20579b51472",
+    "crates/design-system/src/theme/tokens.rs": "50c66ddffeb35754b92229dd0f988c8bc8c2b646062d0680522d62e83ba2cbef",
+    "crates/napi/src/session.rs": "877647c88a815114fde301eab4dd81741df0a5ffc628a0dfce616132fec3da66",
+    "crates/project/src/session.rs": "377aab71072029b5155075578e75fff55c266df3d22c238267d5294340466d4d"
+  },
+  "native": [
+    {
+      "scenario": "canonical/cold-query/named",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:00.760Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.0006000000000199179,
+      "maximumMs": 0.0036999999999807187,
+      "samplesMs": [
+        0.0004999999999881766, 0.00050000000004502, 0.0005999999999630745, 0.0006000000000199179,
+        0.0006000000000199179, 0.0006999999999948159, 0.0009999999999763531, 0.0011000000000080945,
+        0.0036999999999807187
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/spacing",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:00.961Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.04470000000003438,
+      "maximumMs": 0.05529999999998836,
+      "samplesMs": [
+        0.04390000000000782, 0.04399999999998272, 0.0443000000000211, 0.04450000000008458,
+        0.04470000000003438, 0.04509999999993397, 0.045500000000060936, 0.04610000000002401,
+        0.05529999999998836
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-match",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:01.176Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.049500000000080036,
+      "maximumMs": 0.09230000000002292,
+      "samplesMs": [
+        0.0484000000000151, 0.049299999999902866, 0.04939999999999145, 0.04939999999999145,
+        0.049500000000080036, 0.05169999999998254, 0.05180000000007112, 0.05570000000000164,
+        0.09230000000002292
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:01.406Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.03719999999998436,
+      "maximumMs": 0.23859999999990578,
+      "samplesMs": [
+        0.03490000000010696, 0.03530000000000655, 0.035399999999981446, 0.036100000000033106,
+        0.03719999999998436, 0.04490000000009786, 0.08449999999993452, 0.18299999999999272,
+        0.23859999999990578
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/property-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:01.618Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.0342000000000553,
+      "maximumMs": 0.05770000000006803,
+      "samplesMs": [
+        0.03329999999982647, 0.03340000000002874, 0.033599999999978536, 0.03370000000018081,
+        0.0342000000000553, 0.03440000000000509, 0.03460000000018226, 0.03819999999996071,
+        0.05770000000006803
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-modifier-match",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:01.822Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.10950000000002547,
+      "maximumMs": 0.1773000000000593,
+      "samplesMs": [
+        0.10609999999996944, 0.10639999999989413, 0.10719999999992069, 0.10930000000007567,
+        0.10950000000002547, 0.11059999999997672, 0.11120000000005348, 0.12259999999992033,
+        0.1773000000000593
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-modifier-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:02.026Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.13840000000004693,
+      "maximumMs": 0.17200000000002547,
+      "samplesMs": [
+        0.13609999999994216, 0.13639999999986685, 0.1368999999999687, 0.13819999999986976,
+        0.13840000000004693, 0.13940000000002328, 0.1426000000001295, 0.14609999999993306,
+        0.17200000000002547
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/variant-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:02.236Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.055600000000140426,
+      "maximumMs": 0.06390000000010332,
+      "samplesMs": [
+        0.0545999999999367, 0.05480000000011387, 0.05509999999981119, 0.05520000000001346,
+        0.055600000000140426, 0.05690000000004147, 0.05759999999986576, 0.05899999999996908,
+        0.06390000000010332
+      ]
+    },
+    {
+      "scenario": "canonical/prepare-css-revision",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:02.439Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 254.24130000000014,
+      "maximumMs": 282.1376,
+      "samplesMs": [
+        200.36170000000038, 201.6554000000001, 212.4472999999998, 245.38720000000012,
+        254.24130000000014, 255.32370000000037, 273.51839999999993, 275.2411000000002, 282.1376
+      ]
+    },
+    {
+      "scenario": "canonical/reuse-prepared-revision",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.056Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.002900000000408909,
+      "maximumMs": 0.015099999999620195,
+      "samplesMs": [
+        0.002800000000206637, 0.002800000000206637, 0.002899999999499414, 0.002899999999499414,
+        0.002900000000408909, 0.003499999999803549, 0.004199999999400461, 0.005199999999604188,
+        0.015099999999620195
+      ]
+    },
+    {
+      "scenario": "canonical/cached-2000",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.314Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.8789999999999054,
+      "maximumMs": 0.9633000000003449,
+      "samplesMs": [
+        0.5266000000001441, 0.6080000000001746, 0.8375999999998385, 0.8777000000000044,
+        0.8789999999999054, 0.8823000000002139, 0.9027000000005501, 0.9345999999995911,
+        0.9633000000003449
+      ]
+    },
+    {
+      "scenario": "canonical/palette/10",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.587Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.01710000000002765,
+      "maximumMs": 0.02129999999942811,
+      "samplesMs": [
+        0.016599999999925785, 0.016700000000128057, 0.016700000000128057, 0.01710000000002765,
+        0.01710000000002765, 0.017299999999522697, 0.017299999999522697, 0.018000000000029104,
+        0.02129999999942811
+      ]
+    },
+    {
+      "scenario": "canonical/palette/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.588Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.025000000000545697,
+      "maximumMs": 0.031700000000455475,
+      "samplesMs": [
+        0.024600000000646105, 0.02479999999923166, 0.024900000000343425, 0.025000000000545697,
+        0.025000000000545697, 0.025299999999333522, 0.02599999999983993, 0.0261000000000422,
+        0.031700000000455475
+      ]
+    },
+    {
+      "scenario": "canonical/palette/1000",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.591Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.020099999999729334,
+      "maximumMs": 0.05529999999998836,
+      "samplesMs": [
+        0.01650000000063301, 0.018100000000231375, 0.018299999999726424, 0.01870000000053551,
+        0.020099999999729334, 0.029199999999946158, 0.02959999999984575, 0.030600000000049477,
+        0.05529999999998836
+      ]
+    },
+    {
+      "scenario": "canonical/module/repeated/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.617Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 1.1463000000003376,
+      "maximumMs": 1.2156999999997424,
+      "samplesMs": [
+        1.0734000000002197, 1.0978000000004613, 1.1275000000005093, 1.1345000000001164,
+        1.1463000000003376, 1.1703999999999724, 1.1814000000003944, 1.20929999999953,
+        1.2156999999997424
+      ]
+    },
+    {
+      "scenario": "canonical/module/unique/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:05.913Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 6.708499999999731,
+      "maximumMs": 7.45049999999992,
+      "samplesMs": [
+        5.587199999999939, 5.785100000000057, 6.139600000000428, 6.603100000000268,
+        6.708499999999731, 6.868900000000394, 6.995699999999488, 7.433899999999994, 7.45049999999992
+      ]
+    }
+  ],
+  "nodeWasm": [
+    {
+      "scenario": "canonical/cold-query/named",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:17.871Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.012299999999981992,
+      "maximumMs": 0.057999999999992724,
+      "samplesMs": [
+        0.008699999999976171, 0.008800000000064756, 0.00909999999998945, 0.00940000000002783,
+        0.012299999999981992, 0.013200000000097134, 0.019000000000005457, 0.03829999999993561,
+        0.057999999999992724
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/spacing",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:18.298Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.07290000000000418,
+      "maximumMs": 0.15369999999995798,
+      "samplesMs": [
+        0.06979999999998654, 0.0706000000000131, 0.0726999999999407, 0.07270000000005439,
+        0.07290000000000418, 0.07650000000001, 0.07859999999993761, 0.08920000000000528,
+        0.15369999999995798
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-match",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:18.596Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.0989999999999327,
+      "maximumMs": 0.21000000000003638,
+      "samplesMs": [
+        0.08009999999990214, 0.08140000000003056, 0.08249999999998181, 0.08989999999994325,
+        0.0989999999999327, 0.10210000000006403, 0.10550000000012005, 0.141399999999976,
+        0.21000000000003638
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:18.899Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.05780000000004293,
+      "maximumMs": 0.11529999999993379,
+      "samplesMs": [
+        0.054799999999886495, 0.05499999999983629, 0.05590000000006512, 0.05690000000004147,
+        0.05780000000004293, 0.059700000000020736, 0.06569999999987886, 0.06580000000008113,
+        0.11529999999993379
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/property-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:19.176Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.06100000000014916,
+      "maximumMs": 0.08760000000006585,
+      "samplesMs": [
+        0.0524000000000342, 0.053200000000060754, 0.053200000000060754, 0.06060000000002219,
+        0.06100000000014916, 0.0625999999999749, 0.06599999999980355, 0.07709999999997308,
+        0.08760000000006585
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-modifier-match",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:19.460Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.2031000000001768,
+      "maximumMs": 0.333299999999781,
+      "samplesMs": [
+        0.19459999999980937, 0.19770000000016807, 0.20280000000002474, 0.20299999999997453,
+        0.2031000000001768, 0.21680000000014843, 0.21739999999999782, 0.2806000000000495,
+        0.333299999999781
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/color-modifier-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:19.739Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.2442999999998392,
+      "maximumMs": 0.27919999999994616,
+      "samplesMs": [
+        0.21129999999993743, 0.21469999999999345, 0.21669999999994616, 0.22069999999985157,
+        0.2442999999998392, 0.24779999999964275, 0.26350000000002183, 0.27589999999963766,
+        0.27919999999994616
+      ]
+    },
+    {
+      "scenario": "canonical/cold-query/variant-miss",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:20.028Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.1111999999998261,
+      "maximumMs": 0.14769999999998618,
+      "samplesMs": [
+        0.10579999999981737, 0.10800000000017462, 0.10829999999987194, 0.10889999999972133,
+        0.1111999999998261, 0.11200000000008004, 0.11819999999988795, 0.12579999999979918,
+        0.14769999999998618
+      ]
+    },
+    {
+      "scenario": "canonical/prepare-css-revision",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:20.319Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 345.9004,
+      "maximumMs": 365.2667000000001,
+      "samplesMs": [
+        321.9297000000006, 333.9288999999999, 338.36950000000024, 341.78979999999956, 345.9004,
+        355.77140000000054, 359.3807999999999, 364.1320000000005, 365.2667000000001
+      ]
+    },
+    {
+      "scenario": "canonical/reuse-prepared-revision",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:24.049Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.018999999999323336,
+      "maximumMs": 0.056300000000192085,
+      "samplesMs": [
+        0.010099999999511056, 0.012600000000020373, 0.01389999999992142, 0.014299999999821011,
+        0.018999999999323336, 0.021499999999832653, 0.02580000000034488, 0.04249999999956344,
+        0.056300000000192085
+      ]
+    },
+    {
+      "scenario": "canonical/cached-2000",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:24.432Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 6.736499999999978,
+      "maximumMs": 9.866800000000694,
+      "samplesMs": [
+        4.197900000000118, 4.89890000000014, 6.2739999999994325, 6.522999999999229,
+        6.736499999999978, 7.699000000000524, 8.032199999999648, 8.205999999999221,
+        9.866800000000694
+      ]
+    },
+    {
+      "scenario": "canonical/palette/10",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:24.979Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.03499999999985448,
+      "maximumMs": 0.050600000000486034,
+      "samplesMs": [
+        0.03389999999944848, 0.033999999999650754, 0.03410000000076252, 0.0342000000000553,
+        0.03499999999985448, 0.03539999999975407, 0.03870000000006257, 0.04199999999946158,
+        0.050600000000486034
+      ]
+    },
+    {
+      "scenario": "canonical/palette/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:24.982Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.033800000000155705,
+      "maximumMs": 0.06829999999990832,
+      "samplesMs": [
+        0.03250000000025466, 0.03260000000045693, 0.03279999999995198, 0.033200000000761065,
+        0.033800000000155705, 0.033800000000155705, 0.03819999999996071, 0.044100000000071304,
+        0.06829999999990832
+      ]
+    },
+    {
+      "scenario": "canonical/palette/1000",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:24.987Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 0.05470000000059372,
+      "maximumMs": 0.19620000000031723,
+      "samplesMs": [
+        0.027700000000550062, 0.0419000000001688, 0.042899999999463034, 0.04659999999967113,
+        0.05470000000059372, 0.066899999999805, 0.08989999999994325, 0.12470000000030268,
+        0.19620000000031723
+      ]
+    },
+    {
+      "scenario": "canonical/module/repeated/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:25.017Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 2.1596999999992477,
+      "maximumMs": 2.4989999999997963,
+      "samplesMs": [
+        1.8623000000006869, 1.9607999999998356, 2.1162999999996828, 2.137399999999616,
+        2.1596999999992477, 2.1761999999998807, 2.214100000000144, 2.269000000000233,
+        2.4989999999997963
+      ]
+    },
+    {
+      "scenario": "canonical/module/unique/100",
+      "environment": {
+        "timestamp": "2026-10-07T09:19:25.462Z",
+        "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+        "node": "v24.21.0",
+        "platform": "win32",
+        "arch": "x64"
+      },
+      "measurement": {
+        "iterations": 9,
+        "time": 0,
+        "warmupIterations": 1,
+        "warmupTime": 0
+      },
+      "medianMs": 9.1882999999998,
+      "maximumMs": 9.545500000000175,
+      "samplesMs": [
+        8.929000000000087, 8.957500000000437, 8.994899999999689, 9.037800000000061, 9.1882999999998,
+        9.343500000000859, 9.423899999999776, 9.504100000000108, 9.545500000000175
+      ]
+    }
+  ],
+  "browserWasm": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "measurements": [
+      {
+        "scenario": "load-css-and-index",
+        "samples": [
+          281.0700000524521, 284.9099999666214, 290.53000009059906, 291.1999999284744,
+          294.2000000476837, 298.1200000047684, 305.6999999284744, 346.7850000858307,
+          355.0749999284744
+        ]
+      },
+      {
+        "scenario": "p-[16px]",
+        "samples": [
+          0.0849999189376831, 0.0849999189376831, 0.0849999189376831, 0.0849999189376831,
+          0.0849999189376831, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.08500003814697266, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.08500003814697266, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.08999991416931152, 0.08999991416931152, 0.08999991416931152, 0.08999991416931152,
+          0.08999991416931152, 0.08999991416931152, 0.08999991416931152, 0.08999991416931152,
+          0.08999991416931152, 0.08999991416931152, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09499990940093994, 0.09499990940093994, 0.09499990940093994,
+          0.09499990940093994, 0.09499990940093994, 0.09499990940093994, 0.09499990940093994,
+          0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09999990463256836, 0.09999990463256836, 0.10000002384185791,
+          0.10000002384185791, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.1099998950958252, 0.11000001430511475, 0.11000001430511475, 0.11000001430511475,
+          0.11000001430511475, 0.11500000953674316, 0.12000000476837158, 0.13499999046325684
+        ]
+      },
+      {
+        "scenario": "bg-[#f00]",
+        "samples": [
+          0.06999993324279785, 0.06999993324279785, 0.0700000524520874, 0.0700000524520874,
+          0.0700000524520874, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+          0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07500004768371582,
+          0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+          0.07500004768371582, 0.07999992370605469, 0.07999992370605469, 0.07999992370605469,
+          0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+          0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+          0.0849999189376831, 0.0849999189376831, 0.0849999189376831, 0.0849999189376831,
+          0.08500003814697266, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.08500003814697266, 0.08500003814697266, 0.09000003337860107, 0.09499990940093994,
+          0.09499990940093994, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09999990463256836, 0.10000002384185791, 0.10000002384185791,
+          0.10499989986419678, 0.10499989986419678, 0.10499989986419678, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.1099998950958252, 0.11000001430511475,
+          0.11000001430511475, 0.11000001430511475, 0.11000001430511475, 0.11500000953674316,
+          0.11500000953674316, 0.11999988555908203, 0.125, 0.125, 0.125, 0.125, 0.12999999523162842,
+          0.12999999523162842, 0.12999999523162842, 0.12999999523162842, 0.13499999046325684,
+          0.13499999046325684, 0.13999998569488525, 0.13999998569488525, 0.13999998569488525,
+          0.14500010013580322, 0.1499999761581421, 0.1549999713897705, 0.1549999713897705,
+          0.16000008583068848, 0.17499995231628418, 0.17499995231628418, 0.17500007152557373,
+          0.1799999475479126, 0.18999993801116943, 0.19000005722045898, 0.1950000524520874,
+          0.20000004768371582, 0.20500004291534424, 0.21500003337860107, 0.2200000286102295,
+          0.22499990463256836, 0.23000001907348633, 0.2349998950958252, 0.24000000953674316,
+          0.24000000953674316, 0.24000000953674316, 0.24499988555908203, 0.25999999046325684,
+          0.309999942779541
+        ]
+      },
+      {
+        "scenario": "bg-[#123456]",
+        "samples": [
+          0.04499995708465576, 0.04499995708465576, 0.04500007629394531, 0.04500007629394531,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.05000007152557373,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.05000007152557373,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.05000007152557373,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.05000007152557373,
+          0.0549999475479126, 0.0549999475479126, 0.0549999475479126, 0.0549999475479126,
+          0.0549999475479126, 0.0549999475479126, 0.0549999475479126, 0.0549999475479126,
+          0.0549999475479126, 0.0549999475479126, 0.0549999475479126, 0.05500006675720215,
+          0.05500006675720215, 0.05500006675720215, 0.05500006675720215, 0.059999942779541016,
+          0.059999942779541016, 0.059999942779541016, 0.060000061988830566, 0.060000061988830566,
+          0.060000061988830566, 0.060000061988830566, 0.060000061988830566, 0.06499993801116943,
+          0.06999993324279785, 0.0700000524520874, 0.0700000524520874, 0.07999992370605469,
+          0.0849999189376831, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09499990940093994, 0.09499990940093994, 0.09500002861022949,
+          0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.10000002384185791,
+          0.10000002384185791, 0.10499989986419678, 0.10499989986419678, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.11000001430511475, 0.11000001430511475,
+          0.11500000953674316, 0.12000000476837158, 0.125, 0.1700000762939453, 0.17499995231628418,
+          0.17500007152557373, 0.21500003337860107, 0.41499996185302734
+        ]
+      },
+      {
+        "scenario": "[border-color:#123456]",
+        "samples": [
+          0.040000081062316895, 0.04499995708465576, 0.04499995708465576, 0.04499995708465576,
+          0.04499995708465576, 0.04499995708465576, 0.04499995708465576, 0.04499995708465576,
+          0.04499995708465576, 0.04499995708465576, 0.04499995708465576, 0.04499995708465576,
+          0.04499995708465576, 0.04499995708465576, 0.04499995708465576, 0.04500007629394531,
+          0.04500007629394531, 0.04500007629394531, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+          0.04999995231628418, 0.04999995231628418, 0.04999995231628418, 0.05000007152557373,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.05000007152557373,
+          0.05000007152557373, 0.05000007152557373, 0.05000007152557373, 0.0549999475479126,
+          0.0549999475479126, 0.05500006675720215, 0.059999942779541016, 0.060000061988830566,
+          0.060000061988830566, 0.06499993801116943, 0.06500005722045898, 0.06500005722045898,
+          0.06999993324279785, 0.0700000524520874, 0.0700000524520874, 0.07500004768371582,
+          0.07999992370605469, 0.07999992370605469, 0.08000004291534424, 0.08000004291534424,
+          0.0849999189376831, 0.0849999189376831, 0.0849999189376831, 0.0849999189376831,
+          0.0849999189376831, 0.08500003814697266, 0.08500003814697266, 0.08500003814697266,
+          0.08500003814697266, 0.08999991416931152, 0.08999991416931152, 0.08999991416931152,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+          0.09499990940093994, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+          0.09500002861022949, 0.09999990463256836, 0.09999990463256836, 0.10000002384185791,
+          0.10000002384185791, 0.10000002384185791, 0.10000002384185791, 0.10500001907348633,
+          0.1099998950958252, 0.11000001430511475, 0.11000001430511475, 0.11000001430511475,
+          0.11500000953674316, 0.12000000476837158, 0.12000000476837158, 0.13499999046325684,
+          0.13499999046325684, 0.13499999046325684, 0.13999998569488525, 0.13999998569488525,
+          0.1499999761581421, 0.15000009536743164, 0.15999996662139893, 0.4200000762939453
+        ]
+      },
+      {
+        "scenario": "bg-[#f00]/50",
+        "samples": [
+          0.1700000762939453, 0.17499995231628418, 0.17499995231628418, 0.1799999475479126,
+          0.19000005722045898, 0.19499993324279785, 0.1950000524520874, 0.1950000524520874,
+          0.1950000524520874, 0.19999992847442627, 0.20000004768371582, 0.20000004768371582,
+          0.2099999189376831, 0.2200000286102295, 0.2200000286102295, 0.22999989986419678,
+          0.23000001907348633, 0.23000001907348633, 0.2349998950958252, 0.23500001430511475,
+          0.24000000953674316, 0.24500000476837158, 0.25, 0.2549999952316284, 0.2549999952316284,
+          0.2549999952316284, 0.2549999952316284, 0.25999999046325684, 0.25999999046325684,
+          0.25999999046325684, 0.25999999046325684, 0.25999999046325684, 0.25999999046325684,
+          0.25999999046325684, 0.2600001096725464, 0.2600001096725464, 0.26499998569488525,
+          0.26499998569488525, 0.26499998569488525, 0.26499998569488525, 0.26499998569488525,
+          0.26499998569488525, 0.26999998092651367, 0.26999998092651367, 0.26999998092651367,
+          0.2749999761581421, 0.2749999761581421, 0.2749999761581421, 0.27500009536743164,
+          0.2799999713897705, 0.2799999713897705, 0.28000009059906006, 0.28000009059906006,
+          0.28000009059906006, 0.2849999666213989, 0.2849999666213989, 0.2849999666213989,
+          0.2850000858306885, 0.28999996185302734, 0.29499995708465576, 0.2950000762939453,
+          0.2950000762939453, 0.2950000762939453, 0.2999999523162842, 0.30000007152557373,
+          0.3049999475479126, 0.31499993801116943, 0.315000057220459, 0.315000057220459,
+          0.315000057220459, 0.31999993324279785, 0.31999993324279785, 0.32499992847442627,
+          0.3250000476837158, 0.3250000476837158, 0.3250000476837158, 0.33000004291534424,
+          0.3349999189376831, 0.3400000333786011, 0.3500000238418579, 0.35500001907348633,
+          0.3599998950958252, 0.36000001430511475, 0.36000001430511475, 0.36500000953674316,
+          0.3700000047683716, 0.3700000047683716, 0.3799999952316284, 0.38499999046325684,
+          0.38499999046325684, 0.4099999666213989, 0.4099999666213989, 0.434999942779541,
+          0.4450000524520874, 0.4500000476837158, 0.4549999237060547, 0.47499990463256836,
+          0.5450000762939453, 0.5700000524520874, 0.6349999904632568
+        ]
+      },
+      {
+        "scenario": "bg-[#123456]/50",
+        "samples": [
+          0.19499993324279785, 0.19999992847442627, 0.19999992847442627, 0.20000004768371582,
+          0.20000004768371582, 0.20000004768371582, 0.20000004768371582, 0.20000004768371582,
+          0.20000004768371582, 0.2049999237060547, 0.2049999237060547, 0.2049999237060547,
+          0.2049999237060547, 0.2049999237060547, 0.20500004291534424, 0.20500004291534424,
+          0.20500004291534424, 0.20500004291534424, 0.2099999189376831, 0.2099999189376831,
+          0.21000003814697266, 0.21000003814697266, 0.21000003814697266, 0.21499991416931152,
+          0.21499991416931152, 0.21500003337860107, 0.21500003337860107, 0.21500003337860107,
+          0.21500003337860107, 0.21500003337860107, 0.21999990940093994, 0.2200000286102295,
+          0.2200000286102295, 0.22499990463256836, 0.2250000238418579, 0.2250000238418579,
+          0.2250000238418579, 0.23000001907348633, 0.23500001430511475, 0.23500001430511475,
+          0.24000000953674316, 0.24500000476837158, 0.24500000476837158, 0.2549999952316284,
+          0.2549999952316284, 0.2549999952316284, 0.25999999046325684, 0.26999998092651367,
+          0.26999998092651367, 0.26999998092651367, 0.2700001001358032, 0.2700001001358032,
+          0.27500009536743164, 0.2799999713897705, 0.2799999713897705, 0.28000009059906006,
+          0.2849999666213989, 0.2849999666213989, 0.29499995708465576, 0.2950000762939453,
+          0.2999999523162842, 0.30000007152557373, 0.30500006675720215, 0.30500006675720215,
+          0.309999942779541, 0.31499993801116943, 0.31499993801116943, 0.33000004291534424,
+          0.33500003814697266, 0.3399999141693115, 0.3400000333786011, 0.3400000333786011,
+          0.34499990940093994, 0.3450000286102295, 0.3500000238418579, 0.35500001907348633,
+          0.35500001907348633, 0.36500000953674316, 0.375, 0.375, 0.3799999952316284,
+          0.3799999952316284, 0.4099999666213989, 0.4099999666213989, 0.4100000858306885,
+          0.41499996185302734, 0.41499996185302734, 0.41499996185302734, 0.41499996185302734,
+          0.41999995708465576, 0.41999995708465576, 0.4299999475479126, 0.44499993324279785,
+          0.4450000524520874, 0.4500000476837158, 0.4500000476837158, 0.48000001907348633,
+          0.4950000047683716, 0.5249999761581421, 0.5350000858306885
+        ]
+      },
+      {
+        "scenario": "[&:hover]:p-4",
+        "samples": [
+          0.10499989986419678, 0.10499989986419678, 0.10499989986419678, 0.10499989986419678,
+          0.10499989986419678, 0.10499989986419678, 0.10499989986419678, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+          0.10500001907348633, 0.1099998950958252, 0.11000001430511475, 0.11000001430511475,
+          0.11000001430511475, 0.11000001430511475, 0.11000001430511475, 0.11000001430511475,
+          0.11000001430511475, 0.11500000953674316, 0.11500000953674316, 0.11500000953674316,
+          0.11500000953674316, 0.12000000476837158, 0.12000000476837158, 0.12000000476837158, 0.125,
+          0.125, 0.12999999523162842, 0.12999999523162842, 0.12999999523162842, 0.12999999523162842,
+          0.13499999046325684, 0.13499999046325684, 0.13999998569488525, 0.1400001049041748,
+          0.14500010013580322, 0.15000009536743164, 0.1549999713897705, 0.1549999713897705,
+          0.1549999713897705, 0.15500009059906006, 0.15500009059906006, 0.15999996662139893,
+          0.15999996662139893, 0.15999996662139893, 0.15999996662139893, 0.15999996662139893,
+          0.16000008583068848, 0.16499996185302734, 0.16499996185302734, 0.1650000810623169,
+          0.1650000810623169, 0.16999995708465576, 0.16999995708465576, 0.1700000762939453,
+          0.1700000762939453, 0.17500007152557373, 0.1799999475479126, 0.18000006675720215,
+          0.18000006675720215, 0.19499993324279785, 0.19499993324279785, 0.19499993324279785,
+          0.19999992847442627, 0.19999992847442627, 0.20000004768371582, 0.2049999237060547,
+          0.21000003814697266, 0.21000003814697266, 0.21500003337860107, 0.21999990940093994,
+          0.21999990940093994, 0.21999990940093994, 0.2200000286102295, 0.2250000238418579,
+          0.24500000476837158, 0.2549999952316284, 0.25500011444091797, 0.27500009536743164,
+          0.30000007152557373, 0.3049999475479126, 0.31499993801116943, 0.31499993801116943,
+          0.3349999189376831, 0.45500004291534424
+        ]
+      }
+    ]
+  },
+  "earlierRuns": {
+    "native": [
+      {
+        "scenario": "canonical/cold-query/named",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:11.978Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.0006000000000199179,
+        "maximumMs": 0.0033000000000242835,
+        "samplesMs": [
+          0.0004999999999881766, 0.0004999999999881766, 0.0004999999999881766,
+          0.0004999999999881766, 0.0006000000000199179, 0.0006000000000199179,
+          0.0006999999999948159, 0.0009999999999763531, 0.0033000000000242835
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/spacing",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:12.191Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.04480000000000928,
+        "maximumMs": 0.11899999999991451,
+        "samplesMs": [
+          0.04290000000003147, 0.04359999999996944, 0.04450000000008458, 0.04480000000000928,
+          0.04480000000000928, 0.044899999999984175, 0.04739999999992506, 0.0544999999999618,
+          0.11899999999991451
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-match",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:12.413Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.052800000000047476,
+        "maximumMs": 0.3363999999999123,
+        "samplesMs": [
+          0.04879999999991469, 0.048900000000003274, 0.049500000000080036, 0.049999999999954525,
+          0.052800000000047476, 0.07190000000002783, 0.14430000000004384, 0.18269999999995434,
+          0.3363999999999123
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:12.662Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.05289999999990869,
+        "maximumMs": 0.06690000000003238,
+        "samplesMs": [
+          0.05110000000013315, 0.05160000000000764, 0.051899999999932334, 0.0524000000000342,
+          0.05289999999990869, 0.05340000000001055, 0.053699999999935244, 0.055700000000115324,
+          0.06690000000003238
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/property-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:12.884Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.051799999999957436,
+        "maximumMs": 0.07429999999999382,
+        "samplesMs": [
+          0.03440000000000509, 0.035499999999956344, 0.043400000000019645, 0.04460000000017317,
+          0.051799999999957436, 0.05330000000003565, 0.05590000000006512, 0.05760000000009313,
+          0.07429999999999382
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-modifier-match",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:13.102Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.11659999999983484,
+        "maximumMs": 0.5272999999999683,
+        "samplesMs": [
+          0.10599999999999454, 0.1067000000000462, 0.10819999999989705, 0.11030000000005202,
+          0.11659999999983484, 0.11739999999986139, 0.14790000000016335, 0.18679999999994834,
+          0.5272999999999683
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-modifier-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:13.322Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.1551999999999225,
+        "maximumMs": 0.2861000000000331,
+        "samplesMs": [
+          0.13760000000002037, 0.14099999999984902, 0.14769999999998618, 0.15489999999999782,
+          0.1551999999999225, 0.17879999999991014, 0.179300000000012, 0.21470000000022083,
+          0.2861000000000331
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/variant-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:13.564Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.05649999999991451,
+        "maximumMs": 0.11760000000003856,
+        "samplesMs": [
+          0.055399999999963256, 0.05569999999988795, 0.055700000000115324, 0.056199999999989814,
+          0.05649999999991451, 0.0602000000001226, 0.06330000000002656, 0.09799999999995634,
+          0.11760000000003856
+        ]
+      },
+      {
+        "scenario": "canonical/prepare-css-revision",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:13.784Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 258.2624999999998,
+        "maximumMs": 300.7534999999998,
+        "samplesMs": [
+          213.09209999999985, 219.7786000000001, 226.5619000000006, 232.5844000000002,
+          258.2624999999998, 259.1788999999999, 265.8688999999995, 299.41989999999987,
+          300.7534999999998
+        ]
+      },
+      {
+        "scenario": "canonical/reuse-prepared-revision",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.495Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.0016000000005078618,
+        "maximumMs": 0.004300000000512227,
+        "samplesMs": [
+          0.001299999999901047, 0.0015000000003055902, 0.0015999999995983671, 0.0015999999995983671,
+          0.0016000000005078618, 0.0016000000005078618, 0.0021000000006097252,
+          0.0027000000000043656, 0.004300000000512227
+        ]
+      },
+      {
+        "scenario": "canonical/cached-2000",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.731Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.4834000000000742,
+        "maximumMs": 0.5731999999998152,
+        "samplesMs": [
+          0.4655000000002474, 0.4701999999997497, 0.47379999999975553, 0.4798000000000684,
+          0.4834000000000742, 0.49790000000029977, 0.5067000000008193, 0.5109000000002197,
+          0.5731999999998152
+        ]
+      },
+      {
+        "scenario": "canonical/palette/10",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.969Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.016700000000128057,
+        "maximumMs": 0.020599999999831198,
+        "samplesMs": [
+          0.015600000000631553, 0.016300000000228465, 0.016399999999521242, 0.016400000000430737,
+          0.016700000000128057, 0.01700000000073487, 0.01710000000002765, 0.017600000000129512,
+          0.020599999999831198
+        ]
+      },
+      {
+        "scenario": "canonical/palette/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.970Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.016200000000026193,
+        "maximumMs": 0.020199999999931606,
+        "samplesMs": [
+          0.015900000000328873, 0.016099999999823922, 0.016099999999823922, 0.0161999999991167,
+          0.016200000000026193, 0.016200000000026193, 0.016300000000228465, 0.01739999999972497,
+          0.020199999999931606
+        ]
+      },
+      {
+        "scenario": "canonical/palette/1000",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.972Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.016200000000026193,
+        "maximumMs": 0.02220000000033906,
+        "samplesMs": [
+          0.01569999999992433, 0.0158000000001266, 0.0158000000001266, 0.016099999999823922,
+          0.016200000000026193, 0.0169000000005326, 0.01710000000002765, 0.017300000000432192,
+          0.02220000000033906
+        ]
+      },
+      {
+        "scenario": "canonical/module/repeated/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:16.991Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 1.2094999999999345,
+        "maximumMs": 1.6732999999994718,
+        "samplesMs": [
+          1.070600000000013, 1.0778000000000247, 1.0980000000008658, 1.160200000000259,
+          1.2094999999999345, 1.2113999999992302, 1.3629999999993743, 1.4979999999995925,
+          1.6732999999994718
+        ]
+      },
+      {
+        "scenario": "canonical/module/unique/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:38:17.281Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 5.262000000000626,
+        "maximumMs": 5.903800000000047,
+        "samplesMs": [
+          4.662099999999555, 4.8145000000004075, 4.830399999999827, 4.965900000000147,
+          5.262000000000626, 5.295600000000377, 5.411999999999352, 5.520099999999729,
+          5.903800000000047
+        ]
+      }
+    ],
+    "nodeWasm": [
+      {
+        "scenario": "canonical/cold-query/named",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:20.099Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.011000000000080945,
+        "maximumMs": 0.05960000000004584,
+        "samplesMs": [
+          0.008199999999987995, 0.008199999999987995, 0.008200000000101682, 0.009599999999977626,
+          0.011000000000080945, 0.01340000000004693, 0.018100000000004002, 0.03789999999992233,
+          0.05960000000004584
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/spacing",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:20.531Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.0728999999998905,
+        "maximumMs": 0.12860000000000582,
+        "samplesMs": [
+          0.07100000000002638, 0.07100000000002638, 0.07110000000000127, 0.07169999999996435,
+          0.0728999999998905, 0.07320000000004256, 0.07549999999991996, 0.08390000000008513,
+          0.12860000000000582
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-match",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:20.816Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.10000000000013642,
+        "maximumMs": 0.1954000000000633,
+        "samplesMs": [
+          0.07999999999992724, 0.08120000000008076, 0.08599999999978536, 0.08809999999994034,
+          0.10000000000013642, 0.10189999999988686, 0.14570000000003347, 0.1798999999998614,
+          0.1954000000000633
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:21.100Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.06140000000004875,
+        "maximumMs": 0.20630000000005566,
+        "samplesMs": [
+          0.05489999999986139, 0.05510000000003856, 0.05850000000009459, 0.060299999999870124,
+          0.06140000000004875, 0.06790000000000873, 0.09310000000004948, 0.13369999999986248,
+          0.20630000000005566
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/property-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:21.387Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.0625999999999749,
+        "maximumMs": 0.10159999999996217,
+        "samplesMs": [
+          0.0522000000000844, 0.053200000000060754, 0.05379999999991014, 0.058399999999892316,
+          0.0625999999999749, 0.06399999999985084, 0.06979999999998654, 0.07959999999980027,
+          0.10159999999996217
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-modifier-match",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:21.683Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.20169999999961874,
+        "maximumMs": 0.3350000000000364,
+        "samplesMs": [
+          0.18940000000020518, 0.19139999999970314, 0.19259999999985666, 0.1950000000001637,
+          0.20169999999961874, 0.2096000000001368, 0.21880000000010114, 0.2521999999999025,
+          0.3350000000000364
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/color-modifier-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:21.967Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.32819999999992433,
+        "maximumMs": 0.4321999999997388,
+        "samplesMs": [
+          0.3229999999998654, 0.32369999999991705, 0.32660000000032596, 0.326799999999821,
+          0.32819999999992433, 0.3455000000003565, 0.3850999999999658, 0.4128000000000611,
+          0.4321999999997388
+        ]
+      },
+      {
+        "scenario": "canonical/cold-query/variant-miss",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:22.295Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.11229999999977736,
+        "maximumMs": 0.15189999999984138,
+        "samplesMs": [
+          0.10770000000002256, 0.10969999999997526, 0.11070000000017899, 0.11210000000028231,
+          0.11229999999977736, 0.11850000000004002, 0.11940000000004147, 0.12770000000000437,
+          0.15189999999984138
+        ]
+      },
+      {
+        "scenario": "canonical/prepare-css-revision",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:22.616Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 391.0560999999998,
+        "maximumMs": 624.7269000000001,
+        "samplesMs": [
+          354.00739999999996, 360.7599, 363.34419999999955, 367.21180000000004, 391.0560999999998,
+          394.0141000000003, 425.27580000000034, 442.27490000000034, 624.7269000000001
+        ]
+      },
+      {
+        "scenario": "canonical/reuse-prepared-revision",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.053Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.007999999999810825,
+        "maximumMs": 0.01890000000003056,
+        "samplesMs": [
+          0.006400000000212458, 0.00650000000041473, 0.006699999999909778, 0.007000000000516593,
+          0.007999999999810825, 0.00830000000041764, 0.010000000000218279, 0.016100000000733417,
+          0.01890000000003056
+        ]
+      },
+      {
+        "scenario": "canonical/cached-2000",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.414Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 5.348700000000463,
+        "maximumMs": 7.1599999999998545,
+        "samplesMs": [
+          4.496299999999792, 4.672700000000077, 4.8562999999994645, 4.876800000000003,
+          5.348700000000463, 5.509299999999712, 5.849100000000362, 5.90099999999984,
+          7.1599999999998545
+        ]
+      },
+      {
+        "scenario": "canonical/palette/10",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.942Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.037699999999858846,
+        "maximumMs": 0.0717000000004191,
+        "samplesMs": [
+          0.036199999999553256, 0.0363999999999578, 0.03679999999985739, 0.037599999999656575,
+          0.037699999999858846, 0.03809999999975844, 0.04199999999946158, 0.042699999999967986,
+          0.0717000000004191
+        ]
+      },
+      {
+        "scenario": "canonical/palette/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.945Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.03630000000066502,
+        "maximumMs": 0.04510000000027503,
+        "samplesMs": [
+          0.03569999999945139, 0.03580000000056316, 0.03610000000026048, 0.036199999999553256,
+          0.03630000000066502, 0.03919999999925494, 0.03930000000036671, 0.043199999999160354,
+          0.04510000000027503
+        ]
+      },
+      {
+        "scenario": "canonical/palette/1000",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.950Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 0.08070000000043365,
+        "maximumMs": 0.37889999999970314,
+        "samplesMs": [
+          0.03690000000005966, 0.03870000000006257, 0.0466999999998734, 0.07369999999991705,
+          0.08070000000043365, 0.08910000000014406, 0.13400000000001455, 0.20939999999973224,
+          0.37889999999970314
+        ]
+      },
+      {
+        "scenario": "canonical/module/repeated/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:27.986Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 2.1384000000016385,
+        "maximumMs": 2.7824000000000524,
+        "samplesMs": [
+          1.74159999999938, 1.921199999998862, 2.048500000000786, 2.0865999999987253,
+          2.1384000000016385, 2.2265000000006694, 2.3346999999994296, 2.6730999999999767,
+          2.7824000000000524
+        ]
+      },
+      {
+        "scenario": "canonical/module/unique/100",
+        "environment": {
+          "timestamp": "2026-10-07T08:39:28.458Z",
+          "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+          "node": "v24.21.0",
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "measurement": {
+          "iterations": 9,
+          "time": 0,
+          "warmupIterations": 1,
+          "warmupTime": 0
+        },
+        "medianMs": 9.282400000000052,
+        "maximumMs": 11.58140000000094,
+        "samplesMs": [
+          7.884799999999814, 7.933399999999892, 8.03570000000036, 8.871100000000297,
+          9.282400000000052, 9.583699999999226, 9.939099999999598, 10.796299999999974,
+          11.58140000000094
+        ]
+      }
+    ],
+    "beforeFinalEdits": {
+      "rustSourceSha256": {
+        "crates/compiler/src/candidate.rs": "0db9885ceff26f3ca3c0ff0c6a5cfc8869f52272edd8c1e1d6fa76cb9ead63ca",
+        "crates/compiler/src/compiler/animation_options.rs": "19d8ea944ffa931d6abb36e9eb7895996341ad99f71929d84dc4544639cfd037",
+        "crates/compiler/src/compiler/class_units.rs": "9aaae07f32c03e97fd9f6f22f01376782072d2a4f47aa6e7e16e4f9e45bd477a",
+        "crates/compiler/src/compiler/emission/class_value.rs": "c112eea9bd399dc2fa14fe160765d789ede5b0e1bdfc2ccb71a2dff1285239c0",
+        "crates/compiler/src/compiler/emission/keyframes_use.rs": "4e75bfb4d613a88cc8474027d984add8850ea1ba8a0ef1084977cbb78dec7791",
+        "crates/compiler/src/compiler/emission/mod.rs": "98550094a149b20b6db3ea5bca959ee3f3941b6a093e2f0d325a160319aaa9cf",
+        "crates/compiler/src/compiler/literal.rs": "e75cd74e8da6f560ab39ef9d7eb59cb36618822c1d02958734409ef37f1d113b",
+        "crates/compiler/src/compiler/style_variants.rs": "92382bf271b9bd7f1320d8cae2bb83496aaea5780babe29b8cee6dd70b9b88b3",
+        "crates/compiler/src/compiler/stylesheet/authored_directives.rs": "522ea0a0a2c12964725fc0357ee424a08db8772e19db6407ca210b137457ceaa",
+        "crates/compiler/src/compiler/stylesheet/properties.rs": "1f13cdb52b352ea4aff990dffce2c506ea3a820c58ca44600b7b75183e2a559e",
+        "crates/compiler/src/compiler/stylesheet/render.rs": "a478a29453c15c58bb1adf682f5c3c52fd72b7915c3ffa7eaabb7f1a38ace37c",
+        "crates/compiler/src/compiler/stylesheet/template/assemble.rs": "e4bbd7cfc2f524c40e58480b39d4c43d2345dfddda843ad11fa75537ba4e2f2a",
+        "crates/compiler/src/compiler/stylesheet/template/emit.rs": "e602e0db180f881d773c32ef86f7b038ce8b79f9affb0d5240befa308d46f91a",
+        "crates/compiler/src/compiler/stylesheet/template/support.rs": "b06362b36eab57f7f503b77d11cfbb260d01848287922ab7ff999e4c7f76b6fc",
+        "crates/compiler/src/compiler/stylesheet/template/tests.rs": "95f5a92f6fdab9f65db6ab47268f368acee31c6ba4254f5254b97e578cdc24b3",
+        "crates/compiler/src/compiler/utilities/declaration_order.rs": "37228d457eafd736e1c24ad52ce940c90f68547e67859a3b799f2cddbea09379",
+        "crates/compiler/src/compiler/utilities/emission.rs": "b3edb1fa0ad02c45ea37de82b7189fcc4e900d07085e46b251dd6028e5356462",
+        "crates/compiler/src/compiler/utilities/render.rs": "33b7fbf4383288181413c165843bbcdf230ac9d85205b884b40382b9f8e65862",
+        "crates/compiler/src/compiler/utilities/resolve.rs": "3673948dbc8d7eb748a615c9ca0490bbb320efce45cf7f708793812fff9d69cf",
+        "crates/compiler/src/compiler/variants.rs": "c71e624abd28e73591638a9dde499cdcec3071769aff1e7c48aa7f82828fcfe4",
+        "crates/compiler/src/compiler/vocabulary.rs": "18be4267386fe7a61057430447b87d069d81c053be6ae792fbc27bea736f5860",
+        "crates/compiler/src/lib.rs": "514414b3f310a82a6d203d3b89d643aa176469664ecf13484d3297b5fd1c8dad",
+        "crates/compiler/src/options.rs": "15e20b7f5eb5075a5ff342d6960bab0c0d719fded1cdf522c403d5c859743396",
+        "crates/compiler/src/query/canonical.rs": "b9f0f11e64dac17b554a654801b8aaa520353184d5361d647e10678dd69d9ea8",
+        "crates/compiler/src/query/canonical/index.rs": "46a262e4341404731dfa39278566e7d390b354c6faa3f72606591e973ecfc756",
+        "crates/compiler/src/query/canonical/values.rs": "0b6ad2f65a5ffc2de51d71ab07db2793b1604b1aa72ca5c361f91cc76a5d3898",
+        "crates/compiler/src/query/canonical/values/direct.rs": "c1232a51ab205de844703e89d306e7d97936af425be4f3da04d0d02029318f86",
+        "crates/compiler/src/query/canonical/variants.rs": "69451e3e0d87af9de98ee1d4439f2634b4b12c12b59a15ed81997ad7017951a2",
+        "crates/compiler/src/query/completion.rs": "606d8f2b8c044fd947142d1cccabd04c02a3da1520ae3858515167062dcef6d5",
+        "crates/compiler/src/query/context.rs": "d04efc3e584762c12e7085e5e8a638a3d050d2faac6dbbb178bf6b4daad4d3ad",
+        "crates/compiler/src/query/mod.rs": "e833102671f22deb9200db4d7a75a7979071689442c74e27356d23715f155a8d",
+        "crates/compiler/src/query/ordering.rs": "c5f9dd7d5aa6d70976c29b5945071d980a82422ade063dfead01a3656cdbd25d",
+        "crates/compiler/src/query/resolution.rs": "ccd383bb37fcbb78e8e915ed6a17fe818b2f572920b9977285db22fa78a1d63a",
+        "crates/compiler/src/query/theme.rs": "2e12de5d055beef5411ed6b837f64d0534018f6515b548b008d9935fc1bb961b",
+        "crates/compiler/src/renderer.rs": "3ce6f72494eaf7005970ceb83f794dfe4ff5fe9aa869ed55cf4f3d3371e0cf51",
+        "crates/design-system/src/evaluation/builtins/metadata.rs": "56f02b3acdcd2ad40cc0780b4b606f54492529d413450d3f3f97e40fa36cdcf1",
+        "crates/design-system/src/evaluation/builtins/registry.rs": "4d5a4fa6ab1a465358cb9f318d702f63b991cd0e2e297008071827e2b627fe54",
+        "crates/design-system/src/evaluation/mod.rs": "bfd60e4d913d37bee329d7a88b7c4f01962fe2a1408845c47da16bf37a2b1a0c",
+        "crates/design-system/src/evaluation/programs.rs": "5f178d216f6e4ea63ab3b63370004e7fed60327973dd4a0452fb79219cfd7244",
+        "crates/design-system/src/evaluation/tests/registry.rs": "ce213dd3ae0758331b60207e4f597aa81c9c27aa8784a1bf682ef03cca693c52",
+        "crates/design-system/src/evaluation/tests/relationships.rs": "69ee4a01cdf11459a6db6c71b6d252591e22312bd5daf79bad4f8cc2a9c5f6ec",
+        "crates/design-system/src/evaluation/tests/utility_domains.rs": "926f14c954d3f7f4596dc3bcae7ee4e259bed02a7da63bc5479e885ec82026e3",
+        "crates/design-system/src/evaluation/utilities/body.rs": "29dbd381a29ea6997d43741ff41385b39f4f3f015e32730799408175af9cf3ae",
+        "crates/design-system/src/evaluation/utilities/declarations.rs": "0cd22dee73191b1665cc33a80119cef63ef5c5f9a497f609ac811135d5c02fa7",
+        "crates/design-system/src/evaluation/utilities/formatting.rs": "b7309e1ca7144368a3d3f9266c516d2e0e9d505a2012d04d4c4326780d394d51",
+        "crates/design-system/src/evaluation/utilities/matching.rs": "39bef89dd3f8fda1aa5a8cbc9a25b0164a60839d8461f5e3135d62c3cd2e02e8",
+        "crates/design-system/src/evaluation/utilities/resolve.rs": "fb15bcad5d2f613e6c60bf101e2624b12aa4a27e395370d82316302a7920d455",
+        "crates/design-system/src/evaluation/values/expansion.rs": "a355302d937b5f9e7f88d93f78c6f9de9801348808b2dd05ffcdfddc92a3809e",
+        "crates/design-system/src/evaluation/values/placeholders.rs": "4440144f0f4652ac3a95d13be7b06b6adadf919225cd4298c3854ff126a93948",
+        "crates/design-system/src/evaluation/values/theme.rs": "76d2dc7f166d56915697efe2c097d069285a8862d3020a38f0abd32ef5c810fb",
+        "crates/design-system/src/evaluation/variants/order.rs": "310be755bca2397baa93b1e6d8f7c6e2238b4b3d39d0f2456b098d9cecac1535",
+        "crates/design-system/src/evaluation/variants/resolve.rs": "865fac28f33195c413dbf267d75dc6744edfd49f4c078b69e2dda663a3076a47",
+        "crates/design-system/src/evaluation/variants/substitution.rs": "b91932c6513ac9d1e46ce011526dc9cac361dbec1374fa06918d8181cd213e13",
+        "crates/design-system/src/loading/state.rs": "3d3c8c28718d0505b9d31cafd6db03d0f5ad7fc3fc81016ddaca2ae570cf4d83",
+        "crates/design-system/src/loading/tests.rs": "c6fe0027aaa670fbf363535c5b6e32a4983873d92cee4d18f4d4525c2be50989",
+        "crates/design-system/src/registry/definitions.rs": "0ccb471d5e0e428491ae69150943a1180530afb30833bc3820926b25345f7c6e",
+        "crates/design-system/src/registry/mod.rs": "92f1bc20489af1aab1606914e1df3c85a09da2495e6285e550d9e648000475f2",
+        "crates/design-system/src/registry/utility_lookup.rs": "7ee2b351e7652d858feefcee3ddf6c7e7d9683de53de0d09a00fe4baadd4ebb1",
+        "crates/design-system/src/snapshot/analysis.rs": "bc3e733123166f78579f628ce9e05cc06883302ad15ef9b5127de472138a9953",
+        "crates/design-system/src/snapshot/data.rs": "cf172e7d62fef706e8954d418bce8cce7d2550dd7ce4987bcd70982e4bb96564",
+        "crates/design-system/src/snapshot/mod.rs": "2e6331d58a19bc88017165d8aa80c0e92e8d4b19dc2f4b46512648e9e2f3c8b2",
+        "crates/design-system/src/snapshot/registry.rs": "0cb8042634244eb0a62bdeaa7cd22ba3a0a7325e0b3df6df3eb4fd260cfa8ffe",
+        "crates/design-system/src/snapshot/utility_search.rs": "342fbdcf884586867380f7b180548c321a6e20005ff7480b25698121ebaccd1f",
+        "crates/design-system/src/tests/theme.rs": "170a1f75ef2265f4d04d9ae780498758e5aacb1ad18de35b92460221c7b9fa23",
+        "crates/design-system/src/theme/builder.rs": "b74f41ba7a51cec2b161f53a58ecaddcae1902d0a62e9816695542384ef4f1fc",
+        "crates/design-system/src/theme/index.rs": "0ff7eb10528c163c6309faf976765941ab5adb8b1983e810432dd29c7d18c111",
+        "crates/design-system/src/theme/mod.rs": "bfe14b6313abb7f9a23be542c988d72553b9f70a14ea38d5db241446efcc447a",
+        "crates/design-system/src/theme/parser.rs": "afee4aabebbab064ba36f7db033148f96741dc60ee336e8d633fb20579b51472",
+        "crates/design-system/src/theme/tokens.rs": "50c66ddffeb35754b92229dd0f988c8bc8c2b646062d0680522d62e83ba2cbef",
+        "crates/napi/src/session.rs": "877647c88a815114fde301eab4dd81741df0a5ffc628a0dfce616132fec3da66",
+        "crates/project/src/session.rs": "377aab71072029b5155075578e75fff55c266df3d22c238267d5294340466d4d"
+      },
+      "native": [
+        {
+          "scenario": "canonical/cold-query/named",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:28.684Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.0006000000000199179,
+          "maximumMs": 0.004199999999968895,
+          "samplesMs": [
+            0.0004999999999881766, 0.0004999999999881766, 0.0004999999999881766,
+            0.0006000000000199179, 0.0006000000000199179, 0.0006000000000199179,
+            0.0007000000000516593, 0.0011000000000080945, 0.004199999999968895
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/spacing",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:28.901Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.049699999999916145,
+          "maximumMs": 0.09040000000004511,
+          "samplesMs": [
+            0.043700000000058026, 0.0442000000000462, 0.04460000000005948, 0.04549999999994725,
+            0.049699999999916145, 0.07989999999995234, 0.08090000000004238, 0.08640000000002601,
+            0.09040000000004511
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-match",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:29.126Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.04949999999996635,
+          "maximumMs": 0.0887000000000171,
+          "samplesMs": [
+            0.04809999999997672, 0.0483000000000402, 0.0483000000000402, 0.048599999999964894,
+            0.04949999999996635, 0.04949999999996635, 0.05040000000008149, 0.05380000000002383,
+            0.0887000000000171
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:29.337Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.03530000000000655,
+          "maximumMs": 0.051899999999932334,
+          "samplesMs": [
+            0.03459999999995489, 0.03480000000013206, 0.03489999999987958, 0.03520000000003165,
+            0.03530000000000655, 0.03559999999993124, 0.03569999999990614, 0.03710000000000946,
+            0.051899999999932334
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/property-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:29.550Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.034199999999827924,
+          "maximumMs": 0.05709999999999127,
+          "samplesMs": [
+            0.03330000000005384, 0.03370000000018081, 0.03389999999990323, 0.0339000000001306,
+            0.034199999999827924, 0.03440000000000509, 0.03460000000018226, 0.037900000000036016,
+            0.05709999999999127
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-modifier-match",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:29.758Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.13969999999994798,
+          "maximumMs": 0.2807999999999993,
+          "samplesMs": [
+            0.10779999999999745, 0.11040000000002692, 0.11300000000005639, 0.1169999999999618,
+            0.13969999999994798, 0.20119999999997162, 0.23099999999999454, 0.2666999999999007,
+            0.2807999999999993
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-modifier-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:29.975Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.1405000000002019,
+          "maximumMs": 0.42810000000008586,
+          "samplesMs": [
+            0.13660000000004402, 0.13710000000014588, 0.13760000000002037, 0.13850000000002183,
+            0.1405000000002019, 0.14429999999993015, 0.157399999999825, 0.3044999999999618,
+            0.42810000000008586
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/variant-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:30.190Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.05480000000011387,
+          "maximumMs": 0.06299999999987449,
+          "samplesMs": [
+            0.05410000000006221, 0.05410000000006221, 0.0544999999999618, 0.054799999999886495,
+            0.05480000000011387, 0.05559999999991305, 0.05569999999988795, 0.056300000000192085,
+            0.06299999999987449
+          ]
+        },
+        {
+          "scenario": "canonical/prepare-css-revision",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:30.399Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 230.54570000000012,
+          "maximumMs": 263.77450000000044,
+          "samplesMs": [
+            200.2896999999998, 201.51760000000013, 215.19489999999996, 220.99990000000025,
+            230.54570000000012, 234.10819999999967, 240.57540000000017, 245.09619999999995,
+            263.77450000000044
+          ]
+        },
+        {
+          "scenario": "canonical/reuse-prepared-revision",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:32.887Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.0016000000005078618,
+          "maximumMs": 0.003800000000410364,
+          "samplesMs": [
+            0.0014000000001033186, 0.0014999999993960955, 0.0014999999993960955,
+            0.0015000000003055902, 0.0016000000005078618, 0.0018000000000029104,
+            0.002300000000104774, 0.0024999999995998223, 0.003800000000410364
+          ]
+        },
+        {
+          "scenario": "canonical/cached-2000",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.127Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.4898000000002867,
+          "maximumMs": 1.1487000000006446,
+          "samplesMs": [
+            0.46410000000014406, 0.47699999999986176, 0.48480000000017753, 0.4852999999993699,
+            0.4898000000002867, 0.518500000000131, 0.6003000000000611, 0.7854000000006636,
+            1.1487000000006446
+          ]
+        },
+        {
+          "scenario": "canonical/palette/10",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.388Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.017300000000432192,
+          "maximumMs": 0.0713000000005195,
+          "samplesMs": [
+            0.016399999999521242, 0.016399999999521242, 0.01680000000033033, 0.01710000000002765,
+            0.017300000000432192, 0.02080000000023574, 0.024400000000241562, 0.03330000000005384,
+            0.0713000000005195
+          ]
+        },
+        {
+          "scenario": "canonical/palette/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.389Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.016400000000430737,
+          "maximumMs": 0.0216999999993277,
+          "samplesMs": [
+            0.01589999999941938, 0.01599999999962165, 0.016000000000531145, 0.016200000000026193,
+            0.016400000000430737, 0.016499999999723514, 0.016700000000128057, 0.01739999999972497,
+            0.0216999999993277
+          ]
+        },
+        {
+          "scenario": "canonical/palette/1000",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.391Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.016799999999420834,
+          "maximumMs": 0.022100000000136788,
+          "samplesMs": [
+            0.016000000000531145, 0.01629999999931897, 0.016499999999723514, 0.01650000000063301,
+            0.016799999999420834, 0.016999999999825377, 0.01749999999992724, 0.017700000000331784,
+            0.022100000000136788
+          ]
+        },
+        {
+          "scenario": "canonical/module/repeated/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.410Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 1.1131999999997788,
+          "maximumMs": 1.3627000000005864,
+          "samplesMs": [
+            1.0672000000004118, 1.0901000000003478, 1.0920999999998457, 1.1068999999997686,
+            1.1131999999997788, 1.1253999999998996, 1.1902999999992971, 1.1925000000001091,
+            1.3627000000005864
+          ]
+        },
+        {
+          "scenario": "canonical/module/unique/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:33.658Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 5.229899999999361,
+          "maximumMs": 6.23739999999998,
+          "samplesMs": [
+            4.8740999999999985, 4.912299999999959, 5.0656000000008135, 5.0658000000003085,
+            5.229899999999361, 5.726700000000164, 5.924799999999777, 6.237100000000282,
+            6.23739999999998
+          ]
+        }
+      ],
+      "nodeWasm": [
+        {
+          "scenario": "canonical/cold-query/named",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:08.209Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.015799999999899228,
+          "maximumMs": 0.05899999999996908,
+          "samplesMs": [
+            0.009199999999964348, 0.009699999999952524, 0.012499999999931788, 0.014099999999984902,
+            0.015799999999899228, 0.020200000000045293, 0.021100000000046748, 0.021100000000046748,
+            0.05899999999996908
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/spacing",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:08.670Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.07459999999991851,
+          "maximumMs": 0.1451999999999316,
+          "samplesMs": [
+            0.07309999999984029, 0.07330000000001746, 0.07330000000001746, 0.07370000000014443,
+            0.07459999999991851, 0.07539999999994507, 0.07970000000000255, 0.08960000000001855,
+            0.1451999999999316
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-match",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:09.033Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.08789999999999054,
+          "maximumMs": 0.15859999999997854,
+          "samplesMs": [
+            0.08109999999987849, 0.08249999999998181, 0.0826999999999316, 0.08789999999999054,
+            0.08789999999999054, 0.09609999999997854, 0.1047000000000935, 0.10489999999981592,
+            0.15859999999997854
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:09.347Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.070699999999988,
+          "maximumMs": 0.23890000000005784,
+          "samplesMs": [
+            0.0567999999998392, 0.05929999999989377, 0.05940000000009604, 0.06210000000010041,
+            0.070699999999988, 0.0787000000000262, 0.21220000000016626, 0.23600000000010368,
+            0.23890000000005784
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/property-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:09.658Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.06270000000017717,
+          "maximumMs": 0.10270000000014079,
+          "samplesMs": [
+            0.05340000000001055, 0.05340000000001055, 0.05559999999991305, 0.05920000000014625,
+            0.06270000000017717, 0.06870000000003529, 0.07349999999996726, 0.07519999999999527,
+            0.10270000000014079
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-modifier-match",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:09.957Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.3004000000000815,
+          "maximumMs": 0.7291000000000167,
+          "samplesMs": [
+            0.19639999999981228, 0.2001999999997679, 0.21660000000019863, 0.24729999999999563,
+            0.3004000000000815, 0.3533999999999651, 0.42239999999992506, 0.508600000000115,
+            0.7291000000000167
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/color-modifier-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:10.267Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.21219999999993888,
+          "maximumMs": 0.26929999999993015,
+          "samplesMs": [
+            0.20449999999982538, 0.20499999999992724, 0.20690000000013242, 0.20699999999987995,
+            0.21219999999993888, 0.2154000000000451, 0.22060000000010405, 0.24099999999998545,
+            0.26929999999993015
+          ]
+        },
+        {
+          "scenario": "canonical/cold-query/variant-miss",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:10.554Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.1127000000001317,
+          "maximumMs": 0.1475999999997839,
+          "samplesMs": [
+            0.10639999999966676, 0.10789999999997235, 0.10960000000022774, 0.11050000000022919,
+            0.1127000000001317, 0.11290000000008149, 0.11950000000024374, 0.12590000000000146,
+            0.1475999999997839
+          ]
+        },
+        {
+          "scenario": "canonical/prepare-css-revision",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:10.852Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 333.0951,
+          "maximumMs": 339.1108000000004,
+          "samplesMs": [
+            312.7377000000006, 314.5537999999997, 319.5767999999998, 319.6206000000002, 333.0951,
+            333.1790000000001, 335.70710000000054, 336.10609999999997, 339.1108000000004
+          ]
+        },
+        {
+          "scenario": "canonical/reuse-prepared-revision",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:14.463Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.009399999999914144,
+          "maximumMs": 0.020300000000133878,
+          "samplesMs": [
+            0.006499999999505235, 0.006600000000617001, 0.00739999999950669, 0.007599999999911233,
+            0.009399999999914144, 0.009599999999409192, 0.010800000000017462, 0.013800000000628643,
+            0.020300000000133878
+          ]
+        },
+        {
+          "scenario": "canonical/cached-2000",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:14.791Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 5.165599999999358,
+          "maximumMs": 6.00919999999951,
+          "samplesMs": [
+            3.9557000000004336, 4.4856999999992695, 4.995499999999993, 5.1041000000004715,
+            5.165599999999358, 5.460399999999936, 5.884900000000016, 5.925299999999879,
+            6.00919999999951
+          ]
+        },
+        {
+          "scenario": "canonical/palette/10",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:15.262Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.04330000000027212,
+          "maximumMs": 0.07349999999951251,
+          "samplesMs": [
+            0.040600000000267755, 0.04099999999925785, 0.04279999999926076, 0.04309999999986758,
+            0.04330000000027212, 0.04489999999987049, 0.04800000000068394, 0.04989999999997963,
+            0.07349999999951251
+          ]
+        },
+        {
+          "scenario": "canonical/palette/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:15.265Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.05670000000009168,
+          "maximumMs": 0.13770000000022264,
+          "samplesMs": [
+            0.029500000000552973, 0.046199999999771535, 0.048599999999169086, 0.055399999999281135,
+            0.05670000000009168, 0.06109999999989668, 0.07120000000031723, 0.09259999999994761,
+            0.13770000000022264
+          ]
+        },
+        {
+          "scenario": "canonical/palette/1000",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:15.270Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 0.03390000000035798,
+          "maximumMs": 0.09019999999964057,
+          "samplesMs": [
+            0.02250000000003638, 0.02250000000003638, 0.023199999999633292, 0.023599999999532884,
+            0.03390000000035798, 0.03600000000005821, 0.048800000000483124, 0.06040000000029977,
+            0.09019999999964057
+          ]
+        },
+        {
+          "scenario": "canonical/module/repeated/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:15.300Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 2.164400000000569,
+          "maximumMs": 2.8080999999992855,
+          "samplesMs": [
+            1.5938000000005559, 1.7407000000002881, 1.9355999999997948, 2.1307999999999083,
+            2.164400000000569, 2.517399999999725, 2.614300000000185, 2.779000000000451,
+            2.8080999999992855
+          ]
+        },
+        {
+          "scenario": "canonical/module/unique/100",
+          "environment": {
+            "timestamp": "2026-10-07T08:47:15.693Z",
+            "revision": "f41384b856dcb85cf02b19893ca2d81966ae3f9f",
+            "node": "v24.21.0",
+            "platform": "win32",
+            "arch": "x64"
+          },
+          "measurement": {
+            "iterations": 9,
+            "time": 0,
+            "warmupIterations": 1,
+            "warmupTime": 0
+          },
+          "medianMs": 9.317799999999806,
+          "maximumMs": 11.153800000000047,
+          "samplesMs": [
+            8.787500000000364, 8.793400000000474, 8.984099999999671, 9.161199999999553,
+            9.317799999999806, 9.341699999999946, 9.494799999999486, 10.352300000000469,
+            11.153800000000047
+          ]
+        }
+      ],
+      "browserWasm": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "measurements": [
+          {
+            "scenario": "load-css-and-index",
+            "samples": [
+              270.41999995708466, 279.58000004291534, 282.2150000333786, 289.72500002384186,
+              290.22000002861023, 290.9599999189377, 299.125, 320.68999993801117, 364.0500000715256
+            ]
+          },
+          {
+            "scenario": "p-[16px]",
+            "samples": [
+              0.059999942779541016, 0.060000061988830566, 0.060000061988830566, 0.06499993801116943,
+              0.06499993801116943, 0.06499993801116943, 0.06499993801116943, 0.06499993801116943,
+              0.06499993801116943, 0.06500005722045898, 0.06500005722045898, 0.06500005722045898,
+              0.06500005722045898, 0.06500005722045898, 0.06500005722045898, 0.06500005722045898,
+              0.06500005722045898, 0.06999993324279785, 0.06999993324279785, 0.06999993324279785,
+              0.06999993324279785, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.0700000524520874, 0.07499992847442627, 0.07500004768371582, 0.08000004291534424,
+              0.0849999189376831, 0.08500003814697266, 0.09000003337860107, 0.09000003337860107,
+              0.09000003337860107, 0.09499990940093994, 0.09499990940093994, 0.09499990940093994,
+              0.09499990940093994, 0.09499990940093994, 0.09500002861022949, 0.09500002861022949,
+              0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+              0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+              0.09500002861022949, 0.09500002861022949, 0.09999990463256836, 0.09999990463256836,
+              0.09999990463256836, 0.10000002384185791, 0.10000002384185791, 0.10000002384185791,
+              0.10000002384185791, 0.10000002384185791, 0.10000002384185791, 0.10000002384185791,
+              0.10000002384185791, 0.10499989986419678, 0.10500001907348633, 0.10500001907348633,
+              0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.10500001907348633,
+              0.1099998950958252, 0.1099998950958252, 0.11000001430511475, 0.11000001430511475,
+              0.11000001430511475, 0.11499989032745361, 0.11500000953674316, 0.11500000953674316,
+              0.11500000953674316, 0.11500000953674316, 0.11500000953674316, 0.11500000953674316,
+              0.12000000476837158, 0.12000000476837158, 0.12000000476837158, 0.125, 0.125, 0.125,
+              0.125, 0.12999999523162842, 0.13499999046325684, 0.1400001049041748,
+              0.14499998092651367, 0.1499999761581421, 0.15000009536743164, 0.1549999713897705,
+              0.18000006675720215, 0.18499994277954102, 0.21000003814697266, 0.21500003337860107,
+              0.2250000238418579, 0.26499998569488525
+            ]
+          },
+          {
+            "scenario": "bg-[#f00]",
+            "samples": [
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07499992847442627, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07999992370605469, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.0849999189376831, 0.0849999189376831,
+              0.08500003814697266, 0.08500003814697266, 0.08500003814697266, 0.09000003337860107,
+              0.09000003337860107, 0.09500002861022949, 0.09500002861022949, 0.10000002384185791,
+              0.10000002384185791, 0.10499989986419678, 0.10499989986419678, 0.10499989986419678,
+              0.10499989986419678, 0.10500001907348633, 0.11000001430511475, 0.11000001430511475,
+              0.11000001430511475, 0.11000001430511475, 0.11000001430511475, 0.11000001430511475,
+              0.11499989032745361, 0.11500000953674316, 0.11500000953674316, 0.11500000953674316,
+              0.11500000953674316, 0.11500000953674316, 0.11500000953674316, 0.11500000953674316,
+              0.11500000953674316, 0.11500000953674316, 0.11500000953674316, 0.11500000953674316,
+              0.11500000953674316, 0.12000000476837158, 0.12000000476837158, 0.12000000476837158,
+              0.12000000476837158, 0.12000000476837158, 0.12000000476837158, 0.12000000476837158,
+              0.125, 0.125, 0.125, 0.12999999523162842, 0.12999999523162842, 0.12999999523162842,
+              0.12999999523162842, 0.12999999523162842, 0.12999999523162842, 0.13499999046325684,
+              0.13499999046325684, 0.13999998569488525, 0.13999998569488525, 0.13999998569488525,
+              0.13999998569488525, 0.13999998569488525, 0.13999998569488525, 0.1499999761581421,
+              0.1499999761581421, 0.1499999761581421, 0.15999996662139893, 0.15999996662139893,
+              0.16000008583068848, 0.16499996185302734, 0.16499996185302734, 0.16999995708465576,
+              0.1700000762939453, 0.18000006675720215, 0.20000004768371582, 0.20500004291534424,
+              0.2099999189376831, 0.23500001430511475, 0.24000000953674316, 0.24000000953674316,
+              0.29499995708465576, 0.39499998092651367
+            ]
+          },
+          {
+            "scenario": "bg-[#123456]",
+            "samples": [
+              0.04500007629394531, 0.04500007629394531, 0.04999995231628418, 0.04999995231628418,
+              0.04999995231628418, 0.04999995231628418, 0.05000007152557373, 0.0549999475479126,
+              0.05500006675720215, 0.05500006675720215, 0.060000061988830566, 0.06999993324279785,
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07999992370605469, 0.07999992370605469, 0.07999992370605469,
+              0.07999992370605469, 0.07999992370605469, 0.07999992370605469, 0.07999992370605469,
+              0.07999992370605469, 0.07999992370605469, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.0849999189376831,
+              0.0849999189376831, 0.0849999189376831, 0.08500003814697266, 0.08500003814697266,
+              0.08500003814697266, 0.09000003337860107, 0.09000003337860107, 0.09000003337860107,
+              0.09499990940093994, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+              0.09500002861022949, 0.09999990463256836, 0.11999988555908203, 0.125,
+              0.12999999523162842, 0.13499999046325684, 0.13499999046325684, 0.13499999046325684,
+              0.1499999761581421, 0.16999995708465576, 0.21500003337860107, 0.3500000238418579
+            ]
+          },
+          {
+            "scenario": "[border-color:#123456]",
+            "samples": [
+              0.04499995708465576, 0.04499995708465576, 0.04499995708465576, 0.04499995708465576,
+              0.04499995708465576, 0.04500007629394531, 0.04500007629394531, 0.04500007629394531,
+              0.04500007629394531, 0.04999995231628418, 0.04999995231628418, 0.04999995231628418,
+              0.04999995231628418, 0.04999995231628418, 0.05000007152557373, 0.05000007152557373,
+              0.0549999475479126, 0.0549999475479126, 0.06499993801116943, 0.06499993801116943,
+              0.06499993801116943, 0.06499993801116943, 0.06500005722045898, 0.06500005722045898,
+              0.06500005722045898, 0.06500005722045898, 0.06500005722045898, 0.06999993324279785,
+              0.06999993324279785, 0.06999993324279785, 0.06999993324279785, 0.06999993324279785,
+              0.06999993324279785, 0.06999993324279785, 0.0700000524520874, 0.0700000524520874,
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.0700000524520874,
+              0.0700000524520874, 0.0700000524520874, 0.0700000524520874, 0.07499992847442627,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07499992847442627, 0.07499992847442627, 0.07499992847442627, 0.07499992847442627,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07500004768371582, 0.07500004768371582, 0.07500004768371582, 0.07500004768371582,
+              0.07999992370605469, 0.07999992370605469, 0.07999992370605469, 0.07999992370605469,
+              0.08000004291534424, 0.08000004291534424, 0.08000004291534424, 0.08000004291534424,
+              0.08000004291534424, 0.08000004291534424, 0.08500003814697266, 0.08500003814697266,
+              0.09000003337860107, 0.09000003337860107, 0.09000003337860107, 0.09499990940093994,
+              0.09500002861022949, 0.09500002861022949, 0.09500002861022949, 0.09500002861022949,
+              0.09500002861022949, 0.10000002384185791, 0.12000000476837158, 0.125,
+              0.13999998569488525, 0.14499998092651367, 0.1499999761581421, 0.1499999761581421,
+              0.1549999713897705, 0.21500003337860107, 0.4650000333786011, 1.125
+            ]
+          },
+          {
+            "scenario": "bg-[#f00]/50",
+            "samples": [
+              0.17499995231628418, 0.17499995231628418, 0.1799999475479126, 0.1799999475479126,
+              0.18000006675720215, 0.18000006675720215, 0.18000006675720215, 0.18000006675720215,
+              0.18499994277954102, 0.18499994277954102, 0.18499994277954102, 0.18499994277954102,
+              0.18500006198883057, 0.18500006198883057, 0.18500006198883057, 0.18999993801116943,
+              0.19000005722045898, 0.19000005722045898, 0.19499993324279785, 0.1950000524520874,
+              0.1950000524520874, 0.19999992847442627, 0.20000004768371582, 0.20000004768371582,
+              0.2049999237060547, 0.21500003337860107, 0.21500003337860107, 0.21500003337860107,
+              0.2200000286102295, 0.2200000286102295, 0.22499990463256836, 0.2349998950958252,
+              0.2349998950958252, 0.23500001430511475, 0.25, 0.25, 0.25, 0.2549999952316284,
+              0.2549999952316284, 0.2549999952316284, 0.2549999952316284, 0.2549999952316284,
+              0.2549999952316284, 0.25500011444091797, 0.25999999046325684, 0.25999999046325684,
+              0.2600001096725464, 0.26499998569488525, 0.26499998569488525, 0.2650001049041748,
+              0.2650001049041748, 0.2650001049041748, 0.26999998092651367, 0.2749999761581421,
+              0.2749999761581421, 0.2749999761581421, 0.2749999761581421, 0.2799999713897705,
+              0.2849999666213989, 0.28999996185302734, 0.28999996185302734, 0.2999999523162842,
+              0.3049999475479126, 0.3049999475479126, 0.30500006675720215, 0.309999942779541,
+              0.31000006198883057, 0.31499993801116943, 0.315000057220459, 0.3200000524520874,
+              0.3250000476837158, 0.3299999237060547, 0.33000004291534424, 0.33000004291534424,
+              0.3349999189376831, 0.3399999141693115, 0.3400000333786011, 0.3400000333786011,
+              0.35500001907348633, 0.3599998950958252, 0.36000001430511475, 0.36000001430511475,
+              0.3649998903274536, 0.36500000953674316, 0.375, 0.375, 0.375, 0.3799999952316284,
+              0.38499999046325684, 0.38499999046325684, 0.38999998569488525, 0.3900001049041748,
+              0.4099999666213989, 0.4100000858306885, 0.4450000524520874, 0.4549999237060547,
+              0.4599999189376831, 0.49000000953674316, 0.5499999523162842, 0.7749999761581421
+            ]
+          },
+          {
+            "scenario": "bg-[#123456]/50",
+            "samples": [
+              0.19499993324279785, 0.1950000524520874, 0.19999992847442627, 0.20000004768371582,
+              0.20000004768371582, 0.20500004291534424, 0.20500004291534424, 0.20500004291534424,
+              0.20500004291534424, 0.20500004291534424, 0.20500004291534424, 0.2099999189376831,
+              0.2099999189376831, 0.21000003814697266, 0.21000003814697266, 0.21000003814697266,
+              0.21499991416931152, 0.21499991416931152, 0.21500003337860107, 0.21500003337860107,
+              0.21500003337860107, 0.2200000286102295, 0.2200000286102295, 0.22499990463256836,
+              0.2250000238418579, 0.23000001907348633, 0.23000001907348633, 0.23000001907348633,
+              0.23000001907348633, 0.24000000953674316, 0.24000000953674316, 0.24500000476837158,
+              0.24500000476837158, 0.25, 0.25999999046325684, 0.26999998092651367,
+              0.2700001001358032, 0.2749999761581421, 0.27500009536743164, 0.28000009059906006,
+              0.28999996185302734, 0.2900000810623169, 0.29499995708465576, 0.2950000762939453,
+              0.2950000762939453, 0.30000007152557373, 0.3049999475479126, 0.3049999475479126,
+              0.3049999475479126, 0.30500006675720215, 0.31000006198883057, 0.31499993801116943,
+              0.315000057220459, 0.315000057220459, 0.31999993324279785, 0.3200000524520874,
+              0.32499992847442627, 0.3250000476837158, 0.3250000476837158, 0.3299999237060547,
+              0.33000004291534424, 0.3349999189376831, 0.33500003814697266, 0.33500003814697266,
+              0.33500003814697266, 0.3399999141693115, 0.3399999141693115, 0.3450000286102295,
+              0.3450000286102295, 0.34999990463256836, 0.3500000238418579, 0.3500000238418579,
+              0.35500001907348633, 0.36000001430511475, 0.36000001430511475, 0.36500000953674316,
+              0.36500000953674316, 0.36500000953674316, 0.3700000047683716, 0.375,
+              0.3799999952316284, 0.3799999952316284, 0.38499999046325684, 0.38999998569488525,
+              0.3999999761581421, 0.3999999761581421, 0.40000009536743164, 0.4049999713897705,
+              0.40500009059906006, 0.4099999666213989, 0.41499996185302734, 0.4299999475479126,
+              0.434999942779541, 0.43999993801116943, 0.4450000524520874, 0.45500004291534424,
+              0.46000003814697266, 0.46000003814697266, 0.4650000333786011, 0.49000000953674316
+            ]
+          },
+          {
+            "scenario": "[&:hover]:p-4",
+            "samples": [
+              0.10000002384185791, 0.10499989986419678, 0.10500001907348633, 0.10500001907348633,
+              0.10500001907348633, 0.10500001907348633, 0.10500001907348633, 0.11000001430511475,
+              0.11000001430511475, 0.11000001430511475, 0.12000000476837158, 0.12000000476837158,
+              0.125, 0.12999999523162842, 0.13499999046325684, 0.1350001096725464,
+              0.13999998569488525, 0.14499998092651367, 0.14499998092651367, 0.1499999761581421,
+              0.1499999761581421, 0.15000009536743164, 0.15000009536743164, 0.1549999713897705,
+              0.1549999713897705, 0.1549999713897705, 0.1549999713897705, 0.1549999713897705,
+              0.1549999713897705, 0.1549999713897705, 0.1549999713897705, 0.1549999713897705,
+              0.1549999713897705, 0.15500009059906006, 0.15500009059906006, 0.15500009059906006,
+              0.15999996662139893, 0.15999996662139893, 0.16499996185302734, 0.16499996185302734,
+              0.16499996185302734, 0.16499996185302734, 0.16499996185302734, 0.16499996185302734,
+              0.16499996185302734, 0.16499996185302734, 0.16499996185302734, 0.1650000810623169,
+              0.1650000810623169, 0.1650000810623169, 0.1650000810623169, 0.16999995708465576,
+              0.16999995708465576, 0.16999995708465576, 0.16999995708465576, 0.16999995708465576,
+              0.16999995708465576, 0.16999995708465576, 0.16999995708465576, 0.1700000762939453,
+              0.1700000762939453, 0.1700000762939453, 0.1700000762939453, 0.1700000762939453,
+              0.17499995231628418, 0.17499995231628418, 0.17499995231628418, 0.17499995231628418,
+              0.17499995231628418, 0.17499995231628418, 0.17500007152557373, 0.17500007152557373,
+              0.17500007152557373, 0.17500007152557373, 0.1799999475479126, 0.1799999475479126,
+              0.18000006675720215, 0.18499994277954102, 0.18499994277954102, 0.18500006198883057,
+              0.18500006198883057, 0.18500006198883057, 0.18500006198883057, 0.18999993801116943,
+              0.18999993801116943, 0.18999993801116943, 0.19000005722045898, 0.20000004768371582,
+              0.20000004768371582, 0.2049999237060547, 0.20500004291534424, 0.20500004291534424,
+              0.21500003337860107, 0.23500001430511475, 0.23500001430511475, 0.2549999952316284,
+              0.25999999046325684, 0.26999998092651367, 0.32499992847442627, 0.3250000476837158
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "excludedMeasurements": "One repeated Node WASM run overlapped a performance process and was excluded. Retained runs were performed sequentially."
+}

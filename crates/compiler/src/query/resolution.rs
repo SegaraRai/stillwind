@@ -7,7 +7,7 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_source::{FileId, ModuleId, Span};
 use stillwind_syntax::{Candidate, parse_candidate};
 
-use super::DesignSystemQuery;
+use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{
     RuleBoundaries, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
 };
@@ -64,35 +64,66 @@ impl DesignSystemQuery {
         &self,
         candidate: &str,
     ) -> Result<CandidateResolution, UtilityResolutionError> {
-        self.resolve_with_selector(candidate, None)
+        self.context.resolve_with_selector(candidate, None, true)
     }
 
-    fn resolve_with_selector(
+    /// CSS for a candidate that resolves, `None` otherwise.
+    ///
+    /// Diagnostics are deliberately not part of a hover result: an unresolved candidate
+    /// has no CSS to show.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn hover_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<Option<CandidateHover>, UtilityResolutionError> {
+        let result = self
+            .context
+            .resolve_with_selector(candidate, Some("&"), false)?;
+        Ok(result.diagnostics.is_empty().then(|| CandidateHover {
+            candidate: candidate.into(),
+            css: result
+                .generated_rules
+                .iter()
+                .map(GeneratedRule::to_css)
+                .collect(),
+            revision: result.revision,
+        }))
+    }
+
+    /// Returns the resolution and generated-CSS findings from [`Self::resolve_candidate`].
+    ///
+    /// The finding carries a synthetic span over the candidate text, because a query
+    /// has no source buffer to point into. A successful preview returns an empty list.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn diagnose_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<Vec<LintFinding>, UtilityResolutionError> {
+        Ok(self.resolve_candidate(candidate)?.diagnostics)
+    }
+}
+
+impl QueryContext {
+    pub(super) fn resolve_with_selector(
         &self,
         candidate: &str,
         preview_selector: Option<&str>,
+        include_referenced_tokens: bool,
     ) -> Result<CandidateResolution, UtilityResolutionError> {
         let span = Span::new(
             FileId(0),
             0,
             u32::try_from(candidate.len()).unwrap_or(u32::MAX),
         );
-        // The built-in generator cannot reject an input, so the fallback selector is
-        // unreachable; previews keep the empty string rather than panicking a host.
-        let selector = IdentifierContext::new(
-            GeneratorSet::default(),
-            IdentifierMode::Release,
-            DEFAULT_HASH_LENGTH,
-        )
-        .class_name(&ClassContext {
-            module: ModuleId::from(""),
-            namespace: String::new(),
-            call: 0,
-            branch: format!("{candidate}\0"),
-        })
-        .map(|name| name.selector())
-        .unwrap_or_default();
-        let selector = preview_selector.unwrap_or(&selector);
+        let selector =
+            preview_selector.map_or_else(|| candidate_selector(candidate), str::to_owned);
+        let selector = selector.as_str();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
         let targets = resolve_utility_targets(candidate, theme)?.filter(|_| {
@@ -105,8 +136,7 @@ impl DesignSystemQuery {
         });
         let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
-            // The preview names its class with the built-in generator, so a rejected name is
-            // unreachable and a helper that cannot be named contributes nothing.
+            // Helper names use the built-in generator, which accepts every identifier request.
             let identifiers = IdentifierContext::new(
                 GeneratorSet::default(),
                 IdentifierMode::Release,
@@ -128,13 +158,17 @@ impl DesignSystemQuery {
             )]
         };
         let css: String = contributions.iter().map(|part| part.css.as_str()).collect();
-        let referenced_tokens = theme
-            .tokens_required_by(&css, false, &[])
-            .iter()
-            .map(|token| token.name.value.clone())
-            .collect();
+        let referenced_tokens = if include_referenced_tokens {
+            theme
+                .tokens_required_by(&css, false, &[])
+                .iter()
+                .map(|token| token.name.value.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
         let properties = theme
-            .properties
+            .properties()
             .iter()
             .chain(builtin_property_definitions(theme));
         let required_properties = properties
@@ -174,45 +208,22 @@ impl DesignSystemQuery {
             diagnostics,
         })
     }
+}
 
-    /// CSS for a candidate that resolves, `None` otherwise.
-    ///
-    /// Diagnostics are deliberately not part of a hover result: an unresolved candidate
-    /// has no CSS to show.
-    ///
-    /// # Errors
-    ///
-    /// Returns a malformed requirement from a matching utility definition.
-    pub fn hover_candidate(
-        &self,
-        candidate: &str,
-    ) -> Result<Option<CandidateHover>, UtilityResolutionError> {
-        let result = self.resolve_with_selector(candidate, Some("&"))?;
-        Ok(result.diagnostics.is_empty().then(|| CandidateHover {
-            candidate: candidate.into(),
-            css: result
-                .generated_rules
-                .iter()
-                .map(GeneratedRule::to_css)
-                .collect(),
-            revision: result.revision,
-        }))
-    }
-
-    /// Returns the resolution and generated-CSS findings from [`Self::resolve_candidate`].
-    ///
-    /// The finding carries a synthetic span over the candidate text, because a query
-    /// has no source buffer to point into. A successful preview returns an empty list.
-    ///
-    /// # Errors
-    ///
-    /// Returns a malformed requirement from a matching utility definition.
-    pub fn diagnose_candidate(
-        &self,
-        candidate: &str,
-    ) -> Result<Vec<LintFinding>, UtilityResolutionError> {
-        Ok(self.resolve_candidate(candidate)?.diagnostics)
-    }
+fn candidate_selector(candidate: &str) -> String {
+    IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    )
+    .class_name(&ClassContext {
+        module: ModuleId::from(""),
+        namespace: String::new(),
+        call: 0,
+        branch: format!("{candidate}\0"),
+    })
+    .map(|name| name.selector())
+    .unwrap_or_default()
 }
 
 #[cfg(test)]

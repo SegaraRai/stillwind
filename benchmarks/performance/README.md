@@ -2,10 +2,10 @@
 
 Run one timing task at a time after other builds and tests have finished:
 
-- `vp run test:performance` checks 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
-- `vp run test:performance:full` also checks 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
+- `vp run test:performance` checks canonical utility queries, 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
+- `vp run test:performance:full` also checks a palette with 1000 colors, 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
 
-The quick suite has 12 tests and takes about six seconds on the machine listed below. The full suite has 18 tests and takes about 40 seconds. Each measurement uses three samples. These times exclude builds needed before the tests. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
+The quick suite has 25 tests, and the full suite has 32 tests. Each measurement uses three samples. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
 
 `vp run verify` checks the budget helper's behavior. Run the performance tasks separately to check timing on your machine.
 
@@ -16,6 +16,25 @@ The tests follow [Vitest's benchmark guide](https://main.vitest.dev/guide/benchm
 Each table cell is **soft / hard**, in milliseconds. The tests compare both values with `latency.p50`, the median of three samples. Reaching or exceeding the soft target adds a `performance-soft` note, and the test continues. Reaching or exceeding the hard limit fails the test and command.
 
 The test metadata records the median, maximum, and both limits. `budgets.ts` defines the limits. Running a test does not change them.
+
+| Canonical scenario                             | Soft / hard (ms) |
+| ---------------------------------------------- | ---------------: |
+| Named utility                                  |       0.01 / 0.1 |
+| Arbitrary spacing, color, property, or variant |          0.1 / 1 |
+| Color with a numeric opacity modifier          |          0.1 / 1 |
+| CSS revision loading and index preparation     |        200 / 300 |
+| 2000 cached calls                              |            1 / 5 |
+| Module with 100 repeated colors                |           5 / 15 |
+| Module with 100 distinct colors                |          15 / 30 |
+| Palette with 100 or 1000 colors                |          0.1 / 1 |
+
+Canonical cases create a fresh query before each sample. The loader prepares the shared indexes when it completes the CSS revision. Candidate results and previews remain uncached in each measured query. The preparation case measures a fresh loader, CSS parsing, and index preparation together. The cached case reuses one query and measures 2000 calls.
+
+Module cases diagnose one module containing repeated or distinct arbitrary colors. Each sample creates a new project session before the timer, so it cannot reuse compiled module results. Palette cases search for `bg-[rgb(171_205_239)]` without a matching theme value. They check that a miss stays fast as the palette grows. These measurements use the native release addon and exclude LSP transport and browser WASM execution.
+
+`vp run bench:compiler:browser` measures the WASM binding in headless Chrome. It checks the median of nine CSS revision preparations against 300ms. Each query scenario uses 20 warmup calls and 100 measured calls, with a fresh query per call. Its 95th percentile must stay below 1ms; a median at or above 0.1ms adds a note. The browser report keeps every sample. It excludes worker startup, LSP transport, and editor rendering.
+
+The standard theme cases cover the shared value index and the finite CSS index. Custom utilities that transform values or whose modifiers erase value differences can require additional candidate trials. The limits measure the listed cases rather than imposing a bound on every possible custom CSS program.
 
 | JS modules |   Full build | Watch ready | Transform to CSS send | File write to CSS send |
 | ---------- | -----------: | ----------: | --------------------: | ---------------------: |

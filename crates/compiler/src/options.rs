@@ -80,7 +80,7 @@ impl CompilerOptions {
 
     /// Returns effective lint settings for this compilation without modifying the design system.
     pub fn lint_settings(&self, snapshot: &DesignSystemSnapshot) -> LintSettings {
-        self.lint.resolve(&snapshot.theme().config.lint_settings)
+        self.lint.resolve(&snapshot.theme().config().lint_settings)
     }
 
     /// Checks that the two prefixes are valid and do not conflict, and that the

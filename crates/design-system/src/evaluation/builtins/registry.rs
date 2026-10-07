@@ -13,12 +13,7 @@ use crate::{BuiltinDefinitions, CustomUtility, CustomVariant, ThemeIndex};
 
 /// The built-in definition set selected by this theme.
 pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
-    Arc::clone(&theme.registry)
-}
-
-/// Borrows the same definition set without cloning the `Arc`.
-pub(crate) fn builtin_utilities(theme: &ThemeIndex) -> &BuiltinDefinitions {
-    &theme.registry
+    Arc::clone(theme.registry())
 }
 
 /// Cascade position of an arbitrary property, or [`usize::MAX`] when no pattern
@@ -30,8 +25,8 @@ pub(crate) fn builtin_utilities(theme: &ThemeIndex) -> &BuiltinDefinitions {
 /// property last.
 pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> usize {
     theme
-        .registry
-        .arbitrary_property_order
+        .registry()
+        .arbitrary_property_order()
         .iter()
         .filter_map(|entry| {
             let prefix = entry.pattern.strip_suffix('*');
@@ -45,19 +40,19 @@ pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> us
 }
 
 /// Built-in variant definitions in authored order.
-pub(crate) fn builtin_variants(theme: &ThemeIndex) -> &[CustomVariant] {
-    &theme.registry.variants
+pub(crate) fn builtin_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
+    theme.registry().variants()
 }
 
 /// Built-in animation option definitions, kept apart from ordinary utilities.
-pub(crate) fn builtin_animation_options(theme: &ThemeIndex) -> &[CustomUtility] {
-    &theme.registry.animation_options
+pub(crate) fn builtin_animation_options(theme: &ThemeIndex) -> &[Arc<CustomUtility>] {
+    theme.registry().animation_options()
 }
 
 /// CSS-authored declaration projections applied when a utility is used as an animation
 /// option.
 pub(crate) fn animation_option_property_mappings(theme: &ThemeIndex) -> &BTreeMap<String, String> {
-    &theme.registry.animation_property_mappings
+    theme.registry().animation_property_mappings()
 }
 
 #[cfg(test)]
@@ -65,13 +60,15 @@ mod tests {
     use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
 
     use super::*;
+    use crate::theme::builder::ThemeBuilder;
 
     #[test]
     fn arbitrary_property_order_prefers_exact_patterns_and_sorts_unknowns_last() {
-        let theme = ThemeIndex {
+        let theme = ThemeBuilder {
             registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
-            ..ThemeIndex::default()
-        };
+            ..Default::default()
+        }
+        .finish();
         let order = |property| arbitrary_property_order(property, &theme);
         assert_eq!(order("unregistered-property"), order("*"));
         assert!(order("background-color") < order("background-image"));

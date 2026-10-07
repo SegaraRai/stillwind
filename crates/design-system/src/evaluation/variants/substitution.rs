@@ -7,6 +7,8 @@
 //! definition's body, and conditions or declarations can only attach to applications
 //! that have a selector, because a bare condition has no place to carry them.
 
+use std::sync::Arc;
+
 use super::super::values::domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 use super::super::values::expansion::expand_placeholder;
 use super::body::resolve_variant_body;
@@ -178,18 +180,18 @@ pub(crate) fn attach_declarations(
 /// authored order so the newest registration wins. A wildcard that would capture an
 /// empty string is skipped.
 pub(crate) fn registered_variant_candidates<'a, 'b>(
-    variants: &'a [CustomVariant],
+    variants: &'a [Arc<CustomVariant>],
     value: &'b str,
 ) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
     let mut candidates = Vec::new();
     for variant in variants.iter().rev() {
         if variant.wildcard.is_none() && variant.name == value {
-            candidates.push((variant, None));
+            candidates.push((variant.as_ref(), None));
         }
     }
     for variant in variants.iter().rev() {
         if let Some(capture) = variant.capture(value) {
-            candidates.push((variant, Some(capture)));
+            candidates.push((variant.as_ref(), Some(capture)));
         }
     }
     candidates

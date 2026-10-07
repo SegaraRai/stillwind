@@ -56,7 +56,7 @@ fn render(
     identifiers: &IdentifierContext,
 ) -> Result<String, CompileDiagnostic> {
     super::template::render(
-        &theme.output_template,
+        theme.output_template(),
         theme,
         utility_css,
         options,

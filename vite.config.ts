@@ -202,9 +202,29 @@ export default defineConfig(({ mode }) => ({
         command: "",
         dependsOn: ["@stillwind-internal/benchmarks#bench:compiler"],
       },
+      "bench:compiler:browser": {
+        command: "",
+        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler:browser"],
+      },
+      "bench:compiler:wasm": {
+        command: "",
+        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler:wasm"],
+      },
       "bench:host": {
         command: "",
         dependsOn: ["@stillwind-internal/benchmarks#bench:host"],
+      },
+      "bench:sorting": {
+        command: "",
+        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting"],
+      },
+      "bench:sorting:wasm": {
+        command: "",
+        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting:wasm"],
+      },
+      "bench:sorting:profile": {
+        command: "",
+        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting:profile"],
       },
       "bench:research": {
         command: "",

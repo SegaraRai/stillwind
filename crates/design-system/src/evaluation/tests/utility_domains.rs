@@ -9,7 +9,6 @@ use stillwind_test_support::assertions::CssAssertions as _;
 use stillwind_test_support::fixtures;
 
 use super::*;
-use crate::UtilityOrderMode;
 use crate::test_support::parse_fixture_theme;
 
 #[test]
@@ -271,9 +270,17 @@ fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
 
 #[test]
 fn ambiguous_background_type_is_independent_of_emission_order() {
-    let mut theme = theme();
-    for order in [UtilityOrderMode::Authored, UtilityOrderMode::Tailwind] {
-        theme.config.utility_order = order;
+    for order in ["authored", "tailwind"] {
+        let theme = parse_fixture_theme(
+            &SourceFile::new(
+                FileId(1),
+                None,
+                None,
+                format!("@stillwind {{ utility-order: {order}; }}"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
         for candidate in ["bg-[var(--surface)]", "bg-(--surface)"] {
             assert_css_eq!(
                 resolve_utility(candidate, &theme).unwrap().declaration,

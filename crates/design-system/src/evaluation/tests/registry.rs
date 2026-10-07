@@ -50,20 +50,16 @@ fn derives_arbitrary_property_order_from_builtin_css() {
 
 #[test]
 fn resolves_animation_options_from_css_registry_metadata() {
-    let mut theme = theme();
-    theme.tokens.extend(
-        parse_fixture_theme(
-            &SourceFile::new(
-                FileId(2),
-                None,
-                None,
-                "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
-            )
-            .unwrap(),
+    let theme = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            "@theme { --duration-normal: 180ms; --ease-standard: cubic-bezier(.2, 0, 0, 1); }",
         )
-        .unwrap()
-        .tokens,
-    );
+        .unwrap(),
+    )
+    .unwrap();
     assert_eq!(
         resolve_animation_option("both", &theme).as_deref(),
         Some("animation-fill-mode:both;")
