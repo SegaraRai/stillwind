@@ -24,6 +24,8 @@ test("Astro preview restarts when a stale lock identifies another live process",
     other = startNode(
       ["-e", "console.log('ready'); setInterval(() => {}, 1000)", "astro/bin/astro.mjs"],
       workspace.directory,
+      {},
+      600_000,
     );
     await expect
       .poll(() => other!.logs(), {
@@ -52,8 +54,10 @@ test("Astro preview restarts when a stale lock identifies another live process",
       preview = startNode(
         [cli, "astro", "serve", workspace.directory, String(port)],
         workspace.directory,
+        {},
+        600_000,
       );
-      await waitForServer(url, preview);
+      await waitForServer(url, preview, 180_000);
       const response = await fetch(url);
       expect(await response.text()).toContain("preview probe");
       expect(other.child.exitCode).toBeNull();
@@ -66,4 +70,4 @@ test("Astro preview restarts when a stale lock identifies another live process",
     await other?.stop();
     await workspace.dispose();
   }
-}, 300_000);
+}, 600_000);

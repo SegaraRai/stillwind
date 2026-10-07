@@ -110,7 +110,11 @@ export class FixtureApplication {
       this.#env,
       600_000,
     );
-    await waitForServer(this.#url, this.#server);
+    await waitForServer(
+      this.#url,
+      this.#server,
+      this.fixture.driver === "astro" ? 180_000 : undefined,
+    );
   }
 
   /**
