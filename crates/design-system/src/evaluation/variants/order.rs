@@ -19,9 +19,9 @@ use std::sync::Arc;
 
 use stillwind_syntax::{Variant, VariantKind};
 
-use super::super::builtins::registry::builtin_variants;
-use super::super::values::arbitrary::decode_arbitrary;
-use super::super::values::theme::theme_arbitrary_types;
+use super::super::builtins::builtin_variants;
+use super::super::values::decode_arbitrary;
+use super::super::values::theme_arbitrary_types;
 use super::resolve::{parse_nested_variant, split_variant_modifier};
 use super::substitution::registered_variant_candidates;
 use crate::{
@@ -397,7 +397,7 @@ mod tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
 
     #[test]
     fn sorting_compares_magnitudes_only_within_the_same_unit() {
@@ -565,7 +565,7 @@ mod sequence_property_tests {
 
     use super::*;
     use crate::BuiltinDefinitions;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
 
     fn theme() -> ThemeIndex {
         ThemeBuilder {

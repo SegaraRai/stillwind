@@ -18,7 +18,7 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 /// Names the ref marker and anchor families with one fixed body.
 #[derive(Debug)]
@@ -126,7 +126,7 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
 
 #[test]
 fn a_generated_anchor_name_is_checked_against_the_authored_document() {
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         ":root{anchor-name:shared;} @stillwind-slot utilities;",
     )

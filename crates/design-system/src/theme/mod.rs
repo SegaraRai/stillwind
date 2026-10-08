@@ -15,12 +15,12 @@
 //! and spans, [`namespace`] identifies token families,
 //! and [`references`] lowers build-time theme references.
 
-pub(crate) mod builder;
-pub(super) mod declarations;
-pub(super) mod index;
-pub(super) mod namespace;
-pub(super) mod parser;
-pub(super) mod references;
+mod builder;
+mod declarations;
+mod index;
+mod namespace;
+mod parser;
+mod references;
 mod tokens;
 
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode};
@@ -28,3 +28,8 @@ pub use index::ThemeIndex;
 pub use namespace::{ThemeNamespace, parse_theme_namespace_types};
 pub use parser::parse_theme;
 pub use references::ThemeReferenceError;
+
+#[cfg(test)]
+pub(crate) use builder::ThemeBuilder;
+pub(crate) use parser::extract_keyframe_blocks;
+pub(super) use parser::parse_theme_builder;

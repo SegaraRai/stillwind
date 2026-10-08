@@ -9,12 +9,12 @@
 //! Nothing in this module knows about utilities, variants or theme namespaces:
 //! hints name CSS value productions, and callers supply the property context.
 
-pub(super) mod domain;
+mod domain;
 mod policy;
-pub(super) mod properties;
-pub(super) mod syntax;
-pub(super) mod validation;
-pub(super) mod webref;
+mod properties;
+mod syntax;
+mod validation;
+mod webref;
 
 pub use domain::ValueDomain;
 pub use policy::*;

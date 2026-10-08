@@ -4,13 +4,13 @@
 //! primitives, numeric and CSS-wide keyword domains, and the compact spacing families
 //! that mix negative and fractional values.
 
+use stillwind_test_support::CssAssertions as _;
 use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::assertions::css_tokens;
+use stillwind_test_support::css_tokens;
 
 use super::*;
 use crate::parse_utility_definitions;
-use crate::theme::builder::ThemeBuilder;
+use crate::theme::ThemeBuilder;
 
 #[test]
 fn preserves_supports_and_media_conditions_from_css_utilities() {

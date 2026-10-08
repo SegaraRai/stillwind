@@ -5,7 +5,7 @@
 //! arbitrary values and the property families that must reject them.
 
 use stillwind_diagnostics::{LintDiagnostic, UtilityFailure};
-use stillwind_test_support::assertions::CssAssertions as _;
+use stillwind_test_support::CssAssertions as _;
 
 use super::*;
 

@@ -10,7 +10,7 @@ use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 /// Returns a default design-system snapshot from `content` and the standard package.
 /// The CSS source has file ID 2 and the name `test.css`.
@@ -20,7 +20,7 @@ use stillwind_test_support::css;
 /// Panics if the fixture CSS cannot be loaded into a snapshot.
 pub fn snapshot(content: &str) -> DesignSystemSnapshot {
     DesignSystemSnapshot::from_source(
-        &css::source(FileId(2), content).unwrap(),
+        &css_source(FileId(2), content).unwrap(),
         CssSourceName::from("test.css"),
         DesignSystemOptions::default(),
     )

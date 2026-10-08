@@ -9,8 +9,8 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, Uti
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::{css, fixtures, tailwind};
+use stillwind_test_support::CssAssertions as _;
+use stillwind_test_support::{case_named, code_block, css_source, fixture_css};
 
 use super::*;
 
@@ -23,7 +23,7 @@ fn malformed_theme_reference_is_a_diagnostic_instead_of_an_omitted_token() {
         "import { style } from 'stillwind/react'; const props = style('bg-bad');",
     )
     .unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@import 'stillwind'; @theme { --color-bad: --theme(x); }",
     )
@@ -54,7 +54,7 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
         .split("## `")
         .find(|section| section.starts_with("theme.namespace-reset-and-negative-token`"))
         .expect("theme reset fixture must exist");
-    let input_css = fixtures::code_block(section, "Input CSS", "css").unwrap();
+    let input_css = code_block(section, "Input CSS", "css").unwrap();
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -68,7 +68,7 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
         &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
-        &css::source(FileId(2), tailwind::fixture_css(&input_css)).unwrap(),
+        &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
@@ -95,9 +95,9 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
     ];
 
     for (case_name, candidates) in configured_cases {
-        let section = fixtures::case_named(fixture, case_name);
-        let input_css = fixtures::code_block(section, "Input CSS", "css").unwrap();
-        let expected_css = fixtures::code_block(section, "Expected CSS", "css").unwrap();
+        let section = case_named(fixture, case_name);
+        let input_css = code_block(section, "Input CSS", "css").unwrap();
+        let expected_css = code_block(section, "Expected CSS", "css").unwrap();
         for candidate in candidates {
             let component = SourceFile::new(
                 FileId(1), None, None,
@@ -111,7 +111,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
                 &ModuleId::from("test.tsx"),
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous,
-                &css::source(FileId(2), tailwind::fixture_css(&input_css)).unwrap(),
+                &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
                 &CssSourceName::from("stillwind.css"),
                 &CompilerOptions::default(),
             );
@@ -128,9 +128,9 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         }
     }
 
-    let removed = fixtures::case_named(fixture, "theme-shadow-tokens.namespace-removal");
-    let input_css = fixtures::code_block(removed, "Input CSS", "css").unwrap();
-    let candidates = fixtures::code_block(removed, "Candidates", "text").unwrap();
+    let removed = case_named(fixture, "theme-shadow-tokens.namespace-removal");
+    let input_css = code_block(removed, "Input CSS", "css").unwrap();
+    let candidates = code_block(removed, "Candidates", "text").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &SourceFile::new(
@@ -145,7 +145,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         &ModuleId::from("test.tsx"),
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
-        &css::source(FileId(4), tailwind::fixture_css(&input_css)).unwrap(),
+        &css_source(FileId(4), fixture_css(&input_css)).unwrap(),
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions::default(),
     );
@@ -183,7 +183,7 @@ fn framework_imports_gate_baseline_layers() {
             &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
-            &css::source(FileId(2), css).unwrap(),
+            &css_source(FileId(2), css).unwrap(),
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         )
@@ -238,7 +238,7 @@ fn framework_imports_gate_baseline_layers() {
     &ModuleId::from("test.tsx"),
     ScriptLanguage::Tsx,
     ScriptModuleKind::Unambiguous,
-    &css::source(
+    &css_source(
             FileId(4),
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap(),

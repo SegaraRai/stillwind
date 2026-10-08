@@ -17,7 +17,7 @@ use stillwind_ir::{
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry, SourceUri};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 #[test]
 fn css_and_script_sources_share_ids_without_sharing_retention() {
@@ -99,7 +99,7 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
 #[test]
 fn module_stylesheets_include_support_without_repeating_document_rules() {
     let snapshot = DesignSystemSnapshot::from_source(
-        &css::source(
+        &css_source(
             FileId(2),
             "@theme { --color-brand: red; } .document-only{color:blue;}",
         )

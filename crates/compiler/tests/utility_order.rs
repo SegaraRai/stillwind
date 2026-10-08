@@ -1,6 +1,6 @@
 //! Differential ordering against the pinned Tailwind compiler's unoptimized AST.
 
-use stillwind_test_support::css as css_fixture;
+use stillwind_test_support::css_source;
 
 use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_design_system::{
@@ -16,7 +16,7 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         "../../../fixtures/tailwind-v4/utility-order.json"
     ))
     .unwrap();
-    let source = css_fixture::source(FileId(1), fixture["stillwindCss"].as_str().unwrap()).unwrap();
+    let source = css_source(FileId(1), fixture["stillwindCss"].as_str().unwrap()).unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &source,
         CssSourceName::from("test.css"),
@@ -89,7 +89,7 @@ fn tailwind_resolved_property_sort_matches_upstream() {
 
 #[test]
 fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
-    let theme = css_fixture::source(
+    let theme = css_source(
         FileId(1),
         "
         @utility a-single { color:red; }

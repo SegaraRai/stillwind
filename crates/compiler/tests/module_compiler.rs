@@ -5,7 +5,7 @@
 //! transform output against a pinned snapshot, invalid IR and byte boundaries returning
 //! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
 
-use stillwind_test_support::css as css_fixture;
+use stillwind_test_support::css_source;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
@@ -27,12 +27,11 @@ use stillwind_ir::{
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
 use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile, Span, Spanned};
-use stillwind_test_support::css;
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
     let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const a=style('m-10 hover:m-20'); const b=style(a,'m-4'); const c=style(b,'m-10'); const d=style(flag?a:c); const e=style(a,c);").unwrap();
-    let theme = css::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let output = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,
@@ -70,7 +69,7 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
 
 #[test]
 fn composition_rejects_props_and_nested_calls() {
-    let theme = css::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
@@ -115,7 +114,7 @@ fn composition_rejects_props_and_nested_calls() {
 
 #[test]
 fn structured_artifact_preserves_css_and_transforms_against_pinned_snapshot() {
-    let theme = css::source(FileId(2), "@theme { --color-brand: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-brand: red; }").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -276,7 +275,7 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
         None,
     );
     let compile = |policy: &str| {
-        let theme = css::source(FileId(2), "").unwrap();
+        let theme = css_source(FileId(2), "").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &theme,
             "test.css".into(),
@@ -327,7 +326,7 @@ fn invalid_transform_byte_boundaries_return_errors() {
 
 #[test]
 fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
-    let theme = css::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -427,7 +426,7 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
 
 #[test]
 fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -474,7 +473,7 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
 
 #[test]
 fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -562,7 +561,7 @@ fn static_provider_does_not_attach_a_marker_named_like_an_object_property() {
         }
     }
 
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -613,7 +612,7 @@ fn static_provider_does_not_attach_a_marker_named_like_an_object_property() {
 
 #[test]
 fn development_mode_imports_the_checked_helper_from_the_dev_module() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -683,7 +682,7 @@ impl IdentifierGenerator for FailingGenerator {
 
 #[test]
 fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -753,7 +752,7 @@ impl IdentifierGenerator for FixedGenerator {
 
 #[test]
 fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -830,7 +829,7 @@ impl IdentifierGenerator for PunctuationClassGenerator {
 
 #[test]
 fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),
@@ -902,7 +901,7 @@ impl IdentifierGenerator for RoleSpellingHelperGenerator {
 
 #[test]
 fn a_host_names_every_conditional_helper_it_is_asked_for() {
-    let theme = css_fixture::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
         "test.css".into(),

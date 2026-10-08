@@ -8,8 +8,21 @@
 //! serialize the result. `policy` checks emitted values and variant targets and filters
 //! canonical suggestions.
 
-pub(super) mod declaration_order;
-pub(super) mod emission;
-pub(crate) mod policy;
-pub(super) mod render;
-pub(super) mod resolve;
+mod declaration_order;
+mod emission;
+mod policy;
+mod render;
+mod resolve;
+
+pub(super) use declaration_order::{
+    combine_declarations_for_theme, order_utilities, prepend_missing_declarations,
+};
+pub(crate) use emission::emit_utility_rules;
+pub(crate) use policy::{candidate_allowed, check_candidate_name};
+pub(super) use policy::{check, check_variant, spacing_property};
+pub(super) use render::render_utility_rule;
+pub(crate) use resolve::{CompiledUtility, resolve_utility_targets, unresolved_utility_kind};
+pub(super) use resolve::{UtilitySource, resolve_utility};
+
+#[cfg(test)]
+pub(super) use render::render_utility_rule_path;

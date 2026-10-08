@@ -12,7 +12,7 @@ use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::identity_declaration;
-use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
+use super::super::utilities::{CompiledUtility, UtilitySource};
 use super::{CallEmitter, KEYFRAMES_KEY};
 use crate::identifiers::IdentifierContext;
 

@@ -15,8 +15,8 @@ use stillwind_syntax::parse_candidate;
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
-use super::super::utilities::declaration_order::{order_utilities, prepend_missing_declarations};
-use super::super::utilities::resolve::resolve_utility;
+use super::super::utilities::resolve_utility;
+use super::super::utilities::{order_utilities, prepend_missing_declarations};
 use super::super::variants::{VariantStep, variant_paths};
 use super::blocks::find_at_rule_block;
 use crate::identifiers::IdentifierContext;
@@ -279,7 +279,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
 #[cfg(test)]
 mod tests {
     use stillwind_source::{CssSourceName, FileId};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::*;
     use crate::Compiler;
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn expands_authored_variants_through_the_shared_registry() {
-        let source = css::source(
+        let source = css_source(
             FileId(1),
             r#"
                 @import "stillwind/theme.css" layer(theme);
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn expands_authored_apply_in_tailwind_property_order() {
-        let source = css::source(
+        let source = css_source(
             FileId(1),
             r#"
                 @import "stillwind/theme.css" layer(theme);

@@ -356,14 +356,14 @@ fn completion_closers(text: &str) -> String {
 mod tests {
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_source::{CssSourceName, FileId};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::*;
     use crate::CompilerOptions;
 
     #[test]
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
-        let theme = css::source(
+        let theme = css_source(
             FileId(1),
             "@import 'stillwind'; @theme { --color-brand: red; --breakpoint-tablet: 48rem; }",
         )

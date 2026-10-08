@@ -11,9 +11,15 @@
 //! animations already carry their destination. [`blocks`] supplies the authored at-rule
 //! scanner. [`template`] combines those contributions while retaining source mappings.
 
-pub(super) mod authored_directives;
-pub(super) mod blocks;
-pub(super) mod keyframes;
-pub(super) mod properties;
-pub(super) mod render;
-pub(super) mod template;
+mod authored_directives;
+mod blocks;
+mod keyframes;
+mod properties;
+mod render;
+mod template;
+
+pub(crate) use render::{render_module_stylesheet, render_stylesheet};
+pub(crate) use template::render_mapped;
+
+#[cfg(test)]
+pub(super) use authored_directives::render_authored_variant_path;

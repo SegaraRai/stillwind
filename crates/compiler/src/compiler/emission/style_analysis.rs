@@ -21,9 +21,9 @@ use stillwind_source::Span;
 
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
-use super::super::utilities::policy::{check, spacing_property};
-use super::super::utilities::render::render_utility_rule;
-use super::super::utilities::resolve::CompiledUtility;
+use super::super::utilities::CompiledUtility;
+use super::super::utilities::render_utility_rule;
+use super::super::utilities::{check, spacing_property};
 use super::CallEmitter;
 use super::ref_projection::rule_contribution;
 use crate::style_analysis::{

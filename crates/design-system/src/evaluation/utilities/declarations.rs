@@ -14,8 +14,8 @@
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::Value;
 
-use super::super::values::colors::CompatColorMode;
-use super::super::values::placeholders::{PreparedValues, resolve_css_placeholders};
+use super::super::values::CompatColorMode;
+use super::super::values::{PreparedValues, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;

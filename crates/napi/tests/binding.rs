@@ -8,7 +8,7 @@
 //! invalid projection metadata fails the compile instead of producing partial code, and
 //! options are validated rather than defaulted silently.
 
-use stillwind_test_support::css as css_fixture;
+use stillwind_test_support::with_defaults;
 
 use std::error::Error;
 
@@ -293,7 +293,7 @@ const props = style("bg-accent hover:bg-accent/90");"#;
         &compile_input(
             source,
             "Button.tsx",
-            &css_fixture::with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
+            &with_defaults("@theme { --color-accent: oklch(.6 .2 250); }"),
         ),
         &CompilerOptions::default(),
     )
@@ -330,7 +330,7 @@ fn exposes_generated_symbols_for_build_wide_collision_checks() {
 const menu = style.ref();
 const props = style(menu.asAnchor());"#,
             "src/Menu.tsx",
-            &css_fixture::with_defaults("@theme {}"),
+            &with_defaults("@theme {}"),
         ),
         &CompilerOptions::default(),
     )
@@ -410,9 +410,7 @@ export const child = style({ [menu`hover:`]: "text-white" });"#,
     ]);
     let output = compile_project_input(
         &sources_from_value(sources),
-        &css_input(&css_fixture::with_defaults(
-            "@theme { --color-white: white; }",
-        )),
+        &css_input(&with_defaults("@theme { --color-white: white; }")),
         &CompilerOptions::default(),
     )
     .unwrap();
@@ -465,7 +463,7 @@ fn assembles_project_fragments_under_one_shared_stylesheet() {
             },
         },
     ]);
-    let theme = css_fixture::with_defaults(
+    let theme = with_defaults(
         r#"@import "stillwind";
 @theme { --color-white: white; }"#,
     );
@@ -513,7 +511,7 @@ fn serializes_editor_positions_for_diagnostics() {
         &compile_input(
             "import { style } from \"stillwind/react\";\nconst props = style(\"bg-accnet\");",
             "Button.tsx",
-            &css_fixture::with_defaults("@theme { --color-accent: red; }"),
+            &with_defaults("@theme { --color-accent: red; }"),
         ),
         &CompilerOptions::default(),
     )

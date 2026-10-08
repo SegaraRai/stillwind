@@ -11,10 +11,17 @@
 //! declaration is rejected, and the caller then tries the next overload rather than
 //! emitting a partially substituted value.
 
-pub(super) mod arbitrary;
-pub(super) mod colors;
-pub(super) mod domains;
-pub(super) mod expansion;
-pub(super) mod macros;
-pub(super) mod placeholders;
-pub(super) mod theme;
+mod arbitrary;
+mod colors;
+mod domains;
+mod expansion;
+mod macros;
+mod placeholders;
+mod theme;
+
+pub(super) use arbitrary::decode_arbitrary;
+pub(super) use colors::CompatColorMode;
+pub(super) use domains::{resolve_value_domains, split_domains, theme_domain_pattern};
+pub(super) use expansion::expand_placeholder;
+pub(super) use placeholders::{PreparedValues, resolve_css_placeholders};
+pub(super) use theme::theme_arbitrary_types;

@@ -9,8 +9,8 @@
 
 use std::sync::Arc;
 
-use super::super::values::domains::{resolve_value_domains, split_domains, theme_domain_pattern};
-use super::super::values::expansion::expand_placeholder;
+use super::super::values::expand_placeholder;
+use super::super::values::{resolve_value_domains, split_domains, theme_domain_pattern};
 use super::body::resolve_variant_body;
 use super::resolve::{VariantApplication, VariantDeclaration};
 use super::usage::VariantValueSource;

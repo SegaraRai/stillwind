@@ -15,7 +15,7 @@ use crate::evaluation::EvaluationContext;
 
 use stillwind_css::ValueType;
 
-use super::super::builtins::metadata::builtin_theme_namespace_types;
+use super::super::builtins::builtin_theme_namespace_types;
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
 
@@ -198,11 +198,11 @@ pub(crate) fn typed_css_variable<'a>(
 mod tests {
     use std::sync::Arc;
 
-    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
     use super::*;
     use crate::BuiltinDefinitions;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
 
     #[test]
     fn fractions_reject_zero_negative_and_overflowing_denominators() {

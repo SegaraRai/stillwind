@@ -13,13 +13,13 @@
 //! Value-domain mismatches are non-matches, allowing another overload to apply.
 //! Malformed matched definitions return a typed error.
 
-pub(super) mod body;
-pub(super) mod declarations;
-pub(super) mod formatting;
-pub(super) mod matching;
-pub(super) mod nested;
-pub(super) mod order;
-pub(super) mod resolve;
+mod body;
+mod declarations;
+mod formatting;
+mod matching;
+mod nested;
+mod order;
+mod resolve;
 mod tailwind_property_order;
 
 pub use body::UtilityResolutionError;
@@ -29,3 +29,6 @@ pub use resolve::{
     ResolvedUtility, ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse,
     resolve_animation_option, resolve_utility,
 };
+
+pub(super) use body::PreparedUtilityBody;
+pub(super) use declarations::PreparedDeclarations;

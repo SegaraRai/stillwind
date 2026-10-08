@@ -14,7 +14,7 @@
 use stillwind_css::{PropertyRequirementError, take_property_requirements};
 use stillwind_syntax::Value;
 
-use super::super::builtins::metadata::COMPAT_COLOR_SUPPORT;
+use super::super::builtins::COMPAT_COLOR_SUPPORT;
 use super::declarations::resolve_css_declarations;
 use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,

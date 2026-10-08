@@ -4,8 +4,8 @@
 //! keywords, and the rule that application CSS may override any compatibility utility
 //! name.
 
+use stillwind_test_support::CssAssertions as _;
 use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::assertions::CssAssertions as _;
 
 use super::*;
 use crate::test_support::parse_fixture_theme;

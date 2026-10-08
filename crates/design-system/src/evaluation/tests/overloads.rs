@@ -4,8 +4,8 @@
 //! tried in reverse source order, that CSS fallbacks and extra selector targets survive
 //! merging, and that color alpha emits both the sRGB fallback and the oklab upgrade.
 
+use stillwind_test_support::CssAssertions as _;
 use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::assertions::CssAssertions as _;
 
 use super::*;
 use crate::test_support::parse_fixture_theme;

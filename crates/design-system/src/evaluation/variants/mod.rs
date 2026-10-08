@@ -11,10 +11,10 @@
 //! Theme definitions remain immutable. Usage inspection creates an isolated recorder,
 //! so resolving a stack repeatedly produces identical applications and usage records.
 
-pub(super) mod body;
-pub(super) mod order;
-pub(super) mod resolve;
-pub(super) mod substitution;
+mod body;
+mod order;
+mod resolve;
+mod substitution;
 mod usage;
 
 pub use order::{VariantSequenceOrder, compare_variant_sequences};

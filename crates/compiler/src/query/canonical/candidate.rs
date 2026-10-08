@@ -386,7 +386,7 @@ mod tests {
         CanonicalUtilitiesOverride, LintFinding, LintOverrides, LintSeverity, RootFontSize,
     };
     use stillwind_source::{CssSourceName, FileId};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::super::preview::convert_pixel_dimensions;
     use super::index::{policy, rank};
@@ -394,7 +394,7 @@ mod tests {
     use crate::{CompilerOptions, DesignSystemQuery, prepare_canonical_index};
 
     fn make_query(css_text: &str, options: CompilerOptions) -> DesignSystemQuery {
-        let source = css::source(FileId(1), css_text).unwrap();
+        let source = css_source(FileId(1), css_text).unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &source,
             CssSourceName::from("theme.css"),
@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn canonical_indexes_share_preparation_and_isolate_lint_policies() {
-        let source = css::source(FileId(1), "@theme { --*:initial; --spacing:.25rem; } @utility p-* { padding:--value(--spacing(), [length]); }").unwrap();
+        let source = css_source(FileId(1), "@theme { --*:initial; --spacing:.25rem; } @utility p-* { padding:--value(--spacing(), [length]); }").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &source,
             CssSourceName::from("theme.css"),
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn preparation_defers_requirement_errors_until_a_matching_candidate() {
-        let source = css::source(FileId(1),
+        let source = css_source(FileId(1),
             "@utility good { color:red; } @utility bad-* { @stillwind-require-properties invalid; color:--value([color]); }").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &source,

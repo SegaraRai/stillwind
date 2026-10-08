@@ -10,14 +10,14 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, Uti
 use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::css;
+use stillwind_test_support::CssAssertions as _;
+use stillwind_test_support::css_source;
 
 use super::*;
 
 #[test]
 fn native_runtime_imports_are_binding_safe_and_framework_specific() {
-    let theme = css::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     for framework in ["react", "preact", "solid", "vue", "svelte", "astro"] {
         let component = SourceFile::new(FileId(1), None, None, format!(
             "import {{style as sw, type Theme}} from 'stillwind/{framework}';\n\
@@ -61,7 +61,7 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
 
 #[test]
 fn residual_macro_references_fail_the_entire_compilation() {
-    let theme = css::source(FileId(2), "").unwrap();
+    let theme = css_source(FileId(2), "").unwrap();
     for suffix in ["const uncompiled = style;", "export {style};"] {
         let component = SourceFile::new(
             FileId(1),
@@ -130,7 +130,7 @@ export function SaveButton() {
   return <button {...style("inline-flex items-center rounded-md bg-accent px-4 text-center")}>Save</button>;
 }"#,
     ).unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@theme { --color-accent: oklch(.6 .2 250); --spacing-4: 1rem; --radius-md: .375rem; }",
     )
@@ -170,7 +170,7 @@ fn reports_an_unknown_token_at_the_utility_not_the_whole_call() {
 const props = style("bg-accnet");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -213,7 +213,7 @@ fn preserves_unparseable_tailwind_candidates_as_lint_findings() {
 const props = style("bg-[color:red");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@import \"stillwind\";").unwrap();
+    let theme = css_source(FileId(2), "@import \"stillwind\";").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -252,7 +252,7 @@ const third = style("p-accnet");
 const fourth = style("m-accnet");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -290,7 +290,7 @@ declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -324,7 +324,7 @@ declare const active: boolean;
 const props = style(active ? "bg-accent" : "bg-muted");"#,
     )
     .unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@theme { --color-accent: red; --color-muted: gray; }",
     )
@@ -372,7 +372,7 @@ const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
             ),
         )
         .unwrap();
-        let theme = css::source(
+        let theme = css_source(
             FileId(2),
             "@theme { --color-accent: red; --color-muted: gray; }",
         )
@@ -414,7 +414,7 @@ declare const loading: boolean;
 const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -448,7 +448,7 @@ fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
 declare const loading: boolean;
 const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "hover:": "bg-muted" });"#,
     ).unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@theme { --color-accent: red; --color-muted: gray; }",
     )
@@ -496,7 +496,7 @@ declare const loading: boolean;
 const props = style({ "legacy-loading": loading });"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,

@@ -16,7 +16,7 @@ use std::collections::HashSet;
 use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
-use super::super::values::arbitrary::decode_arbitrary;
+use super::super::values::decode_arbitrary;
 use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;

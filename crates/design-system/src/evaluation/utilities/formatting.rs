@@ -2,7 +2,7 @@
 
 use stillwind_css::{declaration_ranges, format_numeric_zero, important_declarations};
 
-use super::super::builtins::metadata::builtin_declaration_formats;
+use super::super::builtins::builtin_declaration_formats;
 use crate::{ThemeIndex, declaration_format};
 
 /// Emits resolved declarations with candidate priority, without optimizing values.
@@ -65,7 +65,7 @@ pub(crate) fn resolve_declaration_value(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
 
     #[test]
     fn preserves_authored_values_and_supplies_only_required_length_types() {

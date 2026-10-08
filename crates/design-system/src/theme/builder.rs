@@ -11,8 +11,8 @@ use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
 use crate::UtilityOrderMode;
-use crate::registry::utilities::CustomUtility;
-use crate::registry::variants::CustomVariant;
+use crate::registry::CustomUtility;
+use crate::registry::CustomVariant;
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {

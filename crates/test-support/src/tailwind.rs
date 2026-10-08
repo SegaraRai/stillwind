@@ -1,6 +1,6 @@
 //! Input conversion for the vendored Tailwind parity fixtures.
 //!
-//! Call [`fixture_css`] before expanding package imports with [`crate::css::source`].
+//! Call [`fixture_css`] before expanding package imports with [`crate::css_source`].
 //! The conversion selects Stillwind's registry for upstream fixture imports.
 
 use cssparser::{Parser, Token};

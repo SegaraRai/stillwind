@@ -20,7 +20,7 @@ use stillwind_diagnostics::{
 use stillwind_source::{FileId, Span};
 use stillwind_syntax::{Variant, parse_candidate};
 
-use super::super::emission::style_analysis::collect_declarations;
+use super::super::emission::collect_declarations;
 use super::super::variants::{VariantStep, variant_paths};
 use super::resolve::{CompiledUtility, resolve_utility_targets};
 use crate::style_analysis::{DeclarationValue, SupplyKind};

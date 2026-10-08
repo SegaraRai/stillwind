@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use stillwind_css::PropertyRequirementError;
 
-use super::utilities::body::PreparedUtilityBody;
-use super::utilities::declarations::PreparedDeclarations;
+use super::utilities::PreparedDeclarations;
+use super::utilities::PreparedUtilityBody;
 use crate::ThemeIndex;
 
 /// Parsed syntax shared by registered utilities with identical body text.
@@ -60,7 +60,7 @@ impl UtilityPrograms {
 
 #[cfg(test)]
 mod tests {
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
     use crate::{CustomUtility, resolve_utility};
 
     #[test]

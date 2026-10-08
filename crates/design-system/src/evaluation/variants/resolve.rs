@@ -19,9 +19,9 @@ use cssparser::{Parser, Token};
 use stillwind_css::selector_uses_subject;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
-use super::super::builtins::metadata::{builtin_marker_utilities, builtin_relationship_patterns};
-use super::super::builtins::registry::builtin_variants;
-use super::super::values::arbitrary::decode_arbitrary;
+use super::super::builtins::builtin_variants;
+use super::super::builtins::{builtin_marker_utilities, builtin_relationship_patterns};
+use super::super::values::decode_arbitrary;
 use super::body::resolve_variant_body;
 use super::order::variant_sort_namespace;
 use super::substitution::{

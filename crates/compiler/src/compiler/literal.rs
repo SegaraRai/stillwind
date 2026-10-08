@@ -15,9 +15,7 @@ use stillwind_syntax::parse_candidate;
 
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
-use super::utilities::resolve::{
-    CompiledUtility, resolve_utility_targets, unresolved_utility_kind,
-};
+use super::utilities::{CompiledUtility, resolve_utility_targets, unresolved_utility_kind};
 use super::variants::document_scoped_selector;
 
 /// Rules and class names collected before they are assigned to a class unit.

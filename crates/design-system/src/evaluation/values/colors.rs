@@ -13,7 +13,7 @@ use crate::evaluation::EvaluationContext;
 
 use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
 
-use super::super::builtins::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
+use super::super::builtins::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
 use super::domains::{resolve_value_domains, split_domains};
 use super::theme::theme_value_literal;
 use crate::ThemeNamespace;

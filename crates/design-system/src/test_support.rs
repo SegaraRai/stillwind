@@ -2,7 +2,7 @@
 
 use stillwind_diagnostics::CompileError;
 use stillwind_source::{CssSourceName, SourceFile};
-use stillwind_test_support::{css, tailwind};
+use stillwind_test_support::{css_source, fixture_css};
 
 use crate::{ThemeIndex, parse_theme};
 
@@ -19,7 +19,7 @@ use crate::{ThemeIndex, parse_theme};
 /// Panics if package expansion fails or the expanded source exceeds the source limit.
 pub(crate) fn parse_fixture_theme(source: &SourceFile) -> Result<ThemeIndex, CompileError> {
     parse_theme(
-        &css::source(source.id(), tailwind::fixture_css(source.text())).unwrap(),
+        &css_source(source.id(), fixture_css(source.text())).unwrap(),
         &CssSourceName::from("test.css"),
     )
 }

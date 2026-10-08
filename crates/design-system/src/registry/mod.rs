@@ -14,11 +14,11 @@
 //! a registry once and share it.
 
 mod definitions;
-pub(super) mod formats;
-pub(super) mod order;
-pub(super) mod utilities;
-pub(crate) mod utility_lookup;
-pub(super) mod variants;
+mod formats;
+mod order;
+mod utilities;
+mod utility_lookup;
+mod variants;
 
 pub use definitions::BuiltinDefinitions;
 pub use formats::{
@@ -35,3 +35,9 @@ pub use variants::{
     BuiltinVariantValueType, CustomVariant, parse_builtin_variant_definitions,
     parse_variant_definitions,
 };
+
+pub(super) use formats::{extract_declaration_formats, extract_relationship_patterns};
+pub(crate) use order::registration_positions;
+pub(super) use utilities::{extract_custom_utilities, extract_marker_utilities};
+pub(crate) use utility_lookup::UtilityLookup;
+pub(super) use variants::extract_custom_variants;

@@ -14,7 +14,7 @@ use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 use super::*;
 
@@ -153,7 +153,7 @@ pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
 
     let snapshot = SNAPSHOT.get_or_init(|| {
         DesignSystemSnapshot::from_source(
-            &css::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
+            &css_source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
             CssSourceName::from("stillwind.css"),
             CompilerOptions::default().design_system(),
         )

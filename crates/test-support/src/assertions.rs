@@ -14,10 +14,7 @@ use stillwind_css::fold_calc_expressions;
 #[macro_export]
 macro_rules! assert_css_eq {
     ($actual:expr, $expected:expr $(,)?) => {
-        ::std::assert_eq!(
-            $crate::assertions::css_tokens(&$actual),
-            $crate::assertions::css_tokens(&$expected),
-        );
+        ::std::assert_eq!($crate::css_tokens(&$actual), $crate::css_tokens(&$expected),);
     };
 }
 

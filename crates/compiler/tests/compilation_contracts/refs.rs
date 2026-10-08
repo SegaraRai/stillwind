@@ -1,6 +1,6 @@
 //! Ref names, projections, scope lists, and provider diagnostics.
 
-use stillwind_test_support::css as css_fixture;
+use stillwind_test_support::css_source;
 
 use std::collections::BTreeMap;
 
@@ -14,7 +14,7 @@ use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 use super::compile;
 
 fn compile_registry(code: &str, css: &str) -> (SourceFile, CompileResult) {
-    let css = css_fixture::source(
+    let css = css_source(
         FileId(2),
         format!("@import \"stillwind/builtins.css\"; {css}"),
     )

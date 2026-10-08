@@ -12,7 +12,7 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, LintSeverity}
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 use super::compile_with_snapshot;
 use crate::Compiler;
@@ -27,7 +27,7 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
 
     let snapshot = SNAPSHOT.get_or_init(|| {
         DesignSystemSnapshot::from_source(
-            &css::source(FileId(2), "@theme {}").unwrap(),
+            &css_source(FileId(2), "@theme {}").unwrap(),
             CssSourceName::from("stillwind.css"),
             CompilerOptions::default().design_system(),
         )
@@ -473,7 +473,7 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
         "import {style} from 'stillwind/react'; const props = style(index++ ? [] : []);",
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &source,

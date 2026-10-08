@@ -14,7 +14,7 @@ use stillwind_css::{
     extract_named_blocks_with_offsets, extract_named_statements, extract_order_statements,
 };
 
-use crate::variants::parse_variant_name;
+use super::variants::parse_variant_name;
 
 /// First registration offsets in the import-expanded stylesheet; redefinitions retain
 /// their slot.

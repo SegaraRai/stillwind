@@ -123,7 +123,7 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::*;
     use crate::{Compiler, CompilerOptions};
@@ -213,7 +213,7 @@ mod tests {
     /// candidates have no order at all.
     #[test]
     fn editor_order_uses_custom_utility_and_variant_precedence() {
-        let theme = css::source(
+        let theme = css_source(
             FileId(1),
             "@utility a { color:red; } @utility b { color:blue; }",
         )

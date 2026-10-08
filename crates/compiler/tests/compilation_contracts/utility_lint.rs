@@ -7,7 +7,7 @@ use stillwind_diagnostics::{
     LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
     RestrictedThemeTokensOverride, RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
-use stillwind_test_support::css;
+use stillwind_test_support::with_defaults;
 
 use super::compile;
 use super::support::{CompilationFixture, compile_with_options};
@@ -35,7 +35,7 @@ const BREAKPOINT_CSS: &str =
 
 #[test]
 fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
-    let theme = css::with_defaults(BREAKPOINT_CSS);
+    let theme = with_defaults(BREAKPOINT_CSS);
     let options = CompilerOptions {
         lint: LintOverrides {
             no_arbitrary_breakpoints: Some(LintSeverity::Warn),
@@ -116,7 +116,7 @@ fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
 
 #[test]
 fn breakpoint_findings_point_to_each_variant_and_report_wrappers_once() {
-    let theme = css::with_defaults(BREAKPOINT_CSS);
+    let theme = with_defaults(BREAKPOINT_CSS);
     let options = CompilerOptions {
         lint: LintOverrides {
             no_arbitrary_breakpoints: Some(LintSeverity::Warn),
@@ -170,7 +170,7 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
 @variant screen-* { @media (width>=--value([length])) {@slot;} }
 @variant choose-* { @media (width>=--value(--spacing-*,[length])) { @supports (display:--value([color])) {@slot;} } }
 @variant choose-* { @media (width>=--value(--breakpoint-*,[length])) {@slot;} }";
-    let theme = css::with_defaults(theme);
+    let theme = with_defaults(theme);
     let options = CompilerOptions {
         lint: LintOverrides {
             no_restricted_theme_tokens: Some(RestrictedThemeTokensOverride {

@@ -27,7 +27,7 @@ use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::symbols::{ref_container_name, ref_marker_name};
-use super::utilities::resolve::CompiledUtility;
+use super::utilities::CompiledUtility;
 use super::variants::{VariantStep, variant_paths};
 use crate::identifiers::{IdentifierContext, RefMarker};
 

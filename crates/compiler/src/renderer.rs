@@ -187,14 +187,14 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::*;
     use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 
     fn snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
-            &css::source(FileId(90), css).unwrap(),
+            &css_source(FileId(90), css).unwrap(),
             CssSourceName::from("test.css"),
             DesignSystemOptions::default(),
         )

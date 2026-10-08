@@ -8,8 +8,14 @@
 //!
 //! Test targets use this crate through dev-dependencies.
 
-pub mod assertions;
-pub mod css;
-pub mod defaults;
-pub mod fixtures;
-pub mod tailwind;
+mod assertions;
+mod css;
+mod defaults;
+mod fixtures;
+mod tailwind;
+
+pub use assertions::{CssAssertions, css_tokens};
+pub use css::{expand as expand_css, source as css_source, with_defaults};
+pub use defaults::BUILTIN_REGISTRY_CSS;
+pub use fixtures::{candidates, case_for_candidate, case_named, catalog_section, code_block};
+pub use tailwind::fixture_css;

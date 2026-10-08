@@ -8,8 +8,8 @@ use stillwind_compiler::{CompilerOptions, GeneratedSymbolKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::css;
+use stillwind_test_support::CssAssertions as _;
+use stillwind_test_support::css_source;
 
 use super::*;
 
@@ -24,7 +24,7 @@ const trigger = style.ref();
 export const item = style({ "hover:": trigger.positionAnchor() });"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -55,7 +55,7 @@ const anchor = style.ref();
 export const item = style(enabled && ["p-4", anchor.positionAnchor(), "text-red"]);"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -98,7 +98,7 @@ const anchor = style.ref();
 export const item = style("flex", anchor.positionAnchor(), { "--x": size });"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -129,7 +129,7 @@ const trigger = style(popover, popover.asAnchor(), "relative");
 const panel = style(popover.positionAnchor(), "absolute");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -194,7 +194,7 @@ const root = style(card, card.asContainer("inline-size"));
 const content = style({[card.at("width >= 40rem")]: "grid-cols-2"});"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -247,7 +247,7 @@ fn empty_ref_queries_emit_only_the_container_name() {
                 ),
             )
             .unwrap();
-            let theme = css::source(FileId(2), "@theme {}").unwrap();
+            let theme = css_source(FileId(2), "@theme {}").unwrap();
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
@@ -293,7 +293,7 @@ fn container_query_variants_support_calls_tags_and_nested_wrappers() {
         let source = SourceFile::new(FileId(1), None, None, format!(
             "import {{style}} from 'stillwind/react'; const card = style.ref(); const root = style(card, card.asContainer('size')); const x = style({input});"
         )).unwrap();
-        let theme = css::source(FileId(2), "@theme {}").unwrap();
+        let theme = css_source(FileId(2), "@theme {}").unwrap();
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,
@@ -323,7 +323,7 @@ const parent = style(trigger, trigger.asAnchor(), "inline-flex");
 const child = style({ [trigger`hover:`]: "text-accent" });"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -352,7 +352,7 @@ const menu = style.ref("menu");
 const trigger = style.ref("trigger");
 export const Menu = () => <section {...style(menu)}><button {...style(trigger, "inline-flex")} /><span {...style({ [trigger`hover:`.in(menu)]: "text-accent" })} /></section>;"#,
     ).unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -416,7 +416,7 @@ export const Menu = () => (
 );"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -465,7 +465,7 @@ export const View = () => (
 );"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,

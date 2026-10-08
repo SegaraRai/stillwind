@@ -16,7 +16,7 @@ use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmissionPart};
 use super::super::style_variants::{StyleVariantPlan, parse_prefix};
-use super::super::utilities::policy::check_variant;
+use super::super::utilities::check_variant;
 use super::super::variants::document_scoped_selector;
 use super::{CallEmitter, PendingRegion};
 use crate::editor_lint::literal_boundaries;

@@ -17,9 +17,9 @@ use super::references::resolve_theme_references;
 use super::tokens::TokenLookup;
 use crate::UtilityOrderMode;
 use crate::evaluation::UtilityPrograms;
-use crate::registry::utilities::CustomUtility;
-use crate::registry::utility_lookup::UtilityLookup;
-use crate::registry::variants::CustomVariant;
+use crate::registry::CustomUtility;
+use crate::registry::CustomVariant;
+use crate::registry::UtilityLookup;
 use crate::{BuiltinDefinitions, ThemeReferenceError, ThemeTokenMode};
 
 #[derive(Debug, Eq, PartialEq)]

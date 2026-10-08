@@ -10,8 +10,10 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::{css, fixtures, tailwind};
+use stillwind_test_support::CssAssertions as _;
+use stillwind_test_support::{
+    candidates, case_for_candidate, case_named, code_block, css_source, fixture_css,
+};
 
 use super::*;
 
@@ -22,12 +24,12 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
     let responsive =
         include_str!("../../../../fixtures/tailwind-v4/cases/responsive-container.fixture.md");
     let candidates = [
-        fixtures::candidates(foundations, "foundations.preflight-and-default-theme"),
-        fixtures::candidates(
+        candidates(foundations, "foundations.preflight-and-default-theme"),
+        candidates(
             variants,
             "variants.state-attribute-responsive-and-arbitrary",
         ),
-        fixtures::candidates(responsive, "responsive.breakpoints-and-containers"),
+        candidates(responsive, "responsive.breakpoints-and-containers"),
     ]
     .join(" ");
     let component = SourceFile::new(
@@ -39,7 +41,7 @@ fn compiles_candidates_taken_directly_from_tailwind_compatibility_fixtures() {
         ),
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -84,11 +86,11 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
     for (fixture_name, candidate) in cases {
         let fixture =
             fs::read_to_string(root.join(fixture_name)).expect("fixture must be readable");
-        let section = fixtures::case_for_candidate(&fixture, candidate);
-        let expected_css = fixtures::code_block(section, "Expected CSS", "css")
-            .expect("fixture must provide expected CSS");
-        let input_css = fixtures::code_block(section, "Input CSS", "css")
-            .expect("fixture must provide input CSS");
+        let section = case_for_candidate(&fixture, candidate);
+        let expected_css =
+            code_block(section, "Expected CSS", "css").expect("fixture must provide expected CSS");
+        let input_css =
+            code_block(section, "Input CSS", "css").expect("fixture must provide input CSS");
         let component = SourceFile::new(
             FileId(1),
             None,
@@ -104,7 +106,7 @@ fn matches_tailwind_fixture_utility_rules_after_selector_substitution() {
             &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
-            &css::source(FileId(2), tailwind::fixture_css(&input_css)).unwrap(),
+            &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
@@ -168,11 +170,11 @@ fn matches_tailwind_fixture_rules_after_minification() {
     for (fixture_name, candidate) in cases {
         let fixture =
             fs::read_to_string(root.join(fixture_name)).expect("fixture must be readable");
-        let section = fixtures::case_for_candidate(&fixture, candidate);
-        let expected_css = fixtures::code_block(section, "Expected CSS", "css")
-            .expect("fixture must provide expected CSS");
-        let input_css = fixtures::code_block(section, "Input CSS", "css")
-            .expect("fixture must provide input CSS");
+        let section = case_for_candidate(&fixture, candidate);
+        let expected_css =
+            code_block(section, "Expected CSS", "css").expect("fixture must provide expected CSS");
+        let input_css =
+            code_block(section, "Input CSS", "css").expect("fixture must provide input CSS");
         let component = SourceFile::new(
             FileId(1),
             None,
@@ -188,7 +190,7 @@ fn matches_tailwind_fixture_rules_after_minification() {
             &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
-            &css::source(FileId(2), tailwind::fixture_css(&input_css)).unwrap(),
+            &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
@@ -217,13 +219,13 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         "variant-order.conditions",
         "variant-order.mixed",
     ] {
-        let section = fixtures::case_named(fixture, case_name);
-        let candidates = fixtures::code_block(section, "Candidates", "text")
-            .expect("fixture must provide candidates");
-        let input_css = fixtures::code_block(section, "Input CSS", "css")
-            .expect("fixture must provide input CSS");
-        let expected_css = fixtures::code_block(section, "Expected CSS", "css")
-            .expect("fixture must provide expected CSS");
+        let section = case_named(fixture, case_name);
+        let candidates =
+            code_block(section, "Candidates", "text").expect("fixture must provide candidates");
+        let input_css =
+            code_block(section, "Input CSS", "css").expect("fixture must provide input CSS");
+        let expected_css =
+            code_block(section, "Expected CSS", "css").expect("fixture must provide expected CSS");
         let component = SourceFile::new(
             FileId(1),
             None,
@@ -239,7 +241,7 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
             &ModuleId::from("test.tsx"),
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
-            &css::source(FileId(2), tailwind::fixture_css(&input_css)).unwrap(),
+            &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );

@@ -20,7 +20,7 @@ use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
 
 use crate::ThemeToken;
-use crate::parser::extract_keyframe_blocks;
+use crate::theme::extract_keyframe_blocks;
 
 /// Deepest group nesting accepted in one authored buffer.
 ///

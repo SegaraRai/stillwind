@@ -4,9 +4,9 @@
 //! that namespace resets are respected, and that typed branches prune only the
 //! declarations that do not match a candidate.
 
+use stillwind_test_support::CssAssertions as _;
 use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::assertions::CssAssertions as _;
-use stillwind_test_support::fixtures;
+use stillwind_test_support::catalog_section;
 
 use super::*;
 use crate::test_support::parse_fixture_theme;
@@ -15,7 +15,7 @@ use crate::test_support::parse_fixture_theme;
 fn resolves_every_upstream_static_utility_from_the_css_registry() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let candidates = fixtures::catalog_section(catalog, "## Static utilities");
+    let candidates = catalog_section(catalog, "## Static utilities");
     let theme = theme();
 
     let unresolved = candidates
@@ -33,7 +33,7 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
 fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let roots = fixtures::catalog_section(catalog, "## Functional utility roots");
+    let roots = catalog_section(catalog, "## Functional utility roots");
     let theme = theme();
 
     let unresolved = roots
@@ -52,7 +52,7 @@ fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
 fn resolves_every_upstream_static_variant_from_the_css_registry() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");
-    let variants = fixtures::catalog_section(catalog, "## Static variants");
+    let variants = catalog_section(catalog, "## Static variants");
     let theme = theme();
 
     let unresolved = variants
@@ -274,7 +274,7 @@ fn ambiguous_background_type_is_independent_of_emission_order() {
         crate::UtilityOrderMode::Authored,
         crate::UtilityOrderMode::Tailwind,
     ] {
-        let source = stillwind_test_support::css::source(FileId(1), "").unwrap();
+        let source = stillwind_test_support::css_source(FileId(1), "").unwrap();
         let snapshot = crate::DesignSystemSnapshot::from_source(
             &source,
             "test.css".into(),

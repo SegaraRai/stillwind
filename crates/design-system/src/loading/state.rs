@@ -29,7 +29,7 @@ use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
     DesignSystemLoadStep,
 };
-use crate::theme::parser::parse_theme_builder;
+use crate::theme::parse_theme_builder;
 use crate::{DesignSystemOptions, DesignSystemSnapshot};
 
 /// Why a load could not produce a snapshot.

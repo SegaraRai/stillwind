@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use stillwind_css::{inspect_css_value, media_size_comparisons};
 use stillwind_syntax::{Variant, VariantKind};
 
-use super::super::values::expansion::expand_placeholder;
+use super::super::values::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{
     VariantApplication, parse_nested_variant, resolve_named_variant_with,

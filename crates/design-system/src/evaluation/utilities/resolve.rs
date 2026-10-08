@@ -13,7 +13,7 @@ use std::sync::Arc;
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
-use super::super::builtins::registry::{
+use super::super::builtins::{
     animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
 };
 use super::body::{UtilityResolution, UtilityResolutionError};
@@ -296,7 +296,7 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
     use crate::{BuiltinDefinitions, parse_theme};
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {

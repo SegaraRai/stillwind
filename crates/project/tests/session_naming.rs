@@ -19,7 +19,7 @@ use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 /// Names utility classes with a fixed, readable body.
 #[derive(Debug)]
@@ -82,7 +82,7 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
 
 #[test]
 fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         // The host body carries no built-in prefix, so the authored name it collides
         // with is the bare one.
@@ -259,7 +259,7 @@ impl IdentifierGenerator for FixedLayerGenerator {
 
 #[test]
 fn a_layer_name_is_checked_against_the_authored_document() {
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@layer app-layer-0; @layer { @stillwind-slot utilities; }",
     )

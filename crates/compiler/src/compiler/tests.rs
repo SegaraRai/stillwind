@@ -3,14 +3,14 @@
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
-use stillwind_test_support::css;
+use stillwind_test_support::css_source;
 
 use super::Compiler;
 use crate::CompilerOptions;
 
 #[test]
 fn resolves_default_theme_aliases_without_font_name_special_cases() {
-    let source = css::source(
+    let source = css_source(
         FileId(1),
         r#"
                 @import "stillwind/theme.css" layer(theme);
@@ -32,7 +32,7 @@ fn resolves_default_theme_aliases_without_font_name_special_cases() {
     );
     assert!(css.contains("--font-sans--font-feature-settings:\"cv02\";"));
 
-    let without_feature = css::source(
+    let without_feature = css_source(
         FileId(2),
         r#"
                 @import "stillwind/theme.css" layer(theme);
@@ -59,7 +59,7 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
         r#"import { style } from "stillwind/react"; export const props = style("bg-accent");"#,
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme { --color-accent: red; }").unwrap();
+    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &js,
@@ -92,7 +92,7 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
 
 #[test]
 fn emits_only_used_compiler_owned_property_registrations() {
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         r#"
                 @stillwind-property --example-used {
@@ -124,7 +124,7 @@ fn emits_only_used_compiler_owned_property_registrations() {
 
 #[test]
 fn preserves_authored_property_rules_over_compiler_defaults() {
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         r#"
                 @property --tw-shadow {
@@ -151,7 +151,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 
 #[test]
 fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
+    let theme = css_source(FileId(2), "@theme {}").unwrap();
     let options = CompilerOptions {
         tailwind_prefix: "--internal-".to_owned(),
         ..CompilerOptions::default()
@@ -180,7 +180,7 @@ fn makes_margin_utility_order_independent() {
         r#"import { style } from "stillwind/react"; export const props = style("ml-2 mx-3 m-4");"#,
     )
     .unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )
@@ -211,7 +211,7 @@ fn orders_whole_builtin_utilities_instead_of_individual_properties() {
         r#"import { style } from "stillwind/react"; export const props = style("h-2 w-3 size-4");"#,
     )
     .unwrap();
-    let theme = css::source(
+    let theme = css_source(
         FileId(2),
         "@theme { --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; }",
     )

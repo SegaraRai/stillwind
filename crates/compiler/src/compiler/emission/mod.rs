@@ -21,7 +21,7 @@ mod call;
 mod class_value;
 mod keyframes_use;
 mod ref_projection;
-pub(in crate::compiler) mod style_analysis;
+mod style_analysis;
 mod view_transition;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -136,3 +136,5 @@ pub(super) struct CallEmitterInputs<'a> {
     /// Definition identities whose CSS the module must emit, recorded by each use.
     pub required_definitions: &'a mut BTreeSet<IdentityId>,
 }
+
+pub(in crate::compiler) use style_analysis::collect_declarations;

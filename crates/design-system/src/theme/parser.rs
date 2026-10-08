@@ -27,10 +27,10 @@ use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
 use crate::output::{parse_output_template, theme_blocks};
-use crate::registry::formats::{extract_declaration_formats, extract_relationship_patterns};
-use crate::registry::order::registration_positions;
-use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilities};
-use crate::registry::variants::extract_custom_variants;
+use crate::registry::extract_custom_variants;
+use crate::registry::registration_positions;
+use crate::registry::{extract_custom_utilities, extract_marker_utilities};
+use crate::registry::{extract_declaration_formats, extract_relationship_patterns};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
@@ -205,7 +205,7 @@ pub(crate) fn extract_theme_tokens(
 #[cfg(test)]
 mod tests {
     use stillwind_css::strip_css_comments;
-    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
     use super::*;
 

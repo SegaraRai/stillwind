@@ -9,8 +9,8 @@ use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
-use super::super::utilities::declaration_order::combine_declarations_for_theme;
-use super::super::utilities::resolve::resolve_utility;
+use super::super::utilities::combine_declarations_for_theme;
+use super::super::utilities::resolve_utility;
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
 
@@ -172,7 +172,7 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, SourceFile};
-    use stillwind_test_support::css;
+    use stillwind_test_support::css_source;
 
     use super::*;
     use crate::{Compiler, CompilerOptions};
@@ -184,7 +184,7 @@ mod tests {
             "import { style } from 'stillwind/react'; const motion = style.keyframes({ from: 'hover:opacity-0' });",
         )
         .unwrap();
-        let theme = css::source(FileId(2), "").unwrap();
+        let theme = css_source(FileId(2), "").unwrap();
         let result = Compiler::compile_source(
             &OxcSourceAnalyzer,
             &source,

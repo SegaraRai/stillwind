@@ -57,10 +57,10 @@ pub(crate) fn animation_option_property_mappings(theme: &ThemeIndex) -> &BTreeMa
 
 #[cfg(test)]
 mod tests {
-    use stillwind_test_support::defaults::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
     use super::*;
-    use crate::theme::builder::ThemeBuilder;
+    use crate::theme::ThemeBuilder;
 
     #[test]
     fn arbitrary_property_order_prefers_exact_patterns_and_sorts_unknowns_last() {

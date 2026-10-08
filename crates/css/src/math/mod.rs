@@ -10,9 +10,9 @@
 //! [`value_nesting_overflow`], and [`MAX_VALUE_NESTING`] are
 //! re-exported; the tree and the parser itself stay crate-internal.
 
-pub(super) mod expression;
-pub(super) mod folding;
-pub(super) mod parser;
+mod expression;
+mod folding;
+mod parser;
 
 pub use folding::{fold_calc_expressions, format_numeric_zero, value_nesting_overflow};
 pub use parser::MAX_VALUE_NESTING;

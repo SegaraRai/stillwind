@@ -17,8 +17,7 @@ use super::fragment::Emitted;
 use super::literal::{LiteralContribution, TransitionContribution};
 use super::props::{GeneratedClass, GuardStep};
 use super::symbols::generated_class_symbol;
-use super::utilities::emission::emit_utility_rules;
-use super::utilities::resolve::{CompiledUtility, UtilitySource};
+use super::utilities::{CompiledUtility, UtilitySource, emit_utility_rules};
 use crate::identifiers::{
     ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
 };

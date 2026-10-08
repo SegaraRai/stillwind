@@ -50,12 +50,12 @@ pub use props::{GeneratedClass, GuardStep};
 pub use symbols::{GeneratedSymbol, GeneratedSymbolKind, SymbolOrigin};
 
 pub(crate) use rule_boundaries::RuleBoundaries;
-pub(crate) use stylesheet::render::{render_module_stylesheet, render_stylesheet};
-pub(crate) use stylesheet::template::render_mapped;
+pub(crate) use stylesheet::render_mapped;
+pub(crate) use stylesheet::{render_module_stylesheet, render_stylesheet};
 pub(crate) use symbols::detached_symbol;
-pub(crate) use utilities::emission::emit_utility_rules;
-pub(crate) use utilities::policy::{candidate_allowed, check_candidate_name};
-pub(crate) use utilities::resolve::{resolve_utility_targets, unresolved_utility_kind};
+pub(crate) use utilities::emit_utility_rules;
+pub(crate) use utilities::{candidate_allowed, check_candidate_name};
+pub(crate) use utilities::{resolve_utility_targets, unresolved_utility_kind};
 
 #[cfg(test)]
 mod tests;
