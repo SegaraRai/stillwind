@@ -15,72 +15,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
-/// Failure to build a source, or to relate a span or offset to one.
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum SourceError {
-    /// An internal buffer cannot be named as an original source-map document.
-    #[error("an internal source cannot have a source-map entry")]
-    InternalSourceMap,
-    /// A length or offset does not fit the 32-bit coordinate space.
-    #[error("source size or offset {0} exceeds the 32-bit source limit")]
-    TooLarge(
-        /// Requested length or offset exceeding [`u32::MAX`].
-        usize,
-    ),
-    /// A byte range is reversed or extends past its text.
-    #[error("invalid source byte range {start}..{end}")]
-    InvalidRange {
-        /// Requested inclusive UTF-8 byte offset.
-        start: usize,
-        /// Requested exclusive UTF-8 byte offset.
-        end: usize,
-    },
-    /// The span was created for a different source buffer.
-    #[error("span belongs to file {actual:?}, expected {expected:?}")]
-    WrongFile {
-        /// File the span should have belonged to.
-        expected: FileId,
-        /// File the span actually names.
-        actual: FileId,
-    },
-    /// The span is reversed, out of range, or not on character boundaries.
-    #[error("invalid source span {0:?}")]
-    InvalidSpan(
-        /// Rejected half-open UTF-8 span, including its buffer identity.
-        Span,
-    ),
-    /// The byte offset is out of range or splits a character.
-    #[error("invalid byte offset {0:?}")]
-    InvalidOffset(
-        /// Rejected UTF-8 byte offset.
-        BytePos,
-    ),
-}
-
 /// An invalid source-document identifier supplied by a host.
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("invalid source URI: {0}")]
 pub struct SourceUriError(pub String);
-
-/// Failure to register or resolve a project source buffer.
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum SourceRegistryError {
-    /// No further IDs can be issued in this source scope.
-    #[error("source identifier space is exhausted")]
-    FileIdExhausted,
-    /// A span names a buffer absent from this registry.
-    #[error("unknown source file {0:?}")]
-    UnknownFile(FileId),
-    /// An ID already belongs to a different immutable source revision.
-    #[error("source file ID {0:?} belongs to another revision")]
-    ConflictingFile(FileId),
-    /// A generated buffer has no original document to report.
-    #[error("source file {0:?} has no reportable document URI")]
-    UnreportableSource(FileId),
-    /// The registered text or requested range is invalid.
-    #[error("{0}")]
-    Source(#[from] SourceError),
-}
 
 /// Host-supplied identity of an editable or virtual source document.
 ///
@@ -141,14 +79,6 @@ impl<'de> Deserialize<'de> for SourceUri {
         let value = String::deserialize(deserializer)?;
         Self::parse(value).map_err(serde::de::Error::custom)
     }
-}
-
-/// Narrows a [`usize`] length or index into the crate's 32-bit coordinate space.
-///
-/// Every conversion in this module goes through here so an oversized source fails with
-/// one error instead of being truncated somewhere else.
-pub(super) fn offset(value: usize) -> Result<u32, SourceError> {
-    u32::try_from(value).map_err(|_| SourceError::TooLarge(value))
 }
 
 /// Converts a span to a [`Range<usize>`] for indexing or slicing.
@@ -248,6 +178,48 @@ pub struct Position {
     pub line: u32,
     /// Zero-based UTF-16 code-unit column within that line.
     pub utf16_column: u32,
+}
+
+/// Failure to build a source, or to relate a span or offset to one.
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum SourceError {
+    /// An internal buffer cannot be named as an original source-map document.
+    #[error("an internal source cannot have a source-map entry")]
+    InternalSourceMap,
+    /// A length or offset does not fit the 32-bit coordinate space.
+    #[error("source size or offset {0} exceeds the 32-bit source limit")]
+    TooLarge(
+        /// Requested length or offset exceeding [`u32::MAX`].
+        usize,
+    ),
+    /// A byte range is reversed or extends past its text.
+    #[error("invalid source byte range {start}..{end}")]
+    InvalidRange {
+        /// Requested inclusive UTF-8 byte offset.
+        start: usize,
+        /// Requested exclusive UTF-8 byte offset.
+        end: usize,
+    },
+    /// The span was created for a different source buffer.
+    #[error("span belongs to file {actual:?}, expected {expected:?}")]
+    WrongFile {
+        /// File the span should have belonged to.
+        expected: FileId,
+        /// File the span actually names.
+        actual: FileId,
+    },
+    /// The span is reversed, out of range, or not on character boundaries.
+    #[error("invalid source span {0:?}")]
+    InvalidSpan(
+        /// Rejected half-open UTF-8 span, including its buffer identity.
+        Span,
+    ),
+    /// The byte offset is out of range or splits a character.
+    #[error("invalid byte offset {0:?}")]
+    InvalidOffset(
+        /// Rejected UTF-8 byte offset.
+        BytePos,
+    ),
 }
 
 /// Immutable source text with byte-accurate spans and UTF-16 editor positions.
@@ -401,6 +373,34 @@ impl SourceFile {
         }
         offset(self.text[..byte_offset_usize].encode_utf16().count())
     }
+}
+
+/// Narrows a [`usize`] length or index into the crate's 32-bit coordinate space.
+///
+/// Every conversion in this module goes through here so an oversized source fails with
+/// one error instead of being truncated somewhere else.
+pub(super) fn offset(value: usize) -> Result<u32, SourceError> {
+    u32::try_from(value).map_err(|_| SourceError::TooLarge(value))
+}
+
+/// Failure to register or resolve a project source buffer.
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum SourceRegistryError {
+    /// No further IDs can be issued in this source scope.
+    #[error("source identifier space is exhausted")]
+    FileIdExhausted,
+    /// A span names a buffer absent from this registry.
+    #[error("unknown source file {0:?}")]
+    UnknownFile(FileId),
+    /// An ID already belongs to a different immutable source revision.
+    #[error("source file ID {0:?} belongs to another revision")]
+    ConflictingFile(FileId),
+    /// A generated buffer has no original document to report.
+    #[error("source file {0:?} has no reportable document URI")]
+    UnreportableSource(FileId),
+    /// The registered text or requested range is invalid.
+    #[error("{0}")]
+    Source(#[from] SourceError),
 }
 
 /// Source buffers and the ID allocator shared by one project session and its loaders.
