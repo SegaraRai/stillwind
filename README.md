@@ -246,7 +246,7 @@ for migration compatibility, including named markers and responsive container
 variants. Stillwind's `style.ref()` declares independent element identities, and
 `ref("hover").in(parent)` constrains a selector at its use site.
 Projects that want to enforce that model can set
-`lint: { "prefer-typed-relationships": "deny" }` in project configuration. Compatibility syntax
+`lint: { rules: { "prefer-typed-relationships": "deny" } }` in project configuration. Compatibility syntax
 then emits an error-level lint finding. `warn` reports it as a warning, and `off`
 disables detection.
 

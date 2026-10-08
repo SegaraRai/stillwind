@@ -8,8 +8,8 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::DesignSystemError;
 use stillwind_diagnostics::{
-    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, LabelScope, Reporter,
-    ResolvedDiagnostic, SourceFailureContext,
+    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, LabelScope, LintKind,
+    Reporter, ResolvedDiagnostic, SourceFailureContext,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -231,13 +231,16 @@ pub(crate) fn binding_output_with_batch(
             diagnostics,
             reports,
             lint_findings,
-            lint_settings: result
-                .lint_settings
+            lint_settings: LintKind::ALL
                 .iter()
-                .map(|config| {
+                .map(|&kind| {
                     (
-                        config.kind().name().to_owned(),
-                        config.severity().as_str().to_owned(),
+                        kind.name().to_owned(),
+                        result
+                            .lint_settings
+                            .reporting_severity(kind)
+                            .as_str()
+                            .to_owned(),
                     )
                 })
                 .collect(),

@@ -38,10 +38,11 @@ pub use lint::{
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
     LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintDiagnostic,
     LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding, LintKind, LintOverrides,
-    LintSettings, LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
-    RestrictedDeclarationsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
-    UtilityFailure, collect_lint_directives, filter_lint_findings, finish_lint_findings,
+    LintPreset, LintSettings, LintSeverity, RestrictedDeclarationRule,
+    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
+    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
+    RestrictedUtilityRule, RootFontSize, UtilityFailure, collect_lint_directives,
+    filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

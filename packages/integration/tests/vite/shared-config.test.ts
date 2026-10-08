@@ -6,13 +6,13 @@ import { stillwind } from "@stillwind/integration/vite";
 import { build, createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
-test("build and standalone analysis consume the same CSS and declaration naming settings", async () => {
+test("build and standalone analysis consume the same lint presets, CSS, and declaration naming settings", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-shared-config-"));
   let workspace: AnalysisWorkspace | undefined;
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default async () => ({projects:[{css:"root.css",files:["entry.ts"],classNamespace:"shared-project",prefix:"--project-"}]});',
+      'import {lintPresets} from "stillwind/config"; export default async () => ({projects:[{css:"root.css",files:["entry.ts"],classNamespace:"shared-project",prefix:"--project-",lint:{extends:[lintPresets.strict]}}]});',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -33,6 +33,7 @@ test("build and standalone analysis consume the same CSS and declaration naming 
       (module) => module.moduleId === "entry.ts",
     )!;
     expect(compiled.classes.length).toBeGreaterThan(0);
+    expect(compiled.lintSettings["unknown-utility"]).toBe("deny");
     const result = await build({
       root,
       configFile: false,

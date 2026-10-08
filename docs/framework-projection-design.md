@@ -80,7 +80,7 @@ host は `document.format` で原文形式を指定し、converter と投影の�
 
 host は `.jsx`・`.tsx` を `jsx` として扱う。JSX式や macro 呼び出しがなくても判定する。通常の JS/TS モジュールは各 FW 向けの style を定義・export できるため制限しない。型だけの import と、`style` 以外の import は対象外とする。tsconfig と JSX runtime の設定は読まず、React・Preact・Solid・Vue間の取り違えは判定しない。
 
-標準レベルは `warn`。project の `lint: { "framework-import-mismatch": "off" }` または `"deny"` と、既存の `swlint-disable` 指示で制御する。Lint は adapter を変更せず、自動修正を提供しない。異なる FW の macro を同一モジュールで混在させる場合は引き続きコンパイルエラーにする。
+標準レベルは `warn`。project の `lint: { rules: { "framework-import-mismatch": "off" } }` または `"deny"` と、既存の `swlint-disable` 指示で制御する。Lint は adapter を変更せず、自動修正を提供しない。異なる FW の macro を同一モジュールで混在させる場合は引き続きコンパイルエラーにする。
 
 Vue SFC と Vue JSX は `stillwind/vue` とその runtime を共用し、`class` と object 形式の `style` を生成する。`document.format: "vue"` だけが SFC converter を選ぶ。`document.format: "jsx"` に `framework: "vue"` を付けても SFC 変換は行わない。Volar補助コードの除去、原文への位置復元、script領域へのimport配置、template属性の引用符エスケープは、projection付き入力にだけ適用する。
 

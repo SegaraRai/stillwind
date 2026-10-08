@@ -42,7 +42,11 @@ export default defineConfig(({ mode }) => ({
   test: {
     projects:
       mode === "wasm"
-        ? ["e2e/harness/vite.browser.config.ts", "packages/native/vite.config.ts"]
+        ? [
+            "e2e/harness/vite.browser.config.ts",
+            "packages/config/vite.config.ts",
+            "packages/native/vite.config.ts",
+          ]
         : mode === "browser"
           ? ["e2e/css/vite.browser.config.ts", "tools/tailwind-compat/vite.browser.config.ts"]
           : [

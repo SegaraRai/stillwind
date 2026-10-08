@@ -12,20 +12,20 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { createJiti } from "jiti";
 
+import type { NormalizedCompilerConfig } from "./compiler.ts";
 import {
   resolveConfig,
   type AnalysisProjectConfig,
-  type InlineConfig,
   type StillwindConfig,
-  type NormalizedCompilerConfig,
-} from "./index.ts";
+} from "./configuration.ts";
 import {
   configurationCandidates as candidates,
   compilerConfig,
-  resolveProjectPaths,
   resolveCompilerSettings,
+  resolveProjectPaths,
   selectProject,
   validateInlineConfig,
+  type InlineConfig,
 } from "./resolution.ts";
 
 /** Evaluated settings and files that consumers must watch when retaining a compiler session. */
@@ -229,6 +229,7 @@ export async function resolveIntegrationConfig(
       ? compilerConfig(selected)
       : {
           root: applicationRoot,
+          lint: inline.lint,
         },
     inline,
     applicationRoot,

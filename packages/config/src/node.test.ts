@@ -4,7 +4,10 @@ import path from "node:path";
 import { expect, onTestFinished, test } from "vite-plus/test";
 
 import { resolveBrowserConfig } from "./browser.ts";
-import { mergeConfig, validateConfig, type ProjectionProvider, type BaseConfig } from "./index.ts";
+import type { BaseConfig } from "./compiler.ts";
+import { validateConfig, type ProjectionProvider } from "./configuration.ts";
+import { lintPresets } from "./lint-presets.ts";
+import { mergeConfig } from "./merge.ts";
 import { findConfiguration, loadConfiguration, resolveIntegrationConfig } from "./node.ts";
 
 async function fixture() {
@@ -13,14 +16,100 @@ async function fixture() {
   const configFile = path.join(root, "stillwind.config.ts");
   const write = (projects: object[]) =>
     writeFile(configFile, `export default ${JSON.stringify({ projects })}`);
-  return { root, configFile, write };
+  return {
+    root,
+    configFile,
+    write,
+  };
 }
+
+test("Node and browser compose imported presets and keep project defaults through inline overrides", async () => {
+  const { root, configFile, write } = await fixture();
+  const presetFile = path.join(root, "policy.ts");
+  const policy = {
+    extends: [lintPresets.recommended],
+    rules: {
+      "canonical-utilities": {
+        severity: "warn",
+        rootFontSize: 20,
+        pxToRem: false,
+      },
+    },
+  } as const;
+  await writeFile(presetFile, `export default ${JSON.stringify(policy)}`);
+  await writeFile(
+    configFile,
+    'import policy from "./policy.ts"; export default { projects: [{css:"theme.css",files:["*.tsx"],lint:{extends:[policy]}}] };',
+  );
+  const inline = { lint: { rules: { "canonical-utilities": "deny" } } } as const;
+  const node = await resolveIntegrationConfig(inline, root);
+  expect(node.dependencies).toContain(presetFile);
+  const browser = await resolveBrowserConfig(
+    root.replaceAll("\\", "/"),
+    {
+      exists: (id) => id === configFile.replaceAll("\\", "/"),
+      evaluate: async () => ({
+        projects: [
+          {
+            css: "theme.css",
+            files: ["*.tsx"],
+            lint: {
+              extends: [policy],
+            },
+          },
+        ],
+      }),
+    },
+    inline,
+  );
+  expect(browser.config.lint).toEqual(node.config.lint);
+  expect(node.config.lint.rules["canonical-utilities"]).toEqual({
+    severity: "deny",
+    rootFontSize: 20,
+    pxToRem: false,
+  });
+  const replaced = await resolveIntegrationConfig(
+    {
+      lint: {
+        extends: [],
+      },
+    },
+    root,
+  );
+  expect(replaced.config.lint.rules["unknown-utility"]).toBe("off");
+  await write([
+    {
+      css: "theme.css",
+      files: ["*.tsx"],
+    },
+  ]);
+  expect((await resolveIntegrationConfig(inline, root)).config.lint.rules["unknown-utility"]).toBe(
+    "warn",
+  );
+  const isolated = await resolveIntegrationConfig(
+    {
+      configFile: false,
+      css: "theme.css",
+      lint: {},
+    },
+    root,
+  );
+  for (const setting of Object.values(isolated.config.lint.rules)) {
+    expect(typeof setting === "string" ? setting : setting.severity).toBe("off");
+  }
+});
 
 test("discovery and project paths use the configuration directory", async () => {
   const { root, configFile, write } = await fixture();
   const app = path.join(root, "apps/web");
   await mkdir(app, { recursive: true });
-  await write([{ root: "apps/web", css: "theme.css", files: ["src/*.tsx"] }]);
+  await write([
+    {
+      root: "apps/web",
+      css: "theme.css",
+      files: ["src/*.tsx"],
+    },
+  ]);
   expect(findConfiguration(app)).toBe(configFile);
   const resolved = await resolveIntegrationConfig({}, app);
   expect(resolved.config).toMatchObject({
@@ -66,10 +155,21 @@ test("Node and browser preserve file-authored paths when inline root changes", a
     css: "theme.css",
     tsconfig: "tsconfig.app.json",
     files: ["*.tsx"],
-    lint: { "unknown-utility": "warn" },
+    lint: {
+      rules: {
+        "unknown-utility": "warn",
+      },
+    },
   };
   await write([settings]);
-  const overrides = { root: "new", lint: { "unknown-utility": "deny" as const } };
+  const overrides = {
+    root: "new",
+    lint: {
+      rules: {
+        "unknown-utility": "deny" as const,
+      },
+    },
+  };
   const node = await resolveIntegrationConfig(overrides, root);
   const virtualRoot = root.replaceAll("\\", "/");
   const browser = await resolveBrowserConfig(
@@ -86,7 +186,11 @@ test("Node and browser preserve file-authored paths when inline root changes", a
     root: path.join(root, "new"),
     css: path.join(root, "old", "theme.css"),
     tsconfig: path.join(root, "old", "tsconfig.app.json"),
-    lint: { "unknown-utility": "deny" },
+    lint: {
+      rules: {
+        "unknown-utility": "deny",
+      },
+    },
   });
   expect(browser.config.css).toBe(node.config.css.replaceAll("\\", "/"));
   expect(browser.config.tsconfig).toBe((node.config.tsconfig as string).replaceAll("\\", "/"));
@@ -110,12 +214,23 @@ test("Node and browser preserve file-authored paths when inline root changes", a
 test("configFile false bypasses an invalid configuration", async () => {
   const { root, configFile } = await fixture();
   await writeFile(configFile, "throw new Error('configuration evaluated')");
-  const resolved = await resolveIntegrationConfig({ configFile: false, css: "inline.css" }, root);
+  const resolved = await resolveIntegrationConfig(
+    {
+      configFile: false,
+      css: "inline.css",
+    },
+    root,
+  );
   expect(resolved.config.css).toBe(path.join(root, "inline.css"));
   expect(resolved.dependencies).toEqual([]);
-  await expect(resolveIntegrationConfig({ css: "inline.css" }, root)).rejects.toThrow(
-    "configuration evaluated",
-  );
+  await expect(
+    resolveIntegrationConfig(
+      {
+        css: "inline.css",
+      },
+      root,
+    ),
+  ).rejects.toThrow("configuration evaluated");
 });
 
 test("inline overrides validate after merging with the selected project", async () => {
@@ -125,32 +240,81 @@ test("inline overrides validate after merging with the selected project", async 
       css: "root.css",
       files: ["*.tsx"],
       prefix: "--project-",
-      lint: { "no-restricted-theme-tokens": { severity: "warn", tokens: ["--color-*"] } },
+      lint: {
+        rules: {
+          "no-restricted-theme-tokens": {
+            severity: "warn",
+            tokens: ["--color-*"],
+          },
+        },
+      },
     },
   ]);
-  expect((await resolveIntegrationConfig({ tailwindPrefix: "--sw-" }, root)).config).toMatchObject({
+  expect(
+    (
+      await resolveIntegrationConfig(
+        {
+          tailwindPrefix: "--sw-",
+        },
+        root,
+      )
+    ).config,
+  ).toMatchObject({
     prefix: "--project-",
     tailwindPrefix: "--sw-",
   });
   expect(
     (
       await resolveIntegrationConfig(
-        { lint: { "no-restricted-theme-tokens": { severity: "deny" } } },
+        {
+          lint: {
+            rules: {
+              "no-restricted-theme-tokens": {
+                severity: "deny",
+              },
+            },
+          },
+        },
         root,
       )
-    ).config.lint,
-  ).toMatchObject({ "no-restricted-theme-tokens": { severity: "deny", tokens: ["--color-*"] } });
-  await expect(resolveIntegrationConfig({ tailwindPrefix: "--project-" }, root)).rejects.toThrow(
-    "config.tailwindPrefix",
-  );
+    ).config.lint.rules,
+  ).toMatchObject({
+    "no-restricted-theme-tokens": {
+      severity: "deny",
+      tokens: ["--color-*"],
+    },
+  });
+  await expect(
+    resolveIntegrationConfig(
+      {
+        tailwindPrefix: "--project-",
+      },
+      root,
+    ),
+  ).rejects.toThrow("config.tailwindPrefix");
 });
 
 test("missing configuration accepts complete inline options and rejects explicit missing paths", async () => {
   const { root } = await fixture();
-  expect((await resolveIntegrationConfig({ css: "inline.css" }, root)).config.root).toBe(root);
+  expect(
+    (
+      await resolveIntegrationConfig(
+        {
+          css: "inline.css",
+        },
+        root,
+      )
+    ).config.root,
+  ).toBe(root);
   await expect(resolveIntegrationConfig({}, root)).rejects.toThrow("must specify CSS");
   await expect(
-    resolveIntegrationConfig({ configFile: "absent.ts", css: "inline.css" }, root),
+    resolveIntegrationConfig(
+      {
+        configFile: "absent.ts",
+        css: "inline.css",
+      },
+      root,
+    ),
   ).rejects.toThrow("Cannot find Stillwind configuration");
 });
 
@@ -198,7 +362,14 @@ test.each(["ts", "cjs", "json"])(
   async (extension) => {
     const { root, configFile } = await fixture();
     const helper = path.join(root, `settings.${extension}`);
-    const settings = (css: string) => ({ projects: [{ css, files: ["*.tsx"] }] });
+    const settings = (css: string) => ({
+      projects: [
+        {
+          css,
+          files: ["*.tsx"],
+        },
+      ],
+    });
     const source = (css: string) =>
       extension === "json"
         ? JSON.stringify(settings(css))
@@ -218,9 +389,31 @@ test.each(["ts", "cjs", "json"])(
 
 test("configuration merge replaces arrays and validates duplicate optional names", () => {
   expect(
-    mergeConfig({ files: ["a"], automatic: true }, { files: ["b"], automatic: false }),
-  ).toEqual({ files: ["b"], automatic: false });
-  expect(mergeConfig({ kind: "custom", root: "." }, { kind: undefined })).toEqual({
+    mergeConfig(
+      {
+        files: ["a"],
+        automatic: true,
+      },
+      {
+        files: ["b"],
+        automatic: false,
+      },
+    ),
+  ).toEqual({
+    files: ["b"],
+    automatic: false,
+  });
+  expect(
+    mergeConfig(
+      {
+        kind: "custom",
+        root: ".",
+      },
+      {
+        kind: undefined,
+      },
+    ),
+  ).toEqual({
     kind: "custom",
     root: ".",
   });
@@ -237,19 +430,38 @@ test("configuration merge replaces arrays and validates duplicate optional names
 test("nested overrides preserve naming callbacks and replace providers when kind changes", () => {
   const utilityClass = () => "utility";
   const refMarker = () => "marker";
-  const base: BaseConfig = { naming: { utilityClass, refMarker } };
+  const base: BaseConfig = {
+    naming: {
+      utilityClass,
+      refMarker,
+    },
+  };
   expect(
-    mergeConfig(base, { naming: { utilityClass: () => "override", refMarker: undefined } }).naming
-      ?.refMarker,
+    mergeConfig(base, {
+      naming: {
+        utilityClass: () => "override",
+        refMarker: undefined,
+      },
+    }).naming?.refMarker,
   ).toBe(refMarker);
-  const project: { projection: ProjectionProvider } = {
+  const project: {
+    projection: ProjectionProvider;
+  } = {
     projection: {
       kind: "custom",
       prepare: async () => expect.fail("Preparation should not execute"),
     },
   };
-  expect(mergeConfig(project, { projection: { kind: "framework" } })).toEqual({
-    projection: { kind: "framework" },
+  expect(
+    mergeConfig(project, {
+      projection: {
+        kind: "framework",
+      },
+    }),
+  ).toEqual({
+    projection: {
+      kind: "framework",
+    },
   });
 });
 

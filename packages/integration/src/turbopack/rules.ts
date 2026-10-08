@@ -9,15 +9,24 @@ import type { TurbopackLoaderOptions } from "./project.ts";
  * Naming callbacks can be supplied by stillwind.config.ts, which each loader evaluates.
  */
 export interface IntegrationConfig extends SerializableInlineConfig {
-  /** Nonempty list of entry paths, absolute or relative to the resolved project root. Globs are not expanded. */
+  /**
+   * Nonempty list of entry paths, absolute or relative to the resolved project root.
+   * Globs are not expanded.
+   */
   entries: string[];
   /** Defaults to development when NODE_ENV is development, otherwise release. */
   mode?: "development" | "release";
 }
 
-/** Host rule that maps source files or the shared stylesheet carrier to Stillwind loaders. */
+/**
+ * Host rule that maps source files or the shared stylesheet carrier to Stillwind
+ * loaders.
+ */
 export interface TurbopackRule {
-  /** Limits the producer rule to application modules rather than foreign package modules. */
+  /**
+   * Limits the producer rule to application modules rather than foreign package
+   * modules.
+   */
   condition?: {
     not: "foreign";
   };
@@ -32,13 +41,16 @@ export interface TurbopackRule {
 }
 
 /**
- * Creates producer and shared stylesheet rules for a host's turbopack.rules configuration.
+ * Creates producer and shared stylesheet rules for a host's turbopack.rules
+ * configuration.
  *
- * @param config - Entry paths, optional mode, configuration file selection, and serializable
- * compiler overrides. File evaluation occurs in loaders after the bundler starts.
- * @returns Rules with independent Stillwind loaders. The host supplies its CSS output pipeline.
- * @throws If entries is empty or contains blank paths, inline naming callbacks are supplied,
- * or installed loader paths cannot be resolved.
+ * @param config - Entry paths, optional mode, configuration file selection, and
+ * serializable compiler overrides. File evaluation occurs in loaders after the bundler
+ * starts.
+ * @returns Rules with independent Stillwind loaders. The host supplies its CSS output
+ * pipeline.
+ * @throws If entries is empty or contains blank paths, inline naming callbacks are
+ * supplied, or installed loader paths cannot be resolved.
  */
 export function stillwindRules(config: IntegrationConfig): Record<string, TurbopackRule> {
   if (
@@ -55,13 +67,17 @@ export function stillwindRules(config: IntegrationConfig): Record<string, Turbop
 /**
  * Prepares serializable settings for isolated loader workers.
  *
- * @param compiler - Discovery settings and inline overrides. Naming callbacks must be defined in
- * the configuration file, since loader transport cannot serialize inline functions.
- * @param entries - Entry paths copied into the loader options. Next can supply an empty list and
- * discover routes later. Paths are resolved after the loader evaluates the project root.
- * @param mode - Compilation mode. Omission uses development only when NODE_ENV is development.
- * @returns Loader options that use the bundler root as the application directory for discovery.
- * @throws If compiler supplies inline naming callbacks.
+ * @param compiler - Discovery settings and inline overrides. Naming callbacks must be
+ * defined in the configuration file, since loader transport cannot serialize inline
+ * functions.
+ * @param entries - Entry paths copied into the loader options. Next can supply an empty
+ * list and discover routes later. Paths are resolved after the loader evaluates the
+ * project root.
+ * @param mode - Compilation mode. Omission uses development only when NODE_ENV is
+ * development.
+ * @returns Loader options with copied compiler settings and entries. The bundler root
+ * supplies the application directory for discovery.
+ * @throws If compiler supplies inline naming callbacks or values that cannot be cloned.
  */
 export function createLoaderOptions(
   compiler: SerializableInlineConfig,
@@ -75,7 +91,7 @@ export function createLoaderOptions(
   }
 
   return {
-    compiler,
+    compiler: structuredClone(compiler) as TurbopackLoaderOptions["compiler"],
     root: ".",
     entries: [...entries],
     mode: mode ?? (process.env.NODE_ENV === "development" ? "development" : "release"),
@@ -99,9 +115,10 @@ export function loaderPath(file: string): string {
  * Creates source and stylesheet carrier rules from captured loader options.
  *
  * @param options - Serializable settings retained by both rules without copying.
- * @param cssLoader - Absolute stylesheet loader path. Next supplies its route-discovery wrapper.
- * Omission selects the standalone Turbopack stylesheet loader.
- * @returns Rules keyed by source and carrier filename patterns. Configuration is not evaluated here.
+ * @param cssLoader - Absolute stylesheet loader path. Next supplies its route-discovery
+ * wrapper. Omission selects the standalone Turbopack stylesheet loader.
+ * @returns Rules keyed by source and carrier filename patterns. Configuration is not
+ * evaluated here.
  * @throws If an installed loader path cannot be resolved.
  */
 export function createRules(

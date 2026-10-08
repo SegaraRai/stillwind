@@ -80,7 +80,7 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'console.log("LSP config log");export default {projects:[{css:"root.css",files:["*.tsx"],lint:{"unknown-utility":"deny"}}]};',
+      'console.log("LSP config log");export default {projects:[{css:"root.css",files:["*.tsx"],lint:{rules:{"unknown-utility":"deny"}}}]};',
     );
     await writeFile(
       path.join(root, "root.css"),

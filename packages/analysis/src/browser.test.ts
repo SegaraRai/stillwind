@@ -1,3 +1,4 @@
+import { lintPresets } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { BrowserAnalysisWorkspace } from "./browser.ts";
@@ -64,7 +65,7 @@ test("browser editor requests keep project policies separate and discard superse
         files: ["*.tsx"],
         css: "theme.css",
         typeFacts: false,
-        lint: { "canonical-utilities": "off" },
+        lint: { extends: [lintPresets.recommended], rules: { "canonical-utilities": "off" } },
       },
     ],
     files: new Map([

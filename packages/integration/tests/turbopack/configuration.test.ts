@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { lintPresets } from "@stillwind/config";
 import { withStillwind } from "@stillwind/integration/next";
 import { stillwindRules } from "@stillwind/integration/turbopack";
 import type { NextConfig } from "next";
@@ -26,7 +27,12 @@ test.each(["next", "turbopack"])(
       path.join(root, "root.css"),
       "@utility red{color:red} @stillwind-slot utilities;",
     );
-    const inline = { configFile };
+    const inline = {
+      configFile,
+      lint: {
+        extends: [lintPresets.strict],
+      },
+    };
     const rules =
       backend === "next"
         ? withStillwind<NextConfig>({}, inline).turbopack!.rules!
@@ -56,6 +62,7 @@ test.each(["next", "turbopack"])(
     try {
       expect(project.options.root).toBe(root);
       expect(project.options.compiler.naming?.utilityClass).toBeTypeOf("function");
+      expect(project.loaded.loader.editorQuery().lintSettings()["unknown-utility"]).toBe("deny");
       expect(dependencies).toContain(configFile);
     } finally {
       project.compiler.close();

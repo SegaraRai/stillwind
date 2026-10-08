@@ -51,7 +51,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const file = path.join(root, "entry.tsx");
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{"canonical-utilities":"deny","sort-utilities":"deny"}}]}',
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"canonical-utilities":"deny","sort-utilities":"deny"}}}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -80,7 +80,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     expect(await readFile(file, "utf8")).toBe(source);
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],lint:{"unknown-utility":"deny","sort-utilities":"deny"}}]}',
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],lint:{extends:[lintPresets.recommended],rules:{"unknown-utility":"deny","sort-utilities":"deny"}}}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -108,7 +108,7 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'import {defineConfig} from "stillwind/config";export default defineConfig(async () => {console.log("configuration log");return {projects:[{css:"root.css",files:["*.tsx"],lint:{"unknown-utility":"deny"}},{css:"root.css",files:["unused.tsx"],lint:{"unknown-utility":"deny"}}]};});',
+      'import {defineConfig} from "stillwind/config";export default defineConfig(async () => {console.log("configuration log");return {projects:[{css:"root.css",files:["*.tsx"],lint:{rules:{"unknown-utility":"deny"}}},{css:"root.css",files:["unused.tsx"],lint:{rules:{"unknown-utility":"deny"}}}]};});',
     );
     await writeFile(
       path.join(root, "root.css"),

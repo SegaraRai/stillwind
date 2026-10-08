@@ -32,7 +32,9 @@ test("catalog reporting settings retain each native field name", () => {
       compilerOptions({
         utilityOrder: "tailwind",
         lint: {
-          [name as LintRule]: setting,
+          rules: {
+            [name as LintRule]: setting,
+          },
         },
       }),
     ).toMatchObject({
@@ -52,24 +54,26 @@ test("utility policies retain their fields at the native boundary", () => {
   const options = compilerOptions({
     css: "theme.css",
     lint: {
-      "prefer-direct-styling": "warn",
-      "duplicate-utilities": "deny",
-      "conflicting-utilities": {
-        allowShorthandOverrides: true,
+      rules: {
+        "prefer-direct-styling": "warn",
+        "duplicate-utilities": "deny",
+        "conflicting-utilities": {
+          allowShorthandOverrides: true,
+        },
+        "prefer-logical-properties": "off",
+        "length-units": {
+          rules: [
+            {
+              properties: ["padding*"],
+              disallow: ["px"],
+            },
+          ],
+        },
+        "no-restricted-theme-tokens": {
+          tokens: ["--color-red-*"],
+        },
+        "no-arbitrary-breakpoints": "deny",
       },
-      "prefer-logical-properties": "off",
-      "length-units": {
-        rules: [
-          {
-            properties: ["padding*"],
-            disallow: ["px"],
-          },
-        ],
-      },
-      "no-restricted-theme-tokens": {
-        tokens: ["--color-red-*"],
-      },
-      "no-arbitrary-breakpoints": "deny",
     },
   });
   expect(options.lint).toMatchObject({
@@ -95,8 +99,10 @@ test("utility policies retain their fields at the native boundary", () => {
   expect(
     compilerOptions({
       lint: {
-        "conflicting-utilities": "off",
-        "length-units": "warn",
+        rules: {
+          "conflicting-utilities": "off",
+          "length-units": "warn",
+        },
       },
     }).lint,
   ).toMatchObject({
@@ -113,27 +119,29 @@ test("source restriction options retain native names and list replacements", () 
   expect(
     compilerOptions({
       lint: {
-        "no-arbitrary-colors": "deny",
-        "no-arbitrary-spacing": "warn",
-        "no-class-property": "off",
-        "no-important": "deny",
-        "valid-lint-suppressions": "warn",
-        "no-unused-lint-suppressions": "warn",
-        "no-restricted-utilities": {
-          utilities: [
-            {
-              pattern: "legacy*",
-              message: "Use semantic utilities",
-            },
-          ],
-        },
-        "no-restricted-declarations": {
-          rules: [
-            {
-              properties: ["position"],
-              values: ["fixed"],
-            },
-          ],
+        rules: {
+          "no-arbitrary-colors": "deny",
+          "no-arbitrary-spacing": "warn",
+          "no-class-property": "off",
+          "no-important": "deny",
+          "valid-lint-suppressions": "warn",
+          "no-unused-lint-suppressions": "warn",
+          "no-restricted-utilities": {
+            utilities: [
+              {
+                pattern: "legacy*",
+                message: "Use semantic utilities",
+              },
+            ],
+          },
+          "no-restricted-declarations": {
+            rules: [
+              {
+                properties: ["position"],
+                values: ["fixed"],
+              },
+            ],
+          },
         },
       },
     }).lint,
@@ -166,8 +174,10 @@ test("source restriction options retain native names and list replacements", () 
   expect(
     compilerOptions({
       lint: {
-        "no-arbitrary-spacing": {
-          properties: ["width"],
+        rules: {
+          "no-arbitrary-spacing": {
+            properties: ["width"],
+          },
         },
       },
     }).lint?.noArbitrarySpacing,

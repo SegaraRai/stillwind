@@ -1,5 +1,7 @@
 import {
   defineConfig,
+  lintPresets,
+  type LintPreset,
   type SourceProvider,
   type ProjectionProvider,
   type StillwindConfig,
@@ -14,22 +16,67 @@ defineConfig({
       files: ["**/*.tsx"],
       tsconfig: "tsconfig.app.json",
       sources: { kind: "filesystem" },
+      lint: {
+        extends: [lintPresets.recommended, lintPresets.stylistic],
+        rules: {
+          "canonical-utilities": {
+            rootFontSize: 20,
+          },
+        },
+      },
     },
   ],
 });
 
+const team = {
+  name: "team/policy",
+  extends: [lintPresets.strict],
+  rules: {
+    "length-units": {
+      rules: [
+        {
+          properties: ["padding*"],
+          disallow: ["px"],
+        },
+      ],
+    },
+  },
+} as const satisfies LintPreset;
+void team;
+
 const synchronous = defineConfig(() => ({
-  projects: [{ css: "theme.css", files: ["*.tsx"], sources: { kind: "filesystem" } }],
+  projects: [
+    {
+      css: "theme.css",
+      files: ["*.tsx"],
+      sources: {
+        kind: "filesystem",
+      },
+    },
+  ],
 }));
 const synchronousSettings: StillwindConfig = synchronous();
 
 const asynchronous = defineConfig(async () => ({
-  projects: [{ css: "theme.css", files: ["*.tsx"], typeFacts: false }],
+  projects: [
+    {
+      css: "theme.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+    },
+  ],
 }));
 const asynchronousSettings: Promise<StillwindConfig> = asynchronous();
 
 const promised: Promise<StillwindConfig> = defineConfig(
-  Promise.resolve({ projects: [{ css: "theme.css", files: ["*.tsx"] }] }),
+  Promise.resolve({
+    projects: [
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+      },
+    ],
+  }),
 );
 
 export function preserveExport(config: StillwindConfigExport): StillwindConfigExport {

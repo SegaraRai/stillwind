@@ -21,10 +21,16 @@ import type { LoaderContext } from "webpack";
 import { nativeBindingFiles } from "../binding-files.ts";
 import { IntegrationSession } from "../session.ts";
 
+type MutableSettings<T> = T extends readonly (infer Item)[]
+  ? MutableSettings<Item>[]
+  : T extends object
+    ? { -readonly [K in keyof T]: MutableSettings<T[K]> }
+    : T;
+
 /** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
 export type TurbopackLoaderOptions = {
   /** Configuration file selection and serializable inline settings. */
-  compiler: SerializableInlineConfig;
+  compiler: MutableSettings<SerializableInlineConfig>;
   /** Application directory, absolute or relative to the loader context's root. */
   root: string;
   /** Entry files whose imports are traversed when reconstructing document CSS. */

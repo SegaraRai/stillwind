@@ -18,9 +18,10 @@ pub use config::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
     LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintKind, LintOverrides,
-    LintSettings, LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
-    RestrictedDeclarationsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
+    LintPreset, LintSettings, LintSeverity, RestrictedDeclarationRule,
+    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
+    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
+    RestrictedUtilityRule, RootFontSize,
 };
 pub use diagnostic::{LintDiagnostic, UtilityFailure};
 pub use finding::LintFinding;

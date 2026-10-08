@@ -104,21 +104,26 @@ callbacks remain unsupported by these loaders.
 Compiler policy belongs to `stillwind.config.ts`. Each project accepts all lint rules, generated identifier prefixes, and `utilityOrder: "authored" | "tailwind"`. CSS supplies theme tokens, utilities, variants, and output slots.
 
 ```ts
+import { defineConfig, lintPresets } from "stillwind/config";
+
 export default defineConfig({
   projects: [
     {
       css: "src/theme.css",
       files: ["src/**/*.tsx"],
       lint: {
-        "prefer-typed-relationships": "deny",
-        "unknown-utility": "warn",
+        extends: [lintPresets.recommended],
+        rules: {
+          "prefer-typed-relationships": "deny",
+          "unknown-utility": "warn",
+        },
       },
     },
   ],
 });
 ```
 
-Reporting-only rules accept `"warn"`, `"deny"`, or `"off"`. Rules with detection options also accept an object containing `severity` and their options. Omitted fields use compiler defaults. Source suppression comments control findings and fixes. Explicit sorting uses `sort` targets independently of the `sort-utilities` reporting level.
+Reporting-only rules accept `"warn"`, `"deny"`, or `"off"`. Rules with detection options also accept an object containing `severity` and their options. Omitted fields retain inherited settings or use the rule's default options. Source suppression comments control findings and fixes. Explicit sorting uses `sort` targets independently of the `sort-utilities` reporting level.
 
 Node and browser hosts share project selection, path resolution, validation, and defaults. Configuration errors identify the project and invalid field. Compiler settings can be validated without constructing an analysis scope. `automatic` controls document CSS delivery through build integrations. Vite's `emission` remains a Vite-specific option.
 
@@ -330,6 +335,63 @@ semantic dependencies. The Playground's separate TS Server provides ordinary
 editor completions, navigation, and TypeScript diagnostics.
 Call `close()` when releasing these objects.
 
+## Lint presets
+
+Import `lintPresets` from `stillwind/config` or `@stillwind/config`. Each project's
+`lint` object contains `extends` and `rules`. Presets apply in array order, and the
+project's rules apply last. A preset can extend other presets and supply an optional
+`name` for configuration errors. Local modules and external packages can export the
+same `LintPreset` shape.
+
+```ts
+import { defineConfig, lintPresets, type LintPreset } from "stillwind/config";
+
+const team = {
+  name: "team/design-system",
+  extends: [lintPresets.recommended],
+  rules: { "no-arbitrary-colors": "deny" },
+} as const satisfies LintPreset;
+
+export default defineConfig({
+  projects: [
+    {
+      css: "src/theme.css",
+      files: ["src/**/*.tsx"],
+      lint: {
+        extends: [team, lintPresets.stylistic],
+        rules: { "sort-utilities": "off" },
+      },
+    },
+  ],
+});
+```
+
+Omitting `lint` selects `recommended`. An explicit `lint: {}` disables every lint
+rule. An explicit object with only `rules` enables only those rules. Compiler errors
+are reported independently of lint settings.
+
+`recommended` enables the standard correctness checks and canonical suggestions.
+`strict` reports all recommended checks as errors and also checks unused lint
+suppressions. `stylistic` enables `prefer-direct-styling`, `prefer-logical-properties`,
+`prefer-typed-relationships`, and `sort-utilities` as warnings. The stylistic preset
+adds no recommended checks. Project-specific restrictions remain off in these presets.
+
+A severity-only override preserves inherited rule options. An option object changes
+only supplied fields; undefined fields preserve previous values. Arrays replace the
+whole inherited list. Off disables diagnostics and lint fixes while retaining options.
+Cycles in `extends`, unknown fields, and invalid options fail configuration evaluation.
+Required options are validated after composition.
+
+Inline build overrides preserve the selected project's preset list when they omit
+`extends`. A supplied list replaces it, including an empty list. Inline rules merge
+with the project's rules. Without a configuration file, inline lint settings form the
+project configuration and use the same omission and empty-object behavior.
+
+`resolveLintConfig` returns a `rules` object with explicit severities and default
+options for every rule. Node and browser hosts use the same resolver, and native
+bindings receive the resulting rule settings. Explicit editor sorting remains available
+when `sort-utilities` is off.
+
 ## Utility lint policies
 
 `duplicate-utilities` and `conflicting-utilities` default to `warn`. They compare
@@ -346,43 +408,49 @@ Logical and physical longhands still conflict when their relationship depends on
 writing mode.
 
 The other utility policies default to off. Supplying a policy object enables it at `warn`
-unless its severity was configured in CSS or in that object.
+unless it inherits a severity from a preset or specifies one in that object.
 
 ```ts
 lint: {
-  "prefer-direct-styling": "warn",
-  "prefer-logical-properties": "warn",
-  "length-units": {
-    rules: [
-      { properties: ["*"], disallow: ["px"] },
-      { properties: ["border-*-width", "outline-width"], disallow: ["rem"] },
-    ],
+  extends: [lintPresets.recommended],
+  rules: {
+    "prefer-direct-styling": "warn",
+    "prefer-logical-properties": "warn",
+    "length-units": {
+      rules: [
+        { properties: ["*"], disallow: ["px"] },
+        { properties: ["border-*-width", "outline-width"], disallow: ["rem"] },
+      ],
+    },
+    "no-restricted-theme-tokens": {
+      tokens: ["--color-red-*", "--spacing-ref-*", "--radius-ref-*"],
+    },
+    "no-arbitrary-breakpoints": "warn",
   },
-  "no-restricted-theme-tokens": {
-    tokens: ["--color-red-*", "--spacing-ref-*", "--radius-ref-*"],
-  },
-  "no-arbitrary-breakpoints": "warn",
 }
 ```
 
 The arbitrary-value, class, utility, declaration, and important restrictions default
-to off. Object options enable a rule at `warn` unless CSS or the object supplies its
+to off. Object options enable a rule at `warn` unless a preset or the object supplies its
 severity.
 
 ```ts
 lint: {
-  "no-arbitrary-colors": "warn",
-  "no-arbitrary-spacing": { properties: ["width", "inset", "inset-*"] },
-  "no-class-property": "warn",
-  "no-important": "warn",
-  "no-restricted-utilities": {
-    utilities: [{ pattern: "legacy-*", message: "Use semantic utilities" }],
+  extends: [lintPresets.recommended],
+  rules: {
+    "no-arbitrary-colors": "warn",
+    "no-arbitrary-spacing": { properties: ["width", "inset", "inset-*"] },
+    "no-class-property": "warn",
+    "no-important": "warn",
+    "no-restricted-utilities": {
+      utilities: [{ pattern: "legacy-*", message: "Use semantic utilities" }],
+    },
+    "no-restricted-declarations": {
+      rules: [{ properties: ["transition-property"], values: ["all"] }],
+    },
+    "valid-lint-suppressions": "warn",
+    "no-unused-lint-suppressions": "warn",
   },
-  "no-restricted-declarations": {
-    rules: [{ properties: ["transition-property"], values: ["all"] }],
-  },
-  "valid-lint-suppressions": "warn",
-  "no-unused-lint-suppressions": "warn",
 }
 ```
 

@@ -4,23 +4,20 @@ use std::collections::BTreeMap;
 
 use serde::{Serialize, Serializer};
 
-use super::{LintConfig, LintKind, LintSeverity};
+use super::{LintConfig, LintKind, LintPreset, LintSeverity};
 
 /// Settings indexed by rule, with at most one setting for each rule.
-/// Absent settings return `false` from `enabled_for_detection`. Producers can detect
-/// findings independently of that lookup; reporting an unconfigured rule uses `Warn`.
+/// Absent settings disable detection and reporting. Producers can still collect raw
+/// findings independently of the detection lookup.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LintSettings {
     entries: BTreeMap<LintKind, LintConfig>,
 }
 
 impl LintSettings {
-    /// Returns the compiler's default lint settings.
+    /// Returns the recommended preset. Other rules remain unconfigured and report off.
     pub fn with_defaults() -> Self {
-        LintKind::ALL
-            .iter()
-            .filter_map(|kind| kind.default_config())
-            .collect()
+        LintPreset::Recommended.settings()
     }
 
     /// Adds or replaces the setting for `config.kind()`, returning the previous setting.
@@ -39,10 +36,10 @@ impl LintSettings {
             .is_some_and(|config| config.severity() != LintSeverity::Off)
     }
 
-    /// Returns the configured severity, or `Warn` for an unconfigured detected rule.
+    /// Returns the configured severity, or `Off` for an unconfigured rule.
     pub fn reporting_severity(&self, kind: LintKind) -> LintSeverity {
         self.get(kind)
-            .map_or(LintSeverity::Warn, LintConfig::severity)
+            .map_or(LintSeverity::Off, LintConfig::severity)
     }
 
     /// Iterates settings in the order defined by `LintKind`.
@@ -64,8 +61,9 @@ impl FromIterator<LintConfig> for LintSettings {
 impl Serialize for LintSettings {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_map(
-            self.iter()
-                .map(|config| (config.kind().name(), config.severity())),
+            LintKind::ALL
+                .iter()
+                .map(|&kind| (kind.name(), self.reporting_severity(kind))),
         )
     }
 }
@@ -122,12 +120,31 @@ mod tests {
                 "duplicate-utilities": "warn",
                 "conflicting-utilities": "warn",
                 "valid-lint-suppressions": "warn",
+                "valid-anchor-scope": "warn",
+                "require-ref-attachment": "warn",
+                "conflicting-provider-properties": "warn",
+                "invalid-utility": "warn",
+                "unknown-utility": "warn",
+                "no-arbitrary-colors": "off",
+                "no-arbitrary-spacing": "off",
+                "no-class-property": "off",
+                "no-restricted-utilities": "off",
+                "no-restricted-declarations": "off",
+                "no-important": "off",
+                "no-unused-lint-suppressions": "off",
+                "prefer-direct-styling": "off",
+                "prefer-logical-properties": "off",
+                "length-units": "off",
+                "no-restricted-theme-tokens": "off",
+                "no-arbitrary-breakpoints": "off",
+                "prefer-typed-relationships": "off",
+                "sort-utilities": "off",
             })
         );
         assert!(!settings.enabled_for_detection(LintKind::PreferTypedRelationships));
         assert_eq!(
             settings.reporting_severity(LintKind::PreferTypedRelationships),
-            LintSeverity::Warn
+            LintSeverity::Off
         );
         assert_eq!(
             settings.insert(LintConfig::RequireElementScope(LintSeverity::Off)),

@@ -14,9 +14,9 @@ import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
 import type { ModuleDescriptor } from "./module-source.ts";
 
 /**
- * Source metadata, dependency resolution, reads, watches, and warnings supplied to module
- * compilation. Hosts must preserve a stable correspondence between resolver and compiler module
- * identities.
+ * Source metadata, dependency resolution, reads, watches, and warnings supplied to
+ * module compilation. Hosts must preserve a stable correspondence between resolver and
+ * compiler module identities.
  */
 export interface CompilerHost {
   /** Requests checker import resolutions. A non-null host resolve result still takes precedence. */
@@ -459,7 +459,7 @@ function reportOutputDiagnostics(
 function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): boolean {
   let denied = false;
   for (const finding of output.lintFindings ?? []) {
-    const level = output.lintSettings?.[finding.rule] ?? "warn";
+    const level = output.lintSettings?.[finding.rule] ?? "off";
     if (level === "off") {
       continue;
     }
@@ -504,6 +504,7 @@ function failedOutput(
   hasModuleCssImport: boolean,
 ) {
   const reports = batches.flatMap((batch) => batch.reports);
+
   return {
     moduleId,
     code: null,

@@ -1,4 +1,4 @@
-//! Stable lint identities, reporting severities, and rule-specific defaults.
+//! Stable lint identities, reporting severities, and default detection options.
 
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +42,7 @@ impl LintSeverity {
 }
 
 macro_rules! define_lint_rules {
-    ($( $variant:ident => ($name:literal, $default:expr), )+) => {
+    ($( $variant:ident => $name:literal, )+) => {
         /// A lint rule identified by one stable configuration and suppression name.
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
         pub enum LintKind {
@@ -65,18 +65,6 @@ macro_rules! define_lint_rules {
             /// Parses an exact rule name; unknown names return `None`.
             pub fn from_name(name: &str) -> Option<Self> {
                 match name { $($name => Some(Self::$variant),)+ _ => None }
-            }
-
-            /// Returns the default setting when detection is configured by default.
-            /// Rules without a setting can still be reported when a producer detects them.
-            pub const fn default_config(self) -> Option<LintConfig> {
-                let severity: Option<LintSeverity> = match self {
-                    $(Self::$variant => $default,)+
-                };
-                match severity {
-                    Some(level) => Some(LintConfig::new(self, level)),
-                    None => None,
-                }
             }
         }
 
@@ -212,36 +200,36 @@ macro_rules! lint_config_severity {
 }
 
 define_lint_rules! {
-    NoArbitraryColors => ("no-arbitrary-colors", None),
-    NoArbitrarySpacing => ("no-arbitrary-spacing", None),
-    NoClassProperty => ("no-class-property", None),
-    NoRestrictedUtilities => ("no-restricted-utilities", None),
-    NoRestrictedDeclarations => ("no-restricted-declarations", None),
-    NoImportant => ("no-important", None),
-    ValidLintSuppressions => ("valid-lint-suppressions", Some(LintSeverity::Warn)),
-    NoUnusedLintSuppressions => ("no-unused-lint-suppressions", None),
-    PreferDirectStyling => ("prefer-direct-styling", None),
-    DuplicateUtilities => ("duplicate-utilities", Some(LintSeverity::Warn)),
-    ConflictingUtilities => ("conflicting-utilities", Some(LintSeverity::Warn)),
-    PreferLogicalProperties => ("prefer-logical-properties", None),
-    LengthUnits => ("length-units", None),
-    NoRestrictedThemeTokens => ("no-restricted-theme-tokens", None),
-    NoArbitraryBreakpoints => ("no-arbitrary-breakpoints", None),
-    FrameworkImportMismatch => ("framework-import-mismatch", Some(LintSeverity::Warn)),
-    MacroArgumentMutation => ("macro-argument-mutation", Some(LintSeverity::Deny)),
-    MacroExecutionBoundary => ("macro-execution-boundary", Some(LintSeverity::Deny)),
-    ValidAnchorScope => ("valid-anchor-scope", None),
-    RequireRefAttachment => ("require-ref-attachment", None),
-    ConflictingProviderProperties => ("conflicting-provider-properties", None),
-    PreferTypedRelationships => ("prefer-typed-relationships", None),
-    RequireElementScope => ("require-element-scope", Some(LintSeverity::Deny)),
-    RequireViewTransitionName => ("require-view-transition-name", Some(LintSeverity::Warn)),
-    SingleViewTransitionName => ("single-view-transition-name", Some(LintSeverity::Warn)),
-    SingleViewTransitionClass => ("single-view-transition-class", Some(LintSeverity::Warn)),
-    AmbiguousBaseOrder => ("ambiguous-base-order", Some(LintSeverity::Warn)),
-    ImportedBaseInterference => ("imported-base-interference", Some(LintSeverity::Warn)),
-    InvalidUtility => ("invalid-utility", None),
-    UnknownUtility => ("unknown-utility", None),
-    CanonicalUtilities => ("canonical-utilities", Some(LintSeverity::Warn)),
-    SortUtilities => ("sort-utilities", None),
+    NoArbitraryColors => "no-arbitrary-colors",
+    NoArbitrarySpacing => "no-arbitrary-spacing",
+    NoClassProperty => "no-class-property",
+    NoRestrictedUtilities => "no-restricted-utilities",
+    NoRestrictedDeclarations => "no-restricted-declarations",
+    NoImportant => "no-important",
+    ValidLintSuppressions => "valid-lint-suppressions",
+    NoUnusedLintSuppressions => "no-unused-lint-suppressions",
+    PreferDirectStyling => "prefer-direct-styling",
+    DuplicateUtilities => "duplicate-utilities",
+    ConflictingUtilities => "conflicting-utilities",
+    PreferLogicalProperties => "prefer-logical-properties",
+    LengthUnits => "length-units",
+    NoRestrictedThemeTokens => "no-restricted-theme-tokens",
+    NoArbitraryBreakpoints => "no-arbitrary-breakpoints",
+    FrameworkImportMismatch => "framework-import-mismatch",
+    MacroArgumentMutation => "macro-argument-mutation",
+    MacroExecutionBoundary => "macro-execution-boundary",
+    ValidAnchorScope => "valid-anchor-scope",
+    RequireRefAttachment => "require-ref-attachment",
+    ConflictingProviderProperties => "conflicting-provider-properties",
+    PreferTypedRelationships => "prefer-typed-relationships",
+    RequireElementScope => "require-element-scope",
+    RequireViewTransitionName => "require-view-transition-name",
+    SingleViewTransitionName => "single-view-transition-name",
+    SingleViewTransitionClass => "single-view-transition-class",
+    AmbiguousBaseOrder => "ambiguous-base-order",
+    ImportedBaseInterference => "imported-base-interference",
+    InvalidUtility => "invalid-utility",
+    UnknownUtility => "unknown-utility",
+    CanonicalUtilities => "canonical-utilities",
+    SortUtilities => "sort-utilities",
 }

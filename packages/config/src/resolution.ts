@@ -1,13 +1,31 @@
 import {
-  mergeConfig,
   normalizeCompilerConfig,
   validateCompilerConfig,
-  type AnalysisProjectConfig,
   type BaseConfig,
+  type BuildConfig,
   type BuildOptions,
-  type InlineConfig,
   type NormalizedCompilerConfig,
-} from "./index.ts";
+} from "./compiler.ts";
+import type { AnalysisProjectConfig } from "./configuration.ts";
+import { mergeLintConfig } from "./lint.ts";
+import { mergeConfig } from "./merge.ts";
+
+/** Inline options that can pass through isolated loader workers. */
+export type SerializableInlineConfig = Omit<InlineConfig, "naming">;
+
+/** Build overrides and the selection of a configuration file and project. */
+export interface InlineConfig extends BuildConfig {
+  /**
+   * Configuration file path, absolute or relative to the application root. An explicit path must
+   * exist. Omission searches upward for stillwind.config.ts. False disables file loading.
+   */
+  configFile?: string | false;
+  /**
+   * Exact configured project name. Omission selects the sole project or the unique project whose
+   * root most closely contains the application root. Ambiguous selection fails during evaluation.
+   */
+  project?: string;
+}
 
 /** Path operations supplied by the host's filesystem or virtual workspace. */
 export interface ConfigPaths {
@@ -133,7 +151,10 @@ export function resolveCompilerSettings(
     overrides.root !== undefined
       ? paths.resolve(applicationRoot, overrides.root)
       : (base.root ?? applicationRoot);
-  const config = normalizeCompilerConfig(mergeConfig(base, overrides));
+  const config = normalizeCompilerConfig({
+    ...mergeConfig(base, overrides),
+    lint: mergeLintConfig(base.lint, overrides.lint),
+  });
   if (!config.css) {
     throw new Error("config.css: must specify CSS as a nonempty path");
   }

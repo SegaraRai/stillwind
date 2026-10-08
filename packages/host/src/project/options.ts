@@ -32,7 +32,7 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
 
   return {
     lint: Object.fromEntries(
-      Object.entries(resolved.lint).map(([name, setting]) => [
+      Object.entries(resolved.lint.rules).map(([name, setting]) => [
         lintRules[name as LintRule].nativeName,
         setting,
       ]),

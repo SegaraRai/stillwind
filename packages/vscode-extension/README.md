@@ -23,7 +23,7 @@ Use a document formatter such as Prettier or Oxfmt for layout and whitespace. St
 Canonical utility lint defaults to `warn`. Pixel spacing can become rem-based utilities when the active spacing scale uses rem; other domains, such as border width, retain their units. `source.fixAll.stillwind` applies enabled lint fixes. `source.sort.stillwind` sorts independently of lint severity. Sorting diagnostics are disabled by default.
 
 ```ts
-import { defineConfig } from "stillwind/config";
+import { defineConfig, lintPresets } from "stillwind/config";
 
 export default defineConfig({
   projects: [
@@ -31,11 +31,14 @@ export default defineConfig({
       files: ["src/**/*.tsx"],
       css: "src/theme.css",
       lint: {
-        "canonical-utilities": {
-          pxToRem: true,
-          rootFontSize: 16,
+        extends: [lintPresets.recommended],
+        rules: {
+          "canonical-utilities": {
+            pxToRem: true,
+            rootFontSize: 16,
+          },
+          "sort-utilities": "off",
         },
-        "sort-utilities": "off",
       },
       sort: {
         stringLiterals: true,
@@ -46,7 +49,7 @@ export default defineConfig({
 });
 ```
 
-Project lint fields override compiler defaults. Source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
+Project lint rules override the selected presets. Source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
 
 The Web extension requires cross-origin isolation: serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Browser configuration can import browser-compatible modules. Imports of Node built-ins fail during configuration evaluation.
 

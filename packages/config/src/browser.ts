@@ -1,14 +1,15 @@
 import * as paths from "pathe";
-import { resolve, dirname } from "pathe";
+import { dirname, resolve } from "pathe";
 
-import { resolveConfig, type AnalysisProjectConfig, type InlineConfig } from "./index.ts";
+import { resolveConfig, type AnalysisProjectConfig } from "./configuration.ts";
 import {
-  configurationCandidates,
   compilerConfig,
-  resolveProjectPaths,
+  configurationCandidates,
   resolveCompilerSettings,
+  resolveProjectPaths,
   selectProject,
   validateInlineConfig,
+  type InlineConfig,
 } from "./resolution.ts";
 
 /** Configuration evaluation supplied by a browser module runtime. */
@@ -51,7 +52,12 @@ export async function resolveBrowserConfig(
     ? selectProject(projects as (AnalysisProjectConfig & { root: string })[], root, inline, paths)
     : undefined;
   const settings = resolveCompilerSettings(
-    selected ? compilerConfig(selected) : { root },
+    selected
+      ? compilerConfig(selected)
+      : {
+          root,
+          lint: inline.lint,
+        },
     inline,
     root,
     paths,

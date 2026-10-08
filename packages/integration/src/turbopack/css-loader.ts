@@ -5,7 +5,12 @@ import { cssWithSourceMap, decodeCssSourceMap } from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
 import { loaderCompletion } from "../webpack/source-map-loader.ts";
-import { compileGraph, createProject, type TurbopackLoaderOptions } from "./project.ts";
+import {
+  compileGraph,
+  createProject,
+  type TurbopackLoaderOptions,
+  type TurbopackProject,
+} from "./project.ts";
 
 export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOptions>) {
   emitStylesheet(this, async (options) => options.entries);
@@ -13,7 +18,7 @@ export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOp
 
 export function emitStylesheet(
   context: LoaderContext<TurbopackLoaderOptions>,
-  entries: (options: TurbopackLoaderOptions) => Promise<string[]>,
+  entries: (options: TurbopackProject["options"]) => Promise<string[]>,
 ): void {
   const callback = loaderCompletion(context);
   void (async () => {

@@ -1,7 +1,7 @@
 import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   pack: {
     entry: ["src/index.ts", "src/browser.ts", "src/node.ts"],
@@ -10,7 +10,14 @@ export default defineConfig({
     dts: true,
     sourcemap: true,
   },
-  test: { name: "config", include: ["src/**/*.test.ts"] },
+  test: {
+    name: mode === "wasm" ? "config-wasm" : "config",
+    pool: "forks",
+    include:
+      mode === "wasm"
+        ? ["tests/lint.wasm.test.ts"]
+        : ["src/**/*.test.ts", "tests/lint.native.test.ts"],
+  },
   run: {
     tasks: {
       build: {
@@ -26,6 +33,11 @@ export default defineConfig({
         cache: testCache,
         dependsOn: ["build"],
       },
+      "test:wasm": {
+        command: "vp test --run --mode wasm",
+        cache: false,
+        dependsOn: ["build", "@stillwind/native#collect:local"],
+      },
     },
   },
-});
+}));

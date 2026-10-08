@@ -367,7 +367,7 @@ mod tests {
                 }],
             },
         ];
-        let mut reporter = Reporter::new(LintSettings::default());
+        let mut reporter = Reporter::new(LintSettings::with_defaults());
         reporter.report(&finding).unwrap();
         let batch = reporter.finish();
         let diagnostic = &batch.diagnostics[0];
@@ -420,7 +420,7 @@ mod tests {
             )
         };
         let kind = LintKind::RequireRefAttachment;
-        let mut reporter = Reporter::new(LintSettings::default());
+        let mut reporter = Reporter::new(LintSettings::with_defaults());
         reporter.report(&finding()).unwrap();
         assert_eq!(reporter.finish().diagnostics, [] as [ResolvedDiagnostic; 0]);
         let plain = document(&mut sources, "untitled:plain", "x");

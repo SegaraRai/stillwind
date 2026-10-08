@@ -1,4 +1,4 @@
-import type { AnalysisProjectConfig } from "@stillwind/config";
+import { lintPresets, type AnalysisProjectConfig } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { BrowserProject } from "../browser/index.ts";
@@ -82,11 +82,14 @@ test("project severity supports explicit conversion options and explicit sorting
     source,
     {
       lint: {
-        "canonical-utilities": {
-          pxToRem: false,
-          severity: "deny",
+        extends: [lintPresets.recommended],
+        rules: {
+          "canonical-utilities": {
+            pxToRem: false,
+            severity: "deny",
+          },
+          "sort-utilities": "off",
         },
-        "sort-utilities": "off",
       },
     },
     theme,
@@ -192,7 +195,10 @@ const value = style([
 ]);`;
   const current = project(source, {
     lint: {
-      "sort-utilities": "warn",
+      extends: [lintPresets.recommended],
+      rules: {
+        "sort-utilities": "warn",
+      },
     },
   });
   try {
@@ -485,7 +491,12 @@ test("suppression keeps grouping fixes inside approved ranges while explicit sor
 // swlint-disable-next-line sort-utilities
 const ignored=style(["flex",base,ref]);
 const active=style(["flex",base,ref]);`;
-  const current = project(source, { lint: { "sort-utilities": "warn" } });
+  const current = project(source, {
+    lint: {
+      extends: [lintPresets.recommended],
+      rules: { "sort-utilities": "warn" },
+    },
+  });
   try {
     const fixes = applyEdits(
       source,

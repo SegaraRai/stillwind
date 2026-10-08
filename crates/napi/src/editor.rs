@@ -101,13 +101,14 @@ impl NativeEditorQuery {
     /// Returns effective lint severities after stylesheet and project configuration.
     #[napi]
     pub fn lint_settings(&self) -> BTreeMap<String, String> {
+        let settings = self.query.lint_settings();
         LintKind::ALL
             .iter()
-            .filter_map(|kind| {
-                self.query
-                    .lint_settings()
-                    .get(*kind)
-                    .map(|config| (kind.name().into(), config.severity().as_str().into()))
+            .map(|&kind| {
+                (
+                    kind.name().into(),
+                    settings.reporting_severity(kind).as_str().into(),
+                )
             })
             .collect()
     }
