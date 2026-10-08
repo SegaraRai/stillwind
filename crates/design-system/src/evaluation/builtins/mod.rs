@@ -1,9 +1,9 @@
 //! Read-only access to the definitions selected by a snapshot.
 //!
-//! Every function takes the theme and returns a borrow of its registry, so evaluation
-//! never needs a global registry or a process-wide default. The split between this
-//! module and the theme index is deliberate: the index is the authored data, and this
-//! module is the resolved view callers should use.
+//! `registry` borrows utility, variant, and animation definitions from the supplied
+//! theme. `metadata` reads declaration formats, property registrations, and ordering
+//! metadata, and derives token prefixes for completion. Both use the caller's theme
+//! without consulting a global registry.
 
 mod metadata;
 mod registry;

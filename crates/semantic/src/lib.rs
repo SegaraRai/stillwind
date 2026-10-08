@@ -12,6 +12,11 @@
 //! when the frontend proved the candidates, because a wrongly finite set pins CSS that
 //! may never apply. No I/O happens here, and nothing in this crate knows what CSS will
 //! be generated.
+//!
+//! `identity` defines declaration keys, and `assets` carries their source records and
+//! metadata. `symbolic` defines candidate sets and their algebra. `module_summary`
+//! records imports, exports, and declarations. `type_facts` associates checker answers
+//! with expression spans, and `module` versions those answers for a source revision.
 
 #![cfg_attr(
     not(test),

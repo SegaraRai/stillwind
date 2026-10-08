@@ -15,6 +15,11 @@
 //! [`validate_composition`] and [`ordered_style_calls`] are pure checks over the IR:
 //! they report dependency cycles and produce a deterministic producer order, but they
 //! never emit CSS or resolve candidates.
+//!
+//! `input` validates editable documents and prepared parser buffers. `analysis` defines
+//! the scan and finalization interfaces. `model` stores the extracted IR, and `spans`
+//! maps its coordinates. `framework` selects adapter policies. `composition` checks
+//! dependencies and orders style calls before lowering.
 
 #![warn(missing_docs)]
 #![cfg_attr(

@@ -12,6 +12,11 @@
 //!
 //! Every entry point is usable without a complete theme stylesheet so a host can build
 //! a registry once and share it.
+//!
+//! `utilities` and `variants` parse their respective definitions. `definitions` stores
+//! the selected built-in utility registry. `order` records precedence across utilities
+//! and arbitrary properties. `formats` parses serialization formats, relationship
+//! patterns, and theme order. `utility_lookup` indexes definitions for candidate lookup.
 
 mod definitions;
 mod formats;

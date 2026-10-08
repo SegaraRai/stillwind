@@ -21,6 +21,12 @@
 //! A snapshot is immutable after construction and clones an `Arc`, so a compile or
 //! editor request pins one clone for its whole duration instead of observing two
 //! revisions. Reloading CSS builds a new snapshot.
+//!
+//! `loading` expands supplied CSS imports, and `theme` parses tokens and declarations.
+//! `registry` parses utility and variant definitions. `evaluation` resolves candidates
+//! against those definitions, and `conditionals` recognizes runtime tests. `options`
+//! validates configuration, `output` parses output slots, and `snapshot` owns the
+//! immutable revision shared by compilation and editor requests.
 
 #![cfg_attr(
     not(test),

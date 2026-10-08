@@ -11,7 +11,7 @@
 //! identities or declaration order.
 //!
 //! `call` owns the walk state and shares its fields only within emission. It runs the
-//! walk and dispatches one style input; `class_value` lowers class expressions;
+//! walk and dispatches each style input. `class_value` lowers class expressions.
 //! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
 //! contribution kind each. `style_analysis` records declarations, markers, and source
 //! decisions before class-unit merging removes their original use boundaries.

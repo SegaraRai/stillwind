@@ -361,9 +361,8 @@ fn find_block_open(value: &str) -> Option<usize> {
 ///
 /// Returns [`ScanError::InvalidOffset`] when `open` is past the end of `value` or
 /// falls inside a multi-byte scalar, and [`ScanError::Unclosed`] when the brace is
-/// never closed or a `}` appears first. Callers that obtain `open` from
-/// [`find_block_open`] or from `char_indices` over this same string always satisfy
-/// the offset requirement.
+/// never closed or a `}` appears first. Offsets from `char_indices` over this same
+/// string satisfy the character-boundary requirement.
 pub fn matching_brace(value: &str, open: usize) -> Result<usize, ScanError> {
     let mut depth = 0_u32;
     let mut quote = None;

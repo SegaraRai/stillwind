@@ -1,7 +1,7 @@
 //! Editor queries resolve candidates against one immutable design-system snapshot.
 //!
 //! [`DesignSystemQuery`] pins each answer to a revision so hosts can discard stale
-//! results. [`resolution`] generates candidate previews and diagnostics; [`ordering`]
+//! results. [`resolution`] generates candidate previews and diagnostics. [`ordering`]
 //! compares candidates using compiler order. [`completion`] offers utility, variant,
 //! and theme labels, and [`canonical`] finds equivalent spellings under the active lint
 //! policy. [`theme`] exposes theme values and resolves colors for editor decorations.

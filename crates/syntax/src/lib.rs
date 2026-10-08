@@ -9,6 +9,9 @@
 //! The grammar never validates names against a registry, because it cannot: only the
 //! design system knows whether `bg-red-500` is a real utility. Order is source order
 //! everywhere, and nothing here performs I/O.
+//!
+//! `lexer` locates utility tokens and their source spans. `syntax` parses each
+//! candidate's utility and variant structure without resolving registry names.
 
 #![cfg_attr(
     not(test),

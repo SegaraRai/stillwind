@@ -8,8 +8,8 @@
 //! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
 //! typed value domains and placeholders, and [`variants`] produces selector
 //! applications and their ordering. [`context`] records direct selections for one
-//! evaluation. [`programs`] prepares utility syntax and
-//! declaration branches.
+//! evaluation. [`programs`] prepares utility syntax and declaration branches.
+//! [`syntax`] matches delimiters while reading definition expressions.
 
 mod builtins;
 mod context;

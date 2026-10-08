@@ -17,6 +17,14 @@
 //! shadow module. And scanning is demand-driven: probes are created only for values
 //! that local analysis could not resolve, so a module of literal utilities asks the
 //! checker nothing.
+//!
+//! `analyzer` implements scanning and finalization. `state` holds one extraction, and
+//! `visit` collects module structure and macro uses. `bindings` recognizes imported
+//! macro symbols, and `style_bindings` seeds local producers. `imports` records bindings
+//! and their reads. `expressions` lowers style inputs, and `templates` preserves ref
+//! substitutions. `refs`, `keyframes`, and `view_transition` extract their declarations
+//! and uses. `demand` finds the imports needed by unresolved values. `ast` tags Oxc
+//! ranges with their analysis buffer identity before coordinate mapping.
 
 #![cfg_attr(
     not(test),

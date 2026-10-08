@@ -15,6 +15,14 @@
 //!
 //! With the `minify` feature, `minify_css` processes complete assets and composes
 //! source maps independently of Stillwind compilation.
+//!
+//! `functions` finds CSS calls, and `declarations` preserves declaration boundaries.
+//! `selectors` instantiates nesting templates. `colors` converts concrete colors and
+//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
+//! validates grammars and inspects property effects. `custom_properties` discovers
+//! references and registrations. `emission` preserves rule occurrences and optimizes
+//! declaration order. `format` formats editor previews, while the optional `minify`
+//! module processes final assets.
 
 #![cfg_attr(
     not(test),

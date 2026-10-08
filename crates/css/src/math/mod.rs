@@ -6,9 +6,9 @@
 //! guesses at unknown functions: an unparsable or unsupported expression is left
 //! byte-for-byte as authored.
 //!
-//! Only [`fold_calc_expressions`], [`format_numeric_zero`],
-//! [`value_nesting_overflow`], and [`MAX_VALUE_NESTING`] are
-//! re-exported; the tree and the parser itself stay crate-internal.
+//! `parser` reads numeric expressions and enforces the nesting limit. `expression`
+//! owns the tree and its printer. `folding` finds `calc()` calls, evaluates compatible
+//! terms, and leaves unsupported expressions unchanged.
 
 mod expression;
 mod folding;

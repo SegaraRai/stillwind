@@ -11,6 +11,10 @@
 //! response IDs, and a repeated name with different content, are protocol errors.
 //! Completion is terminal, and dropping an incomplete loader is the entire cancellation
 //! mechanism.
+//!
+//! `imports` parses dependency requests and their conditions. `expansion` combines the
+//! supplied sources while retaining origins. `protocol` defines requests, responses,
+//! and source graphs. `state` owns request tracking and snapshot completion.
 
 mod expansion;
 mod imports;

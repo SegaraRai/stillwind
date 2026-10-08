@@ -8,6 +8,10 @@
 //!
 //! Nothing in this module knows about utilities, variants or theme namespaces:
 //! hints name CSS value productions, and callers supply the property context.
+//!
+//! `domain` defines registry domains, and `validation` checks individual values against
+//! CSS productions. `policy` inspects properties, units, and media comparisons for
+//! caller-defined policies.
 
 mod domain;
 mod policy;

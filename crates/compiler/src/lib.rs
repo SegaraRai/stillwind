@@ -7,18 +7,23 @@
 //! on neither the JavaScript frontend nor the project layer, so the host supplies
 //! opaque source names and contents.
 //!
-//! Two invariants hold for everything the crate returns. Spans always address the
-//! original, unedited source buffer, never generated text, and every generated name
-//! is a pure function of canonical content plus callsite identity, so recompiling the
-//! same inputs produces the same names. When a compilation fails, diagnostics are
-//! still reported against the real source and the transforms, classes, and symbols
-//! stay empty instead of describing a partially applied edit plan.
+//! Result spans address the original, unedited source buffer. Built-in names derive
+//! from canonical content and declaration identity. Host name generators must return
+//! the same name for the same request to preserve names across compilations. When a
+//! compilation fails, diagnostics still address the real source, and transforms,
+//! classes, and symbols stay empty.
 //!
-//! The module compiler executes compilation; compiled module results own edit
-//! application; module CSS artifacts own rule identity and serialization.
+//! `module_compiler` compiles one analyzed module through the lowering passes in
+//! `compiler`. `compiled_module` applies the resulting edits, and `module_css` owns
+//! CSS occurrences and rule identities. `candidate` centralizes utility resolution.
+//! `identifiers` allocates names, and `options` configures compilation. `imports`
+//! plans macro import removal, while `runtime` allocates framework helper bindings.
+//!
 //! `style_analysis` resolves composed supplies and checks their properties and markers.
-//! `generated` composes JavaScript fragments with expression provenance; `transforms`
+//! `generated` composes JavaScript fragments with expression provenance. `transforms`
 //! converts their source ranges to UTF-16 mappings for host source-map generation.
+//! `renderer` assembles stylesheet slots, and `stylesheet_map` retains CSS origins.
+//! `query` answers editor requests, and `editor_lint` detects canonical spellings.
 
 #![cfg_attr(
     not(test),

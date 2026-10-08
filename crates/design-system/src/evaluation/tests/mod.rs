@@ -3,8 +3,8 @@
 //! Each suite parses real registry CSS, either directly or through a snapshot built
 //! from CSS that is already in memory, and asserts the resolved values, because most
 //! evaluation contracts are about what users write rather than about internal types.
-//! Shared fixtures may expand package CSS from disk; `tests/loading.rs` also exercises
-//! caller-driven filesystem loading. [`support`] holds the shared fixtures; the other
+//! Shared fixtures may expand package CSS from disk. The loading module's own tests
+//! exercise the caller-driven protocol. [`support`] holds the shared fixtures; the other
 //! modules own one area each: built-in registry contents, utility matching and domains,
 //! value families, variants and custom variants, overloads, relationships, and animations.
 

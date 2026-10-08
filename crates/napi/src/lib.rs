@@ -14,6 +14,14 @@
 //! File and module resolution stays in JavaScript. The binding only receives buffers
 //! that the host already read, and it reports unresolved CSS imports as requests for
 //! the host to satisfy.
+//!
+//! `api` provides standalone operations, and `session` wraps stateful loaders and
+//! project sessions. `source_input` validates document and projection transport.
+//! `semantic` converts checker facts and module summaries, while `options` converts
+//! configuration and `naming` invokes host name generators. `output` serializes compiler
+//! results, and `stylesheet` carries load requests and rendered CSS. `editor` handles
+//! editor queries and lint reporting. `fingerprint` exposes content identities, and
+//! `minify` transports final CSS minification.
 
 #![cfg_attr(
     not(test),

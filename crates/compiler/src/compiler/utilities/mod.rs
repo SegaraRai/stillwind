@@ -1,10 +1,10 @@
 //! Utility resolution and rule emission.
 //!
-//! `resolve` turns candidate text into [`CompiledUtility`](resolve::CompiledUtility)
-//! values, `declaration_order` implements the declaration-level ordering rules,
+//! `resolve` turns candidate text into [`CompiledUtility`]
+//! values, and `declaration_order` implements the declaration-level ordering rules.
 //! `render` turns one utility into selector blocks, and `emission` groups them into a
 //! class unit. The split follows the CSS ordering levels: declaration order is decided
-//! in `declaration_order`, block order in `emission`, and the two renderers only
+//! in `declaration_order`, and block order is decided in `emission`. The two renderers only
 //! serialize the result. `policy` checks emitted values and variant targets and filters
 //! canonical suggestions.
 
