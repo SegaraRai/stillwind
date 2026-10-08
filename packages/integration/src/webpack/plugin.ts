@@ -15,7 +15,7 @@ export class StillwindPlugin {
    * compilations. Constructor execution does not evaluate configuration.
    *
    * @param config - Configuration discovery, project selection, and inline compiler overrides.
-   * Omission discovers stillwind.config.ts from the compiler context or process working directory.
+   * Omission discovers stillwind.config.* from the compiler context or process working directory.
    */
   constructor(protected readonly config: InlineConfig = {}) {}
 

@@ -11,7 +11,7 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
   let workspace: AnalysisWorkspace | undefined;
   try {
     await writeFile(
-      path.join(root, "stillwind.config.ts"),
+      path.join(root, "stillwind.config.mts"),
       'import {lintPresets} from "stillwind/config"; export default async () => ({projects:[{css:"root.css",files:["entry.ts"],classNamespace:"shared-project",prefix:"--project-",lint:{extends:[lintPresets.strict]}}]});',
     );
     await writeFile(
@@ -26,7 +26,7 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
       path.join(root, "Tokens.ts"),
       'import {style} from "stillwind/react";export const frames=style.keyframes({from:"red",to:"red"});',
     );
-    workspace = await AnalysisWorkspace.open(path.join(root, "stillwind.config.ts"));
+    workspace = await AnalysisWorkspace.open(path.join(root, "stillwind.config.mts"));
     const [analysis] = await workspace.lint();
     expect(analysis.result.status, JSON.stringify(analysis)).toBe("complete");
     const compiled = analysis.result.graph!.modules.find(
@@ -42,7 +42,10 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
         write: false,
         minify: false,
         cssMinify: false,
-        lib: { entry: path.join(root, "entry.ts"), formats: ["es"] },
+        lib: {
+          entry: path.join(root, "entry.ts"),
+          formats: ["es"],
+        },
       },
     });
     const outputs = (Array.isArray(result) ? result : [result]).flatMap((result) => {
@@ -74,7 +77,7 @@ test("production watch reloads an imported configuration helper", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-watch-"));
   const helper = path.join(root, "settings.ts");
   await writeFile(
-    path.join(root, "stillwind.config.ts"),
+    path.join(root, "stillwind.config.mts"),
     "import settings from './settings.ts'; export default () => settings;",
   );
   const settings = (css: string) =>
@@ -98,7 +101,10 @@ test("production watch reloads an imported configuration helper", async () => {
     build: {
       watch: {},
       minify: false,
-      lib: { entry: path.join(root, "entry.ts"), formats: ["es"] },
+      lib: {
+        entry: path.join(root, "entry.ts"),
+        formats: ["es"],
+      },
     },
   });
   if (Array.isArray(watcher) || !("on" in watcher)) {
@@ -123,7 +129,9 @@ test("production watch reloads an imported configuration helper", async () => {
           }
           return builds;
         },
-        { timeout: 10_000 },
+        {
+          timeout: 10_000,
+        },
       )
       .toBeGreaterThanOrEqual(count);
   const output = async () => {
@@ -202,7 +210,9 @@ test("development reloads the project when an imported configuration helper chan
             return "";
           }
         },
-        { timeout: 10_000 },
+        {
+          timeout: 10_000,
+        },
       )
       .toMatch(/color:\s*blue/);
   } finally {

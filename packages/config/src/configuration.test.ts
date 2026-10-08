@@ -125,6 +125,58 @@ test("configuration keeps independent scopes and compiler settings", () => {
   expect(defineConfig({ projects }).projects).toBe(projects);
 });
 
+test("validation preserves objects and callbacks without executing providers", () => {
+  const callback = () => expect.fail("Validation must not execute callbacks");
+  const config = {
+    projects: [
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+        naming: {
+          utilityClass: callback,
+        },
+        sources: {
+          kind: "custom" as const,
+          supports: callback,
+          load: callback,
+        },
+        projection: {
+          kind: "custom" as const,
+          prepare: callback,
+        },
+      },
+    ],
+  };
+  const validated = validateConfig(config);
+  expect(validated).toBe(config);
+  expect(validated.projects[0]).toBe(config.projects[0]);
+});
+
+test.each([
+  [{ files: [" "] }, "files"],
+  [{ hashLength: 1.5 }, "hashLength"],
+  [{ hashLength: 51 }, "hashLength"],
+  [{ sort: { typo: true } }, "sort.typo"],
+  [{ naming: { utilityClass: "name" } }, "naming.utilityClass"],
+  [{ naming: [] }, "naming"],
+  [{ lint: [] }, "lint"],
+  [{ typeFacts: true }, "typeFacts"],
+  [{ exclude: [""] }, "exclude"],
+  [{ unknown: undefined }, "unknown"],
+])("invalid project fields report their path: %j", (fields, field) => {
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          ...fields,
+        },
+      ],
+    }),
+  ).toThrow(`projects[0].${field}`);
+});
+
 test.each(["function", "async function", "promise"])(
   "%s exports retain their form until configuration resolution",
   async (kind) => {
@@ -171,7 +223,7 @@ test("resolved factory and promise values are validated", async () => {
         ],
       }),
     ),
-  ).rejects.toThrow("must specify CSS");
+  ).rejects.toThrow("projects[0].css");
 });
 
 test("configuration evaluation preserves factory exceptions and promise rejections", async () => {

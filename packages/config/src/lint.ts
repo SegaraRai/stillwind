@@ -1,8 +1,10 @@
 /** Ordered lint preset composition and validation for all configuration hosts. */
 
+import * as v from "valibot";
+
 import { lintPresets } from "./lint-presets.ts";
 import { lengthUnits, lintRules, type LintRule, type SimpleLintRule } from "./lint-rules.ts";
-import { keys, object, record, requireValue, stringArray, text } from "./validation.ts";
+import { nonemptyStringList, nonemptyText, object, strictObject, validate } from "./validation.ts";
 
 /** Reporting policy for a lint rule. Off disables its diagnostics and automatic fixes. */
 export type LintSeverity = "warn" | "deny" | "off";
@@ -146,7 +148,7 @@ export function resolveLintConfig(
   const value = config ?? { extends: [lintPresets.recommended] };
   validatePreset(value, location, new Set());
   const rules = resolvedRules(value);
-  validateLintRules(rules, `${location}.rules`, false);
+  validateResolvedRules(rules, `${location}.rules`);
   return { rules };
 }
 
@@ -154,35 +156,127 @@ export function resolveLintConfig(
 export function validateLintConfig(value: unknown, location: string, partial: boolean): void {
   validatePreset(value, location, new Set());
   if (!partial) {
-    validateLintRules(resolvedRules(value), `${location}.rules`, false);
+    validateResolvedRules(resolvedRules(value), `${location}.rules`);
   }
 }
+
+const severitySchema = v.picklist(["warn", "deny", "off"]);
+
+const glob = v.pipe(nonemptyText, v.regex(/^\S+$/, "must contain valid complete globs"));
+
+const propertyGlobs = v.pipe(v.array(glob), v.minLength(1));
+
+const tokenGlob = v.pipe(
+  glob,
+  v.check(
+    (value) => value.startsWith("--") && value.length > 2,
+    "must contain custom-property patterns",
+  ),
+);
+
+const ruleOptions = {
+  "no-arbitrary-spacing": strictObject({
+    severity: v.optional(severitySchema),
+    properties: v.optional(v.array(glob)),
+  }),
+  "no-restricted-utilities": strictObject({
+    severity: v.optional(severitySchema),
+    utilities: v.optional(
+      v.array(strictObject({ pattern: glob, message: v.optional(v.string()) })),
+    ),
+  }),
+  "no-restricted-declarations": strictObject({
+    severity: v.optional(severitySchema),
+    rules: v.optional(
+      v.array(
+        strictObject({
+          properties: propertyGlobs,
+          values: nonemptyStringList,
+          message: v.optional(v.string()),
+        }),
+      ),
+    ),
+  }),
+  "conflicting-utilities": strictObject({
+    severity: v.optional(severitySchema),
+    allowShorthandOverrides: v.optional(v.boolean()),
+  }),
+  "length-units": strictObject({
+    severity: v.optional(severitySchema),
+    rules: v.optional(
+      v.array(
+        strictObject({
+          properties: propertyGlobs,
+          disallow: v.array(
+            v.pipe(
+              nonemptyText,
+              v.check(
+                (value) => lengthUnits.some((unit) => unit === value.toLowerCase()),
+                "must contain CSS length unit names",
+              ),
+            ),
+          ),
+        }),
+      ),
+    ),
+  }),
+  "no-restricted-theme-tokens": strictObject({
+    severity: v.optional(severitySchema),
+    tokens: v.optional(v.array(tokenGlob)),
+  }),
+  "canonical-utilities": strictObject({
+    severity: v.optional(severitySchema),
+    pxToRem: v.optional(v.boolean()),
+    rootFontSize: v.optional(
+      v.pipe(
+        v.number(),
+        v.finite(),
+        v.check((value) => value > 0, "must be positive and finite"),
+      ),
+    ),
+  }),
+} satisfies Record<Exclude<LintRule, SimpleLintRule>, v.GenericSchema>;
+
+const lintRulesSchema = strictObject(
+  Object.fromEntries(
+    Object.keys(lintRules).map((name) => [
+      name,
+      v.optional(
+        name in ruleOptions
+          ? v.lazy((value) =>
+              typeof value === "string"
+                ? severitySchema
+                : ruleOptions[name as keyof typeof ruleOptions],
+            )
+          : severitySchema,
+      ),
+    ]),
+  ),
+);
+
+const presetSchema = strictObject({
+  name: v.optional(nonemptyText),
+  extends: v.optional(v.array(v.unknown(), "must be an array of presets")),
+  rules: v.optional(lintRulesSchema),
+});
 
 function validatePreset(
   value: unknown,
   location: string,
   active: Set<object>,
 ): asserts value is LintPreset {
-  record(value, location);
-  keys(value, ["name", "extends", "rules"], location);
-  if (value.name !== undefined) {
-    requireValue(text(value.name), `${location}.name`, "must be a nonempty name");
+  validate(presetSchema, value, location);
+
+  if (active.has(value)) {
+    throw new Error(`${location}: cyclic lint preset extends`);
   }
-  requireValue(!active.has(value), location, "cyclic lint preset extends");
   active.add(value);
-  if (value.extends !== undefined) {
-    requireValue(
-      Array.isArray(value.extends),
-      `${location}.extends`,
-      "must be an array of presets",
-    );
-    for (const [index, preset] of value.extends.entries()) {
-      const name = object(preset) && text(preset.name) ? ` (${preset.name})` : "";
-      validatePreset(preset, `${location}.extends[${index}]${name}`, active);
-    }
-  }
-  if (value.rules !== undefined) {
-    validateLintRules(value.rules, `${location}.rules`, true);
+  for (const [index, preset] of (value.extends ?? []).entries()) {
+    const name =
+      object(preset) && typeof preset.name === "string" && preset.name.trim()
+        ? ` (${preset.name})`
+        : "";
+    validatePreset(preset, `${location}.extends[${index}]${name}`, active);
   }
   active.delete(value);
 }
@@ -241,115 +335,20 @@ function mergeRules(base: LintRules, overrides: LintRules): LintRules {
   return rules;
 }
 
-function severity(value: unknown): value is LintSeverity {
-  return typeof value === "string" && ["warn", "deny", "off"].includes(value);
-}
-
-function validateLintRules(value: unknown, location: string, partial: boolean) {
-  record(value, location);
-  keys(value, Object.keys(lintRules), location);
-  for (const [name, setting] of Object.entries(value)) {
-    if (setting === undefined) {
-      continue;
-    }
-
-    const rule = lintRules[name as LintRule];
-    const entry = `${location}.${name}`;
-    if (
-      name === "no-restricted-theme-tokens" &&
-      !partial &&
-      (typeof setting === "string" ? setting : object(setting) ? setting.severity : undefined) !==
-        "off"
-    ) {
-      requireValue(
-        object(setting) && Array.isArray(setting.tokens) && setting.tokens.length > 0,
-        `${entry}.tokens`,
-        "must contain custom-property patterns when the rule is active",
-      );
-    }
-    if (typeof setting === "string") {
-      requireValue(severity(setting), entry, "must be warn, deny, or off");
-      continue;
-    }
-
-    requireValue(rule.options !== null, entry, "must be warn, deny, or off");
-    record(setting, entry);
-    keys(setting, rule.options, entry);
-    for (const [field, option] of Object.entries(setting)) {
-      if (option === undefined) {
-        continue;
-      }
-
-      const path = `${entry}.${field}`;
-      if (field === "severity") {
-        requireValue(severity(option), path, "must be warn, deny, or off");
-      } else if (field === "pxToRem" || field === "allowShorthandOverrides") {
-        requireValue(typeof option === "boolean", path, "must be boolean");
-      } else if (field === "rootFontSize") {
-        requireValue(
-          typeof option === "number" && Number.isFinite(option) && option > 0,
-          path,
-          "must be positive and finite",
-        );
-      } else if (field === "properties" || field === "tokens") {
-        stringArray(option, path);
-        for (const pattern of option) {
-          requireValue(
-            !/\s/.test(pattern) &&
-              (field !== "tokens" || (pattern.startsWith("--") && pattern.length > 2)),
-            path,
-            "must contain valid complete globs",
-          );
-        }
-      } else {
-        requireValue(Array.isArray(option), path, "must be an array");
-        for (const [index, restriction] of option.entries()) {
-          const item = `${path}[${index}]`;
-          record(restriction, item);
-          if (field === "utilities") {
-            keys(restriction, ["pattern", "message"], item);
-            requireValue(
-              text(restriction.pattern) && !/\s/.test(restriction.pattern),
-              `${item}.pattern`,
-              "must be a nonempty utility glob without whitespace",
-            );
-          } else {
-            const units = name === "length-units";
-            keys(
-              restriction,
-              units ? ["properties", "disallow"] : ["properties", "values", "message"],
-              item,
-            );
-            stringArray(restriction.properties, `${item}.properties`, true);
-            for (const property of restriction.properties) {
-              requireValue(
-                !/\s/.test(property),
-                `${item}.properties`,
-                "must contain complete property globs without whitespace",
-              );
-            }
-            if (units) {
-              stringArray(restriction.disallow, `${item}.disallow`);
-              for (const unit of restriction.disallow) {
-                requireValue(
-                  lengthUnits.some((name) => name === unit.toLowerCase()),
-                  `${item}.disallow`,
-                  "must contain CSS length unit names",
-                );
-              }
-            } else {
-              stringArray(restriction.values, `${item}.values`, true);
-            }
-          }
-          if (restriction.message !== undefined) {
-            requireValue(
-              typeof restriction.message === "string",
-              `${item}.message`,
-              "must be a string",
-            );
-          }
-        }
-      }
-    }
-  }
+function validateResolvedRules(value: ResolvedLintRules, location: string) {
+  validate(lintRulesSchema, value, location);
+  validate(
+    v.pipe(
+      ruleOptions["no-restricted-theme-tokens"],
+      v.forward(
+        v.check(
+          (setting) => setting.severity === "off" || Boolean(setting.tokens?.length),
+          "must contain custom-property patterns when the rule is active",
+        ),
+        ["tokens"],
+      ),
+    ),
+    value["no-restricted-theme-tokens"],
+    `${location}.no-restricted-theme-tokens`,
+  );
 }

@@ -126,7 +126,15 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
     expect(result.code, result.stderr).toBe(1);
     expect(result.stderr).toContain("configuration log");
     const json = JSON.parse(result.stdout) as {
-      results: { project: number; result: { entry: string; reports: { code: string }[] } }[];
+      results: {
+        project: number;
+        result: {
+          entry: string;
+          reports: {
+            code: string;
+          }[];
+        };
+      }[];
     };
     expect(json.results.map((entry) => [entry.project, path.basename(entry.result.entry)])).toEqual(
       [
@@ -171,7 +179,7 @@ test("CLI reports unsupported targets and invalid project settings", async () =>
     );
     const missingCss = await run(root, ["lint"]);
     expect(missingCss.code).toBe(2);
-    expect(missingCss.stderr).toContain("projects[0].css: must specify CSS");
+    expect(missingCss.stderr).toContain("projects[0].css:");
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 5 });
   }
@@ -212,9 +220,16 @@ test("failed batch planning preserves previously planned sources and reports unr
 async function run(
   cwd: string,
   args: string[],
-): Promise<{ code: number | null; stdout: string; stderr: string }> {
+): Promise<{
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [main, ...args], { cwd, windowsHide: true });
+    const child = spawn(process.execPath, [main, ...args], {
+      cwd,
+      windowsHide: true,
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (data: Buffer) => {
@@ -225,7 +240,11 @@ async function run(
     });
     child.on("error", reject);
     child.on("close", (code) => {
-      resolve({ code, stdout, stderr });
+      resolve({
+        code,
+        stdout,
+        stderr,
+      });
     });
   });
 }

@@ -44,4 +44,5 @@ export {
   type RestrictedUtilitiesOptions,
 } from "./lint.ts";
 export { mergeConfig } from "./merge.ts";
+export { configurationFiles } from "./resolution.ts";
 export type { InlineConfig, SerializableInlineConfig } from "./resolution.ts";

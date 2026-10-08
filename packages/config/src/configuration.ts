@@ -1,14 +1,22 @@
 /** Configuration exports and analysis projects, validated before paths or providers are evaluated. */
 
 import type { PreparedSource, ProjectInput } from "@stillwind/projection";
+import * as v from "valibot";
 
 import {
-  compilerKeys,
+  compilerEntries,
   validateCompilerConfig,
   type BaseConfig,
   type BuildOptions,
 } from "./compiler.ts";
-import { keys, record, requireValue, stringArray, text } from "./validation.ts";
+import {
+  nonemptyStringList,
+  nonemptyStrings,
+  nonemptyText,
+  object,
+  strictObject,
+  validate,
+} from "./validation.ts";
 
 /** One project's compiler settings, analysis scope, and source preparation operations. */
 export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
@@ -139,108 +147,109 @@ export async function resolveConfig(value: unknown): Promise<StillwindConfig> {
   return validateConfig(typeof config === "function" ? await config() : config);
 }
 
+const projectSchema = strictObject({
+  ...compilerEntries,
+  css: v.nonOptional(compilerEntries.css, "must specify CSS as a nonempty path"),
+  automatic: v.optional(v.boolean()),
+  name: v.optional(nonemptyText),
+  files: nonemptyStringList,
+  exclude: v.optional(nonemptyStrings),
+  typeFacts: v.optional(v.literal(false)),
+  sources: v.optional(
+    v.pipe(
+      v.custom<Record<string, unknown>>(object, "must be an object"),
+      v.variant("kind", [
+        v.strictObject({
+          kind: v.literal("filesystem"),
+        }),
+        v.strictObject({
+          kind: v.literal("custom"),
+          supports: v.function(),
+          load: v.function(),
+          resolve: v.optional(v.function()),
+        }),
+      ]),
+    ),
+  ),
+  projection: v.optional(
+    v.pipe(
+      v.custom<Record<string, unknown>>(object, "must be an object"),
+      v.variant("kind", [
+        v.strictObject({
+          kind: v.literal("framework"),
+        }),
+        v.strictObject({
+          kind: v.literal("custom"),
+          prepare: v.function(),
+        }),
+      ]),
+    ),
+  ),
+});
+
+const configurationSchema = v.pipe(
+  strictObject({
+    projects: v.pipe(v.array(projectSchema), v.minLength(1, "must be a nonempty projects array")),
+  }),
+  v.rawCheck(({ dataset, addIssue }) => {
+    if (!dataset.typed) {
+      return;
+    }
+    const names = new Set<string>();
+    for (const [index, project] of dataset.value.projects.entries()) {
+      if (project.name === undefined) {
+        continue;
+      }
+      if (names.has(project.name)) {
+        addIssue({
+          message: `Duplicate Stillwind project name: ${project.name}`,
+          path: [
+            {
+              type: "object",
+              origin: "value",
+              input: dataset.value,
+              key: "projects",
+              value: dataset.value.projects,
+            },
+            {
+              type: "array",
+              origin: "value",
+              input: dataset.value.projects,
+              key: index,
+              value: project,
+            },
+            {
+              type: "object",
+              origin: "value",
+              input: project,
+              key: "name",
+              value: project.name,
+            },
+          ],
+        });
+      }
+      names.add(project.name);
+    }
+  }),
+);
+
 /** Validates an evaluated configuration without calling providers or resolving paths. Throws with the invalid field's path. */
 export function validateConfig(value: unknown): StillwindConfig {
-  record(value, "config");
-  keys(value, ["projects"], "config");
-  nonemptyArray(value.projects, "projects");
-  const names = new Set<string>();
-  for (const [index, project] of value.projects.entries()) {
-    const location = `projects[${index}]`;
-    record(project, location);
-    keys(
-      project,
-      [
-        ...compilerKeys,
-        "automatic",
-        "name",
-        "files",
-        "exclude",
-        "sources",
-        "projection",
-        "typeFacts",
-      ],
-      location,
-    );
-    const { automatic, name, files, exclude, sources, projection, typeFacts, ...compiler } =
-      project;
-    validateCompilerConfig(compiler, location);
-    requireValue(text(project.css), `${location}.css`, "must specify CSS as a nonempty path");
-    stringArray(files, `${location}.files`, true);
-    if (exclude !== undefined) {
-      stringArray(exclude, `${location}.exclude`);
-    }
-    if (automatic !== undefined) {
-      requireValue(typeof automatic === "boolean", `${location}.automatic`, "must be boolean");
-    }
-    if (name !== undefined) {
-      requireValue(text(name), `${location}.name`, "must be a nonempty name");
-      requireValue(
-        !names.has(name),
-        `${location}.name`,
-        `Duplicate Stillwind project name: ${name}`,
-      );
-      names.add(name);
-    }
-    if (typeFacts !== undefined) {
-      requireValue(typeFacts === false, `${location}.typeFacts`, "must be false");
-    }
-    if (sources !== undefined) {
-      record(sources, `${location}.sources`);
-      if (sources.kind === "filesystem") {
-        keys(sources, ["kind"], `${location}.sources`);
-      } else {
-        requireValue(
-          sources.kind === "custom",
-          `${location}.sources.kind`,
-          "must be filesystem or custom",
-        );
-        keys(sources, ["kind", "supports", "load", "resolve"], `${location}.sources`);
-        requireValue(
-          typeof sources.supports === "function",
-          `${location}.sources.supports`,
-          "must be a function",
-        );
-        requireValue(
-          typeof sources.load === "function",
-          `${location}.sources.load`,
-          "must be a function",
-        );
-        if (sources.resolve !== undefined) {
-          requireValue(
-            typeof sources.resolve === "function",
-            `${location}.sources.resolve`,
-            "must be a function",
-          );
-        }
-      }
-    }
-    if (projection !== undefined) {
-      record(projection, `${location}.projection`);
-      if (projection.kind === "framework") {
-        keys(projection, ["kind"], `${location}.projection`);
-      } else {
-        requireValue(
-          projection.kind === "custom",
-          `${location}.projection.kind`,
-          "must be framework or custom",
-        );
-        keys(projection, ["kind", "prepare"], `${location}.projection`);
-        requireValue(
-          typeof projection.prepare === "function",
-          `${location}.projection.prepare`,
-          "must be a function",
-        );
-      }
-    }
-  }
-  return value as unknown as StillwindConfig;
-}
+  validate(configurationSchema, value, "config");
 
-function nonemptyArray(value: unknown, location: string): asserts value is unknown[] {
-  requireValue(
-    Array.isArray(value) && value.length > 0,
-    location,
-    "must be a nonempty projects array",
-  );
+  for (const [index, project] of value.projects.entries()) {
+    const {
+      automatic: _automatic,
+      name: _name,
+      files: _files,
+      exclude: _exclude,
+      sources: _sources,
+      projection: _projection,
+      typeFacts: _typeFacts,
+      ...compiler
+    } = project;
+    validateCompilerConfig(compiler, `projects[${index}]`);
+  }
+
+  return value as StillwindConfig;
 }

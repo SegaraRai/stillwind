@@ -32,7 +32,7 @@ const MARKER = '"__STILLWIND_ASTRO_STYLES_574f6dfce7c69466ab9516fb7fc6199a__"';
  * inserts links from the stylesheet manifest.
  *
  * @param config - File discovery, project selection, compiler overrides, and Vite CSS emission.
- * Omission discovers stillwind.config.ts from Astro's application root when Vite is configured.
+ * Omission discovers stillwind.config.* from Astro's application root when Vite is configured.
  * @returns An Astro integration that installs Stillwind Vite plugins, middleware, and document
  * stylesheet modules.
  */

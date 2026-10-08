@@ -78,7 +78,7 @@ export function resolveRewriteConfig(options: RewriteOptions): string {
   const cwd = options.cwd ?? process.cwd();
   const config = options.config ? path.resolve(cwd, options.config) : findConfiguration(cwd);
   if (!config) {
-    throw new Error(`Cannot find stillwind.config.ts above ${cwd}`);
+    throw new Error(`Cannot find Stillwind configuration above ${cwd}`);
   }
   return config;
 }

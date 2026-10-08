@@ -236,7 +236,7 @@ export interface ViteProject {
  * project when its build or server lifetime ends.
  *
  * @param supplied - Configuration discovery, compiler overrides, and production CSS emission mode.
- * Omission reads stillwind.config.ts when configure runs.
+ * Omission reads stillwind.config.* when configure runs.
  * @param applicationRoot - Called during each configuration evaluation. Its directory overrides
  * Vite's root as the base for discovery and inline paths. Undefined uses Vite's root.
  * @returns An unconfigured project whose environments are created lazily.

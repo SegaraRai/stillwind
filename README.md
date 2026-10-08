@@ -122,6 +122,9 @@ export default defineConfig({
 });
 ```
 
+Configuration discovery also supports `stillwind.config.mts`, `.cts`, `.js`, `.mjs`, `.cjs`, and `.json`.
+Within each directory, `.ts` takes precedence, followed by those extensions in that order.
+
 The Vite integration reads this configuration with `stillwind()`. Other integrations
 keep their plugin or wrapper APIs and use the same configuration discovery. Use `configFile`
 to select another path, or override individual settings inline. Set `configFile: false`

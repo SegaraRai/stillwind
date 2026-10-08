@@ -6,7 +6,7 @@ import type { TurbopackLoaderOptions } from "./project.ts";
 
 /**
  * Serializable inline settings and entry selection for standalone Turbopack rules.
- * Naming callbacks can be supplied by stillwind.config.ts, which each loader evaluates.
+ * Naming callbacks can be supplied by stillwind.config.*, which each loader evaluates.
  */
 export interface IntegrationConfig extends SerializableInlineConfig {
   /**

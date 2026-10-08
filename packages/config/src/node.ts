@@ -54,7 +54,7 @@ export interface ResolvedIntegrationConfig {
 }
 
 /**
- * Finds the nearest stillwind.config.ts at or above an application directory.
+ * Finds the nearest supported stillwind.config.* file at or above an application directory.
  *
  * @param directory - Directory to start from. Relative paths use the process working directory.
  * @returns The first existing candidate's absolute path, or undefined if none exists.
@@ -68,7 +68,7 @@ export function findConfiguration(directory: string): string | undefined {
  * Local sources are read again on each call. External packages use runtime module loading.
  * Configuration runs as trusted Node code and can perform side effects.
  *
- * @param file - JS/TS configuration path. Relative paths use the process working directory.
+ * @param file - JS, TS, or JSON configuration path. Relative paths use the process working directory.
  * @returns Evaluated settings and the file paths observed while resolving and bundling imports.
  * Runtime file reads and imports that cannot be statically resolved are not added to dependencies.
  * @throws If bundling, module evaluation, factory execution, or configuration validation fails.

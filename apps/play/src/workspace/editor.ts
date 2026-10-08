@@ -1,32 +1,33 @@
-import { initialize, getService, IExtensionService } from "@codingame/monaco-vscode-api";
+import { getService, IExtensionService, initialize } from "@codingame/monaco-vscode-api";
 import { registerAssets } from "@codingame/monaco-vscode-api/assets";
 import { ExtensionHostKind, registerExtension } from "@codingame/monaco-vscode-api/extensions";
 import { createModelReference, writeFile } from "@codingame/monaco-vscode-api/monaco";
 import { URI } from "@codingame/monaco-vscode-api/vscode/vs/base/common/uri";
+import "@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/format/browser/formatActionsMultiple";
 import EditorWorker from "@codingame/monaco-vscode-api/workers/editor.worker?worker";
 import getConfiguration, {
   initUserConfiguration,
 } from "@codingame/monaco-vscode-configuration-service-override";
+import "@codingame/monaco-vscode-css-default-extension";
 import * as monaco from "@codingame/monaco-vscode-editor-api";
 import "@codingame/monaco-vscode-editor-api/esm/vs/editor/contrib/format/browser/formatActions";
-import "@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/format/browser/formatActionsMultiple";
 import getEditor from "@codingame/monaco-vscode-editor-service-override";
+import "@codingame/monaco-vscode-extension-api/localExtensionHost";
 import getExtensions from "@codingame/monaco-vscode-extensions-service-override";
 import getFiles, { initFile } from "@codingame/monaco-vscode-files-service-override";
+import "@codingame/monaco-vscode-javascript-default-extension";
+import "@codingame/monaco-vscode-json-default-extension";
 import getKeybindings from "@codingame/monaco-vscode-keybindings-service-override";
 import getLanguages from "@codingame/monaco-vscode-languages-service-override";
 import getModels from "@codingame/monaco-vscode-model-service-override";
 import getNotifications from "@codingame/monaco-vscode-notifications-service-override";
 import getTextmate from "@codingame/monaco-vscode-textmate-service-override";
 import TextmateWorker from "@codingame/monaco-vscode-textmate-service-override/worker?worker";
-import "@codingame/monaco-vscode-extension-api/localExtensionHost";
-import "@codingame/monaco-vscode-typescript-basics-default-extension";
-import "@codingame/monaco-vscode-javascript-default-extension";
-import "@codingame/monaco-vscode-typescript-language-features-default-extension";
 import "@codingame/monaco-vscode-theme-defaults-default-extension";
-import "@codingame/monaco-vscode-css-default-extension";
-import "@codingame/monaco-vscode-json-default-extension";
 import getTheme from "@codingame/monaco-vscode-theme-service-override";
+import "@codingame/monaco-vscode-typescript-basics-default-extension";
+import "@codingame/monaco-vscode-typescript-language-features-default-extension";
+import { configurationFiles } from "@stillwind/config";
 import type * as vscode from "vscode";
 
 import { exampleFiles } from "./example.ts";
@@ -262,7 +263,10 @@ export class PlaygroundWorkspace {
    * @throws If the path is invalid or already exists.
    */
   async add(name: string): Promise<void> {
-    if (!/^[\w./-]+\.(?:tsx?|jsx?|css|json)$/.test(name) || name.split("/").includes("..")) {
+    if (
+      !/^[\w./-]+\.(?:[cm]?[jt]s|tsx|jsx|css|json)$/.test(name) ||
+      name.split("/").includes("..")
+    ) {
       throw new Error("Use a relative JS, TS, TSX, CSS, or JSON filename inside the workspace");
     }
     const file = `/workspace/${name.replace(/^\/+/, "")}`;
@@ -285,7 +289,9 @@ export class PlaygroundWorkspace {
     for (const [file, reference] of this.#references) {
       if (
         reference.object.isDirty() &&
-        (file.endsWith(".css") || file.endsWith(".json") || file.endsWith("stillwind.config.ts"))
+        (file.endsWith(".css") ||
+          file.endsWith(".json") ||
+          configurationFiles.some((name) => file.endsWith(`/${name}`)))
       ) {
         await reference.object.save();
         reload = true;

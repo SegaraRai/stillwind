@@ -2,6 +2,13 @@ import { expect, test } from "vite-plus/test";
 
 import { normalizeCompilerConfig, validateCompilerConfig } from "./compiler.ts";
 
+test.each([null, [], { sort: [] }, { naming: [] }])(
+  "compiler options require objects: %j",
+  (value) => {
+    expect(() => validateCompilerConfig(value)).toThrow("must be an object");
+  },
+);
+
 test("compiler normalization applies defaults and retains lint options", () => {
   expect(
     normalizeCompilerConfig({

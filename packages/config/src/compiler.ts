@@ -1,6 +1,7 @@
 /** Compiler settings, validation, and default normalization for build and analysis hosts. */
 
 import type { NativeIdentifierNaming } from "@stillwind/native";
+import * as v from "valibot";
 
 import {
   resolveLintConfig,
@@ -8,7 +9,7 @@ import {
   type LintConfig,
   type ResolvedLintRules,
 } from "./lint.ts";
-import { keys, record, requireValue, text } from "./validation.ts";
+import { nonemptyText, strictObject, validate } from "./validation.ts";
 
 /** Controls input grouping and independent utility and attribute ordering. */
 export type UtilitySortOptions = {
@@ -90,98 +91,70 @@ export interface BaseConfig {
 /** Compiler and document CSS delivery settings shared by build adapters. */
 export interface BuildConfig extends BaseConfig, BuildOptions {}
 
+const cssPath = v.pipe(
+  v.string("must specify CSS as a nonempty path"),
+  v.check((value) => Boolean(value.trim()), "must specify CSS as a nonempty path"),
+);
+
+const namespace = v.pipe(
+  v.string(),
+  v.regex(/^--\S+-$/, "must start with --, end with -, and contain no whitespace"),
+);
+
+export const compilerEntries = {
+  root: v.optional(v.string()),
+  css: v.optional(cssPath),
+  tsconfig: v.optional(v.union([nonemptyText, v.literal(false)])),
+  prefix: v.optional(namespace),
+  tailwindPrefix: v.optional(namespace),
+  classNamespace: v.optional(v.string()),
+  utilityOrder: v.optional(v.picklist(["authored", "tailwind"])),
+  useCssIf: v.optional(v.boolean()),
+  namingRevision: v.optional(v.string()),
+  hashLength: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50))),
+  sort: v.optional(
+    strictObject({
+      stringLiterals: v.optional(v.boolean()),
+      arrays: v.optional(v.boolean()),
+      attributes: v.optional(v.boolean()),
+    }),
+  ),
+  naming: v.optional(
+    strictObject({
+      utilityClass: v.optional(v.function()),
+      refMarker: v.optional(v.function()),
+      anchorName: v.optional(v.function()),
+      containerName: v.optional(v.function()),
+      keyframesName: v.optional(v.function()),
+      viewTransitionClass: v.optional(v.function()),
+      viewTransitionSlot: v.optional(v.function()),
+      conditionHelper: v.optional(v.function()),
+      layerName: v.optional(v.function()),
+    }),
+  ),
+  lint: v.optional(v.unknown()),
+};
+
+const compilerSchema = strictObject(compilerEntries);
+
+const distinctNamespaces = (partial: boolean) =>
+  v.forward(
+    v.check(
+      (value: v.InferOutput<typeof compilerSchema>) =>
+        (partial && (value.prefix === undefined || value.tailwindPrefix === undefined)) ||
+        (value.prefix ?? "--sw-") !== (value.tailwindPrefix ?? "--tw-"),
+      "must differ from prefix",
+    ),
+    ["tailwindPrefix"],
+  );
+
 /** Validates compiler settings independently of analysis scope. CSS is optional here. Partial overrides defer namespace collisions until merging. Throws with the invalid field's path. */
 export function validateCompilerConfig(
   value: unknown,
   location = "config",
   partial = false,
 ): asserts value is BaseConfig {
-  record(value, location);
-  keys(value, compilerKeys, location);
-
-  for (const key of [
-    "root",
-    "css",
-    "prefix",
-    "tailwindPrefix",
-    "classNamespace",
-    "namingRevision",
-  ]) {
-    if (value[key] !== undefined) {
-      requireValue(typeof value[key] === "string", `${location}.${key}`, "must be a string");
-    }
-  }
-  if (value.css !== undefined) {
-    requireValue(text(value.css), `${location}.css`, "must specify CSS as a nonempty path");
-  }
-  if (value.tsconfig !== undefined) {
-    requireValue(
-      value.tsconfig === false || text(value.tsconfig),
-      `${location}.tsconfig`,
-      "must be a nonempty path or false",
-    );
-  }
-  if (value.useCssIf !== undefined) {
-    requireValue(typeof value.useCssIf === "boolean", `${location}.useCssIf`, "must be boolean");
-  }
-  if (value.utilityOrder !== undefined) {
-    requireValue(
-      value.utilityOrder === "authored" || value.utilityOrder === "tailwind",
-      `${location}.utilityOrder`,
-      "must be authored or tailwind",
-    );
-  }
-  if (value.hashLength !== undefined) {
-    requireValue(
-      typeof value.hashLength === "number" &&
-        Number.isInteger(value.hashLength) &&
-        value.hashLength >= 1 &&
-        value.hashLength <= 50,
-      `${location}.hashLength`,
-      "must be an integer from 1 to 50",
-    );
-  }
-  for (const key of ["prefix", "tailwindPrefix"]) {
-    if (value[key] !== undefined) {
-      requireValue(
-        typeof value[key] === "string" &&
-          value[key].startsWith("--") &&
-          value[key].endsWith("-") &&
-          value[key].length >= 4 &&
-          !/\s/.test(value[key]),
-        `${location}.${key}`,
-        "must start with --, end with -, and contain no whitespace",
-      );
-    }
-  }
-  requireValue(
-    (partial && (value.prefix === undefined || value.tailwindPrefix === undefined)) ||
-      (value.prefix ?? "--sw-") !== (value.tailwindPrefix ?? "--tw-"),
-    `${location}.tailwindPrefix`,
-    "must differ from prefix",
-  );
-  if (value.sort !== undefined) {
-    record(value.sort, `${location}.sort`);
-    keys(value.sort, ["stringLiterals", "arrays", "attributes"], `${location}.sort`);
-    for (const [key, setting] of Object.entries(value.sort)) {
-      if (setting !== undefined) {
-        requireValue(typeof setting === "boolean", `${location}.sort.${key}`, "must be boolean");
-      }
-    }
-  }
-  if (value.naming !== undefined) {
-    record(value.naming, `${location}.naming`);
-    keys(value.naming, namingKeys, `${location}.naming`);
-    for (const [key, setting] of Object.entries(value.naming)) {
-      if (setting !== undefined) {
-        requireValue(
-          typeof setting === "function",
-          `${location}.naming.${key}`,
-          "must be a function",
-        );
-      }
-    }
-  }
+  validate(v.pipe(compilerSchema, distinctNamespaces(partial)), value, location);
   if (value.lint !== undefined) {
     validateLintConfig(value.lint, `${location}.lint`, partial);
   }
@@ -206,10 +179,12 @@ export function normalizeCompilerConfig(
   config: BaseConfig & BuildOptions,
 ): NormalizedCompilerConfig {
   const { automatic } = config;
+
   const compiler = Object.fromEntries(compilerKeys.map((key) => [key, config[key]]));
   validateCompilerConfig(compiler);
+
   if (automatic !== undefined) {
-    requireValue(typeof automatic === "boolean", "config.automatic", "must be boolean");
+    validate(v.boolean(), automatic, "config.automatic");
   }
 
   const lint = resolveLintConfig(config.lint);
@@ -233,30 +208,4 @@ export function normalizeCompilerConfig(
   };
 }
 
-export const compilerKeys = [
-  "lint",
-  "sort",
-  "root",
-  "tsconfig",
-  "css",
-  "prefix",
-  "tailwindPrefix",
-  "classNamespace",
-  "utilityOrder",
-  "useCssIf",
-  "naming",
-  "namingRevision",
-  "hashLength",
-] as const;
-
-const namingKeys = [
-  "utilityClass",
-  "refMarker",
-  "anchorName",
-  "containerName",
-  "keyframesName",
-  "viewTransitionClass",
-  "viewTransitionSlot",
-  "conditionHelper",
-  "layerName",
-];
+export const compilerKeys = Object.keys(compilerEntries) as (keyof BaseConfig)[];

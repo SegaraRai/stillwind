@@ -36,7 +36,7 @@ export async function openNodeWorkspaces(
         : [pathToFileURL(process.cwd()).href]
       ).map((uri) => (uri.startsWith("file:") ? findConfiguration(fileURLToPath(uri)) : undefined));
   if (paths.some((file) => !file) || !paths.length) {
-    errors.set("configuration", "Cannot find stillwind.config.ts for the workspace");
+    errors.set("configuration", "Cannot find Stillwind configuration for the workspace");
   }
 
   for (const file of new Set(paths.filter((file): file is string => Boolean(file)))) {

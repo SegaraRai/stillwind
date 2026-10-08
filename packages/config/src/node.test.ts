@@ -23,6 +23,66 @@ async function fixture() {
   };
 }
 
+test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
+  "%s configuration is discovered, evaluated, and reloaded with its imports",
+  async (extension) => {
+    const { root } = await fixture();
+    const configFile = path.join(root, `stillwind.config.${extension}`);
+    const settings = (css: string) => ({
+      projects: [
+        {
+          css,
+          files: ["*.tsx"],
+        },
+      ],
+    });
+    const helper = path.join(root, "settings.json");
+    await writeFile(helper, JSON.stringify(settings("first.css")));
+    await writeFile(
+      configFile,
+      extension === "json"
+        ? JSON.stringify(settings("first.css"))
+        : extension === "cts" || extension === "cjs"
+          ? 'const settings = require("./settings.json"); module.exports = async () => settings;'
+          : 'import settings from "./settings.json"; export default async () => settings;',
+    );
+    const app = path.join(root, "app");
+    await mkdir(app);
+    expect(findConfiguration(app)).toBe(configFile);
+    const first = await resolveIntegrationConfig({}, app);
+    expect(first.configFile).toBe(configFile);
+    expect(first.config.css).toBe(path.join(root, "first.css"));
+    expect(first.dependencies).toContain(configFile);
+    if (extension === "json") {
+      await writeFile(configFile, JSON.stringify(settings("second.css")));
+    } else {
+      expect(first.dependencies).toContain(helper);
+      await writeFile(helper, JSON.stringify(settings("second.css")));
+    }
+    expect((await loadConfiguration(configFile)).config.projects[0].css).toBe("second.css");
+  },
+);
+
+test("discovery prefers the nearest directory and tracks candidates before its selected extension", async () => {
+  const { root, configFile, write } = await fixture();
+  await write([
+    {
+      css: "parent.css",
+      files: ["*.tsx"],
+    },
+  ]);
+  const app = path.join(root, "app");
+  await mkdir(app);
+  const local = path.join(app, "stillwind.config.mts");
+  await writeFile(local, 'export default { projects: [{ css: "local.css", files: ["*.tsx"] }] };');
+  const resolved = await resolveIntegrationConfig({}, app);
+  expect(resolved.configFile).toBe(local);
+  expect(resolved.missing).toEqual([path.join(app, "stillwind.config.ts")]);
+  expect(resolved.dependencies).not.toContain(configFile);
+  await writeFile(path.join(app, "stillwind.config.ts"), "export default { projects: [] };");
+  await expect(resolveIntegrationConfig({}, app)).rejects.toThrow("nonempty projects array");
+});
+
 test("Node and browser compose imported presets and keep project defaults through inline overrides", async () => {
   const { root, configFile, write } = await fixture();
   const presetFile = path.join(root, "policy.ts");

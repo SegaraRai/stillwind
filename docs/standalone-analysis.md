@@ -54,7 +54,11 @@ global declarations read by the checker. Target enumeration always excludes
 `node_modules` and `.git`. Matching projects run independently, including overlapping
 scopes. Results identify the configuration path and the project array index.
 
-Build integrations discover the nearest `stillwind.config.ts` from the application root.
+Build integrations discover the nearest `stillwind.config.*` from the application root.
+Each directory is checked in this order: `ts`, `mts`, `cts`, `js`, `mjs`, `cjs`, and `json`.
+A configuration in a nearer directory takes precedence over all files in its parents.
+JavaScript and TypeScript files export settings, a promise, or a factory. JSON files
+contain the settings object directly.
 For Vite, use `stillwind()` without duplicating compiler settings:
 
 ```ts

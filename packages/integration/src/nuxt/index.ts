@@ -12,7 +12,7 @@ export type { IntegrationConfig } from "../vite/index.ts";
  * Adds the Vite compiler and development SSR stylesheet transport to a Nuxt application.
  *
  * @param config - File discovery, project selection, inline compiler overrides, and CSS emission.
- * Omission reads stillwind.config.ts relative to Nuxt's application root during Vite configuration.
+ * Omission reads stillwind.config.* relative to Nuxt's application root during Vite configuration.
  * @returns A Nuxt module that registers the Vite plugins and client stylesheet handling.
  */
 export function stillwind(config: IntegrationConfig = {}): NuxtModule {

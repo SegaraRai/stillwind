@@ -1,3 +1,5 @@
+import { configurationFiles } from "@stillwind/config";
+
 /** Manifest shared by Marketplace packaging and browser embeddings. */
 export const extensionManifest = {
   name: "stillwind",
@@ -17,7 +19,7 @@ export const extensionManifest = {
     "onLanguage:javascriptreact",
     "onLanguage:typescript",
     "onLanguage:typescriptreact",
-    "workspaceContains:stillwind.config.ts",
+    ...configurationFiles.map((file) => `workspaceContains:${file}`),
   ],
   capabilities: {
     virtualWorkspaces: true,
@@ -64,7 +66,7 @@ export const extensionManifest = {
           type: "string",
           default: "",
           description:
-            "Configuration path relative to the workspace root. Empty discovers stillwind.config.ts.",
+            "Configuration path relative to the workspace root. Empty discovers stillwind.config.* (ts, mts, cts, js, mjs, cjs, or json).",
         },
       },
     },

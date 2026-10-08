@@ -1,7 +1,30 @@
 import { expect, test } from "vite-plus/test";
 
 import { loadBrowserConfig, resolveBrowserConfig } from "./browser.ts";
-import { defineConfig } from "./index.ts";
+import { defineConfig } from "./configuration.ts";
+
+test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
+  "browser discovery passes the nearest %s configuration to its evaluator",
+  async (extension) => {
+    const file = `/workspace/app/stillwind.config.${extension}`;
+    const loaded = await loadBrowserConfig("/workspace/app/src", {
+      exists: (id) => id === file || id === "/workspace/stillwind.config.ts",
+      evaluate: async (id) => {
+        expect(id).toBe(file);
+        return {
+          projects: [
+            {
+              css: "theme.css",
+              files: ["*.tsx"],
+            },
+          ],
+        };
+      },
+    });
+    expect(loaded?.configFile).toBe(file);
+    expect(loaded?.projects[0].css).toBe("/workspace/app/theme.css");
+  },
+);
 
 test("browser discovery evaluates async factories and merges selected project overrides", async () => {
   const host = {

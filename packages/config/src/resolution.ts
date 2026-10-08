@@ -1,4 +1,7 @@
+import * as v from "valibot";
+
 import {
+  compilerEntries,
   normalizeCompilerConfig,
   validateCompilerConfig,
   type BaseConfig,
@@ -9,6 +12,7 @@ import {
 import type { AnalysisProjectConfig } from "./configuration.ts";
 import { mergeLintConfig } from "./lint.ts";
 import { mergeConfig } from "./merge.ts";
+import { nonemptyText, strictObject, validate } from "./validation.ts";
 
 /** Inline options that can pass through isolated loader workers. */
 export type SerializableInlineConfig = Omit<InlineConfig, "naming">;
@@ -17,7 +21,7 @@ export type SerializableInlineConfig = Omit<InlineConfig, "naming">;
 export interface InlineConfig extends BuildConfig {
   /**
    * Configuration file path, absolute or relative to the application root. An explicit path must
-   * exist. Omission searches upward for stillwind.config.ts. False disables file loading.
+   * exist. Omission searches upward for stillwind.config.*. False disables file loading.
    */
   configFile?: string | false;
   /**
@@ -35,12 +39,17 @@ export interface ConfigPaths {
   isAbsolute(path: string): boolean;
 }
 
+/** Filenames in precedence order within each searched directory. */
+export const configurationFiles = ["ts", "mts", "cts", "js", "mjs", "cjs", "json"].map(
+  (extension) => `stillwind.config.${extension}`,
+);
+
 /** Returns nearest-first configuration candidates up to the filesystem or virtual root. */
 export function configurationCandidates(directory: string, paths: ConfigPaths): string[] {
   const candidates: string[] = [];
   let current = paths.resolve(directory);
   for (;;) {
-    candidates.push(paths.resolve(current, "stillwind.config.ts"));
+    candidates.push(...configurationFiles.map((file) => paths.resolve(current, file)));
     const parent = paths.dirname(current);
     if (parent === current) {
       return candidates;
@@ -82,23 +91,18 @@ export function compilerConfig(project: AnalysisProjectConfig): BaseConfig & Bui
   return config;
 }
 
+const inlineSchema = strictObject({
+  ...compilerEntries,
+  configFile: v.optional(v.union([nonemptyText, v.literal(false)])),
+  project: v.optional(nonemptyText),
+  automatic: v.optional(v.boolean()),
+});
+
 /** Validates inline selectors and compiler overrides before selection or path resolution. */
 export function validateInlineConfig(inline: InlineConfig): void {
-  const { configFile, project, automatic, ...compiler } = inline;
-  if (
-    configFile !== undefined &&
-    configFile !== false &&
-    (typeof configFile !== "string" || !configFile.trim())
-  ) {
-    throw new Error("Stillwind configFile must be a path or false");
-  }
-  if (project !== undefined && (typeof project !== "string" || !project.trim())) {
-    throw new Error("Stillwind project must be a nonempty name");
-  }
-  if (automatic !== undefined && typeof automatic !== "boolean") {
-    throw new Error("config.automatic: must be boolean");
-  }
+  validate(inlineSchema, inline, "config");
 
+  const { configFile: _configFile, project: _project, automatic: _automatic, ...compiler } = inline;
   validateCompilerConfig(compiler, "config", true);
 }
 

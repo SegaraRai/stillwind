@@ -1,6 +1,7 @@
 # Stillwind CLI
 
-The CLI discovers `stillwind.config.ts` above the working directory. `--config path` selects an
+The CLI discovers `stillwind.config.*` above the working directory. Supported extensions are
+`ts`, `mts`, `cts`, `js`, `mjs`, `cjs`, and `json`, in that order within each directory. `--config path` selects an
 explicit configuration. Optional globs filter each project's configured files relative to its
 root; globs cannot expand that scope. Imported dependencies can be analyzed without being rewritten.
 

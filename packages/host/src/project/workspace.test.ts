@@ -23,7 +23,11 @@ export default defineConfig(${expression});`,
     );
     workspace = await AnalysisWorkspace.open(file);
     expect(workspace.projects.map((project) => project.config)).toEqual([
-      { css: "theme.css", files: ["*.tsx"], typeFacts: false },
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+        typeFacts: false,
+      },
     ]);
     expect(workspace.projects[0].analysis.host.root).toBe(root);
   } finally {
@@ -37,7 +41,7 @@ test("workspace validates the result of an asynchronous JavaScript configuration
   try {
     const file = path.join(root, "stillwind.config.js");
     await writeFile(file, "export default async () => ({ projects: [{ files: ['*.tsx'] }] });");
-    await expect(AnalysisWorkspace.open(file)).rejects.toThrow("must specify CSS");
+    await expect(AnalysisWorkspace.open(file)).rejects.toThrow("projects[0].css:");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
