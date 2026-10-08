@@ -344,21 +344,6 @@ pub struct NativeSourceDocument {
     pub source_map_source: Option<String>,
 }
 
-impl TryFrom<NativeSourceDocument> for HostSourceDocument {
-    type Error = Error;
-
-    fn try_from(value: NativeSourceDocument) -> napi::Result<Self> {
-        Ok(Self {
-            uri: SourceUri::parse(value.uri)
-                .map_err(|error| Error::from_reason(error.to_string()))?,
-            code: value.code,
-            format: value.format.into(),
-            upstream_map: value.upstream_map,
-            source_map_source: value.source_map_source,
-        })
-    }
-}
-
 /// Parser dialect and module grammar for a script buffer.
 #[napi(object, object_to_js = false)]
 pub struct NativeScriptSyntax {
@@ -389,36 +374,6 @@ pub struct NativeSourceProjection {
     pub import_realms: Vec<HostRealm>,
     /// Editable regions in the document, in UTF-16 coordinates.
     pub editable_regions: Vec<HostRegion>,
-}
-
-impl From<NativeSourceProjection> for HostSourceProjection {
-    fn from(value: NativeSourceProjection) -> Self {
-        Self {
-            code: value.code,
-            syntax: value.syntax.into(),
-            map: match value.map {
-                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 { json, source },
-                NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
-                    mappings: mappings
-                        .into_iter()
-                        .map(|mapping| VolarMapping {
-                            source_offsets: mapping.source_offsets,
-                            generated_offsets: mapping.generated_offsets,
-                            lengths: mapping.lengths,
-                            generated_lengths: mapping.generated_lengths,
-                        })
-                        .collect(),
-                },
-            },
-            converter: ConverterIdentity {
-                name: value.converter.name,
-                version: value.converter.version,
-                options_fingerprint: value.converter.options_fingerprint,
-            },
-            import_realms: value.import_realms,
-            editable_regions: value.editable_regions,
-        }
-    }
 }
 
 /// Projection map in either supported encoding.
@@ -651,6 +606,21 @@ pub struct HostSourceDocument {
     pub source_map_source: Option<String>,
 }
 
+impl TryFrom<NativeSourceDocument> for HostSourceDocument {
+    type Error = Error;
+
+    fn try_from(value: NativeSourceDocument) -> napi::Result<Self> {
+        Ok(Self {
+            uri: SourceUri::parse(value.uri)
+                .map_err(|error| Error::from_reason(error.to_string()))?,
+            code: value.code,
+            format: value.format.into(),
+            upstream_map: value.upstream_map,
+            source_map_source: value.source_map_source,
+        })
+    }
+}
+
 /// Host transport for generated parser code, mapping, and UTF-16 metadata.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -667,6 +637,36 @@ pub struct HostSourceProjection {
     pub import_realms: Vec<HostRealm>,
     /// Editable regions in the document, in UTF-16 coordinates.
     pub editable_regions: Vec<HostRegion>,
+}
+
+impl From<NativeSourceProjection> for HostSourceProjection {
+    fn from(value: NativeSourceProjection) -> Self {
+        Self {
+            code: value.code,
+            syntax: value.syntax.into(),
+            map: match value.map {
+                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 { json, source },
+                NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
+                    mappings: mappings
+                        .into_iter()
+                        .map(|mapping| VolarMapping {
+                            source_offsets: mapping.source_offsets,
+                            generated_offsets: mapping.generated_offsets,
+                            lengths: mapping.lengths,
+                            generated_lengths: mapping.generated_lengths,
+                        })
+                        .collect(),
+                },
+            },
+            converter: ConverterIdentity {
+                name: value.converter.name,
+                version: value.converter.version,
+                options_fingerprint: value.converter.options_fingerprint,
+            },
+            import_realms: value.import_realms,
+            editable_regions: value.editable_regions,
+        }
+    }
 }
 
 impl HostSourceProjection {

@@ -18,6 +18,30 @@ use stillwind_source::{ModuleId, Span, Spanned};
 
 use crate::AdapterKind;
 
+/// The reason a class expression cannot become a CSS rule expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum RuleExpressionErrorKind {
+    /// An object entry supplies an element attribute.
+    #[error("an attribute cannot be placed under a CSS variant")]
+    Attribute,
+    /// An object entry supplies an inline custom property.
+    #[error("a custom property cannot be placed under a CSS variant")]
+    CustomProperty,
+    /// A class value has no CSS rule for the variant to transform.
+    #[error("an external class cannot be placed under a CSS variant")]
+    ExternalClass,
+}
+
+/// A failed class-to-rule conversion with the first incompatible descendant's kind and span.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[error("{reason}")]
+pub struct RuleExpressionError {
+    /// Why this descendant cannot be used as a CSS rule.
+    pub reason: RuleExpressionErrorKind,
+    /// Original source range of the incompatible descendant.
+    pub span: Span,
+}
+
 /// Everything a frontend extracted from one module.
 ///
 /// A frontend builds this in one pass. Later phases may reorder [`Self::style_calls`]
@@ -753,30 +777,6 @@ pub enum RuleExpression {
         /// declarations by the compiler.
         options: Spanned<String>,
     },
-}
-
-/// The reason a class expression cannot become a CSS rule expression.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum RuleExpressionErrorKind {
-    /// An object entry supplies an element attribute.
-    #[error("an attribute cannot be placed under a CSS variant")]
-    Attribute,
-    /// An object entry supplies an inline custom property.
-    #[error("a custom property cannot be placed under a CSS variant")]
-    CustomProperty,
-    /// A class value has no CSS rule for the variant to transform.
-    #[error("an external class cannot be placed under a CSS variant")]
-    ExternalClass,
-}
-
-/// A failed class-to-rule conversion with the first incompatible descendant's kind and span.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("{reason}")]
-pub struct RuleExpressionError {
-    /// Why this descendant cannot be used as a CSS rule.
-    pub reason: RuleExpressionErrorKind,
-    /// Original source range of the incompatible descendant.
-    pub span: Span,
 }
 
 impl TryFrom<ClassExpression> for RuleExpression {

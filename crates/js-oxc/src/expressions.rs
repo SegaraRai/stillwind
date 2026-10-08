@@ -29,6 +29,27 @@ use stillwind_source::Span;
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
+/// A failed variant input conversion with the first incompatible input's kind and span.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct VariantInputError {
+    reason: VariantInputErrorKind,
+    span: Span,
+}
+
+impl From<RuleExpressionError> for VariantInputError {
+    fn from(failure: RuleExpressionError) -> Self {
+        let reason = match failure.reason {
+            RuleExpressionErrorKind::Attribute => VariantInputErrorKind::Attribute,
+            RuleExpressionErrorKind::CustomProperty => VariantInputErrorKind::CustomProperty,
+            RuleExpressionErrorKind::ExternalClass => VariantInputErrorKind::ExternalClass,
+        };
+        Self {
+            reason,
+            span: failure.span,
+        }
+    }
+}
+
 impl<'a> MacroExtractor<'a> {
     /// True when this call is a direct `style(...)` call on the imported macro.
     pub(crate) fn is_style_call(&self, call: &CallExpression<'a>) -> bool {
@@ -581,27 +602,6 @@ impl<'a> MacroExtractor<'a> {
         Some(GroupEntry::Class(Box::new(
             RuleExpression::Variant { variant, inputs }.into(),
         )))
-    }
-}
-
-/// A failed variant input conversion with the first incompatible input's kind and span.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct VariantInputError {
-    reason: VariantInputErrorKind,
-    span: Span,
-}
-
-impl From<RuleExpressionError> for VariantInputError {
-    fn from(failure: RuleExpressionError) -> Self {
-        let reason = match failure.reason {
-            RuleExpressionErrorKind::Attribute => VariantInputErrorKind::Attribute,
-            RuleExpressionErrorKind::CustomProperty => VariantInputErrorKind::CustomProperty,
-            RuleExpressionErrorKind::ExternalClass => VariantInputErrorKind::ExternalClass,
-        };
-        Self {
-            reason,
-            span: failure.span,
-        }
     }
 }
 

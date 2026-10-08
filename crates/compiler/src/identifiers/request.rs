@@ -100,6 +100,24 @@ pub struct DeclarationContext {
     pub label: Option<Label>,
 }
 
+impl DeclarationIdentity for DeclarationContext {
+    fn module(&self) -> &ModuleId {
+        &self.module
+    }
+
+    fn start(&self) -> u32 {
+        self.start
+    }
+
+    fn end(&self) -> u32 {
+        self.end
+    }
+
+    fn binding(&self) -> &str {
+        &self.binding
+    }
+}
+
 /// The context one written custom-ident is generated from.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocatorContext {
@@ -115,6 +133,24 @@ pub struct LocatorContext {
     pub label: Option<Label>,
     /// Projection the name is written for, when the writer has one.
     pub projection: Option<LocatorProjection>,
+}
+
+impl DeclarationIdentity for LocatorContext {
+    fn module(&self) -> &ModuleId {
+        &self.module
+    }
+
+    fn start(&self) -> u32 {
+        self.start
+    }
+
+    fn end(&self) -> u32 {
+        self.end
+    }
+
+    fn binding(&self) -> &str {
+        &self.binding
+    }
 }
 
 /// The ref projection that requests a generated custom identifier.
@@ -343,42 +379,6 @@ trait DeclarationIdentity {
     fn end(&self) -> u32;
     /// Binding name the declaration is assigned to.
     fn binding(&self) -> &str;
-}
-
-impl DeclarationIdentity for DeclarationContext {
-    fn module(&self) -> &ModuleId {
-        &self.module
-    }
-
-    fn start(&self) -> u32 {
-        self.start
-    }
-
-    fn end(&self) -> u32 {
-        self.end
-    }
-
-    fn binding(&self) -> &str {
-        &self.binding
-    }
-}
-
-impl DeclarationIdentity for LocatorContext {
-    fn module(&self) -> &ModuleId {
-        &self.module
-    }
-
-    fn start(&self) -> u32 {
-        self.start
-    }
-
-    fn end(&self) -> u32 {
-        self.end
-    }
-
-    fn binding(&self) -> &str {
-        &self.binding
-    }
 }
 
 /// A conditional helper request.

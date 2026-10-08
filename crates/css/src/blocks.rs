@@ -13,6 +13,33 @@
 
 use cssparser::{ParseError, Parser, Token};
 
+/// A malformed property requirement and its byte offset in the supplied CSS body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[error("invalid property requirement at byte {offset}")]
+pub struct PropertyRequirementError {
+    /// Byte offset of the directive within the supplied CSS body.
+    pub offset: usize,
+}
+
+/// Reason a byte-offset delimiter scan cannot return a closing offset.
+///
+/// The brace and delimiter scanners share it, so a caller can tell an unusable
+/// starting offset apart from input that does not close the delimiter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum ScanError {
+    /// The requested offset is past the end of the input or inside a multi-byte scalar.
+    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
+    InvalidOffset {
+        /// Requested byte offset.
+        offset: usize,
+        /// Length in bytes of the scanned input.
+        length: usize,
+    },
+    /// The delimiter is never closed, or a closer appears before its opener.
+    #[error("delimiter has no matching closer")]
+    Unclosed,
+}
+
 /// Removes complete block comments and preserves an unterminated comment tail.
 pub fn strip_css_comments(css: &str) -> String {
     let mut output = String::new();
@@ -80,14 +107,6 @@ pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, Strin
         .into_iter()
         .filter_map(|rule| rule.body.is_none().then_some((rule.start, rule.header)))
         .collect()
-}
-
-/// A malformed property requirement and its byte offset in the supplied CSS body.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("invalid property requirement at byte {offset}")]
-pub struct PropertyRequirementError {
-    /// Byte offset of the directive within the supplied CSS body.
-    pub offset: usize,
 }
 
 /// One registration requirement directive and its named properties.
@@ -332,25 +351,6 @@ fn find_block_open(value: &str) -> Option<usize> {
         offset += character.len_utf8();
     }
     None
-}
-
-/// Reason a byte-offset delimiter scan cannot return a closing offset.
-///
-/// The brace and delimiter scanners share it, so a caller can tell an unusable
-/// starting offset apart from input that does not close the delimiter.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum ScanError {
-    /// The requested offset is past the end of the input or inside a multi-byte scalar.
-    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
-    InvalidOffset {
-        /// Requested byte offset.
-        offset: usize,
-        /// Length in bytes of the scanned input.
-        length: usize,
-    },
-    /// The delimiter is never closed, or a closer appears before its opener.
-    #[error("delimiter has no matching closer")]
-    Unclosed,
 }
 
 /// Returns the offset of the `}` matching the `{` at `open`.

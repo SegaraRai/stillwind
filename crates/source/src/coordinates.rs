@@ -12,15 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{BytePos, Position, SourceFile};
 
-/// A UTF-16 code-unit offset from the start of a source.
-///
-/// Use [`CoordinateIndex`] to validate and translate this host coordinate.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Utf16Offset(
-    /// Zero-based UTF-16 code-unit count; scalar-boundary validity requires a source index.
-    pub u32,
-);
-
 /// Failure to translate between a host coordinate and a source byte offset.
 ///
 /// The variant names the rejected input: a UTF-16 offset, a line/column [`Position`],
@@ -46,6 +37,15 @@ pub enum CoordinateError {
         BytePos,
     ),
 }
+
+/// A UTF-16 code-unit offset from the start of a source.
+///
+/// Use [`CoordinateIndex`] to validate and translate this host coordinate.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Utf16Offset(
+    /// Zero-based UTF-16 code-unit count; scalar-boundary validity requires a source index.
+    pub u32,
+);
 
 /// Bidirectional scalar-boundary index between UTF-16 code units and UTF-8 bytes.
 ///

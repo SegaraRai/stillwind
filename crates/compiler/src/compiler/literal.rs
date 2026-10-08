@@ -40,19 +40,6 @@ pub(super) struct LiteralContribution {
     pub(super) view_transitions: Vec<TransitionContribution>,
 }
 
-/// A transition token with its CSS application context and name supply.
-pub(super) struct TransitionContribution {
-    /// Canonical generated token, escaped when serialized into CSS.
-    pub(super) token: String,
-    /// Escaped static participant name.
-    pub(super) name: Option<String>,
-    /// Custom property that holds a dynamic name controlled by a CSS variant.
-    /// Requires `plan` and a runtime value for this property from the same use.
-    pub(super) dynamic_name_property: Option<String>,
-    /// CSS application context; absence permits a base token to be emitted literally.
-    pub(super) plan: Option<StyleVariantPlan>,
-}
-
 impl LiteralContribution {
     /// Appends the canonical input, utilities, and transition uses from `other` when
     /// it contains rules. Their order is preserved.
@@ -176,6 +163,19 @@ impl LiteralContribution {
         }
         contribution
     }
+}
+
+/// A transition token with its CSS application context and name supply.
+pub(super) struct TransitionContribution {
+    /// Canonical generated token, escaped when serialized into CSS.
+    pub(super) token: String,
+    /// Escaped static participant name.
+    pub(super) name: Option<String>,
+    /// Custom property that holds a dynamic name controlled by a CSS variant.
+    /// Requires `plan` and a runtime value for this property from the same use.
+    pub(super) dynamic_name_property: Option<String>,
+    /// CSS application context; absence permits a base token to be emitted literally.
+    pub(super) plan: Option<StyleVariantPlan>,
 }
 
 fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {

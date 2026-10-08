@@ -71,6 +71,18 @@ impl ReservedNames {
     }
 }
 
+impl ReservedNames {
+    /// Reserves one custom-ident value in the pool that owns it.
+    fn insert_ident(&mut self, pool: NamePool, name: &str) {
+        let names = match pool {
+            NamePool::Anchor => &mut self.anchor_names,
+            NamePool::Container => &mut self.container_names,
+            NamePool::ViewTransitionClass => &mut self.view_transition_classes,
+        };
+        names.insert(name.to_string());
+    }
+}
+
 /// Walks one stylesheet, rule body, or declaration body.
 ///
 /// `at_declaration` is true where a custom property name may appear: at the start of a
@@ -172,18 +184,6 @@ enum NamePool {
     Anchor,
     Container,
     ViewTransitionClass,
-}
-
-impl ReservedNames {
-    /// Reserves one custom-ident value in the pool that owns it.
-    fn insert_ident(&mut self, pool: NamePool, name: &str) {
-        let names = match pool {
-            NamePool::Anchor => &mut self.anchor_names,
-            NamePool::Container => &mut self.container_names,
-            NamePool::ViewTransitionClass => &mut self.view_transition_classes,
-        };
-        names.insert(name.to_string());
-    }
 }
 
 /// The pool a property's values belong to, or `None` when it takes no custom-ident.

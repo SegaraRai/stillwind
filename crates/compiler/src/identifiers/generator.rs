@@ -337,6 +337,13 @@ pub(crate) struct DetachedName {
     pub(crate) identity: LeanStr,
 }
 
+/// Memo key: the family, the canonical hash of the request, and the label it spells.
+///
+/// The label is not part of the hash, because the identity of a declaration does not
+/// depend on it, but it does decide the name, so two requests for one identity that
+/// differ in their label are two spellings and must not share a memo entry.
+type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
+
 /// One compilation's name allocation: host generator first, built-in fallback,
 /// memoized.
 ///
@@ -357,13 +364,6 @@ pub struct IdentifierContext {
     /// Names of the families that carry no declaration position.
     detached: RefCell<Vec<DetachedName>>,
 }
-
-/// Memo key: the family, the canonical hash of the request, and the label it spells.
-///
-/// The label is not part of the hash, because the identity of a declaration does not
-/// depend on it, but it does decide the name, so two requests for one identity that
-/// differ in their label are two spellings and must not share a memo entry.
-type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
 
 impl IdentifierContext {
     /// Starts a context with the requested generators, mode, and hash length.

@@ -209,47 +209,9 @@ impl NativeNaming {
     }
 }
 
-/// The message one rejected host call reports, without the N-API status prefix.
-fn reason(error: napi::Error) -> String {
-    if error.reason.is_empty() {
-        error.status.to_string()
-    } else {
-        error.reason
-    }
-}
-
 impl fmt::Debug for NativeNaming {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("NativeNaming")
-    }
-}
-
-/// Marks the functions callable for one call and clears the mark on drop.
-pub(crate) struct EnteredNaming<'a> {
-    naming: &'a NativeNaming,
-}
-
-impl Drop for EnteredNaming<'_> {
-    fn drop(&mut self) {
-        self.naming.env.set(None);
-    }
-}
-
-/// The hash a host function receives, as the whole digest.
-fn digest(hash: &IdentifierHash) -> Buffer {
-    Buffer::from(hash.as_bytes().as_slice())
-}
-
-/// Keeps one host function for as long as the session lives.
-fn reference<Args, Return>(
-    function: Option<Function<'_, Args, Return>>,
-) -> napi::Result<Option<FunctionRef<Args, Return>>>
-where
-    Args: napi::bindgen_prelude::JsValuesTupleIntoVec,
-{
-    match function {
-        Some(function) => function.create_ref().map(Some),
-        None => Ok(None),
     }
 }
 
@@ -435,6 +397,44 @@ impl IdentifierGenerator for NativeNaming {
         Ok(GeneratedName::provided(
             LayerName::new(&name).map_err(|error| error.to_string())?,
         ))
+    }
+}
+
+/// The message one rejected host call reports, without the N-API status prefix.
+fn reason(error: napi::Error) -> String {
+    if error.reason.is_empty() {
+        error.status.to_string()
+    } else {
+        error.reason
+    }
+}
+
+/// Marks the functions callable for one call and clears the mark on drop.
+pub(crate) struct EnteredNaming<'a> {
+    naming: &'a NativeNaming,
+}
+
+impl Drop for EnteredNaming<'_> {
+    fn drop(&mut self) {
+        self.naming.env.set(None);
+    }
+}
+
+/// The hash a host function receives, as the whole digest.
+fn digest(hash: &IdentifierHash) -> Buffer {
+    Buffer::from(hash.as_bytes().as_slice())
+}
+
+/// Keeps one host function for as long as the session lives.
+fn reference<Args, Return>(
+    function: Option<Function<'_, Args, Return>>,
+) -> napi::Result<Option<FunctionRef<Args, Return>>>
+where
+    Args: napi::bindgen_prelude::JsValuesTupleIntoVec,
+{
+    match function {
+        Some(function) => function.create_ref().map(Some),
+        None => Ok(None),
     }
 }
 

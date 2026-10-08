@@ -63,6 +63,26 @@ pub enum SourceError {
 #[error("invalid source URI: {0}")]
 pub struct SourceUriError(pub String);
 
+/// Failure to register or resolve a project source buffer.
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum SourceRegistryError {
+    /// No further IDs can be issued in this source scope.
+    #[error("source identifier space is exhausted")]
+    FileIdExhausted,
+    /// A span names a buffer absent from this registry.
+    #[error("unknown source file {0:?}")]
+    UnknownFile(FileId),
+    /// An ID already belongs to a different immutable source revision.
+    #[error("source file ID {0:?} belongs to another revision")]
+    ConflictingFile(FileId),
+    /// A generated buffer has no original document to report.
+    #[error("source file {0:?} has no reportable document URI")]
+    UnreportableSource(FileId),
+    /// The registered text or requested range is invalid.
+    #[error("{0}")]
+    Source(#[from] SourceError),
+}
+
 /// Host-supplied identity of an editable or virtual source document.
 ///
 /// The spelling is preserved because a host or editor may distinguish valid URI
@@ -382,26 +402,6 @@ impl SourceFile {
         }
         offset(self.text[..byte_offset_usize].encode_utf16().count())
     }
-}
-
-/// Failure to register or resolve a project source buffer.
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum SourceRegistryError {
-    /// No further IDs can be issued in this source scope.
-    #[error("source identifier space is exhausted")]
-    FileIdExhausted,
-    /// A span names a buffer absent from this registry.
-    #[error("unknown source file {0:?}")]
-    UnknownFile(FileId),
-    /// An ID already belongs to a different immutable source revision.
-    #[error("source file ID {0:?} belongs to another revision")]
-    ConflictingFile(FileId),
-    /// A generated buffer has no original document to report.
-    #[error("source file {0:?} has no reportable document URI")]
-    UnreportableSource(FileId),
-    /// The registered text or requested range is invalid.
-    #[error("{0}")]
-    Source(#[from] SourceError),
 }
 
 /// Source buffers and the ID allocator shared by one project session and its loaders.

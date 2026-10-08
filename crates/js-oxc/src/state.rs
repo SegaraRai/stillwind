@@ -27,6 +27,77 @@ use stillwind_source::{ModuleId, SourceFile, Span, Spanned};
 
 use crate::local_span::LocalSpan;
 
+/// Per-module extraction state.
+///
+/// The fields are filled by the visitors in the sibling modules and consumed by
+/// [`MacroExtractor::module_summary`]; nothing here is serialized directly.
+pub(crate) struct MacroExtractor<'a> {
+    /// Identity used for declarations originating in this module.
+    pub(crate) module_id: &'a ModuleId,
+    /// Adapter selected from a macro import, once one was seen.
+    pub(crate) adapter: Option<AdapterKind>,
+    /// Analysis buffer for Oxc spans; declaration identities use `original` coordinates.
+    pub(crate) source: &'a SourceFile,
+    /// Editable original source, including the complete SFC for projected input.
+    pub(crate) original: &'a SourceFile,
+    /// Analysis UTF-8 spans to original UTF-8 spans; synthetic spans have no mapping.
+    pub(crate) coordinates: &'a dyn Fn(Span) -> Option<Span>,
+    /// Oxc scoping table used to resolve references to symbols.
+    pub(crate) scoping: &'a Scoping,
+    /// Symbols bound to the imported `style` macro.
+    pub(crate) style_symbols: HashSet<SymbolId>,
+    /// Symbols bound to a `style.ref()` declaration, with their definitions.
+    pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
+    /// Marker and provider uses in source order, matched within each style call.
+    /// Ref definitions in declaration order.
+    pub(crate) ref_definitions: Vec<RefDefinition>,
+    /// Symbols bound to an keyframes declaration, with their names.
+    pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
+    /// Animation declarations in declaration order.
+    pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
+    /// Ranges in the AST buffer that have already been handled as macro uses.
+    /// Parsers add ranges even when their arguments are invalid. Validation also
+    /// adds callee and tag ranges to prevent duplicate diagnostics. A recorded
+    /// range therefore does not guarantee successful lowering.
+    pub(crate) consumed_use_spans: BTreeSet<LocalSpan>,
+    /// Symbols bound to a view-transition declaration, with their names.
+    pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    /// View-transition declarations in declaration order.
+    pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    /// Symbolic value of each local binding the pass could resolve.
+    pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
+    /// Style call sites in source order.
+    pub(crate) style_calls: Vec<StyleCall>,
+    /// Diagnostics raised during extraction, in visit order.
+    pub(crate) diagnostics: Vec<CompileError>,
+    /// Advisory findings raised during extraction, in visit order.
+    pub(crate) lint_findings: Vec<LintFinding>,
+    /// Import bindings of this module, in source order.
+    pub(crate) imports: Vec<ImportBinding>,
+    /// Ranges of parsed scope-only calls, used when removing their macro imports.
+    /// They refer to the AST buffer until mapped back to the original source.
+    pub(crate) consumed_macro_uses: Vec<Span>,
+    /// Module specifier literals of this module, in source order.
+    pub(crate) module_specifiers: Vec<ModuleSpecifier>,
+    /// Re-export edges of this module, in source order.
+    pub(crate) re_exports: Vec<ReExport>,
+    /// Exported bindings as symbol plus exported name, in visit order.
+    pub(crate) export_symbols: Vec<(SymbolId, String)>,
+    /// Checker facts keyed by original UTF-8 expression range.
+    pub(crate) type_facts: HashMap<LocalSpan, ExportedValue>,
+    /// AST-buffer ranges the checker should resolve, accumulated during the visit.
+    pub(crate) type_probes: RefCell<BTreeSet<LocalSpan>>,
+    /// AST-buffer receiver ranges used to identify Stillwind assets; missing facts
+    /// leave the receiver as ordinary JavaScript without a diagnostic.
+    pub(crate) use_probes: RefCell<BTreeSet<LocalSpan>>,
+    /// Makes receiver probes optional while checking whether a use is a macro.
+    /// Must be false outside `use_receiver_is` so probes needed for lowering stay
+    /// subject to the required-query policy.
+    pub(crate) probing_use: Cell<bool>,
+    /// Metadata for identities declared in other modules.
+    pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+}
+
 impl<'a> MacroExtractor<'a> {
     /// Builds an extractor for one parsed module.
     ///
@@ -198,75 +269,4 @@ impl<'a> MacroExtractor<'a> {
             ModuleExportName::StringLiteral(name) => name.value.to_string(),
         }
     }
-}
-
-/// Per-module extraction state.
-///
-/// The fields are filled by the visitors in the sibling modules and consumed by
-/// [`MacroExtractor::module_summary`]; nothing here is serialized directly.
-pub(crate) struct MacroExtractor<'a> {
-    /// Identity used for declarations originating in this module.
-    pub(crate) module_id: &'a ModuleId,
-    /// Adapter selected from a macro import, once one was seen.
-    pub(crate) adapter: Option<AdapterKind>,
-    /// Analysis buffer for Oxc spans; declaration identities use `original` coordinates.
-    pub(crate) source: &'a SourceFile,
-    /// Editable original source, including the complete SFC for projected input.
-    pub(crate) original: &'a SourceFile,
-    /// Analysis UTF-8 spans to original UTF-8 spans; synthetic spans have no mapping.
-    pub(crate) coordinates: &'a dyn Fn(Span) -> Option<Span>,
-    /// Oxc scoping table used to resolve references to symbols.
-    pub(crate) scoping: &'a Scoping,
-    /// Symbols bound to the imported `style` macro.
-    pub(crate) style_symbols: HashSet<SymbolId>,
-    /// Symbols bound to a `style.ref()` declaration, with their definitions.
-    pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
-    /// Marker and provider uses in source order, matched within each style call.
-    /// Ref definitions in declaration order.
-    pub(crate) ref_definitions: Vec<RefDefinition>,
-    /// Symbols bound to an keyframes declaration, with their names.
-    pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
-    /// Animation declarations in declaration order.
-    pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
-    /// Ranges in the AST buffer that have already been handled as macro uses.
-    /// Parsers add ranges even when their arguments are invalid. Validation also
-    /// adds callee and tag ranges to prevent duplicate diagnostics. A recorded
-    /// range therefore does not guarantee successful lowering.
-    pub(crate) consumed_use_spans: BTreeSet<LocalSpan>,
-    /// Symbols bound to a view-transition declaration, with their names.
-    pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
-    /// View-transition declarations in declaration order.
-    pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
-    /// Symbolic value of each local binding the pass could resolve.
-    pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
-    /// Style call sites in source order.
-    pub(crate) style_calls: Vec<StyleCall>,
-    /// Diagnostics raised during extraction, in visit order.
-    pub(crate) diagnostics: Vec<CompileError>,
-    /// Advisory findings raised during extraction, in visit order.
-    pub(crate) lint_findings: Vec<LintFinding>,
-    /// Import bindings of this module, in source order.
-    pub(crate) imports: Vec<ImportBinding>,
-    /// Ranges of parsed scope-only calls, used when removing their macro imports.
-    /// They refer to the AST buffer until mapped back to the original source.
-    pub(crate) consumed_macro_uses: Vec<Span>,
-    /// Module specifier literals of this module, in source order.
-    pub(crate) module_specifiers: Vec<ModuleSpecifier>,
-    /// Re-export edges of this module, in source order.
-    pub(crate) re_exports: Vec<ReExport>,
-    /// Exported bindings as symbol plus exported name, in visit order.
-    pub(crate) export_symbols: Vec<(SymbolId, String)>,
-    /// Checker facts keyed by original UTF-8 expression range.
-    pub(crate) type_facts: HashMap<LocalSpan, ExportedValue>,
-    /// AST-buffer ranges the checker should resolve, accumulated during the visit.
-    pub(crate) type_probes: RefCell<BTreeSet<LocalSpan>>,
-    /// AST-buffer receiver ranges used to identify Stillwind assets; missing facts
-    /// leave the receiver as ordinary JavaScript without a diagnostic.
-    pub(crate) use_probes: RefCell<BTreeSet<LocalSpan>>,
-    /// Makes receiver probes optional while checking whether a use is a macro.
-    /// Must be false outside `use_receiver_is` so probes needed for lowering stay
-    /// subject to the required-query policy.
-    pub(crate) probing_use: Cell<bool>,
-    /// Metadata for identities declared in other modules.
-    pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
 }

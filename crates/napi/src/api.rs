@@ -80,6 +80,20 @@ pub struct CompileCssInput {
     pub source_map_source: Option<String>,
 }
 
+impl TryFrom<NativeCompileCssInput> for CompileCssInput {
+    type Error = Error;
+
+    fn try_from(input: NativeCompileCssInput) -> Result<Self, Self::Error> {
+        Ok(Self {
+            content: input.content,
+            name: input.name.into(),
+            uri: SourceUri::parse(input.uri)
+                .map_err(|error| Error::from_reason(error.to_string()))?,
+            source_map_source: input.source_map_source,
+        })
+    }
+}
+
 /// One plain script and CSS source supplied for a standalone compilation.
 pub struct CompileSourceInput {
     /// Script text supplied to the parser.
@@ -572,20 +586,6 @@ pub struct NativeCompileCssInput {
     pub uri: String,
     /// Exact source name for generated CSS maps.
     pub source_map_source: Option<String>,
-}
-
-impl TryFrom<NativeCompileCssInput> for CompileCssInput {
-    type Error = Error;
-
-    fn try_from(input: NativeCompileCssInput) -> Result<Self, Self::Error> {
-        Ok(Self {
-            content: input.content,
-            name: input.name.into(),
-            uri: SourceUri::parse(input.uri)
-                .map_err(|error| Error::from_reason(error.to_string()))?,
-            source_map_source: input.source_map_source,
-        })
-    }
 }
 
 /// Host metadata and source texts for a standalone compilation.
