@@ -51,5 +51,5 @@ test("browser discovery evaluates async factories and merges selected project ov
         css: "inline.css",
       })
     ).config.css,
-  ).toBe("inline.css");
+  ).toBe("/workspace/inline.css");
 });

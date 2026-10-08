@@ -75,7 +75,7 @@ const escaped = style("p-\u005b16px\u005d");`;
   }
 });
 
-test("CSS severity survives partial project overrides and explicit sorting ignores disabled lint", async () => {
+test("project severity supports explicit conversion options and explicit sorting ignores disabled lint", async () => {
   const source =
     'import {style} from "stillwind/react"; const card = style("p-[16px] flex block");';
   const current = project(
@@ -84,11 +84,12 @@ test("CSS severity survives partial project overrides and explicit sorting ignor
       lint: {
         "canonical-utilities": {
           pxToRem: false,
+          severity: "deny",
         },
         "sort-utilities": "off",
       },
     },
-    `@stillwind { canonical-utilities: deny; } ${theme}`,
+    theme,
   );
   try {
     const graph = await current.analyze("/workspace/entry.tsx");

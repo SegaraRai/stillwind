@@ -64,8 +64,6 @@ impl CallEmitter<'_> {
             return;
         };
         if !self
-            .theme
-            .config()
             .lint_settings
             .enabled_for_detection(LintKind::RequireElementScope)
         {
@@ -273,6 +271,7 @@ impl CallEmitter<'_> {
                     value,
                     &plan,
                     self.theme,
+                    &self.lint_settings,
                     self.diagnostics,
                     self.lint_findings,
                 );

@@ -340,15 +340,23 @@ mod tests {
         let source = css::source(
             FileId(1),
             r#"
-                @stillwind { utility-order: tailwind; }
                 @import "stillwind/theme.css" layer(theme);
                 @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
                 .button { @apply px-4 bg-red-500 inline-flex; }
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
-        let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
+        let snapshot = stillwind_design_system::DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("stillwind.css"),
+            stillwind_design_system::DesignSystemOptions {
+                utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let theme = snapshot.theme();
+        let expanded = expand(theme.custom_css(), theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())

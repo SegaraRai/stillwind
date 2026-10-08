@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import type { InlineConfig } from "@stillwind/config";
+import type { SerializableInlineConfig } from "@stillwind/config";
 
 import type { TurbopackLoaderOptions } from "./project.ts";
 
@@ -8,7 +8,7 @@ import type { TurbopackLoaderOptions } from "./project.ts";
  * Serializable inline settings and entry selection for standalone Turbopack rules.
  * Naming callbacks can be supplied by stillwind.config.ts, which each loader evaluates.
  */
-export interface IntegrationConfig extends Omit<InlineConfig, "naming"> {
+export interface IntegrationConfig extends SerializableInlineConfig {
   /** Nonempty list of entry paths, absolute or relative to the resolved project root. Globs are not expanded. */
   entries: string[];
   /** Defaults to development when NODE_ENV is development, otherwise release. */
@@ -64,15 +64,16 @@ export function stillwindRules(config: IntegrationConfig): Record<string, Turbop
  * @throws If compiler supplies inline naming callbacks.
  */
 export function createLoaderOptions(
-  compiler: InlineConfig,
+  compiler: SerializableInlineConfig,
   entries: string[],
   mode?: string,
 ): TurbopackLoaderOptions {
-  if (compiler.naming) {
+  if ("naming" in compiler && compiler.naming) {
     throw new Error(
       "Turbopack loader options must be serializable; naming callbacks are not supported",
     );
   }
+
   return {
     compiler,
     root: ".",

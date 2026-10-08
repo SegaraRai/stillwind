@@ -43,10 +43,7 @@ impl<'a> CallEmitter<'a> {
             module_id: inputs.module_id,
             identifiers: inputs.identifiers,
             theme: inputs.theme,
-            lint_settings: inputs
-                .options
-                .lint
-                .resolve(&inputs.theme.config().lint_settings),
+            lint_settings: inputs.options.lint_settings(),
             call: inputs.call,
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,

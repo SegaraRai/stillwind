@@ -104,7 +104,7 @@ let module_css = renderer.render_module_stylesheet(&compiled.css.to_css())?;
 ```
 
 The snapshot owns definition settings. Rendering and class-generation policy
-belong to the compiler. CSS-resolved prefixes override the loader defaults;
+belong to the compiler. The host supplies property prefixes and utility ordering when loading the snapshot;
 application namespace remains a separate compiler setting; each style call has its own identity.
 
 ## Sessions and reloads

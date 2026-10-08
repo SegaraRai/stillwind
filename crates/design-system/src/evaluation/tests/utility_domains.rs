@@ -270,20 +270,24 @@ fn resolves_ambiguous_backgrounds_through_typed_utility_branches() {
 
 #[test]
 fn ambiguous_background_type_is_independent_of_emission_order() {
-    for order in ["authored", "tailwind"] {
-        let theme = parse_fixture_theme(
-            &SourceFile::new(
-                FileId(1),
-                None,
-                None,
-                format!("@stillwind {{ utility-order: {order}; }}"),
-            )
-            .unwrap(),
+    for order in [
+        crate::UtilityOrderMode::Authored,
+        crate::UtilityOrderMode::Tailwind,
+    ] {
+        let source = stillwind_test_support::css::source(FileId(1), "").unwrap();
+        let snapshot = crate::DesignSystemSnapshot::from_source(
+            &source,
+            "test.css".into(),
+            crate::DesignSystemOptions {
+                utility_order: order,
+                ..Default::default()
+            },
         )
         .unwrap();
+        let theme = snapshot.theme();
         for candidate in ["bg-[var(--surface)]", "bg-(--surface)"] {
             assert_css_eq!(
-                resolve_utility(candidate, &theme).unwrap().declaration,
+                resolve_utility(candidate, theme).unwrap().declaration,
                 "background-color:var(--surface);"
             );
         }

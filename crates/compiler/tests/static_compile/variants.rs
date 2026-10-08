@@ -98,12 +98,14 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
         FileId(1), None, None,
         "import { style } from \"stillwind/react\"; const child = style(\"group-hover:flex @sm:grid\");",
     ).unwrap();
-    let theme = css::source(
-        FileId(2),
-        "@import \"stillwind\"; @stillwind { prefer-typed-relationships: warn; }",
-    )
-    .unwrap();
-    let options = CompilerOptions::default();
+    let theme = css::source(FileId(2), "@import \"stillwind\"; ").unwrap();
+    let options = CompilerOptions {
+        lint: stillwind_diagnostics::LintOverrides {
+            prefer_typed_relationships: Some(LintSeverity::Warn),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -179,7 +181,7 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
 }
 
 #[test]
-fn a_theme_can_disable_the_element_scope_rule() {
+fn host_settings_can_disable_the_element_scope_rule() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -187,11 +189,7 @@ fn a_theme_can_disable_the_element_scope_rule() {
         "import { style } from \"stillwind/react\"; export const host = style(\"[:host]:block\");",
     )
     .unwrap();
-    let theme = css::source(
-        FileId(2),
-        "@import \"stillwind\"; @stillwind { require-element-scope: off; }",
-    )
-    .unwrap();
+    let theme = css::source(FileId(2), "@import \"stillwind\"; ").unwrap();
 
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
@@ -201,7 +199,13 @@ fn a_theme_can_disable_the_element_scope_rule() {
         ScriptModuleKind::Unambiguous,
         &theme,
         &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
+        &CompilerOptions {
+            lint: stillwind_diagnostics::LintOverrides {
+                require_element_scope: Some(LintSeverity::Off),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
     );
 
     assert!(

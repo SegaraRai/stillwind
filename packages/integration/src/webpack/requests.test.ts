@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { BaseConfig } from "@stillwind/config";
+import type { BuildConfig } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { classifyRequest, requestOptions, virtualRequest } from "./requests.ts";
@@ -23,7 +23,7 @@ test.each([
 });
 
 test("SFC virtual requests carry reconstructible configuration", () => {
-  const config: BaseConfig = {
+  const config: BuildConfig = {
     css: "./root.css",
     automatic: false,
   };
@@ -37,7 +37,7 @@ test("SFC virtual requests carry reconstructible configuration", () => {
 });
 
 test("SFC naming callbacks use the registered rule configuration", () => {
-  const config: BaseConfig = {
+  const config: BuildConfig = {
     css: "./root.css",
     naming: {
       utilityClass: (_context, hash) => "custom-" + hash.toString("hex"),

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { BaseConfig, InlineConfig } from "@stillwind/config";
+import type { BuildConfig, InlineConfig } from "@stillwind/config";
 
 import { loaderOptionsId } from "./rules.ts";
 
@@ -98,7 +98,7 @@ export function relativeRequest(from: string, to: string): string {
 export function virtualRequest(
   resourcePath: string,
   sfc: boolean,
-  config: BaseConfig,
+  config: BuildConfig,
   loaderPath: string,
   query: string,
   identityConfig: InlineConfig = config,

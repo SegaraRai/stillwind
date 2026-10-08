@@ -561,13 +561,11 @@ export const valid=style('[display:block]');`,
     const { compileSource } = await import(bindingSpecifier);
     const source = "import {style} from 'stillwind/react'; export const props=style('missing');";
     for (const severity of ["warn", "deny", "off"]) {
-      const output = compileSource(
-        oneShotInput(
-          source,
-          "lint.tsx",
-          `@stillwind-slot utilities; @stillwind {unknown-utility: ${severity}; typo: deny;}`,
-        ),
-      );
+      const output = compileSource(oneShotInput(source, "lint.tsx", "@stillwind-slot utilities;"), {
+        lint: {
+          unknownUtility: severity,
+        },
+      });
       expect(output.diagnostics).toStrictEqual([]);
       expect(output.lintSettings["unknown-utility"]).toBe(severity);
       expect(output.lintSettings["macro-argument-mutation"]).toBe("deny");
@@ -947,15 +945,18 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
           },
         }),
     ).not.toThrow();
-    const output = compileSource(
-      oneShotInput("export {};", "invalid.ts", "@stillwind { no-restricted-theme-tokens:warn; }"),
-    );
-    expect(output.diagnostics.map((diagnostic: { code: string }) => diagnostic.code)).toContain(
-      "SW07006",
-    );
+    expect(() =>
+      compileSource(oneShotInput("export {};", "invalid.ts", ""), {
+        lint: {
+          noRestrictedThemeTokens: {
+            severity: "warn",
+          },
+        },
+      }),
+    ).toThrow(/tokens/);
   });
 
-  test("CSS alone controls detection and severity of typed relationship findings", async () => {
+  test("host options control detection and severity of typed relationship findings", async () => {
     const { compileSource } = await import(bindingSpecifier);
     const source = "import {style} from 'stillwind/react';export const props=style('@sm:flex');";
     for (const severity of ["off", "warn", "deny"]) {
@@ -963,8 +964,13 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         oneShotInput(
           source,
           "relationships.tsx",
-          `@utility flex{display:flex} @stillwind-slot utilities; @stillwind{prefer-typed-relationships:${severity};}`,
+          "@utility flex{display:flex} @stillwind-slot utilities;",
         ),
+        {
+          lint: {
+            preferTypedRelationships: severity,
+          },
+        },
       );
       const findings = output.reports.filter(
         (report: { code: string }) => report.code === "prefer-typed-relationships",

@@ -86,8 +86,7 @@ that root produce a configuration error. Analysis continues to run every matchin
 project independently.
 
 A root in the configuration file is relative to its directory. An inline root is
-relative to the application root. CSS and tsconfig paths use the resulting
-project root. Analysis scope settings do not filter the bundler's
+relative to the application root. Paths authored in the file retain their configured project root when an inline root changes. Inline CSS and tsconfig paths use the resulting project root. Resolved paths are absolute. Analysis scope settings do not filter the bundler's
 module graph. Build-specific settings such as Vite CSS emission stay in the
 integration configuration.
 
@@ -102,15 +101,26 @@ Next and Turbopack pass configuration references to loaders; configuration callb
 stay in the file rather than being serialized into loader options. Inline naming
 callbacks remain unsupported by these loaders.
 
-Lint levels remain in CSS:
+Compiler policy belongs to `stillwind.config.ts`. Each project accepts all lint rules, generated identifier prefixes, and `utilityOrder: "authored" | "tailwind"`. CSS supplies theme tokens, utilities, variants, and output slots.
 
-```css
-@import "stillwind";
-@stillwind {
-  prefer-typed-relationships: deny;
-  unknown-utility: warn;
-}
+```ts
+export default defineConfig({
+  projects: [
+    {
+      css: "src/theme.css",
+      files: ["src/**/*.tsx"],
+      lint: {
+        "prefer-typed-relationships": "deny",
+        "unknown-utility": "warn",
+      },
+    },
+  ],
+});
 ```
+
+Reporting-only rules accept `"warn"`, `"deny"`, or `"off"`. Rules with detection options also accept an object containing `severity` and their options. Omitted fields use compiler defaults. Source suppression comments control findings and fixes. Explicit sorting uses `sort` targets independently of the `sort-utilities` reporting level.
+
+Node and browser hosts share project selection, path resolution, validation, and defaults. Configuration errors identify the project and invalid field. Compiler settings can be validated without constructing an analysis scope. `automatic` controls document CSS delivery through build integrations. Vite's `emission` remains a Vite-specific option.
 
 ## Semantic and source services
 

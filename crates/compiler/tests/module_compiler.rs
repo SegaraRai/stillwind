@@ -276,11 +276,7 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
         None,
     );
     let compile = |policy: &str| {
-        let theme = css::source(
-            FileId(2),
-            format!("@stillwind {{ unknown-utility: {policy}; }}"),
-        )
-        .unwrap();
+        let theme = css::source(FileId(2), "").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
             &theme,
             "test.css".into(),
@@ -288,9 +284,21 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
         )
         .unwrap();
         let module = analysis.clone();
+        let policy = policy.to_owned();
         std::thread::spawn(move || {
-            ModuleCompiler::new(snapshot, CompilerOptions::default())
-                .compile(&module, &Identifiers::default())
+            ModuleCompiler::new(
+                snapshot,
+                CompilerOptions {
+                    lint: stillwind_diagnostics::LintOverrides {
+                        unknown_utility: Some(
+                            stillwind_diagnostics::LintSeverity::parse(&policy).unwrap(),
+                        ),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .compile(&module, &Identifiers::default())
         })
     };
     let off = compile("off");

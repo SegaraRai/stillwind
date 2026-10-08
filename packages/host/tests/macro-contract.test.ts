@@ -8,12 +8,12 @@ import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 test("contract defaults deny builds while warn and off remain configurable", async () => {
   for (const level of [undefined, "warn", "off"] as const) {
-    const loader = new NativeDesignSystemLoader();
-    loader.provide(
-      0,
-      "theme.css",
-      `${level ? `@stillwind {macro-argument-mutation: ${level};}` : ""} @stillwind-slot utilities;`,
-    );
+    const loader = new NativeDesignSystemLoader({
+      lint: {
+        macroArgumentMutation: level,
+      },
+    });
+    loader.provide(0, "theme.css", "@stillwind-slot utilities;");
     const session = new NativeProjectSession(loader, false);
     const warnings: string[] = [];
     const facts = new TypeScriptFactsService({

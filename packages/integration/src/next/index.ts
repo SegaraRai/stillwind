@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
 
-import type { InlineConfig } from "@stillwind/config";
+import type { SerializableInlineConfig } from "@stillwind/config";
 import type { NextConfig } from "next";
 import type { Configuration } from "webpack";
 
 import { createLoaderOptions, createRules, loaderPath } from "../turbopack/rules.ts";
 
-export type { InlineConfig as IntegrationConfig } from "@stillwind/config";
+export type { SerializableInlineConfig as IntegrationConfig } from "@stillwind/config";
 
 const loader = loaderPath("loader.js");
 
@@ -25,9 +25,12 @@ const cssLoader = fileURLToPath(
  * @throws If inline naming callbacks cannot be serialized. Loaders report configuration errors
  * when the bundler evaluates the settings.
  */
-export function withStillwind<T extends object>(nextConfig: T, config?: InlineConfig): T;
+export function withStillwind<T extends object>(
+  nextConfig: T,
+  config?: SerializableInlineConfig,
+): T;
 
-export function withStillwind(nextConfig: NextConfig = {}, config: InlineConfig = {}) {
+export function withStillwind(nextConfig: NextConfig = {}, config: SerializableInlineConfig = {}) {
   const loaderOptions = {
     ...createLoaderOptions(config, []),
     extensions: nextConfig.pageExtensions ?? ["tsx", "ts", "jsx", "js"],

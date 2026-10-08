@@ -19,9 +19,9 @@ use crate::CompilerOptions;
 pub(super) struct QueryContext {
     /// Immutable definitions and sources used by this evaluation.
     pub(super) design_system: DesignSystemSnapshot,
-    /// Compiler options after the stylesheet's prefix overrides.
+    /// Compiler options using the snapshot's prefixes and utility ordering.
     pub(super) options: CompilerOptions,
-    /// Conversion policy after stylesheet and project lint overrides.
+    /// Conversion policy after applying project lint overrides to compiler defaults.
     pub(super) canonical_policy: CanonicalUtilitiesConfig,
     /// Candidate CSS and signatures scoped to the resolved inputs above.
     pub(super) canonical_previews: RefCell<BTreeMap<String, Option<Arc<CanonicalPreview>>>>,
@@ -30,10 +30,7 @@ pub(super) struct QueryContext {
 impl QueryContext {
     pub(super) fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         let options = options.resolved(&design_system);
-        let canonical_policy = match options
-            .lint_settings(&design_system)
-            .get(LintKind::CanonicalUtilities)
-        {
+        let canonical_policy = match options.lint_settings().get(LintKind::CanonicalUtilities) {
             Some(LintConfig::CanonicalUtilities(config)) => config.clone(),
             _ => CanonicalUtilitiesConfig::default(),
         };
@@ -45,7 +42,7 @@ impl QueryContext {
         }
     }
 
-    /// Retrieves or prepares the index for this snapshot and its effective CSS settings.
+    /// Retrieves or prepares the index for this snapshot and its effective compiler settings.
     /// Temporary previews used during preparation are released after the index owns
     /// the values it needs. Requirement failures remain deferred until candidate use.
     pub(super) fn canonical_index(&self) -> Arc<CanonicalIndex> {

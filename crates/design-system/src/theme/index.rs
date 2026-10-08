@@ -11,11 +11,11 @@ use std::sync::{Arc, OnceLock};
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 
 use super::builder::ThemeBuilder;
-use super::config::StillwindConfig;
 use super::declarations::ThemeToken;
 use super::namespace::ThemeNamespace;
 use super::references::resolve_theme_references;
 use super::tokens::TokenLookup;
+use crate::UtilityOrderMode;
 use crate::evaluation::UtilityPrograms;
 use crate::registry::utilities::CustomUtility;
 use crate::registry::utility_lookup::UtilityLookup;
@@ -37,7 +37,7 @@ struct ThemeDeclarations {
     declaration_formats: BTreeMap<String, String>,
     relationship_patterns: BTreeSet<String>,
     authored_properties: BTreeSet<String>,
-    config: StillwindConfig,
+    utility_order: UtilityOrderMode,
 }
 
 #[derive(Debug)]
@@ -85,7 +85,7 @@ impl ThemeIndex {
             declaration_formats: builder.declaration_formats,
             relationship_patterns: builder.relationship_patterns,
             authored_properties: builder.authored_properties,
-            config: builder.config,
+            utility_order: builder.utility_order,
         };
         let tokens = TokenLookup::new(&declarations.tokens);
         let utilities = UtilityLookup::new(&declarations.utilities);
@@ -179,9 +179,9 @@ impl ThemeIndex {
         &self.inner.declarations.authored_properties
     }
 
-    /// CSS-authored `@stillwind` settings for this stylesheet.
-    pub fn config(&self) -> &StillwindConfig {
-        &self.inner.declarations.config
+    /// Host-selected ordering strategy for resolved utilities.
+    pub fn utility_order(&self) -> UtilityOrderMode {
+        self.inner.declarations.utility_order
     }
 
     /// The named token in `namespace`, or `None` when it is not active.

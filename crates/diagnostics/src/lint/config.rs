@@ -21,7 +21,7 @@ pub enum LintSeverity {
 }
 
 impl LintSeverity {
-    /// Returns the CSS configuration and host-protocol spelling.
+    /// Returns the configuration and host-protocol spelling.
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Warn => "warn",
@@ -30,8 +30,8 @@ impl LintSeverity {
         }
     }
 
-    /// Parses an exact CSS lint level; unsupported values return `None`.
-    pub fn from_css(value: &str) -> Option<Self> {
+    /// Parses an exact lint reporting level; unsupported values return `None`.
+    pub fn parse(value: &str) -> Option<Self> {
         match value {
             "warn" => Some(Self::Warn),
             "deny" => Some(Self::Deny),
@@ -43,7 +43,7 @@ impl LintSeverity {
 
 macro_rules! define_lint_rules {
     ($( $variant:ident => ($name:literal, $default:expr), )+) => {
-        /// A lint rule identified by one stable CSS and suppression name.
+        /// A lint rule identified by one stable configuration and suppression name.
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
         pub enum LintKind {
             $(
@@ -57,7 +57,7 @@ macro_rules! define_lint_rules {
             /// Every supported lint rule, in declaration order.
             pub const ALL: &'static [Self] = &[$(Self::$variant,)+];
 
-            /// Returns the stable CSS, suppression, and host-protocol name.
+            /// Returns the stable configuration, suppression, and host-protocol name.
             pub const fn name(self) -> &'static str {
                 match self { $(Self::$variant => $name,)+ }
             }
@@ -237,7 +237,7 @@ impl<'de> Deserialize<'de> for RootFontSize {
     }
 }
 
-/// Effective canonical lint policy after stylesheet severity and project overrides.
+/// Effective canonical lint policy after compiler defaults and project settings.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CanonicalUtilitiesConfig {
@@ -263,7 +263,7 @@ impl Default for CanonicalUtilitiesConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CanonicalUtilitiesOverride {
-    /// Omission keeps the stylesheet severity.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission keeps the default conversion policy.
     pub px_to_rem: Option<bool>,
@@ -294,7 +294,7 @@ impl Default for ConflictingUtilitiesConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ConflictingUtilitiesOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission preserves the shorthand policy.
     pub allow_shorthand_overrides: Option<bool>,
@@ -323,7 +323,7 @@ pub struct LengthUnitsConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LengthUnitsOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission preserves existing rules; a supplied list replaces them.
     pub rules: Option<Vec<LengthUnitRule>>,
@@ -342,7 +342,7 @@ pub struct RestrictedThemeTokensConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RestrictedThemeTokensOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission preserves existing patterns; a supplied list replaces them.
     pub tokens: Option<Vec<String>>,
@@ -361,7 +361,7 @@ pub struct ArbitrarySpacingConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ArbitrarySpacingOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// A supplied list replaces additional property globs.
     pub properties: Option<Vec<String>>,
@@ -390,7 +390,7 @@ pub struct RestrictedUtilitiesConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RestrictedUtilitiesOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// A supplied list replaces forbidden utility rules.
     pub utilities: Option<Vec<RestrictedUtilityRule>>,
@@ -421,13 +421,13 @@ pub struct RestrictedDeclarationsConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RestrictedDeclarationsOverride {
-    /// Omission preserves the stylesheet reporting level.
+    /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// A supplied list replaces declaration restrictions.
     pub rules: Option<Vec<RestrictedDeclarationRule>>,
 }
 
-/// Project overrides applied after defaults and CSS severity directives.
+/// Project lint settings applied to compiler defaults.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct LintOverrides {
@@ -465,39 +465,43 @@ pub struct LintOverrides {
     pub canonical_utilities: Option<CanonicalUtilitiesOverride>,
     /// Optional unsorted-source diagnostic. It is disabled by default.
     pub sort_utilities: Option<LintSeverity>,
+    /// Reporting level for `framework-import-mismatch`.
+    pub framework_import_mismatch: Option<LintSeverity>,
+    /// Reporting level for `macro-argument-mutation`.
+    pub macro_argument_mutation: Option<LintSeverity>,
+    /// Reporting level for `macro-execution-boundary`.
+    pub macro_execution_boundary: Option<LintSeverity>,
+    /// Reporting level for `valid-anchor-scope`.
+    pub valid_anchor_scope: Option<LintSeverity>,
+    /// Reporting level for `require-ref-attachment`.
+    pub require_ref_attachment: Option<LintSeverity>,
+    /// Reporting level for `conflicting-provider-properties`.
+    pub conflicting_provider_properties: Option<LintSeverity>,
+    /// Reporting level for `prefer-typed-relationships`.
+    pub prefer_typed_relationships: Option<LintSeverity>,
+    /// Reporting level for `require-element-scope`.
+    pub require_element_scope: Option<LintSeverity>,
+    /// Reporting level for `require-view-transition-name`.
+    pub require_view_transition_name: Option<LintSeverity>,
+    /// Reporting level for `single-view-transition-name`.
+    pub single_view_transition_name: Option<LintSeverity>,
+    /// Reporting level for `single-view-transition-class`.
+    pub single_view_transition_class: Option<LintSeverity>,
+    /// Reporting level for `ambiguous-base-order`.
+    pub ambiguous_base_order: Option<LintSeverity>,
+    /// Reporting level for `imported-base-interference`.
+    pub imported_base_interference: Option<LintSeverity>,
+    /// Reporting level for `invalid-utility`.
+    pub invalid_utility: Option<LintSeverity>,
+    /// Reporting level for `unknown-utility`.
+    pub unknown_utility: Option<LintSeverity>,
 }
 
 impl LintOverrides {
-    /// Resolves project fields against the stylesheet settings without changing either input.
-    pub fn resolve(&self, stylesheet: &LintSettings) -> LintSettings {
-        let mut settings = stylesheet.clone();
-        for (kind, severity) in [
-            (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
-            (LintKind::NoClassProperty, self.no_class_property),
-            (LintKind::NoImportant, self.no_important),
-            (
-                LintKind::ValidLintSuppressions,
-                self.valid_lint_suppressions,
-            ),
-            (
-                LintKind::NoUnusedLintSuppressions,
-                self.no_unused_lint_suppressions,
-            ),
-            (LintKind::PreferDirectStyling, self.prefer_direct_styling),
-            (LintKind::DuplicateUtilities, self.duplicate_utilities),
-            (
-                LintKind::NoArbitraryBreakpoints,
-                self.no_arbitrary_breakpoints,
-            ),
-            (
-                LintKind::PreferLogicalProperties,
-                self.prefer_logical_properties,
-            ),
-        ] {
-            if let Some(severity) = severity {
-                settings.insert(LintConfig::new(kind, severity));
-            }
-        }
+    /// Resolves project fields against the supplied defaults without changing either input.
+    pub fn resolve(&self, defaults: &LintSettings) -> LintSettings {
+        let mut settings = defaults.clone();
+        self.resolve_reporting_levels(&mut settings);
         self.resolve_source_restrictions(&mut settings);
         if let Some(overrides) = &self.conflicting_utilities {
             let mut config = match settings.get(LintKind::ConflictingUtilities) {
@@ -564,6 +568,78 @@ impl LintOverrides {
             settings.insert(LintConfig::SortUtilities(severity));
         }
         settings
+    }
+
+    fn resolve_reporting_levels(&self, settings: &mut LintSettings) {
+        for (kind, severity) in [
+            (
+                LintKind::FrameworkImportMismatch,
+                self.framework_import_mismatch,
+            ),
+            (
+                LintKind::MacroArgumentMutation,
+                self.macro_argument_mutation,
+            ),
+            (
+                LintKind::MacroExecutionBoundary,
+                self.macro_execution_boundary,
+            ),
+            (LintKind::ValidAnchorScope, self.valid_anchor_scope),
+            (LintKind::RequireRefAttachment, self.require_ref_attachment),
+            (
+                LintKind::ConflictingProviderProperties,
+                self.conflicting_provider_properties,
+            ),
+            (
+                LintKind::PreferTypedRelationships,
+                self.prefer_typed_relationships,
+            ),
+            (LintKind::RequireElementScope, self.require_element_scope),
+            (
+                LintKind::RequireViewTransitionName,
+                self.require_view_transition_name,
+            ),
+            (
+                LintKind::SingleViewTransitionName,
+                self.single_view_transition_name,
+            ),
+            (
+                LintKind::SingleViewTransitionClass,
+                self.single_view_transition_class,
+            ),
+            (LintKind::AmbiguousBaseOrder, self.ambiguous_base_order),
+            (
+                LintKind::ImportedBaseInterference,
+                self.imported_base_interference,
+            ),
+            (LintKind::InvalidUtility, self.invalid_utility),
+            (LintKind::UnknownUtility, self.unknown_utility),
+            (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
+            (LintKind::NoClassProperty, self.no_class_property),
+            (LintKind::NoImportant, self.no_important),
+            (
+                LintKind::ValidLintSuppressions,
+                self.valid_lint_suppressions,
+            ),
+            (
+                LintKind::NoUnusedLintSuppressions,
+                self.no_unused_lint_suppressions,
+            ),
+            (LintKind::PreferDirectStyling, self.prefer_direct_styling),
+            (LintKind::DuplicateUtilities, self.duplicate_utilities),
+            (
+                LintKind::NoArbitraryBreakpoints,
+                self.no_arbitrary_breakpoints,
+            ),
+            (
+                LintKind::PreferLogicalProperties,
+                self.prefer_logical_properties,
+            ),
+        ] {
+            if let Some(severity) = severity {
+                settings.insert(LintConfig::new(kind, severity));
+            }
+        }
     }
 
     fn resolve_source_restrictions(&self, settings: &mut LintSettings) {
@@ -662,7 +738,7 @@ pub struct LintSettings {
 }
 
 impl LintSettings {
-    /// Returns the settings configured by default for a stylesheet.
+    /// Returns the compiler's default lint settings.
     pub fn with_defaults() -> Self {
         LintKind::ALL
             .iter()
@@ -675,7 +751,7 @@ impl LintSettings {
         self.entries.insert(config.kind(), config)
     }
 
-    /// Returns the explicit or stylesheet-default setting for `kind`, if present.
+    /// Returns the effective setting for `kind`, if present.
     pub fn get(&self, kind: LintKind) -> Option<&LintConfig> {
         self.entries.get(&kind)
     }

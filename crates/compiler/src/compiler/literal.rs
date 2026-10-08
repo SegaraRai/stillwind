@@ -8,7 +8,7 @@ use stillwind_design_system::{
     is_tailwind_relationship_candidate, resolve_variant,
 };
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
 };
 use stillwind_source::{Span, Spanned};
 use stillwind_syntax::parse_candidate;
@@ -84,6 +84,7 @@ impl LiteralContribution {
         value: &Spanned<String>,
         plan: &StyleVariantPlan,
         theme: &ThemeIndex,
+        lint_settings: &LintSettings,
         diagnostics: &mut Vec<CompileError>,
         lint_findings: &mut Vec<LintFinding>,
     ) -> LiteralContribution {
@@ -116,10 +117,7 @@ impl LiteralContribution {
                 ));
                 continue;
             }
-            if theme
-                .config()
-                .lint_settings
-                .enabled_for_detection(LintKind::PreferTypedRelationships)
+            if lint_settings.enabled_for_detection(LintKind::PreferTypedRelationships)
                 && is_tailwind_relationship_candidate(&raw, theme)
             {
                 lint_findings.push(LintFinding::new(
@@ -139,10 +137,7 @@ impl LiteralContribution {
             contribution.canonical.push('\0');
             match resolve_utility_targets(&raw, theme) {
                 Ok(Some(mut resolved)) => {
-                    if theme
-                        .config()
-                        .lint_settings
-                        .enabled_for_detection(LintKind::RequireElementScope)
+                    if lint_settings.enabled_for_detection(LintKind::RequireElementScope)
                         && let Some(candidate) = parse_candidate(&utility.value.raw)
                         && let Some(selector) = candidate
                             .variants

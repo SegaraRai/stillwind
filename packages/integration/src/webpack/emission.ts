@@ -1,4 +1,4 @@
-import type { BaseConfig } from "@stillwind/config";
+import type { BuildConfig } from "@stillwind/config";
 import type { ResolvedIntegrationConfig } from "@stillwind/config/node";
 import type { CssUpstreamMap } from "@stillwind/host";
 
@@ -14,7 +14,7 @@ export interface ProducerInput {
   /** Absolute project root against which compiler module identities are resolved. */
   root: string;
   /** Compiler configuration shared by every producer in this compilation. */
-  config: BaseConfig;
+  config: BuildConfig;
   /**
    * Whether this producer is excluded from automatic document CSS and supplies explicit CSS values.
    */

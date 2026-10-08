@@ -46,7 +46,7 @@ export default defineConfig({
 });
 ```
 
-Project lint fields override only the fields supplied. CSS severity directives and source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
+Project lint fields override compiler defaults. Source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
 
 The Web extension requires cross-origin isolation: serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Browser configuration can import browser-compatible modules. Imports of Node built-ins fail during configuration evaluation.
 

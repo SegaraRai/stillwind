@@ -146,26 +146,29 @@ mod tests {
             ("tailwind", ["builtin", "early", "late"]),
             ("", ["early", "builtin", "late"]),
         ] {
-            let config = if mode.is_empty() {
-                String::new()
-            } else {
-                format!("@stillwind {{utility-order:{mode};}}")
+            let options = CompilerOptions {
+                utility_order: if mode == "tailwind" {
+                    stillwind_design_system::UtilityOrderMode::Tailwind
+                } else {
+                    stillwind_design_system::UtilityOrderMode::Authored
+                },
+                ..Default::default()
             };
             let source = SourceFile::new(
                 FileId(1),
                 None,
                 None,
-                format!("{css} {config} @stillwind-slot utilities;"),
+                format!("{css} @stillwind-slot utilities;"),
             )
             .unwrap();
             let snapshot = DesignSystemSnapshot::from_source(
                 &source,
                 CssSourceName::from("test.css"),
-                DesignSystemOptions::default(),
+                options.design_system(),
             )
             .unwrap();
             ordering_fingerprints.push(snapshot.fingerprints().ordering.clone());
-            let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+            let query = DesignSystemQuery::new(snapshot, options.clone());
             let mut utilities = ["late", "builtin", "early"];
             utilities.sort_by(|a, b| query.compare_candidates(a, b).unwrap().unwrap());
             assert_eq!(utilities, expected);
@@ -195,7 +198,7 @@ mod tests {
                 ScriptModuleKind::Unambiguous,
                 &source,
                 &CssSourceName::from("stillwind.css"),
-                &CompilerOptions::default(),
+                &options,
             );
             assert!(compiled.diagnostics.is_empty(), "{compiled:#?}");
             let blue = compiled.css.find("color:blue").unwrap();

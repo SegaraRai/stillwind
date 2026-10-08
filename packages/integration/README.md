@@ -41,7 +41,7 @@ works when module transforms are restored from cache. Vite and its Astro wrapper
 hands one ordered stylesheet to the host's CSS pipeline. `next/` supplies Next's
 route discovery and registers those loaders for webpack and Turbopack.
 
-All adapters share `css`/`theme`, root-relative identity, compiler flags, and
+All adapters share `css`, root-relative identity, compiler flags, and
 naming settings. Named loader functions disable module caching and SFC requests
 retain their configured loader option identity; serializable options remain embedded
 in requests for isolated workers. Turbopack's loader configuration must be serializable.

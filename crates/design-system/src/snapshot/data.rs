@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSettings, SourceFailureContext};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_source::{CssSourceName, Fingerprint, SourceFile, SourceRegistryError, Span};
 
 use super::analysis::SnapshotAnalyses;
@@ -109,20 +109,18 @@ pub struct DesignSystemRevision(
 /// Records content hashes for the whole snapshot and its definition groups.
 ///
 /// Use `content` in cache keys to track the whole snapshot. Other fields identify
-/// changes to configuration, ordering, lint settings, or specific definition groups.
+/// changes to configuration, ordering, or specific definition groups.
 /// Loading identical CSS produces the same hashes even when revision numbers differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
     /// Whole-snapshot content, including the compiler version and the selected built-in
     /// CSS.
     pub content: Fingerprint,
-    /// Resolved prefix configuration only.
+    /// Host-supplied prefixes and utility ordering.
     pub config: Fingerprint,
     /// Output template, theme order, registration positions, and the utility ordering
     /// mode, which decide emitted ordering.
     pub ordering: Fingerprint,
-    /// Authored lint severities.
-    pub lint_settings: Fingerprint,
     /// Fingerprint of each effective token after namespace resets and overrides. Its
     /// keys match the active token registry.
     pub theme_tokens: BTreeMap<String, Fingerprint>,
@@ -222,7 +220,7 @@ impl DesignSystemSnapshot {
 
     /// Creates a snapshot from the parsed `theme`, host options in `config`, and `sources`.
     ///
-    /// Prefixes in CSS override host defaults before validation. Fingerprints exclude
+    /// Host options are validated before construction. Fingerprints exclude
     /// source IDs and spans so file read order does not change hashes for identical CSS.
     /// The supplied CSS determines built-in definitions, either directly or through imports.
     ///
@@ -232,16 +230,10 @@ impl DesignSystemSnapshot {
     #[allow(clippy::too_many_lines)] // Resolve and fingerprint one immutable set of semantic registries.
     pub(crate) fn from_loaded_theme(
         theme: ThemeIndex,
-        mut config: DesignSystemOptions,
+        config: DesignSystemOptions,
         sources: CssSourceGraph,
     ) -> Result<Self, CompileDiagnostic> {
         static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
-        if let Some(prefix) = &theme.config().prefix {
-            config.prefix.clone_from(prefix);
-        }
-        if let Some(prefix) = &theme.config().tailwind_prefix {
-            config.tailwind_prefix.clone_from(prefix);
-        }
         config.validate()?;
         // Source IDs are allocated as host reads complete; provenance must not
         // participate in semantic identity or asynchronous load order.
@@ -254,9 +246,8 @@ impl DesignSystemSnapshot {
             builtin_theme_order(&theme),
             theme.variant_positions(),
             theme.utility_positions(),
-            theme.config().utility_order,
+            theme.utility_order(),
         ));
-        let lint_settings = Fingerprint::of(format!("{:?}", theme.config().lint_settings));
         let builtins = theme.registry();
         let mut declaration_formats = builtins.declaration_formats().clone();
         declaration_formats.extend(theme.declaration_formats().clone());
@@ -314,7 +305,7 @@ impl DesignSystemSnapshot {
             theme.variants(),
             theme.properties(),
             semantic_template,
-            theme.config(),
+            theme.utility_order(),
             theme.marker_utilities(),
             theme.declaration_formats(),
             theme.relationship_patterns(),
@@ -351,7 +342,6 @@ impl DesignSystemSnapshot {
                     content,
                     config: config_hash,
                     ordering,
-                    lint_settings,
                     theme_tokens,
                     utilities,
                     variants,
@@ -398,7 +388,7 @@ impl DesignSystemSnapshot {
         &self.inner.property_names
     }
 
-    /// The resolved prefixes, including CSS-authored overrides of the host defaults.
+    /// The host-supplied prefixes and utility ordering captured by this snapshot.
     pub fn config(&self) -> &DesignSystemOptions {
         &self.inner.config
     }
@@ -430,12 +420,6 @@ impl DesignSystemSnapshot {
     /// Returns relationship patterns after project CSS overrides the selected built-ins.
     pub fn relationships(&self) -> &BTreeSet<String> {
         &self.inner.relationships
-    }
-
-    /// Authored lint severities, mapped from rule name to `warn`, `deny`, or `off`.
-    /// Lint policy never changes generated CSS or generated names.
-    pub fn lint_settings(&self) -> &LintSettings {
-        &self.inner.theme.config().lint_settings
     }
 
     /// Variants from the selected built-ins and from the project CSS, grouped by name.

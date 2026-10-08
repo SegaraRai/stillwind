@@ -136,7 +136,7 @@ pub fn resolve_utility(
             resolution
         }
     };
-    let order = match theme.config().utility_order {
+    let order = match theme.utility_order() {
         UtilityOrderMode::Authored => UtilityOrder::Authored(resolution.builtin_order),
         UtilityOrderMode::Tailwind => {
             let groups = std::iter::once(resolution.declaration.as_str())

@@ -16,18 +16,14 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         "../../../fixtures/tailwind-v4/utility-order.json"
     ))
     .unwrap();
-    let source = css_fixture::source(
-        FileId(1),
-        format!(
-            "{} @stillwind {{ utility-order: tailwind; }}",
-            fixture["stillwindCss"].as_str().unwrap()
-        ),
-    )
-    .unwrap();
+    let source = css_fixture::source(FileId(1), fixture["stillwindCss"].as_str().unwrap()).unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &source,
         CssSourceName::from("test.css"),
-        DesignSystemOptions::default(),
+        DesignSystemOptions {
+            utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+            ..Default::default()
+        },
     )
     .unwrap();
     let mut failures = Vec::new();
@@ -96,7 +92,6 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
     let theme = css_fixture::source(
         FileId(1),
         "
-        @stillwind { utility-order: tailwind; }
         @utility a-single { color:red; }
         @utility z-many { color:blue; --extra:; }
         @utility a-prefix { display:flex; }
@@ -127,7 +122,10 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
             ScriptModuleKind::Unambiguous,
             &theme,
             &CssSourceName::from("stillwind.css"),
-            &CompilerOptions::default(),
+            &CompilerOptions {
+                utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+                ..Default::default()
+            },
         );
         assert!(output.diagnostics.is_empty(), "{output:#?}");
         let position = |text| output.css.find(text).unwrap();

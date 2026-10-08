@@ -23,7 +23,6 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
 use super::builder::ThemeBuilder;
-use super::config::{StillwindConfig, extract_stillwind_config};
 use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
@@ -106,7 +105,6 @@ fn parse_theme_contents(
     theme.declaration_formats = extract_declaration_formats(source.text());
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
-    theme.config = extract_stillwind_config(source.text());
     theme.variant_positions = registration_positions(
         source.text(),
         &["@stillwind-variant", "@custom-variant", "@variant"],
@@ -200,7 +198,7 @@ pub(crate) fn extract_theme_tokens(
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
-        config: StillwindConfig::default(),
+        utility_order: crate::UtilityOrderMode::default(),
     })
 }
 

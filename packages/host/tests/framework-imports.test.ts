@@ -130,15 +130,15 @@ test("explicit framework constraints remain fatal even for an otherwise allowed 
   expect(output.lintFindings).toStrictEqual([]);
 });
 
-test("CSS configures framework import warn, off, and deny with next-line suppression", async () => {
+test("host options configure framework import warn, off, and deny with next-line suppression", async () => {
   for (const level of [undefined, "warn", "off", "deny"] as const) {
     for (const suppressed of [false, true]) {
-      const loader = new NativeDesignSystemLoader();
-      loader.provide(
-        0,
-        "framework-imports.css",
-        `${level ? `@stillwind {${rule}: ${level};}` : ""} ${utilities}`,
-      );
+      const loader = new NativeDesignSystemLoader({
+        lint: {
+          frameworkImportMismatch: level,
+        },
+      });
+      loader.provide(0, "framework-imports.css", utilities);
       const session = new NativeProjectSession(loader, false);
       const warnings: string[] = [];
       const source = [

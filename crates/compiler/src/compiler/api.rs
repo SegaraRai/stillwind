@@ -27,7 +27,7 @@ impl Compiler {
     ///
     /// # Errors
     ///
-    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
+    /// Returns invalid CSS, unresolved imports, or invalid host configuration.
     /// Failures retain the supplied theme source identity and typed cause.
     pub fn read_theme(
         source: &SourceFile,
@@ -50,7 +50,7 @@ impl Compiler {
     ///
     /// # Errors
     ///
-    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
+    /// Returns invalid CSS, unresolved imports, or invalid host configuration.
     /// Also rejects missing output slots, malformed property requirements or usage CSS,
     /// and unresolved authored theme references.
     pub fn render_stylesheet(

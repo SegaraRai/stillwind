@@ -1,4 +1,4 @@
-import type { BaseConfig } from "@stillwind/config";
+import type { BuildConfig } from "@stillwind/config";
 import {
   compileModule,
   resolveTypeFactsEnvironment,
@@ -37,7 +37,7 @@ export class IntegrationSession {
   constructor(
     root: string,
     loader: NativeDesignSystemLoader,
-    config: BaseConfig,
+    config: BuildConfig,
     watch: boolean,
     mode: string,
   ) {

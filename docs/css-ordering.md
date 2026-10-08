@@ -54,8 +54,8 @@ Tailwind counterpart, so they are specified here instead of matched.
 
 ## L1 - declaration order inside one rule
 
-The default is definition-position ordering (`utility-order: authored`).
-`@stillwind { utility-order: tailwind; }` explicitly selects Tailwind property
+The default is definition-position ordering (`utilityOrder: "authored"`).
+Project configuration with `utilityOrder: "tailwind"` explicitly selects Tailwind property
 metadata ordering: property indices, descending declaration count, then
 numeric-aware candidate spelling.
 

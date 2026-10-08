@@ -149,6 +149,7 @@ export function registerEditorContract(specifier: string): void {
       lint: {
         canonicalUtilities: {
           rootFontSize: 20.5,
+          severity: "deny",
         },
       },
     });
@@ -162,7 +163,6 @@ export function registerEditorContract(specifier: string): void {
 @variant hover { &:hover { @slot; } }
 @stillwind-variant group-* (value: [variant]) { &:is(:where(.group):--value() *) { @slot; } }
 @variant narrow-* { @media (width < --value(--breakpoint-*, [length])) { @slot; } }
-@stillwind { canonical-utilities:deny; }
 @stillwind-slot utilities;`,
       "file:///theme.css",
     );

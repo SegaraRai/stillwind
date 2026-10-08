@@ -51,11 +51,11 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const file = path.join(root, "entry.tsx");
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{"canonical-utilities":"deny","sort-utilities":"deny"}}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
-      "@theme { --spacing: .25rem; } @utility block { display: block; } @utility flex { display: flex; } @utility p-* { padding: --value(--spacing-*, --spacing(), [length]); } @stillwind { canonical-utilities: deny; sort-utilities: deny; } @stillwind-slot utilities;",
+      "@theme { --spacing: .25rem; } @utility block { display: block; } @utility flex { display: flex; } @utility p-* { padding: --value(--spacing-*, --spacing(), [length]); } @stillwind-slot utilities;",
     );
     const source =
       'import {style} from "stillwind/react";export const value=style("p-[16px] flex block");';
@@ -78,10 +78,13 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     expect(conflict.code).toBe(2);
     expect(conflict.stderr).toContain("Conflicting project rewrites");
     expect(await readFile(file, "utf8")).toBe(source);
-    await writeFile(config, 'export default {projects:[{css:"root.css",files:["*.tsx"]}]}');
+    await writeFile(
+      config,
+      'export default {projects:[{css:"root.css",files:["*.tsx"],lint:{"unknown-utility":"deny","sort-utilities":"deny"}}]}',
+    );
     await writeFile(
       path.join(root, "root.css"),
-      "@utility block { display: block; } @utility flex { display: flex; } @stillwind { unknown-utility: deny; sort-utilities: deny; } @stillwind-slot utilities;",
+      "@utility block { display: block; } @utility flex { display: flex; } @stillwind-slot utilities;",
     );
     await writeFile(
       file,
@@ -105,11 +108,11 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'import {defineConfig} from "stillwind/config";export default defineConfig(async () => {console.log("configuration log");return {projects:[{css:"root.css",files:["*.tsx"]},{css:"root.css",files:["unused.tsx"]}]};});',
+      'import {defineConfig} from "stillwind/config";export default defineConfig(async () => {console.log("configuration log");return {projects:[{css:"root.css",files:["*.tsx"],lint:{"unknown-utility":"deny"}},{css:"root.css",files:["unused.tsx"],lint:{"unknown-utility":"deny"}}]};});',
     );
     await writeFile(
       path.join(root, "root.css"),
-      "@utility red{color:red} @stillwind-slot utilities; @stillwind{unknown-utility:deny;}",
+      "@utility red{color:red} @stillwind-slot utilities;",
     );
     await writeFile(
       path.join(root, "entry.tsx"),
@@ -166,9 +169,9 @@ test("CLI reports unsupported targets and invalid project settings", async () =>
       path.join(root, "stillwind.config.ts"),
       'export default {projects:[{files:["*.tsx"]}]};',
     );
-    const missingPlugin = await run(root, ["lint"]);
-    expect(missingPlugin.code).toBe(2);
-    expect(missingPlugin.stderr).toContain("Each Stillwind project must specify CSS");
+    const missingCss = await run(root, ["lint"]);
+    expect(missingCss.code).toBe(2);
+    expect(missingCss.stderr).toContain("projects[0].css: must specify CSS");
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 5 });
   }

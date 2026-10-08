@@ -291,6 +291,9 @@ export function createViteProject(
 
   const configure = async (viteConfig: ResolvedConfig) => {
     const { emission, ...inline } = supplied;
+    if (emission !== undefined && emission !== "single" && emission !== "split") {
+      throw new Error("config.emission: must be single or split");
+    }
     const resolved = await resolveIntegrationConfig(inline, applicationRoot() ?? viteConfig.root);
     for (const state of environments.values()) {
       state.close();

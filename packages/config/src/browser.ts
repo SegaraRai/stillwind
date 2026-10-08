@@ -1,12 +1,15 @@
-import { dirname, resolve, relative } from "pathe";
+import * as paths from "pathe";
+import { resolve, dirname } from "pathe";
 
+import { resolveConfig, type AnalysisProjectConfig, type InlineConfig } from "./index.ts";
 import {
-  mergeConfig,
-  resolveConfig,
-  validateConfig,
-  type AnalysisProjectConfig,
-  type InlineConfig,
-} from "./index.ts";
+  configurationCandidates,
+  compilerConfig,
+  resolveProjectPaths,
+  resolveCompilerSettings,
+  selectProject,
+  validateInlineConfig,
+} from "./resolution.ts";
 
 /** Configuration evaluation supplied by a browser module runtime. */
 export interface BrowserConfigHost {
@@ -35,65 +38,29 @@ export async function resolveBrowserConfig(
 }> {
   root = resolve(root);
 
-  const { configFile: requested, project: name, ...overrides } = inline;
+  validateInlineConfig(inline);
 
-  if (
-    requested !== undefined &&
-    requested !== false &&
-    (typeof requested !== "string" || !requested.trim())
-  ) {
-    throw new Error("Stillwind configFile must be a path or false");
-  }
-  if (name !== undefined && (typeof name !== "string" || !name.trim())) {
-    throw new Error("Stillwind project must be a nonempty name");
-  }
-
-  const loaded = await loadBrowserConfig(root, host, requested);
+  const loaded = await loadBrowserConfig(root, host, inline.configFile);
   const file = loaded?.configFile;
   const projects = loaded?.projects ?? [];
-  let selected: AnalysisProjectConfig = {
-    root,
-    css: overrides.css ?? overrides.theme ?? "",
-    files: ["**/*"],
-  };
-  if (file) {
-    const target = resolve(root, overrides.root ?? ".");
-    const matches =
-      name !== undefined
-        ? projects.filter((project) => project.name === name)
-        : projects.length === 1
-          ? projects
-          : projects.filter((project) => {
-              const path = relative(project.root!, target);
-              return (
-                path === "" || (!path.startsWith("../") && path !== ".." && !path.startsWith("/"))
-              );
-            });
-    const depth = Math.max(...matches.map((project) => project.root!.length));
-    const closest =
-      name !== undefined || projects.length === 1
-        ? matches
-        : matches.filter((project) => project.root!.length === depth);
-    if (closest.length !== 1) {
-      throw new Error(
-        name !== undefined
-          ? `Cannot select Stillwind project ${JSON.stringify(name)}: expected one matching project`
-          : "Cannot select one Stillwind project; specify project by name or use a distinct project root",
-      );
-    }
-    selected = closest[0];
-  } else if (name !== undefined) {
+  if (!file && inline.project !== undefined) {
     throw new Error("Cannot select a Stillwind project without a configuration file");
   }
 
-  const config = mergeConfig(selected, overrides);
-  if (overrides.root !== undefined) {
-    config.root = resolve(root, overrides.root);
-  }
-
-  validateConfig({
-    projects: [config],
-  });
+  const selected = file
+    ? selectProject(projects as (AnalysisProjectConfig & { root: string })[], root, inline, paths)
+    : undefined;
+  const settings = resolveCompilerSettings(
+    selected ? compilerConfig(selected) : { root },
+    inline,
+    root,
+    paths,
+  );
+  const config: AnalysisProjectConfig = {
+    ...selected,
+    files: selected?.files ?? ["**/*"],
+    ...settings,
+  };
 
   return {
     config,
@@ -123,7 +90,9 @@ export async function loadBrowserConfig(
   if (requested !== undefined && (typeof requested !== "string" || !requested.trim())) {
     throw new Error("Stillwind configFile must be a path or false");
   }
+
   root = resolve(root);
+
   let file: string | undefined;
   if (requested) {
     file = resolve(root, requested);
@@ -131,29 +100,15 @@ export async function loadBrowserConfig(
       throw new Error(`Cannot find Stillwind configuration: ${file}`);
     }
   } else {
-    let directory = root;
-    while (true) {
-      const candidate = resolve(directory, "stillwind.config.ts");
-      if (host.exists(candidate)) {
-        file = candidate;
-        break;
-      }
-      const parent = dirname(directory);
-      if (parent === directory) {
-        break;
-      }
-      directory = parent;
-    }
+    file = configurationCandidates(root, paths).find((candidate) => host.exists(candidate));
   }
   if (!file) {
     return undefined;
   }
+
   const config = await resolveConfig(await host.evaluate(file));
   return {
     configFile: file,
-    projects: config.projects.map((project) => ({
-      ...project,
-      root: resolve(dirname(file!), project.root ?? "."),
-    })),
+    projects: config.projects.map((project) => resolveProjectPaths(project, dirname(file!), paths)),
   };
 }

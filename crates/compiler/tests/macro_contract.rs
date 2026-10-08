@@ -64,15 +64,7 @@ fn contract_severity_and_suppression_leave_transforms_available() {
                 "import {{style}} from 'stillwind/react';\n{}const x = style({{'--x': count++}});",
                 if suppressed { "// swlint-disable-next-line macro-argument-mutation\n" } else { "" }
             )).unwrap();
-            let css = SourceFile::new(
-                FileId(2),
-                None,
-                None,
-                format!(
-                    "@stillwind {{ macro-argument-mutation: {level}; }} @stillwind-slot utilities;"
-                ),
-            )
-            .unwrap();
+            let css = SourceFile::new(FileId(2), None, None, "@stillwind-slot utilities;").unwrap();
             let result = Compiler::compile_source(
                 &OxcSourceAnalyzer,
                 &source,
@@ -81,7 +73,15 @@ fn contract_severity_and_suppression_leave_transforms_available() {
                 ScriptModuleKind::Unambiguous,
                 &css,
                 &CssSourceName::from("stillwind.css"),
-                &CompilerOptions::default(),
+                &CompilerOptions {
+                    lint: stillwind_diagnostics::LintOverrides {
+                        macro_argument_mutation: Some(
+                            stillwind_diagnostics::LintSeverity::parse(level).unwrap(),
+                        ),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
             );
             assert!(result.diagnostics.is_empty(), "{result:#?}");
             assert_ne!(result.transforms, [] as [SourceTransform; 0]);

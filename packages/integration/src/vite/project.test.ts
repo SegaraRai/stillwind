@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createServer } from "vite";
+import { createServer, type ResolvedConfig } from "vite";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vite-plus/test";
 
 import { createVitePlugins } from "./plugin.ts";
@@ -25,6 +25,18 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const definePaint = (color: string) =>
   `.environment { color: ${color}; } @utility paint { color: ${color}; }`;
 const rootWithImport = "@import './part.css'; @stillwind-slot utilities;";
+
+test("invalid emission settings fail before opening compiler environments", async () => {
+  const project = createViteProject({
+    configFile: false,
+    emission: "unknown" as "single",
+  });
+  await expect(
+    project.configure({
+      root: repositoryRoot,
+    } as ResolvedConfig),
+  ).rejects.toThrow("config.emission: must be single or split");
+});
 
 describe("CSS updates without HMR", () => {
   test("editing JavaScript does not reread unchanged client or SSR CSS", async () => {

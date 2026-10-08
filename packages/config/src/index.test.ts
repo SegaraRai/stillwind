@@ -4,10 +4,135 @@ import {
   defineConfig,
   resolveConfig,
   validateConfig,
+  normalizeCompilerConfig,
+  lintRules,
   type LintOptions,
   type StillwindConfig,
   type StillwindConfigExport,
 } from "./index.ts";
+
+test("every catalog rule accepts reporting levels and detailed rules retain their options", () => {
+  for (const rule of Object.keys(lintRules)) {
+    for (const severity of ["warn", "deny", "off"] as const) {
+      const setting =
+        rule === "no-restricted-theme-tokens" && severity !== "off"
+          ? { severity, tokens: ["--color-*"] }
+          : severity;
+      expect(() =>
+        validateConfig({
+          projects: [
+            {
+              css: "root.css",
+              files: ["*.tsx"],
+              lint: {
+                [rule]: setting,
+              },
+            },
+          ],
+        }),
+      ).not.toThrow();
+    }
+  }
+  expect(
+    normalizeCompilerConfig({
+      lint: {
+        "canonical-utilities": {
+          rootFontSize: 20,
+        },
+        "unknown-utility": "deny",
+      },
+    }),
+  ).toMatchObject({
+    utilityOrder: "authored",
+    hashLength: 5,
+    lint: {
+      "canonical-utilities": {
+        severity: "warn",
+        pxToRem: true,
+        rootFontSize: 20,
+      },
+      "unknown-utility": "deny",
+    },
+  });
+});
+
+test.each([
+  [
+    { lint: { "no-restricted-theme-tokens": "warn" } },
+    "projects[0].lint.no-restricted-theme-tokens.tokens",
+  ],
+  [
+    { lint: { "length-units": { rules: [{ properties: ["padding"], disallow: ["deg"] }] } } },
+    "projects[0].lint.length-units.rules[0].disallow",
+  ],
+  [
+    {
+      prefix: "bad",
+    },
+    "projects[0].prefix",
+  ],
+  [
+    {
+      prefix: "--bad name-",
+    },
+    "projects[0].prefix",
+  ],
+  [
+    {
+      tailwindPrefix: "--sw-",
+    },
+    "projects[0].tailwindPrefix",
+  ],
+  [
+    {
+      utilityOrder: "unknown",
+    },
+    "projects[0].utilityOrder",
+  ],
+  [
+    {
+      sources: {
+        kind: "custom",
+        supports: () => true,
+        load: async () => null,
+        typo: true,
+      },
+    },
+    "projects[0].sources.typo",
+  ],
+  [
+    {
+      projection: {
+        kind: "custom",
+        prepare: async () => null,
+        typo: true,
+      },
+    },
+    "projects[0].projection.typo",
+  ],
+  [
+    {
+      lint: {
+        "canonical-utilities": {
+          rootFontSize: 0,
+        },
+      },
+    },
+    "projects[0].lint.canonical-utilities.rootFontSize",
+  ],
+])("invalid settings identify their field: %j", (setting, location) => {
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "root.css",
+          files: ["*.tsx"],
+          ...setting,
+        },
+      ],
+    }),
+  ).toThrow(location);
+});
 
 test("utility policies accept typed options and reject malformed restrictions", () => {
   const lint: LintOptions = {

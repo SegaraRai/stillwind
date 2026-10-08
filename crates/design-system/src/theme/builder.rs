@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
 
-use super::config::StillwindConfig;
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
+use crate::UtilityOrderMode;
 use crate::registry::utilities::CustomUtility;
 use crate::registry::variants::CustomVariant;
 
@@ -42,8 +42,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) relationship_patterns: BTreeSet<String>,
     /// Property names declared by authored `@property` rules.
     pub(crate) authored_properties: BTreeSet<String>,
-    /// CSS-authored `@stillwind` settings for this stylesheet.
-    pub(crate) config: StillwindConfig,
+    /// Host-selected ordering strategy for resolved utilities.
+    pub(crate) utility_order: UtilityOrderMode,
 }
 
 impl ThemeBuilder {

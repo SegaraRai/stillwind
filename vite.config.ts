@@ -71,6 +71,7 @@ export default defineConfig(({ mode }) => ({
       generate: {
         command: "",
         dependsOn: [
+          "@stillwind-internal/tools-workspace#generate:lint-config",
           "generate:fixtures:projects",
           "generate:fixtures:tailwind",
           "generate:tailwind-order",
@@ -151,6 +152,7 @@ export default defineConfig(({ mode }) => ({
       "check:generated": {
         command: "",
         dependsOn: [
+          "@stillwind-internal/tools-workspace#check:generated:lint-config",
           "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind-order",
           "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind",
           "@stillwind-internal/tools-tailwind#check:generated:tailwind-order",

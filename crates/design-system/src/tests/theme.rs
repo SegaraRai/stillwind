@@ -1,13 +1,12 @@
 //! Theme parsing against the real built-in package.
 //!
 //! Pins token extraction and classification with source spans, the `@theme` emission
-//! modes, namespace resets, CSS-first configuration, and the rule that importing the
+//! modes, namespace resets, and the rule that importing the
 //! package is what selects the built-in definitions and default tokens.
 
 use std::sync::Arc;
 
 use stillwind_css::CssOutputNode;
-use stillwind_diagnostics::LintKind;
 
 use crate::test_support::parse_fixture_theme;
 
@@ -83,30 +82,6 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
     let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false, &[]);
     assert_eq!(referenced.len(), 1);
     assert_eq!(referenced[0].name.value, "--breakpoint-foo");
-}
-
-#[test]
-fn extracts_css_first_stillwind_config_and_removes_it_from_custom_css() {
-    let source = SourceFile::new(
-        FileId(7),
-        None,
-        None,
-        r#"@stillwind { prefix: "--app-"; lint { prefer-typed-relationships: warn; } }
-.card { color: red; }"#,
-    )
-    .unwrap();
-
-    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-
-    assert_eq!(theme.config().prefix.as_deref(), Some("--app-"));
-    assert!(
-        theme
-            .config()
-            .lint_settings
-            .enabled_for_detection(LintKind::PreferTypedRelationships)
-    );
-    assert!(!theme.custom_css().contains("@stillwind"));
-    assert!(theme.custom_css().contains(".card"));
 }
 
 #[test]

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { expect, onTestFinished, test } from "vite-plus/test";
 
+import { resolveBrowserConfig } from "./browser.ts";
 import { mergeConfig, validateConfig, type ProjectionProvider, type BaseConfig } from "./index.ts";
 import { findConfiguration, loadConfiguration, resolveIntegrationConfig } from "./node.ts";
 
@@ -22,14 +23,24 @@ test("discovery and project paths use the configuration directory", async () => 
   await write([{ root: "apps/web", css: "theme.css", files: ["src/*.tsx"] }]);
   expect(findConfiguration(app)).toBe(configFile);
   const resolved = await resolveIntegrationConfig({}, app);
-  expect(resolved.config).toEqual({ root: app, css: "theme.css" });
+  expect(resolved.config).toMatchObject({
+    root: app,
+    css: path.join(app, "theme.css"),
+  });
   expect(resolved.dependencies).toContain(configFile);
   expect(resolved.missing).toContain(path.join(app, "stillwind.config.ts"));
 });
 
 test("an explicit file uses the application root while inline overrides preserve false", async () => {
   const { root, configFile, write } = await fixture();
-  await write([{ root: "old", css: "theme.css", files: ["*.tsx"], automatic: true }]);
+  await write([
+    {
+      root: "old",
+      css: "theme.css",
+      files: ["*.tsx"],
+      automatic: true,
+    },
+  ]);
   const config = (
     await resolveIntegrationConfig(
       {
@@ -41,10 +52,58 @@ test("an explicit file uses the application root while inline overrides preserve
       root,
     )
   ).config;
-  expect(config).toEqual({
+  expect(config).toMatchObject({
     root: path.join(root, "new"),
-    css: "theme.css",
+    css: path.join(root, "old", "theme.css"),
     automatic: false,
+  });
+});
+
+test("Node and browser preserve file-authored paths when inline root changes", async () => {
+  const { root, configFile, write } = await fixture();
+  const settings = {
+    root: "old",
+    css: "theme.css",
+    tsconfig: "tsconfig.app.json",
+    files: ["*.tsx"],
+    lint: { "unknown-utility": "warn" },
+  };
+  await write([settings]);
+  const overrides = { root: "new", lint: { "unknown-utility": "deny" as const } };
+  const node = await resolveIntegrationConfig(overrides, root);
+  const virtualRoot = root.replaceAll("\\", "/");
+  const browser = await resolveBrowserConfig(
+    virtualRoot,
+    {
+      exists: (file) => file === configFile.replaceAll("\\", "/"),
+      evaluate: async () => ({
+        projects: [settings],
+      }),
+    },
+    overrides,
+  );
+  expect(node.config).toMatchObject({
+    root: path.join(root, "new"),
+    css: path.join(root, "old", "theme.css"),
+    tsconfig: path.join(root, "old", "tsconfig.app.json"),
+    lint: { "unknown-utility": "deny" },
+  });
+  expect(browser.config.css).toBe(node.config.css.replaceAll("\\", "/"));
+  expect(browser.config.tsconfig).toBe((node.config.tsconfig as string).replaceAll("\\", "/"));
+  expect(
+    (
+      await resolveIntegrationConfig(
+        {
+          ...overrides,
+          css: "inline.css",
+          tsconfig: false,
+        },
+        root,
+      )
+    ).config,
+  ).toMatchObject({
+    css: path.join(root, "new", "inline.css"),
+    tsconfig: false,
   });
 });
 
@@ -52,10 +111,37 @@ test("configFile false bypasses an invalid configuration", async () => {
   const { root, configFile } = await fixture();
   await writeFile(configFile, "throw new Error('configuration evaluated')");
   const resolved = await resolveIntegrationConfig({ configFile: false, css: "inline.css" }, root);
-  expect(resolved.config.css).toBe("inline.css");
+  expect(resolved.config.css).toBe(path.join(root, "inline.css"));
   expect(resolved.dependencies).toEqual([]);
   await expect(resolveIntegrationConfig({ css: "inline.css" }, root)).rejects.toThrow(
     "configuration evaluated",
+  );
+});
+
+test("inline overrides validate after merging with the selected project", async () => {
+  const { root, write } = await fixture();
+  await write([
+    {
+      css: "root.css",
+      files: ["*.tsx"],
+      prefix: "--project-",
+      lint: { "no-restricted-theme-tokens": { severity: "warn", tokens: ["--color-*"] } },
+    },
+  ]);
+  expect((await resolveIntegrationConfig({ tailwindPrefix: "--sw-" }, root)).config).toMatchObject({
+    prefix: "--project-",
+    tailwindPrefix: "--sw-",
+  });
+  expect(
+    (
+      await resolveIntegrationConfig(
+        { lint: { "no-restricted-theme-tokens": { severity: "deny" } } },
+        root,
+      )
+    ).config.lint,
+  ).toMatchObject({ "no-restricted-theme-tokens": { severity: "deny", tokens: ["--color-*"] } });
+  await expect(resolveIntegrationConfig({ tailwindPrefix: "--project-" }, root)).rejects.toThrow(
+    "config.tailwindPrefix",
   );
 });
 
@@ -74,7 +160,9 @@ test("unnamed projects can be selected by their distinct roots", async () => {
     { css: "base.css", files: ["*.ts"] },
     { root: "web", css: "web.css", files: ["*.tsx"] },
   ]);
-  expect((await resolveIntegrationConfig({}, path.join(root, "web"))).config.css).toBe("web.css");
+  expect((await resolveIntegrationConfig({}, path.join(root, "web"))).config.css).toBe(
+    path.join(root, "web", "web.css"),
+  );
 });
 
 test("overlapping project roots require an explicit name", async () => {
@@ -86,7 +174,9 @@ test("overlapping project roots require an explicit name", async () => {
   await expect(resolveIntegrationConfig({}, root)).rejects.toThrow(
     "Cannot select one Stillwind project",
   );
-  expect((await resolveIntegrationConfig({ project: "web" }, root)).config.css).toBe("second.css");
+  expect((await resolveIntegrationConfig({ project: "web" }, root)).config.css).toBe(
+    path.join(root, "second.css"),
+  );
   await expect(resolveIntegrationConfig({ project: "absent" }, root)).rejects.toThrow(
     "expected one matching project",
   );

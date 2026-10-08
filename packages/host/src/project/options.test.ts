@@ -1,6 +1,52 @@
+import { lintRules, type AnalysisProjectConfig, type LintRule } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { compilerOptions } from "./options.ts";
+
+test("analysis projects pass their compiler settings to native loaders", () => {
+  const project: AnalysisProjectConfig = {
+    css: "root.css",
+    files: ["*.tsx"],
+    name: "web",
+    typeFacts: false,
+    utilityOrder: "tailwind",
+    prefix: "--project-",
+    automatic: false,
+  };
+  expect(compilerOptions(project)).toMatchObject({
+    utilityOrder: "tailwind",
+    prefix: "--project-",
+  });
+});
+
+test("catalog reporting settings retain each native field name", () => {
+  for (const [name, rule] of Object.entries(lintRules)) {
+    const setting =
+      name === "no-restricted-theme-tokens"
+        ? {
+            severity: "deny" as const,
+            tokens: ["--color-*"],
+          }
+        : ("deny" as const);
+    expect(
+      compilerOptions({
+        utilityOrder: "tailwind",
+        lint: {
+          [name as LintRule]: setting,
+        },
+      }),
+    ).toMatchObject({
+      utilityOrder: "tailwind",
+      lint: {
+        [rule.nativeName]: rule.options
+          ? {
+              severity: "deny",
+            }
+          : "deny",
+      },
+    });
+  }
+});
 
 test("utility policies retain their fields at the native boundary", () => {
   const options = compilerOptions({
@@ -126,6 +172,7 @@ test("source restriction options retain native names and list replacements", () 
       },
     }).lint?.noArbitrarySpacing,
   ).toEqual({
+    severity: "warn",
     properties: ["width"],
   });
 });

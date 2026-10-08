@@ -446,7 +446,7 @@ export declare function minifyCss(css: string, options?: NativeCssMinifyOptions 
 
 /** Arbitrary spacing restrictions, including optional additional property domains. */
 export interface NativeArbitrarySpacingOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** Additional complete CSS property globs using `*` and `?`. */
   properties?: Array<string>
@@ -545,12 +545,14 @@ export interface NativeCompileCssInput {
  * Conversion validates prefixes; omitted fields retain [`CompilerOptions`] defaults.
  */
 export interface NativeCompilerOptions {
-  /** Project lint overrides. Omitted fields retain stylesheet severity and canonical defaults. */
+  /** Project lint settings. Omitted fields retain compiler defaults. */
   lint?: NativeLintOptions
   /** Prefix for Stillwind-owned identifiers. Must start with `--` and end with `-`. */
   prefix?: string
   /** Prefix for the retained Tailwind-compatibility namespace. */
   tailwindPrefix?: string
+  /** Ordering strategy: authored or tailwind. Defaults to authored. */
+  utilityOrder?: string
   /** Identifier namespace for generated class names. */
   classNamespace?: string
   /**
@@ -599,7 +601,7 @@ export interface NativeConditionContext {
 
 /** Overlap policy for utilities supplied directly by one style call. */
 export interface NativeConflictingUtilitiesOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** Allows narrower declarations to override part of a shorthand. */
   allowShorthandOverrides?: boolean
@@ -904,47 +906,77 @@ export interface NativeLengthUnitRule {
 
 /** Length restrictions applied at utility use sites. */
 export interface NativeLengthUnitsOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** A supplied list replaces the existing restrictions. */
   rules?: Array<NativeLengthUnitRule>
 }
 
-/** Project lint fields applied after CSS configuration. */
+/** Lint settings applied to compiler defaults. */
 export interface NativeLintOptions {
-  /** Reporting level for arbitrary color literals. Defaults to off. */
+  /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
-  /** Restrictions on arbitrary spacing. Defaults to off. */
+  /** Settings for `no-arbitrary-spacing`. */
   noArbitrarySpacing?: NativeArbitrarySpacingOptions
-  /** Reporting level for external class contributions. Defaults to off. */
+  /** Settings for `no-class-property`. */
   noClassProperty?: string
-  /** Restrictions on utility spellings. Defaults to off. */
+  /** Settings for `no-restricted-utilities`. */
   noRestrictedUtilities?: NativeRestrictedUtilitiesOptions
-  /** Restrictions on resolved declarations. Defaults to off. */
+  /** Settings for `no-restricted-declarations`. */
   noRestrictedDeclarations?: NativeRestrictedDeclarationsOptions
-  /** Reporting level for important declarations. Defaults to off. */
+  /** Settings for `no-important`. */
   noImportant?: string
-  /** Reporting level for invalid suppression comments. Defaults to warn. */
+  /** Settings for `valid-lint-suppressions`. */
   validLintSuppressions?: string
-  /** Reporting level for unused suppression comments. Defaults to off. */
+  /** Settings for `no-unused-lint-suppressions`. */
   noUnusedLintSuppressions?: string
-  /** Reporting level for variants that select another target. */
+  /** Settings for `prefer-direct-styling`. */
   preferDirectStyling?: string
-  /** Reporting level for repeated utility candidates. */
+  /** Settings for `duplicate-utilities`. */
   duplicateUtilities?: string
-  /** Direct utility overlap policy. */
+  /** Settings for `conflicting-utilities`. */
   conflictingUtilities?: NativeConflictingUtilitiesOptions
-  /** Reporting level for physical declarations with logical counterparts. */
+  /** Settings for `prefer-logical-properties`. */
   preferLogicalProperties?: string
-  /** Property-specific length unit restrictions. */
+  /** Settings for `length-units`. */
   lengthUnits?: NativeLengthUnitsOptions
-  /** Forbidden direct theme token references. */
+  /** Settings for `no-restricted-theme-tokens`. */
   noRestrictedThemeTokens?: NativeRestrictedThemeTokensOptions
-  /** Reporting level for arbitrary viewport size conditions. Defaults to off. */
+  /** Settings for `no-arbitrary-breakpoints`. */
   noArbitraryBreakpoints?: string
-  /** Field-wise canonical lint policy overrides. */
+  /** Settings for `framework-import-mismatch`. */
+  frameworkImportMismatch?: string
+  /** Settings for `macro-argument-mutation`. */
+  macroArgumentMutation?: string
+  /** Settings for `macro-execution-boundary`. */
+  macroExecutionBoundary?: string
+  /** Settings for `valid-anchor-scope`. */
+  validAnchorScope?: string
+  /** Settings for `require-ref-attachment`. */
+  requireRefAttachment?: string
+  /** Settings for `conflicting-provider-properties`. */
+  conflictingProviderProperties?: string
+  /** Settings for `prefer-typed-relationships`. */
+  preferTypedRelationships?: string
+  /** Settings for `require-element-scope`. */
+  requireElementScope?: string
+  /** Settings for `require-view-transition-name`. */
+  requireViewTransitionName?: string
+  /** Settings for `single-view-transition-name`. */
+  singleViewTransitionName?: string
+  /** Settings for `single-view-transition-class`. */
+  singleViewTransitionClass?: string
+  /** Settings for `ambiguous-base-order`. */
+  ambiguousBaseOrder?: string
+  /** Settings for `imported-base-interference`. */
+  importedBaseInterference?: string
+  /** Settings for `invalid-utility`. */
+  invalidUtility?: string
+  /** Settings for `unknown-utility`. */
+  unknownUtility?: string
+  /** Settings for `canonical-utilities`. */
   canonicalUtilities?: NativeCanonicalUtilitiesOptions
-  /** Optional sorting diagnostic severity: warn, deny, or off. Detection is off by default. */
+  /** Settings for `sort-utilities`. */
   sortUtilities?: string
 }
 
@@ -1114,7 +1146,7 @@ export interface NativeRestrictedDeclarationRule {
 
 /** Restrictions on resolved CSS declarations. */
 export interface NativeRestrictedDeclarationsOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** A supplied list replaces declaration restrictions. */
   rules?: Array<NativeRestrictedDeclarationRule>
@@ -1122,7 +1154,7 @@ export interface NativeRestrictedDeclarationsOptions {
 
 /** Forbidden direct theme token names. */
 export interface NativeRestrictedThemeTokensOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** Complete custom-property globs using `*` and `?`. */
   tokens?: Array<string>
@@ -1130,7 +1162,7 @@ export interface NativeRestrictedThemeTokensOptions {
 
 /** Restrictions on utility spellings. */
 export interface NativeRestrictedUtilitiesOptions {
-  /** Reporting severity; omission preserves the stylesheet level. */
+  /** Reporting severity; omission uses the rule default. */
   severity?: string
   /** A supplied list replaces utility restrictions. */
   utilities?: Array<NativeRestrictedUtilityRule>

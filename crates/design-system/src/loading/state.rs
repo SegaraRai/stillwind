@@ -310,6 +310,7 @@ impl DesignSystemLoader {
             }
             error
         })?;
+        theme.utility_order = self.options.utility_order;
         theme
             .output_template
             .map_origins(|span| output.original_span(span));

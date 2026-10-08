@@ -582,7 +582,7 @@ pub enum CompileDiagnostic {
     InvalidPropertyPrefix {
         /// Configuration field name: `prefix` or `tailwindPrefix`.
         option: String,
-        /// Rejected prefix supplied by the host or CSS configuration.
+        /// Rejected prefix supplied by the host.
         value: String,
     },
     /// A configured generated-name hash length cannot spell one request digest.

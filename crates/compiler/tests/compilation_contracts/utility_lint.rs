@@ -109,11 +109,7 @@ fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
         ..CompilerOptions::default()
     };
     assert_eq!(
-        kinds(
-            "const x=style('max-[900px]:flex');",
-            &format!("{theme} @stillwind {{no-arbitrary-breakpoints:deny;}}"),
-            &off
-        ),
+        kinds("const x=style('max-[900px]:flex');", &theme, &off),
         [] as [LintKind; 0]
     );
 }
@@ -328,8 +324,15 @@ fn direct_styling_policy_allows_pseudo_elements_and_utility_internal_selectors()
         [] as [LintKind; 0]
     );
     let theme = format!(
-        "{CSS} @stillwind {{ prefer-direct-styling:warn; }} @custom-variant parent (.parent &); @custom-variant has (&:has(>img)); @custom-variant before (&::before); @custom-variant legacy (&:after); @custom-variant part (&::part(label)); @custom-variant pseudos (&::before, &::after); @custom-variant child-before (&>span::before); @custom-variant mixed (&::before, &>span::after); @custom-variant list (:is(&,span)::before);"
+        "{CSS} @custom-variant parent (.parent &); @custom-variant has (&:has(>img)); @custom-variant before (&::before); @custom-variant legacy (&:after); @custom-variant part (&::part(label)); @custom-variant pseudos (&::before, &::after); @custom-variant child-before (&>span::before); @custom-variant mixed (&::before, &>span::after); @custom-variant list (:is(&,span)::before);"
     );
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            prefer_direct_styling: Some(LintSeverity::Warn),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     for utility in [
         "child",
         "hover:child",
@@ -342,12 +345,7 @@ fn direct_styling_policy_allows_pseudo_elements_and_utility_internal_selectors()
         "hover:before:p2",
     ] {
         assert!(
-            kinds(
-                &format!("const x=style('{utility}');"),
-                &theme,
-                &CompilerOptions::default()
-            )
-            .is_empty(),
+            kinds(&format!("const x=style('{utility}');"), &theme, &options).is_empty(),
             "{utility}"
         );
     }
@@ -359,11 +357,7 @@ fn direct_styling_policy_allows_pseudo_elements_and_utility_internal_selectors()
         "child:before:p2",
     ] {
         assert_eq!(
-            kinds(
-                &format!("const x=style('{utility}');"),
-                &theme,
-                &CompilerOptions::default()
-            ),
+            kinds(&format!("const x=style('{utility}');"), &theme, &options),
             [LintKind::PreferDirectStyling],
             "{utility}"
         );
@@ -372,7 +366,7 @@ fn direct_styling_policy_allows_pseudo_elements_and_utility_internal_selectors()
         kinds(
             "// swlint-disable-next-line prefer-direct-styling\nconst x=style('child-before:p2');",
             &theme,
-            &CompilerOptions::default(),
+            &options,
         ),
         [] as [LintKind; 0]
     );

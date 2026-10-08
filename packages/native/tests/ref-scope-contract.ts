@@ -1,3 +1,4 @@
+import type { NativeCompilerOptions } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
 const declarations = `import {style} from 'stillwind/react';
@@ -12,22 +13,25 @@ const theme = `@variant hover { @media (hover:hover) { &:hover { @slot; } } }
 
 /** Registers scope contracts against the supplied native or WASM binding entry. */
 export function registerRefScopeContract(bindingSpecifier: string) {
-  const compile = async (body: string, css = theme) => {
+  const compile = async (body: string, css = theme, options: NativeCompilerOptions = {}) => {
     const { compileSource } = await import(bindingSpecifier);
-    return compileSource({
-      source: `${declarations}\n${body}`,
-      moduleId: "scopes.tsx",
-      uri: "untitled:scopes.tsx",
-      sourceMapSource: "untitled:scopes.tsx",
-      language: "tsx",
-      moduleKind: "unambiguous",
-      css: {
-        content: css,
-        name: "root.css",
-        uri: "untitled:root.css",
-        sourceMapSource: "untitled:root.css",
+    return compileSource(
+      {
+        source: `${declarations}\n${body}`,
+        moduleId: "scopes.tsx",
+        uri: "untitled:scopes.tsx",
+        sourceMapSource: "untitled:scopes.tsx",
+        language: "tsx",
+        moduleKind: "unambiguous",
+        css: {
+          content: css,
+          name: "root.css",
+          uri: "untitled:root.css",
+          sourceMapSource: "untitled:root.css",
+        },
       },
-    });
+      options,
+    );
   };
 
   test("scope calls and tags preserve ref and scope states", async () => {
@@ -88,10 +92,11 @@ export const props = style({
   test("provider attachment findings honor configured reporting levels", async () => {
     const rule = "require-ref-attachment";
     for (const severity of ["warn", "deny", "off"]) {
-      const output = await compile(
-        "export const props = style(menu.asAnchor());",
-        `${theme}\n@stillwind { ${rule}: ${severity}; }`,
-      );
+      const output = await compile("export const props = style(menu.asAnchor());", theme, {
+        lint: {
+          requireRefAttachment: severity,
+        },
+      });
       expect(output.diagnostics).toStrictEqual([]);
       expect(output.lintSettings[rule]).toBe(severity);
       const findings = output.lintFindings.filter(

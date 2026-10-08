@@ -271,7 +271,7 @@ fn resolve_valid_utility_body(
             selector: None,
             nested: Vec::new(),
             additional,
-            builtin_order: match theme.config().utility_order {
+            builtin_order: match theme.utility_order() {
                 UtilityOrderMode::Authored => theme
                     .utility_positions()
                     .get(utility.name.as_str())
@@ -289,7 +289,7 @@ fn resolve_valid_utility_body(
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
-            builtin_order: match theme.config().utility_order {
+            builtin_order: match theme.utility_order() {
                 UtilityOrderMode::Authored => theme
                     .utility_positions()
                     .get(utility.name.as_str())

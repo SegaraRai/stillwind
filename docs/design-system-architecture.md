@@ -5,7 +5,7 @@ specified in [crate architecture](crate-architecture.md) and
 [using the compiler services](design-system-core.md).
 
 This document fixes the public responsibility boundaries for loading Stillwind
-CSS configuration, analyzing source modules, compiling analyzed modules, editor
+design-system definitions, analyzing source modules, compiling analyzed modules, editor
 queries, and HMR. It is intended to be sufficient context for implementing the
 refactor in a new work session.
 
@@ -132,7 +132,6 @@ struct DesignSystemData {
     imports: FrameworkImports,
     layers: LayerConfiguration,
     candidate_order: CandidateOrder,
-    lint_settings: LintSettings,
 
     diagnostics: Vec<DesignSystemDiagnostic>,
     fingerprints: DefinitionFingerprints,
@@ -171,7 +170,6 @@ semantic groups and definitions:
 struct DefinitionFingerprints {
     config: Fingerprint,
     ordering: Fingerprint,
-    lint_settings: Fingerprint,
     theme_tokens: BTreeMap<ThemeTokenId, Fingerprint>,
     utilities: BTreeMap<UtilityDefinitionId, Fingerprint>,
     variants: BTreeMap<VariantDefinitionId, Fingerprint>,

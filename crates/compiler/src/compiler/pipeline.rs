@@ -127,7 +127,7 @@ impl Compiler {
         let theme = snapshot.theme();
         let module_id = &parsed.module_id;
         let options = compiler_options;
-        result.lint_settings = compiler_options.lint_settings(snapshot);
+        result.lint_settings = compiler_options.lint_settings();
         if let Err(kind) = validate_lint_settings(&result.lint_settings) {
             result
                 .diagnostics

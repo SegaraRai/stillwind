@@ -844,7 +844,6 @@ impl NativeProjectSession {
                 OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id))
             })
             .collect();
-        let snapshot = self.session.snapshot();
         let mut modules = Vec::new();
         let mut attempted = Vec::new();
         let diagnostic_sources = transaction
@@ -864,7 +863,7 @@ impl NativeProjectSession {
             } else {
                 CompileResult {
                     diagnostics: update.diagnostics,
-                    lint_settings: self.session.options().lint_settings(&snapshot),
+                    lint_settings: self.session.options().lint_settings(),
                     ..CompileResult::default()
                 }
             };

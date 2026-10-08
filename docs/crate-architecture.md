@@ -59,7 +59,7 @@ not change the diagnostic identity. `LintDiagnostic` owns the message template a
 values for a detected lint, and `LintFinding` attaches its source details.
 Different message templates have different diagnostic variants.
 
-`LintKind` identifies one lint rule and corresponds to one stable name accepted by CSS
+`LintKind` identifies one lint rule and corresponds to one stable name accepted by project
 configuration and `swlint-*` directives. `LintDiagnostic::kind()` selects that rule;
 multiple diagnostic variants can select the same rule, and utility classification can
 select different rules for one diagnostic variant. `LintConfig` has one setting variant
@@ -67,7 +67,7 @@ for each `LintKind`. `LintSettings` stores at most one setting for each rule and
 keys from disagreeing with their setting variants. Unconfigured rules do not enable
 configured detection, but a producer can still detect them; reporting then uses `warn`.
 
-CSS configuration retains only recognized rule names with valid severities. Settings
+Project configuration validates rule names and settings before loading resources. Effective settings
 serialize to the host protocol as a map of rule names to severities.
 
 Wrappers retain ordered labels and notes, plus an optional source name for compilation
@@ -104,9 +104,8 @@ can be exchanged independently of the module's extracted style operations.
 
 ## Definition settings and generation settings
 
-`DesignSystemOptions` contains definition-level property prefixes. A snapshot
-resolves those defaults against CSS configuration and retains only the resolved
-definition settings, theme, registries, source provenance, and fingerprints.
+`DesignSystemOptions` contains property prefixes and utility ordering. A snapshot
+captures those host settings, theme definitions, registries, source provenance, and fingerprints.
 
 `CompilerOptions` contains host defaults plus class namespace, application
 namespace, and generation policy. `design_system()` projects the loader inputs;

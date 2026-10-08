@@ -4,6 +4,9 @@
  * Node configuration discovery and file evaluation are provided by `@stillwind/config/node`.
  */
 
+import { lintRules, lengthUnits, type SimpleLintRule, type LintRule } from "./lint-rules.ts";
+export { lintRules, type LintRule } from "./lint-rules.ts";
+
 import type { NativeIdentifierNaming } from "@stillwind/native";
 import type { PreparedSource, ProjectInput } from "@stillwind/projection";
 
@@ -11,7 +14,7 @@ import type { PreparedSource, ProjectInput } from "@stillwind/projection";
  * Compiler and design-system settings shared by build integrations and analysis services.
  */
 export interface BaseConfig {
-  /** Lint reporting and safe source normalization. CSS severities apply before these overrides. */
+  /** Lint reporting and safe source normalization. Omitted rules use compiler defaults. */
   lint?: LintOptions;
   /** Targets for explicit Stillwind sorting and the optional sorting diagnostic. */
   sort?: UtilitySortOptions;
@@ -27,12 +30,10 @@ export interface BaseConfig {
    * to apply changed settings.
    */
   tsconfig?: string | false;
-  /** Apply producer CSS to the document. Disable for libraries that supply explicit CSS values. */
-  automatic?: boolean;
-  /** Design-system stylesheet alias used when css is absent. Paths are absolute or relative to the project root. */
-  theme?: string;
-  /** Design-system stylesheet, absolute or relative to the project root. Takes precedence over `theme`. */
+  /** Design-system stylesheet, absolute or relative to the project root.  */
   css?: string;
+  /** Orders utilities by authored definition positions or Tailwind property metadata. Defaults to authored. */
+  utilityOrder?: "authored" | "tailwind";
   /** Namespace for Stillwind-owned CSS identifiers. Defaults to --sw-. */
   prefix?: string;
   /** Namespace for Tailwind-compatible internal custom properties. Defaults to --tw-. */
@@ -70,46 +71,19 @@ export interface BaseConfig {
 export type LintSeverity = "warn" | "deny" | "off";
 
 /** Detection and reporting policies for source utilities and compiler ordering. */
-export type LintOptions = {
-  /** Forbids literal colors supplied as arbitrary values. Defaults to off. */
-  "no-arbitrary-colors"?: LintSeverity;
-  /** Forbids arbitrary margin, padding, gap, and selected additional domains. Defaults to off. */
+export type LintOptions = Partial<Record<SimpleLintRule, LintSeverity>> & {
   "no-arbitrary-spacing"?: LintSeverity | ArbitrarySpacingOptions;
-  /** Forbids external class contributions in style objects. Defaults to off. */
-  "no-class-property"?: LintSeverity;
-  /** Forbids matching utility spellings, including unresolved names. Defaults to off. */
-  "no-restricted-utilities"?: RestrictedUtilitiesOptions;
-  /** Forbids resolved CSS property and value combinations. Defaults to off. */
-  "no-restricted-declarations"?: RestrictedDeclarationsOptions;
-  /** Forbids important declarations. Defaults to off. */
-  "no-important"?: LintSeverity;
-  /** Reports unknown suppression names and malformed directives. Defaults to warn. */
-  "valid-lint-suppressions"?: LintSeverity;
-  /** Reports disable comments that suppress no enabled findings. Defaults to off. */
-  "no-unused-lint-suppressions"?: LintSeverity;
-  /** Reports variants that style another element. Allows the attachment's pseudo-elements. Defaults to off. */
-  "prefer-direct-styling"?: LintSeverity;
-  /** Reports repeated candidates under identical CSS conditions. Defaults to warn. */
-  "duplicate-utilities"?: LintSeverity;
-  /** Reports competing declarations from direct utilities. Defaults to warn. */
+  "no-restricted-utilities"?: LintSeverity | RestrictedUtilitiesOptions;
+  "no-restricted-declarations"?: LintSeverity | RestrictedDeclarationsOptions;
   "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
-  /** Reports physical declarations with logical counterparts. Defaults to off. */
-  "prefer-logical-properties"?: LintSeverity;
-  /** Restricts length units by CSS property name. Defaults to off. */
   "length-units"?: LintSeverity | LengthUnitsOptions;
-  /** Forbids direct theme references matching complete token names. Defaults to off. */
-  "no-restricted-theme-tokens"?: RestrictedThemeTokensOptions;
-  /** Requires named variants for viewport size conditions. Defaults to off. */
-  "no-arbitrary-breakpoints"?: LintSeverity;
-  /** Defaults to warn, with spacing conversion enabled at 16 pixels per rem. */
+  "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
   "canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
-  /** Enables an optional sorting diagnostic. Omission disables it unless CSS enables it. */
-  "sort-utilities"?: LintSeverity;
 };
 
 /** Selects additional domains beyond margin, padding, and gap. */
 export type ArbitrarySpacingOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Case-insensitive full property globs using `*` and `?`. */
   properties?: string[];
@@ -117,7 +91,7 @@ export type ArbitrarySpacingOptions = {
 
 /** Forbids utility spellings independently of CSS resolution. */
 export type RestrictedUtilitiesOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Full utility globs exclude enclosing variants and important modifiers. */
   utilities?: {
@@ -128,7 +102,7 @@ export type RestrictedUtilitiesOptions = {
 
 /** Forbids resolved declarations, including parsed shorthand components. */
 export type RestrictedDeclarationsOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Property and value globs ignore ASCII case. Values match complete serialized CSS text. */
   rules?: {
@@ -140,7 +114,7 @@ export type RestrictedDeclarationsOptions = {
 
 /** Controls overlap between direct utility contributions. */
 export type ConflictingUtilitiesOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Allows a narrower property to override part of a shorthand. Defaults to false. */
   allowShorthandOverrides?: boolean;
@@ -148,7 +122,7 @@ export type ConflictingUtilitiesOptions = {
 
 /** Controls nonzero CSS lengths; later matching rules replace earlier restrictions. */
 export type LengthUnitsOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Property names use case-insensitive full-name globs with `*` and `?`. */
   rules?: {
@@ -159,7 +133,7 @@ export type LengthUnitsOptions = {
 
 /** Selects theme token names without restricting semantic aliases of those tokens. */
 export type RestrictedThemeTokensOptions = {
-  /** Omission preserves the stylesheet severity. */
+  /** Omission uses the rule default, or warn for an explicitly configured rule. */
   severity?: LintSeverity;
   /** Case-sensitive full custom-property name globs with `*` and `?`. */
   tokens?: string[];
@@ -167,7 +141,7 @@ export type RestrictedThemeTokensOptions = {
 
 /** Controls replacement of equivalent utility spellings. */
 export type CanonicalUtilitiesOptions = {
-  /** Overrides the stylesheet severity. Omission retains it, or warn when unset. */
+  /** Omission uses warn. */
   severity?: LintSeverity;
   /** Converts pixel spacing to rem when the active spacing scale uses rem. Defaults to true. */
   pxToRem?: boolean;
@@ -190,7 +164,9 @@ export type UtilitySortOptions = {
 };
 
 /** One project's compiler settings, analysis scope, and source preparation operations. */
-export interface AnalysisProjectConfig extends BaseConfig {
+export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
+  /** Required design-system stylesheet, absolute or relative to root. */
+  css: string;
   /** Optional identifier used to select this project from a build integration. Names must be unique. */
   name?: string;
   /**
@@ -283,8 +259,20 @@ export interface StillwindConfig {
   projects: AnalysisProjectConfig[];
 }
 
+/** Controls document CSS delivery through build integrations. */
+export interface BuildOptions {
+  /** Applies producer CSS to the document. Defaults to true. */
+  automatic?: boolean;
+}
+
+/** Inline options that can pass through isolated loader workers. */
+export type SerializableInlineConfig = Omit<InlineConfig, "naming">;
+
+/** Compiler and document CSS delivery settings shared by build adapters. */
+export interface BuildConfig extends BaseConfig, BuildOptions {}
+
 /** Build overrides and the selection of a configuration file and project. */
-export interface InlineConfig extends BaseConfig {
+export interface InlineConfig extends BaseConfig, BuildOptions {
   /**
    * Configuration file path, absolute or relative to the application root. An explicit path must
    * exist. Omission searches upward for stillwind.config.ts. False disables file loading.
@@ -362,318 +350,403 @@ export async function resolveConfig(value: unknown): Promise<StillwindConfig> {
   return validateConfig(typeof config === "function" ? await config() : config);
 }
 
-/**
- * Checks configuration structure, compiler settings, and provider callbacks without calling them.
- *
- * @param value - Evaluated configuration to check. Unknown top-level and project fields are rejected.
- * @returns The same settings object after validation. Paths and globs are not resolved here.
- * @throws If projects, names, settings, or provider callbacks do not satisfy the configuration schema.
- */
+/** Validates an evaluated configuration without calling providers or resolving paths. Throws with the invalid field's path. */
 export function validateConfig(value: unknown): StillwindConfig {
-  if (
-    !object(value) ||
-    Object.keys(value).some((key) => key !== "projects") ||
-    !Array.isArray(value.projects) ||
-    !value.projects.length
-  ) {
-    throw new Error("Stillwind configuration must contain only a nonempty projects array");
-  }
+  record(value, "config");
+  keys(value, ["projects"], "config");
+  nonemptyArray(value.projects, "projects");
   const names = new Set<string>();
-  for (const project of value.projects) {
-    if (
-      !object(project) ||
-      Object.keys(project).some((key) => !projectKeys.includes(key)) ||
-      !strings(project.files) ||
-      !project.files.length ||
-      (project.name !== undefined && !text(project.name)) ||
-      (project.exclude !== undefined && !strings(project.exclude)) ||
-      !text(project.css ?? project.theme) ||
-      !validCompilerSettings(project)
-    ) {
-      throw new Error(
-        "Each Stillwind project must specify CSS, nonempty files globs, and valid compiler settings",
-      );
+  for (const [index, project] of value.projects.entries()) {
+    const location = `projects[${index}]`;
+    record(project, location);
+    keys(
+      project,
+      [
+        ...compilerKeys,
+        "automatic",
+        "name",
+        "files",
+        "exclude",
+        "sources",
+        "projection",
+        "typeFacts",
+      ],
+      location,
+    );
+    const { automatic, name, files, exclude, sources, projection, typeFacts, ...compiler } =
+      project;
+    validateCompilerConfig(compiler, location);
+    requireValue(text(project.css), `${location}.css`, "must specify CSS as a nonempty path");
+    stringArray(files, `${location}.files`, true);
+    if (exclude !== undefined) {
+      stringArray(exclude, `${location}.exclude`);
     }
-    if (project.name !== undefined) {
-      if (names.has(project.name as string)) {
-        throw new Error(`Duplicate Stillwind project name: ${project.name}`);
+    if (automatic !== undefined) {
+      requireValue(typeof automatic === "boolean", `${location}.automatic`, "must be boolean");
+    }
+    if (name !== undefined) {
+      requireValue(text(name), `${location}.name`, "must be a nonempty name");
+      requireValue(
+        !names.has(name),
+        `${location}.name`,
+        `Duplicate Stillwind project name: ${name}`,
+      );
+      names.add(name);
+    }
+    if (typeFacts !== undefined) {
+      requireValue(typeFacts === false, `${location}.typeFacts`, "must be false");
+    }
+    if (sources !== undefined) {
+      record(sources, `${location}.sources`);
+      if (sources.kind === "filesystem") {
+        keys(sources, ["kind"], `${location}.sources`);
+      } else {
+        requireValue(
+          sources.kind === "custom",
+          `${location}.sources.kind`,
+          "must be filesystem or custom",
+        );
+        keys(sources, ["kind", "supports", "load", "resolve"], `${location}.sources`);
+        requireValue(
+          typeof sources.supports === "function",
+          `${location}.sources.supports`,
+          "must be a function",
+        );
+        requireValue(
+          typeof sources.load === "function",
+          `${location}.sources.load`,
+          "must be a function",
+        );
+        if (sources.resolve !== undefined) {
+          requireValue(
+            typeof sources.resolve === "function",
+            `${location}.sources.resolve`,
+            "must be a function",
+          );
+        }
       }
-      names.add(project.name as string);
     }
-    if (project.sources !== undefined && !validSourceProvider(project.sources)) {
-      throw new Error("Source providers must select filesystem or custom source operations");
-    }
-    if (project.projection !== undefined && !validProjectionProvider(project.projection)) {
-      throw new Error(
-        "Projection providers must select framework converters or a custom prepare operation",
-      );
-    }
-    if (project.naming !== undefined && !validNaming(project.naming)) {
-      throw new Error("Naming settings must contain identifier generator functions");
+    if (projection !== undefined) {
+      record(projection, `${location}.projection`);
+      if (projection.kind === "framework") {
+        keys(projection, ["kind"], `${location}.projection`);
+      } else {
+        requireValue(
+          projection.kind === "custom",
+          `${location}.projection.kind`,
+          "must be framework or custom",
+        );
+        keys(projection, ["kind", "prepare"], `${location}.projection`);
+        requireValue(
+          typeof projection.prepare === "function",
+          `${location}.projection.prepare`,
+          "must be a function",
+        );
+      }
     }
   }
   return value as unknown as StillwindConfig;
 }
 
-function validCompilerSettings(project: Record<string, unknown>): boolean {
-  if (project.lint !== undefined && !validLintOptions(project.lint)) {
-    return false;
-  }
-  if (
-    project.sort !== undefined &&
-    (!object(project.sort) ||
-      !Object.entries(project.sort).every(
-        ([key, value]) =>
-          ["stringLiterals", "arrays", "attributes"].includes(key) &&
-          (value === undefined || typeof value === "boolean"),
-      ))
-  ) {
-    return false;
-  }
-  const stringSettings = [
+/** Validates compiler settings independently of analysis scope. CSS is optional here. Partial overrides defer namespace collisions until merging. Throws with the invalid field's path. */
+export function validateCompilerConfig(
+  value: unknown,
+  location = "config",
+  partial = false,
+): asserts value is BaseConfig {
+  record(value, location);
+  keys(value, compilerKeys, location);
+
+  for (const key of [
     "root",
     "css",
-    "theme",
     "prefix",
     "tailwindPrefix",
     "classNamespace",
     "namingRevision",
-  ];
-  if (
-    !stringSettings.every((key) => project[key] === undefined || typeof project[key] === "string")
-  ) {
-    return false;
-  }
-  if (project.tsconfig !== undefined && project.tsconfig !== false && !text(project.tsconfig)) {
-    return false;
-  }
-  for (const key of ["automatic", "useCssIf"]) {
-    if (project[key] !== undefined && typeof project[key] !== "boolean") {
-      return false;
+  ]) {
+    if (value[key] !== undefined) {
+      requireValue(typeof value[key] === "string", `${location}.${key}`, "must be a string");
     }
   }
-  if (project.typeFacts !== undefined && project.typeFacts !== false) {
-    return false;
+  if (value.css !== undefined) {
+    requireValue(text(value.css), `${location}.css`, "must specify CSS as a nonempty path");
   }
-  const length = project.hashLength;
-  return (
-    length === undefined ||
-    (typeof length === "number" && Number.isInteger(length) && length >= 1 && length <= 50)
-  );
-}
-
-function validSourceProvider(value: unknown): boolean {
-  if (!object(value)) {
-    return false;
+  if (value.tsconfig !== undefined) {
+    requireValue(
+      value.tsconfig === false || text(value.tsconfig),
+      `${location}.tsconfig`,
+      "must be a nonempty path or false",
+    );
   }
-  switch (value.kind) {
-    case "filesystem":
-      return Object.keys(value).every((key) => key === "kind");
-    case "custom":
-      return (
-        typeof value.supports === "function" &&
-        typeof value.load === "function" &&
-        (value.resolve === undefined || typeof value.resolve === "function")
+  if (value.useCssIf !== undefined) {
+    requireValue(typeof value.useCssIf === "boolean", `${location}.useCssIf`, "must be boolean");
+  }
+  if (value.utilityOrder !== undefined) {
+    requireValue(
+      value.utilityOrder === "authored" || value.utilityOrder === "tailwind",
+      `${location}.utilityOrder`,
+      "must be authored or tailwind",
+    );
+  }
+  if (value.hashLength !== undefined) {
+    requireValue(
+      typeof value.hashLength === "number" &&
+        Number.isInteger(value.hashLength) &&
+        value.hashLength >= 1 &&
+        value.hashLength <= 50,
+      `${location}.hashLength`,
+      "must be an integer from 1 to 50",
+    );
+  }
+  for (const key of ["prefix", "tailwindPrefix"]) {
+    if (value[key] !== undefined) {
+      requireValue(
+        typeof value[key] === "string" &&
+          value[key].startsWith("--") &&
+          value[key].endsWith("-") &&
+          value[key].length >= 4 &&
+          !/\s/.test(value[key]),
+        `${location}.${key}`,
+        "must start with --, end with -, and contain no whitespace",
       );
-    default:
-      return false;
+    }
   }
-}
-
-function validProjectionProvider(value: unknown): boolean {
-  if (!object(value)) {
-    return false;
-  }
-  switch (value.kind) {
-    case "framework":
-      return Object.keys(value).every((key) => key === "kind");
-    case "custom":
-      return typeof value.prepare === "function";
-    default:
-      return false;
-  }
-}
-
-function validNaming(value: unknown): boolean {
-  return (
-    object(value) &&
-    Object.entries(value).every(
-      ([key, fn]) => namingKeys.includes(key) && (fn === undefined || typeof fn === "function"),
-    )
+  requireValue(
+    (partial && (value.prefix === undefined || value.tailwindPrefix === undefined)) ||
+      (value.prefix ?? "--sw-") !== (value.tailwindPrefix ?? "--tw-"),
+    `${location}.tailwindPrefix`,
+    "must differ from prefix",
   );
+  if (value.sort !== undefined) {
+    record(value.sort, `${location}.sort`);
+    keys(value.sort, ["stringLiterals", "arrays", "attributes"], `${location}.sort`);
+    for (const [key, setting] of Object.entries(value.sort)) {
+      if (setting !== undefined) {
+        requireValue(typeof setting === "boolean", `${location}.sort.${key}`, "must be boolean");
+      }
+    }
+  }
+  if (value.naming !== undefined) {
+    record(value.naming, `${location}.naming`);
+    keys(value.naming, namingKeys, `${location}.naming`);
+    for (const [key, setting] of Object.entries(value.naming)) {
+      if (setting !== undefined) {
+        requireValue(
+          typeof setting === "function",
+          `${location}.naming.${key}`,
+          "must be a function",
+        );
+      }
+    }
+  }
+  if (value.lint !== undefined) {
+    validateLint(value.lint, `${location}.lint`, partial);
+  }
 }
 
-const projectKeys = [
+function validateLint(value: unknown, location: string, partial: boolean) {
+  record(value, location);
+  keys(value, Object.keys(lintRules), location);
+  for (const [name, setting] of Object.entries(value)) {
+    if (setting === undefined) {
+      continue;
+    }
+
+    const rule = lintRules[name as LintRule];
+    const entry = `${location}.${name}`;
+    if (
+      name === "no-restricted-theme-tokens" &&
+      !partial &&
+      (typeof setting === "string" ? setting : object(setting) ? setting.severity : undefined) !==
+        "off"
+    ) {
+      requireValue(
+        object(setting) && Array.isArray(setting.tokens) && setting.tokens.length > 0,
+        `${entry}.tokens`,
+        "must contain custom-property patterns when the rule is active",
+      );
+    }
+    if (typeof setting === "string") {
+      requireValue(severity(setting), entry, "must be warn, deny, or off");
+      continue;
+    }
+
+    requireValue(rule.options !== null, entry, "must be warn, deny, or off");
+    record(setting, entry);
+    keys(setting, rule.options, entry);
+    for (const [field, option] of Object.entries(setting)) {
+      if (option === undefined) {
+        continue;
+      }
+
+      const path = `${entry}.${field}`;
+      if (field === "severity") {
+        requireValue(severity(option), path, "must be warn, deny, or off");
+      } else if (field === "pxToRem" || field === "allowShorthandOverrides") {
+        requireValue(typeof option === "boolean", path, "must be boolean");
+      } else if (field === "rootFontSize") {
+        requireValue(
+          typeof option === "number" && Number.isFinite(option) && option > 0,
+          path,
+          "must be positive and finite",
+        );
+      } else if (field === "properties" || field === "tokens") {
+        stringArray(option, path);
+        for (const pattern of option) {
+          requireValue(
+            !/\s/.test(pattern) &&
+              (field !== "tokens" || (pattern.startsWith("--") && pattern.length > 2)),
+            path,
+            "must contain valid complete globs",
+          );
+        }
+      } else {
+        requireValue(Array.isArray(option), path, "must be an array");
+        for (const [index, restriction] of option.entries()) {
+          const item = `${path}[${index}]`;
+          record(restriction, item);
+          if (field === "utilities") {
+            keys(restriction, ["pattern", "message"], item);
+            requireValue(
+              text(restriction.pattern) && !/\s/.test(restriction.pattern),
+              `${item}.pattern`,
+              "must be a nonempty utility glob without whitespace",
+            );
+          } else {
+            const units = name === "length-units";
+            keys(
+              restriction,
+              units ? ["properties", "disallow"] : ["properties", "values", "message"],
+              item,
+            );
+            stringArray(restriction.properties, `${item}.properties`, true);
+            for (const property of restriction.properties) {
+              requireValue(
+                !/\s/.test(property),
+                `${item}.properties`,
+                "must contain complete property globs without whitespace",
+              );
+            }
+            if (units) {
+              stringArray(restriction.disallow, `${item}.disallow`);
+              for (const unit of restriction.disallow) {
+                requireValue(
+                  lengthUnits.some((name) => name === unit.toLowerCase()),
+                  `${item}.disallow`,
+                  "must contain CSS length unit names",
+                );
+              }
+            } else {
+              stringArray(restriction.values, `${item}.values`, true);
+            }
+          }
+          if (restriction.message !== undefined) {
+            requireValue(
+              typeof restriction.message === "string",
+              `${item}.message`,
+              "must be a string",
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
+/** Compiler and delivery settings after defaults are applied. Authored paths remain unresolved. */
+export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
+  prefix: string;
+  tailwindPrefix: string;
+  classNamespace: string;
+  utilityOrder: "authored" | "tailwind";
+  useCssIf: boolean;
+  namingRevision: string;
+  hashLength: number;
+  sort: Required<UtilitySortOptions>;
+  lint: LintOptions;
+  automatic: boolean;
+}
+
+/** Validates compiler fields and applies defaults without resolving paths. Returns a new object containing only compiler and delivery settings. */
+export function normalizeCompilerConfig(
+  config: BaseConfig & BuildOptions,
+): NormalizedCompilerConfig {
+  const { automatic } = config;
+  const compiler = Object.fromEntries(compilerKeys.map((key) => [key, config[key]]));
+  validateCompilerConfig(compiler);
+  if (automatic !== undefined) {
+    requireValue(typeof automatic === "boolean", "config.automatic", "must be boolean");
+  }
+
+  const lint = Object.fromEntries(
+    Object.entries(lintRules).flatMap(([name, rule]) => {
+      const setting = config.lint?.[name as LintRule];
+      const level = typeof setting === "string" ? setting : (setting?.severity ?? rule.severity);
+      if (setting === undefined && level === null) {
+        return [];
+      }
+      return [
+        [
+          name,
+          rule.options === null
+            ? level
+            : {
+                ...(typeof setting === "object" ? setting : {}),
+                severity: level ?? "warn",
+                ...(name === "canonical-utilities"
+                  ? {
+                      pxToRem:
+                        typeof setting === "object" && "pxToRem" in setting
+                          ? (setting.pxToRem ?? true)
+                          : true,
+                      rootFontSize:
+                        typeof setting === "object" && "rootFontSize" in setting
+                          ? (setting.rootFontSize ?? 16)
+                          : 16,
+                    }
+                  : {}),
+              },
+        ],
+      ];
+    }),
+  ) as LintOptions;
+
+  return {
+    ...compiler,
+    prefix: config.prefix ?? "--sw-",
+    tailwindPrefix: config.tailwindPrefix ?? "--tw-",
+    classNamespace: config.classNamespace ?? "",
+    utilityOrder: config.utilityOrder ?? "authored",
+    useCssIf: config.useCssIf ?? false,
+    namingRevision: config.namingRevision ?? "",
+    hashLength: config.hashLength ?? 5,
+    automatic: automatic ?? true,
+    sort: {
+      stringLiterals: config.sort?.stringLiterals ?? true,
+      arrays: config.sort?.arrays ?? true,
+      attributes: config.sort?.attributes ?? false,
+    },
+    lint,
+  };
+}
+
+const compilerKeys = [
   "lint",
   "sort",
-  "name",
   "root",
   "tsconfig",
-  "automatic",
-  "theme",
   "css",
   "prefix",
   "tailwindPrefix",
   "classNamespace",
+  "utilityOrder",
   "useCssIf",
   "naming",
   "namingRevision",
   "hashLength",
-  "files",
-  "exclude",
-  "sources",
-  "projection",
-  "typeFacts",
-];
+] as const;
 
-function validLintOptions(value: unknown): boolean {
-  if (!object(value)) {
-    return false;
-  }
-  const severity = (value: unknown) =>
-    typeof value === "string" && ["warn", "deny", "off"].includes(value);
-  return Object.entries(value).every(([rule, setting]) => {
-    if (
-      [
-        "prefer-direct-styling",
-        "duplicate-utilities",
-        "prefer-logical-properties",
-        "no-arbitrary-breakpoints",
-        "no-arbitrary-colors",
-        "no-class-property",
-        "no-important",
-        "valid-lint-suppressions",
-        "no-unused-lint-suppressions",
-      ].includes(rule)
-    ) {
-      return setting === undefined || severity(setting);
-    }
-    if (
-      rule === "conflicting-utilities" ||
-      rule === "length-units" ||
-      rule === "no-restricted-theme-tokens" ||
-      rule === "no-arbitrary-spacing" ||
-      rule === "no-restricted-utilities" ||
-      rule === "no-restricted-declarations"
-    ) {
-      if (setting === undefined) {
-        return true;
-      }
-      if (typeof setting === "string") {
-        return (
-          ["conflicting-utilities", "length-units", "no-arbitrary-spacing"].includes(rule) &&
-          severity(setting)
-        );
-      }
-      if (!object(setting)) {
-        return false;
-      }
-      return Object.entries(setting).every(([key, option]) => {
-        if (key === "severity") {
-          return option === undefined || severity(option);
-        }
-        if (rule === "no-arbitrary-spacing" && key === "properties") {
-          return (
-            option === undefined ||
-            (strings(option) && option.every((pattern) => !/\s/.test(pattern)))
-          );
-        }
-        if (rule === "no-restricted-utilities" && key === "utilities") {
-          return (
-            option === undefined ||
-            (Array.isArray(option) &&
-              option.every(
-                (entry) =>
-                  object(entry) &&
-                  Object.keys(entry).every((key) => ["pattern", "message"].includes(key)) &&
-                  typeof entry.pattern === "string" &&
-                  entry.pattern.length > 0 &&
-                  !/\s/.test(entry.pattern) &&
-                  (entry.message === undefined || typeof entry.message === "string"),
-              ))
-          );
-        }
-        if (rule === "no-restricted-declarations" && key === "rules") {
-          return (
-            option === undefined ||
-            (Array.isArray(option) &&
-              option.every(
-                (entry) =>
-                  object(entry) &&
-                  Object.keys(entry).every((key) =>
-                    ["properties", "values", "message"].includes(key),
-                  ) &&
-                  strings(entry.properties) &&
-                  entry.properties.length > 0 &&
-                  entry.properties.every((pattern) => !/\s/.test(pattern)) &&
-                  strings(entry.values) &&
-                  entry.values.length > 0 &&
-                  (entry.message === undefined || typeof entry.message === "string"),
-              ))
-          );
-        }
-        if (rule === "conflicting-utilities" && key === "allowShorthandOverrides") {
-          return option === undefined || typeof option === "boolean";
-        }
-        if (rule === "no-restricted-theme-tokens" && key === "tokens") {
-          return (
-            option === undefined ||
-            (strings(option) &&
-              option.every(
-                (pattern) => pattern.startsWith("--") && pattern.length > 2 && !/\s/.test(pattern),
-              ))
-          );
-        }
-        if (rule === "length-units" && key === "rules") {
-          return (
-            option === undefined ||
-            (Array.isArray(option) &&
-              option.every(
-                (entry) =>
-                  object(entry) &&
-                  Object.keys(entry).every((key) => key === "properties" || key === "disallow") &&
-                  strings(entry.properties) &&
-                  entry.properties.length > 0 &&
-                  entry.properties.every((pattern) => !/\s/.test(pattern)) &&
-                  Array.isArray(entry.disallow) &&
-                  entry.disallow.every(
-                    (unit) => typeof unit === "string" && /^[a-z]+$/i.test(unit),
-                  ),
-              ))
-          );
-        }
-        return false;
-      });
-    }
-    const fields =
-      rule === "canonical-utilities" ? ["severity", "pxToRem", "rootFontSize"] : undefined;
-    if (setting === undefined && (fields || rule === "sort-utilities")) {
-      return true;
-    }
-    if (rule === "sort-utilities") {
-      return severity(setting);
-    }
-    if (!fields) {
-      return false;
-    }
-    if (typeof setting === "string") {
-      return severity(setting);
-    }
-    return (
-      object(setting) &&
-      Object.entries(setting).every(
-        ([key, option]) =>
-          fields.includes(key) &&
-          (option === undefined ||
-            (key === "severity"
-              ? severity(option)
-              : key === "rootFontSize"
-                ? typeof option === "number" && Number.isFinite(option) && option > 0
-                : typeof option === "boolean")),
-      )
-    );
-  });
-}
 const namingKeys = [
   "utilityClass",
   "refMarker",
@@ -685,8 +758,52 @@ const namingKeys = [
   "conditionHelper",
   "layerName",
 ];
-const object = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
+
 const text = (value: unknown): value is string =>
   typeof value === "string" && Boolean(value.trim());
-const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(text);
+
+const severity = (value: unknown) =>
+  typeof value === "string" && ["warn", "deny", "off"].includes(value);
+
+function requireValue(condition: unknown, location: string, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(`${location}: ${message}`);
+  }
+}
+
+function record(value: unknown, location: string): asserts value is Record<string, unknown> {
+  requireValue(
+    value !== null && typeof value === "object" && !Array.isArray(value),
+    location,
+    "must be an object",
+  );
+}
+
+function keys(value: Record<string, unknown>, allowed: readonly string[], location: string) {
+  for (const key of Object.keys(value)) {
+    requireValue(allowed.includes(key), `${location}.${key}`, "unknown setting");
+  }
+}
+
+function nonemptyArray(value: unknown, location: string): asserts value is unknown[] {
+  requireValue(
+    Array.isArray(value) && value.length > 0,
+    location,
+    "must be a nonempty projects array",
+  );
+}
+
+function stringArray(
+  value: unknown,
+  location: string,
+  nonempty = false,
+): asserts value is string[] {
+  requireValue(
+    Array.isArray(value) && (!nonempty || value.length > 0) && value.every(text),
+    location,
+    "must be an array of nonempty strings",
+  );
+}
+
+const object = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);

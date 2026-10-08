@@ -15,21 +15,27 @@ startBrowserLanguageServer(self as unknown as Parameters<typeof startBrowserLang
             config: "inmemory://play/stillwind.config.ts",
             includes: (uri) => uri.endsWith(".tsx"),
             compile: async ({ uri, documents }) => {
-              const output = compileSource({
-                source: documents.get(uri) ?? "",
-                moduleId: uri,
-                uri,
-                sourceMapSource: uri,
-                language: "tsx",
-                moduleKind: "unambiguous",
-                css: {
-                  content:
-                    "@utility red{color:red}@stillwind-slot utilities;@stillwind{unknown-utility:deny;}",
-                  name: "theme.css",
-                  uri: "inmemory://play/theme.css",
-                  sourceMapSource: "inmemory://play/theme.css",
+              const output = compileSource(
+                {
+                  source: documents.get(uri) ?? "",
+                  moduleId: uri,
+                  uri,
+                  sourceMapSource: uri,
+                  language: "tsx",
+                  moduleKind: "unambiguous",
+                  css: {
+                    content: "@utility red{color:red}@stillwind-slot utilities;",
+                    name: "theme.css",
+                    uri: "inmemory://play/theme.css",
+                    sourceMapSource: "inmemory://play/theme.css",
+                  },
                 },
-              });
+                {
+                  lint: {
+                    unknownUtility: "deny",
+                  },
+                },
+              );
               return {
                 status: "complete",
                 reports: output.reports,

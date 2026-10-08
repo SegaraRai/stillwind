@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_css::is_length_unit;
-use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
 use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
@@ -27,12 +27,14 @@ use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {
-    /// Project lint overrides, applied field by field after stylesheet settings.
+    /// Project lint settings applied to compiler defaults.
     pub lint: LintOverrides,
     /// Prefix for Stillwind-owned custom properties, for example `--sw-if-<hash>`.
     pub prefix: String,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
     pub tailwind_prefix: String,
+    /// Strategy for ordering resolved utilities. Defaults to authored definition positions.
+    pub utility_order: UtilityOrderMode,
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
     pub class_namespace: String,
@@ -62,6 +64,7 @@ impl Default for CompilerOptions {
             lint: LintOverrides::default(),
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
+            utility_order: UtilityOrderMode::default(),
             class_namespace: String::new(),
             use_css_if: false,
             naming_revision: String::new(),
@@ -76,12 +79,13 @@ impl CompilerOptions {
         DesignSystemOptions {
             prefix: self.prefix.clone(),
             tailwind_prefix: self.tailwind_prefix.clone(),
+            utility_order: self.utility_order,
         }
     }
 
     /// Returns effective lint settings for this compilation without modifying the design system.
-    pub fn lint_settings(&self, snapshot: &DesignSystemSnapshot) -> LintSettings {
-        self.lint.resolve(&snapshot.theme().config().lint_settings)
+    pub fn lint_settings(&self) -> LintSettings {
+        self.lint.resolve(&LintSettings::with_defaults())
     }
 
     /// Checks lint policies, prefix namespaces, and the generated-name hash length.
@@ -104,15 +108,15 @@ impl CompilerOptions {
         Ok(())
     }
 
-    /// Returns the same options with both prefixes taken from `snapshot`.
+    /// Returns the same options with prefixes and utility ordering taken from `snapshot`.
     ///
-    /// A snapshot built from a theme that configures its own prefixes is the source of
-    /// truth for them, so generated text always agrees with the theme it was resolved
-    /// against.
+    /// Generated text must use the same namespaces and ordering as the snapshot used
+    /// to resolve utilities.
     pub(crate) fn resolved(self, snapshot: &DesignSystemSnapshot) -> Self {
         Self {
             prefix: snapshot.config().prefix.clone(),
             tailwind_prefix: snapshot.config().tailwind_prefix.clone(),
+            utility_order: snapshot.config().utility_order,
             ..self
         }
     }

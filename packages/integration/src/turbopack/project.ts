@@ -3,7 +3,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import type { BaseConfig, InlineConfig } from "@stillwind/config";
+import type { BuildConfig, SerializableInlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
@@ -24,7 +24,7 @@ import { IntegrationSession } from "../session.ts";
 /** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
 export type TurbopackLoaderOptions = {
   /** Configuration file selection and serializable inline settings. */
-  compiler: Omit<InlineConfig, "naming">;
+  compiler: SerializableInlineConfig;
   /** Application directory, absolute or relative to the loader context's root. */
   root: string;
   /** Entry files whose imports are traversed when reconstructing document CSS. */
@@ -36,7 +36,7 @@ export type TurbopackLoaderOptions = {
 /** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
 export interface TurbopackProject {
   /** Evaluated compiler settings with an absolute project root, captured entry selection, and mode. */
-  options: Omit<TurbopackLoaderOptions, "compiler"> & { compiler: BaseConfig };
+  options: Omit<TurbopackLoaderOptions, "compiler"> & { compiler: BuildConfig };
   /** Initialized compiler. The caller must close it after compilation or stylesheet reconstruction. */
   compiler: IntegrationSession;
   /** Filesystem, source metadata, resolver, dependency watcher, and warning operations. */

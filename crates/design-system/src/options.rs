@@ -1,15 +1,13 @@
-//! Host configuration of the two CSS custom-property prefixes.
+//! Host configuration of generated property prefixes and utility ordering.
 //!
-//! The options belong to the snapshot: they are validated once while a snapshot is
-//! built, so evaluation can rewrite identifiers without re-checking them. CSS-authored
-//! settings override the host defaults during loading, which is why the loader
-//! validates the resolved pair again.
+//! Snapshot construction validates the supplied namespaces and captures the ordering
+//! strategy before utility evaluation. Generated identifiers use the captured prefixes.
 
 use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;
 
-/// The `--sw-` and `--tw-` namespaces used by generated custom properties.
+/// Property namespaces and utility ordering captured by a design-system snapshot.
 ///
 /// Deserialization uses camelCase fields and fills omitted fields from [`Default`], so
 /// a host may send only the prefix it changes.
@@ -21,6 +19,8 @@ pub struct DesignSystemOptions {
     /// Prefix of the Tailwind-compatibility namespace, which stays distinct from
     /// `prefix` even when both are customized.
     pub tailwind_prefix: String,
+    /// Strategy for ordering resolved utilities.
+    pub utility_order: UtilityOrderMode,
 }
 
 impl Default for DesignSystemOptions {
@@ -28,6 +28,7 @@ impl Default for DesignSystemOptions {
         Self {
             prefix: "--sw-".to_owned(),
             tailwind_prefix: "--tw-".to_owned(),
+            utility_order: UtilityOrderMode::default(),
         }
     }
 }
@@ -35,7 +36,7 @@ impl Default for DesignSystemOptions {
 impl DesignSystemOptions {
     /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
     ///
-    /// A prefix must start with `--`, end with `-`, and span at least four bytes. The
+    /// A prefix must start with `--`, end with `-`, span at least four bytes, and contain no whitespace. The
     /// error preserves the offending field name and supplied value, or the common prefix
     /// when the two namespaces collide. Validation does not modify either value.
     ///
@@ -49,7 +50,11 @@ impl DesignSystemOptions {
             ("prefix", self.prefix.as_str()),
             ("tailwindPrefix", self.tailwind_prefix.as_str()),
         ] {
-            if !value.starts_with("--") || !value.ends_with('-') || value.len() < 4 {
+            if !value.starts_with("--")
+                || !value.ends_with('-')
+                || value.len() < 4
+                || value.chars().any(char::is_whitespace)
+            {
                 return Err(CompileDiagnostic::InvalidPropertyPrefix {
                     option: name.into(),
                     value: value.into(),
@@ -127,6 +132,7 @@ mod boundary_tests {
         let options = DesignSystemOptions {
             prefix: "--tw-".into(),
             tailwind_prefix: "--sw-".into(),
+            ..DesignSystemOptions::default()
         };
         assert!(options.validate().is_ok());
         assert_eq!(
@@ -134,4 +140,15 @@ mod boundary_tests {
             "var(--tw-a) var(--sw-b) --other-c"
         );
     }
+}
+
+/// Strategy for ordering resolved utilities.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UtilityOrderMode {
+    /// Uses definition positions after CSS imports are expanded.
+    #[default]
+    Authored,
+    /// Uses Tailwind property metadata and candidate comparison.
+    Tailwind,
 }

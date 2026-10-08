@@ -21,7 +21,7 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
     );
     writeFileSync(path.join(root, "root.css"), "@utility red{color:red}@stillwind-slot utilities;");
     const config: IntegrationConfig = {
-      theme: "root.css",
+      css: "root.css",
       classNamespace: "parity",
       prefix: "--test-",
       hashLength: 12,

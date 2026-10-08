@@ -12,11 +12,10 @@
 //! [`parser`] reads supplied CSS, and [`builder`] collects definitions until origins
 //! are mapped. [`index`] owns immutable declarations and evaluation data. [`tokens`]
 //! selects effective declarations after resets. [`declarations`] parses token modes
-//! and spans, [`namespace`] identifies token families, [`config`] reads CSS settings,
+//! and spans, [`namespace`] identifies token families,
 //! and [`references`] lowers build-time theme references.
 
 pub(crate) mod builder;
-pub(super) mod config;
 pub(super) mod declarations;
 pub(super) mod index;
 pub(super) mod namespace;
@@ -24,7 +23,6 @@ pub(super) mod parser;
 pub(super) mod references;
 mod tokens;
 
-pub use config::{StillwindConfig, UtilityOrderMode};
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode};
 pub use index::ThemeIndex;
 pub use namespace::{ThemeNamespace, parse_theme_namespace_types};

@@ -13,14 +13,20 @@ import { build } from "esbuild";
 import { createJiti } from "jiti";
 
 import {
-  mergeConfig,
   resolveConfig,
-  validateConfig,
   type AnalysisProjectConfig,
   type InlineConfig,
   type StillwindConfig,
-  type BaseConfig,
+  type NormalizedCompilerConfig,
 } from "./index.ts";
+import {
+  configurationCandidates as candidates,
+  compilerConfig,
+  resolveProjectPaths,
+  resolveCompilerSettings,
+  selectProject,
+  validateInlineConfig,
+} from "./resolution.ts";
 
 /** Evaluated settings and files that consumers must watch when retaining a compiler session. */
 export interface LoadedConfiguration {
@@ -34,8 +40,11 @@ export interface LoadedConfiguration {
 
 /** Settings for one build integration after project selection and inline overrides. */
 export interface ResolvedIntegrationConfig {
-  /** Selected compiler settings after inline overrides. root is absolute. Relative compiler paths use that root. */
-  config: BaseConfig & { root: string };
+  /** Selected compiler settings after inline overrides and defaults. Filesystem paths are absolute. */
+  config: NormalizedCompilerConfig & {
+    root: string;
+    css: string;
+  };
   /** Absolute evaluated configuration path. Omitted when no file was loaded. */
   configFile?: string;
   /** Existing configuration dependency paths to watch. Empty when settings are entirely inline. */
@@ -51,7 +60,7 @@ export interface ResolvedIntegrationConfig {
  * @returns The first existing candidate's absolute path, or undefined if none exists.
  */
 export function findConfiguration(directory: string): string | undefined {
-  return configurationCandidates(directory).find((file) => existsSync(file));
+  return candidates(directory, path).find((file) => existsSync(file));
 }
 
 /**
@@ -158,30 +167,18 @@ ${readFileSync(args.path, "utf8")}`,
 }
 
 /**
- * Makes the project root absolute and removes analysis scope and provider settings.
+ * Resolves project paths and removes analysis scope and provider settings.
  *
- * @param project - Evaluated project configuration. Other compiler paths are kept unchanged.
+ * @param project - Evaluated project configuration with paths relative to its root.
  * @param directory - Base directory for a relative project root, normally the configuration directory.
- * @returns Compiler settings with an absolute root. The supplied project is not modified.
+ * @returns Compiler settings with absolute root, CSS, and tsconfig paths. The supplied project is not modified.
  */
 export function resolveProjectConfig(
   project: AnalysisProjectConfig,
   directory: string,
-): BaseConfig & { root: string } {
-  const {
-    name: _name,
-    files: _files,
-    exclude: _exclude,
-    sources: _sources,
-    projection: _projection,
-    typeFacts: _typeFacts,
-    ...config
-  } = project;
-
-  return {
-    ...config,
-    root: path.resolve(directory, project.root ?? "."),
-  };
+): NormalizedCompilerConfig & { root: string; css: string } {
+  const resolved = resolveProjectPaths(project, directory, path);
+  return resolveCompilerSettings(compilerConfig(resolved), {}, resolved.root, path);
 }
 
 /**
@@ -204,18 +201,8 @@ export async function resolveIntegrationConfig(
 ): Promise<ResolvedIntegrationConfig> {
   applicationRoot = path.resolve(applicationRoot);
 
-  const { configFile: requested, project: name, ...overrides } = inline;
-  if (
-    requested !== undefined &&
-    requested !== false &&
-    (typeof requested !== "string" || !requested.trim())
-  ) {
-    throw new Error("Stillwind configFile must be a path or false");
-  }
-  if (name !== undefined && (typeof name !== "string" || !name.trim())) {
-    throw new Error("Stillwind project must be a nonempty name");
-  }
-
+  validateInlineConfig(inline);
+  const requested = inline.configFile;
   const candidates =
     requested === false
       ? []
@@ -228,58 +215,25 @@ export async function resolveIntegrationConfig(
     throw new Error(`Cannot find Stillwind configuration: ${candidates[0]}`);
   }
 
-  let base: BaseConfig & { root: string } = { root: applicationRoot };
-  let loaded: LoadedConfiguration | undefined;
-  if (file) {
-    loaded = await loadConfiguration(file);
-    const directory = path.dirname(file);
-    const projects = loaded.config.projects;
-    let selected: AnalysisProjectConfig[];
-    if (name !== undefined) {
-      selected = projects.filter((project) => project.name === name);
-    } else if (projects.length === 1) {
-      selected = projects;
-    } else {
-      const targetRoot = path.resolve(applicationRoot, overrides.root ?? ".");
-      const matches = projects
-        .map((project) => ({ project, root: path.resolve(directory, project.root ?? ".") }))
-        .filter(({ root }) => {
-          const relative = path.relative(root, targetRoot);
-          return (
-            relative === "" ||
-            (!path.isAbsolute(relative) &&
-              relative !== ".." &&
-              !relative.startsWith(`..${path.sep}`))
-          );
-        });
-      const depth = Math.max(...matches.map(({ root }) => root.length));
-      selected = matches.filter(({ root }) => root.length === depth).map(({ project }) => project);
-    }
-    if (selected.length !== 1) {
-      throw new Error(
-        name !== undefined
-          ? `Cannot select Stillwind project ${JSON.stringify(name)}: expected one matching project`
-          : "Cannot select one Stillwind project; specify project by name or use a distinct project root",
-      );
-    }
-    base = resolveProjectConfig(selected[0], directory);
-  } else if (name !== undefined) {
+  const loaded = file ? await loadConfiguration(file) : undefined;
+  const projects = loaded?.config.projects.map((project) =>
+    resolveProjectPaths(project, path.dirname(file!), path),
+  );
+  if (!projects && inline.project !== undefined) {
     throw new Error("Cannot select a Stillwind project without a configuration file");
   }
 
-  const config = mergeConfig(base, overrides);
-  if (overrides.root !== undefined) {
-    config.root = path.resolve(applicationRoot, overrides.root);
-  }
-
-  validateConfig({
-    projects: [
-      {
-        ...config,
-        files: ["**/*"],
-      },
-    ],
-  });
+  const selected = projects ? selectProject(projects, applicationRoot, inline, path) : undefined;
+  const config = resolveCompilerSettings(
+    selected
+      ? compilerConfig(selected)
+      : {
+          root: applicationRoot,
+        },
+    inline,
+    applicationRoot,
+    path,
+  );
 
   return {
     config,
@@ -290,14 +244,5 @@ export async function resolveIntegrationConfig(
 }
 
 function configurationCandidates(directory: string): string[] {
-  const candidates: string[] = [];
-  let current = path.resolve(directory);
-  for (;;) {
-    candidates.push(path.join(current, "stillwind.config.ts"));
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return candidates;
-    }
-    current = parent;
-  }
+  return candidates(directory, path);
 }

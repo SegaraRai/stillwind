@@ -60,11 +60,9 @@ impl DesignSystemQuery {
         }
     }
 
-    /// Returns effective lint settings after stylesheet severity and project overrides.
+    /// Returns effective lint settings after compiler defaults and project settings.
     pub fn lint_settings(&self) -> LintSettings {
-        self.context
-            .options
-            .lint_settings(&self.context.design_system)
+        self.context.options.lint_settings()
     }
 
     fn canonical_index(&self) -> &Arc<CanonicalIndex> {

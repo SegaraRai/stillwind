@@ -100,11 +100,23 @@ fn rejected_names_are_transported_beside_symbols() {
 #[test]
 fn lint_severities_keep_their_host_protocol_spellings() {
     for severity in ["warn", "deny", "off"] {
-        let output = compile_source_input(&compile_input(
-            "import {style} from 'stillwind/react'; const props = style('flex');",
-            "entry.tsx",
-            &format!("@utility flex {{display:flex;}} @stillwind-slot utilities; @stillwind {{valid-anchor-scope: {severity};}}"),
-        ), &CompilerOptions::default()).unwrap();
+        let output = compile_source_input(
+            &compile_input(
+                "import {style} from 'stillwind/react'; const props = style('flex');",
+                "entry.tsx",
+                "@utility flex {display:flex;} @stillwind-slot utilities;",
+            ),
+            &CompilerOptions {
+                lint: stillwind_diagnostics::LintOverrides {
+                    valid_anchor_scope: Some(
+                        stillwind_diagnostics::LintSeverity::parse(severity).unwrap(),
+                    ),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap();
         assert_eq!(output.lint_settings["valid-anchor-scope"], severity);
         let json = serde_json::to_value(output).unwrap();
         assert_eq!(json["lintSettings"]["valid-anchor-scope"], severity);
