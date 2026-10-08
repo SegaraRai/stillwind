@@ -403,7 +403,7 @@ impl Compiler {
             transform.rewrite_generated(|text| options.rewrite_generated(text));
         }
         for symbol in &mut result.symbols {
-            symbol.name = options.rewrite_generated(&symbol.name);
+            symbol.name = options.rewrite_generated(&symbol.name).into();
         }
 
         result

@@ -12,20 +12,22 @@
 //! are rejected. Arbitrary-property names and values receive no semantic validation
 //! here, and may be empty.
 
+use lean_string::LeanStr;
+
 /// How a variant prefix was written.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantKind {
     /// A plain name such as `hover` or `md`.
-    Named(String),
+    Named(LeanStr),
     /// The inner text of `[...]`, kept verbatim with escapes intact.
-    Arbitrary(String),
+    Arbitrary(LeanStr),
 }
 
 /// One variant prefix of a candidate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Variant {
     /// Source spelling of the whole prefix, brackets included.
-    pub raw: String,
+    pub raw: LeanStr,
     /// Form used for matching against the variant registry.
     pub kind: VariantKind,
 }
@@ -34,11 +36,11 @@ pub struct Variant {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     /// Literal modifier text such as `50`.
-    Named(String),
+    Named(LeanStr),
     /// Decoded contents of a `[...]` modifier.
-    Arbitrary(String),
+    Arbitrary(LeanStr),
     /// A `(--name)` modifier, stored with its leading `--` and without the parentheses.
-    CssVariable(String),
+    CssVariable(LeanStr),
 }
 
 /// The utility part of a candidate: either a named utility or an inline
@@ -51,16 +53,16 @@ pub enum Utility {
         /// The complete utility name before a `/` modifier. Registry matching
         /// determines the longest valid root, because grammar alone cannot distinguish
         /// `bg-red-500` from `translate-x-4`.
-        name: String,
+        name: LeanStr,
         /// `/` modifier, or `None` when the candidate has no slash.
         modifier: Option<Value>,
     },
     /// A `[property:value]` candidate written directly.
     ArbitraryProperty {
         /// Property text before the first top-level `:`, for example `--sidebar`.
-        property: String,
+        property: LeanStr,
         /// Decoded value text after that colon.
-        value: String,
+        value: LeanStr,
     },
 }
 
@@ -69,7 +71,7 @@ pub enum Utility {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Candidate {
     /// Exact source spelling, escapes included.
-    pub raw: String,
+    pub raw: LeanStr,
     /// Variant prefixes in source order, outermost first.
     pub variants: Vec<Variant>,
     /// Whether `!` was written before the utility or as its trailing marker.
@@ -99,7 +101,7 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
         .into_iter()
         .map(|raw| Variant {
             kind: if let Some(value) = arbitrary(&raw) {
-                VariantKind::Arbitrary(value.to_owned())
+                VariantKind::Arbitrary(value.into())
             } else {
                 VariantKind::Named(raw.clone())
             },
@@ -116,7 +118,7 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
         .map_or((false, utility), |value| (true, value));
     let utility = parse_utility(utility)?;
     Some(Candidate {
-        raw: raw.to_owned(),
+        raw: raw.into(),
         variants,
         important: important || important_suffix,
         negative,
@@ -170,7 +172,7 @@ fn parse_utility(raw: &str) -> Option<Utility> {
         && let Some((property, value)) = value.split_once(':')
     {
         return Some(Utility::ArbitraryProperty {
-            property: property.to_owned(),
+            property: property.into(),
             value: decode_arbitrary(value),
         });
     }
@@ -180,7 +182,7 @@ fn parse_utility(raw: &str) -> Option<Utility> {
         None => None,
     };
     (!before_modifier.is_empty()).then(|| Utility::Named {
-        name: before_modifier.to_owned(),
+        name: before_modifier.into(),
         modifier,
     })
 }
@@ -199,9 +201,9 @@ fn parse_value(value: &str) -> Option<Value> {
     {
         return value
             .strip_prefix("--")
-            .map(|value| Value::CssVariable(format!("--{value}")));
+            .map(|value| Value::CssVariable(format!("--{value}").into()));
     }
-    (!value.is_empty()).then(|| Value::Named(value.to_owned()))
+    (!value.is_empty()).then(|| Value::Named(value.into()))
 }
 
 /// Returns the contents of a `[..]` wrapper.
@@ -217,7 +219,7 @@ fn arbitrary(value: &str) -> Option<&str> {
 ///
 /// The text after the last delimiter is returned separately and is `None` when empty,
 /// which is how a trailing or doubled delimiter is rejected.
-fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) {
+fn split_top_level(value: &str, delimiter: char) -> (Vec<LeanStr>, Option<&str>) {
     let mut parts = Vec::new();
     let mut start = 0;
     let mut depth = 0_u32;
@@ -246,7 +248,7 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<String>, Option<&str>) 
             '[' | '(' => depth += 1,
             ']' | ')' => depth = depth.saturating_sub(1),
             character if character == delimiter && depth == 0 => {
-                parts.push(value[start..index].to_owned());
+                parts.push(value[start..index].into());
                 start = index + character.len_utf8();
             }
             _ => {}
@@ -318,7 +320,7 @@ fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
 ///
 /// `\x` yields `x` and an unescaped `_` becomes a space. Escapes are resolved first, so
 /// `\_` is a literal underscore rather than a space.
-fn decode_arbitrary(value: &str) -> String {
+fn decode_arbitrary(value: &str) -> LeanStr {
     let mut output = String::new();
     let mut escaped = false;
     for character in value.chars() {
@@ -333,7 +335,7 @@ fn decode_arbitrary(value: &str) -> String {
             output.push(character);
         }
     }
-    output
+    output.into()
 }
 
 #[cfg(test)]
@@ -351,20 +353,20 @@ mod tests {
             candidate.variants,
             vec![
                 Variant {
-                    raw: "hover".to_owned(),
-                    kind: VariantKind::Named("hover".to_owned()),
+                    raw: "hover".into(),
+                    kind: VariantKind::Named("hover".into()),
                 },
                 Variant {
-                    raw: "md".to_owned(),
-                    kind: VariantKind::Named("md".to_owned()),
+                    raw: "md".into(),
+                    kind: VariantKind::Named("md".into()),
                 },
             ]
         );
         assert_eq!(
             candidate.utility,
             Utility::Named {
-                name: "bg-red-500".to_owned(),
-                modifier: Some(Value::Arbitrary(".35".to_owned())),
+                name: "bg-red-500".into(),
+                modifier: Some(Value::Arbitrary(".35".into())),
             }
         );
     }
@@ -376,22 +378,22 @@ mod tests {
                 .unwrap()
                 .utility,
             Utility::Named {
-                name: "translate-x-[calc(100%_-_1rem)]".to_owned(),
+                name: "translate-x-[calc(100%_-_1rem)]".into(),
                 modifier: None,
             }
         );
         assert_eq!(
             parse_candidate("w-(--sidebar)").unwrap().utility,
             Utility::Named {
-                name: "w-(--sidebar)".to_owned(),
+                name: "w-(--sidebar)".into(),
                 modifier: None,
             }
         );
         assert_eq!(
             parse_candidate("[color:rebeccapurple]").unwrap().utility,
             Utility::ArbitraryProperty {
-                property: "color".to_owned(),
-                value: "rebeccapurple".to_owned(),
+                property: "color".into(),
+                value: "rebeccapurple".into(),
             }
         );
     }
@@ -402,22 +404,22 @@ mod tests {
             (
                 "bg-red-500/50",
                 Utility::Named {
-                    name: "bg-red-500".to_owned(),
-                    modifier: Some(Value::Named("50".to_owned())),
+                    name: "bg-red-500".into(),
+                    modifier: Some(Value::Named("50".into())),
                 },
             ),
             (
                 "bg-red-500/[.35]",
                 Utility::Named {
-                    name: "bg-red-500".to_owned(),
-                    modifier: Some(Value::Arbitrary(".35".to_owned())),
+                    name: "bg-red-500".into(),
+                    modifier: Some(Value::Arbitrary(".35".into())),
                 },
             ),
             (
                 "bg-red-500/(--brand-opacity)",
                 Utility::Named {
-                    name: "bg-red-500".to_owned(),
-                    modifier: Some(Value::CssVariable("--brand-opacity".to_owned())),
+                    name: "bg-red-500".into(),
+                    modifier: Some(Value::CssVariable("--brand-opacity".into())),
                 },
             ),
         ];
@@ -437,19 +439,19 @@ mod tests {
             candidate.variants,
             vec![
                 Variant {
-                    raw: "[@supports(display:grid)]".to_owned(),
-                    kind: VariantKind::Arbitrary("@supports(display:grid)".to_owned()),
+                    raw: "[@supports(display:grid)]".into(),
+                    kind: VariantKind::Arbitrary("@supports(display:grid)".into()),
                 },
                 Variant {
-                    raw: "[&:nth-child(3)]".to_owned(),
-                    kind: VariantKind::Arbitrary("&:nth-child(3)".to_owned()),
+                    raw: "[&:nth-child(3)]".into(),
+                    kind: VariantKind::Arbitrary("&:nth-child(3)".into()),
                 },
             ]
         );
         assert_eq!(
             candidate.utility,
             Utility::Named {
-                name: "content-['hello\\_world']".to_owned(),
+                name: "content-['hello\\_world']".into(),
                 modifier: None,
             }
         );
@@ -473,8 +475,8 @@ mod tests {
                 .unwrap()
                 .utility,
             Utility::ArbitraryProperty {
-                property: "--sidebar".to_owned(),
-                value: "calc(100% - 1rem)".to_owned(),
+                property: "--sidebar".into(),
+                value: "calc(100% - 1rem)".into(),
             }
         );
         assert_eq!(
@@ -482,7 +484,7 @@ mod tests {
                 .unwrap()
                 .utility,
             Utility::Named {
-                name: "content-['hello\\_world']".to_owned(),
+                name: "content-['hello\\_world']".into(),
                 modifier: None,
             }
         );
@@ -506,7 +508,7 @@ mod tests {
             assert_eq!(
                 candidate.utility,
                 Utility::Named {
-                    name: raw.to_owned(),
+                    name: raw.into(),
                     modifier: None,
                 },
                 "{raw}"
@@ -552,7 +554,7 @@ mod boundary_tests {
             let candidate = parse_candidate(&name).unwrap();
             proptest::prop_assert!(!candidate.important);
             proptest::prop_assert!(!candidate.negative);
-            proptest::prop_assert_eq!(candidate.utility, Utility::Named{name, modifier:None});
+            proptest::prop_assert_eq!(candidate.utility, Utility::Named{name: name.into(), modifier:None});
         }
     }
 }

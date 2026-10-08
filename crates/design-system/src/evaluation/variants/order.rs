@@ -11,6 +11,8 @@
 //! that is not a number falls back to text order so the comparison stays total and
 //! deterministic.
 
+use lean_string::LeanStr;
+
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -120,7 +122,7 @@ pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
         .filter_map(|candidate| {
             theme
                 .variant_positions()
-                .get(&candidate.name)
+                .get(candidate.name.as_str())
                 .copied()
                 .or(candidate.builtin_order)
         })
@@ -351,7 +353,7 @@ impl VariantSequenceOrder {
 #[derive(Clone, Debug)]
 struct VariantGroupOrder {
     /// Fallback spelling for groups without comparable sort values.
-    raw: String,
+    raw: LeanStr,
     inner: Option<Box<VariantSequenceOrder>>,
     direction: Option<BuiltinVariantSortDirection>,
     /// Theme token text or a decoded arbitrary capture.

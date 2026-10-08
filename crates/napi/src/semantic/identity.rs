@@ -80,7 +80,7 @@ impl From<IdentityId> for NativeIdentity {
             module_id: value.module_id.into_string(),
             start: value.start,
             end: value.end,
-            binding_name: value.binding_name,
+            binding_name: value.binding_name.to_string(),
         }
     }
 }

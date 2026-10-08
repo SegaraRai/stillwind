@@ -792,7 +792,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         .find(|replacement| replacement.starts_with("{c:"))
         .unwrap_or_else(|| panic!("{:?}", compiled.code_transforms));
     assert!(
-        replacement.contains(&marker.name),
+        replacement.contains(marker.name.as_str()),
         "{replacement} does not name {}",
         marker.name
     );

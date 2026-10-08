@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+lean_string.workspace = true
 blake3.workspace = true
 serde.workspace = true
 thiserror.workspace = true

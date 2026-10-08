@@ -432,7 +432,7 @@ pub(in crate::compiler) fn check_variant(
         if !conditions.is_empty() {
             findings.push(LintFinding::new(
                 LintDiagnostic::ArbitraryBreakpoint {
-                    variant: variant.raw.clone(),
+                    variant: variant.raw.to_string(),
                     condition: conditions.into_iter().collect::<Vec<_>>().join(", "),
                 },
                 span,

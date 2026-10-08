@@ -482,9 +482,9 @@ pub struct NativeGeneratedSymbol {
 impl From<GeneratedSymbol> for NativeGeneratedSymbol {
     fn from(value: GeneratedSymbol) -> Self {
         Self {
-            name: value.name,
+            name: value.name.to_string(),
             kind: value.kind.as_str().to_owned(),
-            identity: value.identity,
+            identity: value.identity.to_string(),
             source_kind: match &value.origin {
                 SymbolOrigin::Module(_) => "module",
                 SymbolOrigin::Stylesheet(_) => "stylesheet",

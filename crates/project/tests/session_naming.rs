@@ -61,7 +61,7 @@ fn session_generators_name_generated_classes() {
         .expect("class symbol");
     // The host body is written as returned, with no built-in class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);
-    assert!(session.css().unwrap().contains(&class.name));
+    assert!(session.css().unwrap().contains(class.name.as_str()));
 }
 
 /// Names the keyframes family with one fixed body so it can collide with authored CSS.

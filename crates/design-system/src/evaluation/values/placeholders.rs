@@ -166,12 +166,12 @@ pub(crate) fn resolve_css_placeholders(
                 let domains = arguments;
                 let replacement = if domains.trim().is_empty() {
                     match modifier {
-                        Value::Named(value) | Value::Arbitrary(value) => value.clone(),
+                        Value::Named(value) | Value::Arbitrary(value) => value.to_string(),
                         Value::CssVariable(value) => format!("var({value})"),
                     }
                 } else {
                     let capture = match modifier {
-                        Value::Named(value) => value.clone(),
+                        Value::Named(value) => value.to_string(),
                         // `Value::Arbitrary` is decoded by the grammar. Re-wrap it so the same
                         // typed-domain resolver used by `--value(...)` can check an optional
                         // arbitrary-value hint.

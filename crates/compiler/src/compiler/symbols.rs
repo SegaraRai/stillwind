@@ -4,6 +4,8 @@
 //! identity alongside each written name so document-wide collision checks can
 //! distinguish name reuse from a collision.
 
+use lean_string::LeanStr;
+
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;
@@ -29,14 +31,14 @@ use crate::identifiers::{
 #[serde(rename_all = "camelCase")]
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
-    pub name: String,
+    pub name: LeanStr,
     /// Role of the generated identifier.
     pub kind: GeneratedSymbolKind,
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
     pub pool: IdentifierPool,
     /// Owner identity used to distinguish name reuse from a collision in the same pool.
-    pub identity: String,
+    pub identity: LeanStr,
     /// Source that owns the declaration or detached name.
     pub origin: SymbolOrigin,
     /// Byte offset of the declaration's first character, when it has one.
@@ -189,7 +191,7 @@ pub(super) fn ref_context(
         module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
-        binding: definition.binding.value.clone(),
+        binding: definition.binding.value.as_str().into(),
         label: declared_label(definition.label.as_ref()),
         projection,
     }
@@ -201,7 +203,7 @@ pub(super) fn ref_declaration_context(definition: &RefDefinition) -> Declaration
         module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
-        binding: definition.binding.value.clone(),
+        binding: definition.binding.value.as_str().into(),
         label: declared_label(definition.label.as_ref()),
     }
 }
@@ -262,11 +264,12 @@ fn owner_declaration_identity(
     start: u32,
     end: u32,
     binding: &str,
-) -> String {
+) -> LeanStr {
     format!(
         "stillwind-identity/v1\0{}",
         declaration_fields(module_id, kind, start, end, binding),
     )
+    .into()
 }
 
 /// Identity and report spelling of one asset kind.
@@ -302,7 +305,7 @@ pub(super) fn named_declaration(
         module: module_id.clone(),
         start: definition.span.start.0,
         end: definition.span.end.0,
-        binding: definition.value.clone(),
+        binding: definition.value.as_str().into(),
         label: declared_label(label),
     }
 }
@@ -331,26 +334,20 @@ fn declared_name(
     context: &IdentifierContext,
     kind: AssetKind,
     declaration: &DeclarationContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanStr, CompileDiagnostic> {
     let name = match kind {
-        AssetKind::Keyframes => context.keyframes_name(declaration)?.as_str().to_owned(),
-        AssetKind::ViewTransition => context
-            .view_transition_class(declaration)?
-            .as_str()
-            .to_owned(),
+        AssetKind::Keyframes => context.keyframes_name(declaration)?.as_str().into(),
+        AssetKind::ViewTransition => context.view_transition_class(declaration)?.as_str().into(),
         AssetKind::Style => context
             .class_name(&ClassContext {
                 module: declaration.module.clone(),
                 namespace: String::new(),
                 call: declaration.start,
-                branch: declaration.binding.clone(),
+                branch: declaration.binding.to_string(),
             })?
             .as_str()
-            .to_owned(),
-        AssetKind::Ref => context
-            .anchor_name(&locator(declaration))?
-            .as_str()
-            .to_owned(),
+            .into(),
+        AssetKind::Ref => context.anchor_name(&locator(declaration))?.as_str().into(),
     };
     Ok(name)
 }
@@ -414,7 +411,7 @@ pub(super) fn generated_ref_symbol(
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     let identity = identity_input(&ref_identity(definition));
     Ok(GeneratedSymbol {
-        name: anchor_name(context, definition, None)?.as_str().to_owned(),
+        name: anchor_name(context, definition, None)?.as_str().into(),
         kind: GeneratedSymbolKind::Ref,
         pool: IdentifierPool::AnchorName,
         identity,
@@ -434,7 +431,7 @@ pub(super) fn generated_ref_marker_symbol(
     definition: &RefDefinition,
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
-        name: ref_marker_name(context, definition)?.as_str().to_owned(),
+        name: ref_marker_name(context, definition)?.as_str().into(),
         kind: GeneratedSymbolKind::RefMarker,
         pool: IdentifierPool::ClassToken,
         identity: format!(
@@ -443,7 +440,8 @@ pub(super) fn generated_ref_marker_symbol(
             definition.binding.span.start.0,
             definition.binding.span.end.0,
             definition.binding.value,
-        ),
+        )
+        .into(),
         origin: SymbolOrigin::Module(definition.module_id.clone()),
         start: Some(definition.binding.span.start.0),
         end: Some(definition.binding.span.end.0),
@@ -463,10 +461,10 @@ pub(super) fn generated_class_symbol(
     span: Span,
 ) -> GeneratedSymbol {
     GeneratedSymbol {
-        name: name.to_owned(),
+        name: name.into(),
         kind: GeneratedSymbolKind::Class,
         pool: IdentifierPool::ClassToken,
-        identity: format!("stillwind-identity/v1\0class\0{canonical_input}"),
+        identity: format!("stillwind-identity/v1\0class\0{canonical_input}").into(),
         origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(span.start.0),
         end: Some(span.end.0),
@@ -499,7 +497,7 @@ pub(super) fn definition_name_symbol(
 }
 
 /// Owner identity of a declaration referenced through its semantic identity.
-pub(super) fn identity_input(identity: &IdentityId) -> String {
+pub(super) fn identity_input(identity: &IdentityId) -> LeanStr {
     owner_declaration_identity(
         &identity.module_id,
         kind_name(identity.kind),
@@ -513,7 +511,7 @@ pub(super) fn identity_input(identity: &IdentityId) -> String {
 ///
 /// The identity is what a symbol report compares, so it must not depend on the family
 /// it was written for.
-pub(super) fn identity_input_parts(context: &LocatorContext) -> String {
+pub(super) fn identity_input_parts(context: &LocatorContext) -> LeanStr {
     owner_declaration_identity(
         &context.module,
         "ref",
@@ -556,14 +554,14 @@ pub(super) fn named_identity(
 /// shared name across pools a reuse rather than a collision.
 pub(crate) fn projection_symbol(
     name: &str,
-    identity: String,
+    identity: LeanStr,
     pool: IdentifierPool,
     kind: GeneratedSymbolKind,
     module_id: &ModuleId,
     span: Span,
 ) -> GeneratedSymbol {
     GeneratedSymbol {
-        name: name.to_owned(),
+        name: name.into(),
         kind,
         pool,
         identity,
@@ -648,7 +646,7 @@ mod tests {
             module: module.clone(),
             start: 2,
             end: 6,
-            binding: "item".to_owned(),
+            binding: "item".into(),
             label: None,
             projection: Some(LocatorProjection::Container),
         };

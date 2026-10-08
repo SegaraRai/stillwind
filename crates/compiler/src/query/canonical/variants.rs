@@ -1,7 +1,8 @@
 //! Indexes named variant wrappers using a declaration that stays independent of theme values.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeSet, HashMap};
-use std::sync::Arc;
 
 use stillwind_design_system::{VariantApplication, resolve_utility, resolve_variant};
 use stillwind_syntax::parse_candidate;
@@ -12,7 +13,7 @@ const PROBE: &str = "[--sw-canonical-probe:initial]";
 
 #[derive(Debug, Default)]
 pub(super) struct VariantIndex {
-    signatures: HashMap<Arc<str>, Vec<String>>,
+    signatures: HashMap<LeanStr, Vec<String>>,
     names: Vec<String>,
     contextual: Vec<String>,
 }

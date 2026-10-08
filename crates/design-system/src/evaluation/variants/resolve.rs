@@ -283,7 +283,7 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
         return None;
     }
     match modifier {
-        None => Some(name),
+        None => Some(name.to_string()),
         Some(Value::Named(modifier)) => Some(format!("{name}/{modifier}")),
         Some(Value::Arbitrary(_) | Value::CssVariable(_)) => None,
     }
@@ -456,13 +456,13 @@ pub(crate) fn decode_variant_capture(value: &str) -> String {
 /// Builds a synthetic nested variant from capture text, keeping the raw spelling so an
 /// inner resolution can report the text the author wrote.
 pub(crate) fn parse_nested_variant(value: &str) -> Variant {
-    let raw = value.to_owned();
+    let raw = value.into();
     let kind = value
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
         .map_or_else(
-            || VariantKind::Named(value.to_owned()),
-            |value| VariantKind::Arbitrary(decode_arbitrary(value)),
+            || VariantKind::Named(value.into()),
+            |value| VariantKind::Arbitrary(decode_arbitrary(value).into()),
         );
     Variant { kind, raw }
 }

@@ -10,6 +10,8 @@
 //! lexical iteration and fingerprints. Candidate matching uses each layer's index and
 //! its precedence; both views share the same immutable definition values.
 
+use lean_string::LeanStr;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -26,7 +28,7 @@ use crate::{CustomUtility, CustomVariant, ThemeToken};
 pub struct DefinitionRegistry<T> {
     /// Definitions grouped by name in lexical key order; each vector preserves
     /// insertion order, including overloads.
-    entries: BTreeMap<String, Vec<Arc<T>>>,
+    entries: BTreeMap<LeanStr, Vec<Arc<T>>>,
 }
 
 impl<T> DefinitionRegistry<T> {
@@ -35,8 +37,8 @@ impl<T> DefinitionRegistry<T> {
     /// The grouping is the resolved view of built-ins, framework imports, theme CSS,
     /// and authored definitions in the order the snapshot supplied them; this
     /// constructor must not reorder or deduplicate.
-    pub(crate) fn new(entries: impl IntoIterator<Item = (String, Arc<T>)>) -> Self {
-        let mut grouped: BTreeMap<String, Vec<Arc<T>>> = BTreeMap::new();
+    pub(crate) fn new(entries: impl IntoIterator<Item = (LeanStr, Arc<T>)>) -> Self {
+        let mut grouped: BTreeMap<LeanStr, Vec<Arc<T>>> = BTreeMap::new();
         for (name, value) in entries {
             grouped.entry(name).or_default().push(value);
         }
@@ -58,13 +60,16 @@ impl<T> DefinitionRegistry<T> {
 
     /// Iterates names in ascending order.
     pub fn names(&self) -> impl Iterator<Item = &str> {
-        self.entries.keys().map(String::as_str)
+        self.entries.keys().map(LeanStr::as_str)
     }
 
     /// Returns names starting with `prefix`, in lexical order.
     pub fn names_with_prefix<'a>(&'a self, prefix: &'a str) -> impl Iterator<Item = &'a str> {
         self.entries
-            .range(prefix.to_owned()..)
+            .range::<str, _>((
+                std::ops::Bound::Included(prefix),
+                std::ops::Bound::Unbounded,
+            ))
             .take_while(move |(name, _)| name.starts_with(prefix))
             .map(|(name, _)| name.as_str())
     }
@@ -88,7 +93,7 @@ impl<T: std::fmt::Debug> DefinitionRegistry<T> {
     pub(crate) fn fingerprints(&self) -> BTreeMap<String, Fingerprint> {
         self.entries
             .iter()
-            .map(|(name, values)| (name.clone(), Fingerprint::of(format!("{values:?}"))))
+            .map(|(name, values)| (name.to_string(), Fingerprint::of(format!("{values:?}"))))
             .collect()
     }
 }

@@ -92,7 +92,7 @@ impl<'a> MacroExtractor<'a> {
         let metadata = self.imported_assets.get(identity);
         RefDefinition {
             module_id: identity.module_id.clone(),
-            binding: Spanned::new(identity.binding_name.clone(), span),
+            binding: Spanned::new(identity.binding_name.to_string(), span),
             label: metadata
                 .and_then(|metadata| metadata.label.clone())
                 .map(|label| Spanned::new(label, span)),

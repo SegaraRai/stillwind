@@ -1,5 +1,7 @@
 //! Opaque host identities shared by source consumers.
 
+use lean_string::LeanStr;
+
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// form is the original string, without a type tag or path conversion.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ModuleId(String);
+pub struct ModuleId(LeanStr);
 
 impl ModuleId {
     /// Borrows the exact host key.
@@ -20,7 +22,7 @@ impl ModuleId {
 
     /// Returns the host key as an owned string.
     pub fn into_string(self) -> String {
-        self.0
+        self.0.to_string()
     }
 }
 
@@ -32,13 +34,13 @@ impl std::fmt::Display for ModuleId {
 
 impl From<String> for ModuleId {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 
 impl From<&str> for ModuleId {
     fn from(value: &str) -> Self {
-        Self(value.to_owned())
+        Self(value.into())
     }
 }
 
@@ -49,7 +51,7 @@ impl From<&str> for ModuleId {
 /// string, without a type tag or path conversion.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct CssSourceName(Arc<str>);
+pub struct CssSourceName(LeanStr);
 
 impl CssSourceName {
     /// Borrows the exact host key.
@@ -66,7 +68,7 @@ impl std::fmt::Display for CssSourceName {
 
 impl From<Arc<str>> for CssSourceName {
     fn from(value: Arc<str>) -> Self {
-        Self(value)
+        Self(value.as_ref().into())
     }
 }
 

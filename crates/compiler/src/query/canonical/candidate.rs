@@ -83,7 +83,7 @@ impl DesignSystemQuery {
                 )
             }
             Utility::ArbitraryProperty { property, value } => {
-                (String::new(), value.clone(), Some(property.as_str()))
+                (String::new(), value.to_string(), Some(property.as_str()))
             }
         };
         let bare_value = value
@@ -94,7 +94,7 @@ impl DesignSystemQuery {
             "{}{}",
             if parsed.negative { "-" } else { "" },
             match &parsed.utility {
-                Utility::Named { name, .. } => name.clone(),
+                Utility::Named { name, .. } => name.to_string(),
                 Utility::ArbitraryProperty { property, value } => format!("[{property}:{value}]"),
             }
         );

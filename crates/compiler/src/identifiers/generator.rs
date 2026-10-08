@@ -12,6 +12,8 @@
 //! observe two calls of an impure generator and cannot produce two names for one declaration, and
 //! a rejection is memoized as a rejection, so one compilation reports it once.
 
+use lean_string::LeanStr;
+
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -330,9 +332,9 @@ pub struct DetachedName {
     /// Family the name belongs to.
     pub kind: IdentifierKind,
     /// Canonical spelling of the name.
-    pub name: String,
+    pub name: LeanStr,
     /// Owner identity used by document-wide name collision checks.
-    pub identity: String,
+    pub identity: LeanStr,
 }
 
 /// One compilation's name allocation: host generator first, built-in fallback,
@@ -349,7 +351,7 @@ pub struct IdentifierContext {
     mode: IdentifierMode,
     /// How many base-36 digits of a request hash a built-in name keeps.
     hash_length: usize,
-    memo: RefCell<BTreeMap<MemoKey, Result<String, String>>>,
+    memo: RefCell<BTreeMap<MemoKey, Result<LeanStr, String>>>,
     /// Rejections collected in development mode.
     rejected: RefCell<RejectedNames>,
     /// Names of the families that carry no declaration position.
@@ -412,11 +414,12 @@ impl IdentifierContext {
     pub(crate) fn record_layer(&self, context: &LayerContext, written: &str) {
         self.detached.borrow_mut().push(DetachedName {
             kind: IdentifierKind::LayerName,
-            name: written.to_owned(),
+            name: written.into(),
             identity: format!(
                 "stillwind-identity/v1\0anonymous-layer\0{}\0{}\0",
                 context.template, context.namespace,
-            ),
+            )
+            .into(),
         });
     }
 
@@ -555,8 +558,8 @@ impl IdentifierContext {
         if let (Some(identity), Ok(name)) = (request.detached_owner_identity(), &settled) {
             self.detached.borrow_mut().push(DetachedName {
                 kind,
-                name: name.as_str().to_owned(),
-                identity,
+                name: name.as_str().into(),
+                identity: identity.into(),
             });
         }
         settled
@@ -567,14 +570,14 @@ impl IdentifierContext {
         &self,
         request: &R,
         hash: &IdentifierHash,
-    ) -> Result<String, String> {
+    ) -> Result<LeanStr, String> {
         let name = match self.generators.generator() {
             Some(generator) => request.name(generator, hash),
             None => Ok(GeneratedName::Builtin),
         };
         match name {
-            Ok(GeneratedName::Builtin) => Ok(request.builtin(hash, self.hash_length)),
-            Ok(GeneratedName::Provided(name)) => Ok(name.as_str().to_owned()),
+            Ok(GeneratedName::Builtin) => Ok(request.builtin(hash, self.hash_length).into()),
+            Ok(GeneratedName::Provided(name)) => Ok(name.as_str().into()),
             Err(message) => Err(message),
         }
     }
@@ -584,7 +587,7 @@ impl IdentifierContext {
         &self,
         request: &R,
         hash: &IdentifierHash,
-        generated: Result<String, String>,
+        generated: Result<LeanStr, String>,
     ) -> Result<T, CompileDiagnostic> {
         match generated {
             // A host name arrives as a name its own family already built, so cleaning

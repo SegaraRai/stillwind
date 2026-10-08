@@ -97,7 +97,7 @@ pub(crate) fn resolve_css_utility_body(
         return Ok(None);
     };
     let body = prepared.as_ref().map_err(|source| UtilityResolutionError {
-        name: utility.name.clone(),
+        name: utility.name.to_string(),
         source: *source,
     })?;
     Ok(body
@@ -272,7 +272,10 @@ fn resolve_valid_utility_body(
             nested: Vec::new(),
             additional,
             builtin_order: match theme.config().utility_order {
-                UtilityOrderMode::Authored => theme.utility_positions().get(&utility.name).copied(),
+                UtilityOrderMode::Authored => theme
+                    .utility_positions()
+                    .get(utility.name.as_str())
+                    .copied(),
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
@@ -287,7 +290,10 @@ fn resolve_valid_utility_body(
             nested: resolved_nested,
             additional: Vec::new(),
             builtin_order: match theme.config().utility_order {
-                UtilityOrderMode::Authored => theme.utility_positions().get(&utility.name).copied(),
+                UtilityOrderMode::Authored => theme
+                    .utility_positions()
+                    .get(utility.name.as_str())
+                    .copied(),
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),

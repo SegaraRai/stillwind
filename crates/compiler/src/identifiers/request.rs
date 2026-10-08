@@ -10,6 +10,8 @@
 //! turns it into the compiler's own name. A family whose spelling is not the prefix followed by the
 //! digest declares that spelling here, next to its identity rule.
 
+use lean_string::LeanStr;
+
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::generator::{GeneratedName, IdentifierGenerator};
@@ -93,7 +95,7 @@ pub struct DeclarationContext {
     /// Byte offset just past the declaration's name.
     pub end: u32,
     /// Binding name the declaration is assigned to.
-    pub binding: String,
+    pub binding: LeanStr,
     /// Authored label, normalized for name use, when the declaration has one.
     pub label: Option<Label>,
 }
@@ -108,7 +110,7 @@ pub struct LocatorContext {
     /// Byte offset just past the declaration's name.
     pub end: u32,
     /// Binding name of the declaration that owns the name.
-    pub binding: String,
+    pub binding: LeanStr,
     /// Authored label, normalized for name use, when the declaration has one.
     pub label: Option<Label>,
     /// Projection the name is written for, when the writer has one.

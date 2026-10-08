@@ -812,6 +812,6 @@ fn insert_document_name<'a>(
         )
         .filter(|identity| *identity != symbol.identity)
         .map(|_| CompileDiagnostic::GeneratedIdentifierCollision {
-            name: symbol.name.clone().into(),
+            name: symbol.name.as_str().into(),
         })
 }

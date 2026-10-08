@@ -7,6 +7,8 @@
 //! [`SourceFile::utf16_offset`] exist only to talk to editors, which count UTF-16 code
 //! units.
 
+use lean_string::LeanStr;
+
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::sync::Arc;
@@ -67,7 +69,7 @@ pub struct SourceUriError(pub String);
 /// spellings that a generic normalizer would consider equivalent.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
-pub struct SourceUri(String);
+pub struct SourceUri(LeanStr);
 
 impl SourceUri {
     /// Validates an absolute URI without changing its spelling.
@@ -75,10 +77,10 @@ impl SourceUri {
     /// # Errors
     ///
     /// Returns an error for a missing scheme or malformed URI characters.
-    pub fn parse(value: impl Into<String>) -> Result<Self, SourceUriError> {
+    pub fn parse(value: impl Into<LeanStr>) -> Result<Self, SourceUriError> {
         let value = value.into();
         let Some((scheme, rest)) = value.split_once(':') else {
-            return Err(SourceUriError(value.clone()));
+            return Err(SourceUriError(value.to_string()));
         };
         let valid_scheme = !scheme.is_empty()
             && scheme.bytes().enumerate().all(|(index, byte)| {
@@ -104,7 +106,7 @@ impl SourceUri {
             }
         }
         if !valid_scheme || !valid_rest {
-            return Err(SourceUriError(value.clone()));
+            return Err(SourceUriError(value.to_string()));
         }
         Ok(Self(value))
     }

@@ -1,5 +1,7 @@
 //! Renders canonical previews and normalizes their CSS under one query's spacing policy.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -28,7 +30,7 @@ pub(in crate::query) struct CanonicalPreview {
     pub(super) resolved_css: Option<String>,
     pub(super) required_properties: Vec<String>,
     // Query clones can move to different threads while sharing these previews.
-    pub(super) signatures: Mutex<BTreeMap<Normalization, Option<Arc<str>>>>,
+    pub(super) signatures: Mutex<BTreeMap<Normalization, Option<LeanStr>>>,
 }
 
 impl CanonicalPreview {
@@ -39,7 +41,7 @@ impl CanonicalPreview {
         scale: Option<&str>,
         properties: &BTreeSet<String>,
         options: &CanonicalUtilitiesConfig,
-    ) -> Option<Arc<str>> {
+    ) -> Option<LeanStr> {
         let key = Normalization {
             resolve_scale: scale.is_some(),
             properties: properties.clone(),
@@ -68,7 +70,7 @@ impl CanonicalPreview {
             normalized = fold_calc_expressions(&normalized, None);
             minify_css(&normalized, &CssMinifyOptions::default())
                 .ok()
-                .map(|output| Arc::from(output.css))
+                .map(|output| LeanStr::from(output.css))
         });
         self.signatures
             .lock()

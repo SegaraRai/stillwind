@@ -32,7 +32,7 @@ fn marker(result: &CompileResult, label: &str) -> String {
         })
         .unwrap_or_else(|| panic!("missing marker for {label}: {:?}", result.symbols))
         .name
-        .clone()
+        .to_string()
 }
 
 #[test]

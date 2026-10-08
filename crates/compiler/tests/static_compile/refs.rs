@@ -386,8 +386,8 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
     let boundary = marker_of("sw_menu_");
     let trigger = marker_of("sw_trigger_");
     assert!(trigger.starts_with("sw_trigger_"), "{trigger}");
-    assert!(transformed.contains(&boundary), "{transformed}");
-    assert!(transformed.contains(&trigger), "{transformed}");
+    assert!(transformed.contains(boundary.as_str()), "{transformed}");
+    assert!(transformed.contains(trigger.as_str()), "{transformed}");
     assert!(
         result.css.contains(&format!(".{boundary}")),
         "{}",

@@ -370,7 +370,7 @@ impl<'a> CallEmitter<'a> {
         let symbol = definition_name_symbol(self.identifiers, reference, kind)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
-        Ok(name)
+        Ok(name.to_string())
     }
 
     /// Converts a generator failure into a fatal diagnostic at `span`.

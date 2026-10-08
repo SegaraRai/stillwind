@@ -9,6 +9,8 @@
 //! deliberate: it is what lets a build adapter detect a hash collision instead of
 //! silently merging two assets.
 
+use lean_string::LeanStr;
+
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::ModuleId;
@@ -49,7 +51,7 @@ pub struct IdentityId {
     pub end: u32,
     /// Local binding name at the declaration site. Empty for `style()` call sites,
     /// which are identified by their call span instead.
-    pub binding_name: String,
+    pub binding_name: LeanStr,
 }
 
 impl IdentityId {
@@ -63,7 +65,7 @@ impl IdentityId {
         module_id: ModuleId,
         start: u32,
         end: u32,
-        binding_name: impl Into<String>,
+        binding_name: impl Into<LeanStr>,
     ) -> Self {
         Self {
             kind,

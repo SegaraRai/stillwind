@@ -4,8 +4,10 @@
 //! use CSS templates after checking each candidate's utility IR. Overrides and
 //! transformations that change that IR remain in the finite CSS index.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use stillwind_design_system::{
     ResolvedUtility, ThemeTokenMode, UtilityResolutionError, builtin_property_definitions,
@@ -104,7 +106,7 @@ struct ValuePreparation<'a> {
     registered: Vec<String>,
     required_values: BTreeMap<String, Vec<bool>>,
     resolved: BTreeMap<String, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
-    signatures: HashMap<(String, Normalization), Option<Arc<str>>>,
+    signatures: HashMap<(String, Normalization), Option<LeanStr>>,
 }
 
 impl<'a> ValuePreparation<'a> {
@@ -270,7 +272,7 @@ impl<'a> ValuePreparation<'a> {
 
 #[derive(Debug, Default)]
 struct ValueMatches {
-    signatures: HashMap<(Arc<str>, Vec<String>), Vec<String>>,
+    signatures: HashMap<(LeanStr, Vec<String>), Vec<String>>,
 }
 
 #[derive(Debug)]

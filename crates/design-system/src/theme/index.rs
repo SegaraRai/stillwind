@@ -3,6 +3,8 @@
 //! Token lookup applies resets and replacements once. Clones share declarations,
 //! effective token positions, candidate lookup, and parsed utility programs.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 
@@ -22,8 +24,8 @@ use crate::{BuiltinDefinitions, ThemeReferenceError, ThemeTokenMode};
 
 #[derive(Debug, Eq, PartialEq)]
 struct ThemeDeclarations {
-    variant_positions: BTreeMap<String, usize>,
-    utility_positions: BTreeMap<String, usize>,
+    variant_positions: BTreeMap<LeanStr, usize>,
+    utility_positions: BTreeMap<LeanStr, usize>,
     output_template: CssOutputTemplate,
     registry: Arc<BuiltinDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
@@ -118,12 +120,12 @@ impl ThemeIndex {
     }
 
     /// First declaration offsets after imports are expanded, shared by user and built-in variants.
-    pub fn variant_positions(&self) -> &BTreeMap<String, usize> {
+    pub fn variant_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.variant_positions
     }
 
     /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
-    pub fn utility_positions(&self) -> &BTreeMap<String, usize> {
+    pub fn utility_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.utility_positions
     }
 

@@ -6,6 +6,8 @@
 //! byte offset in the registry CSS, which is what lets a property sort before or after
 //! a utility that was authored between two statements.
 
+use lean_string::LeanStr;
+
 use std::collections::BTreeMap;
 
 use stillwind_css::{
@@ -20,8 +22,8 @@ use crate::variants::parse_variant_name;
 /// Only definitions that can register a name reserve a slot: `@variant` blocks must
 /// carry an `@slot`, and `@custom-variant` also registers from its statement form. The
 /// name is the header's first whitespace-delimited token.
-pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<String, usize> {
-    let mut positions = BTreeMap::<String, usize>::new();
+pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<LeanStr, usize> {
+    let mut positions = BTreeMap::<LeanStr, usize>::new();
     for directive in directives {
         let blocks = extract_named_blocks_with_offsets(css, directive)
             .into_iter()

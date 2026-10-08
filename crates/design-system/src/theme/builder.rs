@@ -1,5 +1,7 @@
 //! Collects authored declarations until parsing and origin mapping finish.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
@@ -14,9 +16,9 @@ use crate::registry::variants::CustomVariant;
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
     /// First declaration offsets after imports are expanded, shared by user and built-in variants.
-    pub(crate) variant_positions: BTreeMap<String, usize>,
+    pub(crate) variant_positions: BTreeMap<LeanStr, usize>,
     /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
-    pub(crate) utility_positions: BTreeMap<String, usize>,
+    pub(crate) utility_positions: BTreeMap<LeanStr, usize>,
     /// Structured output positions from the authored entry CSS.
     pub(crate) output_template: CssOutputTemplate,
     /// Built-in definitions selected by this CSS; empty when it imports none.

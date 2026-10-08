@@ -70,7 +70,7 @@ fn declaration_context(label: Option<&str>) -> DeclarationContext {
         module: ModuleId::from("src/a.tsx"),
         start: 20,
         end: 24,
-        binding: "menu".to_owned(),
+        binding: "menu".into(),
         label: label.and_then(|label| Label::new(label).ok()),
     }
 }
@@ -357,7 +357,7 @@ fn identity_fields_use_nul_boundaries() {
             module: ModuleId::from("src/a:1.tsx"),
             start: 2,
             end: 5,
-            binding: "a:b".to_owned(),
+            binding: "a:b".into(),
             label: None,
         })
         .identity(),

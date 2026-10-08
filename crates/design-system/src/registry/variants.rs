@@ -10,6 +10,8 @@
 //! the evaluator; this module only records what the CSS declared and never invents
 //! defaults for missing metadata.
 
+use lean_string::LeanStr;
+
 use cssparser::{Parser, Token};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
@@ -51,7 +53,7 @@ pub struct BuiltinVariantSort {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomVariant {
     /// Decoded name, retaining the capture `*` at `wildcard` when present.
-    pub name: String,
+    pub name: LeanStr,
     /// UTF-8 byte offset of the one unescaped capture `*` in the decoded name.
     /// `None` denotes an exact name; escaped asterisks remain literal characters.
     pub wildcard: Option<usize>,
@@ -216,7 +218,7 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 /// The parsed header of a `@stillwind-variant` definition.
 pub(crate) struct ParsedBuiltinVariantHeader {
     /// Decoded definition name, retaining a capture asterisk at the recorded offset, if present.
-    name: String,
+    name: LeanStr,
     /// UTF-8 byte offset of the unescaped capture in the decoded name, if present.
     wildcard: Option<usize>,
     /// Optional ordering metadata parsed from the definition header.
@@ -232,7 +234,7 @@ pub(crate) struct ParsedBuiltinVariantHeader {
 /// CSS escapes decode as literal name characters; one unescaped asterisk captures
 /// between fixed prefix and suffix text. Empty names, multiple captures, whitespace,
 /// comments, and tokens other than identifiers, leading `@`, and `*` return `None`.
-pub(crate) fn parse_variant_name(value: &str) -> Option<(String, Option<usize>)> {
+pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)> {
     let mut parser = Parser::new(value);
     let mut name = String::new();
     let mut wildcard = None;
@@ -251,7 +253,7 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(String, Option<usize>)>
             _ => return None,
         }
     }
-    (!name.is_empty()).then_some((name, wildcard))
+    (!name.is_empty()).then(|| (name.into(), wildcard))
 }
 
 /// Parses the optional `(key: value, ...)` descriptor list of a built-in variant

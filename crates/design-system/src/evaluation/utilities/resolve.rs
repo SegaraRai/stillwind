@@ -113,7 +113,7 @@ pub fn resolve_utility(
             resolution.arbitrary_uses.push(UtilityArbitraryUse {
                 base: true,
                 property: property.to_ascii_lowercase(),
-                value: value.clone(),
+                value: value.to_string(),
                 color: false,
             });
             let tokens = inspect_css_value(value).1;

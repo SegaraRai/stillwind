@@ -444,7 +444,7 @@ fn declaration(context: &DeclarationContext) -> NativeDeclarationContext {
         module: context.module.as_str().to_owned(),
         start: context.start,
         end: context.end,
-        binding: context.binding.clone(),
+        binding: context.binding.to_string(),
         label: context
             .label
             .as_ref()
@@ -458,7 +458,7 @@ fn locator(context: &LocatorContext) -> NativeLocatorContext {
         module: context.module.as_str().to_owned(),
         start: context.start,
         end: context.end,
-        binding: context.binding.clone(),
+        binding: context.binding.to_string(),
         projection: context
             .projection
             .map(|projection| projection.as_str().to_owned()),

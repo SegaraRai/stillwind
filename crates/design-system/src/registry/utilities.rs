@@ -12,6 +12,8 @@
 //! resolved. Duplicate names are preserved in source order because they are separate
 //! declaration branches, not a replacement.
 
+use lean_string::LeanStr;
+
 use std::collections::BTreeSet;
 
 use cssparser::Parser;
@@ -23,7 +25,7 @@ use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, str
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
     /// Authored name; a trailing `*` marks a prefix pattern.
-    pub name: String,
+    pub name: LeanStr,
     /// Declaration body, excluding the selector block or `@slot`.
     pub body: String,
     /// Global registration order for built-in utilities (`@stillwind-utility`).
@@ -39,9 +41,9 @@ pub struct CustomUtility {
 /// The name is the first whitespace-delimited token. The descriptor, when present, must
 /// hold exactly one `tw-sort` key whose value is a single identifier; any other header
 /// is rejected, which drops the definition from the registry.
-fn parse_utility_header(header: &str) -> Option<(String, Option<String>)> {
+fn parse_utility_header(header: &str) -> Option<(LeanStr, Option<String>)> {
     let end = header.find(char::is_whitespace).unwrap_or(header.len());
-    let name = header[..end].to_owned();
+    let name: LeanStr = header[..end].into();
     if name.is_empty() {
         return None;
     }

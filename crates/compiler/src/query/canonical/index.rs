@@ -3,8 +3,9 @@
 //! One snapshot owns each index through its analysis cache. Numeric spacing remains
 //! a computed candidate because its domain is not finite.
 
+use lean_string::LeanStr;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::Arc;
 
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
@@ -17,7 +18,7 @@ use crate::query::QueryContext;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Signature {
-    css: Arc<str>,
+    css: LeanStr,
     required: Vec<String>,
 }
 

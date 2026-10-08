@@ -17,6 +17,8 @@
 //! Escaping is not part of the name. Comparisons, reports, and DOM tokens use the canonical
 //! spelling, so a name never changes meaning by being written somewhere.
 
+use lean_string::LeanStr;
+
 use std::fmt;
 
 use cssparser::serialize_identifier;
@@ -60,7 +62,7 @@ macro_rules! brand {
         $(
             $(#[$meta])*
             #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-            pub struct $name(String);
+            pub struct $name(LeanStr);
 
             impl $name {
                 /// Cleans `name` into this family's canonical spelling.
@@ -223,7 +225,7 @@ impl LayerName {
 /// An empty label is no label: a declaration whose authored label cleans to nothing passes
 /// `None` in its context and is named without one, rather than failing.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Label(String);
+pub struct Label(LeanStr);
 
 impl Label {
     /// Cleans `name` into a label.
@@ -262,7 +264,7 @@ impl Token for Label {
 /// A class attribute is whitespace-separated, so a token cannot hold whitespace, and NUL has
 /// no CSS spelling at all. Both become `_`; every other character is kept, because a selector
 /// and a JavaScript string can escape it.
-fn class_token(name: &str) -> Result<String, IdentifierNameError> {
+fn class_token(name: &str) -> Result<LeanStr, IdentifierNameError> {
     let canonical: String = name
         .chars()
         .map(|character| match character {
@@ -271,26 +273,26 @@ fn class_token(name: &str) -> Result<String, IdentifierNameError> {
             character => character,
         })
         .collect();
-    non_empty(canonical)
+    non_empty(canonical.into())
 }
 
 /// Keeps a custom-ident as written.
 ///
 /// A custom-ident value can escape every character it can hold, so nothing is replaced. Colon
 /// and slash stay in the spelling for the same reason: a selector escapes them.
-fn custom_ident(name: &str) -> Result<String, IdentifierNameError> {
-    non_empty(name.to_owned())
+fn custom_ident(name: &str) -> Result<LeanStr, IdentifierNameError> {
+    non_empty(name.into())
 }
 
 /// Replaces what a `@layer` name cannot carry.
 ///
 /// A dot would name a nested layer instead of a layer of its own, so it becomes `_`.
-fn layer_name(name: &str) -> Result<String, IdentifierNameError> {
-    non_empty(name.replace('.', "_"))
+fn layer_name(name: &str) -> Result<LeanStr, IdentifierNameError> {
+    non_empty(name.replace('.', "_").into())
 }
 
 /// Rejects a name that holds nothing.
-fn non_empty(name: String) -> Result<String, IdentifierNameError> {
+fn non_empty(name: LeanStr) -> Result<LeanStr, IdentifierNameError> {
     if name.is_empty() {
         Err(IdentifierNameError::Empty)
     } else {

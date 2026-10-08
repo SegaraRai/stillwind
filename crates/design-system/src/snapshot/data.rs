@@ -281,12 +281,12 @@ impl DesignSystemSnapshot {
                 .properties()
                 .iter()
                 .chain(theme.properties())
-                .map(|definition| (definition.name.clone(), Arc::clone(definition))),
+                .map(|definition| (definition.name.as_str().into(), Arc::clone(definition))),
         );
         let token_registry = ThemeRegistry::new(
             theme
                 .active_token_definitions()
-                .map(|token| (token.name.value.clone(), Arc::clone(token))),
+                .map(|token| (token.name.value.as_str().into(), Arc::clone(token))),
         );
         let theme_tokens = theme
             .active_tokens()

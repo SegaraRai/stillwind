@@ -1,5 +1,7 @@
 //! Selects exact and wildcard definitions while preserving each registry layer's order.
 
+use lean_string::LeanStr;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -7,8 +9,8 @@ use crate::CustomUtility;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub(crate) struct UtilityLookup {
-    exact: BTreeMap<String, Vec<usize>>,
-    wildcards: BTreeMap<String, Vec<usize>>,
+    exact: BTreeMap<LeanStr, Vec<usize>>,
+    wildcards: BTreeMap<LeanStr, Vec<usize>>,
 }
 
 impl UtilityLookup {
@@ -17,7 +19,10 @@ impl UtilityLookup {
         let mut wildcards: BTreeMap<_, Vec<_>> = BTreeMap::new();
         for (index, utility) in utilities.iter().enumerate() {
             if let Some(prefix) = utility.name.strip_suffix('*') {
-                wildcards.entry(prefix.to_owned()).or_default().push(index);
+                wildcards
+                    .entry(LeanStr::from(prefix))
+                    .or_default()
+                    .push(index);
             } else {
                 exact.entry(utility.name.clone()).or_default().push(index);
             }

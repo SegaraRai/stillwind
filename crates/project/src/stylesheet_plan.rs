@@ -199,7 +199,7 @@ impl ProjectSession {
             let symbol = artifact
                 .symbols
                 .iter()
-                .find(|symbol| identifiers.contains(&symbol.name))?;
+                .find(|symbol| identifiers.contains(symbol.name.as_str()))?;
             // A name without a declaration, such as a conditional helper, has no position in the
             // module to map the rule back to.
             let (start, end) = symbol.start.zip(symbol.end)?;
