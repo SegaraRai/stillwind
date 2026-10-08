@@ -131,7 +131,11 @@ for (const unique of [false, true]) {
       )
       .run(options);
     expect(reports!).toHaveLength(1);
-    expect(reports![0].reports).toEqual([]);
+    expect(reports![0].reports.map((report) => report.code)).toEqual(
+      Array.from({ length: (100 * 99) / 2 }, () =>
+        unique ? "conflicting-utilities" : "duplicate-utilities",
+      ),
+    );
     await assertBudget(
       context,
       "diagnose",
