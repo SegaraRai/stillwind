@@ -478,6 +478,45 @@ export const valid=style('[display:block]');`,
     css: cssInput(theme),
   });
 
+  test("naming callbacks preserve Unicode identities and names across session calls", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const moduleId = "部品/🧭.tsx";
+    for (const name of ["小", "abcdefgh", "abcdefghijklmnop", "名称".repeat(20)]) {
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(0, "theme.css", "@utility flex {display:flex;} @stillwind-slot utilities;");
+      const seen: string[] = [];
+      const naming: import("../binding.js").NativeIdentifierNaming = {
+        utilityClass: (context) => {
+          seen.push(context.module);
+          return name;
+        },
+      };
+      const session = new NativeProjectSession(loader, false, undefined, naming);
+      for (const suffix of ["", "\n// edited source"]) {
+        const output = session.compile([
+          {
+            kind: "direct",
+            moduleId,
+            document: {
+              uri: sourceUri(moduleId),
+              format: "jsx",
+              code: `import {style} from 'stillwind/react'; export const card=style('flex');${suffix}`,
+            },
+            syntax: { language: "tsx", moduleKind: "module" },
+          },
+        ]);
+        expect(output.modules[0].diagnostics).toEqual([]);
+        expect(
+          output.modules[0].symbols.find(
+            (symbol: import("../binding.js").NativeGeneratedSymbol) => symbol.kind === "class",
+          ),
+        ).toMatchObject({ name, sourceKind: "module", sourceId: moduleId });
+        expect(output.modules[0].code).toContain(name);
+      }
+      expect(seen).toEqual([moduleId, moduleId]);
+    }
+  });
+
   test("native properties use camelCase and enum values follow their declared cases", async () => {
     const { scanSource, NativeDesignSystemLoader } = await import(bindingSpecifier);
     for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {

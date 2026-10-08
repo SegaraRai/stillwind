@@ -824,7 +824,7 @@ mod tests {
                     return None;
                 }
                 let preview = query.context.canonical_preview(&replacement).unwrap()?;
-                let normalization = policy(&preview, &options, scale.as_deref());
+                let normalization = policy(&preview.css, &options, scale.as_deref());
                 let signature =
                     original.signature(scale.as_deref(), &normalization.properties, &options);
                 (signature.is_some()

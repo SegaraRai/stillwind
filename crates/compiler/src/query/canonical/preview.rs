@@ -54,30 +54,37 @@ impl CanonicalPreview {
         {
             return cached.clone();
         }
-        let result = self.resolved_css.as_ref().and_then(|css| {
-            let mut normalized = css.clone();
-            if let Some(scale) = scale {
-                normalized = normalized.replace("var(--spacing)", scale);
-            }
-            if !properties.is_empty() {
-                normalized = convert_spacing_declarations(
-                    &normalized,
-                    properties,
-                    options.root_font_size.get(),
-                    0,
-                );
-            }
-            normalized = fold_calc_expressions(&normalized, None);
-            minify_css(&normalized, &CssMinifyOptions::default())
-                .ok()
-                .map(|output| LeanStr::from(output.css))
-        });
+        let result = self
+            .resolved_css
+            .as_deref()
+            .and_then(|css| normalized_signature(css, scale, properties, options));
         self.signatures
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .insert(key, result.clone());
         result
     }
+}
+
+/// Normalizes resolved CSS using the query's spacing policy without retaining a cache.
+pub(super) fn normalized_signature(
+    css: &str,
+    scale: Option<&str>,
+    properties: &BTreeSet<String>,
+    options: &CanonicalUtilitiesConfig,
+) -> Option<LeanStr> {
+    let mut normalized = css.to_owned();
+    if let Some(scale) = scale {
+        normalized = normalized.replace("var(--spacing)", scale);
+    }
+    if !properties.is_empty() {
+        normalized =
+            convert_spacing_declarations(&normalized, properties, options.root_font_size.get(), 0);
+    }
+    normalized = fold_calc_expressions(&normalized, None);
+    minify_css(&normalized, &CssMinifyOptions::default())
+        .ok()
+        .map(|output| LeanStr::from(output.css))
 }
 
 impl QueryContext {

@@ -92,7 +92,7 @@ impl CanonicalIndex {
     fn insert(&mut self, query: &QueryContext, label: String, preview: &CanonicalPreview) {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
-        let normalization = policy(preview, &options, scale.as_deref());
+        let normalization = policy(&preview.css, &options, scale.as_deref());
         let signature = preview.signature(scale.as_deref(), &normalization.properties, &options);
         if let Some(css) = signature {
             self.policies
@@ -174,7 +174,7 @@ pub(super) fn rank(left: &str, right: &str) -> std::cmp::Ordering {
 }
 
 pub(super) fn policy(
-    preview: &CanonicalPreview,
+    css: &str,
     options: &CanonicalUtilitiesConfig,
     scale: Option<&str>,
 ) -> Normalization {
@@ -183,9 +183,9 @@ pub(super) fn policy(
         && scale
             .and_then(dimension)
             .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-        && (preview.css.contains("var(--spacing)") || preview.css.contains("var(--spacing-"))
+        && (css.contains("var(--spacing)") || css.contains("var(--spacing-"))
     {
-        spacing_properties(&preview.css, &mut properties, 0);
+        spacing_properties(css, &mut properties, 0);
     }
     Normalization {
         resolve_scale: scale.is_some(),

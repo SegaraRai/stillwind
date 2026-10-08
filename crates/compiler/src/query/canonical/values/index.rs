@@ -7,7 +7,6 @@
 use lean_string::LeanStr;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::Mutex;
 
 use stillwind_design_system::{
     ResolvedUtility, ThemeTokenMode, UtilityResolutionError, builtin_property_definitions,
@@ -16,7 +15,7 @@ use stillwind_design_system::{
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
 use super::super::index::{policy, rank};
-use super::super::preview::{CanonicalPreview, Normalization};
+use super::super::preview::{CanonicalPreview, Normalization, normalized_signature};
 use super::direct::DirectValues;
 use crate::query::QueryContext;
 use crate::query::completion::value_namespaces;
@@ -106,7 +105,7 @@ struct ValuePreparation<'a> {
     registered: Vec<String>,
     required_values: BTreeMap<String, Vec<bool>>,
     resolved: BTreeMap<String, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
-    signatures: HashMap<(String, Normalization), Option<LeanStr>>,
+    signatures: HashMap<(LeanStr, Normalization), Option<LeanStr>>,
 }
 
 impl<'a> ValuePreparation<'a> {
@@ -236,18 +235,13 @@ impl<'a> ValuePreparation<'a> {
                     .as_ref()
                     .map(|value| css.replace(&template.placeholder, value))
             });
-            let preview = CanonicalPreview {
-                css,
-                resolved_css,
-                required_properties,
-                signatures: Mutex::default(),
-            };
-            let normalization = policy(&preview, &self.options, self.scale.as_deref());
-            let signature = preview.resolved_css.as_ref().and_then(|css| {
+            let normalization = policy(&css, &self.options, self.scale.as_deref());
+            let signature = resolved_css.as_ref().and_then(|css| {
                 self.signatures
-                    .entry((css.clone(), normalization.clone()))
+                    .entry((css.as_str().into(), normalization.clone()))
                     .or_insert_with(|| {
-                        preview.signature(
+                        normalized_signature(
+                            css,
                             self.scale.as_deref(),
                             &normalization.properties,
                             &self.options,
@@ -261,7 +255,7 @@ impl<'a> ValuePreparation<'a> {
                     .entry(normalization)
                     .or_default()
                     .signatures
-                    .entry((signature, preview.required_properties))
+                    .entry((signature, required_properties))
                     .or_default()
                     .push(label.clone());
             }
