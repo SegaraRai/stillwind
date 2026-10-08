@@ -19,6 +19,7 @@ use super::super::values::placeholders::{PreparedValues, resolve_css_placeholder
 use super::formatting::resolve_declaration_value;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;
+use crate::evaluation::{EvaluationContext, ValueSelections};
 
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
@@ -142,7 +143,7 @@ pub(crate) fn resolve_css_declarations(
     let mut output = ResolvedCssDeclarations::default();
 
     for authored in declarations {
-        let tracked = theme.tracking_tokens();
+        let tracked = EvaluationContext::tracked(theme);
         let theme = &tracked;
         let authored_declaration = &authored.text;
         let contains_placeholder = authored_declaration.contains("--value(")
@@ -186,7 +187,12 @@ pub(crate) fn resolve_css_declarations(
                 resolve_declaration_value(&declaration, theme, builtin)
             };
             resolved_placeholder |= contains_placeholder;
-            record_tokens(&mut output, theme, authored_declaration, &declaration);
+            record_tokens(
+                &mut output,
+                theme.take_selections(),
+                authored_declaration,
+                &declaration,
+            );
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
             resolved_required_declarations += usize::from(contains_required);
@@ -228,7 +234,7 @@ pub(crate) fn resolve_css_declarations(
 
 fn record_tokens(
     output: &mut ResolvedCssDeclarations,
-    theme: &ThemeIndex,
+    selections: ValueSelections,
     authored: &str,
     declaration: &str,
 ) {
@@ -236,8 +242,8 @@ fn record_tokens(
         output
             .arbitrary_uses
             .extend(
-                theme
-                    .selected_values()
+                selections
+                    .values
                     .into_iter()
                     .map(|selection| UtilityArbitraryUse {
                         base: true,
@@ -247,7 +253,7 @@ fn record_tokens(
                     }),
             );
     }
-    let mut tokens = theme.selected_tokens();
+    let mut tokens = selections.tokens;
     tokens.extend(inspect_css_value(authored).1);
     if tokens.is_empty() {
         tokens.extend(inspect_css_value(declaration).1);

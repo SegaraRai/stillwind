@@ -9,12 +9,13 @@
 //! the candidate capture plus an authored suffix, which is how a wildcard definition
 //! resolves a token whose name it cannot spell in advance.
 
+use crate::evaluation::EvaluationContext;
+
 use super::colors::CompatColorMode;
 use super::domains::{
     resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
 };
 use super::theme::theme_value;
-use crate::ThemeIndex;
 
 /// Resolves one `--value-literal(...)` to the authored token text.
 ///
@@ -24,7 +25,7 @@ use crate::ThemeIndex;
 pub(crate) fn resolve_literal_value_placeholder(
     arguments: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
     compat_color_mode: CompatColorMode,
 ) -> Option<String> {
     let replacement = match compat_color_mode {
@@ -42,7 +43,7 @@ pub(crate) fn resolve_literal_value_placeholder(
 pub(crate) fn resolve_theme_suffix_placeholder(
     arguments: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let arguments = split_domains(arguments);
     let [domain, suffix] = arguments.as_slice() else {
@@ -81,6 +82,7 @@ pub(crate) fn resolve_value_map_placeholder(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ThemeIndex;
 
     #[test]
     fn value_maps_match_exact_keys_and_report_missing_captures() {
@@ -91,6 +93,7 @@ mod tests {
         assert_eq!(resolve_value_map_placeholder("sm:1", Some("s")), None);
         assert_eq!(resolve_value_map_placeholder("sm:1", None), None);
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
             resolve_literal_value_placeholder(
                 "[number]",

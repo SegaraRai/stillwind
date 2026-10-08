@@ -19,6 +19,7 @@ use super::substitution::{
     resolve_variant_css_placeholders, resolve_variant_value_with_source,
     substitute_variant_capture, variant_value_capture,
 };
+use crate::evaluation::EvaluationContext;
 use crate::{BuiltinVariantValueType, ThemeIndex};
 
 /// One resolved variant and the direct values its selected definition uses.
@@ -95,11 +96,11 @@ pub fn resolve_variant_with_usage(
         }
         if custom.value_type.is_none() {
             let authored = substitute_variant_capture(&custom.body, capture)?;
-            let tracked = theme.tracking_tokens();
+            let tracked = EvaluationContext::tracked(theme);
             let expanded =
                 resolve_variant_css_placeholders(&authored, &custom.name, concrete, &tracked)?;
             if resolve_variant_body(&expanded).is_some() {
-                tokens.extend(tracked.selected_tokens());
+                tokens.extend(tracked.take_selections().tokens);
                 tokens.extend(inspect_css_value(&authored).1);
                 if let Some(template) = resolve_variant_body(&custom.body) {
                     for condition in media_conditions(&template)
@@ -115,7 +116,7 @@ pub fn resolve_variant_with_usage(
                             let (value, source) = resolve_variant_value_with_source(
                                 domains,
                                 variant_value_capture(&custom.name, concrete),
-                                theme,
+                                &EvaluationContext::untracked(theme),
                             )?;
                             sources.push(source);
                             Some(value)

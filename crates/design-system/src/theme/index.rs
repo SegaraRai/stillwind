@@ -4,11 +4,9 @@
 //! effective token positions, candidate lookup, and parsed utility programs.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, OnceLock};
 
-use stillwind_css::{
-    CssOutputTemplate, CustomPropertyDefinition, custom_property_references, inspect_css_value,
-};
+use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 
 use super::builder::ThemeBuilder;
 use super::config::StillwindConfig;
@@ -48,21 +46,11 @@ struct ThemeData {
     programs: OnceLock<UtilityPrograms>,
 }
 
-/// An accepted source capture before theme expansion and declaration formatting.
-#[derive(Clone, Debug)]
-pub(crate) struct ArbitraryValueSelection {
-    pub(crate) value: String,
-    pub(crate) color: bool,
-}
-
 /// Owns one immutable stylesheet's authored declarations and evaluation data.
 /// Clones share the same definitions and preparation. Parsing new CSS creates a new index.
 #[derive(Clone, Debug)]
 pub struct ThemeIndex {
     inner: Arc<ThemeData>,
-    /// Direct selections in one declaration evaluation. Ordinary snapshots have no recorder.
-    selected_tokens: Option<Arc<Mutex<BTreeSet<String>>>>,
-    selected_values: Option<Arc<Mutex<Vec<ArbitraryValueSelection>>>>,
 }
 
 impl Default for ThemeIndex {
@@ -80,81 +68,6 @@ impl PartialEq for ThemeIndex {
 impl Eq for ThemeIndex {}
 
 impl ThemeIndex {
-    /// Shares immutable definitions and starts an isolated declaration recorder.
-    /// Selections through this clone do not change the original index's recorder.
-    pub(crate) fn tracking_tokens(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-            selected_tokens: Some(Arc::new(Mutex::new(BTreeSet::new()))),
-            selected_values: Some(Arc::new(Mutex::new(Vec::new()))),
-        }
-    }
-
-    /// Records a directly selected custom-property name when a recorder is active.
-    pub(crate) fn record_token(&self, name: &str) {
-        if let Some(tokens) = &self.selected_tokens {
-            tokens
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .insert(name.to_owned());
-        }
-    }
-
-    /// Records direct variable references in an accepted source value when tracking is active.
-    pub(crate) fn record_value_tokens(&self, value: &str) {
-        if self.selected_tokens.is_some() {
-            for name in inspect_css_value(value).1 {
-                self.record_token(&name);
-            }
-        }
-    }
-
-    /// Records a supplied variable name after CSS identifier escapes are decoded.
-    pub(crate) fn record_variable_token(&self, name: &str) {
-        if self.selected_tokens.is_some() {
-            self.record_value_tokens(&format!("var({name})"));
-        }
-    }
-
-    /// Returns the names selected through this recorder without clearing them.
-    pub(crate) fn selected_tokens(&self) -> BTreeSet<String> {
-        self.selected_tokens
-            .as_ref()
-            .map(|tokens| {
-                tokens
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .clone()
-            })
-            .unwrap_or_default()
-    }
-
-    /// Records an accepted arbitrary capture before declaration formatting and theme expansion.
-    pub(crate) fn record_arbitrary_value(&self, value: &str, color: bool) {
-        if let Some(values) = &self.selected_values {
-            values
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .push(ArbitraryValueSelection {
-                    value: value.to_owned(),
-                    color,
-                });
-        }
-    }
-
-    /// Returns arbitrary captures accepted by this declaration's placeholders.
-    pub(crate) fn selected_values(&self) -> Vec<ArbitraryValueSelection> {
-        self.selected_values
-            .as_ref()
-            .map(|values| {
-                values
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .clone()
-            })
-            .unwrap_or_default()
-    }
-
     pub(crate) fn new(builder: ThemeBuilder) -> Self {
         let declarations = ThemeDeclarations {
             variant_positions: builder.variant_positions,
@@ -181,8 +94,6 @@ impl ThemeIndex {
                 utilities,
                 programs: OnceLock::new(),
             }),
-            selected_tokens: None,
-            selected_values: None,
         };
         theme.programs();
         theme

@@ -11,6 +11,8 @@
 //! are validated against the namespace's CSS-declared value types, so the accepted
 //! grammar follows the registry rather than this file.
 
+use crate::evaluation::EvaluationContext;
+
 use stillwind_css::ValueType;
 
 use super::super::builtins::metadata::builtin_theme_namespace_types;
@@ -27,7 +29,7 @@ use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
 pub(crate) fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
@@ -73,7 +75,7 @@ pub(crate) fn theme_value(
 pub(crate) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
@@ -97,7 +99,7 @@ pub(crate) fn theme_value_literal(
 pub(crate) fn typed_theme_arbitrary(
     namespace: ThemeNamespace,
     value: &str,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
@@ -176,7 +178,7 @@ pub(crate) fn axis_size_value(value: &str, viewport_axis: ViewportAxis) -> Optio
 pub(crate) fn typed_css_variable<'a>(
     namespace: ThemeNamespace,
     value: &'a str,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<&'a str> {
     let variable = parse_css_variable(value)?;
     let types = theme_arbitrary_types(namespace, theme);
@@ -227,6 +229,7 @@ mod tests {
             ..Default::default()
         }
         .finish();
+        let configured = EvaluationContext::untracked(&configured);
         assert_eq!(
             typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]", &configured),
             Some("2px".into())
@@ -244,6 +247,7 @@ mod tests {
             None
         );
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         assert_eq!(theme_value(ThemeNamespace::Color, "missing", &theme), None);
         assert_eq!(
             theme_value_literal(ThemeNamespace::Color, "[red]", &theme),

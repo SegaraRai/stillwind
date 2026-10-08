@@ -28,6 +28,7 @@ use super::substitution::{
     apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
 };
+use crate::evaluation::EvaluationContext;
 use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, is_runtime_condition};
 
 /// A variant's selector, at-rule, declaration, or computed-value effect.
@@ -356,7 +357,12 @@ pub(crate) fn resolve_registered_variant_candidate(
         return resolve_typed_variant(custom, value_type, capture?, theme);
     }
     let body = substitute_variant_capture(&custom.body, capture)?;
-    let body = resolve_variant_css_placeholders(&body, &custom.name, value, theme)?;
+    let body = resolve_variant_css_placeholders(
+        &body,
+        &custom.name,
+        value,
+        &EvaluationContext::untracked(theme),
+    )?;
     resolve_variant_body(&body).or_else(|| {
         substitute_variant_capture(&custom.selector, capture)
             .map(VariantApplication::SelectorTemplate)

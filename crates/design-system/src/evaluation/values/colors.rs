@@ -9,12 +9,14 @@
 //! and `transparent` select oklab in both passes when no extra modern alpha is
 //! supplied. Identical branch text can then be emitted without a capability wrapper.
 
+use crate::evaluation::EvaluationContext;
+
 use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
 
 use super::super::builtins::metadata::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
 use super::domains::{resolve_value_domains, split_domains};
 use super::theme::theme_value_literal;
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::ThemeNamespace;
 
 /// Which of the two compatibility branches is being produced.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,7 +114,7 @@ pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
 pub(crate) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let arguments = split_domains(arguments);
     let (domain, color_property, alpha) = match arguments.as_slice() {

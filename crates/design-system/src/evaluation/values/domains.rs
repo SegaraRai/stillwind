@@ -6,6 +6,8 @@
 //! `integer`, `number`, `percentage`, `--spacing()`, `--fraction()`, and the axis-size
 //! built-ins, and theme namespace patterns such as `--color-*`.
 
+use crate::evaluation::EvaluationContext;
+
 use cssparser::{Parser, Token};
 
 use stillwind_css::ValueDomain;
@@ -14,8 +16,8 @@ use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::theme::{
     ViewportAxis, axis_size_value, fraction_value, theme_value, theme_value_literal,
 };
+use crate::ThemeNamespace;
 use crate::conditionals::accepts_runtime_value;
-use crate::{ThemeIndex, ThemeNamespace};
 
 /// Resolves the first matching domain in a comma-separated domain list.
 ///
@@ -28,7 +30,7 @@ use crate::{ThemeIndex, ThemeNamespace};
 pub(crate) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
@@ -117,7 +119,7 @@ fn arbitrary_hint(value: &str) -> (&str, &str) {
 pub(crate) fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
@@ -168,6 +170,7 @@ pub(crate) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ThemeIndex;
 
     #[test]
     fn domain_lists_keep_function_commas_and_typed_capture_boundaries() {
@@ -181,6 +184,7 @@ mod tests {
         );
         assert_eq!(theme_domain_pattern("--missing-*"), None);
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
             resolve_value_domains("[length]", Some("[2px]"), &theme),
             Some("2px".into())

@@ -7,10 +7,12 @@
 //! The modules below split the work by subject: [`builtins`] reads the selected
 //! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
 //! typed value domains and placeholders, and [`variants`] produces selector
-//! applications and their ordering. [`programs`] prepares utility syntax and
+//! applications and their ordering. [`context`] records direct selections for one
+//! evaluation. [`programs`] prepares utility syntax and
 //! declaration branches.
 
 mod builtins;
+mod context;
 mod programs;
 mod syntax;
 mod utilities;
@@ -33,6 +35,7 @@ pub use variants::{
     is_tailwind_relationship_candidate, resolve_variant, resolve_variant_with_usage,
 };
 
+pub(crate) use context::{EvaluationContext, ValueSelections};
 pub(crate) use programs::UtilityPrograms;
 
 #[cfg(test)]

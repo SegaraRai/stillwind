@@ -10,6 +10,8 @@
 //! prefix, with a slash modifier kept separately; a fraction domain is the one case
 //! where the two are reassembled, and only when both sides are unsigned integers.
 
+use crate::evaluation::EvaluationContext;
+
 use stillwind_css::{CssFunctionMatch, declaration_ranges};
 use stillwind_syntax::Value;
 
@@ -21,7 +23,6 @@ use super::macros::{
     resolve_literal_value_placeholder, resolve_theme_suffix_placeholder,
     resolve_value_map_placeholder,
 };
-use crate::ThemeIndex;
 
 // Order is semantic: replacements may introduce functions from later families.
 const PLACEHOLDERS: &[&str] = &[
@@ -69,7 +70,7 @@ impl PreparedValues {
         utility_name: &str,
         name: &str,
         modifier: Option<&Value>,
-        theme: &ThemeIndex,
+        theme: &EvaluationContext<'_>,
     ) -> Option<String> {
         if !self.calls.is_empty() && (self.body.len() > 1_048_576 || self.calls.len() > 4096) {
             return None;
@@ -112,7 +113,7 @@ fn resolve_value(
     domains: &str,
     capture: Option<&str>,
     modifier: Option<&Value>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let fraction = domains
         .contains("--fraction()")
@@ -141,7 +142,7 @@ pub(crate) fn resolve_css_placeholders(
     utility_name: &str,
     name: &str,
     modifier: Option<&Value>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
     compat_color_mode: CompatColorMode,
 ) -> Option<String> {
     let capture = utility_name
@@ -251,10 +252,12 @@ fn remove_modifier_none(body: &mut String, modifier: Option<&Value>) -> Option<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ThemeIndex;
 
     #[test]
     fn prepared_values_keep_expansion_limits_and_recursive_token_behavior() {
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         let body = format!("width:{};", "--value([number]) ".repeat(4097));
         let prepared = PreparedValues::parse(&body).unwrap();
         assert!(prepared.resolve("x-*", "x-[1]", None, &theme).is_none());
@@ -273,6 +276,7 @@ mod tests {
     #[test]
     fn batch_resolution_preserves_phase_barrier_and_rejects_reintroduced_families() {
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         let resolve = |body| {
             resolve_css_placeholders(body, "x-*", "x-a", None, &theme, CompatColorMode::Legacy)
         };
@@ -301,6 +305,7 @@ mod tests {
     #[test]
     fn placeholders_reject_incompatible_values_and_missing_modifiers() {
         let theme = ThemeIndex::default();
+        let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
             resolve_css_placeholders(
                 "width:--value([length]);",

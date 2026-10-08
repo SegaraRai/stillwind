@@ -14,7 +14,8 @@ use super::super::values::expansion::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{VariantApplication, VariantDeclaration};
 use super::usage::VariantValueSource;
-use crate::{BuiltinVariantModifierType, CustomVariant, ThemeIndex, ThemeNamespace};
+use crate::evaluation::EvaluationContext;
+use crate::{BuiltinVariantModifierType, CustomVariant, ThemeNamespace};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
 ///
@@ -270,7 +271,7 @@ pub(crate) fn resolve_variant_css_placeholders(
     body: &str,
     variant_name: &str,
     value: &str,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     let capture = variant_value_capture(variant_name, value);
     let mut body = body.to_owned();
@@ -295,7 +296,7 @@ pub(super) fn variant_value_capture<'a>(variant_name: &str, value: &'a str) -> O
 pub(crate) fn resolve_variant_value_domains(
     domains: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<String> {
     resolve_variant_value_with_source(domains, capture, theme).map(|(value, _)| value)
 }
@@ -303,7 +304,7 @@ pub(crate) fn resolve_variant_value_domains(
 pub(super) fn resolve_variant_value_with_source(
     domains: &str,
     capture: Option<&str>,
-    theme: &ThemeIndex,
+    theme: &EvaluationContext<'_>,
 ) -> Option<(String, VariantValueSource)> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
@@ -351,6 +352,7 @@ mod tests {
         )
         .unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+        let theme = EvaluationContext::untracked(&theme);
         assert!(
             resolve_variant_css_placeholders(
                 "@media (width >= --value(--breakpoint-*)) { @slot; }",
