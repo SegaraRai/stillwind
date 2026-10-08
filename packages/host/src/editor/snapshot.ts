@@ -398,7 +398,7 @@ function colorReplacement(
   const [base, modifier] = segments(utility.replace(/^!|!$/g, ""), "/");
   const spellings: ((value: string) => string)[] = [];
   if (base.startsWith("[") && base.endsWith("]")) {
-    const property = base.slice(1).split(":")[0];
+    const property = base.slice(1).split(":", 1)[0];
     spellings.push((value) => `[${property}:${value}]`);
   } else {
     for (let index = base.length - 1; index > 0; index--) {

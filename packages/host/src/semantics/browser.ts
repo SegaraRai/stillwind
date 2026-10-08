@@ -275,7 +275,7 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
           ...new Set(
             [...this.#files.keys()]
               .filter((id) => id.startsWith(directory + "/"))
-              .map((id) => id.slice(directory.length + 1).split("/")[0]),
+              .map((id) => id.slice(directory.length + 1).split("/", 1)[0]),
           ),
         ],
         useCaseSensitiveFileNames: () => true,

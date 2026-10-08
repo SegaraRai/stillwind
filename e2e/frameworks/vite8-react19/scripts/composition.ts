@@ -73,7 +73,7 @@ export default function register(context: ScenarioContext): void {
         if (response.status() >= 400) {
           console.error(
             response.status(),
-            response.url().split("?")[0],
+            response.url().split("?", 1)[0],
             (await response.text()).slice(0, 1500),
           );
         }

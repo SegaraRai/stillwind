@@ -46,14 +46,14 @@ function composeUpstream(
   if (!upstream) {
     return map;
   }
-  const resource = pathToFileURL(resolve(upstream.id.split(/[?#]/)[0])).href;
+  const resource = pathToFileURL(resolve(upstream.id.split(/[?#]/, 1)[0])).href;
   const original = JSON.parse(upstream.map);
   if (!Array.isArray(original.sources) || !original.mappings) {
     return map;
   }
   const sourceUrl = (source: string, base: string) => {
     const normalized = source.replaceAll("\\", "/");
-    const clean = normalized.split(/[?#]/)[0];
+    const clean = normalized.split(/[?#]/, 1)[0];
     return isAbsolute(clean)
       ? pathToFileURL(clean).href + normalized.slice(clean.length)
       : new URL(normalized, base).href;

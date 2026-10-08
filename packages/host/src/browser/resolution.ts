@@ -96,8 +96,8 @@ export function resolveVirtualModule(
               .filter(
                 (key) =>
                   key.includes("*") &&
-                  subpath.startsWith(key.split("*")[0]) &&
-                  subpath.endsWith(key.split("*")[1]),
+                  subpath.startsWith(key.split("*", 1)[0]) &&
+                  subpath.endsWith(key.split("*", 2)[1]),
               )
               .sort((a, b) => b.indexOf("*") - a.indexOf("*") || b.length - a.length)[0]
           : undefined;
@@ -115,7 +115,7 @@ export function resolveVirtualModule(
         const expanded = pattern
           ? target.replaceAll(
               "*",
-              subpath.slice(pattern.indexOf("*"), subpath.length - pattern.split("*")[1].length),
+              subpath.slice(pattern.indexOf("*"), subpath.length - pattern.split("*", 2)[1].length),
             )
           : target;
         if (!expanded.startsWith("./") || expanded.split("/").includes("..")) {

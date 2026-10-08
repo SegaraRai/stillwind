@@ -9,7 +9,7 @@ import { AnyMap, originalPositionFor } from "@jridgewell/trace-mapping";
 // Rspack's default module filename template emits project-relative webpack URLs.
 // TraceMap may remove their ./ prefix, and duplicate source names gain a query hash.
 export function resolveSourceMapFile(source: string, mapFile: string, projectRoot: string) {
-  const name = source.split(/[?#]/)[0];
+  const name = source.split(/[?#]/, 1)[0];
   if (name.startsWith("webpack://")) {
     const location = name.replace(/^webpack:\/\/(?:@[^/]+\/[^/]+|[^/]*)\//, "");
     return path.resolve(projectRoot, decodeURIComponent(location));
@@ -91,7 +91,8 @@ export async function verifyMacroSourceMap(
           (name, index) => name === opaqueSource && map.resolvedSources[index] === mapped.source,
         );
       const matchesSource =
-        matchesOpaque || mapped.source?.replaceAll("\\", "/").split(/[?#]/)[0].endsWith(sourcePath);
+        matchesOpaque ||
+        mapped.source?.replaceAll("\\", "/").split(/[?#]/, 1)[0].endsWith(sourcePath);
       const startsCall = mapped.line === expected.line && mapped.column === expected.column;
       const withinCall =
         mapped.line !== null &&

@@ -64,7 +64,7 @@ export function cleanModuleId(id: string): string {
   if (id.startsWith("\0") || id.startsWith("virtual:")) {
     return id;
   }
-  return id.split(/[?#]/)[0];
+  return id.split(/[?#]/, 1)[0];
 }
 
 /**

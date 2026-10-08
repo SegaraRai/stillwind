@@ -180,7 +180,7 @@ async function copyDependencies(
       if (!relative) {
         return true;
       }
-      const first = relative.split(path.sep)[0];
+      const first = relative.split(path.sep, 1)[0];
       if (["node_modules", ".git", ".cache", ".build"].includes(first)) {
         return false;
       }
