@@ -16,7 +16,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, filter_lint_findings};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, finish_lint_findings};
 use stillwind_ir::{
     ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
 };
@@ -40,6 +40,7 @@ use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
 use crate::editor_lint::detect;
 use crate::identifiers::IdentifierContext;
+use crate::options::validate_lint_settings;
 use crate::runtime::{RuntimeBindings, encode_projected_edits};
 use crate::transforms::SourceTransform;
 use crate::{
@@ -126,14 +127,31 @@ impl Compiler {
         let module_id = &parsed.module_id;
         let options = compiler_options;
         result.lint_settings = compiler_options.lint_settings(snapshot);
+        if let Err(kind) = validate_lint_settings(&result.lint_settings) {
+            result
+                .diagnostics
+                .push(CompileError::new(kind, source.full_span()));
+            finish_lint_findings(
+                source,
+                &result.lint_settings,
+                &mut result.lint_findings,
+                false,
+            );
+            return result;
+        }
         let query = DesignSystemQuery::new(snapshot.clone(), compiler_options.clone());
         result.lint_findings.extend(detect(source, parsed, &query));
-        filter_lint_findings(source, &mut result.lint_findings);
         result
             .diagnostics
             .extend(validate_composition(&[parsed], source.full_span(), false));
 
         if !result.diagnostics.is_empty() {
+            finish_lint_findings(
+                source,
+                &result.lint_settings,
+                &mut result.lint_findings,
+                false,
+            );
             return result;
         }
 
@@ -388,6 +406,9 @@ impl Compiler {
             symbol.name = options.rewrite_generated(&symbol.name);
         }
 
+        result
+            .source_lint_findings
+            .clone_from(&result.lint_findings);
         if result.diagnostics.is_empty() {
             let mut resolver = StyleResolver::new(&result.style_effects);
             for effects in &result.style_effects {
@@ -398,7 +419,12 @@ impl Compiler {
         } else {
             result.style_effects.clear();
         }
-        filter_lint_findings(source, &mut result.lint_findings);
+        finish_lint_findings(
+            source,
+            &result.lint_settings,
+            &mut result.lint_findings,
+            result.diagnostics.is_empty(),
+        );
 
         result
             .rejected_names

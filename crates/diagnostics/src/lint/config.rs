@@ -109,6 +109,24 @@ macro_rules! define_lint_rules {
 }
 
 macro_rules! lint_config_type {
+    (NoArbitrarySpacing) => {
+        ArbitrarySpacingConfig
+    };
+    (NoRestrictedUtilities) => {
+        RestrictedUtilitiesConfig
+    };
+    (NoRestrictedDeclarations) => {
+        RestrictedDeclarationsConfig
+    };
+    (ConflictingUtilities) => {
+        ConflictingUtilitiesConfig
+    };
+    (LengthUnits) => {
+        LengthUnitsConfig
+    };
+    (NoRestrictedThemeTokens) => {
+        RestrictedThemeTokensConfig
+    };
     (CanonicalUtilities) => {
         CanonicalUtilitiesConfig
     };
@@ -116,7 +134,44 @@ macro_rules! lint_config_type {
         LintSeverity
     };
 }
+
 macro_rules! lint_config_value {
+    (NoArbitrarySpacing, $severity:expr) => {
+        ArbitrarySpacingConfig {
+            severity: $severity,
+            properties: Vec::new(),
+        }
+    };
+    (NoRestrictedUtilities, $severity:expr) => {
+        RestrictedUtilitiesConfig {
+            severity: $severity,
+            utilities: Vec::new(),
+        }
+    };
+    (NoRestrictedDeclarations, $severity:expr) => {
+        RestrictedDeclarationsConfig {
+            severity: $severity,
+            rules: Vec::new(),
+        }
+    };
+    (ConflictingUtilities, $severity:expr) => {
+        ConflictingUtilitiesConfig {
+            severity: $severity,
+            allow_shorthand_overrides: false,
+        }
+    };
+    (LengthUnits, $severity:expr) => {
+        LengthUnitsConfig {
+            severity: $severity,
+            rules: Vec::new(),
+        }
+    };
+    (NoRestrictedThemeTokens, $severity:expr) => {
+        RestrictedThemeTokensConfig {
+            severity: $severity,
+            tokens: Vec::new(),
+        }
+    };
     (CanonicalUtilities, $severity:expr) => {
         CanonicalUtilitiesConfig {
             severity: $severity,
@@ -128,7 +183,26 @@ macro_rules! lint_config_value {
         $severity
     };
 }
+
 macro_rules! lint_config_severity {
+    (NoArbitrarySpacing, $config:expr) => {
+        $config.severity
+    };
+    (NoRestrictedUtilities, $config:expr) => {
+        $config.severity
+    };
+    (NoRestrictedDeclarations, $config:expr) => {
+        $config.severity
+    };
+    (ConflictingUtilities, $config:expr) => {
+        $config.severity
+    };
+    (LengthUnits, $config:expr) => {
+        $config.severity
+    };
+    (NoRestrictedThemeTokens, $config:expr) => {
+        $config.severity
+    };
     (CanonicalUtilities, $config:expr) => {
         $config.severity
     };
@@ -197,10 +271,196 @@ pub struct CanonicalUtilitiesOverride {
     pub root_font_size: Option<RootFontSize>,
 }
 
+/// Effective policy for declarations that compete within a style call.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictingUtilitiesConfig {
+    /// Reporting level of utility overlaps.
+    pub severity: LintSeverity,
+    /// Allows a narrower shorthand or longhand to override part of a wider property.
+    pub allow_shorthand_overrides: bool,
+}
+
+impl Default for ConflictingUtilitiesConfig {
+    fn default() -> Self {
+        Self {
+            severity: LintSeverity::Warn,
+            allow_shorthand_overrides: false,
+        }
+    }
+}
+
+/// Explicit fields overriding the utility overlap policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ConflictingUtilitiesOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves the shorthand policy.
+    pub allow_shorthand_overrides: Option<bool>,
+}
+
+/// One unit restriction selected by CSS property name.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LengthUnitRule {
+    /// Case-insensitive property globs supporting `*` and `?`.
+    pub properties: Vec<String>,
+    /// Length unit names compared without ASCII case; zero lengths are exempt.
+    pub disallow: Vec<String>,
+}
+
+/// Property-specific unit restrictions in precedence order.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LengthUnitsConfig {
+    /// Reporting level of forbidden units.
+    pub severity: LintSeverity,
+    /// The last matching rule replaces earlier restrictions.
+    pub rules: Vec<LengthUnitRule>,
+}
+
+/// Explicit fields overriding the length unit policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LengthUnitsOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves existing rules; a supplied list replaces them.
+    pub rules: Option<Vec<LengthUnitRule>>,
+}
+
+/// Theme custom properties forbidden at direct use sites.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RestrictedThemeTokensConfig {
+    /// Reporting level of forbidden token references.
+    pub severity: LintSeverity,
+    /// Case-sensitive complete custom-property name globs supporting `*` and `?`.
+    pub tokens: Vec<String>,
+}
+
+/// Explicit fields overriding the restricted theme token policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RestrictedThemeTokensOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves existing patterns; a supplied list replaces them.
+    pub tokens: Option<Vec<String>>,
+}
+
+/// Arbitrary spacing restrictions selected by CSS property domain.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ArbitrarySpacingConfig {
+    /// Reporting level for explicit nonzero lengths and percentages.
+    pub severity: LintSeverity,
+    /// Additional case-insensitive property globs. Margin, padding, and gap are always checked.
+    pub properties: Vec<String>,
+}
+
+/// Explicit fields overriding the arbitrary spacing policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ArbitrarySpacingOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// A supplied list replaces additional property globs.
+    pub properties: Option<Vec<String>>,
+}
+
+/// A forbidden utility spelling and the explanation presented to its author.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RestrictedUtilityRule {
+    /// Case-sensitive full utility glob, excluding enclosing variants and important modifiers.
+    pub pattern: String,
+    /// Optional project-specific explanation.
+    pub message: Option<String>,
+}
+
+/// Utility spellings forbidden independently of their resolved declarations.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RestrictedUtilitiesConfig {
+    /// Reporting level of forbidden utilities.
+    pub severity: LintSeverity,
+    /// Each matching rule reports its optional explanation.
+    pub utilities: Vec<RestrictedUtilityRule>,
+}
+
+/// Explicit fields overriding forbidden utility spellings.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RestrictedUtilitiesOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// A supplied list replaces forbidden utility rules.
+    pub utilities: Option<Vec<RestrictedUtilityRule>>,
+}
+
+/// A restriction on resolved CSS declarations and their parsed longhands.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RestrictedDeclarationRule {
+    /// Case-insensitive complete CSS property globs.
+    pub properties: Vec<String>,
+    /// Case-insensitive complete serialized value globs; strings and URLs remain CSS text.
+    pub values: Vec<String>,
+    /// Optional project-specific explanation.
+    pub message: Option<String>,
+}
+
+/// Forbidden combinations of resolved properties and values.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RestrictedDeclarationsConfig {
+    /// Reporting level of forbidden declarations.
+    pub severity: LintSeverity,
+    /// Every matching restriction applies; later rules do not override earlier rules.
+    pub rules: Vec<RestrictedDeclarationRule>,
+}
+
+/// Explicit fields overriding forbidden declarations.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RestrictedDeclarationsOverride {
+    /// Omission preserves the stylesheet reporting level.
+    pub severity: Option<LintSeverity>,
+    /// A supplied list replaces declaration restrictions.
+    pub rules: Option<Vec<RestrictedDeclarationRule>>,
+}
+
 /// Project overrides applied after defaults and CSS severity directives.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct LintOverrides {
+    /// Reporting level for explicit color literals.
+    pub no_arbitrary_colors: Option<LintSeverity>,
+    /// Restrictions on explicit spacing lengths and percentages.
+    pub no_arbitrary_spacing: Option<ArbitrarySpacingOverride>,
+    /// Reporting level for external class contributions in style objects.
+    pub no_class_property: Option<LintSeverity>,
+    /// Forbidden utility spellings.
+    pub no_restricted_utilities: Option<RestrictedUtilitiesOverride>,
+    /// Forbidden resolved property and value combinations.
+    pub no_restricted_declarations: Option<RestrictedDeclarationsOverride>,
+    /// Reporting level for important declarations.
+    pub no_important: Option<LintSeverity>,
+    /// Reporting level for unknown suppression names and malformed directives.
+    pub valid_lint_suppressions: Option<LintSeverity>,
+    /// Reporting level for disable directives that suppress no enabled findings.
+    pub no_unused_lint_suppressions: Option<LintSeverity>,
+    /// Whether variants must retain the element receiving the style.
+    pub prefer_direct_styling: Option<LintSeverity>,
+    /// Reporting level for repeated utility candidates.
+    pub duplicate_utilities: Option<LintSeverity>,
+    /// Overlap policy for utilities supplied directly by one call.
+    pub conflicting_utilities: Option<ConflictingUtilitiesOverride>,
+    /// Reporting level for direction-dependent physical declarations.
+    pub prefer_logical_properties: Option<LintSeverity>,
+    /// Property-specific unit restrictions.
+    pub length_units: Option<LengthUnitsOverride>,
+    /// Theme token names forbidden at their direct use sites.
+    pub no_restricted_theme_tokens: Option<RestrictedThemeTokensOverride>,
+    /// Reporting level for viewport size conditions supplied as arbitrary values.
+    pub no_arbitrary_breakpoints: Option<LintSeverity>,
     /// Field-wise canonical policy overrides.
     pub canonical_utilities: Option<CanonicalUtilitiesOverride>,
     /// Optional unsorted-source diagnostic. It is disabled by default.
@@ -211,6 +471,79 @@ impl LintOverrides {
     /// Resolves project fields against the stylesheet settings without changing either input.
     pub fn resolve(&self, stylesheet: &LintSettings) -> LintSettings {
         let mut settings = stylesheet.clone();
+        for (kind, severity) in [
+            (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
+            (LintKind::NoClassProperty, self.no_class_property),
+            (LintKind::NoImportant, self.no_important),
+            (
+                LintKind::ValidLintSuppressions,
+                self.valid_lint_suppressions,
+            ),
+            (
+                LintKind::NoUnusedLintSuppressions,
+                self.no_unused_lint_suppressions,
+            ),
+            (LintKind::PreferDirectStyling, self.prefer_direct_styling),
+            (LintKind::DuplicateUtilities, self.duplicate_utilities),
+            (
+                LintKind::NoArbitraryBreakpoints,
+                self.no_arbitrary_breakpoints,
+            ),
+            (
+                LintKind::PreferLogicalProperties,
+                self.prefer_logical_properties,
+            ),
+        ] {
+            if let Some(severity) = severity {
+                settings.insert(LintConfig::new(kind, severity));
+            }
+        }
+        self.resolve_source_restrictions(&mut settings);
+        if let Some(overrides) = &self.conflicting_utilities {
+            let mut config = match settings.get(LintKind::ConflictingUtilities) {
+                Some(LintConfig::ConflictingUtilities(config)) => config.clone(),
+                _ => ConflictingUtilitiesConfig::default(),
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = overrides.allow_shorthand_overrides {
+                config.allow_shorthand_overrides = value;
+            }
+            settings.insert(LintConfig::ConflictingUtilities(config));
+        }
+        if let Some(overrides) = &self.length_units {
+            let mut config = match settings.get(LintKind::LengthUnits) {
+                Some(LintConfig::LengthUnits(config)) => config.clone(),
+                _ => LengthUnitsConfig {
+                    severity: LintSeverity::Warn,
+                    rules: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.rules {
+                config.rules.clone_from(value);
+            }
+            settings.insert(LintConfig::LengthUnits(config));
+        }
+        if let Some(overrides) = &self.no_restricted_theme_tokens {
+            let mut config = match settings.get(LintKind::NoRestrictedThemeTokens) {
+                Some(LintConfig::NoRestrictedThemeTokens(config)) => config.clone(),
+                _ => RestrictedThemeTokensConfig {
+                    severity: LintSeverity::Warn,
+                    tokens: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.tokens {
+                config.tokens.clone_from(value);
+            }
+            settings.insert(LintConfig::NoRestrictedThemeTokens(config));
+        }
         if let Some(overrides) = &self.canonical_utilities {
             let mut config = match settings.get(LintKind::CanonicalUtilities) {
                 Some(LintConfig::CanonicalUtilities(config)) => config.clone(),
@@ -232,9 +565,75 @@ impl LintOverrides {
         }
         settings
     }
+
+    fn resolve_source_restrictions(&self, settings: &mut LintSettings) {
+        if let Some(overrides) = &self.no_arbitrary_spacing {
+            let mut config = match settings.get(LintKind::NoArbitrarySpacing) {
+                Some(LintConfig::NoArbitrarySpacing(config)) => config.clone(),
+                _ => ArbitrarySpacingConfig {
+                    severity: LintSeverity::Warn,
+                    properties: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.properties {
+                config.properties.clone_from(value);
+            }
+            settings.insert(LintConfig::NoArbitrarySpacing(config));
+        }
+        if let Some(overrides) = &self.no_restricted_utilities {
+            let mut config = match settings.get(LintKind::NoRestrictedUtilities) {
+                Some(LintConfig::NoRestrictedUtilities(config)) => config.clone(),
+                _ => RestrictedUtilitiesConfig {
+                    severity: LintSeverity::Warn,
+                    utilities: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.utilities {
+                config.utilities.clone_from(value);
+            }
+            settings.insert(LintConfig::NoRestrictedUtilities(config));
+        }
+        if let Some(overrides) = &self.no_restricted_declarations {
+            let mut config = match settings.get(LintKind::NoRestrictedDeclarations) {
+                Some(LintConfig::NoRestrictedDeclarations(config)) => config.clone(),
+                _ => RestrictedDeclarationsConfig {
+                    severity: LintSeverity::Warn,
+                    rules: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.rules {
+                config.rules.clone_from(value);
+            }
+            settings.insert(LintConfig::NoRestrictedDeclarations(config));
+        }
+    }
 }
 
 define_lint_rules! {
+    NoArbitraryColors => ("no-arbitrary-colors", None),
+    NoArbitrarySpacing => ("no-arbitrary-spacing", None),
+    NoClassProperty => ("no-class-property", None),
+    NoRestrictedUtilities => ("no-restricted-utilities", None),
+    NoRestrictedDeclarations => ("no-restricted-declarations", None),
+    NoImportant => ("no-important", None),
+    ValidLintSuppressions => ("valid-lint-suppressions", Some(LintSeverity::Warn)),
+    NoUnusedLintSuppressions => ("no-unused-lint-suppressions", None),
+    PreferDirectStyling => ("prefer-direct-styling", None),
+    DuplicateUtilities => ("duplicate-utilities", Some(LintSeverity::Warn)),
+    ConflictingUtilities => ("conflicting-utilities", Some(LintSeverity::Warn)),
+    PreferLogicalProperties => ("prefer-logical-properties", None),
+    LengthUnits => ("length-units", None),
+    NoRestrictedThemeTokens => ("no-restricted-theme-tokens", None),
+    NoArbitraryBreakpoints => ("no-arbitrary-breakpoints", None),
     FrameworkImportMismatch => ("framework-import-mismatch", Some(LintSeverity::Warn)),
     MacroArgumentMutation => ("macro-argument-mutation", Some(LintSeverity::Deny)),
     MacroExecutionBoundary => ("macro-execution-boundary", Some(LintSeverity::Deny)),
@@ -339,7 +738,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 17);
+        assert_eq!(names.len(), 32);
         for name in [
             "custom",
             "",
@@ -367,6 +766,9 @@ mod tests {
                 "ambiguous-base-order": "warn",
                 "imported-base-interference": "warn",
                 "canonical-utilities": "warn",
+                "duplicate-utilities": "warn",
+                "conflicting-utilities": "warn",
+                "valid-lint-suppressions": "warn",
             })
         );
         assert!(!settings.enabled_for_detection(LintKind::PreferTypedRelationships));

@@ -14,9 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSettings, SourceFailureContext};
-use stillwind_source::{
-    CssSourceName, Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span,
-};
+use stillwind_source::{CssSourceName, Fingerprint, SourceFile, SourceRegistryError, Span};
 
 use super::analysis::SnapshotAnalyses;
 use super::{
@@ -208,22 +206,14 @@ impl DesignSystemSnapshot {
         source_name: CssSourceName,
         options: DesignSystemOptions,
     ) -> Result<Self, DesignSystemError> {
-        match DesignSystemLoader::new(options, SourceRegistry::default()).provide(
+        match DesignSystemLoader::with_source(options, Arc::new(source.clone())).provide(
             0,
             source_name,
             source.uri().cloned(),
             source.source_map_source().map(Into::into),
             source.text().into(),
         ) {
-            DesignSystemLoadStep::Complete(result) => result.map_err(|mut error| {
-                // Report errors against the caller's source ID, which can differ from the loader's.
-                if let DesignSystemLoadError::Compilation(error) = &mut error {
-                    for label in &mut error.labels {
-                        label.span.file = source.id();
-                    }
-                }
-                DesignSystemError::Load(error)
-            }),
+            DesignSystemLoadStep::Complete(result) => result.map_err(DesignSystemError::Load),
             DesignSystemLoadStep::NeedFile(request) => {
                 Err(DesignSystemError::UnresolvedImports { requests: request })
             }

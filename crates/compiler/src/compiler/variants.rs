@@ -257,7 +257,7 @@ mod tests {
 
     use super::super::stylesheet::authored_directives::render_authored_variant_path;
     use super::super::utilities::render::render_utility_rule_path;
-    use super::super::utilities::resolve::CompiledUtility;
+    use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
     use super::*;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
@@ -311,6 +311,7 @@ mod tests {
             "@media print{&:hover{color:red;}}@media print{&:focus{color:red;}}"
         );
         let utility = CompiledUtility {
+            source: UtilitySource::default(),
             required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),

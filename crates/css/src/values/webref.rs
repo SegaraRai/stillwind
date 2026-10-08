@@ -97,6 +97,34 @@ pub fn properties_interfere(left: &str, right: &str) -> bool {
         || crosses_logical_boundary(&left_family, &right_family)
 }
 
+/// Returns whether the wider property covers every slot of the narrower property.
+/// Cross-axis logical coverage is proved only for a complete four-side shorthand.
+pub fn property_covers(wider: &str, narrower: &str) -> bool {
+    if wider.eq_ignore_ascii_case(narrower) || wider.eq_ignore_ascii_case("all") {
+        return false;
+    }
+    let wide = longhand_family(wider);
+    let narrow = longhand_family(narrower);
+    if wide.contains(&narrower.to_ascii_lowercase()) {
+        return true;
+    }
+    let leaves: Vec<_> = narrow
+        .iter()
+        .filter(|name| webref_property(name).is_none_or(|p| p.longhands.is_empty()))
+        .collect();
+    let Some(group) = leaves.first().and_then(|name| logical_group(name)) else {
+        return false;
+    };
+    let physical: BTreeSet<_> = WEBREF_PROPERTIES
+        .iter()
+        .filter(|p| p.logical_group == Some(group) && p.longhands.is_empty() && !is_logical(p.name))
+        .map(|p| p.name)
+        .collect();
+    physical.len() == 4
+        && physical.iter().all(|name| wide.contains(*name))
+        && leaves.iter().all(|name| logical_group(name) == Some(group))
+}
+
 /// Whether `all` leaves the property alone; it resets neither custom properties nor these.
 fn is_universal_exception(property: &str) -> bool {
     property.eq_ignore_ascii_case("direction") || property.eq_ignore_ascii_case("unicode-bidi")
@@ -145,7 +173,7 @@ fn logical_group(property: &str) -> Option<&'static str> {
 /// Only names inside one logical group are classified, so the check is limited to the
 /// axis keywords Webref uses there: a group member naming `block`, `inline`, `start` or
 /// `end` is logical, and every other member is physical.
-fn is_logical(property: &str) -> bool {
+pub(super) fn is_logical(property: &str) -> bool {
     property
         .split('-')
         .any(|segment| matches!(segment, "block" | "inline" | "start" | "end"))
@@ -154,6 +182,15 @@ fn is_logical(property: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coverage_requires_every_slot_of_a_logical_shorthand() {
+        assert!(property_covers("padding", "padding-inline"));
+        assert!(property_covers("padding-inline", "padding-inline-start"));
+        assert!(!property_covers("padding-left", "padding-inline-start"));
+        assert!(!property_covers("padding-inline", "padding-block"));
+        assert!(!property_covers("padding", "padding"));
+    }
 
     #[test]
     fn generated_webref_snapshot_covers_every_internal_complex_value_domain() {

@@ -12,7 +12,7 @@ use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::identity_declaration;
-use super::super::utilities::resolve::CompiledUtility;
+use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
 use super::{CallEmitter, KEYFRAMES_KEY};
 use crate::identifiers::IdentifierContext;
 
@@ -139,6 +139,7 @@ fn resolve_keyframes_use(
         &resolve_options(options, OptionVariants::Rejected, theme, diagnostics).declaration,
     );
     CompiledUtility {
+        source: UtilitySource::default(),
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),

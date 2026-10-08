@@ -19,7 +19,9 @@ pub(crate) fn detect(
     query: &DesignSystemQuery,
 ) -> Vec<LintFinding> {
     let settings = query.lint_settings();
-    if !settings.enabled_for_detection(LintKind::CanonicalUtilities) {
+    let canonical_enabled = settings.enabled_for_detection(LintKind::CanonicalUtilities);
+    let restricted_enabled = settings.enabled_for_detection(LintKind::NoRestrictedUtilities);
+    if !canonical_enabled && !restricted_enabled {
         return Vec::new();
     }
     let mut literals = Vec::new();
@@ -28,9 +30,7 @@ pub(crate) fn detect(
     }
     let mut findings = Vec::new();
     for (literal, prefix) in literals {
-        let Some(boundaries) = literal_boundaries(source, literal) else {
-            continue;
-        };
+        let boundaries = literal_boundaries(source, literal);
         let mut offset = 0;
         for token in literal.value.split_whitespace() {
             let Some(relative) = literal.value[offset..].find(token) else {
@@ -39,13 +39,21 @@ pub(crate) fn detect(
             let start = offset + relative;
             let end = start + token.len();
             offset = end;
+            let span = boundaries.as_ref().map_or(literal.span, |boundaries| {
+                Span::new(literal.span.file, boundaries[start], boundaries[end])
+            });
+            findings.extend(crate::compiler::check_candidate_name(
+                token, &settings, span,
+            ));
+            if !canonical_enabled || boundaries.is_none() {
+                continue;
+            }
             let Ok(Some(canonical)) = query.canonical_candidate(&format!("{prefix}{token}")) else {
                 continue;
             };
             let Some(replacement) = canonical.strip_prefix(&prefix) else {
                 continue;
             };
-            let span = Span::new(literal.span.file, boundaries[start], boundaries[end]);
             let Ok(range) = SourceRange::from_source(Arc::new(source.clone()), span) else {
                 continue;
             };
@@ -170,7 +178,10 @@ fn escape_literal(value: &str, quote: char) -> String {
 }
 
 /// Maps decoded byte boundaries back to a contiguous original literal. Unmapped projections are skipped.
-fn literal_boundaries(source: &SourceFile, literal: &Spanned<String>) -> Option<Vec<u32>> {
+pub(crate) fn literal_boundaries(
+    source: &SourceFile,
+    literal: &Spanned<String>,
+) -> Option<Vec<u32>> {
     let raw = source.slice(literal.span).ok()?;
     let mut text = String::new();
     let mut positions = vec![literal.span.start.0];

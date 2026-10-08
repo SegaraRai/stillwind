@@ -10,11 +10,10 @@ use std::sync::{Arc, OnceLock};
 use stillwind_compiler::{
     CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers,
     ModuleArtifactKey, ModuleCompiler, StyleResolver, StylesheetRenderer, check_style,
-    is_style_analysis_lint,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, DiagnosticBatch, filter_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticBatch, finish_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
@@ -561,23 +560,28 @@ impl ProjectSession {
             .filter_map(|module| {
                 let source = &self.analyses.get(&module)?.source;
                 let artifact = self.current_artifact(&module)?;
-                let mut findings = artifact
-                    .style_effects
-                    .iter()
-                    .filter_map(|effects| resolver.resolve(effects.identity()))
-                    .flat_map(|style| check_style(&style))
-                    .collect::<Vec<_>>();
-                filter_lint_findings(source, &mut findings);
+                let mut findings = artifact.source_lint_findings.clone();
+                findings.extend(
+                    artifact
+                        .style_effects
+                        .iter()
+                        .filter_map(|effects| resolver.resolve(effects.identity()))
+                        .flat_map(|style| check_style(&style))
+                        .collect::<Vec<_>>(),
+                );
+                finish_lint_findings(
+                    source,
+                    &artifact.lint_settings,
+                    &mut findings,
+                    artifact.diagnostics.is_empty(),
+                );
                 Some((module, findings))
             })
             .collect();
         for (module, findings) in updates {
             if let Some(artifact) = self.artifacts.get_mut(&module) {
                 let artifact = Arc::make_mut(artifact);
-                artifact
-                    .lint_findings
-                    .retain(|finding| !is_style_analysis_lint(finding.kind()));
-                artifact.lint_findings.extend(findings);
+                artifact.lint_findings = findings;
             }
         }
     }

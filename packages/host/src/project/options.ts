@@ -25,6 +25,34 @@ export function cssEntrypoint(config: BaseConfig): string {
 export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
   return {
     lint: config.lint && {
+      noArbitraryColors: config.lint["no-arbitrary-colors"],
+      noArbitrarySpacing:
+        typeof config.lint["no-arbitrary-spacing"] === "string"
+          ? {
+              severity: config.lint["no-arbitrary-spacing"],
+            }
+          : config.lint["no-arbitrary-spacing"],
+      noClassProperty: config.lint["no-class-property"],
+      noRestrictedUtilities: config.lint["no-restricted-utilities"],
+      noRestrictedDeclarations: config.lint["no-restricted-declarations"],
+      noImportant: config.lint["no-important"],
+      validLintSuppressions: config.lint["valid-lint-suppressions"],
+      noUnusedLintSuppressions: config.lint["no-unused-lint-suppressions"],
+      preferDirectStyling: config.lint["prefer-direct-styling"],
+      duplicateUtilities: config.lint["duplicate-utilities"],
+      conflictingUtilities:
+        typeof config.lint["conflicting-utilities"] === "string"
+          ? { severity: config.lint["conflicting-utilities"] }
+          : config.lint["conflicting-utilities"],
+      preferLogicalProperties: config.lint["prefer-logical-properties"],
+      lengthUnits:
+        typeof config.lint["length-units"] === "string"
+          ? {
+              severity: config.lint["length-units"],
+            }
+          : config.lint["length-units"],
+      noRestrictedThemeTokens: config.lint["no-restricted-theme-tokens"],
+      noArbitraryBreakpoints: config.lint["no-arbitrary-breakpoints"],
       canonicalUtilities:
         typeof config.lint["canonical-utilities"] === "string"
           ? {

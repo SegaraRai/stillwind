@@ -117,6 +117,8 @@ struct Node {
 /// The loader performs no I/O and holds no host resources, so a host that
 /// abandons a load may simply drop it from any incomplete state.
 pub struct DesignSystemLoader {
+    /// Original root revision retained by the standalone source entry point.
+    supplied_root: Option<Arc<SourceFile>>,
     /// Issued identities for host-addressable CSS source revisions.
     registry: SourceRegistry,
     /// Requested prefix configuration validated when loading completes.
@@ -154,6 +156,7 @@ impl DesignSystemLoader {
     /// Creates a loader whose CSS revisions share file IDs with a project session.
     pub fn new(options: DesignSystemOptions, registry: SourceRegistry) -> Self {
         Self {
+            supplied_root: None,
             registry,
             options,
             graph: CssSourceGraph::default(),
@@ -163,6 +166,16 @@ impl DesignSystemLoader {
             next_id: 1,
             terminal: false,
         }
+    }
+
+    /// Starts standalone loading with the caller's root file identity.
+    /// The first response must contain this root's text and metadata.
+    pub(crate) fn with_source(options: DesignSystemOptions, source: Arc<SourceFile>) -> Self {
+        let registry = SourceRegistry::default();
+        registry.reserve_after(source.id());
+        let mut loader = Self::new(options, registry);
+        loader.supplied_root = Some(source);
+        loader
     }
 
     /// Answers one request; equivalent to a one-element [`Self::provide_many`].
@@ -354,7 +367,12 @@ impl DesignSystemLoader {
             return Ok(index);
         }
         let index = self.nodes.len();
-        let source = self.registry.register(uri, source_map_source, content)?;
+        let source = if let Some(source) = self.supplied_root.take() {
+            self.registry.retain(source.clone())?;
+            source
+        } else {
+            self.registry.register(uri, source_map_source, content)?
+        };
         let imports =
             imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
         parse_theme_builder(&source, &name)?;

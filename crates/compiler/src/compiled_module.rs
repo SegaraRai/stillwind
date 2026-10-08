@@ -132,6 +132,8 @@ pub struct CompiledModule {
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
+    /// Source findings before suppression, retained for composition and directive refreshes.
+    pub source_lint_findings: Vec<LintFinding>,
     /// Records definitions whose changes invalidate this artifact.
     pub dependencies: CompilationDependencies,
 }
@@ -194,6 +196,7 @@ impl CompiledModule {
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),
+            source_lint_findings: self.source_lint_findings.clone(),
             lint_settings: self.lint_settings.clone(),
         }
     }

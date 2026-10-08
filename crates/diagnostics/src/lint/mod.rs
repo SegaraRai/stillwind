@@ -15,12 +15,16 @@ mod finding;
 mod suppression;
 
 pub use config::{
-    CanonicalUtilitiesConfig, CanonicalUtilitiesOverride, LintConfig, LintKind, LintOverrides,
-    LintSettings, LintSeverity, RootFontSize,
+    ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
+    CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
+    LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintKind, LintOverrides,
+    LintSettings, LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
+    RestrictedDeclarationsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
 };
 pub use diagnostic::{LintDiagnostic, UtilityFailure};
 pub use finding::LintFinding;
 pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, collect_lint_directives,
-    filter_lint_findings,
+    filter_lint_findings, finish_lint_findings,
 };

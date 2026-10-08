@@ -5,6 +5,8 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling
 //! files.
 
+use std::collections::BTreeMap;
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_ir::{
     AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
@@ -41,6 +43,10 @@ impl<'a> CallEmitter<'a> {
             module_id: inputs.module_id,
             identifiers: inputs.identifiers,
             theme: inputs.theme,
+            lint_settings: inputs
+                .options
+                .lint
+                .resolve(&inputs.theme.config().lint_settings),
             call: inputs.call,
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,
@@ -60,6 +66,7 @@ impl<'a> CallEmitter<'a> {
             ),
             written_name_symbols: Vec::new(),
             style_effects: Vec::new(),
+            static_custom_properties: static_custom_properties(&inputs.call.inputs),
         };
         emitter.emit()
     }
@@ -74,6 +81,7 @@ impl<'a> CallEmitter<'a> {
             self.emit_input(&input, &mut Vec::new())?;
         }
         let mut style_effects = StyleEffects {
+            lint_settings: self.lint_settings.clone(),
             identity: IdentityId::new(
                 AssetKind::Style,
                 self.module_id.clone(),
@@ -447,6 +455,85 @@ impl<'a> CallEmitter<'a> {
                 None
             }
         }
+    }
+}
+
+fn static_custom_properties(inputs: &[StyleInput]) -> BTreeMap<String, CustomPropertyEntry> {
+    let mut properties = BTreeMap::new();
+    let mut composition = false;
+    collect_static_inputs(inputs, false, &mut properties, &mut composition);
+    if composition {
+        return BTreeMap::new();
+    }
+    properties
+        .into_iter()
+        .filter_map(|(name, property)| property.map(|property| (name, property)))
+        .collect()
+}
+
+fn collect_static_inputs(
+    inputs: &[StyleInput],
+    guarded: bool,
+    properties: &mut BTreeMap<String, Option<CustomPropertyEntry>>,
+    composition: &mut bool,
+) {
+    for input in inputs {
+        match input {
+            StyleInput::Array(inputs) => {
+                collect_static_inputs(inputs, guarded, properties, composition);
+            }
+            StyleInput::Class(expression) => collect_static_class(expression, guarded, properties),
+            StyleInput::Conditional { branches, .. } => {
+                collect_static_inputs(branches.consequent(), true, properties, composition);
+                if let Some(alternate) = branches.alternate() {
+                    collect_static_inputs(alternate, true, properties, composition);
+                }
+            }
+            StyleInput::Composition { .. } => *composition = true,
+            _ => {}
+        }
+    }
+}
+
+fn collect_static_class(
+    expression: &ClassExpression,
+    guarded: bool,
+    properties: &mut BTreeMap<String, Option<CustomPropertyEntry>>,
+) {
+    match expression {
+        ClassExpression::Array(elements) => {
+            for element in elements {
+                collect_static_class(element, guarded, properties);
+            }
+        }
+        ClassExpression::Conditional { branches, .. } => {
+            for element in branches
+                .consequent()
+                .iter()
+                .chain(branches.alternate().into_iter().flatten())
+            {
+                collect_static_class(element, true, properties);
+            }
+        }
+        ClassExpression::Group { entries, .. } => {
+            for entry in entries {
+                match entry {
+                    GroupEntry::Class(expression) => {
+                        collect_static_class(expression, guarded, properties);
+                    }
+                    GroupEntry::CustomProperty(property) => {
+                        let value =
+                            (!guarded && property.static_value.is_some()).then(|| property.clone());
+                        properties
+                            .entry(property.name.value.clone())
+                            .and_modify(|value| *value = None)
+                            .or_insert(value);
+                    }
+                    GroupEntry::Attribute(_) => {}
+                }
+            }
+        }
+        _ => {}
     }
 }
 

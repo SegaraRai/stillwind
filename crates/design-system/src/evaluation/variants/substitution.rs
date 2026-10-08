@@ -13,7 +13,8 @@ use super::super::values::domains::{resolve_value_domains, split_domains, theme_
 use super::super::values::expansion::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{VariantApplication, VariantDeclaration};
-use crate::{BuiltinVariantModifierType, CustomVariant, ThemeIndex};
+use super::usage::VariantValueSource;
+use crate::{BuiltinVariantModifierType, CustomVariant, ThemeIndex, ThemeNamespace};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
 ///
@@ -271,15 +272,20 @@ pub(crate) fn resolve_variant_css_placeholders(
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<String> {
-    let capture = variant_name
-        .strip_suffix('*')
-        .and_then(|prefix| value.strip_prefix(prefix))
-        .map(|capture| capture.split_once('/').map_or(capture, |(value, _)| value));
+    let capture = variant_value_capture(variant_name, value);
     let mut body = body.to_owned();
     expand_placeholder(&mut body, "--value", |arguments| {
         resolve_variant_value_domains(arguments, capture, theme)
     })?;
     Some(body)
+}
+
+/// Returns the value-domain capture without a modifier, as the placeholder resolver uses it.
+pub(super) fn variant_value_capture<'a>(variant_name: &str, value: &'a str) -> Option<&'a str> {
+    variant_name
+        .strip_suffix('*')
+        .and_then(|prefix| value.strip_prefix(prefix))
+        .map(|capture| capture.split_once('/').map_or(capture, |(value, _)| value))
 }
 
 /// Resolves a variant's value-domain list against a capture.
@@ -291,16 +297,40 @@ pub(crate) fn resolve_variant_value_domains(
     capture: Option<&str>,
     theme: &ThemeIndex,
 ) -> Option<String> {
+    resolve_variant_value_with_source(domains, capture, theme).map(|(value, _)| value)
+}
+
+pub(super) fn resolve_variant_value_with_source(
+    domains: &str,
+    capture: Option<&str>,
+    theme: &ThemeIndex,
+) -> Option<(String, VariantValueSource)> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture.and_then(|name| {
                 theme
                     .token_in(namespace, &format!("{name}{suffix}"))
-                    .map(|token| token.value.value.clone())
+                    .map(|token| {
+                        theme.record_token(&token.name.value);
+                        (
+                            token.value.value.clone(),
+                            VariantValueSource::ThemeToken(token.name.value.clone()),
+                        )
+                    })
             });
         }
-        resolve_value_domains(domain, capture, theme)
+        resolve_value_domains(domain, capture, theme).map(|value| {
+            let source = if domain == "--spacing()"
+                && let Some(token) =
+                    capture.and_then(|name| theme.token_in(ThemeNamespace::Spacing, name))
+            {
+                VariantValueSource::ThemeToken(token.name.value.clone())
+            } else {
+                VariantValueSource::Explicit
+            };
+            (value, source)
+        })
     })
 }
 

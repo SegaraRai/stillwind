@@ -6,10 +6,11 @@
 //! does not know is preserved here, because the lint code a user sees depends on it.
 
 use stillwind_design_system::{
-    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityOrder, UtilityResolutionError,
-    VariantApplication, resolve_variant,
+    NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityArbitraryUse, UtilityOrder,
+    UtilityResolutionError, UtilityTokenUse, VariantApplication, resolve_variant,
 };
 use stillwind_diagnostics::UtilityFailure;
+use stillwind_source::Span;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use crate::candidate::CandidateResolver;
@@ -17,6 +18,8 @@ use crate::candidate::CandidateResolver;
 /// One resolved utility rule, ready to be ordered and rendered.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {
+    /// Candidate source occurrence and token selections before values expand.
+    pub(in crate::compiler) source: UtilitySource,
     /// Parsed variants in candidate order, resolved through the registry unless lowered
     /// applications are present.
     pub(in crate::compiler) variants: Vec<Variant>,
@@ -39,6 +42,21 @@ pub(crate) struct CompiledUtility {
     /// Original candidate spelling for ordering and diagnostics; empty for synthetic
     /// utility rules.
     pub(in crate::compiler) candidate: String,
+}
+
+/// Origin shared by all rules that expand from one utility candidate.
+#[derive(Clone, Debug, Default)]
+pub(in crate::compiler) struct UtilitySource {
+    /// Candidate range with decoded offsets until the emitter maps it to original source.
+    pub span: Option<Span>,
+    /// Direct selections preserved before inline theme values expand.
+    pub token_uses: Vec<UtilityTokenUse>,
+    /// Accepted captures before source values expand into declaration text.
+    pub arbitrary_uses: Vec<UtilityArbitraryUse>,
+    /// Ranges of variants written in the utility literal, in candidate order.
+    pub variant_spans: Vec<Span>,
+    /// Leading variants already checked at their wrapper source locations.
+    pub wrapper_variant_count: usize,
 }
 
 /// Resolves a candidate and returns its first target, for callers that render a single rule.
@@ -93,6 +111,12 @@ pub(crate) fn resolve_utility_targets(
         targets
             .into_iter()
             .map(|target| CompiledUtility {
+                source: UtilitySource {
+                    span: None,
+                    token_uses: resolved.token_uses.clone(),
+                    arbitrary_uses: resolved.arbitrary_uses.clone(),
+                    ..UtilitySource::default()
+                },
                 variants: resolved.candidate.variants.clone(),
                 variant_applications: Vec::new(),
                 declaration: target.declaration,

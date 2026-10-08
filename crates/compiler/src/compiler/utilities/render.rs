@@ -235,6 +235,7 @@ fn render_utility_steps(
 mod render_step_tests {
     use stillwind_design_system::{UtilityOrder, VariantDeclaration};
 
+    use super::super::resolve::UtilitySource;
     use super::*;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
@@ -250,6 +251,7 @@ mod render_step_tests {
 
     fn utility(selector: Option<&str>, declaration: &str) -> CompiledUtility {
         CompiledUtility {
+            source: UtilitySource::default(),
             variants: Vec::new(),
             variant_applications: Vec::new(),
             declaration: declaration.to_owned(),

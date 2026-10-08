@@ -155,11 +155,36 @@ pub(crate) fn resolve_css_utility_branches<'a>(
             .required_properties
             .extend(branch.required_properties);
         if branch.selector == resolution.selector {
+            let existing = declaration_property_names(&resolution.declaration);
+            resolution.arbitrary_uses.extend(
+                branch
+                    .arbitrary_uses
+                    .into_iter()
+                    .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
+            );
+            resolution.token_uses.extend(
+                branch
+                    .token_uses
+                    .into_iter()
+                    .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
+            );
             resolution.declaration =
                 merge_branch_declarations(&resolution.declaration, &branch.declaration);
             merge_nested_rules(&mut resolution.nested, branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
+            resolution
+                .arbitrary_uses
+                .extend(branch.arbitrary_uses.into_iter().map(|mut usage| {
+                    usage.base = false;
+                    usage
+                }));
+            resolution
+                .token_uses
+                .extend(branch.token_uses.into_iter().map(|mut usage| {
+                    usage.base = false;
+                    usage
+                }));
             resolution.additional.push(ResolvedUtilityTarget {
                 declaration: branch.declaration,
                 selector: branch.selector,

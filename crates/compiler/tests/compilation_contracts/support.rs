@@ -6,6 +6,14 @@ use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 pub(super) fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
+    compile_with_options(code, css, &CompilerOptions::default())
+}
+
+pub(super) fn compile_with_options(
+    code: &str,
+    css: &str,
+    options: &CompilerOptions,
+) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),
         None,
@@ -35,7 +43,7 @@ pub(super) fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
         ScriptModuleKind::Unambiguous,
         &theme,
         &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
+        options,
     );
     (source, result)
 }

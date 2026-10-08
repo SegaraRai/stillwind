@@ -69,12 +69,100 @@ export interface BaseConfig {
 /** Reporting policy for a lint rule. Off disables its diagnostics and automatic fixes. */
 export type LintSeverity = "warn" | "deny" | "off";
 
-/** Settings for canonical utility spelling and compiler ordering. */
+/** Detection and reporting policies for source utilities and compiler ordering. */
 export type LintOptions = {
+  /** Forbids literal colors supplied as arbitrary values. Defaults to off. */
+  "no-arbitrary-colors"?: LintSeverity;
+  /** Forbids arbitrary margin, padding, gap, and selected additional domains. Defaults to off. */
+  "no-arbitrary-spacing"?: LintSeverity | ArbitrarySpacingOptions;
+  /** Forbids external class contributions in style objects. Defaults to off. */
+  "no-class-property"?: LintSeverity;
+  /** Forbids matching utility spellings, including unresolved names. Defaults to off. */
+  "no-restricted-utilities"?: RestrictedUtilitiesOptions;
+  /** Forbids resolved CSS property and value combinations. Defaults to off. */
+  "no-restricted-declarations"?: RestrictedDeclarationsOptions;
+  /** Forbids important declarations. Defaults to off. */
+  "no-important"?: LintSeverity;
+  /** Reports unknown suppression names and malformed directives. Defaults to warn. */
+  "valid-lint-suppressions"?: LintSeverity;
+  /** Reports disable comments that suppress no enabled findings. Defaults to off. */
+  "no-unused-lint-suppressions"?: LintSeverity;
+  /** Reports variants that style another element. Allows the attachment's pseudo-elements. Defaults to off. */
+  "prefer-direct-styling"?: LintSeverity;
+  /** Reports repeated candidates under identical CSS conditions. Defaults to warn. */
+  "duplicate-utilities"?: LintSeverity;
+  /** Reports competing declarations from direct utilities. Defaults to warn. */
+  "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
+  /** Reports physical declarations with logical counterparts. Defaults to off. */
+  "prefer-logical-properties"?: LintSeverity;
+  /** Restricts length units by CSS property name. Defaults to off. */
+  "length-units"?: LintSeverity | LengthUnitsOptions;
+  /** Forbids direct theme references matching complete token names. Defaults to off. */
+  "no-restricted-theme-tokens"?: RestrictedThemeTokensOptions;
+  /** Requires named variants for viewport size conditions. Defaults to off. */
+  "no-arbitrary-breakpoints"?: LintSeverity;
   /** Defaults to warn, with spacing conversion enabled at 16 pixels per rem. */
   "canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
   /** Enables an optional sorting diagnostic. Omission disables it unless CSS enables it. */
   "sort-utilities"?: LintSeverity;
+};
+
+/** Selects additional domains beyond margin, padding, and gap. */
+export type ArbitrarySpacingOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Case-insensitive full property globs using `*` and `?`. */
+  properties?: string[];
+};
+
+/** Forbids utility spellings independently of CSS resolution. */
+export type RestrictedUtilitiesOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Full utility globs exclude enclosing variants and important modifiers. */
+  utilities?: {
+    pattern: string;
+    message?: string;
+  }[];
+};
+
+/** Forbids resolved declarations, including parsed shorthand components. */
+export type RestrictedDeclarationsOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Property and value globs ignore ASCII case. Values match complete serialized CSS text. */
+  rules?: {
+    properties: string[];
+    values: string[];
+    message?: string;
+  }[];
+};
+
+/** Controls overlap between direct utility contributions. */
+export type ConflictingUtilitiesOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Allows a narrower property to override part of a shorthand. Defaults to false. */
+  allowShorthandOverrides?: boolean;
+};
+
+/** Controls nonzero CSS lengths; later matching rules replace earlier restrictions. */
+export type LengthUnitsOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Property names use case-insensitive full-name globs with `*` and `?`. */
+  rules?: {
+    properties: string[];
+    disallow: string[];
+  }[];
+};
+
+/** Selects theme token names without restricting semantic aliases of those tokens. */
+export type RestrictedThemeTokensOptions = {
+  /** Omission preserves the stylesheet severity. */
+  severity?: LintSeverity;
+  /** Case-sensitive full custom-property name globs with `*` and `?`. */
+  tokens?: string[];
 };
 
 /** Controls replacement of equivalent utility spellings. */
@@ -445,6 +533,118 @@ function validLintOptions(value: unknown): boolean {
   const severity = (value: unknown) =>
     typeof value === "string" && ["warn", "deny", "off"].includes(value);
   return Object.entries(value).every(([rule, setting]) => {
+    if (
+      [
+        "prefer-direct-styling",
+        "duplicate-utilities",
+        "prefer-logical-properties",
+        "no-arbitrary-breakpoints",
+        "no-arbitrary-colors",
+        "no-class-property",
+        "no-important",
+        "valid-lint-suppressions",
+        "no-unused-lint-suppressions",
+      ].includes(rule)
+    ) {
+      return setting === undefined || severity(setting);
+    }
+    if (
+      rule === "conflicting-utilities" ||
+      rule === "length-units" ||
+      rule === "no-restricted-theme-tokens" ||
+      rule === "no-arbitrary-spacing" ||
+      rule === "no-restricted-utilities" ||
+      rule === "no-restricted-declarations"
+    ) {
+      if (setting === undefined) {
+        return true;
+      }
+      if (typeof setting === "string") {
+        return (
+          ["conflicting-utilities", "length-units", "no-arbitrary-spacing"].includes(rule) &&
+          severity(setting)
+        );
+      }
+      if (!object(setting)) {
+        return false;
+      }
+      return Object.entries(setting).every(([key, option]) => {
+        if (key === "severity") {
+          return option === undefined || severity(option);
+        }
+        if (rule === "no-arbitrary-spacing" && key === "properties") {
+          return (
+            option === undefined ||
+            (strings(option) && option.every((pattern) => !/\s/.test(pattern)))
+          );
+        }
+        if (rule === "no-restricted-utilities" && key === "utilities") {
+          return (
+            option === undefined ||
+            (Array.isArray(option) &&
+              option.every(
+                (entry) =>
+                  object(entry) &&
+                  Object.keys(entry).every((key) => ["pattern", "message"].includes(key)) &&
+                  typeof entry.pattern === "string" &&
+                  entry.pattern.length > 0 &&
+                  !/\s/.test(entry.pattern) &&
+                  (entry.message === undefined || typeof entry.message === "string"),
+              ))
+          );
+        }
+        if (rule === "no-restricted-declarations" && key === "rules") {
+          return (
+            option === undefined ||
+            (Array.isArray(option) &&
+              option.every(
+                (entry) =>
+                  object(entry) &&
+                  Object.keys(entry).every((key) =>
+                    ["properties", "values", "message"].includes(key),
+                  ) &&
+                  strings(entry.properties) &&
+                  entry.properties.length > 0 &&
+                  entry.properties.every((pattern) => !/\s/.test(pattern)) &&
+                  strings(entry.values) &&
+                  entry.values.length > 0 &&
+                  (entry.message === undefined || typeof entry.message === "string"),
+              ))
+          );
+        }
+        if (rule === "conflicting-utilities" && key === "allowShorthandOverrides") {
+          return option === undefined || typeof option === "boolean";
+        }
+        if (rule === "no-restricted-theme-tokens" && key === "tokens") {
+          return (
+            option === undefined ||
+            (strings(option) &&
+              option.every(
+                (pattern) => pattern.startsWith("--") && pattern.length > 2 && !/\s/.test(pattern),
+              ))
+          );
+        }
+        if (rule === "length-units" && key === "rules") {
+          return (
+            option === undefined ||
+            (Array.isArray(option) &&
+              option.every(
+                (entry) =>
+                  object(entry) &&
+                  Object.keys(entry).every((key) => key === "properties" || key === "disallow") &&
+                  strings(entry.properties) &&
+                  entry.properties.length > 0 &&
+                  entry.properties.every((pattern) => !/\s/.test(pattern)) &&
+                  Array.isArray(entry.disallow) &&
+                  entry.disallow.every(
+                    (unit) => typeof unit === "string" && /^[a-z]+$/i.test(unit),
+                  ),
+              ))
+          );
+        }
+        return false;
+      });
+    }
     const fields =
       rule === "canonical-utilities" ? ["severity", "pxToRem", "rootFontSize"] : undefined;
     if (setting === undefined && (fields || rule === "sort-utilities")) {

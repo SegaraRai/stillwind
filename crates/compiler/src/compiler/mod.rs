@@ -54,6 +54,7 @@ pub(crate) use stylesheet::render::{render_module_stylesheet, render_stylesheet}
 pub(crate) use stylesheet::template::render_mapped;
 pub(crate) use symbols::detached_symbol;
 pub(crate) use utilities::emission::emit_utility_rules;
+pub(crate) use utilities::policy::{candidate_allowed, check_candidate_name};
 pub(crate) use utilities::resolve::{resolve_utility_targets, unresolved_utility_kind};
 
 #[cfg(test)]

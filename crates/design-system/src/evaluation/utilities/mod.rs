@@ -26,5 +26,6 @@ pub use body::UtilityResolutionError;
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{
-    ResolvedUtility, ResolvedUtilityTarget, resolve_animation_option, resolve_utility,
+    ResolvedUtility, ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse,
+    resolve_animation_option, resolve_utility,
 };

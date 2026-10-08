@@ -148,7 +148,10 @@ fn independent_name_uses_are_counted_and_choices_stay_exclusive() {
         findings(
             "const vt=style.viewTransition({old:'color'}); const x=style(vt,'[view-transition-name:a] [view-transition-name:b]');"
         ),
-        vec![LintKind::SingleViewTransitionName]
+        vec![
+            LintKind::SingleViewTransitionName,
+            LintKind::ConflictingUtilities
+        ]
     );
     assert_eq!(
         findings(

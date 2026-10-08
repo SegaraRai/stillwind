@@ -92,7 +92,9 @@ test("CSS severity survives partial project overrides and explicit sorting ignor
   );
   try {
     const graph = await current.analyze("/workspace/entry.tsx");
-    expect(graph.batches.flatMap((batch) => batch.reports)).toEqual([]);
+    expect(graph.batches.flatMap((batch) => batch.reports).map((report) => report.code)).toEqual([
+      "conflicting-utilities",
+    ]);
     expect(
       (await current.query("/workspace/entry.tsx", {
         kind: "sort",

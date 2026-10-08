@@ -5,6 +5,7 @@
 //! or changes the contribution tree. CSS contexts describe emitted rules and do not
 //! encode implications between CSS predicates or correlations between runtime tests.
 
+use stillwind_diagnostics::LintSettings;
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::IdentityId;
 use stillwind_source::{ModuleId, Span};
@@ -12,6 +13,8 @@ use stillwind_source::{ModuleId, Span};
 /// The direct supplies and base references of one compiled style call.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StyleEffects {
+    /// Effective detection policy of the producing call.
+    pub(crate) lint_settings: LintSettings,
     /// Declaration identity of the style call.
     pub(crate) identity: IdentityId,
     /// Original source call span.
@@ -115,6 +118,11 @@ pub(crate) struct StyleSupply {
 /// The semantic contribution of a source use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum SupplyKind {
+    /// A resolved candidate and the CSS contexts in which its rules contribute.
+    Utility {
+        candidate: String,
+        contexts: Vec<RuleContext>,
+    },
     /// A resolved CSS or inline declaration.
     Declaration {
         /// Decoded property name; ordinary names are ASCII lowercase and custom names

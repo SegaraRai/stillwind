@@ -599,6 +599,14 @@ pub enum CompileDiagnostic {
         /// Prefix shared by the two namespaces.
         prefix: String,
     },
+    /// A lint policy cannot be evaluated with the supplied options.
+    #[error("invalid `{rule}` lint configuration: {detail}")]
+    InvalidLintConfiguration {
+        /// Stable lint rule name.
+        rule: String,
+        /// Invalid field or missing required policy.
+        detail: String,
+    },
     /// A compile-time definition appears beneath a conditional CSS wrapper.
     #[error(
         "compile-time @{directive} definitions cannot be conditional (byte {offset}); import definitions unconditionally and put conditions around @stillwind-slot utilities;"

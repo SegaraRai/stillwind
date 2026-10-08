@@ -21,14 +21,14 @@ mod call;
 mod class_value;
 mod keyframes_use;
 mod ref_projection;
-mod style_analysis;
+pub(in crate::compiler) mod style_analysis;
 mod view_transition;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileError, LintFinding};
-use stillwind_ir::StyleCall;
+use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
+use stillwind_ir::{CustomPropertyEntry, StyleCall};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{ModuleId, SourceFile};
 
@@ -67,6 +67,7 @@ pub(super) struct CallEmitter<'a> {
     identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry for this compilation.
     theme: &'a ThemeIndex,
+    lint_settings: LintSettings,
     /// Analyzed style call being lowered.
     call: &'a StyleCall,
     /// Compilation errors appended while lowering the call.
@@ -89,6 +90,8 @@ pub(super) struct CallEmitter<'a> {
     written_name_symbols: Vec<GeneratedSymbol>,
     /// Direct contributions with their conditions and base references.
     style_effects: Vec<StyleEffect>,
+    /// Unconditional inline literals with no possible competing write in this call.
+    static_custom_properties: BTreeMap<String, CustomPropertyEntry>,
 }
 
 /// CSS rules gathered between JavaScript condition boundaries before one class identity

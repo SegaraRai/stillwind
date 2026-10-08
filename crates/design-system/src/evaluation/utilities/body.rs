@@ -20,7 +20,7 @@ use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,
     split_utility_selector,
 };
-use super::resolve::ResolvedUtilityTarget;
+use super::resolve::{ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse};
 use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
 
 /// A failed utility resolution caused by a malformed requirement in the matched definition.
@@ -37,6 +37,8 @@ pub struct UtilityResolutionError {
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UtilityResolution {
+    pub(crate) token_uses: Vec<UtilityTokenUse>,
+    pub(crate) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the matched selector, or for the utility itself.
     pub(crate) declaration: String,
     /// Explicit custom-property registration dependencies collected from requirement
@@ -61,6 +63,8 @@ impl UtilityResolution {
     /// A declaration with no selector, conditionals, or ordering.
     pub(crate) fn plain(declaration: String) -> Self {
         Self {
+            token_uses: Vec::new(),
+            arbitrary_uses: Vec::new(),
             declaration,
             required_properties: Vec::new(),
             selector: None,
@@ -179,6 +183,8 @@ fn resolve_valid_utility_body(
         return None;
     }
     let declarations = resolve(body)?;
+    let mut token_uses = declarations.token_uses;
+    let mut arbitrary_uses = declarations.arbitrary_uses;
     let declaration = declarations.base;
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
@@ -207,6 +213,14 @@ fn resolve_valid_utility_body(
                 continue;
             };
             let declaration = declarations.base;
+            arbitrary_uses.extend(declarations.arbitrary_uses.into_iter().map(|mut usage| {
+                usage.base = false;
+                usage
+            }));
+            token_uses.extend(declarations.token_uses.into_iter().map(|mut usage| {
+                usage.base = false;
+                usage
+            }));
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
@@ -232,7 +246,16 @@ fn resolve_valid_utility_body(
         return None;
     }
     if let Some(parent_body) = parent_body {
-        let parent_declaration = resolve(parent_body)?.base;
+        let parent = resolve(parent_body)?;
+        for usage in &mut token_uses {
+            usage.base = false;
+        }
+        for usage in &mut arbitrary_uses {
+            usage.base = false;
+        }
+        arbitrary_uses.extend(parent.arbitrary_uses);
+        token_uses.extend(parent.token_uses);
+        let parent_declaration = parent.base;
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
                 declaration,
@@ -241,6 +264,8 @@ fn resolve_valid_utility_body(
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
+            token_uses,
+            arbitrary_uses,
             required_properties,
             declaration: parent_declaration,
             selector: None,
@@ -254,6 +279,8 @@ fn resolve_valid_utility_body(
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
+            token_uses,
+            arbitrary_uses,
             required_properties,
             declaration,
             selector,

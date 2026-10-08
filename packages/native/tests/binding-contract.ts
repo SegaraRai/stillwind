@@ -25,7 +25,12 @@ export function registerBindingContract(bindingSpecifier: string) {
 
   test("diagnostic collection keeps local utilities when external declarations cannot be lowered", async () => {
     const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
-    const loader = new NativeDesignSystemLoader();
+    const loader = new NativeDesignSystemLoader({
+      lint: {
+        noImportant: "warn",
+        noUnusedLintSuppressions: "warn",
+      },
+    });
     loader.provide(0, "root.css", "@stillwind-slot utilities;", sourceUri("root.css"));
     const session = new NativeProjectSession(loader, false);
     const source = {
@@ -34,14 +39,27 @@ export function registerBindingContract(bindingSpecifier: string) {
       document: {
         uri: sourceUri("partial.tsx"),
         format: "jsx",
-        code: 'import {style} from "stillwind/react";import {external} from "./missing";export const a=style(external);export const local=style("missing");',
+        code: `import {style} from "stillwind/react";import {external} from "./missing";export const a=style(external);export const local=style("missing");
+// swlint-disable-next-line no-important
+export const clean=style('[display:block]');
+// swlint-disable-next-line unknown-rule
+export const valid=style('[display:block]');`,
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
       typeFacts: [],
     };
     const reports = session.diagnose([source])[0].reports;
     expect(reports.map((report: { code: string }) => report.code)).toEqual(
       expect.arrayContaining(["SW03001", "unknown-utility"]),
+    );
+    expect(reports.map((report: { code: string }) => report.code)).toContain(
+      "valid-lint-suppressions",
+    );
+    expect(reports.map((report: { code: string }) => report.code)).not.toContain(
+      "no-unused-lint-suppressions",
     );
     expect(session.diagnosticBatches()).toEqual([]);
     const output = session.compile([source]).modules[0];
@@ -390,7 +408,9 @@ export function registerBindingContract(bindingSpecifier: string) {
     const { minifyCss } = await import(bindingSpecifier);
     const result = minifyCss(".a { color: red; &:hover { color: blue } } .unused { width: 1px }", {
       filename: "asset.css",
-      targets: { chrome: 100 << 16 },
+      targets: {
+        chrome: 100 << 16,
+      },
       unusedSymbols: ["unused"],
       sourceMap: true,
       includeSourcesContent: false,
@@ -423,14 +443,18 @@ export function registerBindingContract(bindingSpecifier: string) {
     expect(result.css).not.toContain("&");
     expect(JSON.parse(result.sourceMap).sources).toContain("original.tsx");
     const preserved = minifyCss(".a { &:hover { color: blue } }", {
-      targets: { chrome: 100 << 16 },
+      targets: {
+        chrome: 100 << 16,
+      },
       exclude: ["Nesting"],
     });
     expect(preserved.css).toContain("&");
     expect(() => minifyCss(".a { color red }")).toThrow(/CSS parse failed/);
-    expect(minifyCss(".a { color red }", { errorRecovery: true }).warnings.length).toBeGreaterThan(
-      0,
-    );
+    expect(
+      minifyCss(".a { color red }", {
+        errorRecovery: true,
+      }).warnings.length,
+    ).toBeGreaterThan(0);
     expect(() => minifyCss("", { include: ["Typo"] })).toThrow(/unknown CSS feature/);
     expect(() => minifyCss("", { inputSourceMap })).toThrow(/requires source_map/);
   });
@@ -465,7 +489,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           code: "module.exports = 1;",
           format: "script",
         },
-        syntax: { language: "js", moduleKind: "commonjs" },
+        syntax: {
+          language: "js",
+          moduleKind: "commonjs",
+        },
         framework,
       });
       expect(scan.kind).toBe("ready");
@@ -503,6 +530,378 @@ export function registerBindingContract(bindingSpecifier: string) {
       }
       expect(output.code).toBeTruthy();
     }
+  });
+
+  test("source restrictions and suppression usage agree across bindings and project APIs", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@theme { --color-brand:blue; } @utility paint-* {color:--value(--color-*,[color]);}
+@utility floating {position:fixed;} :root,:host { @stillwind-slot theme; } @stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react';
+export const color=style('paint-[#abc]');
+export const spacing=style('[margin:13px]');
+export const external=style({class:'legacy'});
+export const restricted=style('floating');
+export const important=style('[display:flex]!');
+// swlint-disable-next-line no-important
+export const used=style('[display:block]!');
+// swlint-disable-next-line no-important
+export const unused=style('[display:grid]');
+// swlint-disable-next-line invalid-rule
+export const invalidSuppression=style('paint-brand');`;
+    const options: import("../binding.js").NativeCompilerOptions = {
+      lint: {
+        noArbitraryColors: "deny",
+        noArbitrarySpacing: {
+          severity: "warn",
+        },
+        noClassProperty: "warn",
+        noImportant: "warn",
+        noRestrictedUtilities: {
+          utilities: [
+            {
+              pattern: "floating",
+              message: "Use a layer",
+            },
+          ],
+        },
+        noRestrictedDeclarations: {
+          rules: [
+            {
+              properties: ["position"],
+              values: ["fixed"],
+            },
+          ],
+        },
+        noUnusedLintSuppressions: "warn",
+        canonicalUtilities: {
+          severity: "off",
+        },
+      },
+    };
+    const expected = [
+      "no-arbitrary-colors",
+      "no-arbitrary-spacing",
+      "no-class-property",
+      "no-restricted-utilities",
+      "no-restricted-declarations",
+      "no-important",
+      "no-unused-lint-suppressions",
+      "valid-lint-suppressions",
+    ].sort();
+    const output = compileSource(oneShotInput(source, "source-policies.tsx", css), options);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(expected);
+    expect(
+      output.reports.find((report: { code: string }) => report.code === "no-arbitrary-colors")
+        .severity,
+    ).toBe("error");
+    const loader = new NativeDesignSystemLoader(options);
+    loader.provide(0, "root.css", css, sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    const prepared = {
+      kind: "direct",
+      moduleId: "source-policies.tsx",
+      document: {
+        code: source,
+        uri: sourceUri("source-policies.tsx"),
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
+    };
+    expect(
+      session
+        .diagnose([prepared])[0]
+        .reports.map((report: { code: string }) => report.code)
+        .sort(),
+    ).toEqual(expected);
+    expect(
+      session
+        .compile([prepared])
+        .modules[0].reports.map((report: { code: string }) => report.code)
+        .sort(),
+    ).toEqual(expected);
+    for (const lint of [
+      { noArbitrarySpacing: { properties: ["padding left"] } },
+      { noRestrictedUtilities: { utilities: [{ pattern: "" }] } },
+      { noRestrictedDeclarations: { rules: [{ properties: ["position"], values: [] }] } },
+      { noImportant: "error" },
+    ]) {
+      expect(() => new NativeDesignSystemLoader({ lint })).toThrow();
+    }
+  });
+
+  test("utility policies share configuration and diagnostics across one-shot and session APIs", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `:root { @stillwind-slot theme; } @theme inline { --color-red-500:red; --color-danger:var(--color-red-500); }
+@utility p2 {padding:0.5rem} @utility px4 {padding-inline:1rem} @utility text-* {color:--value(--color-*,[color]);}
+@custom-variant child (&>span); @custom-variant before (&::before);
+@custom-variant part (&::part(label)); @custom-variant child-before (&>span::before);
+@utility internal {&>span {color:red;}} @stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react';
+export const duplicate=style('p2 p2'); export const conflict=style('p2 px4');
+export const policies=style('child:[padding-left:2px] text-red-500');`;
+    const options: import("../binding.js").NativeCompilerOptions = {
+      lint: {
+        preferDirectStyling: "warn",
+        duplicateUtilities: "deny",
+        preferLogicalProperties: "warn",
+        lengthUnits: {
+          rules: [
+            {
+              properties: ["padding*"],
+              disallow: ["px"],
+            },
+          ],
+        },
+        noRestrictedThemeTokens: {
+          tokens: ["--color-red-*"],
+        },
+      },
+    };
+    const expected = [
+      "duplicate-utilities",
+      "conflicting-utilities",
+      "prefer-direct-styling",
+      "prefer-logical-properties",
+      "length-units",
+      "no-restricted-theme-tokens",
+    ].sort();
+    const output = compileSource(oneShotInput(source, "policies.tsx", css), options);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(expected);
+    expect(
+      output.reports.find((report: { code: string }) => report.code === "duplicate-utilities")
+        .severity,
+    ).toBe("error");
+    const loader = new NativeDesignSystemLoader(options);
+    loader.provide(0, "root.css", css, sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    const prepared = {
+      kind: "direct",
+      moduleId: "policies.tsx",
+      document: {
+        code: source,
+        uri: sourceUri("policies.tsx"),
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
+    };
+    expect(
+      session
+        .diagnose([prepared])[0]
+        .reports.map((report: { code: string }) => report.code)
+        .sort(),
+    ).toEqual(expected);
+    expect(
+      session
+        .compile([prepared])
+        .modules[0].reports.map((report: { code: string }) => report.code)
+        .sort(),
+    ).toEqual(expected);
+    const allowed = compileSource(
+      oneShotInput(
+        "import {style} from 'stillwind/react';const x=style('p2 px4 text-danger before:p2 part:p2 internal');",
+        "allowed.tsx",
+        css,
+      ),
+      {
+        ...options,
+        lint: {
+          ...options.lint,
+          conflictingUtilities: {
+            allowShorthandOverrides: true,
+          },
+        },
+      },
+    );
+    expect(allowed.reports).toEqual([]);
+    const indirect = compileSource(
+      oneShotInput(
+        "import {style} from 'stillwind/react';const x=style('child-before:p2');",
+        "indirect.tsx",
+        css,
+      ),
+      {
+        lint: {
+          preferDirectStyling: "deny",
+        },
+      },
+    );
+    expect(indirect.diagnostics).toEqual([]);
+    expect(
+      indirect.reports.map((report: { code: string; severity: string }) => ({
+        code: report.code,
+        severity: report.severity,
+      })),
+    ).toEqual([{ code: "prefer-direct-styling", severity: "error" }]);
+  });
+
+  test("theme token restrictions cover variant selections and arbitrary breakpoints exclude containers", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@theme inline { --spacing:0.25rem; --spacing-ref-small:1rem; --spacing-gutter:var(--spacing-ref-small); --duration-ref-fast:100ms; }
+@utility p-* {padding:--value(--spacing-*);} @utility flex {display:flex;} @utility gap {gap:1rem;}
+@variant speed-* { & {transition-duration:--value(--duration-*); @slot;} }
+@variant max-* { @media (width < --value([length])) { @slot; } }
+@variant scaled-* { @media (width >= --value(--spacing())) { @slot; } }
+@stillwind-variant supports-* (value: [supports-condition]) { @supports (--value()) { @slot; } }
+@variant tablet { @media (width >= 900px) { @slot; } }
+@stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react';
+export const a=style('p-ref-small');
+export const b=style({'speed-ref-fast:':['flex','gap']});
+export const c=style({'max-[900px]:':['flex','gap']});
+export const d=style('[@media(min-height:600px)]:flex');
+export const e=style('tablet:p-gutter');
+export const f=style('[@container(width>=900px)]:flex');`;
+    const options: import("../binding.js").NativeCompilerOptions = {
+      lint: {
+        noRestrictedThemeTokens: { tokens: ["--spacing-ref-*", "--duration-ref-*"] },
+        noArbitraryBreakpoints: "deny",
+      },
+    };
+    const output = compileSource(oneShotInput(source, "responsive.tsx", css), options);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual([
+      "no-arbitrary-breakpoints",
+      "no-arbitrary-breakpoints",
+      "no-restricted-theme-tokens",
+      "no-restricted-theme-tokens",
+    ]);
+    expect(
+      output.reports
+        .filter((report: { code: string }) => report.code === "no-arbitrary-breakpoints")
+        .map((report: { severity: string }) => report.severity),
+    ).toEqual(["error", "error"]);
+    const loader = new NativeDesignSystemLoader(options);
+    loader.provide(0, "root.css", css, sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    const prepared = {
+      kind: "direct",
+      moduleId: "responsive.tsx",
+      document: {
+        code: source,
+        uri: sourceUri("responsive.tsx"),
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
+    };
+    expect(session.diagnose([prepared])[0].reports).toEqual(output.reports);
+    const suppressed = compileSource(
+      oneShotInput(
+        `import {style} from 'stillwind/react';
+// swlint-disable-next-line no-arbitrary-breakpoints
+const x=style('max-[900px]:flex');`,
+        "suppressed.tsx",
+        css,
+      ),
+      options,
+    );
+    expect(suppressed.reports).toEqual([]);
+    const variables = compileSource(
+      oneShotInput(
+        `import {style} from 'stillwind/react';
+const a=style('max-[var(--spacing-ref-small)]:flex');
+const b=style('max-(--spacing-ref-small):flex');
+const c=style('supports-[transition-duration:var(--duration-ref-fast)]:flex');
+const d=style('max-[var(--spacing-gutter)]:flex');
+const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
+        "variables.tsx",
+        css,
+      ),
+      {
+        lint: {
+          noRestrictedThemeTokens: options.lint!.noRestrictedThemeTokens,
+        },
+      },
+    );
+    expect(variables.diagnostics).toEqual([]);
+    expect(variables.reports.map((report: { code: string }) => report.code)).toEqual([
+      "no-restricted-theme-tokens",
+      "no-restricted-theme-tokens",
+      "no-restricted-theme-tokens",
+      "no-restricted-theme-tokens",
+    ]);
+    const spacing = compileSource(
+      oneShotInput(
+        "import {style} from 'stillwind/react';const a=style('scaled-gutter:flex');const b=style('scaled-4:flex');",
+        "spacing.tsx",
+        css,
+      ),
+      {
+        lint: {
+          noArbitraryBreakpoints: "warn",
+        },
+      },
+    );
+    expect(spacing.diagnostics).toEqual([]);
+    expect(spacing.reports.map((report: { code: string }) => report.code)).toEqual([
+      "no-arbitrary-breakpoints",
+    ]);
+  });
+
+  test("utility policy validation rejects incomplete token policies and invalid length units", async () => {
+    const { NativeDesignSystemLoader, compileSource } = await import(bindingSpecifier);
+    for (const lint of [
+      {
+        noRestrictedThemeTokens: {},
+      },
+      {
+        noRestrictedThemeTokens: {
+          tokens: [],
+        },
+      },
+      {
+        noRestrictedThemeTokens: {
+          tokens: ["spacing-*"],
+        },
+      },
+      {
+        noRestrictedThemeTokens: {
+          tokens: ["--"],
+        },
+      },
+      {
+        lengthUnits: {
+          rules: [
+            {
+              properties: ["padding"],
+              disallow: ["s"],
+            },
+          ],
+        },
+      },
+    ]) {
+      expect(() => new NativeDesignSystemLoader({ lint })).toThrow(/lint|tokens|length/i);
+    }
+    expect(
+      () =>
+        new NativeDesignSystemLoader({
+          lint: {
+            noRestrictedThemeTokens: { severity: "off" },
+          },
+        }),
+    ).not.toThrow();
+    const output = compileSource(
+      oneShotInput("export {};", "invalid.ts", "@stillwind { no-restricted-theme-tokens:warn; }"),
+    );
+    expect(output.diagnostics.map((diagnostic: { code: string }) => diagnostic.code)).toContain(
+      "SW07006",
+    );
   });
 
   test("CSS alone controls detection and severity of typed relationship findings", async () => {
@@ -631,7 +1030,9 @@ export function registerBindingContract(bindingSpecifier: string) {
       expect(
         session.planStylesheet({
           modules: ["a.ts", "b.ts"],
-          coverage: { kind: "observed" },
+          coverage: {
+            kind: "observed",
+          },
           placement: "document",
         }).css,
       ).toMatch(/color:blue/);
@@ -664,7 +1065,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("🧭.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ];
     expect(
@@ -703,7 +1107,15 @@ export function registerBindingContract(bindingSpecifier: string) {
     expect(session.compile(sources).modules[0].diagnostics).toStrictEqual([]);
     expect(() => session.compile("[]")).toThrow(/array/i);
     expect(() =>
-      session.compile([{ ...sources[0], syntax: { ...sources[0].syntax, language: "unknown" } }]),
+      session.compile([
+        {
+          ...sources[0],
+          syntax: {
+            ...sources[0].syntax,
+            language: "unknown",
+          },
+        },
+      ]),
     ).toThrow(/language/);
     expect(() =>
       session.planStylesheet({
@@ -745,10 +1157,16 @@ export function registerBindingContract(bindingSpecifier: string) {
     );
     expect(unmapped).toStrictEqual({
       ...plan,
-      sourceMap: { sources: [], entries: [] },
+      sourceMap: {
+        sources: [],
+        entries: [],
+      },
       parts: plan.parts.map((part: import("../binding.js").NativeStylesheetPart) => ({
         ...part,
-        sourceMap: { sources: [], entries: [] },
+        sourceMap: {
+          sources: [],
+          entries: [],
+        },
       })),
     });
     if (!Array.isArray(session.baseCssWithMap().sourceMap.entries)) {
@@ -777,7 +1195,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("a.ts"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
       {
         kind: "direct",
@@ -788,7 +1209,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("b.ts"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ]);
     const shared = session.css();
@@ -818,8 +1242,17 @@ export function registerBindingContract(bindingSpecifier: string) {
               format: "jsx",
               sourceMapSource: sourceUri("facts.ts"),
             },
-            syntax: { language: "tsx", moduleKind: "unambiguous" },
-            typeFacts: [{ start: 0, end: 0, value }],
+            syntax: {
+              language: "tsx",
+              moduleKind: "unambiguous",
+            },
+            typeFacts: [
+              {
+                start: 0,
+                end: 0,
+                value,
+              },
+            ],
           },
         ],
         cssInput(""),
@@ -831,10 +1264,18 @@ export function registerBindingContract(bindingSpecifier: string) {
       end: 1,
       bindingName: "handle",
     };
-    const symbolic = (kind: string) => ({ kind, candidates: { kind: "universe" } });
+    const symbolic = (kind: string) => ({
+      kind,
+      candidates: {
+        kind: "universe",
+      },
+    });
     const finite = (kind: string, values: unknown[]) => ({
       kind,
-      candidates: { kind: "finite", values },
+      candidates: {
+        kind: "finite",
+        values,
+      },
     });
     for (const value of [
       { kind: "refs", value: finite("ref", [reference]) },
@@ -878,7 +1319,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("button.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ]);
     expect(result.modules[0].diagnostics).toStrictEqual([]);
@@ -896,7 +1340,10 @@ export function registerBindingContract(bindingSpecifier: string) {
               format: "jsx",
               sourceMapSource: sourceUri("button.tsx"),
             },
-            syntax: { language: "tsx", moduleKind: "unambiguous" },
+            syntax: {
+              language: "tsx",
+              moduleKind: "unambiguous",
+            },
           },
         ],
         cssInput(css),
@@ -907,7 +1354,9 @@ export function registerBindingContract(bindingSpecifier: string) {
     expect(() =>
       session.planStylesheet({
         modules: ["button.tsx"],
-        coverage: { kind: "observed" },
+        coverage: {
+          kind: "observed",
+        },
         placement: "document",
       }),
     ).toThrow(/@stillwind-slot/);
@@ -958,17 +1407,38 @@ export function registerBindingContract(bindingSpecifier: string) {
       framework: "svelte",
       projection: {
         code: source,
-        syntax: { language: "ts", moduleKind: "unambiguous" },
+        syntax: {
+          language: "ts",
+          moduleKind: "unambiguous",
+        },
         map: {
           kind: "volar",
           mappings: [
-            { sourceOffsets: [prefix.length], generatedOffsets: [0], lengths: [source.length] },
+            {
+              sourceOffsets: [prefix.length],
+              generatedOffsets: [0],
+              lengths: [source.length],
+            },
           ],
         },
-        converter: { name: "svelte2tsx", version: "0.7.61", optionsFingerprint: "test" },
-        importRealms: [{ id: 0, start: prefix.length, end: prefix.length + source.length }],
+        converter: {
+          name: "svelte2tsx",
+          version: "0.7.61",
+          optionsFingerprint: "test",
+        },
+        importRealms: [
+          {
+            id: 0,
+            start: prefix.length,
+            end: prefix.length + source.length,
+          },
+        ],
         editableRegions: [
-          { start: prefix.length, end: prefix.length + source.length, importRealm: 0 },
+          {
+            start: prefix.length,
+            end: prefix.length + source.length,
+            importRealm: 0,
+          },
         ],
       },
     };
@@ -1011,7 +1481,13 @@ export function registerBindingContract(bindingSpecifier: string) {
       ).toThrow(/editable regions 0 and 1 overlap/);
     }
     const outsideRegions = session.compile([
-      { ...input, projection: { ...input.projection, editableRegions: [] } },
+      {
+        ...input,
+        projection: {
+          ...input.projection,
+          editableRegions: [],
+        },
+      },
     ]).modules[0];
     expect(outsideRegions.diagnostics[0].code).toBe("SW11007");
     expect(session.css()).toBe(css);
@@ -1076,7 +1552,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("button.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ];
     const before = session.compile(sources);
@@ -1102,7 +1581,13 @@ export function registerBindingContract(bindingSpecifier: string) {
       ),
     ).toStrictEqual({
       kind: "needFile",
-      requests: [{ id: 1, importer: "opaque root", specifier: "tokens" }],
+      requests: [
+        {
+          id: 1,
+          importer: "opaque root",
+          specifier: "tokens",
+        },
+      ],
     });
     expect(
       loader.provide(1, "opaque child", "@theme { --color-brand: red; }", sourceUri("opaque child"))
@@ -1120,7 +1605,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("a.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
       {
         kind: "direct",
@@ -1131,7 +1619,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("b.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ]);
     expect(result.modules.length).toBe(2);
@@ -1161,7 +1652,12 @@ export function registerBindingContract(bindingSpecifier: string) {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();
     const first = loader.provideMany([
-      { id: 0, name: "root", uri: sourceUri("root"), content: "@import 'a'; @import 'b';" },
+      {
+        id: 0,
+        name: "root",
+        uri: sourceUri("root"),
+        content: "@import 'a'; @import 'b';",
+      },
     ]);
     expect(
       first.requests.map((request: import("../binding.js").NativeCssRequest) => request.id),
@@ -1171,7 +1667,12 @@ export function registerBindingContract(bindingSpecifier: string) {
       next.requests.map((request: import("../binding.js").NativeCssRequest) => request.id),
     ).toStrictEqual([1, 3]);
     const done = loader.provideMany([
-      { id: 3, name: "c", uri: sourceUri("c"), content: "@theme { --color-child: green; }" },
+      {
+        id: 3,
+        name: "c",
+        uri: sourceUri("c"),
+        content: "@theme { --color-child: green; }",
+      },
       {
         id: 1,
         name: "a",
@@ -1222,7 +1723,10 @@ export function registerBindingContract(bindingSpecifier: string) {
           format: "jsx",
           sourceMapSource: sourceUri("motion.tsx"),
         },
-        syntax: { language: "tsx", moduleKind: "unambiguous" },
+        syntax: {
+          language: "tsx",
+          moduleKind: "unambiguous",
+        },
       },
     ]);
     expect(output.modules[0].diagnostics).toStrictEqual([]);
@@ -1264,7 +1768,10 @@ export function registerBindingContract(bindingSpecifier: string) {
         format: "jsx",
         sourceMapSource: sourceUri("producer.tsx"),
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     };
     const consumer = {
       kind: "direct",
@@ -1275,7 +1782,10 @@ export function registerBindingContract(bindingSpecifier: string) {
         format: "jsx",
         sourceMapSource: sourceUri("consumer.tsx"),
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     };
     const summary = summarizeSource(
       producer.document.code,

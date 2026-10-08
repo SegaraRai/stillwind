@@ -1,5 +1,6 @@
 //! Small contribution fixtures shared by the composition and lint unit tests.
 
+use stillwind_diagnostics::LintSettings;
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{FileId, ModuleId, Span};
@@ -25,6 +26,7 @@ pub(super) fn site(module: &str, offset: u32) -> UseId {
 /// Builds an artifact record around a direct contribution tree.
 pub(super) fn effects(module: &str, root: StyleEffect) -> StyleEffects {
     StyleEffects {
+        lint_settings: LintSettings::with_defaults(),
         identity: identity(module),
         span: Span::new(FileId(1), 0, 100),
         root,

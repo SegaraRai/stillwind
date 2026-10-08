@@ -333,7 +333,7 @@ pub(super) fn can_omit(required: &[&ResolvedSupply<'_>], excluded: &[&ResolvedSu
 
 #[cfg(test)]
 mod tests {
-    use stillwind_diagnostics::{LintFinding, LintKind};
+    use stillwind_diagnostics::{LintFinding, LintKind, LintSettings};
     use stillwind_ir::ConditionalBranches;
     use stillwind_semantic::AssetKind;
     use stillwind_source::{FileId, ModuleId, Span};
@@ -365,6 +365,7 @@ mod tests {
 
     fn effects(module: &str, root: StyleEffect) -> StyleEffects {
         StyleEffects {
+            lint_settings: LintSettings::with_defaults(),
             identity: identity(module),
             span: Span::new(FileId(1), 0, 100),
             root,

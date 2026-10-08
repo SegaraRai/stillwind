@@ -10,12 +10,14 @@
 //! hints name CSS value productions, and callers supply the property context.
 
 pub(super) mod domain;
+mod policy;
 pub(super) mod properties;
 pub(super) mod syntax;
 pub(super) mod validation;
 pub(super) mod webref;
 
 pub use domain::ValueDomain;
+pub use policy::*;
 pub use properties::CssProperty;
 pub use validation::ValueType;
-pub use webref::{csswg_formal_syntax, properties_interfere};
+pub use webref::{csswg_formal_syntax, properties_interfere, property_covers};

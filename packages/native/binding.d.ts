@@ -444,6 +444,14 @@ export interface HostRegion {
  */
 export declare function minifyCss(css: string, options?: NativeCssMinifyOptions | undefined | null): NativeMinifiedCss
 
+/** Arbitrary spacing restrictions, including optional additional property domains. */
+export interface NativeArbitrarySpacingOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** Additional complete CSS property globs using `*` and `?`. */
+  properties?: Array<string>
+}
+
 /** Asset kinds as the host names them. */
 export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition'
 
@@ -587,6 +595,14 @@ export interface NativeConditionContext {
   role: string
   /** Canonical owner and interval identity for `rule`; otherwise the conditional CSS. */
   text: string
+}
+
+/** Overlap policy for utilities supplied directly by one style call. */
+export interface NativeConflictingUtilitiesOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** Allows narrower declarations to override part of a shorthand. */
+  allowShorthandOverrides?: boolean
 }
 
 /** Converter that produced a projected input. */
@@ -878,8 +894,54 @@ export interface NativeLayerContext {
   namespace: string
 }
 
+/** One property-specific length restriction; the last matching rule wins. */
+export interface NativeLengthUnitRule {
+  /** Complete CSS property globs using `*` and `?`. */
+  properties: Array<string>
+  /** Forbidden CSS length unit names. */
+  disallow: Array<string>
+}
+
+/** Length restrictions applied at utility use sites. */
+export interface NativeLengthUnitsOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** A supplied list replaces the existing restrictions. */
+  rules?: Array<NativeLengthUnitRule>
+}
+
 /** Project lint fields applied after CSS configuration. */
 export interface NativeLintOptions {
+  /** Reporting level for arbitrary color literals. Defaults to off. */
+  noArbitraryColors?: string
+  /** Restrictions on arbitrary spacing. Defaults to off. */
+  noArbitrarySpacing?: NativeArbitrarySpacingOptions
+  /** Reporting level for external class contributions. Defaults to off. */
+  noClassProperty?: string
+  /** Restrictions on utility spellings. Defaults to off. */
+  noRestrictedUtilities?: NativeRestrictedUtilitiesOptions
+  /** Restrictions on resolved declarations. Defaults to off. */
+  noRestrictedDeclarations?: NativeRestrictedDeclarationsOptions
+  /** Reporting level for important declarations. Defaults to off. */
+  noImportant?: string
+  /** Reporting level for invalid suppression comments. Defaults to warn. */
+  validLintSuppressions?: string
+  /** Reporting level for unused suppression comments. Defaults to off. */
+  noUnusedLintSuppressions?: string
+  /** Reporting level for variants that select another target. */
+  preferDirectStyling?: string
+  /** Reporting level for repeated utility candidates. */
+  duplicateUtilities?: string
+  /** Direct utility overlap policy. */
+  conflictingUtilities?: NativeConflictingUtilitiesOptions
+  /** Reporting level for physical declarations with logical counterparts. */
+  preferLogicalProperties?: string
+  /** Property-specific length unit restrictions. */
+  lengthUnits?: NativeLengthUnitsOptions
+  /** Forbidden direct theme token references. */
+  noRestrictedThemeTokens?: NativeRestrictedThemeTokensOptions
+  /** Reporting level for arbitrary viewport size conditions. Defaults to off. */
+  noArbitraryBreakpoints?: string
   /** Field-wise canonical lint policy overrides. */
   canonicalUtilities?: NativeCanonicalUtilitiesOptions
   /** Optional sorting diagnostic severity: warn, deny, or off. Detection is off by default. */
@@ -1038,6 +1100,48 @@ export interface NativeReload {
   cssChanged: boolean
   /** Modules whose code transforms changed. */
   transformedModules: Array<string>
+}
+
+/** A forbidden combination of CSS properties and values. */
+export interface NativeRestrictedDeclarationRule {
+  /** Case-insensitive complete property globs. */
+  properties: Array<string>
+  /** Case-insensitive complete serialized value globs. */
+  values: Array<string>
+  /** Optional project-specific explanation. */
+  message?: string
+}
+
+/** Restrictions on resolved CSS declarations. */
+export interface NativeRestrictedDeclarationsOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** A supplied list replaces declaration restrictions. */
+  rules?: Array<NativeRestrictedDeclarationRule>
+}
+
+/** Forbidden direct theme token names. */
+export interface NativeRestrictedThemeTokensOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** Complete custom-property globs using `*` and `?`. */
+  tokens?: Array<string>
+}
+
+/** Restrictions on utility spellings. */
+export interface NativeRestrictedUtilitiesOptions {
+  /** Reporting severity; omission preserves the stylesheet level. */
+  severity?: string
+  /** A supplied list replaces utility restrictions. */
+  utilities?: Array<NativeRestrictedUtilityRule>
+}
+
+/** A forbidden utility spelling and optional explanation. */
+export interface NativeRestrictedUtilityRule {
+  /** Complete utility glob without variants or important modifiers. */
+  pattern: string
+  /** Optional project-specific explanation. */
+  message?: string
 }
 
 /** Scan outcome; only a verified scan supplies a summary for checker queries. */

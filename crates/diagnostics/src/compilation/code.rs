@@ -129,6 +129,7 @@ define_compile_codes! {
     InvalidPropertyPrefix { .. } => "SW07003",
     InvalidHashLength { .. } => "SW07004",
     ConflictingPropertyPrefixes { .. } => "SW07005",
+    InvalidLintConfiguration { .. } => "SW07006",
     // 08: CSS loading and rendering
     InvalidGeneratedCss { .. } => "SW08001",
     MissingUtilitiesSlot => "SW08002",

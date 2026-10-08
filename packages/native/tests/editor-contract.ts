@@ -2,6 +2,51 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("canonical replacements obey token and unit restrictions", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const css =
+      "@theme {--color-red-500:red;--spacing:0.25rem;} @utility bg-* {background-color:--value(--color-*,[color]);} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;";
+    const load = (options: import("../binding.js").NativeCompilerOptions) => {
+      const loader = new NativeDesignSystemLoader(options);
+      loader.provide(0, "theme.css", css, "file:///theme.css");
+      return loader.editorQuery();
+    };
+    expect(load({}).canonicalCandidate("bg-[rgb(255_0_0)]")).toBe("bg-red-500");
+    expect(
+      load({
+        lint: {
+          noRestrictedThemeTokens: {
+            tokens: ["--color-red-*"],
+          },
+        },
+      }).canonicalCandidate("bg-[rgb(255_0_0)]"),
+    ).toBeNull();
+    expect(load({}).canonicalCandidate("p-[16px]")).toBe("p-4");
+    expect(
+      load({
+        lint: {
+          noRestrictedThemeTokens: {
+            tokens: ["--spacing"],
+          },
+        },
+      }).canonicalCandidate("p-[16px]"),
+    ).toBeNull();
+    expect(
+      load({
+        lint: {
+          lengthUnits: {
+            rules: [
+              {
+                properties: ["padding*"],
+                disallow: ["rem"],
+              },
+            ],
+          },
+        },
+      }).canonicalCandidate("p-[16px]"),
+    ).toBeNull();
+  });
+
   test("ordering batches preserve compiler order, duplicates, unresolved candidates, and theme revisions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const load = (definitions: string) => {

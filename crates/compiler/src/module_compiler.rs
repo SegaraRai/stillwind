@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintKind};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
 };
@@ -41,13 +41,18 @@ impl ModuleCompiler {
         let mut local = module.clone();
         local.diagnostics.clear();
         let context = identifiers.context(self.options.hash_length);
-        let result = Compiler::compile_support_with_snapshot(
+        let mut result = Compiler::compile_support_with_snapshot(
             &local.source,
             &local,
             &self.design_system,
             &self.options,
             &context,
         );
+        if !module.diagnostics.is_empty() || !module.integration_diagnostics.is_empty() {
+            result
+                .lint_findings
+                .retain(|finding| finding.kind() != LintKind::NoUnusedLintSuppressions);
+        }
         let mut diagnostics = module.diagnostics.clone();
         diagnostics.extend(result.diagnostics);
         diagnostics.extend(
@@ -58,6 +63,7 @@ impl ModuleCompiler {
         CompileResult {
             diagnostics,
             lint_findings: result.lint_findings,
+            source_lint_findings: result.source_lint_findings,
             lint_settings: result.lint_settings,
             ..CompileResult::default()
         }
@@ -291,6 +297,7 @@ impl ModuleCompiler {
             rejected_names: result.rejected_names,
             diagnostics,
             lint_findings: result.lint_findings,
+            source_lint_findings: result.source_lint_findings,
             dependencies,
         }
     }

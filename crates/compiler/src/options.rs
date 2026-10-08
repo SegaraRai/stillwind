@@ -12,7 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileDiagnostic, LintOverrides, LintSettings};
+use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -83,15 +83,16 @@ impl CompilerOptions {
         self.lint.resolve(&snapshot.theme().config().lint_settings)
     }
 
-    /// Checks that the two prefixes are valid and do not conflict, and that the
-    /// generated-name hash length can spell a request digest.
+    /// Checks lint policies, prefix namespaces, and the generated-name hash length.
     ///
     /// # Errors
     ///
     /// Returns the typed prefix-shape or namespace-conflict failures from
     /// [`DesignSystemOptions::validate`], retaining the rejected configuration values,
-    /// or the rejected hash length when it is outside the range a digest can fill.
+    /// the rejected hash length when it is outside the range a digest can fill, or an
+    /// invalid unit restriction or active color token policy.
     pub fn validate(&self) -> Result<(), CompileDiagnostic> {
+        validate_lint_settings(&self.lint.resolve(&LintSettings::with_defaults()))?;
         self.design_system().validate()?;
         if !(1..=MAXIMUM_HASH_LENGTH).contains(&self.hash_length) {
             return Err(CompileDiagnostic::InvalidHashLength {
@@ -127,4 +128,73 @@ impl CompilerOptions {
             .replace("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
             .replace("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
     }
+}
+
+pub(crate) fn validate_lint_settings(settings: &LintSettings) -> Result<(), CompileDiagnostic> {
+    for config in settings.iter() {
+        let detail = match config {
+            LintConfig::NoArbitrarySpacing(config)
+                if config
+                    .properties
+                    .iter()
+                    .any(|p| p.is_empty() || p.chars().any(char::is_whitespace)) =>
+            {
+                Some("properties must contain nonempty CSS property patterns")
+            }
+            LintConfig::NoRestrictedUtilities(config)
+                if config.utilities.iter().any(|rule| {
+                    rule.pattern.is_empty() || rule.pattern.chars().any(char::is_whitespace)
+                }) =>
+            {
+                Some("utilities require nonempty complete utility patterns")
+            }
+            LintConfig::NoRestrictedDeclarations(config)
+                if config.rules.iter().any(|rule| {
+                    rule.properties.is_empty()
+                        || rule.values.is_empty()
+                        || rule
+                            .properties
+                            .iter()
+                            .any(|p| p.is_empty() || p.chars().any(char::is_whitespace))
+                        || rule.values.iter().any(String::is_empty)
+                }) =>
+            {
+                Some("rules require nonempty property and value patterns")
+            }
+            LintConfig::NoRestrictedThemeTokens(config)
+                if settings.enabled_for_detection(LintKind::NoRestrictedThemeTokens)
+                    && (config.tokens.is_empty()
+                        || config.tokens.iter().any(|p| {
+                            !p.starts_with("--")
+                                || p.len() <= 2
+                                || p.chars().any(char::is_whitespace)
+                        })) =>
+            {
+                Some("tokens must contain nonempty custom-property name patterns starting with --")
+            }
+            LintConfig::LengthUnits(config)
+                if config.rules.iter().any(|rule| {
+                    rule.properties.is_empty()
+                        || rule
+                            .properties
+                            .iter()
+                            .any(|p| p.is_empty() || p.chars().any(char::is_whitespace))
+                        || rule
+                            .disallow
+                            .iter()
+                            .any(|unit| !stillwind_css::is_length_unit(unit))
+                }) =>
+            {
+                Some("rules require property patterns and valid CSS length units")
+            }
+            _ => None,
+        };
+        if let Some(detail) = detail {
+            return Err(CompileDiagnostic::InvalidLintConfiguration {
+                rule: config.kind().name().into(),
+                detail: detail.into(),
+            });
+        }
+    }
+    Ok(())
 }

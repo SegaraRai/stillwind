@@ -18,6 +18,121 @@ use super::LintKind;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
+    /// An explicitly supplied value contains a literal color.
+    #[error(
+        "arbitrary color `{value}` is forbidden for `{property}`; use a theme token or custom property"
+    )]
+    ArbitraryColor {
+        /// Property receiving the source value.
+        property: String,
+        /// CSS text supplied by the source.
+        value: String,
+    },
+    /// An explicitly supplied value contains a nonzero spacing measure.
+    #[error(
+        "arbitrary spacing `{value}` is forbidden for `{property}`; use the spacing scale or a custom property"
+    )]
+    ArbitrarySpacing {
+        /// Property domain receiving the source value.
+        property: String,
+        /// CSS text supplied by the source.
+        value: String,
+    },
+    /// A style object passes through an external class value.
+    #[error(
+        "`class` contributions are forbidden in style objects; use utilities, custom properties, or state attributes"
+    )]
+    ClassProperty,
+    /// A source utility matches a project restriction.
+    #[error("utility `{utility}` is forbidden{explanation}")]
+    RestrictedUtility {
+        /// Utility spelling without enclosing variants or importance.
+        utility: String,
+        /// Empty, or a colon followed by the configured explanation.
+        explanation: String,
+    },
+    /// A resolved property and value match a project restriction.
+    #[error("declaration `{property}: {value}` is forbidden{explanation}")]
+    RestrictedDeclaration {
+        /// Matched CSS property domain.
+        property: String,
+        /// Matched serialized value.
+        value: String,
+        /// Empty, or a colon followed by the configured explanation.
+        explanation: String,
+    },
+    /// A resolved declaration has important priority.
+    #[error("important declaration for `{property}` is forbidden")]
+    ImportantDeclaration {
+        /// CSS property receiving important priority.
+        property: String,
+    },
+    /// A suppression directive contains an unknown name or invalid keyword.
+    #[error("invalid lint suppression: {detail}")]
+    InvalidLintSuppression {
+        /// The unknown name or malformed directive.
+        detail: String,
+    },
+    /// A disable directive did not suppress a finding from an enabled rule.
+    #[error("lint suppression for `{rule}` suppresses no enabled findings")]
+    UnusedLintSuppression {
+        /// Named rule or `*` for all rules.
+        rule: String,
+    },
+    /// A variant selects an element other than the attachment target.
+    #[error(
+        "variant selector `{selector}` styles another element. Attach these styles directly to that element"
+    )]
+    IndirectStyling {
+        /// Expanded variant selector with `&` for the attachment element.
+        selector: String,
+    },
+    /// A utility candidate is repeated under the same CSS conditions.
+    #[error("utility `{utility}` is repeated under the same conditions")]
+    DuplicateUtility {
+        /// Resolved candidate spelling, including surrounding prefixes.
+        utility: String,
+    },
+    /// Distinct utility candidates write competing declarations.
+    #[error("utilities `{previous}` and `{utility}` overlap `{properties}`")]
+    ConflictingUtilities {
+        /// Candidate at the earlier source occurrence.
+        previous: String,
+        /// Candidate at the current source occurrence.
+        utility: String,
+        /// Competing property names and shorthand relationships.
+        properties: String,
+    },
+    /// A physical declaration has a logical counterpart.
+    #[error("prefer a logical declaration for `{property}: {value}`")]
+    PhysicalDeclaration {
+        /// Physical property name or property with a physical directional value.
+        property: String,
+        /// Serialized declaration value.
+        value: String,
+    },
+    /// A nonzero length uses a forbidden unit in its property domain.
+    #[error("unit `{unit}` is forbidden for `{property}`")]
+    ForbiddenLengthUnit {
+        /// CSS property domain selecting the unit restriction.
+        property: String,
+        /// Lowercase CSS length unit.
+        unit: String,
+    },
+    /// A direct reference names a forbidden theme token.
+    #[error("direct use of theme token `{token}` is forbidden")]
+    RestrictedThemeToken {
+        /// Complete custom-property name directly selected by the utility.
+        token: String,
+    },
+    /// A source variant supplies a viewport size condition without a named breakpoint.
+    #[error("variant `{variant}` uses an arbitrary breakpoint `{condition}`; use a named variant")]
+    ArbitraryBreakpoint {
+        /// Source spelling of the variant that supplied the condition.
+        variant: String,
+        /// Expanded media query containing the viewport size condition.
+        condition: String,
+    },
     /// A source candidate has an equivalent canonical spelling.
     #[error("prefer canonical utility spelling")]
     CanonicalUtilities,
@@ -145,6 +260,21 @@ impl LintDiagnostic {
     /// Returns the rule selected by the diagnostic and its utility classification.
     pub const fn kind(&self) -> LintKind {
         match self {
+            Self::ArbitraryColor { .. } => LintKind::NoArbitraryColors,
+            Self::ArbitrarySpacing { .. } => LintKind::NoArbitrarySpacing,
+            Self::ClassProperty => LintKind::NoClassProperty,
+            Self::RestrictedUtility { .. } => LintKind::NoRestrictedUtilities,
+            Self::RestrictedDeclaration { .. } => LintKind::NoRestrictedDeclarations,
+            Self::ImportantDeclaration { .. } => LintKind::NoImportant,
+            Self::InvalidLintSuppression { .. } => LintKind::ValidLintSuppressions,
+            Self::UnusedLintSuppression { .. } => LintKind::NoUnusedLintSuppressions,
+            Self::IndirectStyling { .. } => LintKind::PreferDirectStyling,
+            Self::DuplicateUtility { .. } => LintKind::DuplicateUtilities,
+            Self::ConflictingUtilities { .. } => LintKind::ConflictingUtilities,
+            Self::PhysicalDeclaration { .. } => LintKind::PreferLogicalProperties,
+            Self::ForbiddenLengthUnit { .. } => LintKind::LengthUnits,
+            Self::RestrictedThemeToken { .. } => LintKind::NoRestrictedThemeTokens,
+            Self::ArbitraryBreakpoint { .. } => LintKind::NoArbitraryBreakpoints,
             Self::CanonicalUtilities => LintKind::CanonicalUtilities,
             Self::SortUtilities => LintKind::SortUtilities,
             Self::FrameworkImportMismatch { .. } => LintKind::FrameworkImportMismatch,

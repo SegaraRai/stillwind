@@ -6,16 +6,24 @@
 //! published module CSS. Selector classification stays conservative when the subject
 //! occurs inside a function.
 
+use std::collections::BTreeSet;
+
 use cssparser::{Parser, Token};
 
-use stillwind_css::{declaration_ranges, instantiate_selector, selector_is_element_condition};
+use stillwind_css::{
+    arbitrary_value_flags, declaration_ranges, inspect_css_value, instantiate_selector,
+    property_value_domains, selector_is_element_condition,
+};
+use stillwind_diagnostics::{LintConfig, LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::IdentityId;
 use stillwind_source::Span;
 
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
+use super::super::utilities::policy::{check, spacing_property};
 use super::super::utilities::render::render_utility_rule;
+use super::super::utilities::resolve::CompiledUtility;
 use super::CallEmitter;
 use super::ref_projection::rule_contribution;
 use crate::style_analysis::{
@@ -44,7 +52,13 @@ impl CallEmitter<'_> {
         gate: Option<&IdentityId>,
         choice: Option<(usize, usize)>,
     ) {
+        let mut policy_findings = Vec::new();
         for (ordinal, utility) in contribution.utilities.iter().enumerate() {
+            let span = if provider {
+                span
+            } else {
+                utility.source.span.unwrap_or(span)
+            };
             let mut supplies = Vec::new();
             let rendered = render_utility_rule(
                 "&",
@@ -71,8 +85,118 @@ impl CallEmitter<'_> {
                     Err(kind) => self.reject_name(kind, span),
                 }
             }
-            self.record_supplies_at(span, guard, supplies, choice, ordinal);
+            if !provider && utility.source.span.is_some() {
+                let contexts = supplies
+                    .iter()
+                    .filter_map(|supply| match supply {
+                        SupplyKind::Declaration { context, .. } => Some(context.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                supplies.push(SupplyKind::Utility {
+                    candidate: utility.candidate.clone(),
+                    contexts,
+                });
+                for finding in check(utility, &supplies, self.theme, &self.lint_settings, span) {
+                    if !policy_findings.contains(&finding) {
+                        policy_findings.push(finding);
+                    }
+                }
+                for finding in self.check_inline_values(utility) {
+                    if !policy_findings.contains(&finding) {
+                        policy_findings.push(finding);
+                    }
+                }
+            }
+            self.record_supplies_at(
+                span,
+                guard,
+                supplies,
+                choice,
+                if utility.source.span.is_some() {
+                    0
+                } else {
+                    ordinal
+                },
+            );
         }
+        self.lint_findings.extend(policy_findings);
+    }
+
+    fn check_inline_values(&self, utility: &CompiledUtility) -> Vec<LintFinding> {
+        let colors = self
+            .lint_settings
+            .enabled_for_detection(LintKind::NoArbitraryColors);
+        let spacing = match self.lint_settings.get(LintKind::NoArbitrarySpacing) {
+            Some(LintConfig::NoArbitrarySpacing(config))
+                if self
+                    .lint_settings
+                    .enabled_for_detection(LintKind::NoArbitrarySpacing) =>
+            {
+                Some(config)
+            }
+            _ => None,
+        };
+        if !colors && spacing.is_none() {
+            return Vec::new();
+        }
+        let mut findings = Vec::new();
+        for usage in &utility.source.token_uses {
+            let mut pending = usage
+                .tokens
+                .iter()
+                .map(|token| (token.clone(), 0))
+                .collect::<Vec<_>>();
+            let mut visited = BTreeSet::new();
+            while let Some((name, depth)) = pending.pop() {
+                if depth >= 32 || !visited.insert(name.clone()) {
+                    continue;
+                }
+                let Some(property) = self.static_custom_properties.get(&name) else {
+                    continue;
+                };
+                let Some(value) = &property.static_value else {
+                    continue;
+                };
+                let (color, measure) = arbitrary_value_flags(&usage.property, value, false);
+                if color && colors {
+                    let finding = LintFinding::new(
+                        LintDiagnostic::ArbitraryColor {
+                            property: usage.property.clone(),
+                            value: value.clone(),
+                        },
+                        property.value,
+                    );
+                    if !findings.contains(&finding) {
+                        findings.push(finding);
+                    }
+                }
+                if measure
+                    && let Some(config) = spacing
+                    && let Some((domain, _)) = property_value_domains(&usage.property, value)
+                        .into_iter()
+                        .find(|(domain, _)| spacing_property(domain, &config.properties))
+                {
+                    let finding = LintFinding::new(
+                        LintDiagnostic::ArbitrarySpacing {
+                            property: domain,
+                            value: value.clone(),
+                        },
+                        property.value,
+                    );
+                    if !findings.contains(&finding) {
+                        findings.push(finding);
+                    }
+                }
+                pending.extend(
+                    inspect_css_value(value)
+                        .1
+                        .into_iter()
+                        .map(|token| (token, depth + 1)),
+                );
+            }
+        }
+        findings
     }
 
     /// Appends `supplies` as contributions of ordinal zero at the original `span`.
@@ -246,7 +370,7 @@ impl CallEmitter<'_> {
 /// substitute that selector for `&`. Provider status and marker `gate` pass through.
 /// Decoded ordinary property names become lowercase; custom names retain their case.
 /// Malformed declarations are skipped. Values keep their CSS priority suffix.
-fn collect_declarations(
+pub(in crate::compiler) fn collect_declarations(
     css: &str,
     selector: &str,
     at_rules: &[String],

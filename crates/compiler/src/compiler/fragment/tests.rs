@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
+use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
     AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, ScriptLanguage,
     ScriptModuleKind, SourceAnalyzer,
@@ -66,6 +67,7 @@ fn attribute(name: &str, index: u32) -> StyleEmissionPart {
 fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
         style_effects: StyleEffects {
+            lint_settings: LintSettings::with_defaults(),
             identity: IdentityId::new(AssetKind::Style, ModuleId::from("test"), 0, 0, ""),
             span: Span::new(FileId(1), 0, 0),
             root: StyleEffect::All(Vec::new()),

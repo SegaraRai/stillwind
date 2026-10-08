@@ -64,7 +64,11 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(fixed.code, fixed.stderr).toBe(0);
     expect(await readFile(file, "utf8")).toContain('style("block flex p-4")');
-    expect(JSON.parse(fixed.stdout).results[0].result.reports).toEqual([]);
+    expect(
+      JSON.parse(fixed.stdout).results[0].result.reports.map(
+        (report: { code: string }) => report.code,
+      ),
+    ).toEqual(["conflicting-utilities"]);
     await writeFile(
       config,
       'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false},{css:"root.css",files:["*.tsx"],typeFacts:false,sort:{stringLiterals:false}}]}',
@@ -89,7 +93,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
       JSON.parse(remaining.stdout).results[0].result.reports.map(
         (report: { code: string }) => report.code,
       ),
-    ).toEqual(["unknown-utility"]);
+    ).toEqual(["unknown-utility", "conflicting-utilities"]);
     expect(await readFile(file, "utf8")).toContain('style("block flex missing")');
   } finally {
     await rm(root, { recursive: true, force: true });

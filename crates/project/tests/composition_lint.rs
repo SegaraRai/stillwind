@@ -5,7 +5,9 @@ mod support;
 use support::{analysis, brand_snapshot};
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{
+    CanonicalUtilitiesOverride, CompileDiagnostic, LintDiagnostic, LintOverrides, LintSeverity,
+};
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{ModuleId, SourceRegistry};
 
@@ -96,5 +98,53 @@ const c = style(a, b, 'text-brand');
             .iter()
             .any(|finding| finding.code() == "ambiguous-base-order"),
         "suppression did not apply"
+    );
+}
+
+#[test]
+fn suppression_usage_is_recomputed_with_source_and_composition_findings() {
+    let mut session = ProjectSession::new(
+        brand_snapshot("red"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions {
+            lint: LintOverrides {
+                canonical_utilities: Some(CanonicalUtilitiesOverride {
+                    severity: Some(LintSeverity::Off),
+                    ..Default::default()
+                }),
+                no_important: Some(LintSeverity::Warn),
+                no_unused_lint_suppressions: Some(LintSeverity::Warn),
+                ..LintOverrides::default()
+            },
+            ..CompilerOptions::default()
+        },
+        Identifiers::default(),
+    );
+    let source = r"import { style } from 'stillwind/react';
+const a=style('p-10'); const b=style('p-4');
+// swlint-disable-next-line ambiguous-base-order
+const c=style(a,b,'text-brand');
+// swlint-disable-next-line no-important
+const d=style('[display:flex]!');
+";
+    session.update_module(analysis("app.tsx", source));
+    let module = ModuleId::from("app.tsx");
+    assert!(
+        session.artifacts()[&module].lint_findings.is_empty(),
+        "{:?}",
+        session.artifacts()[&module].lint_findings
+    );
+    session.update_module(analysis(
+        "app.tsx",
+        &source.replace(
+            "const d=style('[display:flex]!')",
+            "const d=style('[display:flex]')",
+        ),
+    ));
+    let findings = &session.artifacts()[&module].lint_findings;
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(
+        matches!(&findings[0].diagnostic, LintDiagnostic::UnusedLintSuppression { rule } if rule == "no-important")
     );
 }

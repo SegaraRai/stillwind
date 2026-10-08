@@ -7,7 +7,8 @@
 //!
 //! `effects` owns the direct contribution records. `composition` resolves bases and
 //! preserves decisions and origins. `properties` checks attachments and property
-//! interference. `view_transition` checks names and class replacement. `checks`
+//! interference. `utilities` compares direct candidates using the producing call's
+//! detection settings. `view_transition` checks names and class replacement. `checks`
 //! combines their findings and identifies the rules that hosts must replace after an
 //! update.
 
@@ -15,6 +16,7 @@ mod checks;
 mod composition;
 mod effects;
 mod properties;
+mod utilities;
 mod view_transition;
 
 pub use checks::{check_style, is_style_analysis_lint};

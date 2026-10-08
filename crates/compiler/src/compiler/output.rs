@@ -67,6 +67,10 @@ pub struct CompileResult {
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
+    /// Findings from source producers before suppression. Project hosts combine them
+    /// with current composition findings before checking whether directives are used.
+    #[serde(skip)]
+    pub source_lint_findings: Vec<LintFinding>,
     /// Settings used to report the lint findings above; serialized as rule names to severities.
     pub lint_settings: LintSettings,
 }

@@ -10,7 +10,7 @@ use stillwind_design_system::{
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind,
 };
-use stillwind_source::Spanned;
+use stillwind_source::{Span, Spanned};
 use stillwind_syntax::parse_candidate;
 
 use super::lexer::lex_utilities;
@@ -88,7 +88,17 @@ impl LiteralContribution {
         lint_findings: &mut Vec<LintFinding>,
     ) -> LiteralContribution {
         let mut contribution = LiteralContribution::default();
+        let mut decoded_offset = 0;
         for utility in lex_utilities(value, diagnostics) {
+            let start = value.value[decoded_offset..]
+                .find(&utility.value.raw)
+                .map_or(decoded_offset, |offset| decoded_offset + offset);
+            decoded_offset = start + utility.value.raw.len();
+            let source_span = Span::new(
+                value.span.file,
+                value.span.start.0 + u32::try_from(start).unwrap_or_default(),
+                value.span.start.0 + u32::try_from(decoded_offset).unwrap_or_default(),
+            );
             let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
             let mut raw = utility.value.raw.clone();
             raw.insert_str(0, &plan.prefix);
@@ -145,6 +155,9 @@ impl LiteralContribution {
                         ));
                     }
                     for resolved_utility in &mut resolved {
+                        resolved_utility.source.span = Some(source_span);
+                        resolved_utility.source.variant_spans =
+                            variant_spans(&utility.value.raw, source_span);
                         plan.apply(resolved_utility, theme);
                     }
                     contribution.utilities.append(&mut resolved);
@@ -170,4 +183,21 @@ impl LiteralContribution {
         }
         contribution
     }
+}
+
+fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {
+    let Some(candidate) = parse_candidate(raw) else {
+        return Vec::new();
+    };
+    let mut offset = source_span.start.0;
+    candidate
+        .variants
+        .iter()
+        .map(|variant| {
+            let end = offset + u32::try_from(variant.raw.len()).unwrap_or_default();
+            let span = Span::new(source_span.file, offset, end);
+            offset = end + 1;
+            span
+        })
+        .collect()
 }

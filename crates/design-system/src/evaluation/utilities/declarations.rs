@@ -11,16 +11,20 @@
 //! resolve the value and modifier it depends on; a modifier-only sibling cannot make an
 //! unrelated branch valid.
 
+use stillwind_css::inspect_css_value;
 use stillwind_syntax::Value;
 
 use super::super::values::colors::CompatColorMode;
 use super::super::values::placeholders::{PreparedValues, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
+use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;
 
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ResolvedCssDeclarations {
+    pub(crate) token_uses: Vec<UtilityTokenUse>,
+    pub(crate) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the base branch, joined in authored order.
     pub(crate) base: String,
     /// Modern-color variants of the base declarations that differ from the legacy text,
@@ -138,6 +142,8 @@ pub(crate) fn resolve_css_declarations(
     let mut output = ResolvedCssDeclarations::default();
 
     for authored in declarations {
+        let tracked = theme.tracking_tokens();
+        let theme = &tracked;
         let authored_declaration = &authored.text;
         let contains_placeholder = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(")
@@ -180,6 +186,7 @@ pub(crate) fn resolve_css_declarations(
                 resolve_declaration_value(&declaration, theme, builtin)
             };
             resolved_placeholder |= contains_placeholder;
+            record_tokens(&mut output, theme, authored_declaration, &declaration);
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
             resolved_required_declarations += usize::from(contains_required);
@@ -217,6 +224,43 @@ pub(crate) fn resolve_css_declarations(
         .filter(|()| !*requires_modifier || resolved_modifier)
         .filter(|()| resolved_required_declarations == *required_declarations)
         .map(|()| output)
+}
+
+fn record_tokens(
+    output: &mut ResolvedCssDeclarations,
+    theme: &ThemeIndex,
+    authored: &str,
+    declaration: &str,
+) {
+    if let Some((property, _)) = declaration.split_once(':') {
+        output
+            .arbitrary_uses
+            .extend(
+                theme
+                    .selected_values()
+                    .into_iter()
+                    .map(|selection| UtilityArbitraryUse {
+                        base: true,
+                        property: property.trim().to_ascii_lowercase(),
+                        value: selection.value,
+                        color: selection.color,
+                    }),
+            );
+    }
+    let mut tokens = theme.selected_tokens();
+    tokens.extend(inspect_css_value(authored).1);
+    if tokens.is_empty() {
+        tokens.extend(inspect_css_value(declaration).1);
+    }
+    if let Some((property, _)) = declaration.split_once(':')
+        && !tokens.is_empty()
+    {
+        output.token_uses.push(UtilityTokenUse {
+            base: true,
+            property: property.trim().to_ascii_lowercase(),
+            tokens: tokens.into_iter().collect(),
+        });
+    }
 }
 
 /// Splits a declaration list without mistaking a semicolon in a string or a function

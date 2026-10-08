@@ -10,6 +10,7 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
+use stillwind_css::inspect_css_value;
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
 use super::super::builtins::registry::{
@@ -25,6 +26,10 @@ use crate::{ThemeIndex, UtilityOrderMode};
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
+    /// Direct token selections before inline values and compatibility fallbacks expand.
+    pub token_uses: Vec<UtilityTokenUse>,
+    /// Accepted arbitrary captures associated with their receiving declarations.
+    pub arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Ordering key of this resolution in the snapshot's configured mode, computed
     /// before variant application.
     pub order: UtilityOrder,
@@ -46,6 +51,30 @@ pub struct ResolvedUtility {
     /// fallbacks and selector-bearing branches must never be discarded merely because
     /// they share one candidate spelling.
     pub additional: Vec<ResolvedUtilityTarget>,
+}
+
+/// Theme tokens selected by one emitted declaration before their values expand.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UtilityTokenUse {
+    /// True when the declaration belongs to the utility's base list; false for nested or additional targets.
+    pub base: bool,
+    /// Decoded CSS property name receiving the selected tokens.
+    pub property: String,
+    /// Complete custom-property names; aliases retain the directly selected name.
+    pub tokens: Vec<String>,
+}
+
+/// One arbitrary source capture accepted by a utility declaration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UtilityArbitraryUse {
+    /// True for the base declaration list; false for nested and additional targets.
+    pub base: bool,
+    /// Decoded CSS property name receiving the capture.
+    pub property: String,
+    /// Decoded CSS text before token expansion and declaration formatting.
+    pub value: String,
+    /// The capture was accepted by a color value domain.
+    pub color: bool,
 }
 
 /// An extra selector target a resolved utility must also be emitted under.
@@ -81,6 +110,20 @@ pub fn resolve_utility(
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
             let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
+            resolution.arbitrary_uses.push(UtilityArbitraryUse {
+                base: true,
+                property: property.to_ascii_lowercase(),
+                value: value.clone(),
+                color: false,
+            });
+            let tokens = inspect_css_value(value).1;
+            if !tokens.is_empty() {
+                resolution.token_uses.push(UtilityTokenUse {
+                    base: true,
+                    property: property.to_ascii_lowercase(),
+                    tokens: tokens.into_iter().collect(),
+                });
+            }
             resolution.builtin_order = Some(arbitrary_property_order(property, theme));
             resolution
         }
@@ -147,6 +190,8 @@ pub fn resolve_utility(
         .collect();
     let selector = resolution.selector;
     Ok(Some(ResolvedUtility {
+        token_uses: resolution.token_uses,
+        arbitrary_uses: resolution.arbitrary_uses,
         order,
         required_properties: resolution.required_properties,
         candidate,

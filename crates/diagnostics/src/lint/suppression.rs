@@ -4,22 +4,22 @@
 //! string literals, so directive-shaped text inside a string or template is not a
 //! directive. A parsed directive carries the kind, the byte offset and zero-based line
 //! of its keyword, and its selected rules. An omitted list or `*` selects every rule;
-//! unknown names in an explicit list select no additional rules.
+//! unknown names in an explicit list select no additional rules and remain available for validation.
 //!
-//! The compiler filters analysis findings before lowering and filters the combined
-//! findings again after emission; suppression therefore cannot depend on which pass
-//! noticed a problem. A finding is judged by its first label, and a finding without
+//! The compiler validates directives and filters findings after all producers have run. A finding is judged by its first label, and a finding without
 //! labels is treated as covering the whole file.
 
 use std::collections::BTreeSet;
 
-use stillwind_source::SourceFile;
+use stillwind_source::{SourceFile, Span};
 
-use super::{LintFinding, LintKind};
+use super::{LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity};
 
 /// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LintDirectiveKind {
+    /// Unrecognized or malformed suppression keyword; it never changes reporting.
+    Invalid,
     /// `swlint-disable`: the listed rules stay off until a matching `enable`.
     Disable,
     /// `swlint-enable`: re-enables the listed rules from this point on.
@@ -41,6 +41,10 @@ pub struct LintDirective {
     pub line: usize,
     /// Rules selected by the directive; an omitted list or `*` selects every rule.
     pub rules: LintDirectiveRules,
+    /// End byte offset of the directive keyword.
+    pub end: usize,
+    /// Explicit rule spellings, including unknown names, with their byte offsets.
+    pub names: Vec<(String, usize)>,
 }
 
 /// Rules selected by one suppression directive.
@@ -75,65 +79,169 @@ impl LintDirectiveRules {
 /// remove findings, never add them. Retained findings keep their original order.
 ///
 /// Primary spans must refer to `source`; file identities and bounds are not validated.
+/// A directive cannot suppress validation or unused findings about itself.
 /// Only the first label's start offset participates. A missing label uses offset zero;
 /// secondary labels and messages do not affect suppression.
 pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>) {
     let directives = collect_lint_directives(source.text());
-    if directives.is_empty() {
-        return;
+    findings.retain(|finding| suppressing_directive(source, finding, &directives).is_none());
+}
+
+fn suppressing_directive(
+    source: &SourceFile,
+    finding: &LintFinding,
+    directives: &[LintDirective],
+) -> Option<usize> {
+    let offset = finding
+        .labels
+        .first()
+        .map_or(0, |label| label.span.start.0 as usize);
+    let line = source.text()[..offset.min(source.text().len())]
+        .bytes()
+        .filter(|byte| *byte == b'\n')
+        .count();
+    let mut active = None;
+    let mut local = None;
+    for (index, directive) in directives.iter().enumerate() {
+        if matches!(
+            finding.kind(),
+            LintKind::ValidLintSuppressions | LintKind::NoUnusedLintSuppressions
+        ) && (offset == directive.offset
+            || directive
+                .names
+                .iter()
+                .any(|(_, name_offset)| *name_offset == offset))
+        {
+            continue;
+        }
+        if !directive.rules.contains(finding.kind()) {
+            continue;
+        }
+        match directive.kind {
+            LintDirectiveKind::Disable if directive.offset <= offset => {
+                if active.is_none() {
+                    active = Some(index);
+                }
+            }
+            LintDirectiveKind::Enable if directive.offset <= offset => active = None,
+            LintDirectiveKind::DisableLine if directive.line == line => {
+                local = local.or(Some(index));
+            }
+            LintDirectiveKind::DisableNextLine if directive.line + 1 == line => {
+                local = local.or(Some(index));
+            }
+            _ => {}
+        }
     }
-    let line_starts = source
-        .text()
-        .match_indices('\n')
-        .map(|(offset, _)| offset + 1)
-        .chain(std::iter::once(source.text().len()))
-        .collect::<Vec<_>>();
-    findings.retain(|finding| {
-        let span = finding
-            .labels
-            .first()
-            .map_or(source.full_span(), |label| label.span);
-        let finding_offset = span.start.0 as usize;
-        let finding_line = line_starts.partition_point(|start| *start <= finding_offset);
-        let mut disabled = BTreeSet::new();
-        let mut disabled_all = false;
-        let mut suppressed = false;
+    active.or(local)
+}
+
+/// Validates suppression comments, detects unused disables after complete analysis, and filters findings.
+/// `complete` must be false when analysis stopped before all producers ran. Only enabled
+/// rules or rules with reported findings participate in unused checks. Validation findings
+/// do not make their own suppression directives count as used.
+pub fn finish_lint_findings(
+    source: &SourceFile,
+    settings: &LintSettings,
+    findings: &mut Vec<LintFinding>,
+    complete: bool,
+) {
+    let directives = collect_lint_directives(source.text());
+    let mut additional = Vec::new();
+    if settings.enabled_for_detection(LintKind::ValidLintSuppressions) {
         for directive in &directives {
-            match directive.kind {
-                LintDirectiveKind::DisableLine if directive.line == finding_line => {
-                    suppressed |= directive.rules.contains(finding.kind());
+            if directive.kind == LintDirectiveKind::Invalid {
+                additional.push(LintFinding::new(
+                    LintDiagnostic::InvalidLintSuppression {
+                        detail: format!(
+                            "unknown directive `{}`",
+                            &source.text()[directive.offset..directive.end]
+                        ),
+                    },
+                    directive_span(source, directive.offset, directive.end),
+                ));
+            }
+            for (name, offset) in &directive.names {
+                if name != "*" && LintKind::from_name(name).is_none() {
+                    additional.push(LintFinding::new(
+                        LintDiagnostic::InvalidLintSuppression {
+                            detail: format!("unknown rule `{name}`"),
+                        },
+                        directive_span(source, *offset, *offset + name.len()),
+                    ));
                 }
-                LintDirectiveKind::DisableNextLine if directive.line + 1 == finding_line => {
-                    suppressed |= directive.rules.contains(finding.kind());
-                }
-                LintDirectiveKind::Disable if directive.offset <= finding_offset => {
-                    if directive.rules.contains(finding.kind()) {
-                        match &directive.rules {
-                            LintDirectiveRules::All => disabled_all = true,
-                            LintDirectiveRules::Named(rules) => {
-                                disabled.extend(rules.iter().copied());
-                            }
-                        }
-                    }
-                }
-                LintDirectiveKind::Enable if directive.offset <= finding_offset => {
-                    match &directive.rules {
-                        LintDirectiveRules::All => {
-                            disabled_all = false;
-                            disabled.clear();
-                        }
-                        LintDirectiveRules::Named(rules) => {
-                            for rule in rules {
-                                disabled.remove(rule);
-                            }
-                        }
-                    }
-                }
-                _ => {}
             }
         }
-        !(suppressed || disabled_all || disabled.contains(&finding.kind()))
-    });
+    }
+    if complete && settings.enabled_for_detection(LintKind::NoUnusedLintSuppressions) {
+        let mut used = BTreeSet::new();
+        let mut executed = BTreeSet::new();
+        for finding in findings.iter() {
+            if settings.reporting_severity(finding.kind()) == LintSeverity::Off {
+                continue;
+            }
+            executed.insert(finding.kind());
+            if let Some(index) = suppressing_directive(source, finding, &directives) {
+                used.insert((index, finding.kind()));
+            }
+        }
+        for (index, directive) in directives.iter().enumerate() {
+            if matches!(
+                directive.kind,
+                LintDirectiveKind::Enable | LintDirectiveKind::Invalid
+            ) {
+                continue;
+            }
+            let eligible = |kind: LintKind| {
+                !matches!(
+                    kind,
+                    LintKind::ValidLintSuppressions
+                        | LintKind::NoUnusedLintSuppressions
+                        | LintKind::SortUtilities
+                ) && settings.reporting_severity(kind) != LintSeverity::Off
+                    && (settings.enabled_for_detection(kind) || executed.contains(&kind))
+            };
+            match &directive.rules {
+                LintDirectiveRules::All
+                    if LintKind::ALL.iter().copied().any(eligible)
+                        && !used.iter().any(|(used_index, _)| *used_index == index) =>
+                {
+                    additional.push(LintFinding::new(
+                        LintDiagnostic::UnusedLintSuppression { rule: "*".into() },
+                        directive_span(source, directive.offset, directive.end),
+                    ));
+                }
+                LintDirectiveRules::Named(rules) => {
+                    for kind in rules.iter().copied().filter(|kind| eligible(*kind)) {
+                        if used.contains(&(index, kind)) {
+                            continue;
+                        }
+                        let offset = directive
+                            .names
+                            .iter()
+                            .find(|(name, _)| name == kind.name())
+                            .map_or(directive.offset, |(_, offset)| *offset);
+                        additional.push(LintFinding::new(
+                            LintDiagnostic::UnusedLintSuppression {
+                                rule: kind.name().into(),
+                            },
+                            directive_span(source, offset, offset + kind.name().len()),
+                        ));
+                    }
+                }
+                LintDirectiveRules::All => {}
+            }
+        }
+    }
+    findings.extend(additional);
+    filter_lint_findings(source, findings);
+}
+
+fn directive_span(source: &SourceFile, start: usize, end: usize) -> Span {
+    match (u32::try_from(start), u32::try_from(end)) {
+        (Ok(start), Ok(end)) => Span::new(source.id(), start, end),
+        _ => source.full_span(),
+    }
 }
 
 /// Parses the `swlint-*` directives in `source`, in source order.
@@ -143,8 +251,8 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
 /// carry a trailing human explanation; rules are separated by whitespace or commas.
 ///
 /// A comment yields at most one directive, and only from its first `swlint-`
-/// occurrence; if the text after that occurrence names no keyword, the comment
-/// contributes nothing. There is no requirement that the keyword start the comment:
+/// occurrence. Unrecognized keywords are retained as invalid directives without changing
+/// reporting. There is no requirement that the keyword start the comment:
 /// prose containing a recognized directive spelling is parsed too.
 pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
     let bytes = source.as_bytes();
@@ -191,26 +299,41 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
             let relative = body.find("swlint-")?;
             let directive_offset = offset + relative;
             let rest = &body[relative + "swlint-".len()..];
-            // Longest keyword first: `disable` would otherwise swallow `disable-line`
-            // and `disable-next-line` and never see their kind.
-            let (kind, rest) = [
-                ("disable-next-line", LintDirectiveKind::DisableNextLine),
-                ("disable-line", LintDirectiveKind::DisableLine),
-                ("disable", LintDirectiveKind::Disable),
-                ("enable", LintDirectiveKind::Enable),
-            ]
-            .into_iter()
-            .find_map(|(name, kind)| rest.strip_prefix(name).map(|rest| (kind, rest)))?;
-            let rules = rest
+            let keyword_end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+            let keyword = &rest[..keyword_end];
+            let kind = match keyword {
+                "disable-next-line" => LintDirectiveKind::DisableNextLine,
+                "disable-line" => LintDirectiveKind::DisableLine,
+                "disable" => LintDirectiveKind::Disable,
+                "enable" => LintDirectiveKind::Enable,
+                _ => LintDirectiveKind::Invalid,
+            };
+            let end = directive_offset + "swlint-".len() + keyword.len();
+            let rest = &rest[keyword_end..];
+            let mut names = Vec::new();
+            let mut cursor = 0;
+            for name in rest
                 .split(|character: char| character.is_whitespace() || character == ',')
-                .take_while(|rule| *rule != "--")
-                .filter(|rule| !rule.is_empty())
-                .collect::<Vec<_>>();
-            let rules = if rules.is_empty() || rules.contains(&"*") {
+                .filter(|name| !name.is_empty())
+            {
+                if name == "--" {
+                    break;
+                }
+                let relative = rest[cursor..].find(name)? + cursor;
+                names.push((name.to_owned(), end + relative));
+                cursor = relative + name.len();
+            }
+            let rules = if kind == LintDirectiveKind::Invalid {
+                names.clear();
+                LintDirectiveRules::Named(BTreeSet::new())
+            } else if names.is_empty() || names.iter().any(|(name, _)| name == "*") {
                 LintDirectiveRules::All
             } else {
                 LintDirectiveRules::Named(
-                    rules.into_iter().filter_map(LintKind::from_name).collect(),
+                    names
+                        .iter()
+                        .filter_map(|(name, _)| LintKind::from_name(name))
+                        .collect(),
                 )
             };
             let line = source[..directive_offset]
@@ -222,6 +345,8 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
                 offset: directive_offset,
                 line,
                 rules,
+                end,
+                names,
             })
         })
         .collect()
@@ -395,5 +520,81 @@ mod tests {
         let mut findings = vec![suppressed, retained.clone()];
         filter_lint_findings(&source, &mut findings);
         assert_eq!(findings, vec![retained]);
+    }
+
+    #[test]
+    fn validation_reports_exact_unknown_names_and_malformed_keywords() {
+        let source = SourceFile::new(FileId(1), None, None,
+            "'// swlint-disable typo'\n// swlint-disable-line *,typo -- allowed explanation\n// swlint-disabled no-important\nx").unwrap();
+        let mut findings = Vec::new();
+        finish_lint_findings(&source, &LintSettings::with_defaults(), &mut findings, true);
+        let text = findings
+            .iter()
+            .map(|finding| source.slice(finding.labels[0].span).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(text, ["typo", "swlint-disabled"]);
+    }
+
+    #[test]
+    fn named_enable_restores_a_rule_under_a_wildcard_disable() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "// swlint-disable\n// swlint-enable no-important\nx",
+        )
+        .unwrap();
+        let offset = u32::try_from(source.text().rfind('x').unwrap()).unwrap();
+        let span = Span::new(source.id(), offset, offset + 1);
+        let mut findings = vec![
+            LintFinding::new(
+                LintDiagnostic::ImportantDeclaration {
+                    property: "color".into(),
+                },
+                span,
+            ),
+            LintFinding::new(LintDiagnostic::ClassProperty, span),
+        ];
+        filter_lint_findings(&source, &mut findings);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].kind(), LintKind::NoImportant);
+    }
+
+    #[test]
+    fn unused_checks_report_each_unused_rule_and_do_not_mask_themselves() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "// swlint-disable-next-line no-important,no-class-property\nx\n// swlint-disable\ny",
+        )
+        .unwrap();
+        let mut settings = LintSettings::with_defaults();
+        settings.insert(super::super::LintConfig::NoImportant(LintSeverity::Warn));
+        settings.insert(super::super::LintConfig::NoClassProperty(
+            LintSeverity::Warn,
+        ));
+        settings.insert(super::super::LintConfig::NoUnusedLintSuppressions(
+            LintSeverity::Warn,
+        ));
+        let offset = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
+        let mut findings = vec![LintFinding::new(
+            LintDiagnostic::ImportantDeclaration {
+                property: "color".into(),
+            },
+            Span::new(source.id(), offset, offset + 1),
+        )];
+        finish_lint_findings(&source, &settings, &mut findings, true);
+        let rules = findings
+            .iter()
+            .filter_map(|finding| match &finding.diagnostic {
+                LintDiagnostic::UnusedLintSuppression { rule } => Some(rule.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rules, ["no-class-property", "*"]);
+        let mut partial = Vec::new();
+        finish_lint_findings(&source, &settings, &mut partial, false);
+        assert_eq!(partial, [] as [LintFinding; 0]);
     }
 }

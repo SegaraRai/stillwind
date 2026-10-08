@@ -34,10 +34,14 @@ pub use compilation::{
 };
 pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit, SourceRange};
 pub use lint::{
-    CanonicalUtilitiesConfig, CanonicalUtilitiesOverride, LintConfig, LintDiagnostic,
+    ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
+    CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
+    LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintDiagnostic,
     LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding, LintKind, LintOverrides,
-    LintSettings, LintSeverity, RootFontSize, UtilityFailure, collect_lint_directives,
-    filter_lint_findings,
+    LintSettings, LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
+    RestrictedDeclarationsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
+    UtilityFailure, collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

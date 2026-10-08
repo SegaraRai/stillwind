@@ -40,7 +40,13 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
     ] {
         let (_, result) = compile(&format!("export const x = style({input});"), css);
         assert!(result.diagnostics.is_empty(), "{result:#?}");
-        assert!(result.lint_findings.is_empty(), "{result:#?}");
+        assert!(
+            result.lint_findings.iter().all(|finding| matches!(
+                finding.diagnostic,
+                LintDiagnostic::ConflictingUtilities { .. }
+            )),
+            "{result:#?}"
+        );
         assert!(
             result.css.ends_with("{color:red;color:blue;color:green;}"),
             "{input}: {}",

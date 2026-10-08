@@ -160,10 +160,46 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    if let Some(application) = resolve_registered_variant(value, theme) {
-        return Some(application);
+    resolve_named_variant_with(value, theme, |custom, capture, concrete| {
+        resolve_registered_variant_candidate(custom, capture, concrete, theme)
+    })
+}
+
+/// Visits definitions in resolution order, including the registry's bare token form.
+/// Only a successful evaluation stops the search.
+pub(super) fn resolve_named_variant_with<T>(
+    value: &str,
+    theme: &ThemeIndex,
+    mut evaluate: impl FnMut(&CustomVariant, Option<&str>, &str) -> Option<T>,
+) -> Option<T> {
+    for definitions in [theme.variants(), builtin_variants(theme)] {
+        for (custom, capture) in registered_variant_candidates(definitions, value) {
+            if let Some(result) = evaluate(custom, capture, value) {
+                return Some(result);
+            }
+        }
     }
-    resolve_bare_registered_variant(value, theme)
+    for custom in builtin_variants(theme) {
+        let Some(namespace) = custom
+            .sort
+            .as_ref()
+            .filter(|sort| sort.bare)
+            .and_then(|sort| sort.key.as_deref())
+            .and_then(variant_sort_namespace)
+        else {
+            continue;
+        };
+        if theme.token_in(namespace, value).is_none() {
+            continue;
+        }
+        let Some((prefix, suffix)) = custom.wildcard_parts() else {
+            continue;
+        };
+        if let Some(result) = evaluate(custom, Some(value), &format!("{prefix}{value}{suffix}")) {
+            return Some(result);
+        }
+    }
+    None
 }
 
 /// Decodes candidate whitespace while preserving CSS escapes used by selector parsing.
@@ -281,8 +317,7 @@ fn is_conditional_intrinsic(custom: &CustomVariant) -> bool {
         && parser.is_exhausted()
 }
 
-/// Resolves a named variant through project definitions, then built-ins, then the bare
-/// token form.
+/// Resolves a named variant through project definitions and then built-ins.
 pub(crate) fn resolve_registered_variant(
     value: &str,
     theme: &ThemeIndex,
@@ -291,25 +326,6 @@ pub(crate) fn resolve_registered_variant(
         return Some(application);
     }
     resolve_registered_variant_from(builtin_variants(theme), value, theme)
-}
-
-/// Resolves a variant that is spelled as a theme token without its prefix.
-///
-/// The definition supplies the prefix that turns the token back into a pattern, and the
-/// capture is the bare name, so `lg` can resolve a `min-*` definition only when the
-/// registry marks that definition as bare.
-pub(crate) fn resolve_bare_registered_variant(
-    value: &str,
-    theme: &ThemeIndex,
-) -> Option<VariantApplication> {
-    builtin_variants(theme).iter().find_map(|variant| {
-        let sort = variant.sort.as_ref().filter(|sort| sort.bare)?;
-        let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
-        theme.token_in(namespace, value)?;
-        let (prefix, suffix) = variant.wildcard_parts()?;
-        let expanded = format!("{prefix}{value}{suffix}");
-        resolve_registered_variant_candidate(variant, Some(value), &expanded, theme)
-    })
 }
 
 /// Resolves the first definition in `variants` whose name captures `value`.

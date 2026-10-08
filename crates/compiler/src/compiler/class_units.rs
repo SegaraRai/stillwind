@@ -12,13 +12,13 @@ use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{ModuleId, Span};
 
+use super::RuleBoundaries;
 use super::fragment::Emitted;
 use super::literal::{LiteralContribution, TransitionContribution};
 use super::props::{GeneratedClass, GuardStep};
 use super::symbols::generated_class_symbol;
 use super::utilities::emission::emit_utility_rules;
-use super::utilities::resolve::CompiledUtility;
-use crate::compiler::RuleBoundaries;
+use super::utilities::resolve::{CompiledUtility, UtilitySource};
 use crate::identifiers::{
     ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
 };
@@ -449,6 +449,7 @@ impl<'a> ClassUnits<'a> {
                 let _ = write!(declaration, "view-transition-name:var({property});");
             }
             let mut utility = CompiledUtility {
+                source: UtilitySource::default(),
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),

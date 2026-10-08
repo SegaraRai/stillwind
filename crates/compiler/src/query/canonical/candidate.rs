@@ -9,6 +9,7 @@ use stillwind_syntax::{Utility, parse_candidate};
 
 use super::index;
 use super::preview::{CanonicalPreview, dimension, spacing_properties};
+use crate::compiler::candidate_allowed;
 use crate::query::{DesignSystemQuery, QueryContext, last_top_level};
 
 impl DesignSystemQuery {
@@ -32,7 +33,13 @@ impl DesignSystemQuery {
         if let Some(cached) = self.canonical_cache.borrow().get(raw) {
             return Ok(cached.clone());
         }
-        let result = self.find_canonical(raw)?;
+        let result = self.find_canonical(raw)?.filter(|candidate| {
+            candidate_allowed(
+                candidate,
+                self.context.design_system.theme(),
+                &self.lint_settings(),
+            )
+        });
         self.canonical_cache
             .borrow_mut()
             .insert(raw.to_owned(), result.clone());

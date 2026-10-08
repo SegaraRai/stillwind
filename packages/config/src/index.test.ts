@@ -4,9 +4,64 @@ import {
   defineConfig,
   resolveConfig,
   validateConfig,
+  type LintOptions,
   type StillwindConfig,
   type StillwindConfigExport,
 } from "./index.ts";
+
+test("utility policies accept typed options and reject malformed restrictions", () => {
+  const lint: LintOptions = {
+    "prefer-direct-styling": "off",
+    "duplicate-utilities": "deny",
+    "conflicting-utilities": {
+      allowShorthandOverrides: true,
+    },
+    "prefer-logical-properties": "warn",
+    "length-units": {
+      rules: [
+        {
+          properties: ["padding*"],
+          disallow: ["px"],
+        },
+      ],
+    },
+    "no-restricted-theme-tokens": {
+      tokens: ["--color-red-*", "--spacing-ref-*", "--radius-ref-*"],
+    },
+    "no-arbitrary-breakpoints": "deny",
+  };
+  const config = {
+    projects: [
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+        lint,
+      },
+    ],
+  };
+  expect(validateConfig(config)).toBe(config);
+  for (const lint of [
+    { "conflicting-utilities": { allowShorthandOverrides: "true" } },
+    { "length-units": { rules: [{ properties: [], disallow: ["px"] }] } },
+    { "length-units": { rules: [{ properties: ["padding"], disallow: [16] }] } },
+    { "no-restricted-theme-tokens": { tokens: ["spacing-*"] } },
+    { "no-restricted-theme-tokens": { tokens: ["--"] } },
+    { "no-arbitrary-breakpoints": { severity: "warn" } },
+    { "no-restricted-theme-tokens": { regex: "red" } },
+  ]) {
+    expect(() =>
+      validateConfig({
+        projects: [
+          {
+            css: "theme.css",
+            files: ["*.tsx"],
+            lint,
+          },
+        ],
+      }),
+    ).toThrow();
+  }
+});
 
 test("lint conversion fields and independent sorting targets are validated", () => {
   const config = {
@@ -38,7 +93,9 @@ test("lint conversion fields and independent sorting targets are validated", () 
             css: "theme.css",
             files: ["*.tsx"],
             lint: {
-              "canonical-utilities": { rootFontSize },
+              "canonical-utilities": {
+                rootFontSize,
+              },
             },
           },
         ],
@@ -174,4 +231,68 @@ test.each([
   { projects: [{ css: "theme.css", files: ["*.ts"], projection: { kind: "custom" } }] },
 ])("invalid settings reject before loading resources: %j", (config) => {
   expect(() => validateConfig(config)).toThrow();
+});
+
+test("source restrictions validate options at the configuration boundary", () => {
+  const lint: LintOptions = {
+    "no-arbitrary-colors": "warn",
+    "no-arbitrary-spacing": { properties: ["width", "inset-*"] },
+    "no-class-property": "deny",
+    "no-important": "warn",
+    "valid-lint-suppressions": "warn",
+    "no-unused-lint-suppressions": "warn",
+    "no-restricted-utilities": {
+      utilities: [
+        {
+          pattern: "legacy-*",
+          message: "Use semantic utilities",
+        },
+      ],
+    },
+    "no-restricted-declarations": {
+      rules: [
+        {
+          properties: ["transition-property"],
+          values: ["all"],
+          message: "Select properties",
+        },
+      ],
+    },
+  };
+  const config = {
+    projects: [
+      {
+        css: "theme.css",
+        files: ["*.tsx"],
+        lint,
+      },
+    ],
+  };
+  expect(validateConfig(config)).toBe(config);
+  for (const lint of [
+    { "no-arbitrary-spacing": { properties: ["padding left"] } },
+    { "no-arbitrary-colors": { severity: "warn" } },
+    { "no-restricted-utilities": { utilities: [{ pattern: "" }] } },
+    { "no-restricted-utilities": { utilities: [{ pattern: "p-*", message: 1 }] } },
+    { "no-restricted-declarations": { rules: [{ properties: [], values: ["all"] }] } },
+    { "no-restricted-declarations": { rules: [{ properties: ["padding"], values: [] }] } },
+    {
+      "no-restricted-declarations": {
+        rules: [{ properties: ["padding"], values: ["1px"], fix: "p-1" }],
+      },
+    },
+    { "no-important": "error" },
+  ]) {
+    expect(() =>
+      validateConfig({
+        projects: [
+          {
+            css: "theme.css",
+            files: ["*.tsx"],
+            lint,
+          },
+        ],
+      }),
+    ).toThrow();
+  }
 });

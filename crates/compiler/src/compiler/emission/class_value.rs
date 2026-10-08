@@ -16,19 +16,50 @@ use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmissionPart};
 use super::super::style_variants::{StyleVariantPlan, parse_prefix};
+use super::super::utilities::policy::check_variant;
 use super::super::variants::document_scoped_selector;
 use super::{CallEmitter, PendingRegion};
+use crate::editor_lint::literal_boundaries;
 use crate::generated::js_string;
 use crate::runtime::RuntimeHelper;
 
 impl CallEmitter<'_> {
-    /// Reports a wrapper prefix whose variants would apply to the document instead of
-    /// to the styled element.
-    ///
-    /// The check runs once per authored wrapper, so one wrapper covering several
-    /// literals is reported once. The wrapper still lowers; the host decides the
-    /// policy's severity.
-    fn report_document_scoped_variant(&mut self, variant: &StyleVariant) {
+    /// Reports source policies once per authored variant wrapper, even when that
+    /// wrapper covers several literals. Container queries have no viewport policy.
+    fn report_wrapper_lints(&mut self, variant: &StyleVariant) {
+        let prefixes = match variant {
+            StyleVariant::Prefix(prefix) => vec![prefix],
+            StyleVariant::Ref { condition, scopes } => std::iter::once(&condition.prefix)
+                .chain(scopes.iter().map(|scope| &scope.prefix))
+                .collect(),
+            StyleVariant::Container { .. } => Vec::new(),
+        };
+        for prefix in prefixes {
+            if let Some(variants) = parse_prefix(prefix) {
+                let boundaries = literal_boundaries(self.source, prefix);
+                let mut offset = 0;
+                for variant in variants {
+                    let end = offset + variant.raw.len();
+                    let span = boundaries
+                        .as_ref()
+                        .and_then(|boundaries| {
+                            Some(Span::new(
+                                prefix.span.file,
+                                *boundaries.get(offset)?,
+                                *boundaries.get(end)?,
+                            ))
+                        })
+                        .unwrap_or(prefix.span);
+                    self.lint_findings.extend(check_variant(
+                        &variant,
+                        self.theme,
+                        &self.lint_settings,
+                        span,
+                    ));
+                    offset = end + 1;
+                }
+            }
+        }
         let StyleVariant::Prefix(prefix) = variant else {
             return;
         };
@@ -192,6 +223,13 @@ impl CallEmitter<'_> {
                 any.then_some(Emitted::Group(items))
             }
             ClassExpression::ClassValue { span, arguments } => {
+                if self
+                    .lint_settings
+                    .enabled_for_detection(LintKind::NoClassProperty)
+                {
+                    self.lint_findings
+                        .push(LintFinding::new(LintDiagnostic::ClassProperty, *span));
+                }
                 if arguments.is_empty() {
                     return None;
                 }
@@ -231,13 +269,35 @@ impl CallEmitter<'_> {
                     self.theme,
                     self.diagnostics,
                 )?;
-                let contribution = LiteralContribution::resolve(
+                let mut contribution = LiteralContribution::resolve(
                     value,
                     &plan,
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,
                 );
+                if let Some(boundaries) = literal_boundaries(self.source, value) {
+                    for utility in &mut contribution.utilities {
+                        for span in &mut utility.source.variant_spans {
+                            let start = (span.start.0 - value.span.start.0) as usize;
+                            let end = (span.end.0 - value.span.start.0) as usize;
+                            if let (Some(&start), Some(&end)) =
+                                (boundaries.get(start), boundaries.get(end))
+                            {
+                                *span = Span::new(value.span.file, start, end);
+                            }
+                        }
+                        if let Some(span) = utility.source.span {
+                            let start = (span.start.0 - value.span.start.0) as usize;
+                            let end = (span.end.0 - value.span.start.0) as usize;
+                            if let (Some(&start), Some(&end)) =
+                                (boundaries.get(start), boundaries.get(end))
+                            {
+                                utility.source.span = Some(Span::new(value.span.file, start, end));
+                            }
+                        }
+                    }
+                }
                 self.record_properties(&contribution, false, value.span, guard, None, None);
                 self.contribute_rule(contribution, guard, fold)
             }
@@ -286,7 +346,7 @@ impl CallEmitter<'_> {
                 })
             }
             RuleExpression::Variant { variant, inputs } => {
-                self.report_document_scoped_variant(variant);
+                self.report_wrapper_lints(variant);
                 wrappers.push(variant.clone());
                 let items = inputs
                     .iter()

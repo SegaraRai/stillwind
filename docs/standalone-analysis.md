@@ -320,6 +320,166 @@ semantic dependencies. The Playground's separate TS Server provides ordinary
 editor completions, navigation, and TypeScript diagnostics.
 Call `close()` when releasing these objects.
 
+## Utility lint policies
+
+`duplicate-utilities` and `conflicting-utilities` default to `warn`. They compare
+utilities supplied directly to one `style()` call, including its arrays and
+variant wrappers. Comparisons require compatible source conditions and identical
+expanded CSS selector and at-rule contexts. Composed bases and ref providers use
+the existing composition rules. Identical declarations shared by separate utilities
+do not conflict. Duplicate findings compare candidate spellings.
+
+`conflicting-utilities.allowShorthandOverrides` defaults to `false`, so `p-2 px-4`
+reports an overlap. Setting it to `true` allows a narrower declaration to override
+part of a shorthand. Two different values for the same property still conflict.
+Logical and physical longhands still conflict when their relationship depends on
+writing mode.
+
+The other utility policies default to off. Supplying a policy object enables it at `warn`
+unless its severity was configured in CSS or in that object.
+
+```ts
+lint: {
+  "prefer-direct-styling": "warn",
+  "prefer-logical-properties": "warn",
+  "length-units": {
+    rules: [
+      { properties: ["*"], disallow: ["px"] },
+      { properties: ["border-*-width", "outline-width"], disallow: ["rem"] },
+    ],
+  },
+  "no-restricted-theme-tokens": {
+    tokens: ["--color-red-*", "--spacing-ref-*", "--radius-ref-*"],
+  },
+  "no-arbitrary-breakpoints": "warn",
+}
+```
+
+The arbitrary-value, class, utility, declaration, and important restrictions default
+to off. Object options enable a rule at `warn` unless CSS or the object supplies its
+severity.
+
+```ts
+lint: {
+  "no-arbitrary-colors": "warn",
+  "no-arbitrary-spacing": { properties: ["width", "inset", "inset-*"] },
+  "no-class-property": "warn",
+  "no-important": "warn",
+  "no-restricted-utilities": {
+    utilities: [{ pattern: "legacy-*", message: "Use semantic utilities" }],
+  },
+  "no-restricted-declarations": {
+    rules: [{ properties: ["transition-property"], values: ["all"] }],
+  },
+  "valid-lint-suppressions": "warn",
+  "no-unused-lint-suppressions": "warn",
+}
+```
+
+`no-arbitrary-colors` checks explicitly supplied values before theme expansion.
+It reports `bg-[#fff]`, `[color:#fff]`, and literal colors within gradients,
+borders, and shadows. Named utility definitions and theme values may contain
+literal colors. Variable references, `transparent`, `currentColor`, and CSS-wide
+keywords are allowed. Strings and URL arguments are skipped. Variable fallbacks
+are checked. Color functions with variable-dependent channels are allowed;
+literal colors in those functions remain subject to inspection.
+
+`no-arbitrary-spacing` checks nonzero lengths and percentages in arbitrary margin,
+padding, and gap values, including values inside math functions and variable
+fallbacks. Zero values, keywords, variable references, and named spacing values
+are allowed. `properties` adds case-insensitive complete property globs using
+`*` and `?`. A matching shorthand also selects its components. Width, height,
+inset, and border width are excluded unless added.
+Fixed declarations inside named utility definitions are allowed.
+
+Both arbitrary-value rules also inspect literal custom-property assignments when
+a utility in the same call consumes them in the relevant property domain. They
+follow local literal aliases with a cycle and depth bound. An unused variable,
+a runtime value, a conditional assignment, a competing assignment, or a call
+with composed props cannot establish a definite literal value and is skipped.
+Diagnostics highlight the literal assignment when it supplies the forbidden value.
+
+`no-class-property` reports explicit `class` contributions inside style objects,
+including contributions inside arrays and JavaScript conditions. It allows
+composition of completed styles and does not inspect generated `class` or
+`className` output. External classes are not inspected by utility restrictions.
+An ordinary `style` key is already an invalid macro input; generated inline style
+remains available for custom properties and dynamic view transitions.
+
+`no-restricted-utilities.utilities` contains complete, case-sensitive utility globs
+using `*` and `?`, with optional diagnostic messages. Matching removes enclosing
+variants and important modifiers but keeps signs and slash modifiers. Unresolved
+utility names are checked too. Canonical suggestions cannot introduce a restricted
+utility. The rule does not rewrite a forbidden name automatically.
+
+`no-restricted-declarations.rules` matches emitted declarations and parsed shorthand
+components, including declarations inside named utilities and nested rules.
+Property and serialized value globs ignore ASCII case and match the complete text.
+The priority suffix is removed before value matching. Every matching restriction
+applies, and an optional `message` explains the project's policy. Values remain CSS
+text, so patterns can also match quoted strings and URL arguments.
+
+`no-important` reports important declarations from explicit modifiers, arbitrary
+properties, and named utility bodies. These declaration policies share the utility
+emitter's resolved declarations and do not inspect unrelated global stylesheet rules.
+
+`valid-lint-suppressions` defaults to `warn`. It reports unknown rule names and
+malformed `swlint-*` keywords at their source locations. Explanations after `--`
+are allowed. Unknown names never select other rules. A directive cannot suppress
+a validation finding about itself; other directives can suppress this rule.
+
+`no-unused-lint-suppressions` defaults to off. It reports each unused named rule in a disable comment,
+or one finding for an unused wildcard disable. Only enabled rules and rules with
+reported findings participate. Suppression validation rules do not count as uses.
+Sorting is performed separately and does not participate in this check. Failed
+analysis skips unused checks. Project sessions combine source findings with current
+composition findings before checking usage again when a base changes. A disable
+comment cannot hide its own unused finding. A named enable restores that rule even
+under a wildcard disable.
+
+`prefer-direct-styling` encourages colocating styles on the element they affect.
+It reports variants that select another element, including mixed selector lists.
+Pseudo-elements are classified by their originating element: `&::before` and
+`&::part(...)` are allowed, while `& > span::before` reports the indirect selection
+of `span`. Ancestor conditions such as `.parent &` and `&:has(...)` keep the
+attachment target. Internal selectors authored in utility definitions are allowed.
+Selectors the compiler cannot classify are skipped.
+
+`prefer-logical-properties` checks emitted declarations with logical counterparts,
+including `text-align: left`, `float: right`, and asymmetric four-side shorthands.
+Uniform four-side shorthands are allowed. The rule does not rewrite declarations
+because their meaning depends on writing mode.
+
+`length-units` uses complete property-name globs with `*` and `?`, ignoring ASCII
+case. The last matching rule replaces earlier restrictions. Parsed shorthands use
+their component properties, which can override a restriction on the shorthand.
+Zero lengths, strings, and URLs are excluded. Known theme values are followed with
+a cycle and depth bound; unresolved runtime variables are skipped. Restrictions
+can prohibit `rem` as well as `px`.
+
+`no-restricted-theme-tokens.tokens` must contain at least one complete custom-property
+name pattern starting with `--` when the rule is enabled. Patterns use case-sensitive
+`*` and `?` globs. The rule covers defined theme tokens of every type. The compiler
+records direct selections by utilities and variants before inline expansion.
+A semantic token may refer to a restricted token internally. Its own name is checked
+when used directly. Unresolved runtime variables are excluded. The compiler does not
+infer token roles from values or alias relationships.
+
+`no-arbitrary-breakpoints` reports viewport width and height comparisons supplied
+directly in variants, such as `max-[900px]`, `min-[48rem]`, and
+`[@media(width>=900px)]`. Range expressions, legacy min/max features, and compound
+media conditions are included. A value equal to a named breakpoint still reports.
+Named theme captures and fixed conditions in named custom variants are allowed.
+Custom variants that accept explicit size values are checked through the selected
+value domain. Other media features, support conditions, container queries, and media
+queries inside utility definitions are excluded. One wrapper produces one finding
+per offending variant, even when it contains several utility literals.
+
+These policies provide diagnostics without automatic fixes. Canonical utility
+suggestions are omitted when their replacement violates an enabled policy. Source
+suppression uses the same rule names, for example
+`// swlint-disable-next-line duplicate-utilities`.
+
 ## Editor sorting
 
 `sort.arrays` groups direct arrays, `style()` argument lists, and object entries by input kind. It defaults to true. Ref groups retain their first appearance order, with each ref's marker before its projections. Bases, utilities, custom properties, and attributes follow. Entries in each category retain their original order. A base can contain variants, custom properties, or composed styles; the sorter uses its identity without inspecting its body or CSS.

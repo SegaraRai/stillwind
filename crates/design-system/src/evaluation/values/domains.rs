@@ -75,13 +75,20 @@ pub(crate) fn resolve_value_domains(
         let expected = ValueDomain::from_hint(domain.strip_prefix('[')?.strip_suffix(']')?)?;
         if let Some(variable) = parse_css_variable(capture?) {
             let hint_is_compatible = variable.hint.is_none_or(|hint| expected.accepts_hint(hint));
-            return hint_is_compatible.then(|| format!("var({})", variable.name));
+            return hint_is_compatible.then(|| {
+                theme.record_variable_token(variable.name);
+                format!("var({})", variable.name)
+            });
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary_hint(arbitrary);
         let value = decode_arbitrary(value);
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
-        (hint_is_compatible && accepts_runtime_value(expected, &value)).then_some(value)
+        (hint_is_compatible && accepts_runtime_value(expected, &value)).then(|| {
+            theme.record_value_tokens(&value);
+            theme.record_arbitrary_value(&value, Some(expected) == ValueDomain::from_hint("color"));
+            value
+        })
     })
 }
 

@@ -13,7 +13,7 @@ use super::super::symbols::{
     anchor_name, identity_input_parts, projection_symbol, ref_container_name, ref_context,
     ref_identity, ref_marker_name, ref_projection_name,
 };
-use super::super::utilities::resolve::CompiledUtility;
+use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
 use super::CallEmitter;
 use crate::generated::Code;
 use crate::style_analysis::SupplyKind;
@@ -194,6 +194,7 @@ pub(super) fn rule_contribution(
         declaration
     );
     let mut utility = CompiledUtility {
+        source: UtilitySource::default(),
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),

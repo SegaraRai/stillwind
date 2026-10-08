@@ -22,13 +22,15 @@ pub use builtins::{
     builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
 };
 pub use utilities::{
-    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget, UtilityOrder,
-    UtilityPropertySort, UtilityResolutionError, resolve_animation_option, resolve_utility,
+    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget,
+    UtilityArbitraryUse, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
+    UtilityTokenUse, resolve_animation_option, resolve_utility,
 };
 pub use variants::{
-    VariantApplication, VariantDeclaration, VariantSequenceOrder, compare_variant_sequences,
+    ResolvedVariant, VariantApplication, VariantDeclaration, VariantMediaValue,
+    VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
     compatibility_marker_class, document_scoped_selector, is_condition_variant,
-    is_tailwind_relationship_candidate, resolve_variant,
+    is_tailwind_relationship_candidate, resolve_variant, resolve_variant_with_usage,
 };
 
 pub(crate) use programs::UtilityPrograms;

@@ -38,6 +38,7 @@ pub(crate) fn theme_value(
         // variable paths do not share that restriction.
         _ if !value.is_ascii() => return None,
         _ if let Some(token) = theme.token_in(namespace, value) => {
+            theme.record_token(&token.name.value);
             if matches!(token.mode, ThemeTokenMode::Inline) {
                 token.value.value.clone()
             } else {
@@ -54,6 +55,7 @@ pub(crate) fn theme_value(
                     return Some("0".to_owned());
                 }
                 let scale_name = theme.scale(ThemeNamespace::Spacing)?.name.value.as_str();
+                theme.record_token(scale_name);
                 return Some(format!("calc(var({scale_name}) * {value})"));
             } else {
                 return None;
@@ -78,7 +80,10 @@ pub(crate) fn theme_value_literal(
         _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
             format!("var({value})")
         }
-        _ if let Some(token) = theme.token_in(namespace, value) => token.value.value.clone(),
+        _ if let Some(token) = theme.token_in(namespace, value) => {
+            theme.record_token(&token.name.value);
+            token.value.value.clone()
+        }
         _ => return theme_value(namespace, value, theme),
     };
     Some(value)
@@ -103,7 +108,11 @@ pub(crate) fn typed_theme_arbitrary(
         || ValueType::from_hint(hint)
             .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint)));
     (hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
-        .then_some(value)
+        .then(|| {
+            theme.record_value_tokens(&value);
+            theme.record_arbitrary_value(&value, types.contains(&ValueType::Color));
+            value
+        })
 }
 
 /// The value types declared for a namespace by the selected built-ins.
@@ -161,7 +170,10 @@ pub(crate) fn typed_css_variable<'a>(
             .hint
             .and_then(ValueType::from_hint)
             .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint))))
-    .then_some(variable.name)
+    .then(|| {
+        theme.record_variable_token(variable.name);
+        variable.name
+    })
 }
 
 #[cfg(test)]
