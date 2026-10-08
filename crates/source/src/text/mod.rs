@@ -6,7 +6,6 @@
 //! Byte offsets are the internal currency; [`SourceFile::position`] and
 //! [`SourceFile::utf16_offset`] exist only to talk to editors, which count UTF-16 code
 //! units.
-
 //!
 //! `uri` validates host document identities. `span` defines byte ranges and their
 //! buffer identities. `file` validates immutable text and converts editor positions.
