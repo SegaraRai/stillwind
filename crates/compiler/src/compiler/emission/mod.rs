@@ -16,6 +16,7 @@
 //! contribution kind each. `style_analysis` records declarations, markers, and source
 //! decisions before class-unit merging removes their original use boundaries.
 //!
+//! `static_properties` finds literals that can be emitted outside runtime guards.
 //! `asset_record` defines the property keys shared with asset serialization.
 
 mod asset_record;
@@ -23,6 +24,7 @@ mod call;
 mod class_value;
 mod keyframes_use;
 mod ref_projection;
+mod static_properties;
 mod style_analysis;
 mod view_transition;
 
@@ -31,3 +33,4 @@ pub(super) use call::{CallEmitter, CallEmitterInputs};
 pub(super) use style_analysis::collect_declarations;
 
 use call::PendingRegion;
+use static_properties::static_custom_properties;

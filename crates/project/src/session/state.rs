@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, GeneratedSymbol, IdentifierPool, Identifiers,
-    ModuleArtifactKey, ModuleCompiler, StyleResolver, StylesheetRenderer, check_style,
+    CompiledModule, CompilerOptions, GeneratedSymbol, Identifiers, ModuleArtifactKey,
+    ModuleCompiler, StyleResolver, StylesheetRenderer, check_style,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
@@ -18,8 +18,8 @@ use stillwind_diagnostics::{
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
-use crate::ReservedNames;
-use crate::{DependencyIndex, ProjectStylesheet};
+use super::{DiagnosticState, DocumentNames};
+use crate::{DependencyIndex, ProjectStylesheet, ReservedNames};
 
 /// Why a design-system reload could not be applied.
 #[derive(Debug, thiserror::Error)]
@@ -71,12 +71,6 @@ pub struct SessionReload {
     pub diagnostics: BTreeMap<ModuleId, Vec<CompileError>>,
 }
 
-/// Original source and fatal findings from an attempt that produced no analysis.
-struct RejectedSourceAttempt {
-    source: Arc<SourceFile>,
-    diagnostics: Vec<CompileError>,
-}
-
 /// Keeps the analyses and compiled output for a project.
 ///
 /// Session clones share analyses and compiled modules through `Arc`, so transactions
@@ -85,11 +79,8 @@ struct RejectedSourceAttempt {
 pub struct ProjectSession {
     /// Stores script sources. The active design-system snapshot stores CSS sources.
     sources: SourceRegistry,
-    /// Keeps each module's latest diagnostic batch even if its active output is older.
-    reported: BTreeMap<ModuleId, DiagnosticBatch>,
-    /// Attempts rejected before an analysis could be built. Their older artifacts
-    /// remain available in watch mode but cannot satisfy current semantic queries.
-    rejected_sources: BTreeMap<ModuleId, Arc<RejectedSourceAttempt>>,
+    /// Reports and rejected source attempts for each module's latest revision.
+    diagnostics: DiagnosticState,
     /// Active immutable design-system revision used for compilation.
     current: DesignSystemSnapshot,
     /// Compiler configuration shared by all artifacts in this session.
@@ -159,8 +150,7 @@ impl ProjectSession {
         );
         Self {
             sources,
-            reported: BTreeMap::new(),
-            rejected_sources: BTreeMap::new(),
+            diagnostics: DiagnosticState::default(),
             current: snapshot,
             options,
             identifiers,
@@ -221,18 +211,17 @@ impl ProjectSession {
 
     /// Publishes the latest attempted reports while retaining active watch artifacts.
     pub fn retain_attempted_diagnostics(&mut self, attempted: &Self) {
-        self.reported = attempted.reported.clone();
-        self.rejected_sources = attempted.rejected_sources.clone();
+        self.diagnostics = attempted.diagnostics.clone();
     }
 
     /// Returns the last reported batch for each retained module.
     pub fn diagnostic_batches(&self) -> &BTreeMap<ModuleId, DiagnosticBatch> {
-        &self.reported
+        self.diagnostics.batches()
     }
 
     /// Replaces one module's diagnostics for its latest attempted input revision.
     pub fn publish_diagnostic_batch(&mut self, module: ModuleId, batch: DiagnosticBatch) {
-        self.reported.insert(module, batch);
+        self.diagnostics.publish(module, batch);
     }
 
     /// Records an attempt that failed before compilation. `source` and `diagnostics`
@@ -248,13 +237,7 @@ impl ProjectSession {
         if self.mode == SessionMode::Build {
             self.remove_artifact(&module);
         }
-        self.rejected_sources.insert(
-            module,
-            Arc::new(RejectedSourceAttempt {
-                source,
-                diagnostics,
-            }),
-        );
+        self.diagnostics.reject(module, source, diagnostics);
         self.refresh_style_lints(dependents);
     }
 
@@ -271,9 +254,7 @@ impl ProjectSession {
                 retained.retain(analysis.source.clone())?;
             }
         }
-        for attempted in self.rejected_sources.values() {
-            retained.retain(attempted.source.clone())?;
-        }
+        self.diagnostics.retain_sources(&mut retained)?;
         self.sources = retained;
         Ok(())
     }
@@ -355,7 +336,7 @@ impl ProjectSession {
     /// keys differ. This lookup compares stored keys without hashing the IR or changing
     /// the session.
     pub fn current_artifact(&self, module: &ModuleId) -> Option<&CompiledModule> {
-        if self.rejected_sources.contains_key(module) {
+        if self.diagnostics.is_rejected(module) {
             return None;
         }
         let analysis = self.analyses.get(module)?;
@@ -434,7 +415,7 @@ impl ProjectSession {
     /// updated in direct and indirect consumers using only artifacts that match current
     /// analyses.
     pub fn update_module(&mut self, analysis: ModuleAnalysis) -> ModuleUpdate {
-        self.rejected_sources.remove(&analysis.module_id);
+        self.diagnostics.clear_rejection(&analysis.module_id);
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         let key = backend.key_for(&analysis);
         self.analysis_keys
@@ -454,7 +435,7 @@ impl ProjectSession {
         let mut compiled = backend.compile(&analysis, &self.identifiers);
         let mut symbols = self.document_names(Some(&module_id));
         for symbol in &compiled.symbols {
-            if let Some(collision) = insert_document_name(&mut symbols, symbol) {
+            if let Some(collision) = symbols.insert(symbol) {
                 compiled
                     .diagnostics
                     .push(CompileError::new(collision, analysis.source.full_span()));
@@ -495,7 +476,7 @@ impl ProjectSession {
         let mut dependents = BTreeSet::new();
         let backend = ModuleCompiler::new(self.current.clone(), self.options.clone());
         for analysis in analyses {
-            self.rejected_sources.remove(&analysis.module_id);
+            self.diagnostics.clear_rejection(&analysis.module_id);
             self.analysis_keys.insert(
                 analysis.module_id.clone(),
                 Arc::new(backend.key_for(&analysis)),
@@ -516,8 +497,7 @@ impl ProjectSession {
     pub fn remove_module(&mut self, module: &ModuleId) -> bool {
         let removed = self.analyses.remove(module).is_some();
         self.analysis_keys.remove(module);
-        self.reported.remove(module);
-        self.rejected_sources.remove(module);
+        self.diagnostics.remove(module);
         let dependents = self.composition_dependents(module);
         self.remove_artifact(module);
         self.refresh_style_lints(dependents);
@@ -658,8 +638,7 @@ impl ProjectSession {
             self.identifiers.clone(),
         );
         next.sources = self.sources.clone();
-        next.reported = self.reported.clone();
-        next.rejected_sources = self.rejected_sources.clone();
+        next.diagnostics = self.diagnostics.clone();
         next.authored = self.authored.clone();
         if next.current.fingerprints().content == self.current.fingerprints().content
             && next.options == self.options
@@ -669,16 +648,14 @@ impl ProjectSession {
             next.dependencies = self.dependencies.clone();
         }
         let mut update = SessionReload::default();
-        for (id, attempt) in &self.rejected_sources {
-            update
-                .diagnostics
-                .insert(id.clone(), attempt.diagnostics.clone());
+        for (id, diagnostics) in self.diagnostics.rejections() {
+            update.diagnostics.insert(id.clone(), diagnostics.to_vec());
             if self.mode == SessionMode::Build {
                 next.remove_artifact(id);
             }
         }
         for (id, analysis) in &self.analyses {
-            if self.rejected_sources.contains_key(id) {
+            if self.diagnostics.is_rejected(id) {
                 next.analyses.insert(id.clone(), analysis.clone());
                 continue;
             }
@@ -709,24 +686,14 @@ impl ProjectSession {
     /// `except` names one module whose symbols are left out, so it can be checked against the rest
     /// of the document. An authored name already owns its namespace, so a generated name equal to
     /// one is reported even when no producer generated it.
-    fn document_names(&self, except: Option<&ModuleId>) -> BTreeMap<(IdentifierPool, &str), &str> {
-        let mut names: BTreeMap<_, _> = self
-            .artifacts
-            .iter()
-            .filter(|(id, _)| except != Some(*id))
-            .flat_map(|(_, artifact)| artifact.symbols.iter())
-            .map(|symbol| {
-                (
-                    (symbol.pool, symbol.name.as_str()),
-                    symbol.identity.as_str(),
-                )
-            })
-            .collect();
-        insert_reserved(&mut names, &self.reserved);
-        for authored in self.authored.values() {
-            insert_reserved(&mut names, authored);
-        }
-        names
+    fn document_names(&self, except: Option<&ModuleId>) -> DocumentNames<'_> {
+        DocumentNames::new(
+            self.artifacts
+                .iter()
+                .filter(|(id, _)| except != Some(*id))
+                .flat_map(|(_, artifact)| artifact.symbols.iter()),
+            std::iter::once(&self.reserved).chain(self.authored.values()),
+        )
     }
 
     /// Checks every published artifact against the document's names, in module order.
@@ -736,7 +703,7 @@ impl ProjectSession {
         for (id, artifact) in &self.artifacts {
             let mut diagnostics = Vec::new();
             for symbol in &artifact.symbols {
-                if let Some(collision) = insert_document_name(&mut names, symbol) {
+                if let Some(collision) = names.insert(symbol) {
                     diagnostics.push(CompileError::new(collision, self.module_span(id)));
                 }
             }
@@ -765,53 +732,10 @@ impl ProjectSession {
     ) -> Result<(), CompileDiagnostic> {
         let mut names = self.document_names(None);
         for symbol in symbols {
-            if let Some(collision) = insert_document_name(&mut names, symbol) {
+            if let Some(collision) = names.insert(symbol) {
                 return Err(collision);
             }
         }
         Ok(())
     }
-}
-
-/// Records every name one authored stylesheet already uses.
-///
-/// An authored name owns its namespace before anything is generated, so it is recorded
-/// with an identity no generated name can have.
-fn insert_reserved<'a>(
-    names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
-    reserved: &'a ReservedNames,
-) {
-    for (pool, names_in_pool) in [
-        (IdentifierPool::CustomProperty, &reserved.custom_properties),
-        (IdentifierPool::LayerName, &reserved.layers),
-        (IdentifierPool::KeyframesName, &reserved.keyframes),
-        (IdentifierPool::ClassToken, &reserved.classes),
-        (IdentifierPool::AnchorName, &reserved.anchor_names),
-        (IdentifierPool::ContainerName, &reserved.container_names),
-        (
-            IdentifierPool::ViewTransitionClass,
-            &reserved.view_transition_classes,
-        ),
-    ] {
-        for name in names_in_pool {
-            names.insert((pool, name.as_str()), "<authored CSS>");
-        }
-    }
-}
-
-/// Records one generated name, reporting it when the namespace already holds another
-/// identity.
-fn insert_document_name<'a>(
-    names: &mut BTreeMap<(IdentifierPool, &'a str), &'a str>,
-    symbol: &'a GeneratedSymbol,
-) -> Option<CompileDiagnostic> {
-    names
-        .insert(
-            (symbol.pool, symbol.name.as_str()),
-            symbol.identity.as_str(),
-        )
-        .filter(|identity| *identity != symbol.identity)
-        .map(|_| CompileDiagnostic::GeneratedIdentifierCollision {
-            name: symbol.name.as_str().into(),
-        })
 }
