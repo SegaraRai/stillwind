@@ -5,22 +5,26 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling
 //! files.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
+use stillwind_design_system::ThemeIndex;
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintFinding, LintSettings, SourceFailureContext,
+};
 use stillwind_ir::{
     AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
-    GroupEntry, StyleInput,
+    GroupEntry, StyleCall, StyleInput,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
-use stillwind_source::{SourceError, Span};
+use stillwind_source::{ModuleId, SourceError, SourceFile, Span};
 
+use super::super::CssContribution;
 use super::super::class_units::ClassUnits;
 use super::super::fragment::{Emitted, Property, ValueExpr};
+use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmission, StyleEmissionPart};
+use super::super::symbols::GeneratedSymbol;
 use super::super::symbols::{definition_name_symbol, ref_identity, ref_marker_name};
-use super::CallEmitter;
-use super::CallEmitterInputs;
 use super::class_value::expression_position;
 use super::ref_projection::ref_class_read;
 use crate::generated::Code;
@@ -28,6 +32,48 @@ use crate::style_analysis::{
     DeclarationValue, RuleContext, RuleSubject, StyleEffect, StyleEffects, StyleSupply, SupplyKind,
     UseId,
 };
+use crate::{CompilerOptions, IdentifierContext};
+
+/// One `style()` call being lowered.
+///
+/// The emitter accumulates state rather than building a tree in one pass, because the
+/// base unit spans argument positions while each conditional region owns a generated
+/// rule class and guard path.
+pub(in crate::compiler) struct CallEmitter<'a> {
+    /// The buffer the module's original text is sliced from.
+    pub(super) source: &'a SourceFile,
+    /// Module identity used for generated names.
+    pub(super) module_id: &'a ModuleId,
+    /// Name allocation shared with the rest of this compilation.
+    pub(super) identifiers: &'a IdentifierContext,
+    /// Resolved theme and utility registry for this compilation.
+    pub(super) theme: &'a ThemeIndex,
+    pub(super) lint_settings: LintSettings,
+    /// Analyzed style call being lowered.
+    pub(super) call: &'a StyleCall,
+    /// Compilation errors appended while lowering the call.
+    pub(super) diagnostics: &'a mut Vec<CompileError>,
+    /// Nonfatal findings appended in encounter order.
+    pub(super) lint_findings: &'a mut Vec<LintFinding>,
+    /// Identities referenced at runtime. The pipeline retains compiled identity
+    /// records for these declarations and erases declarations without runtime uses.
+    pub(super) runtime_assets: &'a mut BTreeSet<IdentityId>,
+    /// Asset definitions whose CSS this module must emit. Static and dynamic uses
+    /// record their possible definitions here, including `.for(...)` inputs.
+    pub(super) required_definitions: &'a mut BTreeSet<IdentityId>,
+    /// Runtime contributions accumulated for source-position ordering during rendering.
+    pub(super) parts: Vec<StyleEmissionPart>,
+    /// Rule-bearing contributions inside the current JavaScript condition region.
+    pub(super) pending_region: Option<PendingRegion>,
+    /// Owns class allocation and base-before-conditional CSS publication.
+    pub(super) units: ClassUnits<'a>,
+    /// Anchor and container names this call wrote, reported with the class symbols.
+    pub(super) written_name_symbols: Vec<GeneratedSymbol>,
+    /// Direct contributions with their conditions and base references.
+    pub(super) style_effects: Vec<StyleEffect>,
+    /// Unconditional inline literals with no possible competing write in this call.
+    pub(super) static_custom_properties: BTreeMap<String, CustomPropertyEntry>,
+}
 
 impl<'a> CallEmitter<'a> {
     /// Lowers one analyzed call into finalized class units and ordered contributions.
@@ -557,4 +603,47 @@ fn class_input(input: &StyleInput) -> Option<ClassExpression> {
         }),
         _ => None,
     }
+}
+
+/// CSS rules gathered between JavaScript condition boundaries before one class identity
+/// is allocated for the region.
+pub(super) struct PendingRegion {
+    /// Source traversal order reserved before visiting the region's children.
+    pub(super) order: u32,
+    /// Rule-bearing contributions accumulated in encounter order.
+    pub(super) rules: LiteralContribution,
+}
+
+/// Source, analysis, and shared output destinations for lowering one style call. Spans
+/// in the call must address `source`; destinations are appended during lowering and are
+/// not individually rolled back on failure.
+pub(in crate::compiler) struct CallEmitterInputs<'a> {
+    /// Original buffer used to slice user expressions.
+    pub(in crate::compiler) source: &'a SourceFile,
+    /// Compiler identity of the source module.
+    pub(in crate::compiler) module_id: &'a ModuleId,
+    /// Compiler configuration for this call.
+    pub(in crate::compiler) options: &'a CompilerOptions,
+    /// Name allocation shared with the rest of this compilation.
+    pub(in crate::compiler) identifiers: &'a IdentifierContext,
+    /// Resolved theme and utility registry.
+    pub(in crate::compiler) theme: &'a ThemeIndex,
+    /// Analyzed style call to lower.
+    pub(in crate::compiler) call: &'a StyleCall,
+    /// Shared destination for compilation errors.
+    pub(in crate::compiler) diagnostics: &'a mut Vec<CompileError>,
+    /// Shared destination for lint findings, appended in encounter order.
+    pub(in crate::compiler) lint_findings: &'a mut Vec<LintFinding>,
+    /// Shared destination for module CSS contributions.
+    pub(in crate::compiler) utility_css: &'a mut Vec<CssContribution>,
+    /// Shared destination for generated symbol records.
+    pub(in crate::compiler) symbols: &'a mut Vec<GeneratedSymbol>,
+    /// Previously emitted (class name, canonical input) pairs used to suppress
+    /// identical units.
+    pub(in crate::compiler) emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    /// Referenced runtime identities used to retain declarations that need runtime
+    /// values.
+    pub(in crate::compiler) runtime_assets: &'a mut BTreeSet<IdentityId>,
+    /// Definition identities whose CSS the module must emit, recorded by each use.
+    pub(in crate::compiler) required_definitions: &'a mut BTreeSet<IdentityId>,
 }

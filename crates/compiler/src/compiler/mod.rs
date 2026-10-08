@@ -38,12 +38,7 @@ mod symbols;
 mod utilities;
 mod variants;
 
-/// Marker type for the crate's associated compilation functions.
-///
-/// [`Compiler`] has no instances and no state; every entry point takes the inputs it needs and
-/// returns a result.
-pub struct Compiler;
-
+pub use api::Compiler;
 pub use output::CompileResult;
 pub use output::CssContribution;
 pub use props::{GeneratedClass, GuardStep};

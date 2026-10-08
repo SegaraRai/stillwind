@@ -8,8 +8,16 @@ use stillwind_css::csswg_formal_syntax;
 use super::*;
 use crate::test_support::parse_fixture_theme;
 
+pub(super) fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
+    super::super::resolve_utility(raw, theme).unwrap()
+}
+
+pub(super) fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
+    super::super::resolve_animation_option(raw, theme).unwrap()
+}
+
 /// The formal-syntax terms the catalog treats as primitives.
-pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
+const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",
     "angle-percentage",
     "color",

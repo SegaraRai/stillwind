@@ -9,10 +9,3 @@ mod view_transition;
 
 pub(super) use keyframes::emit_keyframes_definition;
 pub(super) use view_transition::emit_view_transition_definition;
-
-use stillwind_semantic::AssetKind;
-
-/// Whether the CSS of one asset kind belongs to this band.
-pub(super) fn is_definition_kind(kind: AssetKind) -> bool {
-    matches!(kind, AssetKind::Keyframes | AssetKind::ViewTransition)
-}

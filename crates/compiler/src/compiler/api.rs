@@ -1,6 +1,6 @@
 //! Stateless compilation entry points.
 //!
-//! [`Compiler`] has no instances: each function takes the analyzer, sources, and options, and
+//! Each [`Compiler`] function takes its analyzer, sources, and options, and
 //! returns a [`CompileResult`]. A theme that cannot be read becomes a CSS diagnostic
 //! against the theme file instead of an error, so a caller always receives a result shape it
 //! knows how to report; only the theme-reading helpers return a [`CompileError`].
@@ -19,8 +19,11 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
 use stillwind_source::{CssSourceName, Fingerprint, ModuleId, SourceFile};
 
-use super::{CompileResult, Compiler};
+use super::CompileResult;
 use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
+
+/// Stateless entry points for source compilation and stylesheet rendering.
+pub struct Compiler;
 
 impl Compiler {
     /// Parses a theme buffer into its index, without keeping the snapshot.

@@ -18,16 +18,11 @@ use super::values::theme_arbitrary_types;
 use super::*;
 use crate::{ThemeIndex, ThemeNamespace};
 
-fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
-    super::resolve_utility(raw, theme).unwrap()
-}
-
-fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
-    super::resolve_animation_option(raw, theme).unwrap()
-}
-
 mod support;
-use support::*;
+use support::{
+    direct_value_domains, expanded_csswg_syntax, formal_terms, has_complex_csswg_grammar,
+    resolve_animation_option, resolve_utility, theme,
+};
 
 mod animations;
 mod custom_variants;

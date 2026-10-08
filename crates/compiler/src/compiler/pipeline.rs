@@ -24,9 +24,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
-use super::definitions::{
-    emit_keyframes_definition, emit_view_transition_definition, is_definition_kind,
-};
+use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
 };
@@ -482,4 +480,9 @@ fn push_or_report<T>(
             None
         }
     }
+}
+
+/// Whether the CSS of one asset kind belongs to this band.
+fn is_definition_kind(kind: AssetKind) -> bool {
+    matches!(kind, AssetKind::Keyframes | AssetKind::ViewTransition)
 }
