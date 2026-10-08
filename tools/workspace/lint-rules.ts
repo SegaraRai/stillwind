@@ -5,8 +5,15 @@ import { resolve } from "node:path";
 import { format } from "vite-plus/fmt";
 
 const root = resolve(import.meta.dirname, "../..");
-const source = readFileSync(resolve(root, "crates/diagnostics/src/lint/config.rs"), "utf8");
-const catalog = source.split("define_lint_rules! {")[1].split("\n}")[0];
+const catalogSource = readFileSync(
+  resolve(root, "crates/diagnostics/src/lint/config/catalog.rs"),
+  "utf8",
+);
+const policySource = readFileSync(
+  resolve(root, "crates/diagnostics/src/lint/config/policies.rs"),
+  "utf8",
+);
+const catalog = catalogSource.split("define_lint_rules! {")[1].split("\n}")[0];
 const lengthUnits = [
   ...readFileSync(resolve(root, "crates/css/src/values/policy.rs"), "utf8")
     .split("pub fn is_length_unit(")[1]
@@ -15,7 +22,7 @@ const lengthUnits = [
 ].map((match) => match[1]);
 const optionTypes: Record<string, string> = Object.fromEntries(
   [
-    ...source
+    ...catalogSource
       .split("macro_rules! lint_config_type {")[1]
       .split("macro_rules! lint_config_value")[0]
       .matchAll(/\((\w+)\) => \{\s*(\w+)Config\s*\};/g),
@@ -28,7 +35,7 @@ const rules = [...catalog.matchAll(/(\w+) => \("([\w-]+)", (.*?)\),/g)].map(
     const optionType = optionTypes[variant];
     const fields = optionType
       ? [
-          ...source
+          ...policySource
             .split(`pub struct ${optionType}Config {`)[1]
             .split("\n}")[0]
             .matchAll(/pub (\w+):/g),

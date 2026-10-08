@@ -8,8 +8,9 @@ export default defineConfig({
         cache: {
           input: [
             { auto: true },
-            "../../crates/diagnostics/src/lint/config.rs",
             "../../crates/css/src/values/policy.rs",
+            "../../crates/diagnostics/src/lint/config/catalog.rs",
+            "../../crates/diagnostics/src/lint/config/policies.rs",
           ],
           output: [
             "../../crates/napi/src/options/lint.rs",
@@ -22,8 +23,9 @@ export default defineConfig({
         cache: {
           input: [
             { auto: true },
-            "../../crates/diagnostics/src/lint/config.rs",
             "../../crates/css/src/values/policy.rs",
+            "../../crates/diagnostics/src/lint/config/catalog.rs",
+            "../../crates/diagnostics/src/lint/config/policies.rs",
             "../../crates/napi/src/options/lint.rs",
             "../../packages/config/src/lint-rules.ts",
           ],
