@@ -6,7 +6,10 @@
 //! that an unusable ref variant reports a diagnostic instead of emitting an unscoped
 //! selector.
 
+use std::sync::OnceLock;
+
 use stillwind_compiler::CompilerOptions;
+use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -16,6 +19,8 @@ use stillwind_test_support::css;
 use super::*;
 
 fn compile(args: &str, scoped: bool) -> (String, String) {
+    static SNAPSHOT: OnceLock<DesignSystemSnapshot> = OnceLock::new();
+
     let args = if scoped {
         args.to_owned()
     } else {
@@ -36,25 +41,24 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
     let source = SourceFile::new(FileId(1), None, None, format!(
         "import {{ style }} from \"stillwind/react\"; {ref_definition} const other = style.ref(\"other\"); declare const active: boolean; {use_site}"
     )).unwrap();
-    let theme = css::source(
-        FileId(2),
-        r#"
+    let snapshot = SNAPSHOT.get_or_init(|| {
+        let theme = css::source(
+            FileId(2),
+            r#"
 @import "stillwind";
 @theme { --color-accent: red; }
 @variant hocus { &:hover { @slot; } &:focus { @slot; } }
 "#,
-    )
-    .unwrap();
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
+        )
+        .unwrap();
+        DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("stillwind.css"),
+            CompilerOptions::default().design_system(),
+        )
+        .unwrap()
+    });
+    let result = compile_with_snapshot(&source, snapshot, "test.tsx", ScriptLanguage::Tsx);
     assert!(
         result.diagnostics.is_empty(),
         "{args}: {:#?}",

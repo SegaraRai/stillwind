@@ -10,12 +10,16 @@ use stillwind_diagnostics::{
 use stillwind_test_support::css;
 
 use super::compile;
-use super::support::compile_with_options;
+use super::support::{CompilationFixture, compile_with_options};
 
 const CSS: &str = "@utility p2 {padding:0.5rem} @utility p4 {padding:1rem} @utility px4 {padding-inline:1rem} @utility ps2 {padding-inline-start:0.5rem} @utility pl4 {padding-left:1rem} @utility py4 {padding-block:1rem} @custom-variant hover (&:hover); @custom-variant child (&>span); @utility child { &>span { color:red; } }";
 
 fn kinds(code: &str, theme: &str, options: &CompilerOptions) -> Vec<LintKind> {
-    let (_, result) = compile_with_options(code, theme, options);
+    kinds_in(code, &CompilationFixture::new(theme, options))
+}
+
+fn kinds_in(code: &str, fixture: &CompilationFixture) -> Vec<LintKind> {
+    let (_, result) = fixture.compile(code);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     result.lint_findings.iter().map(LintFinding::kind).collect()
 }
@@ -39,6 +43,7 @@ fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
         },
         ..CompilerOptions::default()
     };
+    let fixture = CompilationFixture::new(&theme, &options);
     for variant in [
         "max-[900px]",
         "min-[48rem]",
@@ -52,11 +57,7 @@ fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
         "[@media_print_and_(width>=900px)]",
     ] {
         assert_eq!(
-            kinds(
-                &format!("const x=style('{variant}:flex');"),
-                &theme,
-                &options
-            ),
+            kinds_in(&format!("const x=style('{variant}:flex');"), &fixture),
             [LintKind::NoArbitraryBreakpoints],
             "{variant}"
         );
@@ -75,17 +76,13 @@ fn arbitrary_breakpoints_distinguish_value_sources_and_exclude_containers() {
         "supports-[width:900px]",
     ] {
         assert_eq!(
-            kinds(
-                &format!("const x=style('{variant}:flex');"),
-                &theme,
-                &options
-            ),
+            kinds_in(&format!("const x=style('{variant}:flex');"), &fixture),
             [] as [LintKind; 0],
             "{variant}"
         );
     }
     assert_eq!(
-        kinds("const x=style('internal');", &theme, &options),
+        kinds_in("const x=style('internal');", &fixture),
         [] as [LintKind; 0]
     );
     assert_eq!(
@@ -131,6 +128,7 @@ fn breakpoint_findings_point_to_each_variant_and_report_wrappers_once() {
         },
         ..CompilerOptions::default()
     };
+    let fixture = CompilationFixture::new(&theme, &options);
     for (code, expected) in [
         (
             r"const x=style('max-[900px]:min-[48rem]:flex');",
@@ -145,7 +143,7 @@ fn breakpoint_findings_point_to_each_variant_and_report_wrappers_once() {
             vec!["max-[900px]"],
         ),
     ] {
-        let (source, result) = compile_with_options(code, &theme, &options);
+        let (source, result) = fixture.compile(code);
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         let spans = result
             .lint_findings
@@ -158,10 +156,8 @@ fn breakpoint_findings_point_to_each_variant_and_report_wrappers_once() {
             .collect::<Vec<_>>();
         assert_eq!(spans, expected, "{code}");
     }
-    let (_, result) = compile_with_options(
+    let (_, result) = fixture.compile(
         "// swlint-disable-next-line no-arbitrary-breakpoints\nconst x=style('max-[900px]:flex');",
-        &theme,
-        &options,
     );
     assert!(
         result.lint_findings.is_empty(),
@@ -193,6 +189,7 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
         },
         ..CompilerOptions::default()
     };
+    let fixture = CompilationFixture::new(&theme, &options);
     for utility in [
         "p-ref-small",
         "duration-ref-fast",
@@ -205,7 +202,7 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
         "supports-[transition-duration:var(--duration-ref-fast)]:flex",
     ] {
         assert_eq!(
-            kinds(&format!("const x=style('{utility}');"), &theme, &options),
+            kinds_in(&format!("const x=style('{utility}');"), &fixture),
             [LintKind::NoRestrictedThemeTokens],
             "{utility}"
         );
@@ -220,16 +217,15 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
         "[padding:var(--spacing-ref-runtime)]",
     ] {
         assert_eq!(
-            kinds(&format!("const x=style('{utility}');"), &theme, &options),
+            kinds_in(&format!("const x=style('{utility}');"), &fixture),
             [] as [LintKind; 0],
             "{utility}"
         );
     }
     assert_eq!(
-        kinds(
+        kinds_in(
             "const x=style({'speed-ref-fast:':['flex','flex']});",
-            &theme,
-            &options
+            &fixture,
         )
         .iter()
         .filter(|kind| **kind == LintKind::NoRestrictedThemeTokens)

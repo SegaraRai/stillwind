@@ -4,22 +4,35 @@
 //! Cases compile authored calls through the frontend, then inspect output, helper
 //! bindings, typed findings, and independently converted source coordinates.
 
+use std::sync::OnceLock;
+
 use stillwind_compiler::{CompileResult, CompilerOptions, SourceTransform, render_transforms};
+use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 use stillwind_test_support::css;
 
-use super::Compiler;
+use super::compile_with_snapshot;
+use crate::Compiler;
 
-/// Compiles a reusable TypeScript call body under one framework import and an empty
-/// theme.
+/// Compiles a TypeScript call body under one framework import and the shared standard theme.
 ///
 /// # Panics
 ///
 /// Panics when a source/fixture cannot be constructed or compilation reports errors.
 fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
+    static SNAPSHOT: OnceLock<DesignSystemSnapshot> = OnceLock::new();
+
+    let snapshot = SNAPSHOT.get_or_init(|| {
+        DesignSystemSnapshot::from_source(
+            &css::source(FileId(2), "@theme {}").unwrap(),
+            CssSourceName::from("stillwind.css"),
+            CompilerOptions::default().design_system(),
+        )
+        .unwrap()
+    });
     let source = SourceFile::new(
         FileId(1),
         None,
@@ -27,17 +40,7 @@ fn compile(framework: &str, body: &str) -> (SourceFile, CompileResult) {
         format!("import {{ style }} from 'stillwind/{framework}';\n{body}"),
     )
     .unwrap();
-    let theme = css::source(FileId(2), "@theme {}").unwrap();
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.ts"),
-        ScriptLanguage::Ts,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_snapshot(&source, snapshot, "test.ts", ScriptLanguage::Ts);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     (source, result)
 }

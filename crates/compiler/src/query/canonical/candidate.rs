@@ -183,7 +183,7 @@ impl DesignSystemQuery {
                 }
             }
         }
-        let index = &self.canonical_index;
+        let index = self.canonical_index();
         labels.extend(index.value_labels(&self.context, roots, bare_value));
         if let Some(base) = base {
             for record in index.matching(&self.context, base) {
@@ -273,7 +273,7 @@ impl DesignSystemQuery {
                 continue;
             }
             let names = self
-                .canonical_index
+                .canonical_index()
                 .variants
                 .matching(&self.context, raw, &variant.raw);
             for name in names {
@@ -380,7 +380,7 @@ mod tests {
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_diagnostics::{
-        CanonicalUtilitiesOverride, LintOverrides, LintSeverity, RootFontSize,
+        CanonicalUtilitiesOverride, LintFinding, LintOverrides, LintSeverity, RootFontSize,
     };
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css;
@@ -638,6 +638,31 @@ mod tests {
     }
 
     #[test]
+    fn noncanonical_queries_defer_spelling_index_preparation() {
+        let query = make_query(
+            "@theme { --*:initial; --color-a:red; } @utility tone-* { color:--value(--color-*, [color]); }",
+            CompilerOptions::default(),
+        );
+        assert_eq!(
+            query.resolve_candidate("tone-a").unwrap().diagnostics,
+            [] as [LintFinding; 0]
+        );
+        assert!(query.canonical_candidate("tone-a").unwrap().is_none());
+        assert!(
+            query
+                .canonical_candidate("tone-[length:1px]")
+                .unwrap()
+                .is_none()
+        );
+        assert!(query.canonical_index.get().is_none());
+        assert_eq!(
+            query.canonical_candidate("tone-[#f00]").unwrap(),
+            Some("tone-a".into())
+        );
+        assert!(query.canonical_index.get().is_some());
+    }
+
+    #[test]
     fn canonical_indexes_share_preparation_and_isolate_lint_policies() {
         let source = css::source(FileId(1), "@theme { --*:initial; --spacing:.25rem; } @utility p-* { padding:--value(--spacing(), [length]); }").unwrap();
         let snapshot = DesignSystemSnapshot::from_source(
@@ -650,7 +675,7 @@ mod tests {
         let prepared =
             QueryContext::new(snapshot.clone(), CompilerOptions::default()).canonical_index();
         let first = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
-        assert!(Arc::ptr_eq(&prepared, &first.canonical_index));
+        assert!(Arc::ptr_eq(&prepared, first.canonical_index()));
         let second = DesignSystemQuery::new(
             snapshot.clone(),
             CompilerOptions {
@@ -667,7 +692,10 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(Arc::ptr_eq(&first.canonical_index, &second.canonical_index));
+        assert!(Arc::ptr_eq(
+            first.canonical_index(),
+            second.canonical_index()
+        ));
         let disabled = DesignSystemQuery::new(
             snapshot,
             CompilerOptions {
@@ -763,7 +791,7 @@ mod tests {
             "@theme { --*:initial; --spacing:.25rem; --spacing-a:1rem; --color-a:red; --color-b:blue; --color-c:rgb(255 0 0); --color-alias:var(--color-a); --text-body:1rem; --leading-tight:1.25rem; } @utility tone-* { color:--value(--color-*, [color]); opacity:--modifier(number); } @utility plain-* { color:--value(--color-*, [color]); } @utility text-* { font-size:--value(--text-*, [length]); line-height:--modifier(--leading-*, [length]); } @utility nested-* { &:hover { color:--value(--color-*, [color]); outline-color:var(--color-alias); } } @utility padded-* { padding:--value(--spacing-*, [length]); }",
             CompilerOptions::default(),
         );
-        let index = &query.canonical_index;
+        let index = query.canonical_index();
         for (root, value, modifier) in [
             ("tone", "#f00", "/50"),
             ("tone", "#123456", "/50"),

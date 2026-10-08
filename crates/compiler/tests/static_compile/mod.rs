@@ -1,9 +1,9 @@
 //! End-to-end compilation of TSX sources against real themes.
 //!
-//! The suite drives the public `Compiler` API with the Oxc frontend and asserts on the emitted CSS
-//! and the transformed source together. `support` holds the fixture readers and CSS comparison
-//! helpers shared by the modules below; `parity` and `theme` also compare against the checked-in
-//! Tailwind v4 fixtures.
+//! The suite drives the public compiler APIs with the Oxc frontend and asserts on the
+//! emitted CSS and the transformed source together. `support` holds the fixture readers
+//! and CSS comparison helpers shared by the modules below; `parity` and `theme` also
+//! compare against the checked-in Tailwind v4 fixtures.
 
 use std::fs;
 use std::path::Path;

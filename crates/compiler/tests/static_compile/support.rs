@@ -2,10 +2,16 @@
 //!
 //! Rule comparisons retain condition contexts and generation order. The Tailwind
 //! parity oracle normalizes arithmetic and serializes rules with Lightning CSS.
+//! Fixed-theme cases share snapshots while each compilation analyzes fresh source.
 
-use stillwind_compiler::{CompileResult, CompilerOptions};
+use std::sync::{Arc, OnceLock};
+
+use stillwind_compiler::{
+    CompileResult, CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer,
+};
 use stillwind_css::fold_calc_expressions;
-use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
 use stillwind_test_support::css;
@@ -143,24 +149,46 @@ pub(super) fn class_rule_signatures(css: &str) -> Vec<String> {
 }
 
 pub(super) fn compile_one_utility(utility: &str) -> CompileResult {
-    Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &SourceFile::new(
-            FileId(91),
-            None,
-            None,
-            format!(
-                "import {{ style }} from \"stillwind/react\"; const props = style({utility:?});"
-            ),
+    static SNAPSHOT: OnceLock<DesignSystemSnapshot> = OnceLock::new();
+
+    let snapshot = SNAPSHOT.get_or_init(|| {
+        DesignSystemSnapshot::from_source(
+            &css::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
+            CssSourceName::from("stillwind.css"),
+            CompilerOptions::default().design_system(),
         )
-        .unwrap(),
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &css::source(FileId(92), "@theme { --spacing: 0.25rem; }").unwrap(),
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
+        .unwrap()
+    });
+    let source = SourceFile::new(
+        FileId(91),
+        None,
+        None,
+        format!("import {{ style }} from \"stillwind/react\"; const props = style({utility:?});"),
     )
+    .unwrap();
+    compile_with_snapshot(&source, snapshot, "test.tsx", ScriptLanguage::Tsx)
+}
+
+pub(super) fn compile_with_snapshot(
+    source: &SourceFile,
+    snapshot: &DesignSystemSnapshot,
+    module_id: &str,
+    language: ScriptLanguage,
+) -> CompileResult {
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            Arc::new(source.clone()),
+            ModuleId::from(module_id),
+            language,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
+    let options = CompilerOptions::default();
+    let module = ModuleCompiler::new(snapshot.clone(), options.clone())
+        .compile(&analysis, &Identifiers::default());
+    StylesheetRenderer::new(snapshot, &options, &Identifiers::default())
+        .render_compilation(&module, source.full_span())
 }
 
 pub(super) fn tailwind_class_selector(candidate: &str) -> String {
