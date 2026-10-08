@@ -34,3 +34,7 @@ serde_json.workspace = true
 
 [build-dependencies]
 napi-build.workspace = true
+
+[[test]]
+name = "binding"
+path = "tests/binding/mod.rs"

@@ -15,3 +15,11 @@ stillwind-ir = { path = "../ir" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 oxc.workspace = true
+
+[[test]]
+name = "parse"
+path = "tests/parse/mod.rs"
+
+[[test]]
+name = "projected_analysis"
+path = "tests/projected_analysis/mod.rs"
