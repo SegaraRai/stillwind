@@ -53,14 +53,14 @@ export function stillwindRules(config: IntegrationConfig): Record<string, Turbop
 }
 
 /**
- * Captures the application directory and serializable settings for isolated loader workers.
+ * Prepares serializable settings for isolated loader workers.
  *
  * @param compiler - Discovery settings and inline overrides. Naming callbacks must be defined in
  * the configuration file, since loader transport cannot serialize inline functions.
  * @param entries - Entry paths copied into the loader options. Next can supply an empty list and
  * discover routes later. Paths are resolved after the loader evaluates the project root.
  * @param mode - Compilation mode. Omission uses development only when NODE_ENV is development.
- * @returns Loader options containing process.cwd() as the application directory for discovery.
+ * @returns Loader options that use the bundler root as the application directory for discovery.
  * @throws If compiler supplies inline naming callbacks.
  */
 export function createLoaderOptions(
@@ -75,7 +75,7 @@ export function createLoaderOptions(
   }
   return {
     compiler,
-    root: process.cwd(),
+    root: ".",
     entries: [...entries],
     mode: mode ?? (process.env.NODE_ENV === "development" ? "development" : "release"),
   };

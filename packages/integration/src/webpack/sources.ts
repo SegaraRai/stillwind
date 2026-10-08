@@ -13,6 +13,10 @@ export function sourceDescriptor(root: string, id: string) {
   }
   const extension = path.extname(file);
   const key = createHash("sha256").update(id).digest("hex");
+  const checkerFileName = path.join(
+    path.dirname(file),
+    `.${path.basename(file, extension)}.stillwind-${key}${extension}`,
+  );
   return {
     ...descriptor,
     moduleId: descriptor.moduleId + suffix,
@@ -20,7 +24,7 @@ export function sourceDescriptor(root: string, id: string) {
       ...descriptor.document,
       uri: descriptor.document.uri + suffix,
     },
-    checkerFileName: path.join(root, ".stillwind-checker", key + extension),
-    projectionFileName: descriptor.projectionFileName + suffix,
+    checkerFileName,
+    projectionFileName: checkerFileName.replaceAll("\\", "/"),
   };
 }

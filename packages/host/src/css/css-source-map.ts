@@ -46,7 +46,7 @@ function composeUpstream(
   if (!upstream) {
     return map;
   }
-  const resource = pathToFileURL(resolve(upstream.id)).href;
+  const resource = pathToFileURL(resolve(upstream.id.split(/[?#]/)[0])).href;
   const original = JSON.parse(upstream.map);
   if (!Array.isArray(original.sources) || !original.mappings) {
     return map;

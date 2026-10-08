@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   GenMapping,
@@ -42,8 +43,8 @@ export function composeFrameworkSourceMap(
  *
  * @param generated - Pipeline output map, or a map chain accepted by the composition library.
  * @param original - Map or chain from the CSS carrier back to authored sources.
- * @param resource - Absolute carrier path with forward slashes. Candidate source names are resolved
- * against the process working directory before comparison.
+ * @param resource - Absolute carrier path with forward slashes. File URLs are decoded, and relative
+ * source paths are resolved against the process working directory before comparison.
  * @returns A composed map that replaces only immediate sources resolving to the carrier path.
  * @throws If a supplied source map cannot be decoded or composed.
  */
@@ -53,7 +54,9 @@ export function composeCarrierSourceMap(
   resource: string,
 ): SourceMap {
   return remapping(generated, (source, context) =>
-    context.depth === 1 && resolve(source).replaceAll("\\", "/") === resource
+    context.depth === 1 &&
+    resolve(source.startsWith("file:") ? fileURLToPath(source) : source).replaceAll("\\", "/") ===
+      resource
       ? (original as SourceMapInput)
       : null,
   );

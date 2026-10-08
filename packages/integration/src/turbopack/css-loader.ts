@@ -8,18 +8,18 @@ import { loaderCompletion } from "../webpack/source-map-loader.ts";
 import { compileGraph, createProject, type TurbopackLoaderOptions } from "./project.ts";
 
 export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOptions>) {
-  emitStylesheet(this, async () => this.getOptions().entries);
+  emitStylesheet(this, async (options) => options.entries);
 }
 
 export function emitStylesheet(
   context: LoaderContext<TurbopackLoaderOptions>,
-  entries: () => Promise<string[]>,
+  entries: (options: TurbopackLoaderOptions) => Promise<string[]>,
 ): void {
   const callback = loaderCompletion(context);
   void (async () => {
     const project = await createProject(context);
     try {
-      const plan = await compileGraph(await entries(), project);
+      const plan = await compileGraph(await entries(project.options), project);
       const replacements = new Map<string, string>();
       for (const resource of [...project.loaded.resources, ...plan.resources]) {
         const file = await project.resolveAsset(

@@ -198,7 +198,7 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>
       new Promise<string>((done, reject) =>
-        resolve(path.dirname(importer), specifier, (error, id) =>
+        resolve(path.dirname(cleanModuleId(importer)), specifier, (error, id) =>
           error ? reject(error) : done(id || ""),
         ),
       );
@@ -315,7 +315,7 @@ export function createCompilationHost(context: ResolverHost): CompilationHost {
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>
       new Promise<string>((done, reject) =>
-        resolve(path.dirname(importer), specifier, (error, id) =>
+        resolve(path.dirname(cleanModuleId(importer)), specifier, (error, id) =>
           error ? reject(error) : done(id as string),
         ),
       );

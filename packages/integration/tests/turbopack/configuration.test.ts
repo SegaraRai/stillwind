@@ -43,6 +43,7 @@ test.each(["next", "turbopack"])(
     expect(JSON.parse(JSON.stringify(options))).toEqual(options);
     const dependencies = new Set<string>();
     const context = {
+      rootContext: root,
       getOptions: () => options,
       fs,
       addDependency: (file: string) => dependencies.add(file),

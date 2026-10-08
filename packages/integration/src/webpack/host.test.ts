@@ -85,3 +85,26 @@ test("loader resolution handles builtins and keeps its extension policy separate
   expect(settings?.extensions).toEqual(expect.arrayContaining([".vue", ".svelte", ".astro"]));
   expect(settings?.extensions).not.toContain(".json");
 });
+
+for (const kind of ["loader", "compilation"] as const) {
+  test(`${kind} resolves dependencies from the importer's file before query and fragment suffixes`, async () => {
+    const context = loaderContext();
+    const resolve = vi.fn<ReturnType<ResolverHost["getResolve"]>>(
+      (_directory, specifier, callback) => callback(null, specifier),
+    );
+    context.getResolve.mockReturnValue(resolve);
+    const resolveImport =
+      kind === "loader"
+        ? createLoaderHost(context, path.resolve("loader.js")).resolve
+        : createCompilationHost(context).resolveJs;
+    const importer = path.resolve("src", "module.ts");
+    for (const suffix of ["?variant=foo/bar", "#variant=foo/bar"]) {
+      await resolveImport("./dependency.ts?generated", importer + suffix);
+      expect(resolve).toHaveBeenLastCalledWith(
+        path.dirname(importer),
+        "./dependency.ts?generated",
+        expect.any(Function),
+      );
+    }
+  });
+}

@@ -6,7 +6,6 @@ import { pathToFileURL } from "node:url";
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import {
   cleanModuleId,
-  compilerModuleId,
   fileSourceKind,
   moduleSourceMap,
   type CssUpstreamMap,
@@ -155,31 +154,35 @@ export async function compileProducer(
     {
       resolve: (specifier, importer) => context.resolve(specifier, importer, { skipSelf: true }),
       read: (id) => readFile(cleanModuleId(id), "utf8"),
-      describe: (resolvedId) => ({
-        moduleId:
-          resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
+      describe: (resolvedId) => {
+        const virtual = resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:");
+        const file = virtual
+          ? resolve(
+              settings.projectRoot,
+              ".stillwind-checker",
+              `${createHash("sha256").update(resolvedId).digest("hex")}.ts`,
+            )
+          : cleanModuleId(resolvedId);
+        const { syntax, format } = fileSourceKind(resolvedId);
+        return {
+          moduleId: virtual
             ? `virtual:${encodeURIComponent(resolvedId)}`
             : sourceModuleId(settings.projectRoot, resolvedId),
-        document: {
-          uri: documentUri(resolvedId),
-          format: fileSourceKind(resolvedId).format,
-        },
-        checkerFileName:
-          resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
-            ? resolve(
-                settings.projectRoot,
-                ".stillwind-checker",
-                `${createHash("sha256").update(resolvedId).digest("hex")}.ts`,
-              )
-            : cleanModuleId(resolvedId),
-        projectionFileName:
-          resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:")
-            ? `virtual/${createHash("sha256").update(resolvedId).digest("hex")}.ts`
-            : compilerModuleId(settings.projectRoot, cleanModuleId(resolvedId)),
-        syntax: fileSourceKind(resolvedId).syntax,
-      }),
-      watch: (id) => context.addWatchFile(id),
-      warn: (message) => context.warn(message),
+          document: {
+            uri: documentUri(resolvedId),
+            format,
+          },
+          checkerFileName: file,
+          projectionFileName: file.replaceAll("\\", "/"),
+          syntax,
+        };
+      },
+      watch: (id) => {
+        context.addWatchFile(id);
+      },
+      warn: (message) => {
+        context.warn(message);
+      },
     },
     {
       stylesheetImports:

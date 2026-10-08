@@ -19,7 +19,7 @@ export function compilerModuleId(root: string, id: string): string {
 /**
  * Infers parser metadata from a filesystem path and assigns compiler and checker identities.
  *
- * @param root - Project directory used for relative compiler and projection identities.
+ * @param root - Project directory used for relative compiler identities.
  * @param id - Absolute source path, optionally followed by a query or fragment suffix.
  * @returns Metadata for the file after removing its query or fragment suffix.
  */
@@ -33,7 +33,7 @@ export function fileModuleDescriptor(root: string, id: string): ModuleDescriptor
       format,
     },
     checkerFileName: file,
-    projectionFileName: compilerModuleId(root, file),
+    projectionFileName: file.replaceAll("\\", "/"),
     syntax,
   };
 }

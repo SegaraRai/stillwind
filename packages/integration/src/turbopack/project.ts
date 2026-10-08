@@ -25,7 +25,7 @@ import { IntegrationSession } from "../session.ts";
 export type TurbopackLoaderOptions = {
   /** Configuration file selection and serializable inline settings. */
   compiler: Omit<InlineConfig, "naming">;
-  /** Application directory captured when the integration creates its rules. */
+  /** Application directory, absolute or relative to the loader context's root. */
   root: string;
   /** Entry files whose imports are traversed when reconstructing document CSS. */
   entries: string[];
@@ -72,8 +72,8 @@ export interface TurbopackHost extends CompilerHost {
  * Configuration is evaluated independently in each loader invocation. Configuration dependencies,
  * missing discovery candidates, compiler files, and CSS dependencies are registered with the host.
  *
- * @param context - Loader context containing serializable discovery settings, the captured
- * application directory, filesystem access, resolver operations, and dependency tracking.
+ * @param context - Loader context containing serializable discovery settings, the bundler root,
+ * filesystem access, resolver operations, and dependency tracking.
  * @returns A promise for the initialized project. The caller owns the compiler's lifetime.
  * @throws If configuration evaluation or project selection fails, the CSS graph cannot be loaded,
  * or compiler initialization fails.
@@ -82,7 +82,10 @@ export async function createProject(
   context: LoaderContext<TurbopackLoaderOptions>,
 ): Promise<TurbopackProject> {
   const supplied = context.getOptions();
-  const configuration = await resolveIntegrationConfig(supplied.compiler, supplied.root);
+  const configuration = await resolveIntegrationConfig(
+    supplied.compiler,
+    path.resolve(context.rootContext, supplied.root),
+  );
   const options = {
     ...supplied,
     compiler: configuration.config,
@@ -117,7 +120,7 @@ export async function createProject(
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>
       new Promise<string>((done, reject) => {
-        resolve(path.dirname(importer), specifier, (error, id) =>
+        resolve(path.dirname(cleanModuleId(importer)), specifier, (error, id) =>
           error
             ? reject(error)
             : id
