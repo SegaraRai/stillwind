@@ -121,3 +121,5 @@ The baseline compiler measurements also exceeded these limits. They use nine
 samples, while the full performance cases use three. This cleanup therefore does
 not establish that the performance release gate passes. The timing and workload
 need a separate investigation before using this gate as release acceptance.
+
+The subsequent [performance investigation](ownership-performance-2026-10-08.md) compares the accepted cleanup against targeted optimizations under matching serial conditions. It separates 100 independent canonical uses from 4950 complete pairwise diagnostic reports and retains both workloads.
