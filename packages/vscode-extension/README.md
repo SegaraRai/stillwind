@@ -20,7 +20,7 @@ Use a document formatter such as Prettier or Oxfmt for layout and whitespace. St
 }
 ```
 
-Canonical utility lint defaults to `warn`. Pixel spacing can become rem-based utilities when the active spacing scale uses rem; other domains, such as border width, retain their units. `source.fixAll.stillwind` applies enabled lint fixes. `source.sort.stillwind` sorts independently of lint severity. Sorting diagnostics are disabled by default.
+Canonical utility lint defaults to `warn`. Pixel spacing can become rem-based utilities when the active spacing scale uses rem; other domains, such as border width, retain their units. `source.fixAll.stillwind` applies enabled lint fixes. `source.sort.stillwind` sorts independently of lint severity. Sorting diagnostics are disabled by default. Set `lint: false` to disable all lint rules and fixes. Set `sort: false` to disable sorting, including explicit sorting commands.
 
 ```ts
 import { defineConfig, lintPresets } from "stillwind/config";

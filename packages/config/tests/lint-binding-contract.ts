@@ -42,6 +42,7 @@ export function registerLintBindingContract(target: "native" | "wasm32-wasi") {
       [undefined, "warning"],
       [{ extends: [lintPresets.strict] }, "error"],
       [{}, undefined],
+      [false, undefined],
     ] as const) {
       const { rules } = resolveLintConfig(config);
       const lint = Object.fromEntries(

@@ -370,7 +370,7 @@ export default defineConfig({
 });
 ```
 
-Omitting `lint` selects `recommended`. An explicit `lint: {}` disables every lint
+Omitting `lint` selects `recommended`. An explicit `lint: false` or `lint: {}` disables every lint
 rule. An explicit object with only `rules` enables only those rules. Compiler errors
 are reported independently of lint settings.
 
@@ -390,6 +390,9 @@ Inline build overrides preserve the selected project's preset list when they omi
 `extends`. A supplied list replaces it, including an empty list. Inline rules merge
 with the project's rules. Without a configuration file, inline lint settings form the
 project configuration and use the same omission and empty-object behavior.
+
+An inline `lint: false` disables all rules from the selected project. An object override
+of a project's `lint: false` enables only the override's rules and presets.
 
 `resolveLintConfig` returns a `rules` object with explicit severities and default
 options for every rule. Node and browser hosts use the same resolver, and native
@@ -567,6 +570,11 @@ suppression uses the same rule names, for example
 `sort.arrays` groups direct arrays, `style()` argument lists, and object entries by input kind. It defaults to true. Ref groups retain their first appearance order, with each ref's marker before its projections. Bases, utilities, custom properties, and attributes follow. Entries in each category retain their original order. A base can contain variants, custom properties, or composed styles; the sorter uses its identity without inspecting its body or CSS.
 
 `sort.stringLiterals` defaults to true and sorts utility tokens inside each static string or template segment using compiler order. This does not reorder separate utility array elements. Unknown utility tokens delimit sortable string runs.
+
+`sort: false` disables utility sorting, input grouping, and attribute name sorting.
+It also disables sorting diagnostics and sorting fixes. Other lint rules and fixes
+remain active. An inline `sort: false` replaces the project's sort options; an object
+override of false uses the default targets for omitted fields.
 
 `sort.attributes` defaults to false. Set it to true to sort adjacent `aria-` and `data-` property names. It works independently of the other two options. Duplicate names keep their original order. Spreads, unsupported expressions, ambiguous comments, and unmapped source regions delimit sortable input runs. Explicit sorting is available when sorting diagnostics are off; lint fixes respect source suppression.
 

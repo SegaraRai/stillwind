@@ -30,8 +30,8 @@ export interface LintPreset {
   readonly rules?: LintRules;
 }
 
-/** Project lint configuration. Omitted extends uses no presets when this object is present. */
-export type LintConfig = LintPreset;
+/** Project lint configuration. False disables all rules. An object with omitted extends uses no presets. */
+export type LintConfig = LintPreset | false;
 
 /** Complete reporting settings with default detection options applied. */
 export type ResolvedLintRules = {
@@ -112,20 +112,33 @@ export type CanonicalUtilitiesOptions = {
  * Applies an inline override to project lint settings without expanding presets.
  * Omitted extends preserves the project's list; a supplied list replaces it.
  * Omitted project settings select recommended. Rule fields merge and arrays replace.
+ * False replaces all settings. An object override of false enables only its own rules and presets.
  * Neither input is modified.
  * @param base - Project settings, or undefined to use recommended.
  * @param override - Inline settings; undefined preserves the project settings.
- * @returns A configuration with inherited rule options preserved.
+ * @returns False when lint remains disabled, or settings with inherited rule options preserved.
  */
 export function mergeLintConfig(
   base: LintConfig | undefined,
   override: LintConfig | undefined,
 ): LintConfig {
-  const previous: LintConfig = base ?? { extends: [lintPresets.recommended] };
   if (override === undefined) {
-    return previous;
+    return (
+      base ?? {
+        extends: [lintPresets.recommended],
+      }
+    );
+  }
+  if (override === false) {
+    return false;
   }
 
+  const previous: LintPreset =
+    base === false
+      ? {}
+      : (base ?? {
+          extends: [lintPresets.recommended],
+        });
   return {
     ...previous,
     ...(override.name === undefined ? {} : { name: override.name }),
@@ -136,7 +149,7 @@ export function mergeLintConfig(
 
 /**
  * Expands presets in order and applies rule defaults without modifying the input.
- * @param config - Project lint settings. Undefined selects recommended; an empty object disables all rules.
+ * @param config - Project lint settings. Undefined selects recommended; false or an empty object disables all rules.
  * @param location - Field path used in configuration errors.
  * @returns Every rule's severity and detection options, wrapped in rules for repeatable normalization.
  * @throws If a preset has a cycle, an unknown field, or invalid effective rule options.
@@ -145,15 +158,24 @@ export function resolveLintConfig(
   config?: LintConfig,
   location = "config.lint",
 ): { rules: ResolvedLintRules } {
-  const value = config ?? { extends: [lintPresets.recommended] };
+  const value =
+    config === false
+      ? {}
+      : (config ?? {
+          extends: [lintPresets.recommended],
+        });
   validatePreset(value, location, new Set());
   const rules = resolvedRules(value);
   validateResolvedRules(rules, `${location}.rules`);
   return { rules };
 }
 
-/** Validates preset fields and cycles; partial overrides defer required options until composition. */
+/** Accepts false or validates preset fields and cycles; partial overrides defer required options until composition. */
 export function validateLintConfig(value: unknown, location: string, partial: boolean): void {
+  if (value === false) {
+    return;
+  }
+
   validatePreset(value, location, new Set());
   if (!partial) {
     validateResolvedRules(resolvedRules(value), `${location}.rules`);
@@ -281,7 +303,7 @@ function validatePreset(
   active.delete(value);
 }
 
-function resolvedRules(config: LintConfig): ResolvedLintRules {
+function resolvedRules(config: LintPreset): ResolvedLintRules {
   const expanded = expand(config);
   return Object.fromEntries(
     Object.entries(lintRules).map(([name, rule]) => {
@@ -303,7 +325,7 @@ function resolvedRules(config: LintConfig): ResolvedLintRules {
   ) as ResolvedLintRules;
 }
 
-function expand(config: LintConfig): LintRules {
+function expand(config: LintPreset): LintRules {
   let rules: LintRules = {};
   for (const preset of config.extends ?? []) {
     rules = mergeRules(rules, expand(preset));

@@ -46,6 +46,24 @@ test("omission selects recommended and explicit configurations enable only their
   ).toEqual(resolveLintConfig({}));
 });
 
+test("false disables inherited lint and object overrides enable only their own rules", () => {
+  const base = {
+    extends: [lintPresets.strict],
+  };
+  expect(mergeLintConfig(base, false)).toBe(false);
+  expect(mergeLintConfig(false, undefined)).toBe(false);
+  expect(resolveLintConfig(false)).toEqual(resolveLintConfig({}));
+  const enabled = resolveLintConfig(
+    mergeLintConfig(false, {
+      rules: {
+        "unknown-utility": "deny",
+      },
+    }),
+  );
+  expect(enabled.rules["unknown-utility"]).toBe("deny");
+  expect(enabled.rules["macro-argument-mutation"]).toBe("off");
+});
+
 test("strict denies recommended checks and stylistic adds independent conventions", () => {
   const recommended = resolveLintConfig().rules;
   const strict = resolveLintConfig({

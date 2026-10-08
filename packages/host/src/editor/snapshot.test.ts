@@ -32,6 +32,65 @@ function project(source: string, config: Partial<AnalysisProjectConfig> = {}, cs
   });
 }
 
+test("lint false disables reports and fixes while explicit sorting remains available", async () => {
+  const source = 'import {style} from "stillwind/react"; const value=style("p-[16px] flex block");';
+  const current = project(source, {
+    lint: false,
+  });
+  try {
+    const graph = await current.analyze("/workspace/entry.tsx");
+    expect(graph.batches.flatMap((batch) => batch.reports)).toEqual([]);
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "fixes",
+      }))!.edits,
+    ).toEqual([]);
+    const sorted = applyEdits(
+      source,
+      (await current.query("/workspace/entry.tsx", {
+        kind: "sort",
+      }))!.edits!,
+    );
+    expect(sorted).not.toBe(source);
+    expect(sorted).toContain("p-[16px]");
+  } finally {
+    await current.close();
+  }
+});
+
+test("sort false disables explicit and lint sorting while preserving other lint fixes", async () => {
+  const source =
+    'import {style} from "stillwind/react"; const base=style("p-4"); const ref=style.ref(); const value=style([base,ref,"p-[16px] flex block",{"data-z":1,"aria-label":"x"}]);';
+  const current = project(source, {
+    sort: false,
+    lint: {
+      extends: [lintPresets.recommended, lintPresets.stylistic],
+    },
+  });
+  try {
+    const graph = await current.analyze("/workspace/entry.tsx");
+    expect(
+      graph.batches
+        .flatMap((batch) => batch.reports)
+        .some((report) => report.code === "sort-utilities"),
+    ).toBe(false);
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "sort",
+      }))!.edits,
+    ).toEqual([]);
+    const fixed = applyEdits(
+      source,
+      (await current.query("/workspace/entry.tsx", {
+        kind: "fixes",
+      }))!.edits!,
+    );
+    expect(fixed).toContain('style([base,ref,"p-4 flex block",{"data-z":1,"aria-label":"x"}])');
+  } finally {
+    await current.close();
+  }
+});
+
 test("canonical lint uses native policy, suppression, exact escaped ranges, and separate sorting actions", async () => {
   const source = String.raw`import {style} from "stillwind/react";
 // 日本語 🦀

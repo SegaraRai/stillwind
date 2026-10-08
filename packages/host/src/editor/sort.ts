@@ -13,15 +13,20 @@ import type { SourceIndex, UtilityLiteral } from "./source-index.ts";
  * `seed` contains nonoverlapping edits in original UTF-16 coordinates. The result
  * composes these edits with sorting edits, also in original coordinates.
  * `allows` can reject exchanged ranges, for example to preserve lint suppression.
+ * False options keep only the seed edits and skip sorting.
  */
 export function sortSource(
   source: PreparedSource,
   index: SourceIndex,
   candidates: CandidateQueries,
-  options: UtilitySortOptions,
-  seed: EditorEdit[] = [],
+  options: UtilitySortOptions | false,
+  seed: readonly EditorEdit[] = [],
   allows?: (start: number, end: number) => boolean,
 ): EditorEdit[] {
+  if (options === false) {
+    return seed.toSorted((a, b) => a.start - b.start);
+  }
+
   let edits = [...seed];
   const permits = allows ?? (() => true);
 
@@ -44,7 +49,13 @@ export function sortSource(
           };
         });
         const tokens = spellings.map((spelling) => spelling.token);
-        return { literal, original, tokens, matches, spellings };
+        return {
+          literal,
+          original,
+          tokens,
+          matches,
+          spellings,
+        };
       });
     const compare = candidates.order(
       literals.flatMap(({ literal, tokens }) => tokens.map((token) => literal.prefix + token)),
@@ -169,7 +180,6 @@ export function sortSource(
       }
 
       const sorted = orderInputs(items, options.attributes === true, allows);
-
       if (sorted.every((item, position) => item === items[position])) {
         continue;
       }
@@ -239,7 +249,7 @@ function decodeReplacement(text: string, literal: UtilityLiteral): string {
   return node && ts.isStringLiteralLike(node) ? node.text : text;
 }
 
-function absorb(edits: EditorEdit[], replacement: EditorEdit): EditorEdit[] {
+function absorb(edits: readonly EditorEdit[], replacement: EditorEdit): EditorEdit[] {
   return [
     ...edits.filter((edit) => edit.end <= replacement.start || edit.start >= replacement.end),
     replacement,

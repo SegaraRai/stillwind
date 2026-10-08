@@ -15,7 +15,10 @@ defineConfig({
       css: "theme.css",
       files: ["**/*.tsx"],
       tsconfig: "tsconfig.app.json",
-      sources: { kind: "filesystem" },
+      sort: false,
+      sources: {
+        kind: "filesystem",
+      },
       lint: {
         extends: [lintPresets.recommended, lintPresets.stylistic],
         rules: {
@@ -24,6 +27,17 @@ defineConfig({
           },
         },
       },
+    },
+  ],
+});
+
+defineConfig({
+  projects: [
+    {
+      css: "theme.css",
+      files: ["**/*.tsx"],
+      lint: false,
+      sort: false,
     },
   ],
 });

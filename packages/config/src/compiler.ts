@@ -35,10 +35,10 @@ export interface BuildOptions {
  * Compiler and design-system settings shared by build integrations and analysis services.
  */
 export interface BaseConfig {
-  /** Lint presets and rule overrides. Omission uses recommended; an empty object disables all rules. */
+  /** Lint presets and rule overrides. Omission uses recommended; false or an empty object disables all rules. */
   lint?: LintConfig;
-  /** Targets for explicit Stillwind sorting and the optional sorting diagnostic. */
-  sort?: UtilitySortOptions;
+  /** Targets for explicit Stillwind sorting and the optional sorting diagnostic. False disables all sorting. */
+  sort?: UtilitySortOptions | false;
   /**
    * Project directory, absolute or relative to the configuration file's directory.
    * An inline override uses the application's build root instead. Defaults to that base directory.
@@ -101,6 +101,12 @@ const namespace = v.pipe(
   v.regex(/^--\S+-$/, "must start with --, end with -, and contain no whitespace"),
 );
 
+const sortOptionsSchema = strictObject({
+  stringLiterals: v.optional(v.boolean()),
+  arrays: v.optional(v.boolean()),
+  attributes: v.optional(v.boolean()),
+});
+
 export const compilerEntries = {
   root: v.optional(v.string()),
   css: v.optional(cssPath),
@@ -112,13 +118,7 @@ export const compilerEntries = {
   useCssIf: v.optional(v.boolean()),
   namingRevision: v.optional(v.string()),
   hashLength: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50))),
-  sort: v.optional(
-    strictObject({
-      stringLiterals: v.optional(v.boolean()),
-      arrays: v.optional(v.boolean()),
-      attributes: v.optional(v.boolean()),
-    }),
-  ),
+  sort: v.optional(v.lazy((value) => (value === false ? v.literal(false) : sortOptionsSchema))),
   naming: v.optional(
     strictObject({
       utilityClass: v.optional(v.function()),
@@ -199,11 +199,18 @@ export function normalizeCompilerConfig(
     namingRevision: config.namingRevision ?? "",
     hashLength: config.hashLength ?? 5,
     automatic: automatic ?? true,
-    sort: {
-      stringLiterals: config.sort?.stringLiterals ?? true,
-      arrays: config.sort?.arrays ?? true,
-      attributes: config.sort?.attributes ?? false,
-    },
+    sort:
+      config.sort === false
+        ? {
+            stringLiterals: false,
+            arrays: false,
+            attributes: false,
+          }
+        : {
+            stringLiterals: config.sort?.stringLiterals ?? true,
+            arrays: config.sort?.arrays ?? true,
+            attributes: config.sort?.attributes ?? false,
+          },
     lint,
   };
 }

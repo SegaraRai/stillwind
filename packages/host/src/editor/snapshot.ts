@@ -114,7 +114,7 @@ export class EditorSnapshot {
   readonly #index: SourceIndex;
   readonly #query: NativeEditorQuery;
   readonly #candidates: CandidateQueries;
-  readonly #sort: UtilitySortOptions;
+  readonly #sort: UtilitySortOptions | false;
   readonly #sortSeverity: LintSeverity;
   readonly #reports = new Map<string, BindingReport[]>();
 

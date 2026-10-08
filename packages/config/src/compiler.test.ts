@@ -37,6 +37,29 @@ test("compiler normalization applies defaults and retains lint options", () => {
   });
 });
 
+test("false disables all sorting targets and remains disabled after normalization", () => {
+  const normalized = normalizeCompilerConfig({
+    sort: false,
+  });
+  expect(normalized.sort).toEqual({
+    stringLiterals: false,
+    arrays: false,
+    attributes: false,
+  });
+  expect(normalizeCompilerConfig(normalized).sort).toEqual(normalized.sort);
+});
+
+test.each([
+  {
+    lint: true,
+  },
+  {
+    sort: true,
+  },
+])("only false disables a configuration: %j", (config) => {
+  expect(() => validateCompilerConfig(config)).toThrow();
+});
+
 test("sorting targets are validated independently of lint reporting", () => {
   const config = {
     lint: {

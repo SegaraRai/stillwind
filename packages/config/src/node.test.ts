@@ -271,6 +271,85 @@ test("Node and browser preserve file-authored paths when inline root changes", a
   });
 });
 
+test("Node and browser preserve disabling and reenable explicit lint and sort options", async () => {
+  const { root, configFile, write } = await fixture();
+  const disabled = {
+    lint: false,
+    sort: false,
+  } as const;
+  for (const [settings, inline, sort, unknownUtility] of [
+    [
+      disabled,
+      {},
+      {
+        stringLiterals: false,
+        arrays: false,
+        attributes: false,
+      },
+      "off",
+    ],
+    [
+      {
+        lint: {
+          extends: [lintPresets.strict],
+        },
+        sort: {
+          attributes: true,
+        },
+      },
+      disabled,
+      {
+        stringLiterals: false,
+        arrays: false,
+        attributes: false,
+      },
+      "off",
+    ],
+    [
+      disabled,
+      {
+        lint: {
+          rules: {
+            "unknown-utility": "deny",
+          },
+        },
+        sort: {
+          attributes: true,
+        },
+      },
+      {
+        stringLiterals: true,
+        arrays: true,
+        attributes: true,
+      },
+      "deny",
+    ],
+  ] as const) {
+    const project = {
+      css: "theme.css",
+      files: ["*.tsx"],
+      ...settings,
+    };
+    await write([project]);
+    const node = await resolveIntegrationConfig(inline, root);
+    const browser = await resolveBrowserConfig(
+      root.replaceAll("\\", "/"),
+      {
+        exists: (file) => file === configFile.replaceAll("\\", "/"),
+        evaluate: async () => ({
+          projects: [project],
+        }),
+      },
+      inline,
+    );
+    expect(node.config.sort).toEqual(sort);
+    expect(node.config.lint.rules["unknown-utility"]).toBe(unknownUtility);
+    expect(node.config.lint.rules["macro-argument-mutation"]).toBe("off");
+    expect(browser.config.sort).toEqual(node.config.sort);
+    expect(browser.config.lint).toEqual(node.config.lint);
+  }
+});
+
 test("configFile false bypasses an invalid configuration", async () => {
   const { root, configFile } = await fixture();
   await writeFile(configFile, "throw new Error('configuration evaluated')");
