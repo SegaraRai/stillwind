@@ -21,18 +21,11 @@ struct Signature {
     required: Vec<String>,
 }
 
-#[derive(Debug)]
-struct IndexedUtility {
-    label: String,
-    preview: Arc<CanonicalPreview>,
-}
-
 /// Finite spellings grouped by their output and spacing conversion policy.
 #[derive(Debug, Default)]
 pub(in crate::query) struct CanonicalIndex {
     values: ThemeValueIndex,
-    policies: BTreeMap<Normalization, HashMap<Signature, Vec<Arc<IndexedUtility>>>>,
-    records: Vec<Arc<IndexedUtility>>,
+    policies: BTreeMap<Normalization, HashMap<Signature, Vec<String>>>,
     pub(super) errors: Vec<(String, UtilityResolutionError)>,
     pub(super) labels: BTreeSet<String>,
     fixed: BTreeSet<String>,
@@ -79,17 +72,14 @@ impl CanonicalIndex {
                 continue;
             }
             match query.canonical_preview(&label) {
-                Ok(Some(preview)) => index.insert(query, label, preview),
+                Ok(Some(preview)) => index.insert(query, label, &preview),
                 Ok(None) => {}
                 Err(error) => index.errors.push((label, error)),
             }
         }
-        index
-            .records
-            .sort_by(|left, right| rank(&left.label, &right.label));
         for groups in index.policies.values_mut() {
             for records in groups.values_mut() {
-                records.sort_by(|left, right| rank(&left.label, &right.label));
+                records.sort_by(|left, right| rank(left, right));
             }
         }
         index
@@ -98,24 +88,22 @@ impl CanonicalIndex {
         index
     }
 
-    fn insert(&mut self, query: &QueryContext, label: String, preview: Arc<CanonicalPreview>) {
+    fn insert(&mut self, query: &QueryContext, label: String, preview: &CanonicalPreview) {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
-        let normalization = policy(&preview, &options, scale.as_deref());
+        let normalization = policy(preview, &options, scale.as_deref());
         let signature = preview.signature(scale.as_deref(), &normalization.properties, &options);
-        let record = Arc::new(IndexedUtility { label, preview });
         if let Some(css) = signature {
             self.policies
                 .entry(normalization)
                 .or_default()
                 .entry(Signature {
                     css,
-                    required: record.preview.required_properties.clone(),
+                    required: preview.required_properties.clone(),
                 })
                 .or_default()
-                .push(record.clone());
+                .push(label);
         }
-        self.records.push(record);
     }
 
     pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<String>, suffix: &str) -> bool {
@@ -171,7 +159,7 @@ impl CanonicalIndex {
                     required: original.required_properties.clone(),
                 })
             {
-                records.extend(matches.iter().map(|record| record.label.clone()));
+                records.extend(matches.iter().cloned());
             }
         }
         records.sort_by(|left, right| rank(left, right));

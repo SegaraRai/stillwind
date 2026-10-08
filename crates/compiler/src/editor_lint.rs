@@ -54,7 +54,7 @@ pub(crate) fn detect(
             let Some(replacement) = canonical.strip_prefix(&prefix) else {
                 continue;
             };
-            let Ok(range) = SourceRange::from_source(Arc::new(source.clone()), span) else {
+            let Ok(range) = SourceRange::from_source(Arc::clone(&module.source), span) else {
                 continue;
             };
             let quote = source.text()[..literal.span.start.0 as usize]
