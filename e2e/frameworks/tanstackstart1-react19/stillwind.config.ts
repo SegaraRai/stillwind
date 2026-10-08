@@ -5,7 +5,6 @@ export default defineConfig({
     {
       css: "src/styles.css",
       files: ["src/**/*.{js,jsx,ts,tsx,vue,svelte,astro}"],
-      types: false,
     },
   ],
 });

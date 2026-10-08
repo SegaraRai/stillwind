@@ -28,7 +28,7 @@ export function writeFrameworkFixture(root: string, framework: Framework) {
       );
       put(
         "astro.config.mjs",
-        `import {defineConfig} from 'astro/config'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, vite:{plugins:[stillwind({css:import.meta.dirname+'/root.css',types:false})]},build:{inlineStylesheets:'never'}});`,
+        `import {defineConfig} from 'astro/config'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, vite:{plugins:[stillwind({css:import.meta.dirname+'/root.css'})]},build:{inlineStylesheets:'never'}});`,
       );
       break;
 
@@ -48,7 +48,7 @@ export function writeFrameworkFixture(root: string, framework: Framework) {
       );
       put(
         "vite.config.mts",
-        `import {defineConfig} from 'vite-plus'; import {svelte} from '@sveltejs/vite-plugin-svelte'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, plugins:[stillwind({css:import.meta.dirname+'/root.css',types:false}),svelte({configFile:false})]});`,
+        `import {defineConfig} from 'vite-plus'; import {svelte} from '@sveltejs/vite-plugin-svelte'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, plugins:[stillwind({css:import.meta.dirname+'/root.css'}),svelte({configFile:false})]});`,
       );
       break;
 
@@ -68,7 +68,7 @@ export function writeFrameworkFixture(root: string, framework: Framework) {
       );
       put(
         "vite.config.mts",
-        `import {defineConfig} from 'vite-plus'; import vue from '@vitejs/plugin-vue'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, plugins:[stillwind({css:import.meta.dirname+'/root.css',types:false}),vue()]});`,
+        `import {defineConfig} from 'vite-plus'; import vue from '@vitejs/plugin-vue'; import {stillwind} from '@stillwind/integration/vite'; export default defineConfig({root:import.meta.dirname, plugins:[stillwind({css:import.meta.dirname+'/root.css'}),vue()]});`,
       );
       break;
   }

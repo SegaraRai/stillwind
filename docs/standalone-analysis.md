@@ -6,8 +6,7 @@ services, and `@stillwind/language-server` owns LSP handlers and Node/browser tr
 The LSP can run independently of the CLI.
 
 Node configuration runs in an isolated worker. Configuration stdout goes to stderr,
-so it cannot corrupt CLI JSON or LSP messages. Analysis does not evaluate application modules
-or write generated vocabulary files.
+so it cannot corrupt CLI JSON or LSP messages. Analysis does not evaluate application modules.
 
 ## Shared project configuration
 
@@ -34,8 +33,8 @@ export default defineConfig({
 ```
 
 The root object contains only `projects`. Project roots are relative to this
-configuration file. Stylesheets, tsconfig paths, and generated declaration paths
-are relative to the selected project root. Omission selects the configuration
+configuration file. Stylesheet and tsconfig paths are relative to the selected
+project root. Omission selects the configuration
 directory and an existing root `tsconfig.json`. `tsconfig: false` selects isolated
 checker defaults. The source and projection providers shown above are also the defaults.
 
@@ -87,8 +86,8 @@ that root produce a configuration error. Analysis continues to run every matchin
 project independently.
 
 A root in the configuration file is relative to its directory. An inline root is
-relative to the application root. CSS, tsconfig, and generated declaration paths
-use the resulting project root. Analysis scope settings do not filter the bundler's
+relative to the application root. CSS and tsconfig paths use the resulting
+project root. Analysis scope settings do not filter the bundler's
 module graph. Build-specific settings such as Vite CSS emission stay in the
 integration configuration.
 
@@ -121,8 +120,7 @@ The same service retains an incremental snapshot for subsequent declaration quer
 CSS has a separate resolver with the `style` condition.
 
 The checker project inherits the selected tsconfig and retains its declaration files.
-Prepared sources, framework globals, and generated vocabulary declarations become its
-other roots. The generated configuration clears inherited target include/exclude patterns.
+Prepared sources and framework globals become its other roots. The generated configuration clears inherited target include/exclude patterns.
 Unsaved buffers override reads, including dependencies outside the diagnostic scope,
 without becoming checker roots merely because they are open.
 

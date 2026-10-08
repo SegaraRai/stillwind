@@ -5,11 +5,11 @@
 //! and converts the result back; no rule, candidate, or registry decision is made here.
 //!
 //! Two families of functions exist. The one-shot functions ([`compile_source`],
-//! [`compile_project`], [`render_stylesheet`], [`summarize_source`],
-//! [`generate_vocabulary_types`], [`minify_css`]) are pure, so they have plain Rust
-//! counterparts that the E2E tests call directly. The classes
-//! `NativeDesignSystemLoader` and `NativeProjectSession` carry state across calls and
-//! are thin wrappers over [`stillwind_design_system`] and [`stillwind_project`].
+//! [`compile_project`], [`render_stylesheet`], [`summarize_source`], [`minify_css`])
+//! are pure, so they have plain Rust counterparts that the E2E tests call directly. The
+//! classes `NativeDesignSystemLoader` and `NativeProjectSession` carry state across
+//! calls and are thin wrappers over [`stillwind_design_system`] and
+//! [`stillwind_project`].
 //!
 //! File and module resolution stays in JavaScript. The binding only receives buffers
 //! that the host already read, and it reports unresolved CSS imports as requests for

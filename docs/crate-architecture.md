@@ -16,7 +16,7 @@ are documented in [framework projection design](framework-projection-design.md).
 | `ir`            | Module IR, scan and finalized-analysis contracts, and frontend/provider interfaces                                                  |
 | `js-oxc`        | Oxc parsing, macro extraction, scan/finalize implementation, and type-fact application                                              |
 | `design-system` | Stillwind CSS directives, theme and registry construction, utility/variant evaluation, import expansion, and immutable snapshots    |
-| `compiler`      | IR lowering, class/symbol allocation, source replacements, generated rules, CSS rendering, type declarations, and candidate queries |
+| `compiler`      | IR lowering, class/symbol allocation, source replacements, generated rules, CSS rendering, and candidate queries                    |
 | `project`       | Mutable analyses and artifacts, rule ownership, reloads, dependency indexes, producer selection, and coverage validation            |
 | `napi`          | Node transport, serialization, and composition of the Rust services                                                                 |
 | `cli`           | Filesystem/package resolution and command-line composition                                                                          |
@@ -113,7 +113,7 @@ namespace, and generation policy. `design_system()` projects the loader inputs;
 module compilers and renderers combine generation policy with the snapshot's
 resolved prefixes. Different compilation settings can share one snapshot.
 
-`StylesheetRenderer` owns CSS rendering and declaration generation.
+`StylesheetRenderer` owns CSS rendering.
 `DesignSystemQuery` lives in `compiler` so queries reuse the real resolver and
 emitter. Neither operation introduces a dependency from snapshots to codegen.
 

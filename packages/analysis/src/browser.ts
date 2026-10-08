@@ -193,7 +193,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
    * Transforms a module for a browser application build.
    * @param uri - Source URI in exactly one configured project.
    * @param revision - Workspace revision captured when the application build started.
-   * @returns Transformed source, CSS, reports, and generated declarations.
+   * @returns Transformed source, CSS, and reports.
    * Blocked graphs retain diagnostics and return empty CSS and CSS values.
    * @throws If project selection fails or the build revision became obsolete.
    */
@@ -203,7 +203,6 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   ): Promise<{
     graph: Awaited<ReturnType<BrowserProject["analyze"]>>;
     css: string;
-    declarations: [string, string][];
     cssValues: [string, { css: string; parts: { key: string; css: string }[] }][];
   }> {
     const files = this.files();
@@ -232,7 +231,6 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
       return {
         graph,
         css: graph.generation === "complete" ? project.css() : "",
-        declarations: [...project.declarations()],
         cssValues: graph.generation === "complete" ? [...project.cssValues()] : [],
       };
     });

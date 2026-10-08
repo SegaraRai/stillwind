@@ -72,7 +72,7 @@ compatibility.
           ▼                           ▼
  emitted CSS                  Vite/framework adapter applies edits
           │
-          └──────────────► generated `.d.ts` and diagnostics
+          └──────────────► diagnostics
 ```
 
 The core owns parsing of Stillwind semantics, validation, rule generation, naming,
@@ -642,7 +642,7 @@ Cache keys include:
 
 Cache per-file `ModuleIr`, lowered `StyleIR`, diagnostics, and CSS fragments.
 A source edit recompiles only that module. A theme edit invalidates semantic
-resolution and CSS fragments that depend on it, and regenerates `.d.ts`.
+resolution and CSS fragments that depend on it.
 
 Shadow inputs and extracted producer records are additionally content-addressed.
 Changing an exported identity invalidates TypeScript dependants; changing an
@@ -715,7 +715,7 @@ as a compiler integration error rather than falling back to Rust propagation.
 6. `style.ref()` graph, selector relations, anchor positioning, and
    container queries with lint rules.
 7. String-based `style.keyframes()` and named view-transition assets.
-8. `.d.ts`, CLI `check`, macro formatter, and editor/LSP integration.
+8. CLI `check`, macro formatter, and editor/LSP integration.
 9. Vue, Svelte, and Astro frontends once their extractor contracts are proven.
 
 At each step, fixture diagnostics and source-location tests are a release gate.

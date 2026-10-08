@@ -32,8 +32,6 @@ export declare class NativeDesignSystemLoader {
    * errors.
    */
   provideMany(files: Array<NativeCssFileInput>): NativeCssLoadStep
-  /** Generates the TypeScript augmentation for the completed snapshot. */
-  generateVocabularyTypes(): string
   /**
    * Creates editor queries pinned to this completed design system and its compiler options.
    * Returns an error while CSS loading is incomplete.
@@ -410,15 +408,6 @@ export declare function fingerprint(content: string | Uint8Array): string
  * than the calculator accepts, are retained byte-for-byte.
  */
 export declare function foldCalcExpressions(css: string, zeroUnit?: string | undefined | null): string
-
-/**
- * Generates the TypeScript vocabulary augmentation for one CSS-first theme.
- *
- * # Errors
- *
- * Returns a JavaScript error when the theme is invalid or vocabulary generation fails.
- */
-export declare function generateVocabularyTypes(theme: string): string
 
 /** Source offsets in the host transport are UTF-16; native spans are bytes. */
 export interface HostRealm {

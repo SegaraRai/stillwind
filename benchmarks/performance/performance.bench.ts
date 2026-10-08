@@ -171,7 +171,7 @@ for (const count of sizes) {
             output = await build({
               configFile: false,
               root,
-              plugins: [stillwind({ css: "root.css", types: false })],
+              plugins: [stillwind({ css: "root.css" })],
               logLevel: "silent",
               build: { write: true, sourcemap: false },
             });
@@ -207,13 +207,13 @@ for (const count of sizes) {
               },
             },
             async () => {
-              active = await startServer(root, stillwind({ css: "root.css", types: false }));
+              active = await startServer(root, stillwind({ css: "root.css" }));
             },
           )
           .run(options);
         await assertBudget(context, "watch-ready", startup, budgets.startup[count]);
 
-        const project = createViteProject({ css: "root.css", types: false });
+        const project = createViteProject({ css: "root.css" });
         const plugins = createVitePlugins(project);
         active = await startServer(root, plugins);
         const [plugin] = plugins;
@@ -346,7 +346,6 @@ for (const count of sizes) {
               root,
               stillwind({
                 css: "root.css",
-                types: false,
               }),
             );
           },
@@ -355,7 +354,6 @@ for (const count of sizes) {
       await assertBudget(context, "css-watch-ready", startup, budgets.cssStartup[count]);
       const plugins = stillwind({
         css: "root.css",
-        types: false,
       });
       const [plugin] = plugins;
       active = await startServer(root, plugins);

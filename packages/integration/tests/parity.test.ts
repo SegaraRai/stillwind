@@ -10,7 +10,7 @@ import { expect, test } from "vite-plus/test";
 import webpack from "webpack";
 
 for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
-  test(`adapters share compiler options, identities and vocabulary (${naming ? "custom" : "default"} naming)`, async () => {
+  test(`adapters share compiler options and identities (${naming ? "custom" : "default"} naming)`, async () => {
     const root = mkdtempSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), ".test-parity-"),
     );
@@ -27,7 +27,6 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
       hashLength: 12,
       naming,
       namingRevision: naming ? "custom-v1" : "",
-      types: "vocabulary.d.ts",
     };
     try {
       const result = await build({
@@ -54,7 +53,6 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
       if (naming) {
         expect(selector).toBe("shared-name");
       }
-      const vocabulary = readFileSync(path.join(root, "vocabulary.d.ts"), "utf8");
       for (const backend of [webpack, rspack as unknown as typeof webpack]) {
         const compiler = backend({
           context: root,
@@ -98,7 +96,6 @@ for (const naming of [undefined, { utilityClass: () => "shared-name" }]) {
             .join("");
           expect(outputCss, outputCss).toContain(`.${selector}`);
           expect(readFileSync(path.join(root, "dist/main.js"), "utf8")).toContain(selector);
-          expect(readFileSync(path.join(root, "vocabulary.d.ts"), "utf8")).toBe(vocabulary);
         } finally {
           await new Promise<void>((resolve, reject) =>
             compiler.close((error) => (error ? reject(error) : resolve())),

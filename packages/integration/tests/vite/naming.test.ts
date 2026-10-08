@@ -23,7 +23,6 @@ test("a configured generator names the classes the plugin emits", async () => {
       plugins: [
         stillwind({
           css: path.join(root, "root.css"),
-          types: false,
           naming: {
             utilityClass: () => "app-class",
           },
@@ -76,7 +75,6 @@ test("a stylesheet the producer authors owns the names it writes", async () => {
         plugins: [
           stillwind({
             css: path.join(root, "root.css"),
-            types: false,
             naming: {
               utilityClass: () => "app-class",
             },

@@ -78,7 +78,6 @@ test("Vite aliases and explicit TypeScript settings select the same asset in the
       plugins: [
         stillwind({
           css: path.join(root, "root.css"),
-          types: false,
           tsconfig: "tsconfig.app.json",
         }),
       ],

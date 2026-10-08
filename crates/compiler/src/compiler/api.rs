@@ -19,7 +19,6 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
 use stillwind_source::{CssSourceName, Fingerprint, ModuleId, SourceFile};
 
-use super::vocabulary::render_vocabulary_types;
 use super::{CompileResult, Compiler};
 use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 
@@ -42,22 +41,6 @@ impl Compiler {
         .map_err(|error| error.into_compile_error(source.full_span()))?
         .theme()
         .clone())
-    }
-
-    /// Renders the ambient type declarations for a theme buffer.
-    ///
-    /// # Errors
-    ///
-    /// Returns invalid CSS, unresolved imports, or invalid CSS-authored configuration.
-    /// Failures retain the supplied theme source identity and typed cause.
-    pub fn generate_vocabulary_types(
-        source: &SourceFile,
-        source_name: &CssSourceName,
-    ) -> Result<String, CompileError> {
-        Ok(render_vocabulary_types(&Self::read_theme(
-            source,
-            source_name,
-        )?))
     }
 
     /// Renders a standalone stylesheet for a theme buffer and utility rules.

@@ -266,15 +266,6 @@ impl NativeDesignSystemLoader {
         }
     }
 
-    /// Generates the TypeScript augmentation for the completed snapshot.
-    #[napi]
-    pub fn generate_vocabulary_types(&self) -> napi::Result<String> {
-        Ok(
-            StylesheetRenderer::new(&self.completed()?, &self.options, &Identifiers::default())
-                .generate_vocabulary_types(),
-        )
-    }
-
     /// Creates editor queries pinned to this completed design system and its compiler options.
     /// Returns an error while CSS loading is incomplete.
     #[napi]

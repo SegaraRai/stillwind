@@ -33,10 +33,8 @@ creating a new file. Removing an overlay restores the disk version instead of
 notifying TypeScript that the file was deleted. Regression tests exercise
 addition, removal and restoration without restarting the checker process.
 
-Custom utility and variant names enter generated vocabularies without acquiring
-implicit builtins. Type declarations expose utility names and variant prefixes
-without materializing their full Cartesian product; the compiler validates
-complete utility strings.
+The compiler validates complete utility strings against the configured design
+system. Custom utility and variant definitions do not add implicit builtins.
 
 ## Framework acceptance
 

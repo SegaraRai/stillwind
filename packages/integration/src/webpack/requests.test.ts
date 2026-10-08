@@ -26,7 +26,6 @@ test("SFC virtual requests carry reconstructible configuration", () => {
   const config: BaseConfig = {
     css: "./root.css",
     automatic: false,
-    types: false,
   };
   const resource = path.resolve("component.vue");
   const loader = path.resolve("loader.js");

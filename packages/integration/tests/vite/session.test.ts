@@ -16,7 +16,6 @@ test("query modules retain independent CSS and deletion removes all derivatives 
   );
   const plugins = stillwind({
     css,
-    types: false,
   });
   const [plugin] = plugins;
   const server = await createServer({
@@ -99,7 +98,6 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
   writeFileSync(tokens, "@theme { --color-brand: red; }");
   const plugins = stillwind({
     css,
-    types: false,
   });
   const [plugin] = plugins;
   const development = plugins.find((plugin) => plugin.hotUpdate)!;
@@ -219,7 +217,6 @@ test("nested CSS imports resolve while a sibling import waits, and CSS keeps imp
   writeFileSync(child, ".child { color: green; }");
   const plugins = stillwind({
     css,
-    types: false,
   });
   let releaseFirst: (() => void) | undefined;
   const server = await createServer({
@@ -300,7 +297,6 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
   writeFileSync(css, "@import 'failed'; @import 'late';");
   const plugins = stillwind({
     css,
-    types: false,
   });
   await resolveConfig(
     {
@@ -362,7 +358,6 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
   writeFileSync(ssrCss, ".environment { color: blue; } @stillwind-utility paint { color: blue; }");
   const plugins = stillwind({
     css: entry,
-    types: false,
   });
   const [plugin] = plugins;
   const development = plugins.find((plugin) => plugin.hotUpdate)!;

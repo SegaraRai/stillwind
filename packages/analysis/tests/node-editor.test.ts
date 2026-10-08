@@ -22,7 +22,7 @@ test("Node workers answer editor queries from unsaved source and stylesheet buff
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default {projects:[{css:"theme.css",files:["*.tsx"],types:false}]}',
+      'export default {projects:[{css:"theme.css",files:["*.tsx"]}]}',
     );
     await writeFile(path.join(root, "theme.css"), css);
     await writeFile(entry, 'import {style} from "stillwind/react"; const card=style("bg-brand");');

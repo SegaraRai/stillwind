@@ -15,9 +15,13 @@ for (const backend of ["webpack", "rspack"] as const) {
       path.join(root, "stillwind.config.ts"),
       `
       import { defineConfig } from "stillwind/config";
-      export default defineConfig(async () => ({ projects: [{
-        css: "root.css", files: ["*.js"], automatic: false, types: false,
-      }] }));
+      export default defineConfig(async () => ({
+        projects: [{
+          css: "root.css",
+          files: ["*.js"],
+          automatic: false,
+        }]
+      }));
     `,
     );
     await build();
@@ -33,7 +37,7 @@ for (const backend of ["webpack", "rspack"] as const) {
     const { root, build } = await compilerFixture(backend, "config");
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default {projects:[{css:"root.css",files:["*.js"]},{css:"root.css",files:["*.ts"]}]}',
+      'export default { projects: [{ css: "root.css", files: ["*.js"] }, { css: "root.css", files: ["*.ts"] }] }',
     );
     await expect(build()).rejects.toThrow("Cannot select one Stillwind project");
   });
@@ -82,7 +86,6 @@ async function compilerFixture(
   const config = {
     css: "root.css",
     automatic: transport === "automatic-loader",
-    types: false as const,
   };
   const factory = backend === "webpack" ? webpack : (rspack as unknown as typeof webpack);
   const compiler = factory({

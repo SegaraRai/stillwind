@@ -42,7 +42,6 @@ export default function register(context: ScenarioContext): void {
     plugins: [
       stillwind({
         css: path.join(dir, "root.css"),
-        types: false,
         emission: context.args[0] === "split" ? "split" : "single",
       }),
     ],

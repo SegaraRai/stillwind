@@ -5,7 +5,7 @@ import { BrowserProject } from "./index.ts";
 test("failed graphs invalidate cached dependencies and keep unrelated CSS", async () => {
   const project = new BrowserProject({
     root: "/workspace",
-    config: { css: "theme.css", files: ["*.ts"], typeFacts: false, types: false },
+    config: { css: "theme.css", files: ["*.ts"], typeFacts: false },
     files: new Map([
       [
         "/workspace/styles.ts",
@@ -50,7 +50,6 @@ test("browser projects deliver explicit CSS values and resolve captured SVG reso
       '@utility red { color:red; background-image:url("./icon.svg"); } @stillwind-slot utilities;',
     ],
     ["/workspace/icon.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>'],
-    ["/workspace/src/stillwind.generated.d.ts", "stale generated declarations"],
   ]);
   const project = new BrowserProject({
     root: "/workspace",
@@ -60,7 +59,6 @@ test("browser projects deliver explicit CSS values and resolve captured SVG reso
       files: ["**/*.ts"],
       automatic: false,
       typeFacts: false,
-      types: false,
     },
   });
   try {
@@ -71,7 +69,6 @@ test("browser projects deliver explicit CSS values and resolve captured SVG reso
     expect(value?.css).toContain("color:red");
     expect(value?.css).toContain("data:image/svg+xml");
     expect(value?.parts.map((part) => part.css).join("")).toBe(value?.css);
-    expect(project.declarations().size).toBe(0);
   } finally {
     await project.close();
   }

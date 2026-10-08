@@ -697,18 +697,6 @@ pub fn summarize_source(
     .map_err(|error| Error::from_reason(error.to_string()))
 }
 
-/// Generates the TypeScript vocabulary augmentation for one CSS-first theme.
-///
-/// # Errors
-///
-/// Returns a JavaScript error when the theme is invalid or vocabulary generation fails.
-#[napi]
-pub fn generate_vocabulary_types(theme: String) -> napi::Result<String> {
-    let source = SourceFile::new(FileId(2), None, None, theme).map_err(BindingApiError::from)?;
-    Compiler::generate_vocabulary_types(&source, &CssSourceName::from("stillwind.css"))
-        .map_err(|error| Error::from_reason(error.to_string()))
-}
-
 /// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
 /// Exposed so parity and integration tools compare both compilers after the same
 /// semantic normalization. Expressions that do not parse, or that nest values deeper

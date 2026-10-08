@@ -11,7 +11,6 @@ export default defineConfig({
     return [
       stillwind({
         css: "root.css",
-        types: false,
         emission: "split",
       }),
       reactRouter(),

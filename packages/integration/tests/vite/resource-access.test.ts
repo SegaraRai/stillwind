@@ -56,7 +56,6 @@ globalThis.css = css;
     );
     const project = createViteProject({
       css: "root.css",
-      types: false,
       emission,
     });
     vi.mocked(readFile).mockClear();

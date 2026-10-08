@@ -12,7 +12,7 @@ test("build and standalone analysis consume the same CSS and declaration naming 
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default async () => ({projects:[{css:"root.css",files:["entry.ts"],types:false,classNamespace:"shared-project",prefix:"--project-"}]});',
+      'export default async () => ({projects:[{css:"root.css",files:["entry.ts"],classNamespace:"shared-project",prefix:"--project-"}]});',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -77,7 +77,7 @@ test("production watch reloads an imported configuration helper", async () => {
     "import settings from './settings.ts'; export default () => settings;",
   );
   const settings = (css: string) =>
-    `export default {projects:[{css:${JSON.stringify(css)},files:['*.ts'],types:false}]};`;
+    `export default {projects:[{css:${JSON.stringify(css)},files:['*.ts']}]};`;
   await writeFile(helper, settings("red.css"));
   for (const color of ["red", "blue"]) {
     await writeFile(
@@ -152,7 +152,7 @@ test("development reloads the project when an imported configuration helper chan
     "import settings from './settings.ts'; export default settings;",
   );
   const settings = (css: string) =>
-    `export default {projects:[{css:${JSON.stringify(css)},files:['*.ts'],types:false}]};`;
+    `export default {projects:[{css:${JSON.stringify(css)},files:['*.ts']}]};`;
   await writeFile(helper, settings("red.css"));
   for (const color of ["red", "blue"]) {
     await writeFile(

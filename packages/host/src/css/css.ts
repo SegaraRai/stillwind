@@ -51,7 +51,7 @@ export interface CssHost {
 
 /** Completed design-system loader and resource references discovered in its CSS graph. */
 export interface LoadedCssGraph {
-  /** Native loader whose complete CSS graph is ready for compilation or vocabulary generation. */
+  /** Native loader whose complete CSS graph is ready for compilation. */
   loader: NativeDesignSystemLoader;
   /** Authored resource references that the adapter must resolve and replace in emitted CSS. */
   resources: NativeCssResource[];

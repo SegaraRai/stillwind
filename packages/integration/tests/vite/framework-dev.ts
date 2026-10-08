@@ -22,7 +22,6 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
 
   const plugin = stillwind({
     css: path.join(root, "root.css"),
-    types: false,
   });
   if (framework === "astro") {
     const config: Parameters<typeof astroDev>[0] = {

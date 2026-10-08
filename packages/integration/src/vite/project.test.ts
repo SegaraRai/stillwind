@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vite-plus/test";
 
-import { writeVocabulary } from "../config.ts";
 import { createVitePlugins } from "./plugin.ts";
 import { createViteProject } from "./project.ts";
 
@@ -18,17 +17,8 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   };
 });
 
-vi.mock("../config.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../config.ts")>();
-  return {
-    ...original,
-    writeVocabulary: vi.fn(original.writeVocabulary),
-  };
-});
-
 afterEach(() => {
   vi.mocked(readFile).mockReset();
-  vi.mocked(writeVocabulary).mockReset();
 });
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -234,11 +224,10 @@ test("a CSS edit during a file read makes both waiting requests receive the newe
   expect(cssFilesRead()).toHaveLength(readsAfterUpdate);
 });
 
-test("an accepted CSS reload invalidates SSR producers even when writing vocabulary fails", async () => {
-  const fixture = await createWatchedProject(
-    { "root.css": definePaint("red") + " @stillwind-slot utilities;" },
-    { types: "generated.d.ts" },
-  );
+test("an accepted CSS reload invalidates SSR producers when generated names change", async () => {
+  const fixture = await createWatchedProject({
+    "root.css": definePaint("red") + " @stillwind-slot utilities;",
+  });
   await fixture.server.environments.ssr.pluginContainer.buildStart({});
   await fixture.waitUntilWatched("root.css");
   const producer = path.join(fixture.root, "producer.ts").replaceAll("\\", "/");
@@ -252,16 +241,13 @@ test("an accepted CSS reload invalidates SSR producers even when writing vocabul
   expect(module).toBeDefined();
   const invalidate = vi.spyOn(graph, "invalidateModule");
   onTestFinished(() => invalidate.mockRestore());
-  vi.mocked(writeVocabulary).mockImplementationOnce(() => {
-    throw new Error("Cannot write vocabulary");
-  });
   fixture.project.config.classNamespace = "updated";
 
   await fixture.writeCss("root.css", definePaint("green") + " @stillwind-slot utilities;");
   const css = await fixture.getCss("ssr");
 
   expect(css).toMatch(/color:\s*green/);
-  expect(fixture.project.environment("ssr").designSystem.cssError).toBeDefined();
+  expect(fixture.project.environment("ssr").designSystem.cssError).toBeUndefined();
   expect(invalidate).toHaveBeenCalledWith(module);
   expect(fixture.project.environment("ssr").takeThemeChanges()).toContain("producer.ts");
 });
@@ -313,14 +299,13 @@ async function createWatchedProject(
   options: {
     environmentCss?: boolean;
     hmr?: boolean;
-    types?: false | string;
   } = {},
 ) {
   const root = mkdtempSync(path.join(repositoryRoot, ".test-css-watch-"));
   for (const [filename, content] of Object.entries(files)) {
     writeFileSync(path.join(root, filename), content);
   }
-  const project = createViteProject({ css: "root.css", types: options.types ?? false });
+  const project = createViteProject({ css: "root.css" });
   const plugins = createVitePlugins(project);
   const [plugin] = plugins;
   const server = await createServer({

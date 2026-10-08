@@ -202,7 +202,6 @@ async function buildProject(
       ...(options.plugins ?? []),
       stillwind({
         css: path.join(root, "root.css"),
-        types: false,
         emission: options.emission,
       }),
     ],

@@ -73,7 +73,6 @@ test("Vite owns imported image URLs passed through inline custom properties", as
       plugins: [
         stillwind({
           css: path.join(root, "root.css"),
-          types: false,
         }),
       ],
       build: {

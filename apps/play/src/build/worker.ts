@@ -18,7 +18,6 @@ let initialization: Promise<void> | undefined;
 interface Compilation {
   graph: ModuleAnalysis;
   css: string;
-  declarations: [string, string][];
   cssValues: [
     string,
     {
@@ -71,7 +70,6 @@ self.onmessage = async ({
     await initialization;
     const files = new Map(data.files);
     const transformed = new Map<string, string>();
-    const declarations = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
     let css = "";
     const output = await esbuild.build({
@@ -168,9 +166,6 @@ self.onmessage = async ({
                     for (const [file, value] of compilation.cssValues) {
                       cssValues.set(file, value);
                     }
-                    for (const [file, text] of compilation.declarations) {
-                      declarations.set(file, text);
-                    }
                   }
                   code = transformed.get(args.path) ?? code;
                   const refreshCode = Babel.transform(code, {
@@ -227,7 +222,6 @@ self.onmessage = async ({
           .outputFiles!.filter((file) => file.path.endsWith(".css"))
           .map((file) => file.text)
           .join("\n"),
-      declarations: [...declarations],
       transformed: [...transformed],
     });
   } catch (error) {

@@ -12,7 +12,6 @@ const server = await dev({
   integrations: [
     stillwind({
       css: "root.css",
-      types: false,
     }),
   ],
   vite: {

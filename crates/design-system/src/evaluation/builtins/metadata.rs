@@ -19,16 +19,6 @@ pub fn builtin_property_definitions(
     theme.registry().properties()
 }
 
-/// Names of all selected utilities, in authored order and including repeats.
-pub fn builtin_utility_names(theme: &ThemeIndex) -> Vec<String> {
-    theme
-        .registry()
-        .utilities()
-        .iter()
-        .map(|utility| utility.name.clone())
-        .collect()
-}
-
 /// Pairs of utility-name prefix and theme-token prefix for wildcard utilities whose
 /// body reads a theme namespace.
 ///
@@ -50,16 +40,6 @@ pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(String, String
         entries.push((prefix.to_owned(), rest[..end].to_owned()));
     }
     entries
-}
-
-/// Names of all selected variants, in authored order and including repeats.
-pub fn builtin_variant_names(theme: &ThemeIndex) -> Vec<String> {
-    theme
-        .registry()
-        .variants()
-        .iter()
-        .map(|variant| variant.name.clone())
-        .collect()
 }
 
 /// Names of utilities that emit a compatibility marker class.

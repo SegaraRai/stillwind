@@ -43,7 +43,6 @@ export function createApplication(context: ScenarioContext) {
     plugins: [
       stillwind({
         css: path.join(dir, "root.css"),
-        types: false,
         emission: context.args[0] === "split" ? "split" : "single",
       }),
     ],

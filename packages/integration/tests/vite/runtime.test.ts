@@ -19,7 +19,6 @@ test.each([false, true])(
       plugins: [
         stillwind({
           css: path.join(root, "root.css"),
-          types: false,
         }),
       ],
       css: {

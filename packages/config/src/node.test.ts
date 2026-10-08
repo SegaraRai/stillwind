@@ -29,16 +29,13 @@ test("discovery and project paths use the configuration directory", async () => 
 
 test("an explicit file uses the application root while inline overrides preserve false", async () => {
   const { root, configFile, write } = await fixture();
-  await write([
-    { root: "old", css: "theme.css", files: ["*.tsx"], automatic: true, types: "generated.d.ts" },
-  ]);
+  await write([{ root: "old", css: "theme.css", files: ["*.tsx"], automatic: true }]);
   const config = (
     await resolveIntegrationConfig(
       {
         configFile: path.basename(configFile),
         root: "new",
         automatic: false,
-        types: false,
         css: undefined,
       },
       root,
@@ -48,7 +45,6 @@ test("an explicit file uses the application root while inline overrides preserve
     root: path.join(root, "new"),
     css: "theme.css",
     automatic: false,
-    types: false,
   });
 });
 

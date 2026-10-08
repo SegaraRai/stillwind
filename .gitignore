@@ -4,8 +4,6 @@ target
 dist
 *.node
 
-stillwind.generated.d.ts
-
 .cache
 .napi-external
 .napi-rs-*

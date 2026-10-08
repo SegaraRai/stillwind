@@ -104,12 +104,6 @@ export class BrowserProject {
         });
         this.#loader = loaded.loader;
         this.#resources = loaded.resources;
-        if (config.types !== false) {
-          this.#files.set(
-            resolve(root, config.types ?? "src/stillwind.generated.d.ts"),
-            this.#loader.generateVocabularyTypes(),
-          );
-        }
         this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
       }
 
@@ -163,13 +157,6 @@ export class BrowserProject {
         watch: () => {},
         warn: () => {},
       };
-      const ambientDeclarations = new Map(
-        [...this.#files].filter(
-          ([file]) =>
-            config.types !== false &&
-            file === resolve(root, config.types ?? "src/stillwind.generated.d.ts"),
-        ),
-      );
       let result: ModuleAnalysis;
       try {
         result = await analyzeModule(
@@ -179,7 +166,6 @@ export class BrowserProject {
           host,
           {
             overlayFiles: this.#files,
-            ambientDeclarations,
           },
         );
       } catch (error) {
@@ -319,20 +305,6 @@ export class BrowserProject {
       css = css.replaceAll(resource.placeholder, JSON.stringify(url).slice(1, -1));
     }
     return css;
-  }
-
-  /** Returns generated vocabulary declarations after the design system has loaded. */
-  declarations(): ReadonlyMap<string, string> {
-    if (this.#options.config.types === false) {
-      return new Map();
-    }
-    return new Map(
-      [...this.#files].filter(
-        ([file]) =>
-          file ===
-          resolve(this.#options.root, this.#options.config.types || "src/stillwind.generated.d.ts"),
-      ),
-    );
   }
 
   /** Waits for pending work and releases the checker. */

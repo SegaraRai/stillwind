@@ -44,7 +44,6 @@ async function startDevelopmentServer() {
     plugins: [
       stillwind({
         css: fileURLToPath(new URL("../../../core/index.css", import.meta.url)),
-        types: false,
       }),
     ],
     optimizeDeps: {

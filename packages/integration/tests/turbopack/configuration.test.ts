@@ -19,8 +19,7 @@ test.each(["next", "turbopack"])(
     await writeFile(
       configFile,
       `export default async () => ({ projects: [{
-    css: 'root.css', files: ['*.tsx'], types: false,
-    naming: { utilityClass: () => 'configured-class' }, namingRevision: 'test'
+    css: 'root.css', files: ['*.tsx'], naming: { utilityClass: () => 'configured-class' }, namingRevision: 'test'
   }] });`,
     );
     await writeFile(

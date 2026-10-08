@@ -31,9 +31,9 @@ export interface AnalysisHost extends CompilerHost {
    * @returns Whether load can supply supported source for the identity.
    */
   supports(id: string): boolean;
-  /** Absolute project directory used for identities, CSS paths, and generated declarations. */
+  /** Absolute project directory used for identities and CSS paths. */
   root: string;
-  /** Compiler settings fixed for this host's lifetime. Relative CSS and declaration paths use root. */
+  /** Compiler settings fixed for this host's lifetime. Relative CSS and tsconfig paths use root. */
   config: BaseConfig;
   /** CSS resolution and reads using the same captured document buffers as source loading. */
   css: CssHost;
@@ -294,7 +294,6 @@ export class AnalysisProject {
       );
       const graph = await analyzeModule(session, () => this.#semanticBackend(), entry, this.host, {
         overlayFiles: documents,
-        ambientDeclarations: this.#ambientDeclarations(loader),
       });
       result.graph = graph;
       result.reports = await mapAnalysisReports(
@@ -339,17 +338,6 @@ export class AnalysisProject {
       ).loader;
     }
     return this.#loader;
-  }
-
-  #ambientDeclarations(loader: NativeDesignSystemLoader): Map<string, string> {
-    const declarations = new Map<string, string>();
-    if (this.host.config.types !== false) {
-      declarations.set(
-        path.resolve(this.host.root, this.host.config.types ?? "src/stillwind.generated.d.ts"),
-        loader.generateVocabularyTypes(),
-      );
-    }
-    return declarations;
   }
 
   #semanticBackend(): TypeFactsBackend | undefined {

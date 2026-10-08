@@ -16,7 +16,7 @@ test("source formatter serializes independent buffers and refreshes configuratio
   try {
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,types:false}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -57,7 +57,7 @@ test("source formatter serializes independent buffers and refreshes configuratio
     ).toBe(source);
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,types:false,sort:{stringLiterals:false}}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,sort:{stringLiterals:false}}]}',
     );
     expect(
       (

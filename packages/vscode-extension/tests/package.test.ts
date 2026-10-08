@@ -17,7 +17,7 @@ test("packaged desktop server analyzes a workspace without repository dependenci
   await cp(resolve(import.meta.dirname, "../dist/desktop/dist/node"), runtime, { recursive: true });
   await writeFile(
     config,
-    'export default {projects:[{css:"theme.css",files:["**/*.tsx"],typeFacts:false,types:false}]};',
+    'export default {projects:[{css:"theme.css",files:["**/*.tsx"],typeFacts:false}]};',
   );
   await writeFile(join(directory, "theme.css"), '@import "stillwind"; @utility red { color:red; }');
   const source = 'import {style} from "stillwind/react"; export const card = style("missing");';

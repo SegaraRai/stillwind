@@ -11,7 +11,7 @@ test("fmt checks and sorts with byte preservation; unchanged fmt and lint fixes 
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default {projects:[{css:"root.css",files:["*.tsx"],types:false,typeFacts:false}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -51,7 +51,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const file = path.join(root, "entry.tsx");
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],types:false,typeFacts:false}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -67,17 +67,14 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     expect(JSON.parse(fixed.stdout).results[0].result.reports).toEqual([]);
     await writeFile(
       config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],types:false,typeFacts:false},{css:"root.css",files:["*.tsx"],types:false,typeFacts:false,sort:{stringLiterals:false}}]}',
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false},{css:"root.css",files:["*.tsx"],typeFacts:false,sort:{stringLiterals:false}}]}',
     );
     await writeFile(file, source);
     const conflict = await run(root, ["fmt"]);
     expect(conflict.code).toBe(2);
     expect(conflict.stderr).toContain("Conflicting project rewrites");
     expect(await readFile(file, "utf8")).toBe(source);
-    await writeFile(
-      config,
-      'export default {projects:[{css:"root.css",files:["*.tsx"],types:false}]}',
-    );
+    await writeFile(config, 'export default {projects:[{css:"root.css",files:["*.tsx"]}]}');
     await writeFile(
       path.join(root, "root.css"),
       "@utility block { display: block; } @utility flex { display: flex; } @stillwind { unknown-utility: deny; sort-utilities: deny; } @stillwind-slot utilities;",
@@ -192,9 +189,6 @@ test("failed batch planning preserves previously planned sources and reports unr
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("Incomplete analysis");
     expect(await readFile(file, "utf8")).toBe(source);
-    await expect(stat(path.join(root, "src/stillwind.generated.d.ts"))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
     expect((await run(root, ["fmt", "absent.tsx"])).code).toBe(2);
     await rm(path.join(root, "z-unsupported.txt"));
     const broken = source + "const broken=(";

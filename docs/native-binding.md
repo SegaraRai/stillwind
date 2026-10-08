@@ -4,8 +4,7 @@ The Node binding accepts JavaScript objects and arrays and returns typed objects
 
 The stateless entrypoints are `compileSource`, `compileProject`, `summarizeSource`,
 and `renderStylesheet`. They use the framework imports in each source to determine
-its output format. `generateVocabularyTypes` augments `stillwind/macro` with the
-theme's shared utility and variant vocabulary.
+its output format.
 
 ```ts
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";

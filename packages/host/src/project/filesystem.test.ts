@@ -73,7 +73,6 @@ test("filesystem analysis follows selected barrel exports, uses explicit tsconfi
       {
         css: "root.css",
         files: ["**/*.tsx"],
-        types: false,
         tsconfig: "tsconfig.app.json",
       },
       root,

@@ -205,7 +205,6 @@ export async function expectManualCss(app: EmissionApplication, mode: string): P
     plugins: [
       stillwind({
         css: "./root.css",
-        types: false,
         automatic: false,
       }),
     ],

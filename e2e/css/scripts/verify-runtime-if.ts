@@ -151,7 +151,6 @@ element.append(pseudoElement);
         plugins: [
           stillwind({
             css: path.join(dir, "root.css"),
-            types: false,
             useCssIf,
           }),
         ],

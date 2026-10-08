@@ -27,7 +27,6 @@ run: {
 ## Responsibilities
 
 `@stillwind/config` owns shared configuration and its evaluation.
-`config.ts` writes the vocabulary declarations for a loaded design system.
 `session.ts` owns native session construction and lazy TypeScript facts, including
 closing the checker. Each adapter supplies resolution, reads, watches, diagnostics
 and transport specifiers to that session.
@@ -42,8 +41,8 @@ works when module transforms are restored from cache. Vite and its Astro wrapper
 hands one ordered stylesheet to the host's CSS pipeline. `next/` supplies Next's
 route discovery and registers those loaders for webpack and Turbopack.
 
-All adapters share `css`/`theme`, root-relative identity, compiler flags, naming and
-vocabulary settings. Named loader functions disable module caching and SFC requests
+All adapters share `css`/`theme`, root-relative identity, compiler flags, and
+naming settings. Named loader functions disable module caching and SFC requests
 retain their configured loader option identity; serializable options remain embedded
 in requests for isolated workers. Turbopack's loader configuration must be serializable.
 

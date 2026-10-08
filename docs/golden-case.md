@@ -100,10 +100,10 @@ style(active ? "bg-accent" : "bg-muted"); // valid
 style(`bg-${color}`); // invalid
 ```
 
-## CSS-first theme and typed utility vocabulary
+## CSS-first theme and utility validation
 
-The CSS theme is the source of truth. The compiler reads it to generate utility
-vocabulary and optional TypeScript declarations.
+The CSS theme is the source of truth. The compiler reads it to resolve utilities
+and provide editor completion candidates.
 
 ```css
 /* src/styles/stillwind.css */
@@ -133,8 +133,8 @@ style("bg-accent rounded-md px-4 sm:grid md:grid-cols-2");
 ```
 
 Unknown tokens, breakpoints, variants, and utility spellings are compilation
-errors. Generated `.d.ts` files improve editor feedback, but compilation is the
-final authority.
+errors. Stillwind editor services use the same design system for diagnostics
+and completion.
 
 Theme changes use ordinary CSS variable cascading. Components refer to semantic
 tokens such as `bg-accent`; they do not generally carry their own theme branch.

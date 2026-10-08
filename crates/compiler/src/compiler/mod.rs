@@ -9,9 +9,8 @@
 //! barriers in final rule order. [`literal`] resolves utility text; [`class_units`]
 //! allocates classes and orders CSS. [`expression_render`] serializes lowered class
 //! trees in class-value context. [`symbols`], [`definitions`], and [`lexer`] allocate
-//! names and emit asset definitions, while [`utilities`] and [`stylesheet`] render CSS
-//! and [`vocabulary`] renders shared macro type declarations. [`output`] defines
-//! compilation results and structured CSS contributions.
+//! names and emit asset definitions. [`utilities`] and [`stylesheet`] render CSS.
+//! [`output`] defines compilation results and structured CSS contributions.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -38,7 +37,6 @@ mod stylesheet;
 mod symbols;
 mod utilities;
 mod variants;
-mod vocabulary;
 
 /// Marker type for the crate's associated compilation functions.
 ///
@@ -57,7 +55,6 @@ pub(crate) use stylesheet::template::render_mapped;
 pub(crate) use symbols::detached_symbol;
 pub(crate) use utilities::emission::emit_utility_rules;
 pub(crate) use utilities::resolve::{resolve_utility_targets, unresolved_utility_kind};
-pub(crate) use vocabulary::render_vocabulary_types;
 
 #[cfg(test)]
 mod tests;

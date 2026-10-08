@@ -7,7 +7,6 @@ import { pathToFileURL } from "node:url";
 import { cleanModuleId, compilerOptions, cssEntrypoint, loadCssGraph } from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import { readableFile } from "./file-access.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
@@ -108,8 +107,7 @@ export class DesignSystem {
    * Creates design-system state without loading CSS or opening a compiler session.
    *
    * @param settings - Shared project settings configured before initialization.
-   * @param config - Compiler options that identify the CSS entrypoint and generated vocabulary
-   * destination.
+   * @param config - Compiler options that identify the CSS entrypoint.
    */
   constructor(
     private readonly settings: ProjectSettings,
@@ -169,14 +167,12 @@ export class DesignSystem {
   /**
    * Loads a stable design-system revision and creates the compiler if initialization is pending.
    *
-   * While watching, changes observed during loading cause the load to retry. Initialization also
-   * writes vocabulary declarations unless generation is disabled.
+   * While watching, changes observed during loading cause the load to retry.
    *
    * @param context - Vite resolver and watch operations for the current build or server.
    * @param onInitialize - Called after the new session and CSS state are installed.
    * @returns A promise that resolves when the compiler is ready. An initialized session is reused.
-   * @throws If loading CSS, resolving resources, creating the compiler, or writing vocabulary
-   * declarations fails.
+   * @throws If loading CSS, resolving resources, or creating the compiler fails.
    */
   async ensure(context: CssContext, onInitialize: () => void): Promise<void> {
     if (this.#initialized) {
@@ -216,7 +212,6 @@ export class DesignSystem {
       this.cssApplied = this.cssAttempted = change;
       this.cssError = undefined;
       onInitialize();
-      writeVocabulary(loaded.loader, this.settings.projectRoot, this.config);
       return;
     }
   }
@@ -276,7 +271,6 @@ export class DesignSystem {
         this.cssVersion = nextVersion;
         this.cssApplied = this.cssAttempted = change;
         this.cssError = undefined;
-        writeVocabulary(loaded.loader, this.settings.projectRoot, this.config);
         return;
       } catch (error) {
         if (this.settings.cssWatching && change !== this.cssChange) {

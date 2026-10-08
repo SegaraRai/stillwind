@@ -123,7 +123,7 @@ export interface UnverifiedRange {
 export interface SemanticInputs {
   /** Captured original text keyed by absolute checker file path. Entries override filesystem reads. */
   overlayFiles?: ReadonlyMap<string, string>;
-  /** Generated declaration text keyed by absolute checker file path, supplied without writing to disk. */
+  /** Ambient declaration text keyed by absolute checker file path, supplied without writing to disk. */
   ambientDeclarations?: ReadonlyMap<string, string>;
 }
 
@@ -142,7 +142,7 @@ export interface TypeFactsBackend {
    *
    * @param sources - Prepared sources with original probes and checker correspondences.
    * @param assets - Compiler declaration metadata grouped by module identity.
-   * @param inputs - Captured overlays and generated declarations for the same analysis.
+   * @param inputs - Captured overlays and ambient declarations for the same analysis.
    * @returns Import request to resolved identity maps, grouped by source resolver identity.
    * @throws If checker setup or resolution cannot complete.
    */

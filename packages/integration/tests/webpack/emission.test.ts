@@ -52,7 +52,6 @@ for (const backend of ["webpack", "rspack"] as const) {
       plugins: [
         new StillwindPlugin({
           css: "./root.css",
-          types: false,
         }),
       ],
       module: {

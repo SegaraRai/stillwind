@@ -47,7 +47,6 @@ export default defineConfig({
     {
       css: "stillwind.css",
       files: ["**/*.{ts,tsx}"],
-      types: "stillwind.generated.d.ts",
     }
   ]
 });

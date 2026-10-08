@@ -43,21 +43,15 @@ for (const kind of ["authored", "tokens", "utilities"] as const) {
       task.meta.measurement = options;
       let loaded!: NativeDesignSystemLoader;
       let session!: NativeProjectSession;
-      let types = "";
       await bench("snapshot", { async: false }, () => {
         loaded = loader(css);
       }).run(options);
       await bench("empty-session", { async: false }, () => {
         session = new NativeProjectSession(loaded, true);
       }).run(options);
-      await bench("vocabulary", { async: false }, () => {
-        types = loaded.generateVocabularyTypes();
-      }).run(options);
       expect(session).toBeInstanceOf(NativeProjectSession);
-      expect(types).toContain("declare module");
       const output = session.compile(sources(1));
       expect(output.modules[0].diagnostics).toEqual([]);
-      task.meta.output = { vocabularyBytes: Buffer.byteLength(types) };
     });
   }
 }
@@ -134,7 +128,9 @@ for (const shape of ["fanout", "chain"] as const) {
           resultKind = result.kind;
         }).run(options);
         expect(resultKind).toBe("complete");
-        expect(batched.generateVocabularyTypes()).toEqual(loaded.loader.generateVocabularyTypes());
+        expect(new NativeProjectSession(batched, true).css()).toEqual(
+          new NativeProjectSession(loaded.loader, true).css(),
+        );
       }
     });
   }
@@ -235,7 +231,6 @@ for (const [name, css] of [
       modulesOnDisk: 1000,
       requestedJsModules: 0,
       cssBytes: Buffer.byteLength(css),
-      types: false,
       dependencyDiscovery: false,
     };
     task.meta.measurement = options;
@@ -259,7 +254,7 @@ for (const [name, css] of [
                 server.watcher.once("ready", watched);
               },
             },
-            stillwind({ css: "root.css", types: false }),
+            stillwind({ css: "root.css" }),
           ],
           logLevel: "silent",
           optimizeDeps: { noDiscovery: true, include: [] },
@@ -306,7 +301,6 @@ for (const [count, calls, name, css, watching] of [
     const input = sources(count, calls);
     const plugins = stillwind({
       css: "root.css",
-      types: false,
     });
     const [plugin] = plugins;
     const server = await createServer({
@@ -383,7 +377,7 @@ test("vite/watch-event/1000/8-calls/full-registry", async ({ bench, task }) => {
   for (const source of input) {
     writeFileSync(path.join(root, source.moduleId), source.document.code);
   }
-  const plugins = stillwind({ css: "root.css", types: false });
+  const plugins = stillwind({ css: "root.css" });
   const [plugin] = plugins;
   let written = 0;
   const watcherMs: number[] = [];
@@ -444,7 +438,6 @@ test("vite/watch-event/1000/8-calls/full-registry", async ({ bench, task }) => {
       modules: 1000,
       callsPerModule: 8,
       cssBytes: Buffer.byteLength(full),
-      types: false,
       fileWatcher: true,
       hmrConnection: false,
       transport: "filesystem-event-to-css-hot-send",
@@ -532,7 +525,6 @@ for (const [name, css, write] of [
       callsPerModule: 8,
       cssBytes: Buffer.byteLength(css),
       designSystem: name,
-      types: false,
       write,
       sourcemap: false,
       cssMinify: true,
@@ -548,7 +540,6 @@ for (const [name, css, write] of [
           plugins: [
             stillwind({
               css: "root.css",
-              types: false,
             }),
           ],
           logLevel: "silent",
@@ -587,7 +578,6 @@ for (const files of [100, 1000]) {
       });
       const plugins = stillwind({
         css: "root.css",
-        types: false,
       });
       const server = await createServer({
         configFile: false,
@@ -621,7 +611,6 @@ for (const files of [100, 1000]) {
       cssFiles: files + 1,
       requestedJsModules: 1,
       callsPerModule: 1,
-      types: false,
       dependencyDiscovery: false,
     };
     task.meta.measurement = options;

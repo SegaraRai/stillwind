@@ -34,7 +34,6 @@ export async function expectComputedConditions(
     plugins: [
       stillwind({
         css: path.join(dir, "root.css"),
-        types: false,
         useCssIf,
       }),
     ],

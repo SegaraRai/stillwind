@@ -36,7 +36,7 @@ import { formatterConfiguration, formatterManifest, registerFormatter } from "./
 export class PlaygroundWorkspace {
   /** API for commands, workspace edits, and diagnostics in the initialized extension host. */
   readonly api: typeof vscode;
-  /** Editable original files keyed by absolute virtual path. Generated declarations are stored separately. */
+  /** Editable original files keyed by absolute virtual path. */
   readonly files = new Map(exampleFiles);
   readonly #references = new Map<string, Awaited<ReturnType<typeof createModelReference>>>();
   #editor?: monaco.editor.IStandaloneCodeEditor;
@@ -274,23 +274,6 @@ export class PlaygroundWorkspace {
     await this.#reference(file);
     this.select(file);
     this.#changed();
-  }
-
-  /**
-   * Installs generated vocabulary, skipping unchanged files to avoid reload loops.
-   * @param files - Absolute virtual declaration paths paired with generated text.
-   */
-  async declarations(files: [string, string][]): Promise<void> {
-    for (const [file, text] of files) {
-      const uri = this.api.Uri.file(file);
-      const previous = await Promise.resolve(this.api.workspace.fs.readFile(uri)).catch(
-        () => undefined,
-      );
-      if (previous && new TextDecoder().decode(previous) === text) {
-        continue;
-      }
-      await writeFile(URI.file(file), text);
-    }
   }
 
   /**

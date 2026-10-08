@@ -1181,7 +1181,6 @@ export function registerBindingContract(bindingSpecifier: string) {
     ]);
     expect(done.kind).toBe("complete");
     expect(new Set(done.sources)).toStrictEqual(new Set(["root", "a", "b", "c"]));
-    expect(loader.generateVocabularyTypes()).toMatch(/brand/);
     expect(() => loader.provideMany([])).toThrow(/after completion/);
   });
 

@@ -12,7 +12,7 @@ async function project(run: (root: string) => Promise<void>) {
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'export default {projects:[{css:"root.css",files:["*.{ts,tsx,js,jsx,mts,cts,mjs,cjs,vue,svelte,astro}"],types:false}]}',
+      'export default {projects:[{css:"root.css",files:["*.{ts,tsx,js,jsx,mts,cts,mjs,cjs,vue,svelte,astro}"]}]}',
     );
     await writeFile(
       path.join(root, "root.css"),

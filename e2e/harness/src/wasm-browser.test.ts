@@ -47,7 +47,6 @@ const value=style(["flex block",base,ref.asContainer(),ref,{"data-z":1,"aria-lab
       config: {
         css: "theme.css",
         files: ["*.tsx"],
-        types: false,
         typeFacts: false,
         sort: {
           attributes: true,

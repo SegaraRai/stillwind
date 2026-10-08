@@ -16,7 +16,6 @@ test("raw SFC transforms retain stable producer registrations and replace linked
   );
   const plugins = stillwind({
     css,
-    types: false,
   });
   const [plugin] = plugins;
   const server = await createServer({

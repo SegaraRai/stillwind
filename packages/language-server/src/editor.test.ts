@@ -38,7 +38,6 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
                 files: ["*.tsx"],
                 css: "theme.css",
                 typeFacts: false,
-                types: false,
               },
             ],
             files: new Map([

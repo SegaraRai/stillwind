@@ -101,7 +101,7 @@ function Play() {
           new URL(import.meta.env.BASE_URL + "preview-runtime.js", location.origin),
         ).then((response) => response.text());
         frame.current!.srcdoc = previewDocument(runtime);
-        builder = new ApplicationBuilder(current.api, (files) => current.declarations(files));
+        builder = new ApplicationBuilder(current.api);
         await build();
         refreshDiagnostics();
       } catch (error) {

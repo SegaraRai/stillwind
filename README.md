@@ -238,9 +238,8 @@ surface, then replace selected `className` values with `style()` calls. The
 implemented Stillwind-specific surface includes finite conditional branches,
 element selectors, ref-tagged parent selectors, scope-aware relationships,
 anchor/container projections, local utility animations, and view-transition
-assets. The compiler checks all supported utility
-spellings; Vite also writes `src/stillwind.generated.d.ts` with the theme-backed
-token vocabulary for editor completion.
+assets. The compiler checks all supported utility spellings. Stillwind editor
+completion reads candidates from the configured design system.
 
 Tailwind's `container` / `@container`, `group`, and `peer` spellings are accepted
 for migration compatibility, including named markers and responsive container

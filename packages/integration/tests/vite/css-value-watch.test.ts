@@ -23,7 +23,6 @@ globalThis.css = css;
   );
   const project = createViteProject({
     css: "root.css",
-    types: false,
   });
   const watcher = await build({
     configFile: false,

@@ -30,7 +30,6 @@ export async function createTestServer() {
   );
   const project = createViteProject({
     css: "root.css",
-    types: false,
   });
   const plugin = createVitePlugins(project);
   server = await createServer({

@@ -14,7 +14,6 @@ export default defineConfig({
       tanstackStart(),
       stillwind({
         css: "root.css",
-        types: false,
         emission: "split",
       }),
       nitro(),

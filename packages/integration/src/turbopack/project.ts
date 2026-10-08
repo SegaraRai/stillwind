@@ -19,7 +19,6 @@ import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 
 /** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
@@ -72,13 +71,12 @@ export interface TurbopackHost extends CompilerHost {
  *
  * Configuration is evaluated independently in each loader invocation. Configuration dependencies,
  * missing discovery candidates, compiler files, and CSS dependencies are registered with the host.
- * Vocabulary declarations are written unless disabled by compiler settings.
  *
  * @param context - Loader context containing serializable discovery settings, the captured
  * application directory, filesystem access, resolver operations, and dependency tracking.
  * @returns A promise for the initialized project. The caller owns the compiler's lifetime.
  * @throws If configuration evaluation or project selection fails, the CSS graph cannot be loaded,
- * or compiler initialization or vocabulary writing fails.
+ * or compiler initialization fails.
  */
 export async function createProject(
   context: LoaderContext<TurbopackLoaderOptions>,
@@ -148,7 +146,6 @@ export async function createProject(
       }),
     },
   );
-  writeVocabulary(loaded.loader, options.root, options.compiler);
   const compiler = new IntegrationSession(
     options.root,
     loaded.loader,

@@ -78,7 +78,6 @@ if (import.meta.hot) {
       plugins: [
         stillwind({
           css: path.join(directory, "root.css"),
-          types: false,
           emission,
         }),
       ],
@@ -333,7 +332,6 @@ if (import.meta.hot) {
         plugins: [
           stillwind({
             css: "./root.css",
-            types: false,
             automatic: false,
           }),
         ],

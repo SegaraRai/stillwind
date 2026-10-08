@@ -26,7 +26,6 @@ function project(source: string, config: Partial<AnalysisProjectConfig> = {}, cs
     config: {
       css: "theme.css",
       files: ["*.tsx"],
-      types: false,
       typeFacts: false,
       ...config,
     },
@@ -320,7 +319,6 @@ test("hover follows imported style aliases without treating ordinary variables a
     config: {
       css: "theme.css",
       files: ["*.tsx"],
-      types: false,
       typeFacts: false,
     },
     files: new Map([

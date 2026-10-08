@@ -33,12 +33,6 @@ export interface BaseConfig {
   theme?: string;
   /** Design-system stylesheet, absolute or relative to the project root. Takes precedence over `theme`. */
   css?: string;
-  /**
-   * Destination for the theme vocabulary's module augmentation, absolute or project-root
-   * relative. Defaults to `src/stillwind.generated.d.ts`. `false` disables generation.
-   * Build integrations write the file. Analysis hosts supply it to the checker in memory.
-   */
-  types?: false | string;
   /** Namespace for Stillwind-owned CSS identifiers. Defaults to --sw-. */
   prefix?: string;
   /** Namespace for Tailwind-compatible internal custom properties. Defaults to --tw-. */
@@ -362,11 +356,8 @@ function validCompilerSettings(project: Record<string, unknown>): boolean {
   ) {
     return false;
   }
-  for (const key of ["tsconfig", "types"]) {
-    const value = project[key];
-    if (value !== undefined && value !== false && !text(value)) {
-      return false;
-    }
+  if (project.tsconfig !== undefined && project.tsconfig !== false && !text(project.tsconfig)) {
+    return false;
   }
   for (const key of ["automatic", "useCssIf"]) {
     if (project[key] !== undefined && typeof project[key] !== "boolean") {
@@ -433,7 +424,6 @@ const projectKeys = [
   "automatic",
   "theme",
   "css",
-  "types",
   "prefix",
   "tailwindPrefix",
   "classNamespace",

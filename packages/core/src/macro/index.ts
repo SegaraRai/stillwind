@@ -15,49 +15,6 @@
 export type StyleAttributeName = `aria-${string}` | `data-${string}`;
 
 /**
- * Internal use only. Generated vocabulary declarations add utility names as keys in a
- * module augmentation of `stillwind/macro`.
- *
- * @internal
- */
-export interface StillwindUtilityVocabulary {}
-
-/**
- * Internal use only. Generated vocabulary declarations add variant names as keys in a
- * module augmentation of `stillwind/macro`.
- *
- * @internal
- */
-export interface StillwindVariantVocabulary {}
-
-type VocabularyUtility = Extract<keyof StillwindUtilityVocabulary, string>;
-
-type VocabularyVariant = Extract<keyof StillwindVariantVocabulary, string>;
-
-type UtilityWithVariant<Utility extends string, Variant extends string> = [Utility] extends [never]
-  ? string
-  : [Variant] extends [never]
-    ? Utility
-    : Utility | `${Variant}:${string}`;
-
-/**
- * One utility token with optional variant prefixes from the generated vocabulary.
- *
- * Without a utility vocabulary this type accepts any string. With a variant vocabulary
- * it checks the first prefix. The compiler validates the whole token. This describes
- * ordinary string data. It does not make dynamically constructed utility strings valid
- * inputs to `style()`.
- */
-export type StillwindUtility = UtilityWithVariant<VocabularyUtility, VocabularyVariant>;
-
-/**
- * Utility lists are intentionally validated by the compiler. A recursive
- * template-literal union for arbitrary-length class lists quickly exceeds TypeScript's
- * union-complexity limit in real themes.
- */
-type UtilityString = string;
-
-/**
  * A static variant prefix used as an object key in `style()`, including its final `:`.
  * Nested keys compose from outermost to innermost. Raw selector keys must use
  * arbitrary-variant syntax, such as `[&:hover]:`.
@@ -586,7 +543,7 @@ export type StyleViewTransitionDefinition = {
  * positions outside variant wrappers.
  */
 export type StyleVariantValue =
-  | UtilityString
+  | string
   | StyleRefProjection
   | StyleViewTransition
   | StyleViewTransitionUse
@@ -649,7 +606,7 @@ type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
  */
 export type StyleArgument =
   | StyleResult<string, object>
-  | UtilityString
+  | string
   | false
   | null
   | undefined

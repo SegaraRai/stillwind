@@ -11,7 +11,6 @@ import {
   type CssUpstreamMap,
 } from "@stillwind/host";
 
-import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import type { ProducerInput } from "./emission.ts";
 import type { CompilationHost } from "./host.ts";
@@ -56,7 +55,6 @@ export async function compilationStyles(
       watch,
     },
   );
-  writeVocabulary(loaded.loader, root, config);
   const compiler = new IntegrationSession(
     root,
     loaded.loader,

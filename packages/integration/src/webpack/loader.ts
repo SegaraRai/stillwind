@@ -14,7 +14,6 @@ import {
   type UpstreamSourceMap,
 } from "@stillwind/host";
 
-import { writeVocabulary } from "../config.ts";
 import { IntegrationSession } from "../session.ts";
 import { cssValueModule, type CssValueResource } from "./css-value.ts";
 import { recordProducer } from "./emission.ts";
@@ -121,7 +120,6 @@ export default function webpackLoader(
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
     });
-    writeVocabulary(loaded.loader, root, config);
     compiler = new IntegrationSession(
       root,
       loaded.loader,

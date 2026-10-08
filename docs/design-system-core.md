@@ -101,7 +101,6 @@ use stillwind_compiler::{Identifiers, StylesheetRenderer};
 let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::default());
 let document_css = renderer.render_stylesheet("")?;
 let module_css = renderer.render_module_stylesheet(&compiled.css.to_css())?;
-let declarations = renderer.generate_vocabulary_types();
 ```
 
 The snapshot owns definition settings. Rendering and class-generation policy
@@ -157,7 +156,7 @@ artifacts while retaining source analyses.
 `kind: "needFile"` and `requests: [{ id, importer, specifier }, ...]`, or
 `kind: "complete"` (and revision and source names). Load errors throw. Construct
 a session from a completed loader, then call `compile`, `css`,
-`remove` and `reload`. `loader.generateVocabularyTypes()` uses the same snapshot.
+`remove` and `reload`.
 
 Vite resolves and reads outstanding requests concurrently, supplying each file
 as soon as it is ready. Newly discovered imports start while earlier reads are

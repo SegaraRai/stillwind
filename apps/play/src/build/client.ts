@@ -26,9 +26,8 @@ export class ApplicationBuilder {
 
   /**
    * @param api - VS Code API containing the activated public Stillwind extension.
-   * @param declarations - Installs generated vocabulary into the editing workspace.
    */
-  constructor(api: typeof vscode, declarations: (files: [string, string][]) => Promise<void>) {
+  constructor(api: typeof vscode) {
     this.#api = api;
     this.#worker.onmessage = async ({ data }) => {
       if (data.kind === "compile") {
@@ -48,12 +47,7 @@ export class ApplicationBuilder {
         if (data.kind === "failed") {
           pending?.reject(new Error(data.error));
         } else {
-          try {
-            await declarations(data.declarations);
-            pending?.resolve(data);
-          } catch (error) {
-            pending?.reject(new Error(String(error)));
-          }
+          pending?.resolve(data);
         }
       }
     };
