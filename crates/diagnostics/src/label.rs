@@ -206,6 +206,10 @@ impl SourceRange {
         &self.source
     }
 
+    pub(crate) fn shared_source(&self) -> &Arc<SourceFile> {
+        &self.source
+    }
+
     /// Inclusive byte start.
     pub const fn start(&self) -> u32 {
         self.start

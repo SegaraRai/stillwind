@@ -394,7 +394,7 @@ impl NativeProjectSession {
                     result.lint_settings,
                 )
                 .map_err(|error| Error::from_reason(error.to_string()))?;
-                Ok(NativeDiagnosticBatch::new(&scan.module_id, &batch))
+                Ok(NativeDiagnosticBatch::from_owned(&scan.module_id, batch))
             })
             .collect()
     }

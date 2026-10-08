@@ -87,11 +87,14 @@ pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>
     findings.retain(|finding| suppressing_directive(source, finding, &directives).is_none());
 }
 
-fn suppressing_directive(
+pub(crate) fn suppressing_directive(
     source: &SourceFile,
     finding: &LintFinding,
     directives: &[LintDirective],
 ) -> Option<usize> {
+    if directives.is_empty() {
+        return None;
+    }
     let offset = finding
         .labels
         .first()

@@ -28,3 +28,5 @@ pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, collect_lint_directives,
     filter_lint_findings, finish_lint_findings,
 };
+
+pub(crate) use suppression::suppressing_directive;

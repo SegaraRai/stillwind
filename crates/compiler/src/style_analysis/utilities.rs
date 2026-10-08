@@ -3,11 +3,12 @@
 //! Candidate records group every declaration of one original token. Base and provider
 //! comparisons remain in `properties`; identical shared declarations are harmless.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_css::{properties_interfere, property_covers};
 use stillwind_diagnostics::{Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind};
 
+use super::composition::ResolvedSupply;
 use super::{ResolvedStyle, SupplyKind, UseId};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
@@ -26,6 +27,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                 && matches!(supply.supply.kind, SupplyKind::Utility { .. })
         })
         .collect();
+    let declarations = declarations_by_site(style);
     let mut findings = Vec::new();
     let mut reported = BTreeSet::new();
     for (index, current) in utilities.iter().enumerate() {
@@ -64,9 +66,12 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     continue;
                 }
                 let overlaps = overlapping_properties(
-                    style,
-                    &current.supply.site,
-                    &previous.supply.site,
+                    declarations
+                        .get(&current.supply.site)
+                        .map_or(&[][..], Vec::as_slice),
+                    declarations
+                        .get(&previous.supply.site)
+                        .map_or(&[][..], Vec::as_slice),
                     allow,
                 );
                 if overlaps.is_empty() {
@@ -96,21 +101,36 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     findings
 }
 
+fn declarations_by_site<'s, 'a>(
+    style: &'s ResolvedStyle<'a>,
+) -> BTreeMap<&'s UseId, Vec<&'s ResolvedSupply<'a>>> {
+    let mut declarations = BTreeMap::new();
+    for supply in &style.supplies {
+        if supply.owner == style.root.identity
+            && matches!(
+                supply.supply.kind,
+                SupplyKind::Declaration {
+                    provider: false,
+                    ..
+                }
+            )
+        {
+            declarations
+                .entry(&supply.supply.site)
+                .or_insert_with(Vec::new)
+                .push(supply);
+        }
+    }
+    declarations
+}
+
 fn overlapping_properties(
-    style: &ResolvedStyle<'_>,
-    current: &UseId,
-    previous: &UseId,
+    current: &[&ResolvedSupply<'_>],
+    previous: &[&ResolvedSupply<'_>],
     allow: bool,
 ) -> BTreeSet<String> {
-    let declarations = |site: &UseId| {
-        let site = site.clone();
-        style
-            .supplies
-            .iter()
-            .filter(move |s| s.owner == style.root.identity && s.supply.site == site)
-    };
     let mut overlaps = BTreeSet::new();
-    for a in declarations(current) {
+    for a in current {
         let SupplyKind::Declaration {
             property: ap,
             value: av,
@@ -122,7 +142,7 @@ fn overlapping_properties(
         else {
             continue;
         };
-        for b in declarations(previous) {
+        for b in previous {
             let SupplyKind::Declaration {
                 property: bp,
                 value: bv,

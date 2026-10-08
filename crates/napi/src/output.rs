@@ -554,6 +554,14 @@ impl NativeDiagnosticBatch {
             reports: batch.diagnostics.iter().cloned().map(Into::into).collect(),
         }
     }
+
+    /// Moves a completed batch into host output when no project state retains it.
+    pub(crate) fn from_owned(module: &ModuleId, batch: DiagnosticBatch) -> Self {
+        Self {
+            module: module.as_str().into(),
+            reports: batch.diagnostics.into_iter().map(Into::into).collect(),
+        }
+    }
 }
 
 /// Scan outcome; only a verified scan supplies a summary for checker queries.

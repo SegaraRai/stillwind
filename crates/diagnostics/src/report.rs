@@ -5,15 +5,18 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use stillwind_source::{
-    Fingerprint, Position, SourceError, SourceRegistry, SourceRegistryError, SourceUri, Span,
+    Fingerprint, Position, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
+    Span,
 };
 
+use crate::lint::suppressing_directive;
 use crate::{
     CompileDiagnostic, CompileError, DiagnosticInfo, FixAction, LabelScope, LintDiagnostic,
-    LintFinding, LintSettings, LintSeverity, SourceRange, filter_lint_findings,
+    LintDirective, LintFinding, LintSettings, LintSeverity, SourceRange, collect_lint_directives,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -336,6 +339,7 @@ pub struct Reporter {
     lint_settings: LintSettings,
     revisions: BTreeMap<SourceUri, String>,
     diagnostics: Vec<ResolvedDiagnostic>,
+    sources: BTreeMap<usize, ReportSource>,
 }
 
 impl Reporter {
@@ -366,6 +370,7 @@ impl Reporter {
             lint_settings,
             revisions: BTreeMap::new(),
             diagnostics: Vec::new(),
+            sources: BTreeMap::new(),
         }
     }
 
@@ -377,38 +382,40 @@ impl Reporter {
     pub fn report(&mut self, diagnostic: &LocatedDiagnostic) -> Result<(), ReportError> {
         let primary_source = diagnostic.primary.range.source();
         let mut revisions = self.revisions.clone();
-        Self::check_revision(&mut revisions, &diagnostic.primary.range)?;
+        self.check_revision(&mut revisions, &diagnostic.primary.range)?;
         for label in &diagnostic.related {
-            Self::check_revision(&mut revisions, &label.range)?;
+            self.check_revision(&mut revisions, &label.range)?;
         }
         for action in &diagnostic.actions {
             for edit in &action.edits {
-                Self::check_revision(&mut revisions, &edit.range)?;
+                self.check_revision(&mut revisions, &edit.range)?;
             }
         }
-        let primary = Self::resolve_label(&diagnostic.primary)?;
+        let primary = self.resolve_label(&diagnostic.primary)?;
         let related = diagnostic
             .related
             .iter()
-            .map(Self::resolve_label)
+            .map(|label| self.resolve_label(label))
             .collect::<Result<Vec<_>, _>>()?;
         let actions = diagnostic
             .actions
             .iter()
-            .map(Self::resolve_action)
+            .map(|action| self.resolve_action(action))
             .collect::<Result<Vec<_>, _>>()?;
         let severity = if let DiagnosticCause::Lint(lint) = &diagnostic.cause {
             let level = self.lint_settings.reporting_severity(lint.kind());
-            let mut finding = vec![LintFinding::new(
+            let finding = LintFinding::new(
                 lint.clone(),
                 Span::new(
                     primary_source.id(),
                     diagnostic.primary.range.start(),
                     diagnostic.primary.range.end(),
                 ),
-            )];
-            filter_lint_findings(primary_source, &mut finding);
-            if level == LintSeverity::Off || finding.is_empty() {
+            );
+            let directives = &self.source_info(&diagnostic.primary.range).directives;
+            if level == LintSeverity::Off
+                || suppressing_directive(primary_source, &finding, directives).is_some()
+            {
                 return Ok(());
             }
             if level == LintSeverity::Deny {
@@ -441,6 +448,7 @@ impl Reporter {
     }
 
     fn check_revision(
+        &mut self,
         revisions: &mut BTreeMap<SourceUri, String>,
         range: &SourceRange,
     ) -> Result<(), ReportError> {
@@ -448,7 +456,7 @@ impl Reporter {
         let uri = source
             .uri()
             .ok_or_else(|| ReportError::MissingUri(format!("{:?}", source.id())))?;
-        let revision = Fingerprint::of(source.text()).0;
+        let revision = self.source_info(range).revision.clone();
         if let Some(previous) = revisions.insert(uri.clone(), revision.clone())
             && previous != revision
         {
@@ -457,7 +465,7 @@ impl Reporter {
         Ok(())
     }
 
-    fn resolve_label(label: &LocatedLabel) -> Result<ResolvedLabel, ReportError> {
+    fn resolve_label(&mut self, label: &LocatedLabel) -> Result<ResolvedLabel, ReportError> {
         if label.scope == LabelScope::Document
             && (label.range.start() != 0
                 || label.range.end() != label.range.source().full_span().end.0)
@@ -466,12 +474,12 @@ impl Reporter {
         }
         Ok(ResolvedLabel {
             scope: label.scope,
-            location: resolve_location(&label.range)?,
+            location: self.source_info(&label.range).location(&label.range)?,
             message: label.message.clone(),
         })
     }
 
-    fn resolve_action(action: &FixAction) -> Result<ResolvedAction, ReportError> {
+    fn resolve_action(&mut self, action: &FixAction) -> Result<ResolvedAction, ReportError> {
         if action.edits.is_empty() {
             return Err(ReportError::InvalidAction("an action needs an edit"));
         }
@@ -495,7 +503,7 @@ impl Reporter {
             .iter()
             .map(|edit| {
                 Ok(ResolvedEdit {
-                    location: resolve_location(&edit.range)?,
+                    location: self.source_info(&edit.range).location(&edit.range)?,
                     replacement: edit.replacement.clone(),
                 })
             })
@@ -505,25 +513,56 @@ impl Reporter {
             edits,
         })
     }
+    fn source_info(&mut self, range: &SourceRange) -> &mut ReportSource {
+        let source = range.shared_source();
+        self.sources
+            .entry(Arc::as_ptr(source) as usize)
+            .or_insert_with(|| ReportSource::new(Arc::clone(source)))
+    }
 }
 
-fn resolve_location(range: &SourceRange) -> Result<ResolvedLocation, ReportError> {
-    let source = range.source();
-    let span = Span::new(source.id(), range.start(), range.end());
-    source.slice(span)?;
-    let uri = source
-        .uri()
-        .ok_or_else(|| ReportError::MissingUri(format!("{:?}", source.id())))?;
-    Ok(ResolvedLocation {
-        uri: uri.clone(),
-        revision: Fingerprint::of(source.text()).0,
-        start: span.start.0,
-        end: span.end.0,
-        start_utf16: source.utf16_offset(span.start)?,
-        end_utf16: source.utf16_offset(span.end)?,
-        start_position: source.position(span.start)?,
-        end_position: source.position(span.end)?,
-    })
+struct ReportSource {
+    // Retaining the source keeps its pointer key valid until reporting finishes.
+    source: Arc<SourceFile>,
+    revision: String,
+    directives: Vec<LintDirective>,
+    locations: BTreeMap<(u32, u32), ResolvedLocation>,
+}
+
+impl ReportSource {
+    fn new(source: Arc<SourceFile>) -> Self {
+        Self {
+            revision: Fingerprint::of(source.text()).0,
+            directives: collect_lint_directives(source.text()),
+            source,
+            locations: BTreeMap::new(),
+        }
+    }
+
+    fn location(&mut self, range: &SourceRange) -> Result<ResolvedLocation, ReportError> {
+        let key = (range.start(), range.end());
+        if let Some(location) = self.locations.get(&key) {
+            return Ok(location.clone());
+        }
+        let source = &self.source;
+        let span = Span::new(source.id(), range.start(), range.end());
+        source.slice(span)?;
+        let uri = source
+            .uri()
+            .ok_or_else(|| ReportError::MissingUri(format!("{:?}", source.id())))?;
+        let location = ResolvedLocation {
+            uri: uri.clone(),
+            revision: self.revision.clone(),
+            start: span.start.0,
+            end: span.end.0,
+            start_utf16: source.utf16_offset(span.start)?,
+            end_utf16: source.utf16_offset(span.end)?,
+            start_position: source.position(span.start)?,
+            end_position: source.position(span.end)?,
+        };
+        self.locations.insert(key, location.clone());
+        Ok(location)
+    }
 }
 
 #[cfg(test)]
@@ -765,6 +804,59 @@ mod tests {
                 .unwrap()
                 .as_str(),
             "untitled:other"
+        );
+        let mut reporter = Reporter::new(LintSettings::default());
+        for (registry, source) in [(&first_project, &source), (&other_project, &other)] {
+            reporter
+                .report(&LocatedDiagnostic::new(
+                    DiagnosticCause::Compile(CompileDiagnostic::JavaScriptParse),
+                    range(registry, source, 0, 1),
+                ))
+                .unwrap();
+        }
+        let batch = reporter.finish();
+        assert_eq!(
+            batch
+                .diagnostics
+                .iter()
+                .map(|report| report.primary.location.uri.as_str())
+                .collect::<Vec<_>>(),
+            ["untitled:first", "untitled:other"]
+        );
+    }
+
+    #[test]
+    fn failed_reports_leave_the_accepted_revision_and_labels_usable() {
+        let mut sources = SourceRegistry::default();
+        let source = document(&mut sources, "untitled:main", "a😀\r\nβ");
+        let changed = document(&mut sources, "untitled:main", "abc");
+        let mut accepted = LocatedDiagnostic::new(
+            DiagnosticCause::Compile(CompileDiagnostic::JavaScriptParse),
+            range(&sources, &source, 1, 5),
+        );
+        let mut reporter = Reporter::new(LintSettings::default());
+        reporter.report(&accepted).unwrap();
+        let stale = LocatedDiagnostic::new(
+            DiagnosticCause::Compile(CompileDiagnostic::JavaScriptParse),
+            range(&sources, &changed, 1, 2),
+        );
+        assert!(matches!(
+            reporter.report(&stale),
+            Err(ReportError::StaleEdit(_))
+        ));
+        accepted.primary.message = Some("second report".into());
+        reporter.report(&accepted).unwrap();
+        let batch = reporter.finish();
+        assert_eq!(batch.diagnostics.len(), 2);
+        assert_eq!(
+            batch.diagnostics[0].primary.location,
+            batch.diagnostics[1].primary.location
+        );
+        assert_eq!(batch.diagnostics[0].primary.location.end_utf16, 3);
+        assert_eq!(batch.diagnostics[0].primary.message, None);
+        assert_eq!(
+            batch.diagnostics[1].primary.message.as_deref(),
+            Some("second report")
         );
     }
 
