@@ -8,7 +8,11 @@ const css = resolveFixtureCss('@import "stillwind"; @theme { --color-brand:red; 
 /** Loads the shared theme in `mode`, with canonical diagnostics disabled for sorting measurements. */
 export function loadSortingDesignSystem(mode: "authored" | "tailwind"): NativeDesignSystemLoader {
   const loader = new NativeDesignSystemLoader({
-    lint: { canonicalUtilities: { severity: "off" } },
+    lint: {
+      canonicalUtilities: {
+        severity: "off",
+      },
+    },
     utilityOrder: mode,
   });
   loader.provide(0, "theme.css", css, "file:///theme.css");
@@ -29,8 +33,14 @@ export async function prepareSortingSource(loader: NativeDesignSystemLoader, bod
       moduleId: "sorting.tsx",
       checkerFileName: entry,
       projectionFileName: "sorting.tsx",
-      document: { uri: "file:///workspace/sorting.tsx", format: "script" },
-      syntax: { language: "tsx", moduleKind: "module" },
+      document: {
+        uri: "file:///workspace/sorting.tsx",
+        format: "script",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "module",
+      },
     }),
     read: async () => source,
     resolve: async () => null,
