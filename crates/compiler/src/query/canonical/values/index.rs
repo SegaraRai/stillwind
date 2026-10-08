@@ -334,18 +334,46 @@ impl CssTemplate {
         }
     }
 
+    /// Checks the emitted structure after substituting the captured value.
+    /// Candidate spelling and source-use records remain specific to each resolution.
     fn matches(&self, actual: &ResolvedUtility, value: &str) -> bool {
-        let mut expected = self.utility.clone();
-        expected.candidate.clone_from(&actual.candidate);
-        expected.declaration = expected.declaration.replace(&self.variable, value);
-        if let Some(selector) = &mut expected.selector {
-            *selector = selector.replace(&self.variable, value);
+        let ResolvedUtility {
+            token_uses: _,
+            arbitrary_uses: _,
+            candidate: _,
+            order,
+            required_properties,
+            builtin_order,
+            declaration,
+            selector,
+            nested,
+            additional,
+        } = actual;
+        if order != &self.utility.order
+            || required_properties != &self.utility.required_properties
+            || builtin_order != &self.utility.builtin_order
+            || declaration != &self.utility.declaration.replace(&self.variable, value)
+        {
+            return false;
         }
-        for nested in &mut expected.nested {
-            nested.condition = nested.condition.replace(&self.variable, value);
-            nested.declaration = nested.declaration.replace(&self.variable, value);
+        let expected_selector = self
+            .utility
+            .selector
+            .as_ref()
+            .map(|selector| selector.replace(&self.variable, value));
+        if selector != &expected_selector {
+            return false;
         }
-        for target in &mut expected.additional {
+        let mut expected_nested = self.utility.nested.clone();
+        for rule in &mut expected_nested {
+            rule.condition = rule.condition.replace(&self.variable, value);
+            rule.declaration = rule.declaration.replace(&self.variable, value);
+        }
+        if nested != &expected_nested {
+            return false;
+        }
+        let mut expected_additional = self.utility.additional.clone();
+        for target in &mut expected_additional {
             target.declaration = target.declaration.replace(&self.variable, value);
             if let Some(selector) = &mut target.selector {
                 *selector = selector.replace(&self.variable, value);
@@ -355,6 +383,6 @@ impl CssTemplate {
                 nested.declaration = nested.declaration.replace(&self.variable, value);
             }
         }
-        expected == *actual
+        additional == &expected_additional
     }
 }
