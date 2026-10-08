@@ -107,16 +107,32 @@ impl QueryContext {
     }
 }
 
-pub(super) fn dimension(value: &str) -> Option<(f64, &str)> {
+/// The units accepted when comparing canonical spacing values.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum SpacingUnit {
+    Rem,
+    Px,
+}
+
+impl SpacingUnit {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Rem => "rem",
+            Self::Px => "px",
+        }
+    }
+}
+
+pub(super) fn dimension(value: &str) -> Option<(f64, SpacingUnit)> {
     let value = value.trim();
     let unit = if value.ends_with("rem") {
-        "rem"
+        SpacingUnit::Rem
     } else if value.ends_with("px") {
-        "px"
+        SpacingUnit::Px
     } else {
         return None;
     };
-    let number = value.strip_suffix(unit)?.parse::<f64>().ok()?;
+    let number = value.strip_suffix(unit.as_str())?.parse::<f64>().ok()?;
     number.is_finite().then_some((number, unit))
 }
 

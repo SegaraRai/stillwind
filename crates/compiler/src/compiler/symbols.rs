@@ -13,7 +13,8 @@ use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
 use crate::identifiers::{
     AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
-    IdentifierPool, Label, LocatorContext, RefMarker, declaration_fields,
+    IdentifierKind, IdentifierPool, Label, LocatorContext, LocatorProjection, RefMarker,
+    declaration_fields,
 };
 
 /// A generated CSS identifier with the identity of its owner.
@@ -29,9 +30,8 @@ use crate::identifiers::{
 pub struct GeneratedSymbol {
     /// The generated name, without a leading dot.
     pub name: String,
-    /// Symbol family: `ref`, `ref-marker`, `keyframes`, `view-transition`, `class`,
-    /// `condition-helper`, `view-transition-slot`, or `layer`.
-    pub kind: String,
+    /// Role of the generated identifier.
+    pub kind: GeneratedSymbolKind,
     /// CSS namespace the name is written into. Names in different pools never interact,
     /// so only equal spellings from different identities within one pool collide.
     pub pool: IdentifierPool,
@@ -43,6 +43,99 @@ pub struct GeneratedSymbol {
     pub start: Option<u32>,
     /// Byte offset just past the declaration, when it has one.
     pub end: Option<u32>,
+}
+
+/// The role of a generated identifier in compiler output.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+pub enum GeneratedSymbolKind {
+    /// Serialized as `style`.
+    #[serde(rename = "style")]
+    Style,
+    /// Serialized as `ref`.
+    #[serde(rename = "ref")]
+    Ref,
+    /// Serialized as `ref-marker`.
+    #[serde(rename = "ref-marker")]
+    RefMarker,
+    /// Serialized as `keyframes`.
+    #[serde(rename = "keyframes")]
+    Keyframes,
+    /// Serialized as `view-transition`.
+    #[serde(rename = "view-transition")]
+    ViewTransition,
+    /// Serialized as `class`.
+    #[serde(rename = "class")]
+    Class,
+    /// Serialized as `anchor`.
+    #[serde(rename = "anchor")]
+    Anchor,
+    /// Serialized as `container`.
+    #[serde(rename = "container")]
+    Container,
+    /// Serialized as `view-transition-class`.
+    #[serde(rename = "view-transition-class")]
+    ViewTransitionClass,
+    /// Serialized as `condition-helper`.
+    #[serde(rename = "condition-helper")]
+    ConditionHelper,
+    /// Serialized as `rule-boundary`.
+    #[serde(rename = "rule-boundary")]
+    RuleBoundary,
+    /// Serialized as `view-transition-slot`.
+    #[serde(rename = "view-transition-slot")]
+    ViewTransitionSlot,
+    /// Serialized as `layer`.
+    #[serde(rename = "layer")]
+    Layer,
+}
+
+impl GeneratedSymbolKind {
+    /// Returns the stable spelling used in symbol reports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Style => "style",
+            Self::Ref => "ref",
+            Self::RefMarker => "ref-marker",
+            Self::Keyframes => "keyframes",
+            Self::ViewTransition => "view-transition",
+            Self::Class => "class",
+            Self::Anchor => "anchor",
+            Self::Container => "container",
+            Self::ViewTransitionClass => "view-transition-class",
+            Self::ConditionHelper => "condition-helper",
+            Self::RuleBoundary => "rule-boundary",
+            Self::ViewTransitionSlot => "view-transition-slot",
+            Self::Layer => "layer",
+        }
+    }
+}
+
+impl From<IdentifierKind> for GeneratedSymbolKind {
+    fn from(kind: IdentifierKind) -> Self {
+        match kind {
+            IdentifierKind::UtilityClass => Self::Class,
+            IdentifierKind::RefMarker => Self::RefMarker,
+            IdentifierKind::AnchorName => Self::Anchor,
+            IdentifierKind::ContainerName => Self::Container,
+            IdentifierKind::KeyframesName => Self::Keyframes,
+            IdentifierKind::ViewTransitionClass => Self::ViewTransitionClass,
+            IdentifierKind::ConditionHelper => Self::ConditionHelper,
+            IdentifierKind::RuleBoundary => Self::RuleBoundary,
+            IdentifierKind::ViewTransitionSlot => Self::ViewTransitionSlot,
+            IdentifierKind::LayerName => Self::Layer,
+        }
+    }
+}
+
+impl From<AssetKind> for GeneratedSymbolKind {
+    fn from(kind: AssetKind) -> Self {
+        match kind {
+            AssetKind::Style => Self::Style,
+            AssetKind::Ref => Self::Ref,
+            AssetKind::Keyframes => Self::Keyframes,
+            AssetKind::ViewTransition => Self::ViewTransition,
+        }
+    }
 }
 
 /// Source identity used to attribute a generated name.
@@ -69,7 +162,7 @@ impl SymbolOrigin {
 pub(crate) fn detached_symbol(name: &DetachedName, origin: SymbolOrigin) -> GeneratedSymbol {
     GeneratedSymbol {
         name: name.name.clone(),
-        kind: name.kind.as_str().to_owned(),
+        kind: name.kind.into(),
         pool: name.kind.pool(),
         identity: name.identity.clone(),
         origin,
@@ -79,23 +172,26 @@ pub(crate) fn detached_symbol(name: &DetachedName, origin: SymbolOrigin) -> Gene
 }
 
 /// Diagnostic-facing name of a ref projection.
-pub(super) fn ref_projection_name(projection: &RefProjection) -> &'static str {
+pub(super) fn ref_projection_name(projection: &RefProjection) -> LocatorProjection {
     match projection {
-        RefProjection::AsAnchor(_) => "anchor",
-        RefProjection::PositionAnchor => "positionAnchor",
-        RefProjection::AsContainer(_) => "container",
+        RefProjection::AsAnchor(_) => LocatorProjection::Anchor,
+        RefProjection::PositionAnchor => LocatorProjection::PositionAnchor,
+        RefProjection::AsContainer(_) => LocatorProjection::Container,
     }
 }
 
 /// The declaration fields a ref's generated names are built from.
-pub(super) fn ref_context(definition: &RefDefinition, projection: Option<&str>) -> LocatorContext {
+pub(super) fn ref_context(
+    definition: &RefDefinition,
+    projection: Option<LocatorProjection>,
+) -> LocatorContext {
     LocatorContext {
         module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
         end: definition.binding.span.end.0,
         binding: definition.binding.value.clone(),
         label: declared_label(definition.label.as_ref()),
-        projection: projection.map(str::to_owned),
+        projection,
     }
 }
 
@@ -138,7 +234,7 @@ pub(crate) fn ref_marker_name(
 pub(crate) fn anchor_name(
     context: &IdentifierContext,
     definition: &RefDefinition,
-    projection: Option<&str>,
+    projection: Option<LocatorProjection>,
 ) -> Result<AnchorName, CompileDiagnostic> {
     context.anchor_name(&ref_context(definition, projection))
 }
@@ -156,7 +252,7 @@ pub(crate) fn ref_container_name(
     context: &IdentifierContext,
     definition: &RefDefinition,
 ) -> Result<ContainerName, CompileDiagnostic> {
-    context.container_name(&ref_context(definition, Some("container")))
+    context.container_name(&ref_context(definition, Some(LocatorProjection::Container)))
 }
 
 /// Owner identity for a named declaration.
@@ -292,7 +388,7 @@ pub(super) fn generated_symbol(
             kind,
             &named_declaration(module_id, definition, label),
         )?,
-        kind: kind_name(kind).to_owned(),
+        kind: kind.into(),
         pool: kind_pool(kind),
         identity: owner_declaration_identity(
             module_id,
@@ -319,7 +415,7 @@ pub(super) fn generated_ref_symbol(
     let identity = identity_input(&ref_identity(definition));
     Ok(GeneratedSymbol {
         name: anchor_name(context, definition, None)?.as_str().to_owned(),
-        kind: "ref".to_owned(),
+        kind: GeneratedSymbolKind::Ref,
         pool: IdentifierPool::AnchorName,
         identity,
         origin: SymbolOrigin::Module(definition.module_id.clone()),
@@ -339,7 +435,7 @@ pub(super) fn generated_ref_marker_symbol(
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
         name: ref_marker_name(context, definition)?.as_str().to_owned(),
-        kind: "ref-marker".to_owned(),
+        kind: GeneratedSymbolKind::RefMarker,
         pool: IdentifierPool::ClassToken,
         identity: format!(
             "stillwind-identity/v1\0ref-marker\0{}\0{}:{}\0{}\0",
@@ -368,7 +464,7 @@ pub(super) fn generated_class_symbol(
 ) -> GeneratedSymbol {
     GeneratedSymbol {
         name: name.to_owned(),
-        kind: "class".to_owned(),
+        kind: GeneratedSymbolKind::Class,
         pool: IdentifierPool::ClassToken,
         identity: format!("stillwind-identity/v1\0class\0{canonical_input}"),
         origin: SymbolOrigin::Module(module_id.clone()),
@@ -393,7 +489,7 @@ pub(super) fn definition_name_symbol(
     let name = declared_name(context, kind, &identity_declaration(reference))?;
     Ok(GeneratedSymbol {
         name,
-        kind: kind_name(kind).to_owned(),
+        kind: kind.into(),
         pool: kind_pool(kind),
         identity: identity_input(&reference.identity),
         origin: SymbolOrigin::Module(reference.identity.module_id.clone()),
@@ -462,13 +558,13 @@ pub(crate) fn projection_symbol(
     name: &str,
     identity: String,
     pool: IdentifierPool,
-    kind: &str,
+    kind: GeneratedSymbolKind,
     module_id: &ModuleId,
     span: Span,
 ) -> GeneratedSymbol {
     GeneratedSymbol {
         name: name.to_owned(),
-        kind: kind.to_owned(),
+        kind,
         pool,
         identity,
         origin: SymbolOrigin::Module(module_id.clone()),
@@ -554,7 +650,7 @@ mod tests {
             end: 6,
             binding: "item".to_owned(),
             label: None,
-            projection: Some("container".to_owned()),
+            projection: Some(LocatorProjection::Container),
         };
         let expected = "stillwind-identity/v1\0src/x.tsx\0ref\x002:6\0item\0";
         assert_eq!(

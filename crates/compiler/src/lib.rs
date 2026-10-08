@@ -54,8 +54,8 @@ pub use compiled_module::{
     ModuleTransformError,
 };
 pub use compiler::{
-    CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GuardStep,
-    SymbolOrigin,
+    CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GeneratedSymbolKind,
+    GuardStep, SymbolOrigin,
 };
 pub use identifiers::{
     AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,
@@ -63,9 +63,9 @@ pub use identifiers::{
     GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, IdentifierHash,
     IdentifierKind, IdentifierMode, IdentifierNameError, IdentifierPool, Identifiers,
     KeyframesName, KeyframesNameRequest, Label, LayerContext, LayerName, LayerNameRequest,
-    LocatorContext, NameRequest, RefMarker, RefMarkerName, RejectedIdentifier, RejectedNames,
-    Token, UtilityClass, ViewTransitionClass, ViewTransitionClassRequest, ViewTransitionSlotName,
-    ViewTransitionSlotRequest,
+    LocatorContext, LocatorProjection, NameRequest, RefMarker, RefMarkerName, RejectedIdentifier,
+    RejectedNames, Token, UtilityClass, ViewTransitionClass, ViewTransitionClassRequest,
+    ViewTransitionSlotName, ViewTransitionSlotRequest,
 };
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;

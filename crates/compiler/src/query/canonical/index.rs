@@ -10,7 +10,7 @@ use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
 use super::super::completion::value_namespaces;
-use super::preview::{CanonicalPreview, Normalization, dimension, spacing_properties};
+use super::preview::{CanonicalPreview, Normalization, SpacingUnit, dimension, spacing_properties};
 use super::values::ThemeValueIndex;
 use super::variants::VariantIndex;
 use crate::query::QueryContext;
@@ -193,7 +193,7 @@ pub(super) fn policy(
     if options.px_to_rem
         && scale
             .and_then(dimension)
-            .is_some_and(|(_, unit)| unit == "rem")
+            .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
         && (preview.css.contains("var(--spacing)") || preview.css.contains("var(--spacing-"))
     {
         spacing_properties(&preview.css, &mut properties, 0);

@@ -133,15 +133,31 @@ pub(crate) fn fraction_value(value: &str) -> Option<String> {
     (denominator != 0).then(|| format!("calc({numerator} / {denominator} * 100%)"))
 }
 
+/// The viewport axis used by the `screen` size keyword.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ViewportAxis {
+    Width,
+    Height,
+}
+
+impl ViewportAxis {
+    fn unit(self) -> &'static str {
+        match self {
+            Self::Width => "vw",
+            Self::Height => "vh",
+        }
+    }
+}
+
 /// Resolves a built-in axis keyword such as `full`, `screen`, or `svh`.
 ///
 /// `viewport_axis` only decides which viewport unit the bare `screen` keyword expands
 /// to for the axis the utility belongs to.
-pub(crate) fn axis_size_value(value: &str, viewport_axis: &str) -> Option<String> {
+pub(crate) fn axis_size_value(value: &str, viewport_axis: ViewportAxis) -> Option<String> {
     let value = match value {
         "auto" => "auto".to_owned(),
         "full" => "100%".to_owned(),
-        "screen" => format!("100{viewport_axis}"),
+        "screen" => format!("100{}", viewport_axis.unit()),
         "svw" => "100svw".to_owned(),
         "lvw" => "100lvw".to_owned(),
         "dvw" => "100dvw".to_owned(),
@@ -193,9 +209,15 @@ mod tests {
         for value in ["1/0", "-1/2", "1/65536", "1/2/3", "half"] {
             assert_eq!(fraction_value(value), None);
         }
-        assert_eq!(axis_size_value("screen", "vh"), Some("100vh".into()));
-        assert_eq!(axis_size_value("full", "vw"), Some("100%".into()));
-        assert_eq!(axis_size_value("nope", "vh"), None);
+        assert_eq!(
+            axis_size_value("screen", ViewportAxis::Height),
+            Some("100vh".into())
+        );
+        assert_eq!(
+            axis_size_value("full", ViewportAxis::Width),
+            Some("100%".into())
+        );
+        assert_eq!(axis_size_value("nope", ViewportAxis::Height), None);
     }
 
     #[test]

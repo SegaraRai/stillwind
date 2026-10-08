@@ -66,6 +66,7 @@ pub struct NativeLocatorContext {
     /// Binding name of the declaration that owns the name.
     pub binding: String,
     /// Projection the name is written for, when the writer has one.
+    #[napi(ts_type = "'anchor' | 'positionAnchor' | 'container'")]
     pub projection: Option<String>,
 }
 
@@ -461,6 +462,8 @@ fn locator(context: &LocatorContext) -> NativeLocatorContext {
         start: context.start,
         end: context.end,
         binding: context.binding.clone(),
-        projection: context.projection.clone(),
+        projection: context
+            .projection
+            .map(|projection| projection.as_str().to_owned()),
     }
 }

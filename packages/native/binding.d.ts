@@ -807,11 +807,11 @@ export interface NativeGeneratedSymbol {
   /** The generated name. */
   name: string
   /** Kind of declaration that produced it. */
-  kind: string
+  kind: 'style' | 'ref' | 'ref-marker' | 'keyframes' | 'view-transition' | 'class' | 'anchor' | 'container' | 'view-transition-class' | 'condition-helper' | 'rule-boundary' | 'view-transition-slot' | 'layer'
   /** Owner identity used to distinguish name reuse from a collision. */
   identity: string
   /** Domain of the source that owns this name: `module` or `stylesheet`. */
-  sourceKind: string
+  sourceKind: 'module' | 'stylesheet'
   /** Identity within `source_kind`. */
   sourceId: string
   /** Byte start of the declaration, absent for a name that declares nothing itself. */
@@ -959,7 +959,7 @@ export interface NativeLocatorContext {
   /** Binding name of the declaration that owns the name. */
   binding: string
   /** Projection the name is written for, when the writer has one. */
-  projection?: string
+  projection?: 'anchor' | 'positionAnchor' | 'container'
 }
 
 /** One generated-to-original mapping in byte offsets. */

@@ -88,8 +88,8 @@ impl ModuleIr {
     }
 }
 
-fn map_value<E>(
-    value: &mut Spanned<String>,
+fn map_value<T, E>(
+    value: &mut Spanned<T>,
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     value.span = map(value.span)?;

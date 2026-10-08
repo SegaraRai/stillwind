@@ -17,7 +17,7 @@ use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
 use super::CallEmitter;
 use crate::generated::Code;
 use crate::style_analysis::SupplyKind;
-use crate::{GeneratedSymbol, IdentifierContext, IdentifierPool};
+use crate::{GeneratedSymbol, GeneratedSymbolKind, IdentifierContext, IdentifierPool};
 
 impl CallEmitter<'_> {
     /// Builds the CSS contribution for `projection` on `definition`.
@@ -268,7 +268,7 @@ fn render_ref_projection(
     module_id: &ModuleId,
 ) -> Result<(String, Option<GeneratedSymbol>), CompileDiagnostic> {
     let name = anchor_name(context, definition, Some(ref_projection_name(projection)))?;
-    let symbol = |name: &str, pool: IdentifierPool, kind: &str| {
+    let symbol = |name: &str, pool: IdentifierPool, kind: GeneratedSymbolKind| {
         Some(projection_symbol(
             name,
             identity_input_parts(&ref_context(definition, None)),
@@ -289,7 +289,11 @@ fn render_ref_projection(
                     .transpose()?
                     .unwrap_or_default()
             ),
-            symbol(name.as_str(), IdentifierPool::AnchorName, "anchor"),
+            symbol(
+                name.as_str(),
+                IdentifierPool::AnchorName,
+                GeneratedSymbolKind::Anchor,
+            ),
         ),
         RefProjection::PositionAnchor => {
             (format!("position-anchor:{};", name.dashed_ident()), None)
@@ -308,7 +312,7 @@ fn render_ref_projection(
                     container.as_str(),
                     identity_input_parts(&ref_context(definition, None)),
                     IdentifierPool::ContainerName,
-                    "container",
+                    GeneratedSymbolKind::Container,
                     module_id,
                     definition.call_span,
                 )),
@@ -374,7 +378,10 @@ mod tests {
         let (container, container_symbol) = render_ref_projection(
             &context,
             &definition,
-            &RefProjection::AsContainer(Some(Spanned::new("size".to_owned(), binding.span))),
+            &RefProjection::AsContainer(Some(Spanned::new(
+                stillwind_ir::ContainerType::Size,
+                binding.span,
+            ))),
             &ModuleId::from("x"),
         )
         .unwrap();

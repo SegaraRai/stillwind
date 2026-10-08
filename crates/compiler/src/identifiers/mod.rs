@@ -27,7 +27,7 @@ pub use name::{
 pub use request::{
     AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperRequest,
     ConditionRole, ContainerNameRequest, DeclarationContext, IdentifierHash, KeyframesNameRequest,
-    LayerContext, LayerNameRequest, LocatorContext, NameRequest, RefMarkerName,
+    LayerContext, LayerNameRequest, LocatorContext, LocatorProjection, NameRequest, RefMarkerName,
     ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 

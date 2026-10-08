@@ -462,10 +462,14 @@ pub struct NativeGeneratedSymbol {
     /// The generated name.
     pub name: String,
     /// Kind of declaration that produced it.
+    #[napi(
+        ts_type = "'style' | 'ref' | 'ref-marker' | 'keyframes' | 'view-transition' | 'class' | 'anchor' | 'container' | 'view-transition-class' | 'condition-helper' | 'rule-boundary' | 'view-transition-slot' | 'layer'"
+    )]
     pub kind: String,
     /// Owner identity used to distinguish name reuse from a collision.
     pub identity: String,
     /// Domain of the source that owns this name: `module` or `stylesheet`.
+    #[napi(ts_type = "'module' | 'stylesheet'")]
     pub source_kind: String,
     /// Identity within `source_kind`.
     pub source_id: String,
@@ -479,7 +483,7 @@ impl From<GeneratedSymbol> for NativeGeneratedSymbol {
     fn from(value: GeneratedSymbol) -> Self {
         Self {
             name: value.name,
-            kind: value.kind,
+            kind: value.kind.as_str().to_owned(),
             identity: value.identity,
             source_kind: match &value.origin {
                 SymbolOrigin::Module(_) => "module",

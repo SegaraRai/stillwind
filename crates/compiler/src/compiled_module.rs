@@ -10,7 +10,7 @@ use std::sync::Arc;
 use serde::Serialize;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
-use stillwind_ir::StyleDependency;
+use stillwind_ir::{AdapterKind, StyleDependency};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{Fingerprint, ModuleId, SourceFile};
 
@@ -53,7 +53,7 @@ pub struct ModuleArtifactKey {
     /// Which frontend produced the analysis, for example `oxc`.
     pub frontend_kind: String,
     /// Adapter mode the analysis was extracted under.
-    pub adapter_mode: String,
+    pub adapter_mode: AdapterKind,
     /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
     pub semantic_revision: Option<Fingerprint>,
 }

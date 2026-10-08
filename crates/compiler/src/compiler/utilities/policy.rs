@@ -63,7 +63,11 @@ pub(crate) fn check(
         );
         if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
             && declaration_is_physical(property, value)
-            && reported.insert(("physical", property.clone(), String::new()))
+            && reported.insert((
+                LintKind::PreferLogicalProperties,
+                property.clone(),
+                String::new(),
+            ))
         {
             findings.push(LintFinding::new(
                 LintDiagnostic::PhysicalDeclaration {
@@ -73,65 +77,85 @@ pub(crate) fn check(
                 span,
             ));
         }
-        if settings.enabled_for_detection(LintKind::LengthUnits)
-            && let Some(LintConfig::LengthUnits(config)) = settings.get(LintKind::LengthUnits)
-        {
-            let domains = property_value_domains(property, value);
-            for (domain, value) in &domains {
-                if domains
-                    .iter()
-                    .any(|(name, _)| name != domain && property_covers(domain, name))
-                {
-                    continue;
-                }
-                let Some(rule) = config.rules.iter().rev().find(|rule| {
-                    rule.properties.iter().any(|pattern| {
-                        domains.iter().any(|(name, _)| {
-                            (name == domain || property_covers(name, domain))
-                                && policy_glob_matches(&pattern.to_ascii_lowercase(), name)
-                        })
+        check_length_units(
+            property,
+            value,
+            theme,
+            settings,
+            span,
+            &mut reported,
+            &mut findings,
+        );
+    }
+    check_source_policies(utility, theme, settings, span, &mut findings);
+    findings
+}
+
+fn check_length_units(
+    property: &str,
+    value: &str,
+    theme: &ThemeIndex,
+    settings: &LintSettings,
+    span: Span,
+    reported: &mut BTreeSet<(LintKind, String, String)>,
+    findings: &mut Vec<LintFinding>,
+) {
+    if settings.enabled_for_detection(LintKind::LengthUnits)
+        && let Some(LintConfig::LengthUnits(config)) = settings.get(LintKind::LengthUnits)
+    {
+        let domains = property_value_domains(property, value);
+        for (domain, value) in &domains {
+            if domains
+                .iter()
+                .any(|(name, _)| name != domain && property_covers(domain, name))
+            {
+                continue;
+            }
+            let Some(rule) = config.rules.iter().rev().find(|rule| {
+                rule.properties.iter().any(|pattern| {
+                    domains.iter().any(|(name, _)| {
+                        (name == domain || property_covers(name, domain))
+                            && policy_glob_matches(&pattern.to_ascii_lowercase(), name)
                     })
-                }) else {
-                    continue;
-                };
-                let mut units = BTreeSet::new();
-                let mut token_spans = Vec::new();
-                collect_token_units(
-                    value,
-                    theme,
-                    &mut BTreeSet::new(),
-                    0,
-                    &mut units,
-                    &mut token_spans,
-                );
-                for unit in units.into_iter().filter(|unit| {
-                    rule.disallow
-                        .iter()
-                        .any(|forbidden| forbidden.eq_ignore_ascii_case(unit))
-                }) {
-                    if reported.insert(("unit", domain.clone(), unit.clone())) {
-                        let mut finding = LintFinding::new(
-                            LintDiagnostic::ForbiddenLengthUnit {
-                                property: domain.clone(),
-                                unit,
-                            },
-                            span,
-                        );
-                        for token_span in &token_spans {
-                            finding.info.labels.push(Label {
-                                scope: LabelScope::Range,
-                                span: *token_span,
-                                message: Some("referenced theme value".into()),
-                            });
-                        }
-                        findings.push(finding);
+                })
+            }) else {
+                continue;
+            };
+            let mut units = BTreeSet::new();
+            let mut token_spans = Vec::new();
+            collect_token_units(
+                value,
+                theme,
+                &mut BTreeSet::new(),
+                0,
+                &mut units,
+                &mut token_spans,
+            );
+            for unit in units.into_iter().filter(|unit| {
+                rule.disallow
+                    .iter()
+                    .any(|forbidden| forbidden.eq_ignore_ascii_case(unit))
+            }) {
+                if reported.insert((LintKind::LengthUnits, domain.clone(), unit.clone())) {
+                    let mut finding = LintFinding::new(
+                        LintDiagnostic::ForbiddenLengthUnit {
+                            property: domain.clone(),
+                            unit,
+                        },
+                        span,
+                    );
+                    for token_span in &token_spans {
+                        finding.info.labels.push(Label {
+                            scope: LabelScope::Range,
+                            span: *token_span,
+                            message: Some("referenced theme value".into()),
+                        });
                     }
+                    findings.push(finding);
                 }
             }
         }
     }
-    check_source_policies(utility, theme, settings, span, &mut findings);
-    findings
 }
 
 fn check_declaration_restrictions(
@@ -140,12 +164,12 @@ fn check_declaration_restrictions(
     important: bool,
     settings: &LintSettings,
     span: Span,
-    reported: &mut BTreeSet<(&'static str, String, String)>,
+    reported: &mut BTreeSet<(LintKind, String, String)>,
     findings: &mut Vec<LintFinding>,
 ) {
     if important
         && settings.enabled_for_detection(LintKind::NoImportant)
-        && reported.insert(("important", property.to_owned(), String::new()))
+        && reported.insert((LintKind::NoImportant, property.to_owned(), String::new()))
     {
         findings.push(LintFinding::new(
             LintDiagnostic::ImportantDeclaration {
@@ -173,7 +197,7 @@ fn check_declaration_restrictions(
                 {
                     let explanation = explanation(rule.message.as_deref());
                     if reported.insert((
-                        "restricted",
+                        LintKind::NoRestrictedDeclarations,
                         domain.clone(),
                         format!("{value}{explanation}"),
                     )) {
@@ -204,7 +228,11 @@ fn check_source_policies(
         let (color, spacing) = arbitrary_value_flags(&usage.property, &usage.value, usage.color);
         if color
             && settings.enabled_for_detection(LintKind::NoArbitraryColors)
-            && reported.insert(("color", usage.property.clone(), usage.value.clone()))
+            && reported.insert((
+                LintKind::NoArbitraryColors,
+                usage.property.clone(),
+                usage.value.clone(),
+            ))
         {
             findings.push(LintFinding::new(
                 LintDiagnostic::ArbitraryColor {
@@ -221,7 +249,11 @@ fn check_source_policies(
             && let Some((domain, _)) = property_value_domains(&usage.property, &usage.value)
                 .into_iter()
                 .find(|(domain, _)| spacing_property(domain, &config.properties))
-            && reported.insert(("spacing", domain.clone(), usage.value.clone()))
+            && reported.insert((
+                LintKind::NoArbitrarySpacing,
+                domain.clone(),
+                usage.value.clone(),
+            ))
         {
             findings.push(LintFinding::new(
                 LintDiagnostic::ArbitrarySpacing {

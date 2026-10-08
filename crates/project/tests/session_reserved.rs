@@ -80,12 +80,12 @@ fn distinct_pools_may_publish_the_same_spelling() {
     let anchor_pool = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Ref)
         .expect("ref anchor symbol");
     let marker_pool = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref-marker")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker)
         .expect("ref marker symbol");
     assert!(anchor_pool.name.ends_with("shared"));
     assert!(marker_pool.name.ends_with("shared"));

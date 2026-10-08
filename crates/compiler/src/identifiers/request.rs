@@ -112,7 +112,29 @@ pub struct LocatorContext {
     /// Authored label, normalized for name use, when the declaration has one.
     pub label: Option<Label>,
     /// Projection the name is written for, when the writer has one.
-    pub projection: Option<String>,
+    pub projection: Option<LocatorProjection>,
+}
+
+/// The ref projection that requests a generated custom identifier.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocatorProjection {
+    /// Supplies an anchor name.
+    Anchor,
+    /// References an anchor from a styled element.
+    PositionAnchor,
+    /// Supplies a container name.
+    Container,
+}
+
+impl LocatorProjection {
+    /// Returns the spelling passed to naming callbacks.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Anchor => "anchor",
+            Self::PositionAnchor => "positionAnchor",
+            Self::Container => "container",
+        }
+    }
 }
 
 /// The context one anonymous layer name is generated from.

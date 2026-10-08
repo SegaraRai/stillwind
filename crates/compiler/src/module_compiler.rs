@@ -116,7 +116,7 @@ impl ModuleCompiler {
             module_id: module.module_id.clone(),
             source_file_id: module.source.id().0,
             frontend_kind: module.frontend_kind.clone(),
-            adapter_mode: format!("{:?}", module.ir.adapter),
+            adapter_mode: module.ir.adapter,
             semantic_revision: if module.asset_support.is_empty() {
                 module.semantic_revision.clone()
             } else {

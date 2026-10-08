@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 
 use stillwind_css::properties_interfere;
-use stillwind_diagnostics::{Label, LabelScope, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{Label, LabelScope, LintDiagnostic, LintFinding, LintKind};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{ModuleId, Span};
 
@@ -26,7 +26,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             if !attached
                 && !style.unknown_can_coexist(current)
                 && reported.insert((
-                    "attachment",
+                    LintKind::RequireRefAttachment,
                     current.supply.site.clone(),
                     current.supply.site.clone(),
                 ))
@@ -93,7 +93,7 @@ fn check_interference(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                 && bc.subject == RuleSubject::Target
                 && !exclusive_markers(style, ag.as_ref(), bg.as_ref())
                 && reported.insert((
-                    "provider",
+                    LintKind::ConflictingProviderProperties,
                     previous.supply.site.clone(),
                     current.supply.site.clone(),
                 ))
@@ -108,7 +108,7 @@ fn check_interference(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             if ac == bc
                 && let Some(diagnostic) = base_interference(style, previous, current, properties)
                 && reported.insert((
-                    "base",
+                    LintKind::AmbiguousBaseOrder,
                     previous.supply.site.clone(),
                     current.supply.site.clone(),
                 ))
@@ -200,18 +200,13 @@ fn imported_module(
 
 /// Classifies an overlapping pair as local order ambiguity or imported interference.
 /// Classification uses the original supply owners, including transitive bases.
-fn interference_kind(
+fn imported_interference(
     style: &ResolvedStyle<'_>,
     previous: &ResolvedSupply<'_>,
     current: &ResolvedSupply<'_>,
-) -> &'static str {
-    if current.owner.module_id == style.root.identity.module_id
-        && previous.owner.module_id == style.root.identity.module_id
-    {
-        "order"
-    } else {
-        "imported"
-    }
+) -> bool {
+    !(current.owner.module_id == style.root.identity.module_id
+        && previous.owner.module_id == style.root.identity.module_id)
 }
 
 /// Returns one property name for equal inputs or an ordered pair for an overlap.
@@ -246,21 +241,18 @@ fn base_interference(
     if left == right || style.reaches(left, right) || style.reaches(right, left) {
         return None;
     }
-    Some(
-        if interference_kind(style, previous, current) == "imported" {
-            LintDiagnostic::ImportedBaseInterference {
-                module: imported_module(style, previous, current),
-                properties,
-            }
-        } else {
-            LintDiagnostic::AmbiguousBaseOrder { properties }
-        },
-    )
+    Some(if imported_interference(style, previous, current) {
+        LintDiagnostic::ImportedBaseInterference {
+            module: imported_module(style, previous, current),
+            properties,
+        }
+    } else {
+        LintDiagnostic::AmbiguousBaseOrder { properties }
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use stillwind_diagnostics::LintKind;
     use stillwind_semantic::AssetKind;
 
     use super::super::test_support as f;

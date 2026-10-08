@@ -10,7 +10,7 @@ use stillwind_css::{
     take_property_requirements,
 };
 
-use super::super::preview::{convert_pixel_dimensions, dimension};
+use super::super::preview::{SpacingUnit, convert_pixel_dimensions, dimension};
 use crate::query::QueryContext;
 use crate::query::completion::value_namespaces;
 
@@ -368,7 +368,7 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<String> {
             .spacing_scale()
             .as_deref()
             .and_then(dimension)
-            .is_some_and(|(_, unit)| unit == "rem")
+            .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
     {
         values.push(convert_pixel_dimensions(
             value,

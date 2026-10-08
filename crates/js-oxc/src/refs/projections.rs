@@ -8,8 +8,10 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
-use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, RuleExpression, StyleInput};
-use stillwind_source::Span;
+use stillwind_ir::{
+    AnchorScope, ContainerType, RefDefinition, RefProjection, RuleExpression, StyleInput,
+};
+use stillwind_source::{Span, Spanned};
 
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
@@ -130,9 +132,9 @@ impl<'a> MacroExtractor<'a> {
             [] => Some(RefProjection::AsContainer(None)),
             [argument] => {
                 if let Some(Expression::StringLiteral(value)) = argument.as_expression() {
-                    let mut kind = self.string_literal(value);
-                    if let Some(normalized) = normalize_container_type(kind.value.trim()) {
-                        kind.value = normalized.to_owned();
+                    let kind = self.string_literal(value);
+                    if let Some(normalized) = ContainerType::parse(kind.value.trim()) {
+                        let kind = Spanned::new(normalized, kind.span);
                         return Some(RefProjection::AsContainer(Some(kind)));
                     }
                 }
@@ -229,28 +231,5 @@ impl<'a> MacroExtractor<'a> {
                 None
             }
         }
-    }
-}
-
-/// Returns a supported container type with its keywords in canonical order.
-/// The caller must trim surrounding whitespace. Internal spacing must match a
-/// supported spelling. Unsupported text returns `None` without adding a diagnostic.
-fn normalize_container_type(value: &str) -> Option<&str> {
-    match value {
-        "scroll-state size" => Some("size scroll-state"),
-        "scroll-state inline-size" => Some("inline-size scroll-state"),
-        "normal"
-        | "size"
-        | "inline-size"
-        | "scroll-state"
-        | "size scroll-state"
-        | "inline-size scroll-state"
-        | "initial"
-        | "inherit"
-        | "unset"
-        | "revert"
-        | "revert-layer"
-        | "revert-rule" => Some(value),
-        _ => None,
     }
 }

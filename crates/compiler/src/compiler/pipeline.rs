@@ -444,14 +444,10 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
     symbols
         .into_iter()
         .filter(|symbol| {
-            if symbol.kind == "class" {
+            if symbol.kind == crate::GeneratedSymbolKind::Class {
                 return true;
             }
-            seen.insert((
-                symbol.kind.clone(),
-                symbol.name.clone(),
-                symbol.identity.clone(),
-            ))
+            seen.insert((symbol.kind, symbol.name.clone(), symbol.identity.clone()))
         })
         .collect()
 }

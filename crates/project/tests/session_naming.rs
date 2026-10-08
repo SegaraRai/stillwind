@@ -56,7 +56,7 @@ fn session_generators_name_generated_classes() {
     let class = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "class")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
         .expect("class symbol");
     // The host body is written as returned, with no built-in class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);

@@ -27,7 +27,8 @@ fn marker(result: &CompileResult, label: &str) -> String {
         .symbols
         .iter()
         .find(|symbol| {
-            symbol.kind == "ref-marker" && symbol.name.starts_with(&format!("sw_{label}_"))
+            symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
+                && symbol.name.starts_with(&format!("sw_{label}_"))
         })
         .unwrap_or_else(|| panic!("missing marker for {label}: {:?}", result.symbols))
         .name
@@ -581,7 +582,10 @@ fn punctuation_labels_produce_valid_javascript_strings() {
     let marker = result
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with("sw_d\"e/f_"))
+        .find(|symbol| {
+            symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
+                && symbol.name.starts_with("sw_d\"e/f_")
+        })
         .expect("ref marker symbol");
     let escaped = marker.name.replace('"', "\\\"").replace('/', "\\/");
     assert!(result.css.contains(&escaped), "{}", result.css);
@@ -598,7 +602,10 @@ fn a_label_reaches_every_name_its_own_declaration_generates() {
     assert!(result.diagnostics.is_empty(), "{result:#?}");
     // A declaration's label is spelled into every name generated for that declaration,
     // which is what makes the names readable in generated markup.
-    for kind in ["ref-marker", "ref"] {
+    for kind in [
+        stillwind_compiler::GeneratedSymbolKind::RefMarker,
+        stillwind_compiler::GeneratedSymbolKind::Ref,
+    ] {
         let names = result
             .symbols
             .iter()
@@ -607,18 +614,18 @@ fn a_label_reaches_every_name_its_own_declaration_generates() {
             .collect::<Vec<_>>();
         assert!(
             names.iter().any(|name| name.contains("領域")),
-            "{kind}: {names:?}"
+            "{kind:?}: {names:?}"
         );
         assert!(
             names.iter().any(|name| name.contains("項目")),
-            "{kind}: {names:?}"
+            "{kind:?}: {names:?}"
         );
     }
     // A utility class is named for one call, not for a declaration, so it never carries a label.
     for symbol in result
         .symbols
         .iter()
-        .filter(|symbol| symbol.kind == "class")
+        .filter(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
     {
         for authored in ["領域", "項目", "🧭"] {
             assert!(!symbol.name.contains(authored), "{}", symbol.name);

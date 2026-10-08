@@ -717,7 +717,7 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
     let class = development
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "class")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
         .expect("class symbol");
     assert!(class.name.starts_with("sw_"), "{}", class.name);
     let release = compile(IdentifierMode::Release);
@@ -780,7 +780,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
     let marker = compiled
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "ref-marker")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker)
         .unwrap_or_else(|| panic!("{:?} {:?}", compiled.symbols, compiled.diagnostics));
     // A host body is written as returned, with no built-in marker prefix.
     assert_eq!(marker.name, "fixed4", "{}", marker.name);
@@ -798,7 +798,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
     let utility = compiled
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == "class")
+        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
         .expect("class symbol");
     assert!(utility.name.starts_with("sw_"), "{}", utility.name);
 }

@@ -260,10 +260,97 @@ pub enum RefProjection {
     AsContainer(
         /// A supported literal in normalized form, with its source span. `None` omits
         /// `container-type`. The compiler does not provide a default.
-        Option<Spanned<String>>,
+        Option<Spanned<ContainerType>>,
     ),
     /// References an anchor from the styled element.
     PositionAnchor,
+}
+
+/// A supported CSS container type, with combined keywords in canonical order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ContainerType {
+    /// Serialized as `normal`.
+    #[serde(rename = "normal")]
+    Normal,
+    /// Serialized as `size`.
+    #[serde(rename = "size")]
+    Size,
+    /// Serialized as `inline-size`.
+    #[serde(rename = "inline-size")]
+    InlineSize,
+    /// Serialized as `scroll-state`.
+    #[serde(rename = "scroll-state")]
+    ScrollState,
+    /// Serialized as `size scroll-state`.
+    #[serde(rename = "size scroll-state")]
+    SizeScrollState,
+    /// Serialized as `inline-size scroll-state`.
+    #[serde(rename = "inline-size scroll-state")]
+    InlineSizeScrollState,
+    /// Serialized as `initial`.
+    #[serde(rename = "initial")]
+    Initial,
+    /// Serialized as `inherit`.
+    #[serde(rename = "inherit")]
+    Inherit,
+    /// Serialized as `unset`.
+    #[serde(rename = "unset")]
+    Unset,
+    /// Serialized as `revert`.
+    #[serde(rename = "revert")]
+    Revert,
+    /// Serialized as `revert-layer`.
+    #[serde(rename = "revert-layer")]
+    RevertLayer,
+    /// Serialized as `revert-rule`.
+    #[serde(rename = "revert-rule")]
+    RevertRule,
+}
+
+impl ContainerType {
+    /// Parses a trimmed CSS literal. Internal spacing must match a supported spelling.
+    /// Returns `None` for unsupported text. Combined keywords accept either order.
+    pub fn parse(value: &str) -> Option<Self> {
+        Some(match value {
+            "normal" => Self::Normal,
+            "size" => Self::Size,
+            "inline-size" => Self::InlineSize,
+            "scroll-state" => Self::ScrollState,
+            "size scroll-state" | "scroll-state size" => Self::SizeScrollState,
+            "inline-size scroll-state" | "scroll-state inline-size" => Self::InlineSizeScrollState,
+            "initial" => Self::Initial,
+            "inherit" => Self::Inherit,
+            "unset" => Self::Unset,
+            "revert" => Self::Revert,
+            "revert-layer" => Self::RevertLayer,
+            "revert-rule" => Self::RevertRule,
+            _ => return None,
+        })
+    }
+
+    /// Returns the CSS spelling with combined keywords in canonical order.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Normal => "normal",
+            Self::Size => "size",
+            Self::InlineSize => "inline-size",
+            Self::ScrollState => "scroll-state",
+            Self::SizeScrollState => "size scroll-state",
+            Self::InlineSizeScrollState => "inline-size scroll-state",
+            Self::Initial => "initial",
+            Self::Inherit => "inherit",
+            Self::Unset => "unset",
+            Self::Revert => "revert",
+            Self::RevertLayer => "revert-layer",
+            Self::RevertRule => "revert-rule",
+        }
+    }
+}
+
+impl std::fmt::Display for ContainerType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Explicit anchor visibility, resolved to the union of finite ref candidates.

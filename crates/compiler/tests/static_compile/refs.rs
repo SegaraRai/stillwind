@@ -163,7 +163,10 @@ const panel = style(popover.positionAnchor(), "absolute");"#,
         result
             .symbols
             .iter()
-            .filter(|symbol| symbol.kind == "ref" || symbol.kind == "container")
+            .filter(
+                |symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Ref
+                    || symbol.kind == stillwind_compiler::GeneratedSymbolKind::Container
+            )
             .count(),
         2,
         "{:?}",
@@ -372,7 +375,10 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
         result
             .symbols
             .iter()
-            .find(|symbol| symbol.kind == "ref-marker" && symbol.name.starts_with(prefix))
+            .find(|symbol| {
+                symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
+                    && symbol.name.starts_with(prefix)
+            })
             .unwrap_or_else(|| panic!("missing {prefix}: {:?}", result.symbols))
             .name
             .clone()

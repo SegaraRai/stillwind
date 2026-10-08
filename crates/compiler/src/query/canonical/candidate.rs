@@ -8,7 +8,7 @@ use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_syntax::{Utility, parse_candidate};
 
 use super::index;
-use super::preview::{CanonicalPreview, dimension, spacing_properties};
+use super::preview::{CanonicalPreview, SpacingUnit, dimension, spacing_properties};
 use crate::compiler::candidate_allowed;
 use crate::query::{DesignSystemQuery, QueryContext, last_top_level};
 
@@ -127,7 +127,7 @@ impl DesignSystemQuery {
                 continue;
             }
             let conversion = options.px_to_rem
-                && scale_dimension.is_some_and(|(_, unit)| unit == "rem")
+                && scale_dimension.is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
                 && (preview.css.contains("var(--spacing)")
                     || preview.css.contains("var(--spacing-"));
             let mut properties = BTreeSet::new();
@@ -171,7 +171,10 @@ impl DesignSystemQuery {
             if let Some((step, scale_unit)) = scale_dimension {
                 let amount = if unit == scale_unit {
                     Some(number)
-                } else if unit == "px" && scale_unit == "rem" && options.px_to_rem {
+                } else if unit == SpacingUnit::Px
+                    && scale_unit == SpacingUnit::Rem
+                    && options.px_to_rem
+                {
                     Some(number / options.root_font_size.get())
                 } else {
                     None

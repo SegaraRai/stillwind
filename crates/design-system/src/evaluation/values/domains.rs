@@ -11,7 +11,9 @@ use cssparser::{Parser, Token};
 use stillwind_css::ValueDomain;
 
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
-use super::theme::{axis_size_value, fraction_value, theme_value, theme_value_literal};
+use super::theme::{
+    ViewportAxis, axis_size_value, fraction_value, theme_value, theme_value_literal,
+};
 use crate::conditionals::accepts_runtime_value;
 use crate::{ThemeIndex, ThemeNamespace};
 
@@ -54,10 +56,10 @@ pub(crate) fn resolve_value_domains(
             return capture.and_then(fraction_value);
         }
         if domain == "--stillwind-builtin-width()" {
-            return capture.and_then(|capture| axis_size_value(capture, "vw"));
+            return capture.and_then(|capture| axis_size_value(capture, ViewportAxis::Width));
         }
         if domain == "--stillwind-builtin-height()" {
-            return capture.and_then(|capture| axis_size_value(capture, "vh"));
+            return capture.and_then(|capture| axis_size_value(capture, ViewportAxis::Height));
         }
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture
