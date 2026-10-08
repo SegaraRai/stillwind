@@ -5,6 +5,7 @@ mod support;
 
 use support::brand_snapshot;
 
+use std::rc::Rc;
 use std::sync::Arc;
 
 use stillwind_compiler::{
@@ -66,7 +67,7 @@ fn ref_module() -> ModuleAnalysis {
 
 #[test]
 fn distinct_pools_may_publish_the_same_spelling() {
-    let generators = Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release);
+    let generators = Identifiers::new(Some(Rc::new(FixedBodyGenerator)), IdentifierMode::Release);
     let mut session = ProjectSession::new(
         brand_snapshot("red"),
         &SourceRegistry::default(),
@@ -99,7 +100,7 @@ fn css_a_producer_authors_is_reserved_when_the_host_supplies_it() {
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release),
+        Identifiers::new(Some(Rc::new(FixedBodyGenerator)), IdentifierMode::Release),
     );
     assert_eq!(
         session.update_module(ref_module()).diagnostics,
@@ -141,7 +142,7 @@ fn a_generated_anchor_name_is_checked_against_the_authored_document() {
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::new(Some(Arc::new(FixedBodyGenerator)), IdentifierMode::Release),
+        Identifiers::new(Some(Rc::new(FixedBodyGenerator)), IdentifierMode::Release),
     );
     let update = session.update_module(ref_module());
     // The generator names the anchor `shared`, which the authored declaration already owns.

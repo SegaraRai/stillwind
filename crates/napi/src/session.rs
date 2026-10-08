@@ -11,7 +11,7 @@
 //! checker of its own.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::rc::Rc;
 
 use napi::Error;
 use napi::bindgen_prelude::Env;
@@ -334,7 +334,7 @@ pub struct NativeProjectSession {
     /// Project session.
     session: ProjectSession,
     /// Host name generators, which are callable only during a host call.
-    naming: Option<Arc<NativeNaming>>,
+    naming: Option<Rc<NativeNaming>>,
 }
 
 #[napi]
@@ -494,7 +494,7 @@ impl NativeProjectSession {
         let identifiers = Identifiers::new(
             naming
                 .as_ref()
-                .map(|naming| naming.clone() as Arc<dyn IdentifierGenerator>),
+                .map(|naming| naming.clone() as Rc<dyn IdentifierGenerator>),
             identifier_mode,
         );
         let snapshot = loader.completed()?;

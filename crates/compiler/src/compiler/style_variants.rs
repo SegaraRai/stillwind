@@ -580,7 +580,7 @@ mod reference_path_tests {
 
 #[cfg(test)]
 mod add_ref_tests {
-    use std::sync::Arc;
+    use std::rc::Rc;
 
     use stillwind_source::{FileId, Span};
 
@@ -742,7 +742,7 @@ mod add_ref_tests {
     #[test]
     fn add_ref_reports_a_rejected_marker() {
         let context = IdentifierContext::new(
-            GeneratorSet::new(Arc::new(RejectingGenerator)),
+            GeneratorSet::new(Rc::new(RejectingGenerator)),
             IdentifierMode::Release,
             5,
         );

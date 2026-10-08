@@ -3,6 +3,7 @@
 //! Covers authored placement, carrier layers, dependency destinations, and repeated
 //! source mappings through the rendering entry points; it does not test CSS minification.
 
+use std::rc::Rc;
 use std::sync::Arc;
 
 use stillwind_css::CssOutputNode;
@@ -103,9 +104,8 @@ fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
     )
     .unwrap();
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-    let identifiers =
-        Identifiers::new(Some(Arc::new(FixedLayerGenerator)), IdentifierMode::Release)
-            .context(crate::identifiers::DEFAULT_HASH_LENGTH);
+    let identifiers = Identifiers::new(Some(Rc::new(FixedLayerGenerator)), IdentifierMode::Release)
+        .context(crate::identifiers::DEFAULT_HASH_LENGTH);
     let css = super::render(
         theme.output_template(),
         &theme,

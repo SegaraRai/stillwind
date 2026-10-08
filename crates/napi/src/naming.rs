@@ -13,7 +13,7 @@
 
 use std::cell::Cell;
 use std::fmt;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use napi::bindgen_prelude::{Buffer, Env, FnArgs, Function, FunctionRef};
 use napi::sys;
@@ -147,7 +147,7 @@ impl NativeNaming {
     /// Keeps the functions `naming` supplies, or returns `None` when it supplies none.
     pub(crate) fn from_js(
         naming: Option<NativeIdentifierNaming<'_>>,
-    ) -> napi::Result<Option<Arc<Self>>> {
+    ) -> napi::Result<Option<Rc<Self>>> {
         let Some(naming) = naming else {
             return Ok(None);
         };
@@ -163,10 +163,7 @@ impl NativeNaming {
             condition_helper: reference(naming.condition_helper)?,
             layer_name: reference(naming.layer_name)?,
         };
-        // A host generator that only its own thread can call keeps this sharing single-threaded by
-        // construction: a compilation never moves its naming inputs across threads.
-        #[allow(clippy::arc_with_non_send_sync)]
-        let naming = Arc::new(naming);
+        let naming = Rc::new(naming);
         Ok((!naming.is_empty()).then_some(naming))
     }
 
@@ -184,7 +181,7 @@ impl NativeNaming {
     }
 
     /// Makes the functions callable until the returned guard is dropped.
-    pub(crate) fn enter<'a>(self: &'a Arc<Self>, env: &Env) -> EnteredNaming<'a> {
+    pub(crate) fn enter(&self, env: &Env) -> EnteredNaming<'_> {
         self.env.set(Some(env.raw()));
         EnteredNaming { naming: self }
     }

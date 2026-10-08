@@ -15,7 +15,7 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +54,7 @@ impl Identifiers {
     /// instead. The mode is a compilation input, so a host that caches artifacts must
     /// keep the two modes apart.
     #[must_use]
-    pub fn new(generator: Option<Arc<dyn IdentifierGenerator>>, mode: IdentifierMode) -> Self {
+    pub fn new(generator: Option<Rc<dyn IdentifierGenerator>>, mode: IdentifierMode) -> Self {
         Self {
             generators: GeneratorSet { generator },
             mode,
@@ -97,9 +97,7 @@ impl<T> GeneratedName<T> {
 /// Every method defaults to [`GeneratedName::Builtin`], so overriding one family is a
 /// supported use.
 ///
-/// Sharing a generator across threads only forwards calls, because the purity contract
-/// already forbids state-dependent output. Generators are still used synchronously within
-/// one compilation.
+/// Generators are called synchronously on the thread that owns the compilation.
 pub trait IdentifierGenerator: fmt::Debug {
     /// A utility class, on its way into a class attribute and a class selector.
     ///
@@ -232,12 +230,12 @@ pub trait IdentifierGenerator: fmt::Debug {
 /// compares equal while a different generator never does.
 #[derive(Clone, Debug, Default)]
 pub struct GeneratorSet {
-    generator: Option<Arc<dyn IdentifierGenerator>>,
+    generator: Option<Rc<dyn IdentifierGenerator>>,
 }
 
 impl GeneratorSet {
     /// A set that asks `generator` first and falls back per family.
-    pub fn new(generator: Arc<dyn IdentifierGenerator>) -> Self {
+    pub fn new(generator: Rc<dyn IdentifierGenerator>) -> Self {
         Self {
             generator: Some(generator),
         }
@@ -253,7 +251,7 @@ impl PartialEq for GeneratorSet {
     fn eq(&self, other: &Self) -> bool {
         match (&self.generator, &other.generator) {
             (None, None) => true,
-            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            (Some(left), Some(right)) => Rc::ptr_eq(left, right),
             _ => false,
         }
     }

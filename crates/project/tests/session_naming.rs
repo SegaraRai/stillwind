@@ -5,6 +5,7 @@ mod support;
 
 use support::{brand_snapshot, module};
 
+use std::rc::Rc;
 use std::sync::Arc;
 
 use stillwind_compiler::{
@@ -44,7 +45,7 @@ fn session_generators_name_generated_classes() {
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::new(Some(Arc::new(FixedClassGenerator)), IdentifierMode::Release),
+        Identifiers::new(Some(Rc::new(FixedClassGenerator)), IdentifierMode::Release),
     );
     assert_eq!(
         session
@@ -100,7 +101,7 @@ fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
         SessionMode::Watch,
         CompilerOptions::default(),
         Identifiers::new(
-            Some(Arc::new(FixedKeyframesGenerator)),
+            Some(Rc::new(FixedKeyframesGenerator)),
             IdentifierMode::Release,
         ),
     );
@@ -156,10 +157,7 @@ fn a_helper_name_is_checked_in_the_custom_property_pool() {
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::new(
-            Some(Arc::new(FixedHelperGenerator)),
-            IdentifierMode::Release,
-        ),
+        Identifiers::new(Some(Rc::new(FixedHelperGenerator)), IdentifierMode::Release),
     );
     let source = Arc::new(
             SourceFile::new(
@@ -203,10 +201,7 @@ fn merge_barriers_have_an_independent_collision_pool() {
                 use_css_if: native,
                 ..CompilerOptions::default()
             },
-            Identifiers::new(
-                Some(Arc::new(FixedHelperGenerator)),
-                IdentifierMode::Release,
-            ),
+            Identifiers::new(Some(Rc::new(FixedHelperGenerator)), IdentifierMode::Release),
         );
         let source = Arc::new(SourceFile::new(FileId(1), None, None,
             format!("import {{ style }} from 'stillwind/react'; export const x = style({candidates:?});")).unwrap());
@@ -280,7 +275,7 @@ fn a_layer_name_is_checked_against_the_authored_document() {
         &SourceRegistry::default(),
         SessionMode::Watch,
         CompilerOptions::default(),
-        Identifiers::new(Some(Arc::new(FixedLayerGenerator)), IdentifierMode::Release),
+        Identifiers::new(Some(Rc::new(FixedLayerGenerator)), IdentifierMode::Release),
     );
     assert_eq!(
         session

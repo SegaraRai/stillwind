@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -8,16 +9,13 @@ use super::*;
 /// Answers with a fixed name and records every request.
 #[derive(Debug, Default)]
 struct RecordingGenerator {
-    calls: Mutex<Vec<(&'static str, String)>>,
+    calls: RefCell<Vec<(&'static str, String)>>,
 }
 
 impl RecordingGenerator {
     /// Records one request and answers with the family's fixed body.
     fn record(&self, family: &'static str, hash: &IdentifierHash) -> String {
-        self.calls
-            .lock()
-            .expect("test generator lock")
-            .push((family, hash.to_hex()));
+        self.calls.borrow_mut().push((family, hash.to_hex()));
         format!("fixed-{family}")
     }
 }
@@ -91,7 +89,7 @@ fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
 #[test]
 fn a_host_name_is_written_without_the_builtin_prefix() {
     let context = IdentifierContext::new(
-        GeneratorSet::new(Arc::new(RecordingGenerator::default())),
+        GeneratorSet::new(Rc::new(RecordingGenerator::default())),
         IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );
@@ -267,7 +265,7 @@ fn a_labelled_request_is_not_answered_from_the_unlabelled_memo() {
 
 #[test]
 fn repeated_requests_use_one_generator_call() {
-    let generator = Arc::new(RecordingGenerator::default());
+    let generator = Rc::new(RecordingGenerator::default());
     let context = IdentifierContext::new(
         GeneratorSet::new(generator.clone()),
         IdentifierMode::Release,
@@ -276,13 +274,13 @@ fn repeated_requests_use_one_generator_call() {
     let first = context.class_name(&class_context("0:flex")).unwrap();
     let second = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(first, second);
-    assert_eq!(generator.calls.lock().expect("lock").len(), 1);
+    assert_eq!(generator.calls.borrow().len(), 1);
 }
 
 #[test]
 fn development_mode_substitutes_and_records_a_rejected_name() {
     let context = IdentifierContext::new(
-        GeneratorSet::new(Arc::new(FailingGenerator)),
+        GeneratorSet::new(Rc::new(FailingGenerator)),
         IdentifierMode::Development,
         DEFAULT_HASH_LENGTH,
     );
@@ -300,7 +298,7 @@ fn development_mode_substitutes_and_records_a_rejected_name() {
 #[test]
 fn release_mode_fails_on_a_rejected_name() {
     let context = IdentifierContext::new(
-        GeneratorSet::new(Arc::new(FailingGenerator)),
+        GeneratorSet::new(Rc::new(FailingGenerator)),
         IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );
@@ -521,7 +519,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
 #[test]
 fn a_generator_receives_the_whole_digest() {
     let host = IdentifierContext::new(
-        GeneratorSet::new(Arc::new(DigestGenerator)),
+        GeneratorSet::new(Rc::new(DigestGenerator)),
         IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     );

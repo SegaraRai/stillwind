@@ -8,6 +8,7 @@
 use stillwind_test_support::css as css_fixture;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use stillwind_compiler::{
@@ -582,7 +583,7 @@ fn static_provider_does_not_attach_a_marker_named_like_an_object_property() {
         assets: BTreeMap::new(),
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    let identifiers = Identifiers::new(Some(Arc::new(PrototypeGenerator)), IdentifierMode::Release);
+    let identifiers = Identifiers::new(Some(Rc::new(PrototypeGenerator)), IdentifierMode::Release);
     let compiled =
         ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(&analysis, &identifiers);
     assert!(compiled.is_success(), "{:?}", compiled.diagnostics);
@@ -700,7 +701,7 @@ fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
         None,
     );
     let compile = |mode: IdentifierMode| {
-        let identifiers = Identifiers::new(Some(Arc::new(FailingGenerator)), mode);
+        let identifiers = Identifiers::new(Some(Rc::new(FailingGenerator)), mode);
         ModuleCompiler::new(snapshot.clone(), CompilerOptions::default())
             .compile(&analysis, &identifiers)
     };
@@ -758,7 +759,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         )
         .unwrap(),
     );
-    let identifiers = Identifiers::new(Some(Arc::new(FixedGenerator)), IdentifierMode::Release);
+    let identifiers = Identifiers::new(Some(Rc::new(FixedGenerator)), IdentifierMode::Release);
     let scan = OxcSourceAnalyzer.scan(
         Arc::clone(&source),
         ModuleId::from("test.tsx"),
@@ -838,7 +839,7 @@ fn a_host_class_token_keeps_its_spelling_in_the_class_attribute() {
         .unwrap(),
     );
     let identifiers = Identifiers::new(
-        Some(Arc::new(PunctuationClassGenerator)),
+        Some(Rc::new(PunctuationClassGenerator)),
         IdentifierMode::Release,
     );
     let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(
@@ -908,7 +909,7 @@ fn a_host_names_every_conditional_helper_it_is_asked_for() {
         .unwrap(),
     );
     let identifiers = Identifiers::new(
-        Some(Arc::new(RoleSpellingHelperGenerator)),
+        Some(Rc::new(RoleSpellingHelperGenerator)),
         IdentifierMode::Release,
     );
     let compiled = ModuleCompiler::new(snapshot, CompilerOptions::default()).compile(
