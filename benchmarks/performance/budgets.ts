@@ -44,6 +44,7 @@ export const budgets = {
     100: { soft: 0.1, hard: 1 },
     1000: { soft: 0.1, hard: 1 },
   },
+  pairwiseDiagnostics: { 100: { soft: 50, hard: 100 } },
   build: {
     10: { soft: 250, hard: 750 },
     100: { soft: 1000, hard: 2000 },

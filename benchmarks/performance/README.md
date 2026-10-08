@@ -5,7 +5,7 @@ Run one timing task at a time after other builds and tests have finished:
 - `vp run test:performance` checks canonical utility queries, 10 and 100 JS modules, 10 and 100 imported CSS files, and 100 and 1000 unused utility definitions.
 - `vp run test:performance:full` also checks a palette with 1000 colors, 1000 JS modules, 1000 imported CSS files, and 10,000 unused definitions.
 
-The quick suite has 25 general cases plus 208 sorting cases. The full suite has 32 general cases plus the same sorting cases. General measurements use three samples; sorting normally uses nine, with three for stress cases. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
+The quick suite has 27 general cases plus 208 sorting cases. The full suite has 34 general cases plus the same sorting cases. General measurements use three samples; sorting normally uses nine, with three for stress cases. Both commands build the release addon when needed. The full suite builds 1000 modules six times, which takes most of its time.
 
 `vp run verify` checks the budget helper's behavior. Run the performance tasks separately to check timing on your machine.
 
@@ -24,13 +24,14 @@ The test metadata records the median, maximum, and both limits. `budgets.ts` def
 | Color with a numeric opacity modifier          |          0.1 / 1 |
 | CSS revision loading and index preparation     |        200 / 300 |
 | 2000 cached calls                              |            1 / 5 |
-| Module with 100 repeated colors                |           5 / 15 |
-| Module with 100 distinct colors                |          15 / 30 |
+| Module with 100 independent repeated colors    |           5 / 15 |
+| Module with 100 independent distinct colors    |          15 / 30 |
+| 4950 duplicate or conflict diagnostics         |         50 / 100 |
 | Palette with 100 or 1000 colors                |          0.1 / 1 |
 
 Canonical cases create a fresh query before each sample. The loader prepares the shared indexes when it completes the CSS revision. Candidate results and previews remain uncached in each measured query. The preparation case measures a fresh loader, CSS parsing, and index preparation together. The cached case reuses one query and measures 2000 calls.
 
-Module cases diagnose one module containing repeated or distinct arbitrary colors. Each sample creates a new project session before the timer, so it cannot reuse compiled module results. Palette cases search for `bg-[rgb(171_205_239)]` without a matching theme value. They check that a miss stays fast as the palette grows. These measurements use the native release addon and exclude LSP transport and browser WASM execution.
+Canonical module cases diagnose 100 independent style calls with one arbitrary color each. They produce no pairwise findings. Separate pairwise cases put the same 100 colors in one style and require all 4950 duplicate or conflict diagnostics, including their locations and JavaScript conversion. The pairwise hard limit is 100ms, approximately 20 microseconds per complete report; the canonical limits remain 15ms and 30ms. Each sample creates a new project session before the timer, so it cannot reuse compiled module results. Palette cases search for `bg-[rgb(171_205_239)]` without a matching theme value. They check that a miss stays fast as the palette grows. These measurements use the native release addon and exclude LSP transport and browser WASM execution.
 
 `vp run bench:compiler:browser` measures the WASM binding in headless Chrome. It checks the median of nine CSS revision preparations against 300ms. Each query scenario uses 20 warmup calls and 100 measured calls, with a fresh query per call. Its 95th percentile must stay below 1ms; a median at or above 0.1ms adds a note. The browser report keeps every sample. It excludes worker startup, LSP transport, and editor rendering.
 

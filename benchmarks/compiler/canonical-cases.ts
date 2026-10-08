@@ -39,8 +39,16 @@ export function canonicalPalette(count: number): NativeDesignSystemLoader {
   return loader;
 }
 
-/** Creates one module with `count` arbitrary colors, repeating one color when `unique` is false. */
-export function canonicalSource(count: number, unique: boolean): NativePreparedSource {
+/**
+ * Creates `count` arbitrary colors, repeating one color when `unique` is false.
+ * `independent` puts each color in its own style call. Otherwise one call contains
+ * all colors and produces a diagnostic for every pair.
+ */
+export function canonicalSource(
+  count: number,
+  unique: boolean,
+  independent = false,
+): NativePreparedSource {
   const candidates = Array.from(
     { length: count },
     (_, i) => `bg-[#${(0x123456 + (unique ? i : 0)).toString(16)}]`,
@@ -51,7 +59,13 @@ export function canonicalSource(count: number, unique: boolean): NativePreparedS
     document: {
       uri: "untitled:entry.ts",
       format: "script",
-      code: `import {style} from 'stillwind/react'; export const card=style('${candidates.join(" ")}');`,
+      code:
+        "import {style} from 'stillwind/react'; " +
+        (independent
+          ? candidates
+              .map((candidate, i) => `export const card${i}=style('${candidate}');`)
+              .join("\n")
+          : `export const card=style('${candidates.join(" ")}');`),
     },
     syntax: { language: "ts", moduleKind: "module" },
     typeFacts: [],

@@ -96,30 +96,38 @@ for (const count of [10, 100, 1000]) {
   });
 }
 
-for (const unique of [false, true]) {
-  test(`canonical/module/${unique ? "unique" : "repeated"}/100`, async ({ bench, task }) => {
-    const loader = canonicalLoader();
-    const source = canonicalSource(100, unique);
-    let session = new NativeProjectSession(loader, false);
-    let reports: ReturnType<NativeProjectSession["diagnose"]>;
-    task.meta.measurement = options;
-    await bench(
-      "diagnose",
-      {
-        async: false,
-        beforeEach: () => {
-          session = new NativeProjectSession(loader, false);
+for (const independent of [true, false]) {
+  for (const unique of [false, true]) {
+    test(`${independent ? "canonical/module" : "diagnostics/pairwise"}/${unique ? "unique" : "repeated"}/100`, async ({
+      bench,
+      task,
+    }) => {
+      const loader = canonicalLoader();
+      const source = canonicalSource(100, unique, independent);
+      task.meta.notes = independent
+        ? "100 independent style calls with canonical diagnostics enabled; no utility pairs share a call."
+        : "One style call with 100 utilities; returns all 4950 pairwise diagnostics, including their source locations.";
+      let session = new NativeProjectSession(loader, false);
+      let reports: ReturnType<NativeProjectSession["diagnose"]>;
+      task.meta.measurement = options;
+      await bench(
+        "diagnose",
+        {
+          async: false,
+          beforeEach: () => {
+            session = new NativeProjectSession(loader, false);
+          },
         },
-      },
-      () => {
-        reports = session.diagnose([source]);
-      },
-    ).run(options);
-    expect(reports!).toHaveLength(1);
-    expect(reports![0].reports.map((report) => report.code)).toEqual(
-      Array.from({ length: (100 * 99) / 2 }, () =>
-        unique ? "conflicting-utilities" : "duplicate-utilities",
-      ),
-    );
-  });
+        () => {
+          reports = session.diagnose([source]);
+        },
+      ).run(options);
+      expect(reports!).toHaveLength(1);
+      expect(reports![0].reports.map((report) => report.code)).toEqual(
+        Array.from({ length: independent ? 0 : (100 * 99) / 2 }, () =>
+          unique ? "conflicting-utilities" : "duplicate-utilities",
+        ),
+      );
+    });
+  }
 }
