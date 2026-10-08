@@ -7,12 +7,11 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
+use stillwind_diagnostics::{LintDiagnostic, LintKind, LintOverrides, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::css_source;
+use stillwind_test_support::{CssAssertions as _, css_source};
 
 use super::*;
 
@@ -100,7 +99,7 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
     ).unwrap();
     let theme = css_source(FileId(2), "@import \"stillwind\"; ").unwrap();
     let options = CompilerOptions {
-        lint: stillwind_diagnostics::LintOverrides {
+        lint: LintOverrides {
             prefer_typed_relationships: Some(LintSeverity::Warn),
             ..Default::default()
         },
@@ -200,7 +199,7 @@ fn host_settings_can_disable_the_element_scope_rule() {
         &theme,
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions {
-            lint: stillwind_diagnostics::LintOverrides {
+            lint: LintOverrides {
                 require_element_scope: Some(LintSeverity::Off),
                 ..Default::default()
             },

@@ -119,7 +119,7 @@ impl CandidateOrder {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -148,9 +148,9 @@ mod tests {
         ] {
             let options = CompilerOptions {
                 utility_order: if mode == "tailwind" {
-                    stillwind_design_system::UtilityOrderMode::Tailwind
+                    UtilityOrderMode::Tailwind
                 } else {
-                    stillwind_design_system::UtilityOrderMode::Authored
+                    UtilityOrderMode::Authored
                 },
                 ..Default::default()
             };

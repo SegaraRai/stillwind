@@ -4,9 +4,7 @@
 //! that namespace resets are respected, and that typed branches prune only the
 //! declarations that do not match a candidate.
 
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::catalog_section;
+use stillwind_test_support::{CssAssertions as _, assert_css_eq, catalog_section, css_source};
 
 use super::*;
 use crate::test_support::parse_fixture_theme;
@@ -274,7 +272,7 @@ fn ambiguous_background_type_is_independent_of_emission_order() {
         crate::UtilityOrderMode::Authored,
         crate::UtilityOrderMode::Tailwind,
     ] {
-        let source = stillwind_test_support::css_source(FileId(1), "").unwrap();
+        let source = css_source(FileId(1), "").unwrap();
         let snapshot = crate::DesignSystemSnapshot::from_source(
             &source,
             "test.css".into(),

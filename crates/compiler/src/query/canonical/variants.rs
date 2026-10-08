@@ -1,8 +1,8 @@
 //! Indexes named variant wrappers using a declaration that stays independent of theme values.
 
-use lean_string::LeanStr;
-
 use std::collections::{BTreeSet, HashMap};
+
+use lean_string::LeanStr;
 
 use stillwind_design_system::{VariantApplication, resolve_utility, resolve_variant};
 use stillwind_syntax::parse_candidate;

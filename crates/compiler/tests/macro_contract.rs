@@ -1,7 +1,7 @@
 //! Suppressible macro contracts preserve editable output and JavaScript scope.
 
 use stillwind_compiler::{Compiler, CompilerOptions, SourceTransform};
-use stillwind_diagnostics::{LintDiagnostic, LintKind, LintSeverity};
+use stillwind_diagnostics::{LintDiagnostic, LintKind, LintOverrides, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -74,10 +74,8 @@ fn contract_severity_and_suppression_leave_transforms_available() {
                 &css,
                 &CssSourceName::from("stillwind.css"),
                 &CompilerOptions {
-                    lint: stillwind_diagnostics::LintOverrides {
-                        macro_argument_mutation: Some(
-                            stillwind_diagnostics::LintSeverity::parse(level).unwrap(),
-                        ),
+                    lint: LintOverrides {
+                        macro_argument_mutation: Some(LintSeverity::parse(level).unwrap()),
                         ..Default::default()
                     },
                     ..Default::default()

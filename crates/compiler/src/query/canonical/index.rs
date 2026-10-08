@@ -3,9 +3,9 @@
 //! One snapshot owns each index through its analysis cache. Numeric spacing remains
 //! a computed candidate because its domain is not finite.
 
-use lean_string::LeanStr;
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+
+use lean_string::LeanStr;
 
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;

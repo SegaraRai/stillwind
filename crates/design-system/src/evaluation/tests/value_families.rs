@@ -4,9 +4,7 @@
 //! families, and the difference between unhinted and hint-checked arbitrary values
 //! against Tailwind's unbracketed grammar catalog.
 
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::catalog_section;
+use stillwind_test_support::{CssAssertions as _, assert_css_eq, catalog_section};
 
 use crate::test_support::parse_fixture_theme;
 

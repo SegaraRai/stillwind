@@ -1,9 +1,9 @@
 //! Collects authored declarations until parsing and origin mapping finish.
 
-use lean_string::LeanStr;
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
+
+use lean_string::LeanStr;
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
 

@@ -4,11 +4,11 @@
 //! use CSS templates after checking each candidate's utility IR. Overrides and
 //! transformations that change that IR remain in the finite CSS index.
 
-use lean_string::LeanStr;
-use stillwind_css::find_css_functions;
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use lean_string::LeanStr;
+
+use stillwind_css::find_css_functions;
 use stillwind_design_system::{
     ResolvedUtility, ThemeTokenMode, UtilityResolutionError, builtin_property_definitions,
     resolve_utility,

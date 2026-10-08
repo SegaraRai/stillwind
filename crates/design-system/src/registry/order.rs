@@ -6,9 +6,9 @@
 //! byte offset in the registry CSS, which is what lets a property sort before or after
 //! a utility that was authored between two statements.
 
-use lean_string::LeanStr;
-
 use std::collections::BTreeMap;
+
+use lean_string::LeanStr;
 
 use stillwind_css::{
     extract_named_blocks_with_offsets, extract_named_statements, extract_order_statements,

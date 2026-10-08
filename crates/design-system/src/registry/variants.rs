@@ -10,9 +10,8 @@
 //! the evaluator; this module only records what the CSS declared and never invents
 //! defaults for missing metadata.
 
-use lean_string::LeanStr;
-
 use cssparser::{Parser, Token};
+use lean_string::LeanStr;
 use lightningcss::printer::PrinterOptions;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};

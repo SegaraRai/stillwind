@@ -10,10 +10,10 @@
 //! lexical iteration and fingerprints. Candidate matching uses each layer's index and
 //! its precedence; both views share the same immutable definition values.
 
-use lean_string::LeanStr;
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use lean_string::LeanStr;
 
 use stillwind_css::CustomPropertyDefinition;
 use stillwind_source::Fingerprint;

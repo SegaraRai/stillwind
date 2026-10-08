@@ -12,13 +12,12 @@
 //! observe two calls of an impure generator and cannot produce two names for one declaration, and
 //! a rejection is memoized as a rejection, so one compilation reports it once.
 
-use lean_string::LeanStr;
-
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::rc::Rc;
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;

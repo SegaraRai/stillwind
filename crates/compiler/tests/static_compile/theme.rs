@@ -9,8 +9,7 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, Uti
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::{case_named, code_block, css_source, fixture_css};
+use stillwind_test_support::{CssAssertions as _, case_named, code_block, css_source, fixture_css};
 
 use super::*;
 

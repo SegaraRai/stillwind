@@ -1,11 +1,10 @@
 //! Renders canonical previews and normalizes their CSS under one query's spacing policy.
 
-use lean_string::LeanStr;
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::LeanStr;
 
 use stillwind_css::{CssMinifyOptions, CssRule, Declaration, fold_calc_expressions, minify_css};
 use stillwind_design_system::UtilityResolutionError;

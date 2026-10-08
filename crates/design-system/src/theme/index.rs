@@ -3,10 +3,10 @@
 //! Token lookup applies resets and replacements once. Clones share declarations,
 //! effective token positions, candidate lookup, and parsed utility programs.
 
-use lean_string::LeanStr;
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
+
+use lean_string::LeanStr;
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 

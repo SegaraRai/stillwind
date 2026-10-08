@@ -1,7 +1,5 @@
 //! Ref names, projections, scope lists, and provider diagnostics.
 
-use stillwind_test_support::css_source;
-
 use std::collections::BTreeMap;
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, GeneratedSymbolKind};
@@ -10,6 +8,7 @@ use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_test_support::css_source;
 
 use super::compile;
 

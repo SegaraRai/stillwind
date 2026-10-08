@@ -17,11 +17,10 @@
 //! Escaping is not part of the name. Comparisons, reports, and DOM tokens use the canonical
 //! spelling, so a name never changes meaning by being written somewhere.
 
-use lean_string::LeanStr;
-
 use std::fmt;
 
 use cssparser::serialize_identifier;
+use lean_string::LeanStr;
 
 use crate::generated::js_string;
 

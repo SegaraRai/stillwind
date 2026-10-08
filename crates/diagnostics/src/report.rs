@@ -8,6 +8,7 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+
 use stillwind_source::{
     Fingerprint, Position, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
     Span,

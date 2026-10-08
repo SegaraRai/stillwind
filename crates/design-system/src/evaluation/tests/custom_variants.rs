@@ -4,8 +4,7 @@
 //! resolve with the same slot syntax as built-ins, and that theme wildcards and typed
 //! modifiers expand inside them.
 
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::assert_css_eq;
+use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
 use super::*;
 use crate::evaluation::builtins::COMPAT_COLOR_SUPPORT;

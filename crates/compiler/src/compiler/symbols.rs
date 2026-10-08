@@ -5,7 +5,6 @@
 //! distinguish name reuse from a collision.
 
 use lean_string::LeanStr;
-
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;

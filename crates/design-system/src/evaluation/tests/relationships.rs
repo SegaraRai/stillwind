@@ -4,9 +4,7 @@
 //! primitives, numeric and CSS-wide keyword domains, and the compact spacing families
 //! that mix negative and fractional values.
 
-use stillwind_test_support::CssAssertions as _;
-use stillwind_test_support::assert_css_eq;
-use stillwind_test_support::css_tokens;
+use stillwind_test_support::{CssAssertions as _, assert_css_eq, css_tokens};
 
 use super::*;
 use crate::parse_utility_definitions;

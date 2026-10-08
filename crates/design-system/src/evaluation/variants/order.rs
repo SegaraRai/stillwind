@@ -11,11 +11,11 @@
 //! that is not a number falls back to text order so the comparison stays total and
 //! deterministic.
 
-use lean_string::LeanStr;
-
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use lean_string::LeanStr;
 
 use stillwind_syntax::{Variant, VariantKind};
 

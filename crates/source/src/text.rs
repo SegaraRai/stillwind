@@ -7,13 +7,12 @@
 //! [`SourceFile::utf16_offset`] exist only to talk to editors, which count UTF-16 code
 //! units.
 
-use lean_string::LeanStr;
-
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 /// Failure to build a source, or to relate a span or offset to one.

@@ -12,11 +12,10 @@
 //! resolved. Duplicate names are preserved in source order because they are separate
 //! declaration branches, not a replacement.
 
-use lean_string::LeanStr;
-
 use std::collections::BTreeSet;
 
 use cssparser::Parser;
+use lean_string::LeanStr;
 
 use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 

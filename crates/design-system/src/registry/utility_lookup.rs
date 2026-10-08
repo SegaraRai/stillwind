@@ -1,9 +1,9 @@
 //! Selects exact and wildcard definitions while preserving each registry layer's order.
 
-use lean_string::LeanStr;
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use lean_string::LeanStr;
 
 use crate::CustomUtility;
 

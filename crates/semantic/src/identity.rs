@@ -10,7 +10,6 @@
 //! silently merging two assets.
 
 use lean_string::LeanStr;
-
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::ModuleId;

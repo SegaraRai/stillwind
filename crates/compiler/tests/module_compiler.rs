@@ -5,8 +5,6 @@
 //! transform output against a pinned snapshot, invalid IR and byte boundaries returning
 //! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
 
-use stillwind_test_support::css_source;
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -18,7 +16,9 @@ use stillwind_compiler::{
     Identifiers, ModuleCompiler, RefMarker, SourceTransform, StylesheetRenderer, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding, SourceFailureContext};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintFinding, LintOverrides, LintSeverity, SourceFailureContext,
+};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, DirectSource, PreparedSource, ProjectedSource,
     RefCondition, RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
@@ -27,6 +27,7 @@ use stillwind_ir::{
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;
 use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile, Span, Spanned};
+use stillwind_test_support::css_source;
 
 #[test]
 fn composition_keeps_distinct_calls_and_merges_selected_bases() {
@@ -288,10 +289,8 @@ fn lint_settings_does_not_change_generated_artifacts_and_compilers_are_thread_sa
             ModuleCompiler::new(
                 snapshot,
                 CompilerOptions {
-                    lint: stillwind_diagnostics::LintOverrides {
-                        unknown_utility: Some(
-                            stillwind_diagnostics::LintSeverity::parse(&policy).unwrap(),
-                        ),
+                    lint: LintOverrides {
+                        unknown_utility: Some(LintSeverity::parse(&policy).unwrap()),
                         ..Default::default()
                     },
                     ..Default::default()

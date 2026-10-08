@@ -1,14 +1,13 @@
 //! Differential ordering against the pinned Tailwind compiler's unoptimized AST.
 
-use stillwind_test_support::css_source;
-
 use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_design_system::{
-    DesignSystemOptions, DesignSystemSnapshot, UtilityOrder, resolve_utility,
+    DesignSystemOptions, DesignSystemSnapshot, UtilityOrder, UtilityOrderMode, resolve_utility,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_test_support::css_source;
 
 #[test]
 fn tailwind_resolved_property_sort_matches_upstream() {
@@ -21,7 +20,7 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         &source,
         CssSourceName::from("test.css"),
         DesignSystemOptions {
-            utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+            utility_order: UtilityOrderMode::Tailwind,
             ..Default::default()
         },
     )
@@ -123,7 +122,7 @@ fn emitted_precedence_uses_property_sequences_counts_and_numeric_names() {
             &theme,
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions {
-                utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+                utility_order: UtilityOrderMode::Tailwind,
                 ..Default::default()
             },
         );

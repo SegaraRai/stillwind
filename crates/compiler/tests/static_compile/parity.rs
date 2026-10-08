@@ -10,9 +10,9 @@ use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
-use stillwind_test_support::CssAssertions as _;
 use stillwind_test_support::{
-    candidates, case_for_candidate, case_named, code_block, css_source, fixture_css,
+    CssAssertions as _, candidates, case_for_candidate, case_named, code_block, css_source,
+    fixture_css,
 };
 
 use super::*;

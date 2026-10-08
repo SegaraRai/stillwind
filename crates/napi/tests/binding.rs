@@ -13,7 +13,9 @@ use stillwind_test_support::with_defaults;
 use std::error::Error;
 
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
-use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{
+    CompileDiagnostic, LintOverrides, LintSeverity, VariantInputErrorKind,
+};
 use stillwind_ir::{AdapterKind, ScriptLanguage, ScriptModuleKind};
 use stillwind_napi::{
     BindingApiError, BindingRejectedIdentifier, CompileCssInput, CompileSourceInput,
@@ -107,10 +109,8 @@ fn lint_severities_keep_their_host_protocol_spellings() {
                 "@utility flex {display:flex;} @stillwind-slot utilities;",
             ),
             &CompilerOptions {
-                lint: stillwind_diagnostics::LintOverrides {
-                    valid_anchor_scope: Some(
-                        stillwind_diagnostics::LintSeverity::parse(severity).unwrap(),
-                    ),
+                lint: LintOverrides {
+                    valid_anchor_scope: Some(LintSeverity::parse(severity).unwrap()),
                     ..Default::default()
                 },
                 ..Default::default()

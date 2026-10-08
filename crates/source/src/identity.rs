@@ -1,9 +1,8 @@
 //! Opaque host identities shared by source consumers.
 
-use lean_string::LeanStr;
-
 use std::sync::Arc;
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 /// Host-provided identity of a script module, compared without normalization.
