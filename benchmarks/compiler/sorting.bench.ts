@@ -10,8 +10,17 @@ import { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
 import { assertBudget, budgets } from "../performance/budgets.ts";
 import { loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
 
-const repeated: BenchRunOptions = { iterations: 9, time: 0, warmupIterations: 2, warmupTime: 0 };
-const stress: BenchRunOptions = { ...repeated, iterations: 3, warmupIterations: 1 };
+const repeated: BenchRunOptions = {
+  iterations: 9,
+  time: 0,
+  warmupIterations: 2,
+  warmupTime: 0,
+};
+const stress: BenchRunOptions = {
+  ...repeated,
+  iterations: 3,
+  warmupIterations: 1,
+};
 
 test("sorting/runtime", () => {
   expect(__napiBindingTarget).toBe(inject("benchmarkWasm") ? "wasm32-wasi" : "native");
@@ -227,10 +236,8 @@ function registerSource(
   for (const reuse of ["fresh", "repeated", "construction"] as const) {
     test(`sorting/source/${name}/${reuse}`, async (context) => {
       const { bench, task } = context;
-      const { entry, source, session, graph } = await (prepared ??= prepareSortingSource(
-        loader,
-        body,
-      ));
+      prepared ??= prepareSortingSource(loader, body);
+      const { entry, source, session, graph } = await prepared;
       expect(
         graph.batches
           .flatMap((batch) => batch.reports)
@@ -260,14 +267,7 @@ function registerSource(
         };
       };
       const index = new SourceIndex(graph, session);
-      const instrumented = sortSource(
-        graph.sources[0],
-        index,
-        candidates,
-        config.sort,
-        [],
-        undefined,
-      );
+      const instrumented = sortSource(graph.sources[0], index, candidates, config.sort, []);
       expect(applyEdits(source, instrumented)).toBe(expectedSource);
       task.meta.measurement = options;
       task.meta.notes = JSON.stringify({

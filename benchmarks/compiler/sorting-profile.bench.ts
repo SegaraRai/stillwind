@@ -6,12 +6,18 @@ import { sortSource } from "../../packages/host/src/editor/sort.ts";
 import { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
 import { loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
 
-const options: BenchRunOptions = { iterations: 3, time: 0, warmupIterations: 1, warmupTime: 0 };
+const options: BenchRunOptions = {
+  iterations: 3,
+  time: 0,
+  warmupIterations: 1,
+  warmupTime: 0,
+};
 
 for (const count of [10, 30, 100]) {
   for (const kind of ["refs", "bases-shared-property"] as const) {
     test(`sorting/profile/${kind}/${count}`, async ({ bench, task }) => {
       expect(__napiBindingTarget).toBe("native");
+
       const names = Array.from({ length: count }, (_, i) => `item${String(i).padStart(4, "0")}`);
       const body = names
         .map(
@@ -30,9 +36,11 @@ for (const count of [10, 30, 100]) {
           graph.sources[0],
           index,
           candidates,
-          { stringLiterals: false, arrays: true },
+          {
+            stringLiterals: false,
+            arrays: true,
+          },
           [],
-          undefined,
         );
       const expected = run();
       expect(expected).toEqual([]);
