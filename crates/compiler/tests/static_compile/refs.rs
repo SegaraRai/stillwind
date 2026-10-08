@@ -4,7 +4,7 @@
 //! container names sharing one identity, that named container queries emit rules for
 //! the ref's target, and that scope refs get readable marker names.
 
-use stillwind_compiler::CompilerOptions;
+use stillwind_compiler::{CompilerOptions, GeneratedSymbolKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -163,10 +163,8 @@ const panel = style(popover.positionAnchor(), "absolute");"#,
         result
             .symbols
             .iter()
-            .filter(
-                |symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Ref
-                    || symbol.kind == stillwind_compiler::GeneratedSymbolKind::Container
-            )
+            .filter(|symbol| symbol.kind == GeneratedSymbolKind::Ref
+                || symbol.kind == GeneratedSymbolKind::Container)
             .count(),
         2,
         "{:?}",
@@ -376,8 +374,7 @@ export const Menu = () => <section {...style(menu)}><button {...style(trigger, "
             .symbols
             .iter()
             .find(|symbol| {
-                symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
-                    && symbol.name.starts_with(prefix)
+                symbol.kind == GeneratedSymbolKind::RefMarker && symbol.name.starts_with(prefix)
             })
             .unwrap_or_else(|| panic!("missing {prefix}: {:?}", result.symbols))
             .name

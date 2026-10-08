@@ -253,7 +253,11 @@ export const valid=style('[display:block]');`,
     expect(failed).toMatchObject({
       kind: "failed",
       batch: {
-        reports: [{ code: "SW01012" }],
+        reports: [
+          {
+            code: "SW01012",
+          },
+        ],
       },
     });
     expect(session.css()).toBe(before);
@@ -279,7 +283,10 @@ export const valid=style('[display:block]');`,
         format: "jsx",
         sourceMapSource: sourceUri(moduleId),
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     });
     const directCode =
       "import {style} from 'stillwind/react'; const a=style('pad',flag&&'ink'); const b=style('alt'); export const x=style(a,b);";
@@ -502,7 +509,10 @@ export const valid=style('[display:block]');`,
               format: "jsx",
               code: `import {style} from 'stillwind/react'; export const card=style('flex');${suffix}`,
             },
-            syntax: { language: "tsx", moduleKind: "module" },
+            syntax: {
+              language: "tsx",
+              moduleKind: "module",
+            },
           },
         ]);
         expect(output.modules[0].diagnostics).toEqual([]);
@@ -931,7 +941,9 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       () =>
         new NativeDesignSystemLoader({
           lint: {
-            noRestrictedThemeTokens: { severity: "off" },
+            noRestrictedThemeTokens: {
+              severity: "off",
+            },
           },
         }),
     ).not.toThrow();
@@ -979,7 +991,10 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         format: "jsx",
         sourceMapSource: "original/document.tsx",
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     };
     expect(scanSource(input)).toMatchObject({
       kind: "ready",
@@ -1032,7 +1047,10 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         format: "jsx",
         sourceMapSource: sourceUri(path),
       },
-      syntax: { language: "tsx", moduleKind: "unambiguous" },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
     });
     for (const watch of [true, false]) {
       const session = new NativeProjectSession(loader, watch);
@@ -1055,7 +1073,9 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       expect(() =>
         session.planStylesheet({
           modules: ["a.ts", "b.ts"],
-          coverage: { kind: "observed" },
+          coverage: {
+            kind: "observed",
+          },
           placement: "document",
         }),
       ).toThrow(/stale|unregistered/);
@@ -1159,27 +1179,35 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(() =>
       session.planStylesheet({
         modules: [],
-        coverage: { kind: "unknown" },
+        coverage: {
+          kind: "unknown",
+        },
         placement: "document",
       }),
     ).toThrow(/kind|variant/);
     expect(() =>
       session.planStylesheet({
         modules: [],
-        coverage: { kind: "complete" },
+        coverage: {
+          kind: "complete",
+        },
         placement: "document",
       }),
     ).toThrow();
     expect(() =>
       session.planStylesheet({
         modules: [],
-        coverage: { kind: "observed" },
+        coverage: {
+          kind: "observed",
+        },
         placement: "unknown",
       }),
     ).toThrow(/placement/);
     const plan = session.planStylesheet({
       modules: ["🧭.tsx"],
-      coverage: { kind: "observed" },
+      coverage: {
+        kind: "observed",
+      },
       placement: "document",
     });
     expect(typeof plan).toBe("object");
@@ -1189,7 +1217,9 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     const unmapped = session.planStylesheet(
       {
         modules: ["🧭.tsx"],
-        coverage: { kind: "observed" },
+        coverage: {
+          kind: "observed",
+        },
         placement: "document",
       },
       false,
@@ -1532,7 +1562,13 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(session.css()).toBe(css);
     const invalid = {
       ...input,
-      projection: { ...input.projection, map: { kind: "volar", mappings: [] } },
+      projection: {
+        ...input.projection,
+        map: {
+          kind: "volar",
+          mappings: [],
+        },
+      },
     };
     const failed = session.compile([invalid]).modules[0];
     expect(failed.diagnostics[0].code).toBe("SW10002");
@@ -1542,16 +1578,45 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(recovered.code).toBe(before.code);
     for (const field of ["code", "syntax", "map", "converter", "importRealms", "editableRegions"]) {
       expect(() =>
-        session.compile([{ ...input, projection: { ...input.projection, [field]: undefined } }]),
+        session.compile([
+          {
+            ...input,
+            projection: {
+              ...input.projection,
+              [field]: undefined,
+            },
+          },
+        ]),
       ).toThrow(new RegExp(field));
     }
     expect(() =>
-      session.compile([{ ...input, document: { ...input.document, format: undefined } }]),
+      session.compile([
+        {
+          ...input,
+          document: {
+            ...input.document,
+            format: undefined,
+          },
+        },
+      ]),
     ).toThrow(/format/);
     expect(() =>
-      session.compile([{ ...input, document: { ...input.document, format: "jsx" } }]),
+      session.compile([
+        {
+          ...input,
+          document: {
+            ...input.document,
+            format: "jsx",
+          },
+        },
+      ]),
     ).toThrow(/component|format/);
-    const inferredAdapter = session.compile([{ ...input, framework: undefined }]).modules[0];
+    const inferredAdapter = session.compile([
+      {
+        ...input,
+        framework: undefined,
+      },
+    ]).modules[0];
     expect(inferredAdapter.diagnostics).toStrictEqual([]);
     expect(inferredAdapter.code).toBe(before.code);
   });

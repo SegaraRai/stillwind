@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LabelScope, LintDiagnostic};
 use stillwind_ir::{
     AdapterKind, CheckerRole, ClassExpression, ConverterIdentity, DirectSource, GroupEntry,
     ImportRealm, PreparedSource, ProjectedSource, RefDefinition, RuleExpression, ScriptLanguage,
@@ -614,15 +614,9 @@ fn converter_only_references_reject_the_scan_before_checker_queries() {
         error.diagnostic,
         CompileDiagnostic::UnmappedMacroReference { .. }
     ));
-    assert_eq!(
-        error.labels[0].scope,
-        stillwind_diagnostics::LabelScope::Document
-    );
+    assert_eq!(error.labels[0].scope, LabelScope::Document);
     assert_eq!(scan.source.slice(error.labels[1].span).unwrap(), "style");
-    assert_eq!(
-        scan.local_ir.style_calls,
-        [] as [stillwind_ir::StyleCall; 0]
-    );
+    assert_eq!(scan.local_ir.style_calls, [] as [StyleCall; 0]);
     assert!(scan.type_probes.is_empty());
 }
 
@@ -634,15 +628,9 @@ fn generated_syntax_reports_a_verified_original_range() {
         error.diagnostic,
         CompileDiagnostic::ProjectionSyntax { .. }
     ));
-    assert_eq!(
-        error.labels[0].scope,
-        stillwind_diagnostics::LabelScope::Range
-    );
+    assert_eq!(error.labels[0].scope, LabelScope::Range);
     assert_eq!(scan.source.slice(error.labels[0].span).unwrap(), "=");
-    assert_eq!(
-        scan.local_ir.style_calls,
-        [] as [stillwind_ir::StyleCall; 0]
-    );
+    assert_eq!(scan.local_ir.style_calls, [] as [StyleCall; 0]);
     assert!(scan.type_probes.is_empty());
 }
 

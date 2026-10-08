@@ -105,7 +105,7 @@ fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
     .unwrap();
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
     let identifiers = Identifiers::new(Some(Rc::new(FixedLayerGenerator)), IdentifierMode::Release)
-        .context(crate::identifiers::DEFAULT_HASH_LENGTH);
+        .context(DEFAULT_HASH_LENGTH);
     let css = super::render(
         theme.output_template(),
         &theme,

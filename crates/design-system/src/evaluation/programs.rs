@@ -60,11 +60,12 @@ impl UtilityPrograms {
 
 #[cfg(test)]
 mod tests {
-    use crate::CustomUtility;
+    use crate::theme::builder::ThemeBuilder;
+    use crate::{CustomUtility, resolve_utility};
 
     #[test]
     fn resolution_retains_the_first_malformed_project_requirement() {
-        let authored = crate::theme::builder::ThemeBuilder {
+        let authored = ThemeBuilder {
             utilities: ["tone-*", "tone-a"]
                 .into_iter()
                 .map(|name| CustomUtility {
@@ -77,7 +78,7 @@ mod tests {
             ..Default::default()
         }
         .finish();
-        let actual = crate::resolve_utility("tone-a", &authored).unwrap_err();
+        let actual = resolve_utility("tone-a", &authored).unwrap_err();
         assert_eq!(actual.name, "tone-a");
     }
 }

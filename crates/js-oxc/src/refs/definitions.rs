@@ -317,7 +317,9 @@ mod tests {
     use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
     use stillwind_source::{FileId, ModuleId, SourceFile};
 
-    fn parse_variant_input(input: &str) -> (SourceFile, crate::ParsedJavaScript) {
+    use crate::{ParsedJavaScript, parse};
+
+    fn parse_variant_input(input: &str) -> (SourceFile, ParsedJavaScript) {
         let code = format!(
             "import {{style}} from 'stillwind/react';\n\
              // 日本語 🧭\n\
@@ -344,7 +346,7 @@ mod tests {
                 value: ExportedValue::Refs(SymbolicValue::exact(target.clone())),
             })
             .collect::<Vec<_>>();
-        let parsed = crate::parse(
+        let parsed = parse(
             &source,
             &ModuleId::from("variants.ts"),
             &alias_facts,
@@ -355,7 +357,7 @@ mod tests {
         (source, parsed)
     }
 
-    fn extracted_variant(parsed: &crate::ParsedJavaScript) -> &StyleVariant {
+    fn extracted_variant(parsed: &ParsedJavaScript) -> &StyleVariant {
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         let StyleInput::Class(expression) = &parsed.module.style_calls[0].inputs[0] else {
             panic!("expected class input");
@@ -542,7 +544,7 @@ mod tests {
                  export const result = style({{[{expression}]: 'flex'}});"
             );
             let source = SourceFile::new(FileId(1), None, None, code).unwrap();
-            let parsed = crate::parse(
+            let parsed = parse(
                 &source,
                 &ModuleId::from("consumer.ts"),
                 &[],

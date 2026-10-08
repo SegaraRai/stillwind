@@ -12,8 +12,8 @@ use stillwind_source::{
 };
 
 use crate::{
-    CompileDiagnostic, CompileError, LabelScope, LintDiagnostic, LintFinding, LintSettings,
-    LintSeverity, SourceRange, filter_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticInfo, FixAction, LabelScope, LintDiagnostic,
+    LintFinding, LintSettings, LintSeverity, SourceRange, filter_lint_findings,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -255,7 +255,7 @@ pub struct LocatedDiagnostic {
     /// Supplementary explanations.
     pub notes: Vec<String>,
     /// Alternative user-invoked corrections.
-    pub actions: Vec<crate::FixAction>,
+    pub actions: Vec<FixAction>,
 }
 
 impl LocatedDiagnostic {
@@ -308,7 +308,7 @@ impl LocatedDiagnostic {
 
     fn from_internal(
         cause: DiagnosticCause,
-        info: &crate::DiagnosticInfo,
+        info: &DiagnosticInfo,
         sources: &SourceRegistry,
     ) -> Result<Self, SourceRegistryError> {
         let primary = &info.labels[0];
@@ -471,7 +471,7 @@ impl Reporter {
         })
     }
 
-    fn resolve_action(action: &crate::FixAction) -> Result<ResolvedAction, ReportError> {
+    fn resolve_action(action: &FixAction) -> Result<ResolvedAction, ReportError> {
         if action.edits.is_empty() {
             return Err(ReportError::InvalidAction("an action needs an edit"));
         }

@@ -9,6 +9,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
 
 use super::config::StillwindConfig;
 use super::declarations::ThemeToken;
+use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
 use crate::registry::utilities::CustomUtility;
 use crate::registry::variants::CustomVariant;
@@ -48,7 +49,7 @@ pub(crate) struct ThemeBuilder {
 impl ThemeBuilder {
     /// Freezes authored declarations and prepares shared lookup and utility syntax.
     /// Invalid utility requirements remain deferred until a matching candidate is used.
-    pub(crate) fn finish(self) -> super::index::ThemeIndex {
-        super::index::ThemeIndex::new(self)
+    pub(crate) fn finish(self) -> ThemeIndex {
+        ThemeIndex::new(self)
     }
 }

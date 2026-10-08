@@ -131,7 +131,7 @@ mod tests {
 
     use super::super::variants::wrap_conditions;
     use super::*;
-    use crate::Compiler;
+    use crate::{Compiler, CompilerOptions};
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
@@ -241,7 +241,7 @@ mod tests {
             ScriptModuleKind::Unambiguous,
             &theme,
             &CssSourceName::from("stillwind.css"),
-            &crate::CompilerOptions::default(),
+            &CompilerOptions::default(),
         );
         let errors = result
             .diagnostics

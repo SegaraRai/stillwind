@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use stillwind_css::is_length_unit;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
 
@@ -179,10 +180,7 @@ pub(crate) fn validate_lint_settings(settings: &LintSettings) -> Result<(), Comp
                             .properties
                             .iter()
                             .any(|p| p.is_empty() || p.chars().any(char::is_whitespace))
-                        || rule
-                            .disallow
-                            .iter()
-                            .any(|unit| !stillwind_css::is_length_unit(unit))
+                        || rule.disallow.iter().any(|unit| !is_length_unit(unit))
                 }) =>
             {
                 Some("rules require property patterns and valid CSS length units")

@@ -356,6 +356,7 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
 mod tests {
     use stillwind_source::{FileId, Span};
 
+    use super::super::LintConfig;
     use super::*;
     use crate::{Label, LabelScope, LintDiagnostic};
 
@@ -570,13 +571,9 @@ mod tests {
         )
         .unwrap();
         let mut settings = LintSettings::with_defaults();
-        settings.insert(super::super::LintConfig::NoImportant(LintSeverity::Warn));
-        settings.insert(super::super::LintConfig::NoClassProperty(
-            LintSeverity::Warn,
-        ));
-        settings.insert(super::super::LintConfig::NoUnusedLintSuppressions(
-            LintSeverity::Warn,
-        ));
+        settings.insert(LintConfig::NoImportant(LintSeverity::Warn));
+        settings.insert(LintConfig::NoClassProperty(LintSeverity::Warn));
+        settings.insert(LintConfig::NoUnusedLintSuppressions(LintSeverity::Warn));
         let offset = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![LintFinding::new(
             LintDiagnostic::ImportantDeclaration {

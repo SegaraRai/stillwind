@@ -29,6 +29,7 @@ use super::index::ThemeIndex;
 use crate::BuiltinDefinitions;
 use crate::output::{parse_output_template, theme_blocks};
 use crate::registry::formats::{extract_declaration_formats, extract_relationship_patterns};
+use crate::registry::order::registration_positions;
 use crate::registry::utilities::{extract_custom_utilities, extract_marker_utilities};
 use crate::registry::variants::extract_custom_variants;
 
@@ -106,14 +107,12 @@ fn parse_theme_contents(
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.config = extract_stillwind_config(source.text());
-    theme.variant_positions = crate::registry::order::registration_positions(
+    theme.variant_positions = registration_positions(
         source.text(),
         &["@stillwind-variant", "@custom-variant", "@variant"],
     );
-    theme.utility_positions = crate::registry::order::registration_positions(
-        source.text(),
-        &["@stillwind-utility", "@utility"],
-    );
+    theme.utility_positions =
+        registration_positions(source.text(), &["@stillwind-utility", "@utility"]);
 
     Ok(theme)
 }

@@ -175,7 +175,7 @@ mod tests {
     use stillwind_test_support::css;
 
     use super::*;
-    use crate::Compiler;
+    use crate::{Compiler, CompilerOptions};
 
     #[test]
     fn reports_frame_variants_at_their_own_span() {
@@ -193,7 +193,7 @@ mod tests {
             ScriptModuleKind::Unambiguous,
             &theme,
             &CssSourceName::from("stillwind.css"),
-            &crate::CompilerOptions::default(),
+            &CompilerOptions::default(),
         );
         let errors = result
             .diagnostics

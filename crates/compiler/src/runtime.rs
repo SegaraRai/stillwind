@@ -15,7 +15,7 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
 use stillwind_source::Span;
 
-use crate::{SourceTransform, plan_macro_import_removals};
+use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
 
 /// One exported helper of a per-framework runtime module.
 ///
@@ -126,8 +126,8 @@ impl<'a> RuntimeBindings<'a> {
     /// The mode selects the module a helper is imported from and, for a helper with a
     /// development variant, the export itself. The generated call is the same in both
     /// modes, because only the import differs.
-    pub(crate) fn in_mode(mut self, mode: crate::IdentifierMode) -> Self {
-        self.development = mode == crate::IdentifierMode::Development;
+    pub(crate) fn in_mode(mut self, mode: IdentifierMode) -> Self {
+        self.development = mode == IdentifierMode::Development;
         self
     }
 

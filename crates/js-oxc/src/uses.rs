@@ -181,7 +181,9 @@ mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_source::{FileId, ModuleId, SourceFile};
 
-    fn parse_saved_use(expression: &str) -> (SourceFile, crate::ParsedJavaScript) {
+    use crate::{ParsedJavaScript, parse};
+
+    fn parse_saved_use(expression: &str) -> (SourceFile, ParsedJavaScript) {
         let code = format!(
             "import {{style}} from 'stillwind/react';\n\
              // 日本語 🧭\n\
@@ -191,7 +193,7 @@ mod tests {
              const saved = {expression};"
         );
         let source = SourceFile::new(FileId(1), None, None, code).unwrap();
-        let parsed = crate::parse(
+        let parsed = parse(
             &source,
             &ModuleId::from("saved.ts"),
             &[],

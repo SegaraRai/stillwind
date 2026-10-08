@@ -487,7 +487,7 @@ mod tests {
         assert_eq!(
             check_style(&resolver.resolve(&root.identity).unwrap())
                 .iter()
-                .map(stillwind_diagnostics::LintFinding::kind)
+                .map(LintFinding::kind)
                 .collect::<Vec<_>>(),
             vec![LintKind::RequireRefAttachment]
         );

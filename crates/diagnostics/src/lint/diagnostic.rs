@@ -327,7 +327,7 @@ mod tests {
     use stillwind_source::SourceError;
 
     use super::*;
-    use crate::{CompileDiagnostic, SourceFailureContext};
+    use crate::{CompileDiagnostic, CompileErrorCode, SourceFailureContext};
 
     #[test]
     fn utility_diagnostics_share_rules_without_losing_their_contents() {
@@ -385,7 +385,7 @@ mod tests {
                 &SourceError::InvalidRange { start: 9, end: 2 },
                 context,
             );
-            assert_eq!(error.code(), crate::CompileErrorCode::SourceInvalidRange);
+            assert_eq!(error.code(), CompileErrorCode::SourceInvalidRange);
             assert_eq!(
                 error,
                 CompileDiagnostic::SourceInvalidRange {

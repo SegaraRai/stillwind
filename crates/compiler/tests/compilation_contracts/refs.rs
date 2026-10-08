@@ -4,7 +4,7 @@ use stillwind_test_support::css as css_fixture;
 
 use std::collections::BTreeMap;
 
-use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
+use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, GeneratedSymbolKind};
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
@@ -27,7 +27,7 @@ fn marker(result: &CompileResult, label: &str) -> String {
         .symbols
         .iter()
         .find(|symbol| {
-            symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
+            symbol.kind == GeneratedSymbolKind::RefMarker
                 && symbol.name.starts_with(&format!("sw_{label}_"))
         })
         .unwrap_or_else(|| panic!("missing marker for {label}: {:?}", result.symbols))
@@ -583,8 +583,7 @@ fn punctuation_labels_produce_valid_javascript_strings() {
         .symbols
         .iter()
         .find(|symbol| {
-            symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker
-                && symbol.name.starts_with("sw_d\"e/f_")
+            symbol.kind == GeneratedSymbolKind::RefMarker && symbol.name.starts_with("sw_d\"e/f_")
         })
         .expect("ref marker symbol");
     let escaped = marker.name.replace('"', "\\\"").replace('/', "\\/");
@@ -602,10 +601,7 @@ fn a_label_reaches_every_name_its_own_declaration_generates() {
     assert!(result.diagnostics.is_empty(), "{result:#?}");
     // A declaration's label is spelled into every name generated for that declaration,
     // which is what makes the names readable in generated markup.
-    for kind in [
-        stillwind_compiler::GeneratedSymbolKind::RefMarker,
-        stillwind_compiler::GeneratedSymbolKind::Ref,
-    ] {
+    for kind in [GeneratedSymbolKind::RefMarker, GeneratedSymbolKind::Ref] {
         let names = result
             .symbols
             .iter()
@@ -625,7 +621,7 @@ fn a_label_reaches_every_name_its_own_declaration_generates() {
     for symbol in result
         .symbols
         .iter()
-        .filter(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
+        .filter(|symbol| symbol.kind == GeneratedSymbolKind::Class)
     {
         for authored in ["領域", "項目", "🧭"] {
             assert!(!symbol.name.contains(authored), "{}", symbol.name);

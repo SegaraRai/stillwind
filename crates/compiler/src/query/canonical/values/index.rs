@@ -5,6 +5,7 @@
 //! transformations that change that IR remain in the finite CSS index.
 
 use lean_string::LeanStr;
+use stillwind_css::find_css_functions;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -304,7 +305,7 @@ impl CssTemplate {
         };
         let placeholder = format!("var({marker})");
         let mut input_template = css.clone();
-        let edits: Vec<_> = stillwind_css::find_css_functions(&css, &["var"], 0)
+        let edits: Vec<_> = find_css_functions(&css, &["var"], 0)
             .into_iter()
             .filter_map(|function| {
                 let end = function.end?;

@@ -361,6 +361,7 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
+    use crate::parse_theme;
     use crate::theme::declarations::extract_theme_declarations;
 
     #[test]
@@ -372,14 +373,13 @@ mod tests {
             "@theme { --color-brand:red; } @utility brand { color:red; }",
         )
         .unwrap();
-        let theme = crate::parse_theme(&source, &CssSourceName::from("theme.css")).unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("theme.css")).unwrap();
         let clone = theme.clone();
         assert!(Arc::ptr_eq(&theme.utilities()[0], &clone.utilities()[0]));
         assert!(std::ptr::eq(theme.programs(), clone.programs()));
         let replacement =
             SourceFile::new(FileId(2), None, None, "@theme { --color-brand:blue; }").unwrap();
-        let replacement =
-            crate::parse_theme(&replacement, &CssSourceName::from("theme.css")).unwrap();
+        let replacement = parse_theme(&replacement, &CssSourceName::from("theme.css")).unwrap();
         assert_eq!(replacement.value("color", "brand"), Some("blue"));
         assert_eq!(clone.value("color", "brand"), Some("red"));
     }
@@ -435,7 +435,7 @@ mod tests {
     /// are emitted whether or not anything uses them.
     #[test]
     fn ordinary_project_tokens_are_pruned_but_static_tokens_are_retained() {
-        let theme = crate::parse_theme(
+        let theme = parse_theme(
             &SourceFile::new(
                 FileId(1),
                 None,

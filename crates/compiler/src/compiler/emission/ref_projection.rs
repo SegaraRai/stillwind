@@ -14,7 +14,7 @@ use super::super::symbols::{
     ref_identity, ref_marker_name, ref_projection_name,
 };
 use super::super::utilities::resolve::{CompiledUtility, UtilitySource};
-use super::CallEmitter;
+use super::{CLASS_KEY, CallEmitter};
 use crate::generated::Code;
 use crate::style_analysis::SupplyKind;
 use crate::{GeneratedSymbol, GeneratedSymbolKind, IdentifierContext, IdentifierPool};
@@ -141,7 +141,7 @@ impl CallEmitter<'_> {
             );
             candidates.push((marker.as_str().to_owned(), contribution));
         }
-        self.emit_candidate_units(value, super::CLASS_KEY, candidates, guard)
+        self.emit_candidate_units(value, CLASS_KEY, candidates, guard)
     }
 
     /// Adds CSS for `scope` at `span`, with the conditions in `guard` and variants in
@@ -323,6 +323,7 @@ fn render_ref_projection(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_ir::ContainerType;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
@@ -378,10 +379,7 @@ mod tests {
         let (container, container_symbol) = render_ref_projection(
             &context,
             &definition,
-            &RefProjection::AsContainer(Some(Spanned::new(
-                stillwind_ir::ContainerType::Size,
-                binding.span,
-            ))),
+            &RefProjection::AsContainer(Some(Spanned::new(ContainerType::Size, binding.span))),
             &ModuleId::from("x"),
         )
         .unwrap();

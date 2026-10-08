@@ -9,8 +9,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    AnchorName, CompilerOptions, DeclarationContext, GeneratedName, IdentifierGenerator,
-    IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
+    AnchorName, CompilerOptions, DeclarationContext, GeneratedName, GeneratedSymbolKind,
+    IdentifierGenerator, IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -81,12 +81,12 @@ fn distinct_pools_may_publish_the_same_spelling() {
     let anchor_pool = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Ref)
+        .find(|symbol| symbol.kind == GeneratedSymbolKind::Ref)
         .expect("ref anchor symbol");
     let marker_pool = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::RefMarker)
+        .find(|symbol| symbol.kind == GeneratedSymbolKind::RefMarker)
         .expect("ref marker symbol");
     assert!(anchor_pool.name.ends_with("shared"));
     assert!(marker_pool.name.ends_with("shared"));

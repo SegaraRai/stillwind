@@ -24,6 +24,8 @@ use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, SourceFile, Span};
 
 use crate::contract::validate;
+use crate::demand::collect as collect_demand;
+use crate::imports::collect as collect_imports;
 use crate::state::MacroExtractor;
 
 #[cfg(doc)]
@@ -131,7 +133,7 @@ pub(crate) fn parse_with_coordinates(
     extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
     let mut summary = extractor.module_summary();
-    crate::demand::collect(
+    collect_demand(
         &result.program,
         semantic.scoping(),
         &extractor
@@ -146,7 +148,7 @@ pub(crate) fn parse_with_coordinates(
     diagnostics.extend(extractor.diagnostics);
     let mut lint_findings = extractor.lint_findings;
 
-    let mut imports = crate::imports::collect(&result.program, semantic.scoping(), source.id());
+    let mut imports = collect_imports(&result.program, semantic.scoping(), source.id());
     imports.consumed_uses = extractor.consumed_macro_uses;
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),

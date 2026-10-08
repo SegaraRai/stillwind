@@ -296,8 +296,8 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
-    use crate::BuiltinDefinitions;
     use crate::theme::builder::ThemeBuilder;
+    use crate::{BuiltinDefinitions, parse_theme};
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
         super::resolve_utility(raw, theme).unwrap()
@@ -377,7 +377,7 @@ mod tests {
     /// definition instead of resolving partially.
     #[test]
     fn failed_user_branch_can_resolve_through_the_builtin_registry() {
-        let theme = crate::parse_theme(
+        let theme = parse_theme(
             &SourceFile::new(
                 FileId(1), None, None,
                 "@stillwind-utility x-* { color: --value([color]); } @utility x-* { width: --value([length]); }",

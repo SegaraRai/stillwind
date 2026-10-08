@@ -13,7 +13,9 @@ use stillwind_source::{CssSourceName, FileId, SourceFile, SourceRegistry, Source
 use stillwind_syntax::parse_candidate;
 
 use super::*;
-use crate::{CustomUtility, DesignSystemOptions, DesignSystemSnapshot, resolve_variant};
+use crate::{
+    CustomUtility, DesignSystemError, DesignSystemOptions, DesignSystemSnapshot, resolve_variant,
+};
 
 #[test]
 fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
@@ -100,7 +102,6 @@ fn parse_failures_keep_source_span_and_typed_cause() {
 
 #[test]
 fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening() {
-    use crate::DesignSystemError;
     let source = SourceFile::new(FileId(1), None, None, "@import 'child';").unwrap();
     let error = DesignSystemSnapshot::from_source(
         &source,

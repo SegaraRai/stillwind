@@ -169,7 +169,7 @@ mod tests {
     use stillwind_test_support::css;
 
     use super::*;
-    use crate::Compiler;
+    use crate::{Compiler, CompilerOptions};
 
     #[test]
     fn reports_bucket_and_group_variants_at_their_own_spans() {
@@ -203,7 +203,7 @@ mod tests {
                 ScriptModuleKind::Unambiguous,
                 &theme,
                 &CssSourceName::from("stillwind.css"),
-                &crate::CompilerOptions::default(),
+                &CompilerOptions::default(),
             );
             let errors = result
                 .diagnostics

@@ -196,6 +196,7 @@ mod tests {
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
+    use crate::test_support::parse_fixture_theme;
 
     #[test]
     fn spacing_domains_distinguish_named_tokens_from_numeric_scales_and_variables() {
@@ -209,7 +210,7 @@ mod tests {
         } @variant scaled-* { @media (width>=--value(--spacing())) {@slot;} }",
         )
         .unwrap();
-        let theme = crate::test_support::parse_fixture_theme(&source).unwrap();
+        let theme = parse_fixture_theme(&source).unwrap();
         for (capture, tokens, origin) in [
             (
                 "gutter",

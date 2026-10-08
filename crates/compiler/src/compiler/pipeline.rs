@@ -44,7 +44,8 @@ use crate::options::validate_lint_settings;
 use crate::runtime::{RuntimeBindings, encode_projected_edits};
 use crate::transforms::SourceTransform;
 use crate::{
-    CompilerOptions, DesignSystemQuery, GeneratedSymbol, StyleResolver, SymbolOrigin, check_style,
+    CompilerOptions, DesignSystemQuery, GeneratedSymbol, GeneratedSymbolKind, StyleResolver,
+    SymbolOrigin, check_style,
 };
 
 impl Compiler {
@@ -444,7 +445,7 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
     symbols
         .into_iter()
         .filter(|symbol| {
-            if symbol.kind == crate::GeneratedSymbolKind::Class {
+            if symbol.kind == GeneratedSymbolKind::Class {
                 return true;
             }
             seen.insert((symbol.kind, symbol.name.clone(), symbol.identity.clone()))

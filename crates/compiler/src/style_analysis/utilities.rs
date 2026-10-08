@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use stillwind_css::{properties_interfere, property_covers};
 use stillwind_diagnostics::{Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind};
 
-use super::{ResolvedStyle, SupplyKind};
+use super::{ResolvedStyle, SupplyKind, UseId};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let settings = &style.root.lint_settings;
@@ -98,11 +98,11 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
 
 fn overlapping_properties(
     style: &ResolvedStyle<'_>,
-    current: &super::UseId,
-    previous: &super::UseId,
+    current: &UseId,
+    previous: &UseId,
     allow: bool,
 ) -> BTreeSet<String> {
-    let declarations = |site: &super::UseId| {
+    let declarations = |site: &UseId| {
         let site = site.clone();
         style
             .supplies

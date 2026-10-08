@@ -388,6 +388,7 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css;
 
+    use super::super::preview::convert_pixel_dimensions;
     use super::index::{policy, rank};
     use crate::query::QueryContext;
     use crate::{CompilerOptions, DesignSystemQuery, prepare_canonical_index};
@@ -477,10 +478,7 @@ mod tests {
         );
         assert!(query.canonical_candidate("p-[16px]").unwrap().is_none());
         assert_eq!(
-            super::super::preview::convert_pixel_dimensions(
-                "calc(16px + 2px) '16px' url(16px)",
-                16.0
-            ),
+            convert_pixel_dimensions("calc(16px + 2px) '16px' url(16px)", 16.0),
             "calc(1rem + 0.125rem) '16px' url(16px)"
         );
     }
@@ -729,11 +727,11 @@ mod tests {
             DesignSystemOptions::default(),
         )
         .unwrap();
-        crate::prepare_canonical_index(&snapshot, &CompilerOptions::default());
+        prepare_canonical_index(&snapshot, &CompilerOptions::default());
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         assert_eq!(
             query.resolve_candidate("good").unwrap().diagnostics,
-            [] as [stillwind_diagnostics::LintFinding; 0]
+            [] as [LintFinding; 0]
         );
         assert_eq!(
             query.canonical_candidate("bad-[red]").unwrap_err().name,

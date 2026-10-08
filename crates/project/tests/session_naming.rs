@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use stillwind_compiler::{
     ClassContext, CompilerOptions, ConditionContext, ConditionHelperName, DeclarationContext,
-    GeneratedName, IdentifierGenerator, IdentifierHash, IdentifierMode, IdentifierPool,
-    Identifiers, KeyframesName, LayerContext, LayerName, UtilityClass,
+    GeneratedName, GeneratedSymbolKind, IdentifierGenerator, IdentifierHash, IdentifierMode,
+    IdentifierPool, Identifiers, KeyframesName, LayerContext, LayerName, UtilityClass,
 };
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -57,7 +57,7 @@ fn session_generators_name_generated_classes() {
     let class = artifact
         .symbols
         .iter()
-        .find(|symbol| symbol.kind == stillwind_compiler::GeneratedSymbolKind::Class)
+        .find(|symbol| symbol.kind == GeneratedSymbolKind::Class)
         .expect("class symbol");
     // The host body is written as returned, with no built-in class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);
