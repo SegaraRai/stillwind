@@ -3,7 +3,6 @@
 //! Parse rule names with [`LintKind::from_name`] and insert [`LintConfig`] values into
 //! [`LintSettings`]. Configured detection and reporting of unconfigured findings use
 //! separate lookups. Serialization emits the map of names to severities used by hosts.
-
 //!
 //! `catalog` declares stable rule names and defaults. `policies` pairs detailed
 //! detection settings with their partial overrides. `overrides` merges host settings

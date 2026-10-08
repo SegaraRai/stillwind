@@ -10,7 +10,6 @@
 //! order to preserve CSS and contribution precedence. Value expressions must satisfy
 //! the macro purity contract. Folding may reorder their evaluation and omit unused
 //! values while retaining guards for selected contributions.
-
 //!
 //! `module` groups declarations and calls extracted from one source. `assets`
 //! describes named declarations and their uses. `style` describes call inputs and

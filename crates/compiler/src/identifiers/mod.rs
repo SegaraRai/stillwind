@@ -31,11 +31,10 @@ pub use request::{
     ViewTransitionClassRequest, ViewTransitionSlotRequest,
 };
 
+pub(crate) use generator::DetachedName;
 pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, builtin_prefix};
 pub(crate) use name::{escaped_identifier, view_transition_name};
 pub(crate) use request::declaration_fields;
 
 #[cfg(test)]
 mod tests;
-
-pub(crate) use generator::DetachedName;

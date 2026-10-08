@@ -18,6 +18,7 @@ mod facts;
 mod loader;
 mod project;
 
+pub use project::NativeSessionError;
+
 use facts::ProvidedTypeScriptFacts;
 use loader::NativeDesignSystemLoader;
-pub use project::NativeSessionError;

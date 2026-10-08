@@ -29,7 +29,8 @@ pub use namespace::{ThemeNamespace, parse_theme_namespace_types};
 pub use parser::parse_theme;
 pub use references::ThemeReferenceError;
 
-#[cfg(test)]
-pub(crate) use builder::ThemeBuilder;
 pub(crate) use parser::extract_keyframe_blocks;
 pub(super) use parser::parse_theme_builder;
+
+#[cfg(test)]
+pub(crate) use builder::ThemeBuilder;

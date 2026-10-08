@@ -35,8 +35,9 @@ pub use variants::{
     is_tailwind_relationship_candidate, resolve_variant, resolve_variant_with_usage,
 };
 
-use context::{EvaluationContext, ValueSelections};
 pub(crate) use programs::UtilityPrograms;
+
+use context::{EvaluationContext, ValueSelections};
 
 #[cfg(test)]
 mod tests;
