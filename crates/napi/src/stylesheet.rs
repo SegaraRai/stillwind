@@ -7,9 +7,12 @@
 
 use std::collections::BTreeMap;
 
+use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::StylesheetMapping;
+use stillwind_project::{StylesheetCoverage, StylesheetPlan};
+use stillwind_source::ModuleId;
 
 use crate::output::NativeModuleResource;
 
@@ -128,6 +131,72 @@ pub struct NativeStylesheetPlan {
     pub design_system: String,
     /// One entry per selected producer, for cache identity.
     pub producers: Vec<NativeStylesheetProducer>,
+}
+
+impl NativeStylesheetPlan {
+    /// Converts a validated core plan, omitting map entries and sources when maps are disabled.
+    /// Returns an error for offsets outside the host range or unresolved map sources.
+    pub(crate) fn from_plan(
+        plan: StylesheetPlan,
+        placement: NativeStylesheetPlacement,
+        include_source_maps: bool,
+    ) -> napi::Result<Self> {
+        let coverage = match plan.coverage {
+            StylesheetCoverage::Observed => NativeCoverage::Observed,
+            StylesheetCoverage::Complete { target, revision } => {
+                NativeCoverage::Complete { target, revision }
+            }
+        };
+        Ok(Self {
+            parts: plan
+                .parts
+                .into_iter()
+                .map(|part| {
+                    Ok(NativeStylesheetPart {
+                        source_map: stylesheet_locations(if include_source_maps {
+                            &part.mappings
+                        } else {
+                            &[]
+                        })?,
+                        slot: u32::try_from(part.slot)
+                            .map_err(|_| Error::from_reason("Stylesheet slot exceeds 32 bits"))?,
+                        sequence: u32::try_from(part.sequence).map_err(|_| {
+                            Error::from_reason("Stylesheet sequence exceeds 32 bits")
+                        })?,
+                        key: part.key.0,
+                        css: part.css,
+                        producers: part
+                            .producers
+                            .into_iter()
+                            .map(ModuleId::into_string)
+                            .collect(),
+                    })
+                })
+                .collect::<napi::Result<_>>()?,
+            css: plan.css,
+            source_map: stylesheet_locations(if include_source_maps {
+                &plan.mappings
+            } else {
+                &[]
+            })?,
+            resources: plan.resources.into_iter().map(Into::into).collect(),
+            coverage,
+            placement,
+            design_system: plan.design_system.0,
+            producers: plan
+                .producers
+                .into_iter()
+                .map(|(module, key)| NativeStylesheetProducer {
+                    module: module.into_string(),
+                    source_revision: key.source_revision.0,
+                    semantic_revision: key.semantic_revision.map(|revision| revision.0),
+                    compiler_version: key.compiler_version,
+                    compiler_options: key.compiler_options.0,
+                    analysis_revision: key.analysis_revision.0,
+                })
+                .collect(),
+        })
+    }
 }
 
 /// A CSS fragment at one position in an output plan.

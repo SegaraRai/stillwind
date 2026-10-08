@@ -1,14 +1,6 @@
-//! Stateful Node host binding. Resolution and I/O remain in JavaScript.
-//!
-//! [`NativeDesignSystemLoader`] exposes the loader state machine directly: it returns
-//! the outstanding CSS requests and accepts the host's answers, so the JavaScript side
-//! keeps full control of resolution, package lookup, and reading order. The snapshot
-//! only exists after a `Complete` step, and every method that needs it reports
-//! [`NativeSessionError::IncompleteCssLoad`] instead of loading anything itself.
-//!
-//! [`NativeProjectSession`] wraps the project session. It receives TypeScript facts the
-//! host already produced through its long-lived TS7 service rather than running a
-//! checker of its own.
+//! Transports project updates, reloads, and revision-pinned reports for a host.
+
+use stillwind_ir::TypeScriptFactsProvider;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
@@ -18,34 +10,31 @@ use napi::bindgen_prelude::Env;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompileResult, CompilerOptions, IdentifierGenerator, IdentifierMode, Identifiers,
-    MappedStylesheet, ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
-    prepare_canonical_index,
+    CompileResult, IdentifierGenerator, IdentifierMode, Identifiers, MappedStylesheet,
+    ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
-use stillwind_design_system::{
-    CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
-};
+
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleAnalysis, ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
-use stillwind_semantic::{TypeFacts, TypeFactsUpdate};
-use stillwind_source::{Fingerprint, ModuleId, SourceRegistry, SourceUri};
+
+use stillwind_source::{ModuleId, SourceRegistry};
 
 use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
-use crate::editor::NativeEditorQuery;
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
-use crate::options::{NativeCompilerOptions, compiler_options};
+use crate::options::NativeCompilerOptions;
 use crate::output::{
     BindingReport, NativeDiagnosticBatch, NativeScanResult, ProjectBindingOutput,
     ProjectModuleOutput,
 };
 use crate::source_input::{HostPreparedSource, NativePreparedSource, NativeSourceFailure};
 use crate::stylesheet::{
-    NativeCoverage, NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeReload,
-    NativeStylesheetOutput, NativeStylesheetPart, NativeStylesheetPlacement, NativeStylesheetPlan,
-    NativeStylesheetProducer, NativeStylesheetSelection, stylesheet_locations,
+    NativeCoverage, NativeReload, NativeStylesheetOutput, NativeStylesheetPlacement,
+    NativeStylesheetPlan, NativeStylesheetSelection, stylesheet_locations,
 };
+
+use super::{NativeDesignSystemLoader, ProvidedTypeScriptFacts};
 
 /// Failures specific to the stateful bindings.
 #[derive(Debug, thiserror::Error)]
@@ -105,229 +94,6 @@ fn resolve_error_map(
     Ok((batches, lines.join("\n")))
 }
 
-/// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`]
-/// call.
-#[napi(object)]
-pub struct NativeCssFileInput {
-    /// Request id being answered; `0` is the root source.
-    pub id: u32,
-    /// The host chooses this name for CSS resolution. The loader compares it as
-    /// supplied.
-    pub name: String,
-    /// Absolute document URI supplied by the host; absent means an internal buffer.
-    pub uri: Option<String>,
-    /// Exact source name to write into a generated source map.
-    pub source_map_source: Option<String>,
-    /// Full text of the source.
-    pub content: String,
-}
-
-/// Loads CSS files supplied by the caller into a design-system snapshot.
-///
-/// Supply the root source first, then answer each requested ID. The loader reports
-/// parse and link errors. If the host cannot read a file, it must report that error
-/// and discard the loader.
-#[napi]
-pub struct NativeDesignSystemLoader {
-    loader: DesignSystemLoader,
-    options: CompilerOptions,
-    snapshot: Option<DesignSystemSnapshot>,
-}
-
-#[napi]
-impl NativeDesignSystemLoader {
-    fn with_sources(
-        options: Option<NativeCompilerOptions>,
-        sources: SourceRegistry,
-    ) -> napi::Result<Self> {
-        let options = compiler_options(options)?;
-        Ok(Self {
-            loader: DesignSystemLoader::new(options.design_system(), sources),
-            options,
-            snapshot: None,
-        })
-    }
-
-    /// Creates a loader for the given compiler options.
-    #[napi(constructor, strict)]
-    pub fn new(options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
-        Self::with_sources(options, SourceRegistry::default())
-    }
-
-    /// Answers one pending request by calling [`Self::provide_many`] with one file.
-    /// An absent URI marks the CSS as an internal buffer without a reportable location.
-    #[napi]
-    pub fn provide(
-        &mut self,
-        id: u32,
-        name: String,
-        content: String,
-        uri: Option<String>,
-        source_map_source: Option<String>,
-    ) -> napi::Result<NativeCssLoadStep> {
-        self.provide_many(vec![NativeCssFileInput {
-            id,
-            name,
-            uri,
-            source_map_source,
-            content,
-        }])
-    }
-
-    /// Answers any subset of the outstanding requests, in any order.
-    ///
-    /// Each supplied source is parsed immediately, and its imports appear in the next
-    /// step. Other requests can remain unanswered. Unknown or duplicate IDs cause
-    /// errors.
-    #[napi(strict)]
-    pub fn provide_many(
-        &mut self,
-        files: Vec<NativeCssFileInput>,
-    ) -> napi::Result<NativeCssLoadStep> {
-        let files = files
-            .into_iter()
-            .map(|file| {
-                let uri = file
-                    .uri
-                    .map(SourceUri::parse)
-                    .transpose()
-                    .map_err(|error| Error::from_reason(error.to_string()))?;
-                Ok(CssFileInput {
-                    id: file.id,
-                    name: file.name.as_str().into(),
-                    uri,
-                    source_map_source: file.source_map_source.map(Into::into),
-                    content: file.content.into(),
-                })
-            })
-            .collect::<napi::Result<Vec<_>>>()?;
-        match self.loader.provide_many(files) {
-            DesignSystemLoadStep::NeedFile(requests) => Ok(NativeCssLoadStep::NeedFile {
-                requests: requests
-                    .into_iter()
-                    .map(|request| NativeCssRequest {
-                        id: request.id,
-                        importer: request.importer.as_str().to_owned(),
-                        specifier: request.specifier,
-                    })
-                    .collect(),
-            }),
-            DesignSystemLoadStep::Complete(Ok(snapshot)) => {
-                prepare_canonical_index(&snapshot, &self.options);
-                let output = NativeCssLoadStep::Complete {
-                    revision: snapshot.revision().0.to_string(),
-                    resources: snapshot
-                        .sources()
-                        .resources
-                        .iter()
-                        .map(|resource| NativeCssResource {
-                            placeholder: resource.placeholder.clone(),
-                            source_name: resource.source_name.as_str().to_owned(),
-                            specifier: resource.specifier.clone(),
-                            start: resource.span.start.0,
-                            end: resource.span.end.0,
-                        })
-                        .collect(),
-                    sources: snapshot
-                        .sources()
-                        .sources
-                        .iter()
-                        .map(|source| source.name.as_str().to_owned())
-                        .collect(),
-                };
-                self.snapshot = Some(snapshot);
-                Ok(output)
-            }
-            DesignSystemLoadStep::Complete(Err(error)) => {
-                if let Some(root) = self
-                    .loader
-                    .root_source()
-                    .filter(|source| source.uri().is_some())
-                {
-                    let compiled =
-                        DesignSystemError::Load(error.clone()).into_compile_error(root.full_span());
-                    let text = Reporter::collect(
-                        std::slice::from_ref(&compiled),
-                        &[],
-                        self.loader.sources(),
-                        LintSettings::default(),
-                    )
-                    .map_err(|failure| Error::from_reason(failure.to_string()))?
-                    .diagnostics
-                    .into_iter()
-                    .map(|diagnostic| diagnostic.display_text())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                    Err(Error::from_reason(text))
-                } else {
-                    Err(Error::from_reason(error.to_string()))
-                }
-            }
-        }
-    }
-
-    /// Creates editor queries pinned to this completed design system and its compiler options.
-    /// Returns an error while CSS loading is incomplete.
-    #[napi]
-    pub fn editor_query(&self) -> napi::Result<NativeEditorQuery> {
-        Ok(NativeEditorQuery::new(
-            self.completed()?,
-            self.options.clone(),
-        ))
-    }
-}
-
-impl NativeDesignSystemLoader {
-    /// Snapshot of a completed load, or an error naming the missing step.
-    fn completed(&self) -> Result<DesignSystemSnapshot, NativeSessionError> {
-        self.snapshot
-            .clone()
-            .ok_or(NativeSessionError::IncompleteCssLoad)
-    }
-}
-
-/// Adapter for facts already produced by the host's long-lived TS7 service.
-///
-/// The host pairs its facts with the scans it sent; this adapter only wraps them with
-/// the module and asset metadata the domain type requires.
-struct ProvidedTypeScriptFacts<'a> {
-    /// Host sources in the same order as the scans passed to `update`.
-    sources: &'a [HostPreparedSource],
-}
-
-impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
-    fn update(&mut self, scans: &[ModuleScan]) -> TypeFactsUpdate {
-        let assets: BTreeMap<_, _> = scans
-            .iter()
-            .flat_map(|scan| scan.summary.assets.iter())
-            .map(|asset| (asset.identity.clone(), asset.metadata.clone()))
-            .collect();
-        let modules = scans
-            .iter()
-            .zip(self.sources)
-            .map(|(scan, source)| {
-                let semantic_revision =
-                    Fingerprint::of(format!("{:?}{assets:?}", source.type_facts()));
-                (
-                    scan.module_id.clone(),
-                    TypeFacts {
-                        schema: TypeFacts::SCHEMA,
-                        module_id: scan.module_id.clone(),
-                        source_revision: scan.source_revision.clone(),
-                        semantic_revision,
-                        facts: source.type_facts().to_vec(),
-                        assets: assets.clone(),
-                    },
-                )
-            })
-            .collect();
-        TypeFactsUpdate {
-            modules,
-            diagnostics: Vec::new(),
-        }
-    }
-}
-
 /// Mutable project state for one Vite or CLI session.
 #[napi]
 pub struct NativeProjectSession {
@@ -379,7 +145,7 @@ impl NativeProjectSession {
                     .map_err(|error| Error::from_reason(error.to_string()))?;
             }
         }
-        let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
+        let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
         let compiler = ModuleCompiler::new(self.session.snapshot(), self.session.options().clone());
         scans
             .iter()
@@ -500,13 +266,13 @@ impl NativeProjectSession {
         let snapshot = loader.completed()?;
         let session = ProjectSession::new(
             snapshot.clone(),
-            loader.loader.sources(),
+            loader.sources(),
             if watch {
                 SessionMode::Watch
             } else {
                 SessionMode::Build
             },
-            loader.options.clone(),
+            loader.options().clone(),
             identifiers,
         );
         Ok(Self { session, naming })
@@ -535,17 +301,13 @@ impl NativeProjectSession {
         loader: &NativeDesignSystemLoader,
     ) -> napi::Result<NativeReload> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
-        if !self
-            .session
-            .sources()
-            .shares_ids_with(loader.loader.sources())
-        {
+        if !self.session.sources().shares_ids_with(loader.sources()) {
             return Err(NativeSessionError::ForeignCssLoader.into());
         }
         let snapshot = loader.completed()?;
         let update = self
             .session
-            .reload(Ok(snapshot.clone()), loader.options.clone())
+            .reload(Ok(snapshot.clone()), loader.options().clone())
             .map_err(|error| Error::from_reason(error.to_string()))?;
         if !update.diagnostics.is_empty() {
             let sources = self
@@ -631,61 +393,7 @@ impl NativeProjectSession {
                 placement,
             )
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        let coverage = match plan.coverage {
-            StylesheetCoverage::Observed => NativeCoverage::Observed,
-            StylesheetCoverage::Complete { target, revision } => {
-                NativeCoverage::Complete { target, revision }
-            }
-        };
-        Ok(NativeStylesheetPlan {
-            parts: plan
-                .parts
-                .into_iter()
-                .map(|part| {
-                    Ok(NativeStylesheetPart {
-                        source_map: stylesheet_locations(if include_source_maps {
-                            &part.mappings
-                        } else {
-                            &[]
-                        })?,
-                        slot: u32::try_from(part.slot)
-                            .map_err(|_| Error::from_reason("Stylesheet slot exceeds 32 bits"))?,
-                        sequence: u32::try_from(part.sequence).map_err(|_| {
-                            Error::from_reason("Stylesheet sequence exceeds 32 bits")
-                        })?,
-                        key: part.key.0,
-                        css: part.css,
-                        producers: part
-                            .producers
-                            .into_iter()
-                            .map(ModuleId::into_string)
-                            .collect(),
-                    })
-                })
-                .collect::<napi::Result<_>>()?,
-            css: plan.css,
-            source_map: stylesheet_locations(if include_source_maps {
-                &plan.mappings
-            } else {
-                &[]
-            })?,
-            resources: plan.resources.into_iter().map(Into::into).collect(),
-            coverage,
-            placement: input.placement,
-            design_system: plan.design_system.0,
-            producers: plan
-                .producers
-                .into_iter()
-                .map(|(module, key)| NativeStylesheetProducer {
-                    module: module.into_string(),
-                    source_revision: key.source_revision.0,
-                    semantic_revision: key.semantic_revision.map(|revision| revision.0),
-                    compiler_version: key.compiler_version,
-                    compiler_options: key.compiler_options.0,
-                    analysis_revision: key.analysis_revision.0,
-                })
-                .collect(),
-        })
+        NativeStylesheetPlan::from_plan(plan, input.placement, include_source_maps)
     }
 
     /// Stable document CSS without a source map, independent of visited JS modules.
@@ -837,7 +545,7 @@ impl NativeProjectSession {
                 )
             })
             .collect::<Result<_, _>>()?;
-        let facts = ProvidedTypeScriptFacts { sources: &sources }.update(&scans);
+        let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
         let analyses: Vec<_> = scans
             .iter()
             .map(|scan| {

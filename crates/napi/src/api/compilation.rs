@@ -1,42 +1,26 @@
-//! One-shot compile entry points, kept independent of Node-API.
-//!
-//! The `*_input` functions take ordinary Rust values so the same behaviour can be
-//! tested without a JavaScript runtime. The `#[napi]` functions next to them only
-//! convert arguments, so a JavaScript caller and a Rust test exercise one
-//! implementation.
-
-use std::collections::{BTreeMap, BTreeSet};
+//! Compiles one source and converts compiler results into host output.
 
 use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompileResult, Compiler, CompilerOptions, Identifiers, ModuleCompiler, StyleResolver,
-    TransformError, check_style, is_style_analysis_lint, render_transforms,
+    CompileResult, Compiler, CompilerOptions, TransformError, render_transforms,
 };
-use stillwind_design_system::{DesignSystemError, DesignSystemSnapshot};
+use stillwind_design_system::DesignSystemError;
 use stillwind_diagnostics::{
-    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, LabelScope, LintSettings,
-    Reporter, ResolvedDiagnostic, SourceFailureContext, filter_lint_findings,
+    AggregateError, CompileDiagnostic, CompileError, DiagnosticBatch, LabelScope, Reporter,
+    ResolvedDiagnostic, SourceFailureContext,
 };
-use stillwind_ir::{CheckerRole, ModuleScan, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
-use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
-use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{
-    CoordinateIndex, CssSourceName, FileId, Fingerprint, ModuleId, SourceError, SourceFile,
-    SourceRegistry, SourceRegistryError, SourceUri,
+    CssSourceName, ModuleId, SourceError, SourceFile, SourceRegistry, SourceRegistryError,
+    SourceUri,
 };
 
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingDiagnostic, BindingLintFinding, BindingOutput, BindingReport};
-use crate::output::{NativeDiagnosticBatch, NativeScanResult};
-use crate::output::{ProjectBindingOutput, ProjectModuleOutput};
-use crate::semantic::{
-    NativeCheckerBinding, NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe,
-};
-use crate::source_input::{
-    HostPreparedSource, NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind,
-};
+use crate::source_input::{NativeScriptLanguage, NativeScriptModuleKind};
 
 /// A Node binding input, setup, or diagnostic serialization error.
 #[derive(Debug, thiserror::Error)]
@@ -156,7 +140,7 @@ pub fn compile_source_input(
 ///
 /// Returns invalid reporting coordinates. Invalid source replacements become
 /// compilation diagnostics with no generated output.
-fn binding_output(
+pub(super) fn binding_output(
     result: CompileResult,
     source: &SourceFile,
     sources: &SourceRegistry,
@@ -165,7 +149,7 @@ fn binding_output(
 }
 
 /// Builds a transport result together with the resolved batch retained by a session.
-pub(super) fn binding_output_with_batch(
+pub(crate) fn binding_output_with_batch(
     mut result: CompileResult,
     source: &SourceFile,
     sources: &SourceRegistry,
@@ -306,275 +290,6 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
     }
 }
 
-/// Compiles a complete source graph and returns one output per input module.
-///
-/// The source graph uses the same domain records as the typed Node adapter.
-///
-/// A direct input registers its editable document as the parser buffer. A projected
-/// input registers separate generated and original buffers and reserves an analysis
-/// file ID. Published spans refer to the editable document even when the generated
-/// buffer contains the same text. Module identities are chosen by the host.
-///
-/// Composition findings are recomputed against all successful input artifacts before
-/// outputs are built, so a base may appear after its consumer in `input`. Source
-/// suppression runs in each consuming source; missing base records remain unknown.
-///
-/// Rules shared by two modules are emitted once: the first module in input order keeps
-/// the rule and the later module's duplicate is dropped, because this output is one
-/// document rather than one fragment per module.
-///
-/// # Errors
-///
-/// Returns an error for invalid options or sources, exhausted file IDs, or an
-/// unresolved module edge, or a failure while resolving diagnostic sources or rendering
-/// source transforms. Module compilation errors are carried in the returned outputs.
-pub fn compile_project_input(
-    input: &[HostPreparedSource],
-    css: &CompileCssInput,
-    options: &CompilerOptions,
-) -> Result<ProjectBindingOutput, BindingApiError> {
-    options.validate()?;
-    let mut registry = SourceRegistry::default();
-    let scans = input
-        .iter()
-        .map(|source| {
-            let input = source
-                .input(&mut registry)
-                .map_err(|error| BindingApiError::Input(error.reason))?;
-            Ok::<_, BindingApiError>(OxcSourceAnalyzer.scan_input(input))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let theme = registry.register(
-        Some(css.uri.clone()),
-        css.source_map_source.as_deref().map(Into::into),
-        css.content.as_str(),
-    )?;
-    let assets = scans
-        .iter()
-        .flat_map(|scan| scan.summary.assets.iter().cloned())
-        .map(|asset| (asset.identity, asset.metadata))
-        .collect::<BTreeMap<IdentityId, AssetMetadata>>();
-    let snapshot =
-        DesignSystemSnapshot::from_source(&theme, css.name.clone(), options.design_system())
-            .map_err(BindingApiError::DesignSystem)?;
-    let compiler = ModuleCompiler::new(snapshot.clone(), options.clone());
-    let mut results = scans
-        .iter()
-        .zip(input)
-        .map(|(scan, source)| {
-            let type_facts = source.type_facts();
-            let facts = TypeFacts {
-                schema: TypeFacts::SCHEMA,
-                module_id: scan.module_id.clone(),
-                source_revision: scan.source_revision.clone(),
-                semantic_revision: Fingerprint::of(format!("{type_facts:?}{assets:?}")),
-                facts: type_facts.to_vec(),
-                assets: assets.clone(),
-            };
-            compiler.compile(
-                &OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts)),
-                &Identifiers::default(),
-            )
-        })
-        .collect::<Vec<_>>();
-    let mut resolver =
-        StyleResolver::new(results.iter().flat_map(|artifact| &artifact.style_effects));
-    let findings = results
-        .iter()
-        .zip(&scans)
-        .map(|(artifact, scan)| {
-            let mut findings = artifact
-                .style_effects
-                .iter()
-                .filter_map(|effects| resolver.resolve(effects.identity()))
-                .flat_map(|style| check_style(&style))
-                .collect::<Vec<_>>();
-            filter_lint_findings(&scan.source, &mut findings);
-            findings
-        })
-        .collect::<Vec<_>>();
-    for (artifact, findings) in results.iter_mut().zip(findings) {
-        artifact
-            .lint_findings
-            .retain(|finding| !is_style_analysis_lint(finding.kind()));
-        artifact.lint_findings.extend(findings);
-    }
-    let mut emitted_css_rules = BTreeSet::new();
-    for result in &mut results {
-        result
-            .css
-            .rules
-            .retain(|rule| emitted_css_rules.insert(rule.key.clone()));
-    }
-    let modules = scans
-        .iter()
-        .zip(results)
-        .map(|(scan, result)| {
-            let result = result.to_module_output();
-            Ok(ProjectModuleOutput::new(
-                scan.module_id.clone(),
-                binding_output(result, &scan.source, &registry)?,
-            ))
-        })
-        .collect::<Result<Vec<_>, BindingApiError>>()?;
-    Ok(ProjectBindingOutput { modules })
-}
-
-/// Scans plain or projected input before dependency traversal and checker queries.
-/// Ready summaries use original UTF-8 coordinates. Fatal syntax and projection
-/// failures return resolved reports for the original document.
-///
-/// # Errors
-///
-/// Rejects malformed host input and failures to resolve diagnostic locations.
-#[napi(strict)]
-pub fn scan_source(source: NativePreparedSource) -> napi::Result<NativeScanResult> {
-    let source = HostPreparedSource::try_from(source)?;
-    let module = source.module_id().clone();
-    let mut registry = SourceRegistry::default();
-    Ok(scan_prepared(&source, &mut registry)?.into_binding(&module))
-}
-
-/// Internal scan outcome that retains typed errors until the host publishes reports.
-pub(super) enum SourceScan {
-    Ready(Box<NativeModuleSummary>),
-    Failed {
-        scan: Box<ModuleScan>,
-        batch: DiagnosticBatch,
-    },
-}
-
-impl SourceScan {
-    pub(super) fn into_binding(self, module: &ModuleId) -> NativeScanResult {
-        match self {
-            Self::Ready(summary) => NativeScanResult::Ready { summary: *summary },
-            Self::Failed { batch, .. } => NativeScanResult::Failed {
-                batch: NativeDiagnosticBatch::new(module, &batch),
-            },
-        }
-    }
-}
-
-/// Scans a prepared source using the caller's registry and resolves fatal reports.
-pub(super) fn scan_prepared(
-    source: &HostPreparedSource,
-    registry: &mut SourceRegistry,
-) -> napi::Result<SourceScan> {
-    let mut scan = OxcSourceAnalyzer.scan_input(source.input(registry)?);
-    let fatal = |error: &CompileError| {
-        error.diagnostic.is_projection_failure()
-            || matches!(error.diagnostic, CompileDiagnostic::JavaScriptParse)
-            || matches!(
-                error.diagnostic,
-                CompileDiagnostic::UnmappedMacroReference { .. }
-                    | CompileDiagnostic::CheckerTargetUnavailable { .. }
-            )
-    };
-    if scan.diagnostics.iter().any(fatal) {
-        scan.diagnostics.retain(fatal);
-        let batch = Reporter::collect(&scan.diagnostics, &[], registry, LintSettings::default())
-            .map_err(BindingApiError::from)?;
-        return Ok(SourceScan::Failed {
-            scan: Box::new(scan),
-            batch,
-        });
-    }
-    let count = |length| u32::try_from(length).map_err(|_| Error::from_reason("too many imports"));
-    let mut result = NativeModuleSummary::new(
-        scan.summary,
-        count(scan.local_ir.imports.module_css.len())?,
-        count(scan.local_ir.imports.macros.len())?,
-        scan.type_probes
-            .iter()
-            .map(|probe| NativeTypeProbe {
-                recognition_only: probe.recognition_only,
-                start: probe.span.start.0,
-                end: probe.span.end.0,
-            })
-            .collect(),
-    );
-    let index = CoordinateIndex::new(scan.input.parser_source());
-    for checked in scan.checker_projection.spans {
-        let mapped = checked.provenance;
-        result.checker_spans.push(NativeCheckerSpan {
-            role: match checked.role {
-                CheckerRole::Expression => "expression",
-                CheckerRole::Producer => "producer",
-                CheckerRole::ModuleSpecifier => "moduleSpecifier",
-            }
-            .into(),
-            start: mapped.original.start.0,
-            end: mapped.original.end.0,
-            projected_start: index
-                .utf16(mapped.projected.start)
-                .map_err(|e| Error::from_reason(e.to_string()))?
-                .0,
-            projected_end: index
-                .utf16(mapped.projected.end)
-                .map_err(|e| Error::from_reason(e.to_string()))?
-                .0,
-        });
-    }
-    for binding in scan.checker_projection.bindings {
-        result.checker_bindings.push(NativeCheckerBinding {
-            name: binding.name,
-            projected_start: index
-                .utf16(binding.span.start)
-                .map_err(|e| Error::from_reason(e.to_string()))?
-                .0,
-            projected_end: index
-                .utf16(binding.span.end)
-                .map_err(|e| Error::from_reason(e.to_string()))?
-                .0,
-        });
-    }
-    Ok(SourceScan::Ready(Box::new(result)))
-}
-
-/// Extracts the versioned cross-module summary for a source module.
-///
-/// # Errors
-///
-/// Returns invalid source coordinates.
-pub fn summarize_source_input(
-    source: &str,
-    module_id: &ModuleId,
-    language: ScriptLanguage,
-    module_kind: ScriptModuleKind,
-) -> Result<NativeModuleSummary, BindingApiError> {
-    let source = SourceFile::new(FileId(1), None, None, source)?;
-    let parsed = parse(
-        &source,
-        module_id,
-        &[],
-        &BTreeMap::default(),
-        language,
-        module_kind,
-    );
-    let count = |length| {
-        u32::try_from(length).map_err(|_| BindingApiError::Input("Too many imports".into()))
-    };
-    Ok(NativeModuleSummary::new(
-        parsed.summary,
-        count(parsed.module.imports.module_css.len())?,
-        count(parsed.module.imports.macros.len())?,
-        parsed
-            .type_probes
-            .iter()
-            .map(|span| NativeTypeProbe {
-                recognition_only: false,
-                start: span.start.0,
-                end: span.end.0,
-            })
-            .chain(parsed.use_probes.iter().map(|span| NativeTypeProbe {
-                recognition_only: true,
-                start: span.start.0,
-                end: span.end.0,
-            }))
-            .collect(),
-    ))
-}
-
 /// Host metadata and CSS text for a compilation.
 #[napi(object, object_to_js = false)]
 pub struct NativeCompileCssInput {
@@ -631,86 +346,12 @@ pub fn compile_source(
     compile_source_input(&input, &options).map_err(|error| Error::from_reason(error.to_string()))
 }
 
-/// Compiles a resolved module graph in one native invocation.
-///
-/// # Errors
-///
-/// Returns a JavaScript error for invalid input or an unresolved graph edge.
-#[napi(strict)]
-#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-pub fn compile_project(
-    sources: Vec<NativePreparedSource>,
-    css: NativeCompileCssInput,
-    options: Option<NativeCompilerOptions>,
-) -> napi::Result<ProjectBindingOutput> {
-    let options = compiler_options(options)?;
-    let sources = sources
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect::<napi::Result<Vec<HostPreparedSource>>>()?;
-    compile_project_input(&sources, &css.try_into()?, &options)
-        .map_err(|error| Error::from_reason(error.to_string()))
-}
-
-/// Wraps project module CSS fragments in one shared theme/base stylesheet.
-///
-/// # Errors
-///
-/// Returns a JavaScript error when the theme or compiler options are invalid.
-#[napi(strict)]
-#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-pub fn render_stylesheet(
-    module_css: String,
-    theme: String,
-    options: Option<NativeCompilerOptions>,
-) -> napi::Result<String> {
-    let options = compiler_options(options)?;
-    let theme = SourceFile::new(FileId(1), None, None, theme).map_err(BindingApiError::from)?;
-    Compiler::render_stylesheet(
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &module_css,
-        &options,
-    )
-    .map_err(|error| Error::from_reason(error.to_string()))
-}
-
-/// Returns the versioned Stillwind module summary used for cross-module values.
-///
-/// # Errors
-///
-/// Returns a JavaScript error for invalid source coordinates.
-#[napi]
-#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-pub fn summarize_source(
-    source: String,
-    module_id: String,
-    language: NativeScriptLanguage,
-    module_kind: NativeScriptModuleKind,
-) -> napi::Result<NativeModuleSummary> {
-    summarize_source_input(
-        &source,
-        &ModuleId::from(module_id),
-        language.into(),
-        module_kind.into(),
-    )
-    .map_err(|error| Error::from_reason(error.to_string()))
-}
-
-/// Canonicalizes constant `calc()` subexpressions with Stillwind's CSS value parser.
-/// Exposed so parity and integration tools compare both compilers after the same
-/// semantic normalization. Expressions that do not parse, or that nest values deeper
-/// than the calculator accepts, are retained byte-for-byte.
-#[napi]
-#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-pub fn fold_calc_expressions(css: String, zero_unit: Option<String>) -> String {
-    stillwind_css::fold_calc_expressions(&css, zero_unit.as_deref())
-}
-
 #[cfg(test)]
 mod tests {
-    use stillwind_compiler::SourceTransform;
-    use stillwind_source::Span;
+    use stillwind_compiler::{ModuleCompiler, SourceTransform};
+    use stillwind_design_system::DesignSystemSnapshot;
+    use stillwind_ir::SourceAnalyzer;
+    use stillwind_source::{FileId, Span};
 
     use super::*;
 
