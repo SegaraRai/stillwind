@@ -7,7 +7,12 @@ import { casePolicy } from "./policy.ts";
 const fixture: FixtureManifest = {
   id: "next",
   profiles: ["turbopack", "webpack", "standalone"],
-  support: { tier: "primary", profiles: { standalone: "compatibility" } },
+  support: {
+    tier: "primary",
+    profiles: {
+      standalone: "compatibility",
+    },
+  },
 };
 
 afterEach(() => vi.unstubAllEnvs());
@@ -35,7 +40,15 @@ test("rejects invalid CLI selectors and misspelled profile overrides", () => {
   expect(() => matrixOptions(["--unknown"])).toThrow("Unknown");
   expect(() =>
     fixtureSupport(
-      { ...fixture, support: { tier: "primary", profiles: { typo: "compatibility" } } },
+      {
+        ...fixture,
+        support: {
+          tier: "primary",
+          profiles: {
+            typo: "compatibility",
+          },
+        },
+      },
       "webpack",
     ),
   ).toThrow("Unknown support profile");
@@ -46,7 +59,12 @@ test("reports source map limitations separately from high priority CSS contracts
     reason: "Host omits selector positions",
     issue: "https://example.com/issues/1",
   };
-  expect(casePolicy({ contract: "sourceMaps", expectedFailure: failure })).toEqual({
+  expect(
+    casePolicy({
+      contract: "sourceMaps",
+      expectedFailure: failure,
+    }),
+  ).toEqual({
     contract: "sourceMaps",
     priority: "low",
     expectedFailure: failure,
@@ -61,7 +79,9 @@ test("reports source map limitations separately from high priority CSS contracts
           file: "src/App.vue",
           macro: "style('p-2')",
           kind: "css",
-          expectedFailure: { webpack: failure },
+          expectedFailure: {
+            webpack: failure,
+          },
         },
       ],
     },

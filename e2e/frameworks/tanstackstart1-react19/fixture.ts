@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "tanstackstart1-react19",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["vite-plus", "react", "react-dom", "@tanstack/react-start", "@tanstack/react-router"],

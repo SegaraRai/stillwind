@@ -21,7 +21,9 @@ export default defineConfig({
       client: {
         build: {
           rolldownOptions: {
-            output: { chunkFileNames: "_astro/[hash].js" },
+            output: {
+              chunkFileNames: "_astro/[hash].js",
+            },
           },
         },
       },

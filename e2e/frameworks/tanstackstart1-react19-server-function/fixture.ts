@@ -1,6 +1,11 @@
 export default {
   id: "tanstackstart1-react19-server-function",
-  support: { tier: "primary", profiles: { rsbuild: "compatibility" } },
+  support: {
+    tier: "primary",
+    profiles: {
+      rsbuild: "compatibility",
+    },
+  },
   profiles: ["vite", "rsbuild"],
   contracts: [
     "rendering",

@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "rspack2-vue3",
-  support: { tier: "compatibility" },
+  support: {
+    tier: "compatibility",
+  },
   semantics: [{ id: "main", interactive: true }],
   driver: "rspack",
   versions: ["vite-plus", "vue"],

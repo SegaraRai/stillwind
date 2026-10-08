@@ -1,1 +1,3 @@
-export default { ssr: true };
+export default {
+  ssr: true,
+};

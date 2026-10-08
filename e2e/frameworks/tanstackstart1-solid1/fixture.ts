@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "tanstackstart1-solid1",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [{ id: "main", interactive: true }],
   driver: "vite",
   versions: ["vite-plus", "solid-js", "@tanstack/solid-start", "@tanstack/solid-router"],

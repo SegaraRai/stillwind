@@ -2,7 +2,12 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "next16-react19",
-  support: { tier: "primary", profiles: { standalone: "compatibility" } },
+  support: {
+    tier: "primary",
+    profiles: {
+      standalone: "compatibility",
+    },
+  },
   semantics: [{ id: "main", interactive: true }],
   driver: "next",
   versions: ["next", "react"],

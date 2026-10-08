@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "astro7-preact11-solid1",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [
     { id: "preact", interactive: true },
     { id: "solid", interactive: true },

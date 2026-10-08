@@ -1,6 +1,8 @@
 export default {
   id: "rspack2-plain",
-  support: { tier: "compatibility" },
+  support: {
+    tier: "compatibility",
+  },
   profiles: ["rspack"],
   contracts: [
     "rendering",

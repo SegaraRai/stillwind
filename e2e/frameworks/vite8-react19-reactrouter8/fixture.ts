@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "vite8-react19-reactrouter8",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [{ id: "main", interactive: true }],
   driver: "react-router",
   versions: ["@react-router/dev", "react"],

@@ -11,13 +11,17 @@ export default defineConfig({
     preact({ include: ["**/preact/**"] }),
     solid({ include: ["**/solid/**"] }),
   ],
-  build: { inlineStylesheets: "never" },
+  build: {
+    inlineStylesheets: "never",
+  },
   vite: {
     environments: {
       client: {
         build: {
           rolldownOptions: {
-            output: { chunkFileNames: "_astro/[hash].js" },
+            output: {
+              chunkFileNames: "_astro/[hash].js",
+            },
           },
         },
       },

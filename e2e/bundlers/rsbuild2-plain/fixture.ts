@@ -1,6 +1,8 @@
 export default {
   id: "rsbuild2-plain",
-  support: { tier: "compatibility" },
+  support: {
+    tier: "compatibility",
+  },
   profiles: ["rsbuild"],
   contracts: [
     "rendering",

@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "astro7-plain",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [{ id: "main", interactive: false }],
   driver: "astro",
   versions: ["vite-plus", "astro"],

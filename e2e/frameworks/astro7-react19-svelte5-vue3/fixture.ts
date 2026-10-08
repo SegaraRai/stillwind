@@ -2,7 +2,9 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 
 export default defineFixture({
   id: "astro7-react19-svelte5-vue3",
-  support: { tier: "primary" },
+  support: {
+    tier: "primary",
+  },
   semantics: [
     { id: "react", interactive: true },
     { id: "svelte", interactive: true },

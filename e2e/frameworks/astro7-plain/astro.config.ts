@@ -7,5 +7,7 @@ export default defineConfig({
       emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
     }),
   ],
-  build: { inlineStylesheets: "never" },
+  build: {
+    inlineStylesheets: "never",
+  },
 });
