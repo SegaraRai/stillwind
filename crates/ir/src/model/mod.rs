@@ -1,9 +1,9 @@
 //! Extracted module model: what a frontend found in one module.
 //!
-//! Every [`Span`] here refers to the editable original source, never to a virtual or
-//! converted view. The model keeps author intent, not generated CSS: a [`StyleInput`]
-//! still says "these utilities come from this expression", it does not name classes or
-//! declarations.
+//! Every [`stillwind_source::Span`] here refers to the editable original source, never
+//! to a virtual or converted view. The model keeps author intent, not generated CSS: a
+//! [`StyleInput`] still says "these utilities come from this expression", it does not
+//! name classes or declarations.
 //!
 //! Ordering is semantic and must survive any consumer. [`ModuleIr::style_calls`],
 //! [`ModuleIr::ref_definitions`], and the input entries inside one call stay in source
