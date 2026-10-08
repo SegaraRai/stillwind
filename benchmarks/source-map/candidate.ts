@@ -27,7 +27,7 @@ function composeUpstream(map: EncodedSourceMap, upstream?: CssUpstreamMap) {
   }
   const sourceUrl = (source: string, base: string) => {
     const normalized = source.replaceAll("\\", "/");
-    const clean = normalized.replace(/[?#].*$/, "");
+    const clean = normalized.split(/[?#]/)[0];
     return isAbsolute(clean)
       ? pathToFileURL(clean).href + normalized.slice(clean.length)
       : new URL(normalized, base).href;

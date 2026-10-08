@@ -77,10 +77,14 @@ export async function compilationStyles(
             id: await io.resolveJs(specifier, importer),
           }),
           read: readDependency,
-          watch: (id) => watch(cleanModuleId(id)),
+          watch: (id) => {
+            watch(cleanModuleId(id));
+          },
           warn,
         },
-        { moduleCssImport: "stillwind/module-css" },
+        {
+          moduleCssImport: "stillwind/module-css",
+        },
       );
       if (output && !input.manual) {
         selection.push(output.moduleId);
@@ -91,7 +95,11 @@ export async function compilationStyles(
       .digest("hex");
     const plan = compiler.native.planStylesheet({
       modules: selection,
-      coverage: { kind: "complete", target: "compilation", revision },
+      coverage: {
+        kind: "complete",
+        target: "compilation",
+        revision,
+      },
       placement: "document",
     });
     const replacements = new Map<string, string>();
