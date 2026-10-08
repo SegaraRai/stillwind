@@ -9,33 +9,33 @@ use stillwind_css::inspect_css_value;
 use crate::ThemeIndex;
 
 /// Borrows immutable definitions and optionally records direct source selections.
-pub(crate) struct EvaluationContext<'a> {
+pub(in crate::evaluation) struct EvaluationContext<'a> {
     theme: &'a ThemeIndex,
     selections: Option<RefCell<ValueSelections>>,
 }
 
 impl<'a> EvaluationContext<'a> {
-    pub(crate) fn untracked(theme: &'a ThemeIndex) -> Self {
+    pub(in crate::evaluation) fn untracked(theme: &'a ThemeIndex) -> Self {
         Self {
             theme,
             selections: None,
         }
     }
 
-    pub(crate) fn tracked(theme: &'a ThemeIndex) -> Self {
+    pub(in crate::evaluation) fn tracked(theme: &'a ThemeIndex) -> Self {
         Self {
             theme,
             selections: Some(RefCell::new(ValueSelections::default())),
         }
     }
 
-    pub(crate) fn record_token(&self, name: &str) {
+    pub(in crate::evaluation) fn record_token(&self, name: &str) {
         if let Some(selections) = &self.selections {
             selections.borrow_mut().tokens.insert(name.to_owned());
         }
     }
 
-    pub(crate) fn record_value_tokens(&self, value: &str) {
+    pub(in crate::evaluation) fn record_value_tokens(&self, value: &str) {
         if self.selections.is_some() {
             for name in inspect_css_value(value).1 {
                 self.record_token(&name);
@@ -43,13 +43,13 @@ impl<'a> EvaluationContext<'a> {
         }
     }
 
-    pub(crate) fn record_variable_token(&self, name: &str) {
+    pub(in crate::evaluation) fn record_variable_token(&self, name: &str) {
         if self.selections.is_some() {
             self.record_value_tokens(&format!("var({name})"));
         }
     }
 
-    pub(crate) fn record_arbitrary_value(&self, value: &str, color: bool) {
+    pub(in crate::evaluation) fn record_arbitrary_value(&self, value: &str, color: bool) {
         if let Some(selections) = &self.selections {
             selections
                 .borrow_mut()
@@ -62,7 +62,7 @@ impl<'a> EvaluationContext<'a> {
     }
 
     /// Removes the current selections and transfers ownership to the caller.
-    pub(crate) fn take_selections(&self) -> ValueSelections {
+    pub(in crate::evaluation) fn take_selections(&self) -> ValueSelections {
         self.selections
             .as_ref()
             .map(RefCell::take)
@@ -80,13 +80,13 @@ impl Deref for EvaluationContext<'_> {
 
 /// Direct source selections before expansion and declaration formatting.
 #[derive(Default)]
-pub(crate) struct ValueSelections {
-    pub(crate) tokens: BTreeSet<String>,
-    pub(crate) values: Vec<ArbitraryValueSelection>,
+pub(in crate::evaluation) struct ValueSelections {
+    pub(in crate::evaluation) tokens: BTreeSet<String>,
+    pub(in crate::evaluation) values: Vec<ArbitraryValueSelection>,
 }
 
 /// An accepted arbitrary capture before theme expansion and declaration formatting.
-pub(crate) struct ArbitraryValueSelection {
-    pub(crate) value: String,
-    pub(crate) color: bool,
+pub(in crate::evaluation) struct ArbitraryValueSelection {
+    pub(in crate::evaluation) value: String,
+    pub(in crate::evaluation) color: bool,
 }

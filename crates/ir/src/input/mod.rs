@@ -16,9 +16,14 @@ mod document;
 mod prepared;
 mod projection;
 
-pub use document::*;
-pub use prepared::*;
-pub use projection::*;
+pub use document::{
+    DirectSource, ScriptLanguage, ScriptModuleKind, ScriptSyntax, SourceDocument, SourceFormat,
+};
+pub use prepared::{PreparedSource, SourceInput, SourceInputError};
+pub use projection::{
+    AttributeQuote, ConverterIdentity, ImportRealm, ProjectedSource, ProjectionRegion,
+    SourceProjection,
+};
 
 #[cfg(test)]
 mod tests;

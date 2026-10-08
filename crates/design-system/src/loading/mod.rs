@@ -17,7 +17,10 @@ mod imports;
 mod protocol;
 mod state;
 
-pub use protocol::*;
+pub use protocol::{
+    CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
+    CssSourceEdge, CssSourceGraph, CssSourceMapping, DesignSystemLoadStep,
+};
 pub use state::{DesignSystemLoadError, DesignSystemLoader};
 
 #[cfg(test)]

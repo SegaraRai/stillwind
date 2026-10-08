@@ -27,7 +27,7 @@ use crate::conditionals::accepts_runtime_value;
 /// Whole `--if` values must have two branches accepted by the same domain; nested
 /// expressions use deferred-variable validation after their conditional syntax is checked.
 /// [`None`] means no domain matched, including malformed conditional captures.
-pub(crate) fn resolve_value_domains(
+pub(in crate::evaluation) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
@@ -116,7 +116,7 @@ fn arbitrary_hint(value: &str) -> (&str, &str) {
 ///
 /// Non-theme domains fallback to [`resolve_value_domains`] so a list mixing literal and
 /// theme domains keeps its authored order.
-pub(crate) fn resolve_literal_value_domains(
+pub(in crate::evaluation) fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
@@ -137,7 +137,7 @@ pub(crate) fn resolve_literal_value_domains(
 /// Commas inside parentheses or brackets belong to a function argument list and are not
 /// separators. Surrounding whitespace is preserved, because a domain may be a prefix
 /// pattern such as `--spacing-*` followed by an authored suffix.
-pub(crate) fn split_domains(value: &str) -> Vec<&str> {
+pub(in crate::evaluation) fn split_domains(value: &str) -> Vec<&str> {
     let mut domains = Vec::new();
     let mut start = 0;
     let mut depth = 0_u32;
@@ -161,7 +161,7 @@ pub(crate) fn split_domains(value: &str) -> Vec<&str> {
 /// Only a pattern of the form `--namespace-*` is recognized; an unknown namespace or a
 /// missing `-*` marker is not a theme domain, which keeps a custom property out of
 /// utility resolution.
-pub(crate) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
+pub(in crate::evaluation) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
     let domain = domain.strip_prefix("--")?;
     let (namespace, suffix) = domain.split_once("-*")?;
     Some((ThemeNamespace::parse(namespace)?, suffix))

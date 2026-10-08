@@ -262,7 +262,7 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)
 /// Unknown keys, unparsable values, and a missing parenthesis pair are all rejected, so
 /// a mistyped built-in registration fails visibly instead of silently dropping its
 /// ordering or typing metadata.
-pub(crate) fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHeader> {
+fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHeader> {
     let name_end = header.find(char::is_whitespace).unwrap_or(header.len());
     let (name, wildcard) = parse_variant_name(&header[..name_end])?;
     let arguments = header[name_end..].trim();

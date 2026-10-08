@@ -28,7 +28,7 @@ use crate::{CustomUtility, ThemeIndex};
 /// no project branch resolves, built-in definitions are tried. There is deliberately no
 /// property-prefix fallback: a definition that rejects the candidate's value type is a
 /// non-match, not an invitation to reinterpret the candidate.
-pub(crate) fn resolve_named_utility(
+pub(in crate::evaluation) fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -52,7 +52,7 @@ pub(crate) fn resolve_named_utility(
 
 /// Resolves the same `@utility` body language for user CSS and vendored built-ins.
 /// `--value(...)` tries its comma-separated value domains in order.
-pub(crate) fn resolve_user_css_utility(
+fn resolve_user_css_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -73,7 +73,7 @@ pub(crate) fn resolve_user_css_utility(
 /// Wildcard families are searched before exact-name groups, and both iterate in reverse
 /// authored order so the most recently registered definition is considered first;
 /// branch specificity then decides which one wins.
-pub(crate) fn resolve_builtin_css_utility(
+fn resolve_builtin_css_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
@@ -99,7 +99,7 @@ pub(crate) fn resolve_builtin_css_utility(
 /// additional targets. A property already claimed by a more-specific branch is not
 /// overwritten by a broader one. The most specific branch that carries a `tw_sort`
 /// override supplies the retained one.
-pub(crate) fn resolve_css_utility_branches<'a>(
+pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
     modifier: Option<&Value>,
@@ -201,7 +201,7 @@ pub(crate) fn resolve_css_utility_branches<'a>(
 ///
 /// Used to pick between wildcard branches when an arbitrary value carries no hint of
 /// its own.
-pub(crate) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
+fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
     let mut types = Vec::new();
     let mut rest = utility.body.as_str();
     while let Some(start) = rest.find('[') {
@@ -224,7 +224,7 @@ pub(crate) fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
 ///
 /// [`None`] means the candidate named a hinted arbitrary value or is not an arbitrary
 /// capture at all; hinted values are matched by domain instead.
-pub(crate) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
+fn unhinted_arbitrary_value(name: &str) -> Option<String> {
     if let Some(start) = name.rfind("-[")
         && let Some(value) = name[start + 2..].strip_suffix(']')
     {
@@ -243,10 +243,7 @@ pub(crate) fn unhinted_arbitrary_value(name: &str) -> Option<String> {
 /// Only types the branch actually accepts are considered, the image and color families
 /// are tried before geometry, and CSS-wide keywords and `var()` references are never
 /// inferred because they can stand for any type.
-pub(crate) fn infer_arbitrary_value_type(
-    value: &str,
-    available: &[ValueType],
-) -> Option<ValueType> {
+fn infer_arbitrary_value_type(value: &str, available: &[ValueType]) -> Option<ValueType> {
     if value.contains("var(")
         || value.starts_with("--")
         || matches!(
@@ -280,10 +277,7 @@ pub(crate) fn infer_arbitrary_value_type(
 ///
 /// A conflict is the same conditional and placement declaring one of the same
 /// properties; the primary rule keeps its position and value.
-pub(crate) fn merge_nested_rules(
-    primary: &mut Vec<NestedUtilityRule>,
-    secondary: Vec<NestedUtilityRule>,
-) {
+fn merge_nested_rules(primary: &mut Vec<NestedUtilityRule>, secondary: Vec<NestedUtilityRule>) {
     for rule in secondary {
         let properties = declaration_property_names(&rule.declaration);
         let conflicts = primary.iter().any(|existing| {
@@ -301,7 +295,7 @@ pub(crate) fn merge_nested_rules(
 }
 
 /// The property names declared by a declaration list.
-pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
+fn declaration_property_names(declaration: &str) -> HashSet<&str> {
     declaration_ranges(declaration)
         .into_iter()
         .map(|range| &declaration[range])
@@ -313,7 +307,7 @@ pub(crate) fn declaration_property_names(declaration: &str) -> HashSet<&str> {
 /// Merges independent `@utility` overloads without erasing repeated fallback
 /// declarations inside either body. For example `opacity-0` keeps its static
 /// declaration instead of also gaining the generic percentage overload.
-pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
+fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
     let mut properties = declaration_ranges(primary)
         .into_iter()
         .map(|range| &primary[range])
@@ -343,7 +337,7 @@ pub(crate) fn merge_branch_declarations(primary: &str, secondary: &str) -> Strin
 /// wildcard metadata, and within wildcards the typed arbitrary, theme, and modifier
 /// domains add weight. The exact-registration term keeps canonical spellings such as
 /// `opacity-60` on their dedicated definition.
-pub(crate) fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
+fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
     let body = utility.body.as_str();
     let typed_arbitrary = body
         .matches('[')

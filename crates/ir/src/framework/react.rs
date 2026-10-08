@@ -3,7 +3,7 @@
 use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// React macros produce a props object with a `className` entry.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::React,
     macro_import: "stillwind/react",
     runtime_import: "stillwind/react/runtime",

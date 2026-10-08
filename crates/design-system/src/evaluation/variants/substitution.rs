@@ -22,7 +22,7 @@ use crate::{BuiltinVariantModifierType, CustomVariant, ThemeNamespace};
 /// A definition that declares a modifier type requires a modifier and fails without
 /// one; a definition without a type leaves the body untouched, so an unused modifier
 /// never changes the emitted selector.
-pub(crate) fn substitute_typed_modifier(
+pub(in crate::evaluation) fn substitute_typed_modifier(
     body: &str,
     modifier_type: Option<BuiltinVariantModifierType>,
     modifier: Option<&str>,
@@ -35,7 +35,10 @@ pub(crate) fn substitute_typed_modifier(
 }
 
 /// Substitutes a capture into the quoted `:--value("...")` macro form.
-pub(crate) fn substitute_quoted_variant_value(body: &str, value: &str) -> Option<String> {
+pub(in crate::evaluation) fn substitute_quoted_variant_value(
+    body: &str,
+    value: &str,
+) -> Option<String> {
     substitute_quoted_macro(body, ":--value(\"", "{value}", value)
 }
 
@@ -43,7 +46,7 @@ pub(crate) fn substitute_quoted_variant_value(body: &str, value: &str) -> Option
 ///
 /// The template's closing delimiter must be present; a truncated macro fails rather
 /// than leaving half a selector behind.
-pub(crate) fn substitute_quoted_macro(
+fn substitute_quoted_macro(
     body: &str,
     prefix: &str,
     placeholder: &str,
@@ -64,7 +67,7 @@ pub(crate) fn substitute_quoted_macro(
 /// Only applications that produce a selector can be folded in: a media, container, or
 /// support condition has no position in the outer body, so combining them fails instead
 /// of dropping the condition.
-pub(crate) fn apply_nested_variant(
+pub(in crate::evaluation) fn apply_nested_variant(
     body: &str,
     inner: &VariantApplication,
 ) -> Option<VariantApplication> {
@@ -123,7 +126,7 @@ pub(crate) fn apply_nested_variant(
 ///
 /// The selector must be relative to the utility - it starts with `&` - and the fragment
 /// after `&` is what replaces the slot.
-pub(crate) fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
+fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     let fragment = selector.strip_prefix('&')?;
     resolve_variant_body(&body.replace(":--value()", fragment))
 }
@@ -132,10 +135,7 @@ pub(crate) fn apply_nested_selector(body: &str, selector: &str) -> Option<Varian
 ///
 /// A condition can only wrap an application that already has a selector; the compound
 /// and rule-less variants are rejected.
-pub(crate) fn attach_media(
-    application: VariantApplication,
-    condition: &str,
-) -> Option<VariantApplication> {
+fn attach_media(application: VariantApplication, condition: &str) -> Option<VariantApplication> {
     match application {
         VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorMedia {
             selector,
@@ -154,7 +154,7 @@ pub(crate) fn attach_media(
 }
 
 /// Attaches a variant's own declarations to a selector application.
-pub(crate) fn attach_declarations(
+pub(in crate::evaluation) fn attach_declarations(
     application: VariantApplication,
     declarations: Vec<VariantDeclaration>,
 ) -> Option<VariantApplication> {
@@ -181,7 +181,7 @@ pub(crate) fn attach_declarations(
 /// exactly is never shadowed by a broader family, and wildcards are tried in reverse
 /// authored order so the newest registration wins. A wildcard that would capture an
 /// empty string is skipped.
-pub(crate) fn registered_variant_candidates<'a, 'b>(
+pub(in crate::evaluation) fn registered_variant_candidates<'a, 'b>(
     variants: &'a [Arc<CustomVariant>],
     value: &'b str,
 ) -> Vec<(&'a CustomVariant, Option<&'b str>)> {
@@ -204,7 +204,10 @@ pub(crate) fn registered_variant_candidates<'a, 'b>(
 /// A body without any placeholder is returned as an unchanged owned copy. An arbitrary
 /// selector capture loses its `&` and underscore escapes, and a modifier is escaped as
 /// `\/` so it stays part of the selector rather than starting a new one.
-pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> Option<String> {
+pub(in crate::evaluation) fn substitute_variant_capture(
+    value: &str,
+    capture: Option<&str>,
+) -> Option<String> {
     if !value.contains("--value()")
         && !value.contains(r"\*")
         && !value.contains("{modifier}")
@@ -267,7 +270,7 @@ pub(crate) fn substitute_variant_capture(value: &str, capture: Option<&str>) -> 
 /// A theme namespace domain yields the authored token value, not a `var()` reference,
 /// because the value becomes part of a selector or condition where a variable cannot
 /// appear. A placeholder that cannot be resolved fails the body.
-pub(crate) fn resolve_variant_css_placeholders(
+pub(in crate::evaluation) fn resolve_variant_css_placeholders(
     body: &str,
     variant_name: &str,
     value: &str,
@@ -293,7 +296,7 @@ pub(super) fn variant_value_capture<'a>(variant_name: &str, value: &'a str) -> O
 ///
 /// Theme namespace domains read the token value directly; every other domain uses the
 /// utility resolver, so a variant and a utility accept the same spellings.
-pub(crate) fn resolve_variant_value_domains(
+fn resolve_variant_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,

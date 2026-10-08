@@ -257,7 +257,7 @@ pub fn resolve_animation_option(
 ///
 /// Properties without a mapping are dropped, and a utility that produced selectors,
 /// conditionals, or extra targets is rejected rather than projected partially.
-pub(crate) fn project_animation_option_utility(
+fn project_animation_option_utility(
     raw: &str,
     theme: &ThemeIndex,
 ) -> Result<Option<String>, UtilityResolutionError> {

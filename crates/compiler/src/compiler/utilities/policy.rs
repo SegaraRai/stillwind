@@ -25,7 +25,7 @@ use super::super::variants::{VariantStep, variant_paths};
 use super::resolve::{CompiledUtility, resolve_utility_targets};
 use crate::style_analysis::{DeclarationValue, SupplyKind};
 
-pub(crate) fn check(
+pub(in crate::compiler) fn check(
     utility: &CompiledUtility,
     supplies: &[SupplyKind],
     theme: &ThemeIndex,
@@ -295,7 +295,7 @@ fn check_source_policies(
     }
 }
 
-pub(crate) fn spacing_property(property: &str, additional: &[String]) -> bool {
+pub(in crate::compiler) fn spacing_property(property: &str, additional: &[String]) -> bool {
     [
         "margin",
         "margin-*",

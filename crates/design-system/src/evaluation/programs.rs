@@ -46,14 +46,14 @@ impl UtilityPrograms {
         }
     }
 
-    pub(crate) fn body(
+    pub(in crate::evaluation) fn body(
         &self,
         body: &str,
     ) -> Option<&Result<Option<PreparedUtilityBody>, PropertyRequirementError>> {
         self.bodies.get(body)
     }
 
-    pub(crate) fn declarations(&self, body: &str) -> Option<&PreparedDeclarations> {
+    pub(in crate::evaluation) fn declarations(&self, body: &str) -> Option<&PreparedDeclarations> {
         self.declarations.get(body)
     }
 }

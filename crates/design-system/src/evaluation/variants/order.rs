@@ -32,10 +32,7 @@ use crate::{
 ///
 /// An exact name wins outright; otherwise the matching pattern with the most literal
 /// prefix-plus-suffix bytes wins. Equal specificity selects the last definition.
-pub(crate) fn direct_builtin_variant<'a>(
-    value: &str,
-    theme: &'a ThemeIndex,
-) -> Option<&'a CustomVariant> {
+fn direct_builtin_variant<'a>(value: &str, theme: &'a ThemeIndex) -> Option<&'a CustomVariant> {
     builtin_variants(theme)
         .iter()
         .filter_map(|variant| {
@@ -51,16 +48,13 @@ pub(crate) fn direct_builtin_variant<'a>(
 }
 
 /// The theme namespace named by a sort key such as `--breakpoint-*`.
-pub(crate) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
+pub(in crate::evaluation) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
     ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
 }
 
 /// A variant that names a theme token without its prefix, as a bare breakpoint variant
 /// does.
-pub(crate) fn bare_builtin_variant<'a>(
-    value: &str,
-    theme: &'a ThemeIndex,
-) -> Option<&'a CustomVariant> {
+fn bare_builtin_variant<'a>(value: &str, theme: &'a ThemeIndex) -> Option<&'a CustomVariant> {
     builtin_variants(theme)
         .iter()
         .map(Arc::as_ref)
@@ -79,7 +73,7 @@ pub(crate) fn bare_builtin_variant<'a>(
 ///
 /// A definition without sort metadata is still a definition; the sort is only consulted
 /// when two variants share a group.
-pub(crate) fn builtin_variant_for_order<'a>(
+fn builtin_variant_for_order<'a>(
     variant: &Variant,
     theme: &'a ThemeIndex,
 ) -> Option<&'a CustomVariant> {
@@ -90,7 +84,7 @@ pub(crate) fn builtin_variant_for_order<'a>(
 }
 
 /// The ordering group of a variant definition, which defaults to its own name.
-pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
+fn variant_group(variant: &CustomVariant) -> &str {
     variant
         .sort
         .as_ref()
@@ -103,7 +97,7 @@ pub(crate) fn variant_group(variant: &CustomVariant) -> &str {
 /// Every variant of one group reports the same position, so a group moves as a unit.
 /// [`usize::MAX`] means the variant is not registered and therefore sorts after
 /// everything registered.
-pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
+fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
     let custom = if let VariantKind::Named(value) = &variant.kind {
         registered_variant_candidates(theme.variants(), value)
             .first()
@@ -134,7 +128,7 @@ pub(crate) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
 ///
 /// [`None`] means the value does not start with a number, which routes the comparison
 /// to text ordering.
-pub(crate) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
+fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
     let split = value
         .find(|character: char| !character.is_ascii_digit() && character != '.')
         .unwrap_or(value.len());
@@ -148,7 +142,7 @@ pub(crate) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
 /// applied only to the magnitude; any other pair compares as text. Applying the
 /// direction to the unit as well would make `desc` reorder breakpoints that use
 /// different units relative to each other.
-pub(crate) fn compare_sort_values(
+fn compare_sort_values(
     left: &str,
     right: &str,
     direction: BuiltinVariantSortDirection,
@@ -172,7 +166,7 @@ pub(crate) fn compare_sort_values(
 /// A wildcard capture is the text between the definition's literal boundaries, a bare variant is the
 /// whole name, and an arbitrary capture is accepted only when the group's namespace
 /// value types accept it. A capture's `/modifier` part takes no part in ordering.
-pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
@@ -208,11 +202,7 @@ pub(crate) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
 /// inner sequence first, so `group-hover` and `group-focus` order by their inner
 /// variants rather than by their raw text. The final tie-breaker is the authored text,
 /// which keeps the comparison deterministic.
-pub(crate) fn compare_variants_in_group(
-    left: &Variant,
-    right: &Variant,
-    theme: &ThemeIndex,
-) -> Ordering {
+fn compare_variants_in_group(left: &Variant, right: &Variant, theme: &ThemeIndex) -> Ordering {
     if let (Some(left_inner), Some(right_inner)) = (
         compound_inner_variant(left, theme),
         compound_inner_variant(right, theme),
@@ -238,7 +228,7 @@ pub(crate) fn compare_variants_in_group(
 }
 
 /// The inner variant of a compound variant definition, when it has one.
-pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
+fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
@@ -249,10 +239,7 @@ pub(crate) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
 
 /// The capture of the first definition whose declared value type is a variant stack, so
 /// the capture can be parsed as an inner variant.
-pub(crate) fn compound_variant_capture(
-    variants: &[Arc<CustomVariant>],
-    value: &str,
-) -> Option<String> {
+fn compound_variant_capture(variants: &[Arc<CustomVariant>], value: &str) -> Option<String> {
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {

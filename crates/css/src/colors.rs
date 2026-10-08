@@ -53,11 +53,7 @@ pub fn shadow_with_color_override(
 /// The trailing-component path keeps the authored color text; the fallback path
 /// reprints the parsed shadow, which is why it is only used when the color is not the
 /// final component.
-pub(super) fn rewrite_shadow_color(
-    value: &str,
-    color_property: &str,
-    alpha: Option<&str>,
-) -> Option<String> {
+fn rewrite_shadow_color(value: &str, color_property: &str, alpha: Option<&str>) -> Option<String> {
     let shadow = BoxShadow::parse_string(value).ok()?;
     if let Some((base, color)) = trailing_top_level_css_component(value)
         && CssColor::parse_string(color).is_ok()
@@ -97,7 +93,7 @@ pub(super) fn rewrite_shadow_color(
 
 /// Splits on commas that are not inside parentheses, brackets, quotes or escapes, and
 /// trims each component.
-pub(super) fn split_top_level_commas(value: &str) -> Vec<&str> {
+fn split_top_level_commas(value: &str) -> Vec<&str> {
     let mut components = Vec::new();
     let mut start = 0;
     let mut depth = 0_u32;
@@ -216,7 +212,7 @@ pub fn css_color_values(css: &str) -> Vec<[f64; 4]> {
 ///
 /// Used to find a shadow's trailing color without assuming the color is a single token;
 /// `None` when there is no such boundary.
-pub(super) fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
+fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
     let mut depth = 0_u32;
     let mut boundary = None;
     for (index, character) in value.char_indices() {

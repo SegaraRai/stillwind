@@ -34,11 +34,11 @@ use crate::identifiers::{IdentifierContext, RefMarker};
 /// The lowered form of the variant wrappers around one rule contribution.
 pub(super) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
-    pub prefix: String,
+    pub(super) prefix: String,
     /// Identity-aware spelling for class hashing; independent of source syntax.
-    pub canonical: String,
+    pub(super) canonical: String,
     /// Whether any wrapper uses ref identity and requires lowered selector applications.
-    pub has_refs: bool,
+    pub(super) has_refs: bool,
     /// Parsed wrapper variants in traversal order, retained for utility ordering.
     variants: Vec<Variant>,
     /// Alternative application paths in expansion order; each inner vector preserves

@@ -60,7 +60,7 @@ impl UtilityPropertySort {
     /// caller. Every declaration counts, including duplicates and empty values, and a
     /// `tw_sort` property counts once and replaces the collected indices when the
     /// property table knows it.
-    pub(crate) fn from_groups<'a>(
+    pub(in crate::evaluation) fn from_groups<'a>(
         groups: impl IntoIterator<Item = &'a str>,
         tw_sort: Option<&str>,
     ) -> Self {

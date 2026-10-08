@@ -78,7 +78,7 @@ pub(in crate::compiler) fn find_at_rule_block(
 /// because the scan begins by slicing at `from`. Callers must pass the offset just past an
 /// `@<name>` match in this same string, as [`find_at_rule_block`] does; an offset measured
 /// against a rewritten or different buffer panics.
-pub(in crate::compiler) fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
+fn find_at_rule_block_open(css: &str, from: usize) -> Option<usize> {
     let mut stack = Vec::new();
     let mut quote = None;
     let mut escaped = false;

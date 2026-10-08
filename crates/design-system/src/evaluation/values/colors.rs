@@ -20,7 +20,7 @@ use crate::ThemeNamespace;
 
 /// Which of the two compatibility branches is being produced.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CompatColorMode {
+pub(in crate::evaluation) enum CompatColorMode {
     /// Fallback branch.
     Legacy,
     /// Upgraded branch, guarded by the capability query.
@@ -29,7 +29,7 @@ pub(crate) enum CompatColorMode {
 
 /// How an authored color interacts with the compatibility branches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CompatColorKind {
+pub(in crate::evaluation) enum CompatColorKind {
     /// `currentcolor`, which the legacy branch cannot mix.
     CurrentColor,
     /// `inherit` or `transparent`, selecting the modern space in both passes by default.
@@ -40,7 +40,7 @@ pub(crate) enum CompatColorKind {
 
 impl CompatColorKind {
     /// Classifies an authored color spelling, case-insensitively.
-    pub(crate) fn from_css(color: &str) -> Self {
+    pub(in crate::evaluation) fn from_css(color: &str) -> Self {
         if color.eq_ignore_ascii_case("currentcolor") {
             Self::CurrentColor
         } else if color.eq_ignore_ascii_case("inherit") || color.eq_ignore_ascii_case("transparent")
@@ -60,7 +60,10 @@ impl CompatColorKind {
 /// alpha for the modern branch. `100%` alpha and legacy `currentcolor` are emitted
 /// without a `color-mix()` at the initial mixing step. The modern branch may still
 /// differ, particularly for `currentcolor` or an additional modern alpha.
-pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Option<String> {
+pub(in crate::evaluation) fn resolve_compat_color(
+    arguments: &str,
+    mode: CompatColorMode,
+) -> Option<String> {
     let arguments = split_domains(arguments);
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
         [color, alpha] => (*color, *alpha, None),
@@ -111,7 +114,7 @@ pub(crate) fn resolve_compat_color(arguments: &str, mode: CompatColorMode) -> Op
 /// names the color property that will hold the result, and the optional third is an
 /// alpha override. The property name must be a custom property, because the generated
 /// function replaces that property inside the shadow.
-pub(crate) fn resolve_shadow_color(
+pub(in crate::evaluation) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,

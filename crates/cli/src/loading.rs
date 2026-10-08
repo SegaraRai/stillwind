@@ -78,7 +78,7 @@ pub(super) fn read_source(
 }
 
 /// Forms the absolute document URI for a filesystem source.
-pub(super) fn file_uri(path: &Path) -> Result<SourceUri, FileLoadError> {
+fn file_uri(path: &Path) -> Result<SourceUri, FileLoadError> {
     let absolute = absolute(path).map_err(|source| FileLoadError::Read {
         path: path.into(),
         source,

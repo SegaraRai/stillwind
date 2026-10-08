@@ -43,14 +43,14 @@ pub(super) struct LiteralContribution {
 /// A transition token with its CSS application context and name supply.
 pub(super) struct TransitionContribution {
     /// Canonical generated token, escaped when serialized into CSS.
-    pub token: String,
+    pub(super) token: String,
     /// Escaped static participant name.
-    pub name: Option<String>,
+    pub(super) name: Option<String>,
     /// Custom property that holds a dynamic name controlled by a CSS variant.
     /// Requires `plan` and a runtime value for this property from the same use.
-    pub dynamic_name_property: Option<String>,
+    pub(super) dynamic_name_property: Option<String>,
     /// CSS application context; absence permits a base token to be emitted literally.
-    pub plan: Option<StyleVariantPlan>,
+    pub(super) plan: Option<StyleVariantPlan>,
 }
 
 impl LiteralContribution {

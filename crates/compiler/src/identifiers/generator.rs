@@ -328,13 +328,13 @@ impl RejectedNames {
 /// still has to see their names, so one compilation collects them beside the names each
 /// declaration reports.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DetachedName {
+pub(crate) struct DetachedName {
     /// Family the name belongs to.
-    pub kind: IdentifierKind,
+    pub(crate) kind: IdentifierKind,
     /// Canonical spelling of the name.
-    pub name: LeanStr,
+    pub(crate) name: LeanStr,
     /// Owner identity used by document-wide name collision checks.
-    pub identity: LeanStr,
+    pub(crate) identity: LeanStr,
 }
 
 /// One compilation's name allocation: host generator first, built-in fallback,

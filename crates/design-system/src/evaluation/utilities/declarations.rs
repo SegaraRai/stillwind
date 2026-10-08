@@ -23,19 +23,19 @@ use crate::evaluation::{EvaluationContext, ValueSelections};
 
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ResolvedCssDeclarations {
-    pub(crate) token_uses: Vec<UtilityTokenUse>,
-    pub(crate) arbitrary_uses: Vec<UtilityArbitraryUse>,
+pub(in crate::evaluation) struct ResolvedCssDeclarations {
+    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
+    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the base branch, joined in authored order.
-    pub(crate) base: String,
+    pub(in crate::evaluation) base: String,
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
-    pub(crate) compat_modern: Vec<String>,
+    pub(in crate::evaluation) compat_modern: Vec<String>,
 }
 
 /// Parsed declaration boundaries and branch requirements shared by snapshot evaluation.
 #[derive(Debug)]
-pub(crate) struct PreparedDeclarations {
+pub(in crate::evaluation) struct PreparedDeclarations {
     declarations: Vec<PreparedDeclaration>,
     uses_placeholder: bool,
     uses_value: bool,
@@ -44,7 +44,7 @@ pub(crate) struct PreparedDeclarations {
 }
 
 impl PreparedDeclarations {
-    pub(crate) fn parse(body: &str, theme: &ThemeIndex) -> Self {
+    pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
         let declarations: Vec<_> = split_css_declarations(body)
             .into_iter()
             .map(str::to_owned)
@@ -112,7 +112,7 @@ impl PreparedDeclaration {
 ///
 /// Returns [`None`] when no declaration resolved or when a dependency of the body stayed
 /// unresolved, so the caller can try another overload.
-pub(crate) fn resolve_css_declarations(
+pub(in crate::evaluation) fn resolve_css_declarations(
     body: &str,
     utility_name: &str,
     name: &str,
@@ -271,7 +271,7 @@ fn record_tokens(
 
 /// Splits a declaration list without mistaking a semicolon in a string or a function
 /// argument for a CSS declaration boundary.
-pub(crate) fn split_css_declarations(body: &str) -> Vec<&str> {
+fn split_css_declarations(body: &str) -> Vec<&str> {
     let mut declarations = Vec::new();
     let mut start = 0;
     let mut paren_depth = 0_u32;

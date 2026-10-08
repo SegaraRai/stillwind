@@ -39,7 +39,12 @@ mod session;
 mod source_input;
 mod stylesheet;
 
-pub use api::*;
+pub use api::{
+    BindingApiError, CompileCssInput, CompileSourceInput, NativeCompileCssInput,
+    NativeCompileSourceInput, compile_project, compile_project_input, compile_source,
+    compile_source_input, fold_calc_expressions, render_stylesheet, scan_source, summarize_source,
+    summarize_source_input,
+};
 pub use fingerprint::fingerprint;
 pub use minify::{NativeCssMinifyOptions, NativeMinifiedCss, minify_css};
 pub use output::{

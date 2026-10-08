@@ -103,7 +103,7 @@ pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtilit
 ///
 /// A name that is missing from a block header is skipped rather than stored under an
 /// empty name.
-pub(crate) fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
+fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
@@ -136,7 +136,7 @@ pub(crate) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
 
 /// Shared body of the unordered parsers: matches `directive` exactly and leaves
 /// [`CustomUtility::builtin_order`] unset.
-pub(crate) fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
+fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {

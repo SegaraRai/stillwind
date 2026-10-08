@@ -6,7 +6,7 @@ use super::super::builtins::builtin_declaration_formats;
 use crate::{ThemeIndex, declaration_format};
 
 /// Emits resolved declarations with candidate priority, without optimizing values.
-pub(crate) fn finalize_declaration(
+pub(in crate::evaluation) fn finalize_declaration(
     declaration: String,
     is_important: bool,
     _theme: &ThemeIndex,
@@ -20,7 +20,7 @@ pub(crate) fn finalize_declaration(
 
 /// Supplies a length type while resolving a declaration, before joining its body.
 /// This metadata describes value semantics, never a request for minification.
-pub(crate) fn resolve_declaration_value(
+pub(in crate::evaluation) fn resolve_declaration_value(
     declaration: &str,
     theme: &ThemeIndex,
     builtin: bool,

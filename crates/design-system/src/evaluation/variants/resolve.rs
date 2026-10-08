@@ -319,10 +319,7 @@ fn is_conditional_intrinsic(custom: &CustomVariant) -> bool {
 }
 
 /// Resolves a named variant through project definitions and then built-ins.
-pub(crate) fn resolve_registered_variant(
-    value: &str,
-    theme: &ThemeIndex,
-) -> Option<VariantApplication> {
+fn resolve_registered_variant(value: &str, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let Some(application) = resolve_registered_variant_from(theme.variants(), value, theme) {
         return Some(application);
     }
@@ -330,7 +327,7 @@ pub(crate) fn resolve_registered_variant(
 }
 
 /// Resolves the first definition in `variants` whose name captures `value`.
-pub(crate) fn resolve_registered_variant_from(
+fn resolve_registered_variant_from(
     variants: &[Arc<CustomVariant>],
     value: &str,
     theme: &ThemeIndex,
@@ -347,7 +344,7 @@ pub(crate) fn resolve_registered_variant_from(
 /// A typed definition delegates to [`resolve_typed_variant`]; otherwise the body is
 /// filled in and classified, falling back to the definition's selector shorthand when
 /// the body cannot produce an application.
-pub(crate) fn resolve_registered_variant_candidate(
+pub(in crate::evaluation) fn resolve_registered_variant_candidate(
     custom: &CustomVariant,
     capture: Option<&str>,
     value: &str,
@@ -379,7 +376,7 @@ pub(crate) fn resolve_registered_variant_candidate(
 /// producing a broken selector. `[if-condition]` captures bypass modifier splitting
 /// and preserve their CSS text, including slashes in comparison values. They require
 /// an exact `builtin-if-variant` intrinsic body and no modifier declaration.
-pub(crate) fn resolve_typed_variant(
+fn resolve_typed_variant(
     custom: &CustomVariant,
     value_type: BuiltinVariantValueType,
     capture: &str,
@@ -428,7 +425,7 @@ pub(crate) fn resolve_typed_variant(
 ///
 /// Returns the capture paired with the modifier, which is `None` when no top-level
 /// slash exists.
-pub(crate) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
+pub(in crate::evaluation) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
     let mut depth = 0_u32;
     for (index, character) in value.char_indices() {
         match character {
@@ -446,7 +443,7 @@ pub(crate) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
 /// An arbitrary capture is decoded with escape handling; a named capture only has
 /// underscores turned into spaces, because its text is a Tailwind spelling rather than
 /// CSS.
-pub(crate) fn decode_variant_capture(value: &str) -> String {
+fn decode_variant_capture(value: &str) -> String {
     value
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
@@ -455,7 +452,7 @@ pub(crate) fn decode_variant_capture(value: &str) -> String {
 
 /// Builds a synthetic nested variant from capture text, keeping the raw spelling so an
 /// inner resolution can report the text the author wrote.
-pub(crate) fn parse_nested_variant(value: &str) -> Variant {
+pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
     let raw = value.into();
     let kind = value
         .strip_prefix('[')
@@ -472,11 +469,7 @@ pub(crate) fn parse_nested_variant(value: &str) -> Variant {
 /// `name=value` becomes an equality selector with the value quoted and escaped; a bare
 /// capture becomes `="true"` for aria variants and a presence check for data variants.
 /// An empty name or value is rejected rather than emitted.
-pub(crate) fn attribute_variant_selector(
-    prefix: &str,
-    capture: &str,
-    default_true: bool,
-) -> Option<String> {
+fn attribute_variant_selector(prefix: &str, capture: &str, default_true: bool) -> Option<String> {
     let arbitrary = capture
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'));

@@ -43,14 +43,14 @@ pub enum NestedUtilityAtRule {
 
 /// A conditional declaration group split out of a utility body.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ParsedNestedUtilityRule {
+pub(in crate::evaluation) struct ParsedNestedUtilityRule {
     /// Conditional at-rule represented by this parsed block.
-    pub(crate) at_rule: NestedUtilityAtRule,
+    pub(in crate::evaluation) at_rule: NestedUtilityAtRule,
     /// Trimmed query text without the at-rule keyword or braces; supports removes its
     /// outer parentheses.
-    pub(crate) condition: String,
+    pub(in crate::evaluation) condition: String,
     /// Trimmed content inside the conditional braces, before placeholder evaluation.
-    pub(crate) body: String,
+    pub(in crate::evaluation) body: String,
 }
 
 /// Splits a body into its direct declarations and its conditional rules.
@@ -58,7 +58,7 @@ pub(crate) struct ParsedNestedUtilityRule {
 /// Conditions are returned in authored order and their inner bodies are trimmed. A
 /// conditional whose block is unterminated fails the split instead of leaving its text
 /// in the direct declarations.
-pub(crate) fn split_nested_conditions(
+pub(in crate::evaluation) fn split_nested_conditions(
     body: &str,
 ) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
     let mut direct = String::with_capacity(body.len());
@@ -100,7 +100,7 @@ pub(crate) fn split_nested_conditions(
 /// boundary, because the search begins by slicing at `cursor`. Callers must pass `0` or
 /// an offset just past a previously returned block in this same string; an offset from
 /// another buffer, or advanced by bytes instead of scalars, panics.
-pub(crate) fn next_nested_condition(
+fn next_nested_condition(
     body: &str,
     cursor: usize,
 ) -> Option<(usize, NestedUtilityAtRule, &'static str)> {
@@ -128,7 +128,9 @@ pub(crate) fn next_nested_condition(
 /// declarations. A body whose selector block is not a complete selector - anything
 /// after the closing brace, or a prelude without `&` - is rejected, because accepting
 /// it would change which element the declarations apply to.
-pub(crate) fn split_utility_selector(body: &str) -> Option<(Option<String>, &str, Option<&str>)> {
+pub(in crate::evaluation) fn split_utility_selector(
+    body: &str,
+) -> Option<(Option<String>, &str, Option<&str>)> {
     if !body.contains('&') {
         return Some((None, body, None));
     }

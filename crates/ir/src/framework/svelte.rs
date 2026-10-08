@@ -3,7 +3,7 @@
 use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
 
 /// Svelte receives custom properties as a serialized style string.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Svelte,
     macro_import: "stillwind/svelte",
     runtime_import: "stillwind/svelte/runtime",

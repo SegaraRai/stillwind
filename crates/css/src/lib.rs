@@ -44,18 +44,43 @@ mod values;
 #[cfg(feature = "minify")]
 mod minify;
 
-pub use blocks::*;
-pub use colors::*;
-pub use custom_properties::*;
-pub use declarations::*;
-pub use emission::*;
-pub use format::*;
-pub use functions::*;
-pub use math::*;
-pub use output::*;
-pub use resources::*;
-pub use selectors::*;
-pub use values::*;
+pub use blocks::{
+    PropertyRequirementError, ScanError, extract_named_blocks, extract_named_blocks_with_offsets,
+    extract_named_statements, extract_order_statements, matching_brace, strip_blocks,
+    strip_css_comments, take_property_requirements, unterminated_block,
+};
+pub use colors::{
+    color_rgba, color_with_alpha_fallback, css_color_values, shadow_with_color_fallback,
+    shadow_with_color_override,
+};
+pub use custom_properties::{
+    CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
+    custom_property_references, custom_property_usage, extract_authored_property_names,
+    extract_property_definitions, parse_property_definitions, referenced_custom_properties,
+    used_custom_properties,
+};
+pub use declarations::{declaration_ranges, important_declarations};
+pub use emission::{CssRule, Declaration, optimize_rules, stylesheet_fragments};
+pub use format::{CssFormatError, format_css};
+pub use functions::{
+    CssFunctionMatch, find_css_function, find_css_functions, matching_css_delimiter,
+    split_css_function_arguments,
+};
+pub use math::{
+    MAX_VALUE_NESTING, fold_calc_expressions, format_numeric_zero, value_nesting_overflow,
+};
+pub use output::{CssOutputNode, CssOutputTemplate};
+pub use resources::{CssUrl, relative_css_urls};
+pub use selectors::{
+    SelectorTarget, append_element_condition, instantiate_selector, selector_is_element_condition,
+    selector_target, selector_uses_subject,
+};
+pub use values::{
+    CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
+    declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,
+    media_size_comparisons, policy_glob_matches, properties_interfere, property_covers,
+    property_value_domains,
+};
 
 #[cfg(feature = "minify")]
-pub use minify::*;
+pub use minify::{CssMinifyError, CssMinifyOptions, MinifiedCss, minify_css};

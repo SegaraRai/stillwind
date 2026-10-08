@@ -167,7 +167,7 @@ pub(crate) fn extract_theme_declarations(
 /// A bare namespace name is the namespace's scale, a namespaced name is a named token,
 /// and anything else is custom: a custom property stays available as authored CSS but
 /// never creates a utility or variant value.
-pub(crate) fn classify_theme_token(name: &str) -> ThemeTokenKind {
+fn classify_theme_token(name: &str) -> ThemeTokenKind {
     let Some(name) = name.strip_prefix("--") else {
         return ThemeTokenKind::Custom;
     };

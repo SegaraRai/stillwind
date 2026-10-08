@@ -43,7 +43,7 @@ pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(String, String
 }
 
 /// Names of utilities that emit a compatibility marker class.
-pub(crate) fn builtin_marker_utilities(theme: &ThemeIndex) -> &BTreeSet<String> {
+pub(in crate::evaluation) fn builtin_marker_utilities(theme: &ThemeIndex) -> &BTreeSet<String> {
     theme.registry().marker_utilities()
 }
 
@@ -63,22 +63,24 @@ pub fn builtin_theme_order(theme: &ThemeIndex) -> &[String] {
 }
 
 /// Value types accepted per theme namespace, as declared by the built-ins.
-pub(crate) fn builtin_theme_namespace_types(
+pub(in crate::evaluation) fn builtin_theme_namespace_types(
     theme: &ThemeIndex,
 ) -> &BTreeMap<ThemeNamespace, Vec<ValueType>> {
     theme.registry().theme_namespace_types()
 }
 
 /// Color space of the compatibility fallback branch.
-pub(crate) const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
+pub(in crate::evaluation) const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
 
 /// Color space of the modern branch, which the capability query guards.
-pub(crate) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
+pub(in crate::evaluation) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
 
 /// Capability query that decides whether the modern color branch is usable.
-pub(crate) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
+pub(in crate::evaluation) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
 /// Relationship patterns declared by the selected built-ins.
-pub(crate) fn builtin_relationship_patterns(theme: &ThemeIndex) -> &BTreeSet<String> {
+pub(in crate::evaluation) fn builtin_relationship_patterns(
+    theme: &ThemeIndex,
+) -> &BTreeSet<String> {
     theme.registry().relationships()
 }

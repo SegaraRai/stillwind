@@ -3,7 +3,7 @@
 use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Preact uses `class`, not `className`.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Preact,
     macro_import: "stillwind/preact",
     runtime_import: "stillwind/preact/runtime",

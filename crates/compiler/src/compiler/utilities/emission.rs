@@ -133,7 +133,7 @@ fn emit_utility_css(
 /// Nested rules whose property is present in the combined declarations are inlined right after that
 /// property; the rest follow the declarations in their own order. Utilities with no declarations at
 /// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
-pub(in crate::compiler) fn emit_base_utility_group(
+fn emit_base_utility_group(
     output: &mut String,
     class_selector: &str,
     utilities: &[&CompiledUtility],

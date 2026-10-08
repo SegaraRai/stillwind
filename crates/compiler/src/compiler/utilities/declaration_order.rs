@@ -66,7 +66,7 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
 ///
 /// `compose-space` appends a later value at the first occurrence of its property.
 /// Other declarations retain their resolved values without output optimization.
-pub(in crate::compiler) fn combine_declarations_with_formats(
+fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<String, String>,
 ) -> String {

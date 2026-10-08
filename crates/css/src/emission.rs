@@ -147,7 +147,7 @@ impl Declaration {
 }
 
 /// Orders declarations by property name where adjacent declarations do not interfere.
-pub fn schedule_declarations(declarations: &mut [Declaration]) {
+fn schedule_declarations(declarations: &mut [Declaration]) {
     for index in 1..declarations.len() {
         let mut cursor = index;
         while cursor > 0

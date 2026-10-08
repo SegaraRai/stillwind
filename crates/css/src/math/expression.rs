@@ -10,7 +10,7 @@
 
 /// A numeric CSS value whose unit category is retained during constant folding.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum MathValue {
+pub(super) enum MathValue {
     /// A unitless number.
     Number(
         /// Numeric part of a CSS number.
@@ -32,7 +32,7 @@ pub(crate) enum MathValue {
 
 /// One node of a parsed `calc()` expression.
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) enum MathExpression {
+pub(super) enum MathExpression {
     /// A fully known numeric value.
     Value(
         /// Numeric operand to serialize.
@@ -75,7 +75,7 @@ pub(crate) enum MathExpression {
 impl MathExpression {
     /// Negates the expression, folding the sign into a numeric value and cancelling an
     /// existing negation.
-    pub(crate) fn negate(self) -> Self {
+    pub(super) fn negate(self) -> Self {
         match self {
             Self::Value(MathValue::Number(value)) => Self::Value(MathValue::Number(-value)),
             Self::Value(MathValue::Dimension(value, unit)) => {
@@ -92,7 +92,7 @@ impl MathExpression {
     /// Multiplying by a dimensionless number keeps the other operand's unit, and
     /// multiplying a zero by a percentage stays a percentage so the result keeps
     /// percentage semantics in CSS. Anything else is kept as a product.
-    pub(crate) fn product(left: Self, right: Self) -> Self {
+    pub(super) fn product(left: Self, right: Self) -> Self {
         if let (
             Self::Product(value, coefficient),
             Self::Value(MathValue::Number(right_coefficient)),
@@ -140,7 +140,7 @@ impl MathExpression {
     ///
     /// Dimensions fold only when their unit spellings match case-insensitively; no unit
     /// conversion is attempted, so mixed units stay symbolic.
-    pub(crate) fn sum(left: Self, right: Self) -> Self {
+    pub(super) fn sum(left: Self, right: Self) -> Self {
         match (left, right) {
             (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
                 Self::Value(MathValue::Number(left + right))
@@ -163,7 +163,7 @@ impl MathExpression {
     ///
     /// Used to give a folded bare zero the dimension the surrounding declaration
     /// expects; it never invents a unit where none exists.
-    pub(crate) fn numeric_unit(&self) -> Option<&str> {
+    pub(super) fn numeric_unit(&self) -> Option<&str> {
         match self {
             Self::Value(MathValue::Dimension(_, unit)) => Some(unit),
             Self::Product(left, right) | Self::Quotient(left, right) | Self::Sum(left, right) => {
@@ -175,7 +175,7 @@ impl MathExpression {
     }
 
     /// Binding strength of the node, used only to decide parentheses.
-    pub(crate) fn precedence(&self) -> u8 {
+    pub(super) fn precedence(&self) -> u8 {
         match self {
             Self::Sum(..) => 1,
             Self::Product(..) | Self::Quotient(..) => 2,
@@ -189,7 +189,7 @@ impl MathExpression {
     /// A negation on the right of a sum prints as subtraction, and division prints its
     /// right operand one level tighter. Equal-precedence sums and products may be
     /// flattened during printing.
-    pub(crate) fn serialize(&self, parent_precedence: u8) -> String {
+    pub(super) fn serialize(&self, parent_precedence: u8) -> String {
         let precedence = self.precedence();
         let value = match self {
             Self::Value(MathValue::Number(value)) => serialize_number(*value),
@@ -237,7 +237,7 @@ impl MathExpression {
 ///
 /// Negative zero prints as `0`, integral values lose their fractional part, and
 /// fractions below one drop the leading zero (`.5`, `-.5`).
-pub(crate) fn serialize_number(value: f64) -> String {
+fn serialize_number(value: f64) -> String {
     if value == 0.0 {
         return "0".to_owned();
     }

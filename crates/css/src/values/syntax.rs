@@ -19,7 +19,7 @@ use crate::colors::is_css_string;
 ///
 /// This is a lexical check, not a parse: `var(x)` and bare `--name` are not references,
 /// and the surrounding grammar is the caller's responsibility.
-pub(crate) fn contains_custom_property_reference(value: &str) -> bool {
+pub(super) fn contains_custom_property_reference(value: &str) -> bool {
     let mut cursor = value;
     while let Some(start) = cursor.find("var(") {
         let after_function = &cursor[start + "var(".len()..];
@@ -36,7 +36,7 @@ pub(crate) fn contains_custom_property_reference(value: &str) -> bool {
 ///
 /// The text is re-wrapped as `function(value)` and handed to Lightning CSS, so this
 /// accepts exactly what a gradient parser accepts there.
-pub(crate) fn gradient_arguments(function: &str, value: &str) -> bool {
+pub(super) fn gradient_arguments(function: &str, value: &str) -> bool {
     Image::parse_string(&format!("{function}({value})")).is_ok()
 }
 
@@ -45,7 +45,7 @@ pub(crate) fn gradient_arguments(function: &str, value: &str) -> bool {
 ///
 /// Lightning CSS has no typed `content` parser, so bare identifiers are rejected here
 /// rather than accepted unchecked.
-pub(crate) fn content_value(value: &str) -> bool {
+pub(super) fn content_value(value: &str) -> bool {
     let value = value.trim();
     matches!(
         value,
@@ -65,7 +65,7 @@ pub(crate) fn content_value(value: &str) -> bool {
 ///
 /// The check goes through the `transform` property parser, so a value that parser
 /// leaves unparsed counts as a rejection.
-pub(crate) fn transform_function_arguments(function: &str, value: &str) -> bool {
+pub(super) fn transform_function_arguments(function: &str, value: &str) -> bool {
     let value = format!("{function}({value})");
     matches!(
         Property::parse_string(
@@ -81,7 +81,7 @@ pub(crate) fn transform_function_arguments(function: &str, value: &str) -> bool 
 ///
 /// Unknown properties are rejected: the name must be in the Webref snapshot or in the
 /// explicit exception table.
-pub(crate) fn property_value(property: &str, value: &str) -> bool {
+pub(super) fn property_value(property: &str, value: &str) -> bool {
     CssProperty::from_name(property).is_some_and(|property| property.accepts(value))
 }
 

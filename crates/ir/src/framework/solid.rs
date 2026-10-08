@@ -3,7 +3,7 @@
 use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Solid passes `class` and materializes custom properties as an object.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Solid,
     macro_import: "stillwind/solid",
     runtime_import: "stillwind/solid/runtime",

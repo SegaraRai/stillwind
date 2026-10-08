@@ -36,8 +36,27 @@ mod input;
 mod model;
 mod spans;
 
-pub use analysis::*;
-pub use composition::*;
-pub use framework::*;
-pub use input::*;
-pub use model::*;
+pub use analysis::{
+    CheckerBinding, CheckerProjection, CheckerRole, CheckerSpan, ModuleAnalysis, ModuleScan,
+    SourceAnalyzer, TypeProbe, TypeScriptFactsProvider,
+};
+pub use composition::{
+    StyleDependency, composition_dependencies, ordered_style_calls, validate_composition,
+};
+pub use framework::{
+    AdapterKind, FRAMEWORKS, FrameworkSpec, MODULE_CSS_IMPORT, ProjectionDecision,
+    ProjectionExpression, StyleFormat, from_macro_import,
+};
+pub use input::{
+    AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, PreparedSource, ProjectedSource,
+    ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax, SourceDocument, SourceFormat,
+    SourceInput, SourceInputError, SourceProjection,
+};
+pub use model::{
+    AnchorScope, AssetReference, AttributeEntry, ClassExpression, ConditionalBranches,
+    ContainerType, CustomPropertyEntry, GroupEntry, KeyframesBody, KeyframesBranch,
+    KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier, ModuleImports,
+    ModuleIr, RefCondition, RefDefinition, RefProjection, RuleExpression, RuleExpressionError,
+    RuleExpressionErrorKind, StyleCall, StyleInput, StyleVariant, ViewTransitionDefinition,
+    ViewTransitionKey, ViewTransitionName,
+};

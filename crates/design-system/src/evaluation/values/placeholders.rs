@@ -137,7 +137,7 @@ fn resolve_value(
 /// variable. [`None`] means the declaration does not apply to this candidate, which
 /// lets the caller try the next overload.
 #[allow(clippy::too_many_lines)]
-pub(crate) fn resolve_css_placeholders(
+pub(in crate::evaluation) fn resolve_css_placeholders(
     body: &str,
     utility_name: &str,
     name: &str,

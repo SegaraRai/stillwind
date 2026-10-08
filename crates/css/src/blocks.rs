@@ -92,11 +92,11 @@ pub struct PropertyRequirementError {
 
 /// One registration requirement directive and its named properties.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PropertyRequirement {
+struct PropertyRequirement {
     /// Byte range of the full directive in its CSS body.
-    pub range: std::ops::Range<usize>,
+    range: std::ops::Range<usize>,
     /// Required custom-property names in authored order.
-    pub names: Vec<String>,
+    names: Vec<String>,
 }
 
 /// Reads semantic registration requirements from a utility definition or fragment.
@@ -106,7 +106,7 @@ pub struct PropertyRequirement {
 /// # Errors
 ///
 /// Returns the byte offset of the first malformed directive.
-pub fn property_requirement_ranges(
+fn property_requirement_ranges(
     css: &str,
 ) -> Result<Vec<PropertyRequirement>, PropertyRequirementError> {
     if !css.contains("@stillwind-require-properties") {
@@ -318,7 +318,7 @@ pub fn strip_blocks(css: &str, directive: &str) -> String {
 }
 
 /// Byte offset of the first `{` that is not the start of a `{modifier}` marker.
-pub fn find_block_open(value: &str) -> Option<usize> {
+fn find_block_open(value: &str) -> Option<usize> {
     let mut offset = 0;
     while offset < value.len() {
         if value[offset..].starts_with("{modifier}") {

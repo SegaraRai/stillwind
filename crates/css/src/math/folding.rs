@@ -70,7 +70,7 @@ pub fn value_nesting_overflow(value: &str) -> Option<usize> {
 /// of the `(` they want matched, taken from `char_indices`, `find`, or a parser cursor on
 /// this same string; an offset computed against another buffer, or advanced by bytes
 /// instead of scalars, panics.
-pub(crate) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
+pub(super) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
     let mut depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;

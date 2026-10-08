@@ -133,9 +133,9 @@ fn invalid(detail: &str) -> CompileDiagnostic {
 /// One guarded declaration body and the gate declarations written into it.
 pub(super) struct Guarded {
     /// The body, with the gates this pass wrote in front of the declarations they gate.
-    pub css: String,
+    pub(super) css: String,
     /// Names of those gates, which a later pass must not guard again.
-    pub gates: Vec<String>,
+    pub(super) gates: Vec<String>,
 }
 
 /// Guards every declaration, including nested rules, with a validated condition.

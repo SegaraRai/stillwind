@@ -22,7 +22,7 @@ use super::theme::theme_value;
 /// The compatibility mode decides the lookup: the fallback branch must read the literal
 /// value, while the modern branch takes the same reference the ordinary `--value(...)`
 /// form would produce.
-pub(crate) fn resolve_literal_value_placeholder(
+pub(in crate::evaluation) fn resolve_literal_value_placeholder(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
@@ -40,7 +40,7 @@ pub(crate) fn resolve_literal_value_placeholder(
 /// The first argument is a theme namespace pattern, the second a suffix that is
 /// appended to the candidate capture; both the capture and a matching token are
 /// required, so a missing token fails the branch.
-pub(crate) fn resolve_theme_suffix_placeholder(
+pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
@@ -64,7 +64,7 @@ pub(crate) fn resolve_theme_suffix_placeholder(
 ///
 /// Keys are compared exactly as authored and the first matching entry wins; a candidate
 /// without a capture, or with no matching key, fails the branch.
-pub(crate) fn resolve_value_map_placeholder(
+pub(in crate::evaluation) fn resolve_value_map_placeholder(
     arguments: &str,
     capture: Option<&str>,
 ) -> Option<String> {

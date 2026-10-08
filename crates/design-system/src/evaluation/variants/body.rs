@@ -19,7 +19,7 @@ use super::resolve::{VariantApplication, VariantDeclaration};
 /// A body with several top-level blocks is a compound application and is resolved per
 /// block, in authored order. [`None`] means the body has no slot, is empty, or is not a
 /// construct the emitter can place.
-pub(crate) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
+pub(in crate::evaluation) fn resolve_variant_body(body: &str) -> Option<VariantApplication> {
     if body.is_empty() || !body.contains("@slot") {
         return None;
     }
@@ -114,7 +114,7 @@ fn block_open(body: &str) -> Option<usize> {
 ///
 /// [`None`] means a block is unterminated; a body that is only whitespace has no
 /// blocks.
-pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
+fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
     let mut blocks = Vec::new();
     let mut cursor = 0;
     while cursor < body.len() {
@@ -135,11 +135,11 @@ pub(crate) fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
 
 /// One selector rule inside a variant body: its selector and any declarations authored
 /// beside the slot.
-pub(crate) struct VariantSelectorRule {
+pub(in crate::evaluation) struct VariantSelectorRule {
     /// Selector template, containing `&` for the position of the utility.
-    pub(crate) selector: String,
+    pub(in crate::evaluation) selector: String,
     /// Declarations stated by the rule itself, in authored order.
-    pub(crate) declarations: Vec<VariantDeclaration>,
+    pub(in crate::evaluation) declarations: Vec<VariantDeclaration>,
 }
 
 /// Reads a selector block from a variant body.
@@ -148,7 +148,7 @@ pub(crate) struct VariantSelectorRule {
 /// an empty selector, and declarations without a property or value are all rejected, so
 /// a malformed definition fails instead of emitting a selector the author did not
 /// write.
-pub(crate) fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
+fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     let open = block_open(body)?;
     let close = closing_brace(body, open)?;
     if !body[close + 1..].trim().is_empty() {

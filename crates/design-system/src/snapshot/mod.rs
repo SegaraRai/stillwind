@@ -12,6 +12,10 @@ mod data;
 mod registry;
 mod utility_search;
 
-pub use data::*;
-pub use registry::*;
+pub use data::{
+    DefinitionFingerprints, DesignSystemError, DesignSystemRevision, DesignSystemSnapshot,
+};
+pub use registry::{
+    DefinitionRegistry, PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry,
+};
 pub use utility_search::{UtilitySearchEntry, UtilitySearchIndex};

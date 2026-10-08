@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use stillwind_diagnostics::{CompileError, LintFinding};
+use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
 use stillwind_ir::{AdapterKind, StyleDependency};
 use stillwind_semantic::IdentityId;
 use stillwind_source::{Fingerprint, ModuleId, SourceFile};
@@ -107,7 +107,7 @@ pub struct ModuleResourceReference {
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
     /// Effective lint settings captured during compilation, including project conversion options.
-    pub lint_settings: stillwind_diagnostics::LintSettings,
+    pub lint_settings: LintSettings,
     /// Records the effects of this module's own style calls and keeps their source
     /// coordinates. The vector is empty after compilation failure. Hosts use
     /// [`crate::StyleResolver`] to update composition findings when bases change.

@@ -198,7 +198,7 @@ pub(super) fn ref_context(
 }
 
 /// The declaration fields a ref marker is built from, including its label.
-pub(super) fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
+fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
     DeclarationContext {
         module: definition.module_id.clone(),
         start: definition.binding.span.start.0,
@@ -497,7 +497,7 @@ pub(super) fn definition_name_symbol(
 }
 
 /// Owner identity of a declaration referenced through its semantic identity.
-pub(super) fn identity_input(identity: &IdentityId) -> LeanStr {
+fn identity_input(identity: &IdentityId) -> LeanStr {
     owner_declaration_identity(
         &identity.module_id,
         kind_name(identity.kind),

@@ -112,7 +112,7 @@ pub(in crate::compiler) fn expand_authored_directives(
 /// # Errors
 ///
 /// Returns the host generator's failure for a conditional helper's name.
-pub(in crate::compiler) fn expand_authored_variant(
+fn expand_authored_variant(
     prelude: &str,
     body: &str,
     theme: &ThemeIndex,
@@ -161,7 +161,7 @@ pub(in crate::compiler) fn expand_authored_variant(
 ///
 /// Separators inside quotes, parentheses, brackets, or braces stay part of the item
 /// they belong to, which is what allows a variant prelude to contain `:is(a, b)`.
-pub(in crate::compiler) fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
+fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
     let mut stack = Vec::new();
@@ -278,6 +278,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css_source;
 
@@ -346,11 +347,11 @@ mod tests {
             "#,
         )
         .unwrap();
-        let snapshot = stillwind_design_system::DesignSystemSnapshot::from_source(
+        let snapshot = DesignSystemSnapshot::from_source(
             &source,
             CssSourceName::from("stillwind.css"),
-            stillwind_design_system::DesignSystemOptions {
-                utility_order: stillwind_design_system::UtilityOrderMode::Tailwind,
+            DesignSystemOptions {
+                utility_order: UtilityOrderMode::Tailwind,
                 ..Default::default()
             },
         )

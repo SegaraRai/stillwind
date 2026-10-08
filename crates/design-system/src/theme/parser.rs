@@ -170,10 +170,7 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
 /// # Errors
 ///
 /// Returns a block or offset error, or an unterminated `@theme` block error.
-pub(crate) fn extract_theme_tokens(
-    file: FileId,
-    css: &str,
-) -> Result<ThemeBuilder, CompileDiagnostic> {
+fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, CompileDiagnostic> {
     let mut tokens = Vec::new();
     for (range, modifier) in theme_blocks(css)? {
         let mode = ThemeTokenMode::parse(&modifier);

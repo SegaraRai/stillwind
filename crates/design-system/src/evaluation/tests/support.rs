@@ -29,7 +29,7 @@ pub(super) const SIMPLE_CSSWG_TERMS: &[&str] = &[
 ];
 
 /// Property names a formal syntax references through `<'property'>`.
-pub(super) fn property_references(syntax: &str) -> Vec<&str> {
+fn property_references(syntax: &str) -> Vec<&str> {
     let mut references = Vec::new();
     let mut remainder = syntax;
     while let Some(start) = remainder.find("<'") {

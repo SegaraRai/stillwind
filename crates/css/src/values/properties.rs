@@ -25,7 +25,7 @@ use super::webref::webref_property;
 /// variants exist only where Lightning CSS has no parser yet; each one maps to a narrow
 /// function below and has accept/reject boundary tests.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum CssPropertyGrammar {
+enum CssPropertyGrammar {
     /// The property grammar provided by Lightning CSS.
     LightningCss,
     /// The CSS `columns` property grammar.
@@ -56,7 +56,7 @@ pub(crate) enum CssPropertyGrammar {
 ///
 /// Matching is ASCII case-insensitive, and every entry must have a narrow validator and
 /// a boundary test; an unchecked catch-all would silently accept invalid CSS.
-pub(crate) const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
+const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
     // These established properties are not represented by the current Lightning
     // CSS property table. Keep their grammar exceptions explicit and covered by
     // acceptance/rejection tests.
@@ -171,7 +171,7 @@ impl CssProperty {
 
 /// Validates the `columns` shorthand: `auto` or `<length>` for the width, and `auto` or
 /// a positive integer for the count, at most one of each in any order.
-pub(crate) fn columns_value(value: &str) -> bool {
+fn columns_value(value: &str) -> bool {
     let values = value.split_whitespace().collect::<Vec<_>>();
     if values.is_empty() || values.len() > 2 {
         return false;
@@ -192,7 +192,7 @@ pub(crate) fn columns_value(value: &str) -> bool {
 
 /// Validates `contain`: one of the single keywords, or up to five component keywords
 /// with no two adjacent ones equal.
-pub(crate) fn contain_value(value: &str) -> bool {
+fn contain_value(value: &str) -> bool {
     const SINGLE: &[&str] = &["none", "strict", "content"];
     const COMPONENTS: &[&str] = &["size", "inline-size", "layout", "style", "paint"];
     let values = value.split_whitespace().collect::<Vec<_>>();
@@ -205,7 +205,7 @@ pub(crate) fn contain_value(value: &str) -> bool {
 
 /// Validates `font-feature-settings`: `normal`, or a comma-separated list of
 /// four-character ASCII tags with an optional `on`/`off`/integer value.
-pub(crate) fn font_feature_settings(value: &str) -> bool {
+fn font_feature_settings(value: &str) -> bool {
     let value = value.trim();
     value == "normal"
         || value.split(',').all(|feature| {
@@ -227,7 +227,7 @@ pub(crate) fn font_feature_settings(value: &str) -> bool {
 
 /// Validates `will-change`: `auto`, or a comma-separated list of `scroll-position`,
 /// `contents`, or custom identifiers.
-pub(crate) fn will_change(value: &str) -> bool {
+fn will_change(value: &str) -> bool {
     let value = value.trim();
     value == "auto"
         || value.split(',').all(|item| {
@@ -239,7 +239,7 @@ pub(crate) fn will_change(value: &str) -> bool {
 /// Approximate custom-identifier check using character classes and lowercase CSS-wide
 /// keyword exclusions. It accepts non-ASCII characters but does not implement CSS
 /// escape decoding or the full identifier grammar.
-pub(crate) fn custom_ident(value: &str) -> bool {
+pub(super) fn custom_ident(value: &str) -> bool {
     value
         .chars()
         .next()
@@ -259,13 +259,13 @@ pub(crate) fn custom_ident(value: &str) -> bool {
 /// given keyword (for example `none`).
 ///
 /// An empty list is only valid through the keyword.
-pub(crate) fn dashed_ident_list(value: &str, keyword: &str) -> bool {
+fn dashed_ident_list(value: &str, keyword: &str) -> bool {
     let value = value.trim();
     value == keyword || (!value.is_empty() && value.split_whitespace().all(dashed_ident))
 }
 
 /// True for a dashed ident: `--` followed by at least one identifier character.
-pub(crate) fn dashed_ident(value: &str) -> bool {
+pub(super) fn dashed_ident(value: &str) -> bool {
     let Some(rest) = value.strip_prefix("--") else {
         return false;
     };
@@ -282,7 +282,7 @@ pub(crate) fn dashed_ident(value: &str) -> bool {
 ///
 /// `center` appears in both lists, so `center center` is accepted while two keywords of
 /// the same axis are not.
-pub(crate) fn position_area(value: &str) -> bool {
+fn position_area(value: &str) -> bool {
     const HORIZONTAL: &[&str] = &[
         "left",
         "center",
@@ -342,7 +342,7 @@ pub(crate) fn position_area(value: &str) -> bool {
 
 /// Validates `position-try-fallbacks`: a non-empty comma-separated list of dashed
 /// idents or flip tactics.
-pub(crate) fn position_try_fallbacks(value: &str) -> bool {
+fn position_try_fallbacks(value: &str) -> bool {
     const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start", "flip-end"];
     value.split(',').all(|item| {
         let item = item.trim();

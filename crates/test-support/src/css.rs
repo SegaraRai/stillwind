@@ -30,7 +30,7 @@ pub fn source(id: FileId, css: impl AsRef<str>) -> Result<SourceFile, SourceErro
 }
 
 /// Returns the standard CSS package's path relative to this crate's manifest.
-pub fn package_root() -> PathBuf {
+fn package_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/core")
 }
 

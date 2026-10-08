@@ -15,6 +15,7 @@
 use std::ops::Range;
 
 use cssparser::{Parser, Token};
+
 use stillwind_css::properties_interfere;
 use stillwind_diagnostics::CompileDiagnostic;
 

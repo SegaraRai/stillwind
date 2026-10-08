@@ -124,16 +124,16 @@ impl From<&str> for ValueExpr {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Property {
     /// Preconverted CSS text for literal custom-property values.
-    pub static_value: Option<String>,
+    pub(crate) static_value: Option<String>,
     /// Compiler-generated expression already producing CSS text. Used when
     /// `static_value` is absent, before falling back to source-value conversion.
-    pub computed_value: Option<ValueExpr>,
+    pub(crate) computed_value: Option<ValueExpr>,
     /// Decoded property name, without JavaScript quoting.
-    pub name: String,
+    pub(crate) name: String,
     /// Verbatim UTF-8 expression text equal to the original source slice at `span`.
-    pub value: String,
+    pub(crate) value: String,
     /// Original-source UTF-8 value span identifying this occurrence and its import realm.
-    pub span: Span,
+    pub(crate) span: Span,
 }
 
 /// Lowered class contributions with the guards and property groups needed for folding.

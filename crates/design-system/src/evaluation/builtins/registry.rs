@@ -23,7 +23,7 @@ pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
 /// an exact name wins over wildcards, otherwise the longest prefix wins. Equal
 /// specificity selects the last matching entry. [`usize::MAX`] sorts an unregistered
 /// property last.
-pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> usize {
+pub(in crate::evaluation) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> usize {
     theme
         .registry()
         .arbitrary_property_order()
@@ -40,18 +40,22 @@ pub(crate) fn arbitrary_property_order(property: &str, theme: &ThemeIndex) -> us
 }
 
 /// Built-in variant definitions in authored order.
-pub(crate) fn builtin_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
+pub(in crate::evaluation) fn builtin_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
     theme.registry().variants()
 }
 
 /// Built-in animation option definitions, kept apart from ordinary utilities.
-pub(crate) fn builtin_animation_options(theme: &ThemeIndex) -> &[Arc<CustomUtility>] {
+pub(in crate::evaluation) fn builtin_animation_options(
+    theme: &ThemeIndex,
+) -> &[Arc<CustomUtility>] {
     theme.registry().animation_options()
 }
 
 /// CSS-authored declaration projections applied when a utility is used as an animation
 /// option.
-pub(crate) fn animation_option_property_mappings(theme: &ThemeIndex) -> &BTreeMap<String, String> {
+pub(in crate::evaluation) fn animation_option_property_mappings(
+    theme: &ThemeIndex,
+) -> &BTreeMap<String, String> {
     theme.registry().animation_property_mappings()
 }
 

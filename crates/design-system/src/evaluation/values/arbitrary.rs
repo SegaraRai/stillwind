@@ -5,18 +5,18 @@
 //! happens, and its spelling rules are the same for every namespace.
 
 /// A CSS-variable capture: `(--name)` or `(hint:--name)`.
-pub(crate) struct CssVariable<'a> {
+pub(in crate::evaluation) struct CssVariable<'a> {
     /// Value-type hint written before the colon, when present.
-    pub(crate) hint: Option<&'a str>,
+    pub(in crate::evaluation) hint: Option<&'a str>,
     /// The custom-property name, which always starts with `--`.
-    pub(crate) name: &'a str,
+    pub(in crate::evaluation) name: &'a str,
 }
 
 /// Parses a parenthesized custom-property capture.
 ///
 /// Both parentheses and the `--` prefix are required; anything else, including a bare
 /// name or an unclosed group, is not a variable capture.
-pub(crate) fn parse_css_variable(value: &str) -> Option<CssVariable<'_>> {
+pub(in crate::evaluation) fn parse_css_variable(value: &str) -> Option<CssVariable<'_>> {
     let value = value.strip_prefix('(')?.strip_suffix(')')?;
     let (hint, name) = value
         .split_once(':')
@@ -29,7 +29,7 @@ pub(crate) fn parse_css_variable(value: &str) -> Option<CssVariable<'_>> {
 /// A backslash escapes the next character, so `\_` is an underscore rather than the
 /// space that a bare `_` produces. Every other character is kept as written, which is
 /// why this cannot be a general CSS unescaper.
-pub(crate) fn decode_arbitrary(value: &str) -> String {
+pub(in crate::evaluation) fn decode_arbitrary(value: &str) -> String {
     let mut result = String::new();
     let mut escaped = false;
     for character in value.chars() {
@@ -53,7 +53,7 @@ pub(crate) fn decode_arbitrary(value: &str) -> String {
 /// is already a percentage and is only given its unit. A `var()` reference is passed
 /// through unchanged because its value is not known here, and anything that is not a
 /// number produces [`None`].
-pub(crate) fn alpha(value: &str) -> Option<String> {
+pub(in crate::evaluation) fn alpha(value: &str) -> Option<String> {
     if value.starts_with("var(") {
         return Some(value.to_owned());
     }

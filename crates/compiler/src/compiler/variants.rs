@@ -154,7 +154,7 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
 ///
 /// Definition-level rules such as keyframes and view-transition pseudo-elements have no
 /// element to select, so only `@media` and `@supports` can contain them.
-pub(super) fn conditions_only(paths: &[Vec<VariantStep<'_>>]) -> bool {
+fn conditions_only(paths: &[Vec<VariantStep<'_>>]) -> bool {
     paths
         .iter()
         .flatten()

@@ -26,7 +26,7 @@ use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
 /// returns [`None`]. The named-token path rejects non-ASCII captures; this is a
 /// restriction of this lookup, not of the general candidate parser. Typed arbitrary
 /// and variable captures are attempted before that restriction.
-pub(crate) fn theme_value(
+pub(in crate::evaluation) fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
@@ -72,7 +72,7 @@ pub(crate) fn theme_value(
 ///
 /// Use this for fallback branches that must not depend on a variable being defined
 /// elsewhere; it falls back to [`theme_value`] when no token matches.
-pub(crate) fn theme_value_literal(
+pub(in crate::evaluation) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
@@ -96,7 +96,7 @@ pub(crate) fn theme_value_literal(
 /// A namespace without declared types accepts any spelling; a hint is checked before
 /// the value itself, so `[time:2s]` is rejected for a length-only namespace even though
 /// `2s` is a valid value of some other type.
-pub(crate) fn typed_theme_arbitrary(
+fn typed_theme_arbitrary(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
@@ -118,7 +118,10 @@ pub(crate) fn typed_theme_arbitrary(
 }
 
 /// The value types declared for a namespace by the selected built-ins.
-pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace, theme: &ThemeIndex) -> &[ValueType] {
+pub(in crate::evaluation) fn theme_arbitrary_types(
+    namespace: ThemeNamespace,
+    theme: &ThemeIndex,
+) -> &[ValueType] {
     builtin_theme_namespace_types(theme)
         .get(&namespace)
         .map_or(&[], Vec::as_slice)
@@ -128,7 +131,7 @@ pub(crate) fn theme_arbitrary_types(namespace: ThemeNamespace, theme: &ThemeInde
 ///
 /// Zero is a valid numerator but not a denominator, and both components are limited to
 /// unsigned 16-bit integers so a fraction cannot overflow.
-pub(crate) fn fraction_value(value: &str) -> Option<String> {
+pub(in crate::evaluation) fn fraction_value(value: &str) -> Option<String> {
     let (numerator, denominator) = value.split_once('/')?;
     let numerator = numerator.parse::<u16>().ok()?;
     let denominator = denominator.parse::<u16>().ok()?;
@@ -137,7 +140,7 @@ pub(crate) fn fraction_value(value: &str) -> Option<String> {
 
 /// The viewport axis used by the `screen` size keyword.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ViewportAxis {
+pub(in crate::evaluation) enum ViewportAxis {
     Width,
     Height,
 }
@@ -155,7 +158,10 @@ impl ViewportAxis {
 ///
 /// `viewport_axis` only decides which viewport unit the bare `screen` keyword expands
 /// to for the axis the utility belongs to.
-pub(crate) fn axis_size_value(value: &str, viewport_axis: ViewportAxis) -> Option<String> {
+pub(in crate::evaluation) fn axis_size_value(
+    value: &str,
+    viewport_axis: ViewportAxis,
+) -> Option<String> {
     let value = match value {
         "auto" => "auto".to_owned(),
         "full" => "100%".to_owned(),
@@ -175,7 +181,7 @@ pub(crate) fn axis_size_value(value: &str, viewport_axis: ViewportAxis) -> Optio
     Some(value)
 }
 
-pub(crate) fn typed_css_variable<'a>(
+fn typed_css_variable<'a>(
     namespace: ThemeNamespace,
     value: &'a str,
     theme: &EvaluationContext<'_>,

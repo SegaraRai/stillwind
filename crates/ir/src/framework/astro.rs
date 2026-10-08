@@ -6,7 +6,7 @@
 use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 
 /// Astro receives custom properties as a serialized style string.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Astro,
     macro_import: "stillwind/astro",
     runtime_import: "stillwind/astro/runtime",

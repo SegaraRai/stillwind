@@ -108,33 +108,33 @@ struct PendingRegion {
 /// not individually rolled back on failure.
 pub(super) struct CallEmitterInputs<'a> {
     /// Original buffer used to slice user expressions.
-    pub source: &'a SourceFile,
+    pub(super) source: &'a SourceFile,
     /// Compiler identity of the source module.
-    pub module_id: &'a ModuleId,
+    pub(super) module_id: &'a ModuleId,
     /// Compiler configuration for this call.
-    pub options: &'a CompilerOptions,
+    pub(super) options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
-    pub identifiers: &'a IdentifierContext,
+    pub(super) identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry.
-    pub theme: &'a ThemeIndex,
+    pub(super) theme: &'a ThemeIndex,
     /// Analyzed style call to lower.
-    pub call: &'a StyleCall,
+    pub(super) call: &'a StyleCall,
     /// Shared destination for compilation errors.
-    pub diagnostics: &'a mut Vec<CompileError>,
+    pub(super) diagnostics: &'a mut Vec<CompileError>,
     /// Shared destination for lint findings, appended in encounter order.
-    pub lint_findings: &'a mut Vec<LintFinding>,
+    pub(super) lint_findings: &'a mut Vec<LintFinding>,
     /// Shared destination for module CSS contributions.
-    pub utility_css: &'a mut Vec<CssContribution>,
+    pub(super) utility_css: &'a mut Vec<CssContribution>,
     /// Shared destination for generated symbol records.
-    pub symbols: &'a mut Vec<GeneratedSymbol>,
+    pub(super) symbols: &'a mut Vec<GeneratedSymbol>,
     /// Previously emitted (class name, canonical input) pairs used to suppress
     /// identical units.
-    pub emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    pub(super) emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
     /// Referenced runtime identities used to retain declarations that need runtime
     /// values.
-    pub runtime_assets: &'a mut BTreeSet<IdentityId>,
+    pub(super) runtime_assets: &'a mut BTreeSet<IdentityId>,
     /// Definition identities whose CSS the module must emit, recorded by each use.
-    pub required_definitions: &'a mut BTreeSet<IdentityId>,
+    pub(super) required_definitions: &'a mut BTreeSet<IdentityId>,
 }
 
 pub(in crate::compiler) use style_analysis::collect_declarations;

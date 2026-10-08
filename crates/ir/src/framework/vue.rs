@@ -8,7 +8,7 @@
 use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression, StyleFormat};
 
 /// Vue uses `class` and object styles in both SFC templates and JSX.
-pub const SPEC: FrameworkSpec = FrameworkSpec {
+pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
     runtime_import: "stillwind/vue/runtime",

@@ -43,5 +43,7 @@ mod stylesheet_plan;
 pub use dependencies::DependencyIndex;
 pub use project_stylesheet::ProjectStylesheet;
 pub use reserved::ReservedNames;
-pub use session::*;
-pub use stylesheet_plan::*;
+pub use session::{ModuleUpdate, ProjectSession, SessionMode, SessionReload, SessionReloadError};
+pub use stylesheet_plan::{
+    StylesheetCoverage, StylesheetPart, StylesheetPlan, StylesheetPlanError, StylesheetSelection,
+};

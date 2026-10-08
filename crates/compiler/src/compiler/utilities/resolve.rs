@@ -48,15 +48,15 @@ pub(crate) struct CompiledUtility {
 #[derive(Clone, Debug, Default)]
 pub(in crate::compiler) struct UtilitySource {
     /// Candidate range with decoded offsets until the emitter maps it to original source.
-    pub span: Option<Span>,
+    pub(in crate::compiler) span: Option<Span>,
     /// Direct selections preserved before inline theme values expand.
-    pub token_uses: Vec<UtilityTokenUse>,
+    pub(in crate::compiler) token_uses: Vec<UtilityTokenUse>,
     /// Accepted captures before source values expand into declaration text.
-    pub arbitrary_uses: Vec<UtilityArbitraryUse>,
+    pub(in crate::compiler) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Ranges of variants written in the utility literal, in candidate order.
-    pub variant_spans: Vec<Span>,
+    pub(in crate::compiler) variant_spans: Vec<Span>,
     /// Leading variants already checked at their wrapper source locations.
-    pub wrapper_variant_count: usize,
+    pub(in crate::compiler) wrapper_variant_count: usize,
 }
 
 /// Resolves a candidate and returns its first target, for callers that render a single rule.

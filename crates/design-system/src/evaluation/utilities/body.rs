@@ -36,32 +36,32 @@ pub struct UtilityResolutionError {
 
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct UtilityResolution {
-    pub(crate) token_uses: Vec<UtilityTokenUse>,
-    pub(crate) arbitrary_uses: Vec<UtilityArbitraryUse>,
+pub(in crate::evaluation) struct UtilityResolution {
+    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
+    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the matched selector, or for the utility itself.
-    pub(crate) declaration: String,
+    pub(in crate::evaluation) declaration: String,
     /// Explicit custom-property registration dependencies collected from requirement
     /// directives, independent of textual var references.
-    pub(crate) required_properties: Vec<String>,
+    pub(in crate::evaluation) required_properties: Vec<String>,
     /// Selector template from the body, when the body wrapped its declarations.
-    pub(crate) selector: Option<String>,
+    pub(in crate::evaluation) selector: Option<String>,
     /// Conditional declarations to emit next to the base declaration.
-    pub(crate) nested: Vec<NestedUtilityRule>,
+    pub(in crate::evaluation) nested: Vec<NestedUtilityRule>,
     /// Extra selector targets produced by further overloads.
-    pub(crate) additional: Vec<ResolvedUtilityTarget>,
+    pub(in crate::evaluation) additional: Vec<ResolvedUtilityTarget>,
     /// Authored position of the matched definition: its registration offset when the
     /// snapshot orders by authored position, otherwise the built-in registry offset.
     /// `None` when the definition has no position, as for synthetic rules.
-    pub(crate) builtin_order: Option<usize>,
+    pub(in crate::evaluation) builtin_order: Option<usize>,
     /// `(tw-sort: property)` value authored on the definition header, which replaces
     /// the resolved property indices when the snapshot selects Tailwind ordering.
-    pub(crate) tw_sort: Option<String>,
+    pub(in crate::evaluation) tw_sort: Option<String>,
 }
 
 impl UtilityResolution {
     /// A declaration with no selector, conditionals, or ordering.
-    pub(crate) fn plain(declaration: String) -> Self {
+    pub(in crate::evaluation) fn plain(declaration: String) -> Self {
         Self {
             token_uses: Vec::new(),
             arbitrary_uses: Vec::new(),
@@ -87,7 +87,7 @@ impl UtilityResolution {
 ///
 /// Returns a malformed property requirement with its definition name and byte offset.
 #[allow(clippy::too_many_lines)]
-pub(crate) fn resolve_css_utility_body(
+pub(in crate::evaluation) fn resolve_css_utility_body(
     utility: &CustomUtility,
     name: &str,
     modifier: Option<&Value>,
@@ -107,7 +107,7 @@ pub(crate) fn resolve_css_utility_body(
 
 /// Structural utility syntax retained by the immutable evaluator.
 #[derive(Debug)]
-pub(crate) struct PreparedUtilityBody {
+pub(in crate::evaluation) struct PreparedUtilityBody {
     body: String,
     selector: Option<String>,
     parent_body: Option<String>,
@@ -117,7 +117,9 @@ pub(crate) struct PreparedUtilityBody {
 }
 
 impl PreparedUtilityBody {
-    pub(crate) fn parse(text: &str) -> Result<Option<Self>, PropertyRequirementError> {
+    pub(in crate::evaluation) fn parse(
+        text: &str,
+    ) -> Result<Option<Self>, PropertyRequirementError> {
         if text.contains("@slot") {
             return Ok(None);
         }
@@ -143,7 +145,7 @@ impl PreparedUtilityBody {
         }))
     }
 
-    pub(crate) fn declaration_groups(&self) -> impl Iterator<Item = &str> {
+    pub(in crate::evaluation) fn declaration_groups(&self) -> impl Iterator<Item = &str> {
         std::iter::once(self.body.as_str())
             .chain(self.parent_body.as_deref())
             .chain(self.nested.iter().map(|rule| rule.body.as_str()))
@@ -307,7 +309,7 @@ fn resolve_valid_utility_body(
 /// This is how a wildcard definition such as `max-w-*` learns its variants from the
 /// theme. Tokens that are not numeric lengths sort last, so an unparsable value cannot
 /// displace a real scale.
-pub(crate) fn expand_theme_wildcard_nested(
+fn expand_theme_wildcard_nested(
     condition: &str,
     body: &str,
     theme: &ThemeIndex,
@@ -350,7 +352,7 @@ pub(crate) fn expand_theme_wildcard_nested(
 ///
 /// A value that is not a plain length is infinite, which keeps it after every
 /// measurable length regardless of the author's unit choice.
-pub(crate) fn css_length_sort_key(value: &str) -> f64 {
+fn css_length_sort_key(value: &str) -> f64 {
     let value = value.trim();
     for (unit, scale) in [("rem", 16.0), ("em", 16.0), ("px", 1.0)] {
         if let Some(number) = value.strip_suffix(unit)

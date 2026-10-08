@@ -13,7 +13,7 @@ use super::validation::ValueType;
 ///
 /// The comparison trims whitespace and is case-sensitive, so only the canonical
 /// lowercase spelling is recognized.
-pub(crate) fn is_css_wide_keyword(value: &str) -> bool {
+pub(super) fn is_css_wide_keyword(value: &str) -> bool {
     matches!(
         value.trim(),
         "initial" | "inherit" | "unset" | "revert" | "revert-layer"

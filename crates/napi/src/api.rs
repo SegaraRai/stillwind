@@ -142,7 +142,7 @@ pub fn compile_source_input(
 ///
 /// Returns invalid reporting coordinates. Invalid source replacements become
 /// compilation diagnostics with no generated output.
-pub(super) fn binding_output(
+fn binding_output(
     result: CompileResult,
     source: &SourceFile,
     sources: &SourceRegistry,

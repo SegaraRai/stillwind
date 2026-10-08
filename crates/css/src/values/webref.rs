@@ -16,19 +16,19 @@ use std::collections::BTreeSet;
 /// Standards by W3C Webref. The generated table is the source of truth for
 /// supported property names and their formal value syntax.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct WebrefPropertySyntax {
+pub(super) struct WebrefPropertySyntax {
     /// Property name as published by Webref, for example `grid-template-columns`.
-    pub name: &'static str,
+    pub(super) name: &'static str,
     /// The property's formal value syntax, with Webref's own notation.
-    pub syntax: &'static str,
+    pub(super) syntax: &'static str,
     /// Longhands the property sets directly; empty when it is not a shorthand, so a
     /// nested shorthand lists the shorthands it expands to.
-    pub longhands: &'static [&'static str],
+    pub(super) longhands: &'static [&'static str],
     /// Webref's logical property group, for example `margin` for `margin-block-start`
     /// and `margin-top`; absent for properties no writing mode maps onto another one.
-    pub logical_group: Option<&'static str>,
+    pub(super) logical_group: Option<&'static str>,
     /// Specification URL the definition was taken from.
-    pub href: &'static str,
+    pub(super) href: &'static str,
 }
 
 include!("../../assets/webref-properties.rs");
@@ -38,7 +38,7 @@ include!("../../assets/webref-properties.rs");
 /// `None` means Webref publishes no property with that name, not that the
 /// name is invalid CSS; the exception table in `properties` depends on this
 /// distinction.
-pub(crate) fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
+pub(super) fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
     WEBREF_PROPERTIES
         .iter()
         .find(|property| property.name.eq_ignore_ascii_case(name))

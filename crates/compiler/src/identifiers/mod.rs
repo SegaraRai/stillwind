@@ -16,7 +16,7 @@ mod name;
 mod request;
 
 pub use generator::{
-    DetachedName, GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, Identifiers,
+    GeneratedName, GeneratorSet, IdentifierContext, IdentifierGenerator, Identifiers,
     RejectedIdentifier, RejectedNames,
 };
 pub use kind::{IdentifierKind, IdentifierMode, IdentifierPool};
@@ -37,3 +37,5 @@ pub(crate) use request::declaration_fields;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) use generator::DetachedName;

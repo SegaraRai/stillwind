@@ -21,9 +21,9 @@ use crate::CompilerOptions;
 #[derive(Default)]
 pub(super) struct PropertyOutput {
     /// Complete `@property` rules in registry order after duplicate-name selection.
-    pub registrations: String,
+    pub(super) registrations: String,
     /// Builtin fallback declarations in the same selected order, without a selector.
-    pub initials: String,
+    pub(super) initials: String,
 }
 
 /// Selects registration rules and builtin fallback declarations required by `usage`.
