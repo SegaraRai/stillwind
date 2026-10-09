@@ -1,4 +1,8 @@
-//! Candidate previews share utility resolution and CSS emission with module compilation.
+//! Candidate previews share utility resolution and CSS emission with module
+//! compilation.
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use stillwind_design_system::{
     DesignSystemRevision, UtilityResolutionError, builtin_property_definitions, resolve_variant,
@@ -9,10 +13,11 @@ use stillwind_syntax::{Candidate, parse_candidate};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{
-    RuleBoundaries, emit_utility_rules, resolve_utility_targets, unresolved_utility_kind,
+    RuleBoundaries, emit_utility_rules, lower_conditionals, preview_resource_urls,
+    resolve_utility_targets, unresolved_utility_kind,
 };
-use crate::identifiers::{ClassContext, DEFAULT_HASH_LENGTH, IdentifierContext};
-use crate::{GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
+use crate::identifiers::{ClassContext, DEFAULT_HASH_LENGTH, IdentifierContext, PreviewNames};
+use crate::{CssContribution, GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
 
 /// Everything one candidate produces for an editor.
 ///
@@ -32,7 +37,8 @@ pub struct CandidateResolution {
     /// Theme tokens the rendered CSS references.
     pub referenced_tokens: Vec<String>,
     /// Resolution or generated-CSS failures in synthetic file 0. The primary range is
-    /// `0..min(candidate.len(), u32::MAX)` in UTF-8 bytes, not a host document location.
+    /// `0..min(candidate.len(), u32::MAX)` in UTF-8 bytes, not a host document
+    /// location.
     pub diagnostics: Vec<LintFinding>,
 }
 
@@ -54,8 +60,9 @@ impl DesignSystemQuery {
     /// candidate text alone, so the declarations a caller sees are the declarations the
     /// candidate would contribute, independent of any module. A candidate whose
     /// variants do not all resolve is reported as unresolved rather than previewed
-    /// partially. Failures are typed lint findings over synthetic file 0; hosts must map
-    /// their labels to the editor buffer before reporting or applying source suppression.
+    /// partially. Failures are typed lint findings over synthetic file 0; hosts must
+    /// map their labels to the editor buffer before reporting or applying source
+    /// suppression.
     ///
     /// # Errors
     ///
@@ -93,7 +100,8 @@ impl DesignSystemQuery {
         }))
     }
 
-    /// Returns the resolution and generated-CSS findings from [`Self::resolve_candidate`].
+    /// Returns the resolution and generated-CSS findings from
+    /// [`Self::resolve_candidate`].
     ///
     /// The finding carries a synthetic span over the candidate text, because a query
     /// has no source buffer to point into. A successful preview returns an empty list.
@@ -110,6 +118,51 @@ impl DesignSystemQuery {
 }
 
 impl QueryContext {
+    /// Lowers runtime conditionals in balanced declaration CSS using the configured
+    /// mode and fresh display names, then restores authored URLs. `css` must already
+    /// use the intended subject and prefix spelling. Failed lowering returns `None`
+    /// without partial output; this operation does not validate arbitrary CSS or add
+    /// document support rules.
+    pub(super) fn preview_declarations(&self, css: &str) -> Option<String> {
+        lower_conditionals(css, self.options.use_css_if, &candidate_identifiers(true))
+            .ok()
+            .map(|css| preview_resource_urls(css, &self.design_system))
+    }
+
+    /// Rewrites contributions in place with merge barriers shared by this `candidate`.
+    /// When `preview` is true, runtime conditionals are also lowered using this query's
+    /// configured mode. `identifiers` supplies names consistently across the
+    /// contributions. Failed contributions are cleared and reported against `span`,
+    /// which addresses the synthetic candidate input. Successful contributions remain
+    /// even if another fails.
+    fn finalize_rules(
+        &self,
+        candidate: &str,
+        contributions: &mut [CssContribution],
+        identifiers: &IdentifierContext,
+        preview: bool,
+        span: Span,
+    ) -> Vec<LintFinding> {
+        let mut boundaries = RuleBoundaries::new(format!("preview\0{candidate}"), identifiers);
+        let mut diagnostics = Vec::new();
+        for contribution in contributions {
+            let css = boundaries.render(&contribution.css).and_then(|css| {
+                if preview {
+                    lower_conditionals(&css, self.options.use_css_if, identifiers)
+                } else {
+                    Ok(css)
+                }
+            });
+            if let Ok(css) = css {
+                contribution.css = css;
+            } else {
+                contribution.css.clear();
+                diagnostics.push(invalid_candidate_css(candidate, span, 0));
+            }
+        }
+        diagnostics
+    }
+
     pub(super) fn resolve_with_selector(
         &self,
         candidate: &str,
@@ -136,18 +189,20 @@ impl QueryContext {
         });
         let mut contributions = Vec::new();
         let mut diagnostics = if let Some(targets) = targets {
-            // Helper names use the built-in generator, which accepts every identifier request.
-            let identifiers = IdentifierContext::new(
-                GeneratorSet::default(),
-                IdentifierMode::Release,
-                DEFAULT_HASH_LENGTH,
+            let identifiers = candidate_identifiers(preview_selector.is_some());
+            let emission =
+                emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
+            let mut diagnostics = self.finalize_rules(
+                candidate,
+                &mut contributions,
+                &identifiers,
+                preview_selector.is_some(),
+                span,
             );
-            let _ = emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
-            let mut boundaries = RuleBoundaries::new(format!("preview\0{candidate}"), &identifiers);
-            for contribution in &mut contributions {
-                contribution.css = boundaries.render(&contribution.css).unwrap_or_default();
+            if emission.is_err() {
+                diagnostics.push(invalid_candidate_css(candidate, span, 0));
             }
-            Vec::new()
+            diagnostics
         } else {
             vec![LintFinding::new(
                 LintDiagnostic::UnresolvedCandidate {
@@ -182,6 +237,12 @@ impl QueryContext {
             .collect();
         for contribution in &mut contributions {
             contribution.css = self.options.rewrite_generated(&contribution.css);
+            if preview_selector.is_some() {
+                contribution.css = preview_resource_urls(
+                    std::mem::take(&mut contribution.css),
+                    &self.design_system,
+                );
+            }
             for name in &mut contribution.required_properties {
                 *name = self.options.rewrite_generated(name);
             }
@@ -189,13 +250,7 @@ impl QueryContext {
         let generated_rules = match ModuleCssArtifact::from_contributions(&contributions) {
             Ok(artifact) => artifact.rules,
             Err(offset) => {
-                diagnostics.push(LintFinding::new(
-                    LintDiagnostic::InvalidCandidateCss {
-                        offset,
-                        classification: unresolved_utility_kind(candidate),
-                    },
-                    span,
-                ));
+                diagnostics.push(invalid_candidate_css(candidate, span, offset));
                 Vec::new()
             }
         };
@@ -226,6 +281,36 @@ fn candidate_selector(candidate: &str) -> String {
     .unwrap_or_default()
 }
 
+/// Starts an independent context with built-in release naming and the default hash
+/// length. A true `preview` adds fresh readable names for helpers; it does not select
+/// a CSS subject.
+fn candidate_identifiers(preview: bool) -> IdentifierContext {
+    let identifiers = IdentifierContext::new(
+        GeneratorSet::default(),
+        IdentifierMode::Release,
+        DEFAULT_HASH_LENGTH,
+    );
+    if preview {
+        identifiers.with_preview_names(Rc::new(RefCell::new(PreviewNames::default())))
+    } else {
+        identifiers
+    }
+}
+
+/// Reports invalid generated CSS at `span`, classified from the original `candidate`.
+/// `offset` is a UTF-8 byte offset within the failed CSS contribution. Zero also
+/// represents an emission failure without a parser location. It is not added to the
+/// synthetic candidate span.
+fn invalid_candidate_css(candidate: &str, span: Span, offset: usize) -> LintFinding {
+    LintFinding::new(
+        LintDiagnostic::InvalidCandidateCss {
+            offset,
+            classification: unresolved_utility_kind(candidate),
+        },
+        span,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -237,6 +322,7 @@ mod tests {
     use stillwind_source::{CssSourceName, SourceFile};
     use stillwind_test_support::css_source;
 
+    use super::super::CandidateContext;
     use super::*;
     use crate::{CompilerOptions, CompletionInput, Identifiers, ModuleCompiler};
 
@@ -328,7 +414,8 @@ mod tests {
         assert!(
             query
                 .complete_candidate(CompletionInput {
-                    prefix: "br".into()
+                    prefix: "br".into(),
+                    context: CandidateContext::Utility,
                 })
                 .unwrap()
                 .iter()

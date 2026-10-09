@@ -54,8 +54,13 @@ impl CallEmitter<'_> {
         } else {
             Some(self.view_transition_name_property(transition.span.start.0)?)
         };
-        let contribution =
-            self.transition_contribution(token, static_name, name_property.clone(), wrappers)?;
+        let contribution = self.transition_contribution(
+            token,
+            static_name,
+            name_property.clone(),
+            wrappers,
+            transition.span.start.0,
+        )?;
         let analysis_name = contribution
             .view_transitions
             .first()
@@ -125,6 +130,7 @@ impl CallEmitter<'_> {
                 static_name,
                 name_property.clone(),
                 wrappers,
+                value.start.0,
             )?;
             let analysis_name = contribution
                 .view_transitions
@@ -158,6 +164,8 @@ impl CallEmitter<'_> {
     /// `token` is the canonical token, and `name` is an escaped static CSS identifier.
     /// `dynamic_name_property` names a custom property whose runtime value must come
     /// from the same use. It requires at least one CSS variant in `wrappers`.
+    /// `source_offset` is the original receiver's inclusive UTF-8 byte start in this
+    /// module; isolated previews use it to replay slots from the complete call.
     ///
     /// Returns the contribution without allocating names or classes. If variant
     /// resolution fails, it adds a diagnostic and returns `None`.
@@ -167,6 +175,7 @@ impl CallEmitter<'_> {
         name: Option<String>,
         dynamic_name_property: Option<String>,
         wrappers: &[StyleVariant],
+        source_offset: u32,
     ) -> Option<LiteralContribution> {
         let plan = if wrappers.is_empty() {
             None
@@ -187,6 +196,7 @@ impl CallEmitter<'_> {
         Some(LiteralContribution {
             canonical,
             view_transitions: vec![TransitionContribution {
+                source_offset,
                 token,
                 name,
                 dynamic_name_property,

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::{CompilerOptions, CompletionInput, DesignSystemQuery};
+use stillwind_compiler::{CandidateContext, CompilerOptions, CompletionInput, DesignSystemQuery};
 use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
@@ -16,6 +16,55 @@ use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::BindingReport;
+
+/// Selects the compiler contract of a candidate's source position.
+/// Option roles use the animation-option registry and its property mappings. Frame and
+/// phase utilities retain the declarations produced by ordinary utility resolution.
+#[napi(string_enum = "camelCase")]
+pub enum NativeCandidateContext {
+    /// Serialized as `utility` for element utilities with ordinary variants.
+    Utility,
+    /// Serialized as `keyframesFrame`; utility variants are rejected.
+    KeyframesFrame,
+    /// Serialized as `animationOptions`; variants, importance, and negative values are
+    /// rejected.
+    AnimationOptions,
+    /// Serialized as `viewTransitionOptions` for group options with media and supports
+    /// conditions.
+    ViewTransitionOptions,
+    /// Serialized as `viewTransitionUtilities` for phase utilities with media and
+    /// supports conditions.
+    ViewTransitionUtilities,
+    /// Serialized as `definitionVariants` for media and supports prefixes of a
+    /// definition branch.
+    DefinitionVariants,
+}
+
+impl From<NativeCandidateContext> for CandidateContext {
+    fn from(value: NativeCandidateContext) -> Self {
+        match value {
+            NativeCandidateContext::Utility => Self::Utility,
+            NativeCandidateContext::KeyframesFrame => Self::KeyframesFrame,
+            NativeCandidateContext::AnimationOptions => Self::AnimationOptions,
+            NativeCandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
+            NativeCandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
+            NativeCandidateContext::DefinitionVariants => Self::DefinitionVariants,
+        }
+    }
+}
+
+impl From<CandidateContext> for NativeCandidateContext {
+    fn from(value: CandidateContext) -> Self {
+        match value {
+            CandidateContext::Utility => Self::Utility,
+            CandidateContext::KeyframesFrame => Self::KeyframesFrame,
+            CandidateContext::AnimationOptions => Self::AnimationOptions,
+            CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
+            CandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
+            CandidateContext::DefinitionVariants => Self::DefinitionVariants,
+        }
+    }
+}
 
 /// A source operation detected by a host's syntax index and reported through the common lint policy.
 #[napi(object)]
@@ -142,12 +191,26 @@ impl NativeEditorQuery {
         Ok(findings.is_empty())
     }
 
-    /// Renders a valid candidate with the main selector replaced by `&`. Invalid candidates return null.
+    /// Renders decoded text under `context`, using `&` as the utility subject. Omitted
+    /// context selects one ordinary utility candidate. Declaration roles accept a token
+    /// list; definition prefixes accept trailing colons and return empty enclosing
+    /// at-rules. Results omit enclosing source conditions and document support
+    /// declarations. Invalid input or failed conditional lowering returns null.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed matching utility requirement for ordinary utility input.
     #[napi]
-    pub fn hover_candidate(&self, candidate: String) -> napi::Result<Option<String>> {
+    pub fn preview_candidate(
+        &self,
+        candidate: String,
+        context: Option<NativeCandidateContext>,
+    ) -> napi::Result<Option<String>> {
         self.query
-            .hover_candidate(&candidate)
-            .map(|result| result.map(|result| result.css))
+            .preview_candidate(
+                &candidate,
+                context.map_or(CandidateContext::Utility, Into::into),
+            )
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
@@ -159,16 +222,32 @@ impl NativeEditorQuery {
         format_css(&css).map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    /// Completes utilities and variants against a partially typed candidate.
+    /// Completes decoded `prefix` text using the registries and variant constraints of
+    /// `context`. The prefix is one partial candidate including any preceding variants;
+    /// omitted context selects ordinary utilities. Returns unique labels in lexical
+    /// order, retaining existing prefixes and ending variant labels with `:`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement while validating a matching ordinary utility
+    /// label.
     #[napi]
-    pub fn complete_candidate(&self, prefix: String) -> napi::Result<Vec<String>> {
+    pub fn complete_candidate(
+        &self,
+        prefix: String,
+        context: Option<NativeCandidateContext>,
+    ) -> napi::Result<Vec<String>> {
         self.query
-            .complete_candidate(CompletionInput { prefix })
+            .complete_candidate(CompletionInput {
+                prefix,
+                context: context.map_or(CandidateContext::Utility, Into::into),
+            })
             .map(|items| items.into_iter().map(|item| item.label).collect())
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    /// Returns -1, 0, or 1 in compiler order, or null if either candidate is unresolved.
+    /// Returns -1, 0, or 1 in compiler order, or null if either candidate is
+    /// unresolved.
     #[napi]
     pub fn compare_candidates(&self, left: String, right: String) -> napi::Result<Option<i32>> {
         self.query
@@ -183,10 +262,12 @@ impl NativeEditorQuery {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
-    /// Returns ranks for full candidate spellings in input order, with null for unresolved inputs.
-    /// Equal candidates share a rank. Ranks apply only to this batch.
+    /// Returns ranks for full candidate spellings in input order, with null for
+    /// unresolved inputs. Equal candidates share a rank. Ranks apply only to this
+    /// batch.
     ///
     /// # Errors
+    ///
     /// Returns malformed matching utility requirements or a rank that exceeds `u32`.
     #[napi]
     pub fn candidate_ranks(&self, candidates: Vec<String>) -> napi::Result<Vec<Option<u32>>> {
@@ -218,7 +299,8 @@ impl NativeEditorQuery {
         color_rgba(&value).map(|components| components.to_vec())
     }
 
-    /// Returns a concrete candidate color in RGBA, or null for contextual or ambiguous colors.
+    /// Returns a concrete candidate color in RGBA, or null for contextual or ambiguous
+    /// colors.
     #[napi]
     pub fn candidate_color(&self, candidate: String) -> napi::Result<Option<Vec<f64>>> {
         self.query

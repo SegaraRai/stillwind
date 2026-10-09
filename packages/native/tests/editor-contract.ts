@@ -1,7 +1,244 @@
+import { readFile } from "node:fs/promises";
+
 import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("editor input roles share compiler registries, declaration mapping, and variant restrictions", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const motion = await readFile(
+      new URL("../../core/css/builtin-utilities/tw-motion.css", import.meta.url),
+      "utf8",
+    );
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `${motion}
+@theme { --duration-normal:180ms; --ease-soft:ease-in; }
+@utility block { display:block; }
+@stillwind-variant hover { &:hover { @slot; } }
+@stillwind-variant media { @media print { @slot; } }
+@stillwind-variant supports { @supports (display:grid) { @slot; } }
+@stillwind-variant container { @container (width>20rem) { @slot; } }
+@stillwind-variant mixed { @media print { &:hover { @slot; } } }
+@stillwind-variant sequence { @media print { @supports (display:grid) { @slot; } } }`,
+    );
+    const query = loader.editorQuery();
+    expect(query.previewCandidate("duration-180", "keyframesFrame")).toContain(
+      "transition-duration:",
+    );
+    expect(query.previewCandidate("duration-normal", "animationOptions")).toBe(
+      "&{animation-duration:var(--duration-normal);}",
+    );
+    expect(query.previewCandidate("[transition-duration:75ms]", "animationOptions")).toBe(
+      "&{animation-duration:75ms;}",
+    );
+    expect(query.previewCandidate("[transition-timing-function:linear]", "animationOptions")).toBe(
+      "&{animation-timing-function:linear;}",
+    );
+    expect(query.previewCandidate("[transition-delay:75ms]", "animationOptions")).toBeNull();
+    expect(query.completeCandidate("duration-no", "animationOptions")).toEqual(["duration-normal"]);
+    expect(query.completeCandidate("ease-(--ease-so", "animationOptions")).toContain(
+      "ease-(--ease-soft)",
+    );
+    for (const candidate of ["hover:block", "media:block"]) {
+      expect(query.previewCandidate(candidate, "keyframesFrame")).toBeNull();
+    }
+    for (const candidate of ["block", "media:both", "!both", "both!", "-duration-180"]) {
+      expect(query.previewCandidate(candidate, "animationOptions")).toBeNull();
+    }
+    for (const context of ["animationOptions", "keyframesFrame"]) {
+      expect(
+        query.completeCandidate("", context).some((label: string) => label.endsWith(":")),
+      ).toBe(false);
+    }
+    for (const context of [
+      "viewTransitionOptions",
+      "viewTransitionUtilities",
+      "definitionVariants",
+    ]) {
+      const labels = query.completeCandidate("", context);
+      expect(labels).toEqual(expect.arrayContaining(["media:", "supports:", "sequence:"]));
+      for (const label of ["hover:", "container:", "mixed:"]) {
+        expect(labels).not.toContain(label);
+      }
+    }
+    expect(query.previewCandidate("media:both", "viewTransitionOptions")).toContain(
+      "@media print{&{animation-fill-mode:both;}}",
+    );
+    expect(query.previewCandidate("sequence:block", "viewTransitionUtilities")).toContain(
+      "@supports (display:grid)",
+    );
+    expect(query.previewCandidate("hover:block", "viewTransitionUtilities")).toBeNull();
+    expect(
+      query
+        .completeCandidate("", "definitionVariants")
+        .every((label: string) => label.endsWith(":")),
+    ).toBe(true);
+  });
+
+  test("module previews keep source boundaries, unused definitions, rejected attempts, and captured revisions", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      "@utility block {display:block;} @utility flex {display:flex;} @stillwind-slot utilities; @stillwind-slot keyframes;",
+    );
+    const session = new NativeProjectSession(loader, true);
+    /** Uses one stable module identity with fresh original text and no checker facts. */
+    const prepare = (code: string): import("../binding.js").NativePreparedSource => ({
+      kind: "direct",
+      moduleId: "entry.tsx",
+      document: {
+        uri: "file:///entry.tsx",
+        code,
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "module",
+      },
+      typeFacts: [],
+    });
+    const source =
+      'import {style} from "stillwind/react"; const 日本語="🦀"; const frames=style.keyframes({from:"block",to:"flex"}); const value=style("block");';
+    session.compile([prepare(source)]);
+    const captured = session.editorModules(["entry.tsx"])[0];
+    expect(captured).not.toBeNull();
+    expect(captured.moduleId()).toBe("entry.tsx");
+    expect(session.editorModules(["unknown.tsx"])).toEqual([]);
+    const input = captured
+      .sites()
+      .find((site: import("../binding.js").NativeEditorSite) => site.context === "keyframesFrame");
+    const text = new TextDecoder().decode(
+      new TextEncoder().encode(source).subarray(input.start, input.end),
+    );
+    expect(text).toBe("block");
+    const css = captured.previewInput(input.start, "flex");
+    expect(css).toContain("from{display:flex;}");
+    expect(css).toContain("@keyframes __keyframes_frames");
+    expect(
+      captured
+        .sites()
+        .find((site: import("../binding.js").NativeEditorSite) => site.kind === "definition").css,
+    ).toContain("to{display:flex;}");
+    const revision = captured.revision();
+    session.compile([prepare(source)]);
+    expect(session.editorModules(["entry.tsx"])[0].revision()).toBe(revision);
+    session.compile([prepare(source.replace('style("block")', 'style({"missing:":"block"})'))]);
+    const rejected = session.editorModules(["entry.tsx"])[0];
+    expect(
+      rejected
+        .sites()
+        .find((site: import("../binding.js").NativeEditorSite) => site.kind === "style").valid,
+    ).toBe(false);
+    expect(rejected.revision()).not.toBe(revision);
+    expect(captured.previewInput(input.start, "flex")).toBe(css);
+    expect(captured.previewInput(input.start, "hover:flex")).toBeNull();
+  });
+
+  test("editor names stay independent of host names while preserving naming failures", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      "@utility block {display:block;} @stillwind-slot utilities; @stillwind-slot keyframes;",
+    );
+    const naming = {
+      keyframesName: () => "app-animation",
+    };
+    const source: import("../binding.js").NativePreparedSource = {
+      kind: "direct",
+      moduleId: "entry.tsx",
+      document: {
+        uri: "file:///entry.tsx",
+        code: 'import {style} from "stillwind/react"; const frames=style.keyframes({from:"block"}); const value=style(frames(""));',
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "module",
+      },
+      typeFacts: [],
+    };
+    const session = new NativeProjectSession(loader, true, "release", naming);
+    const compiled = session.compile([source]);
+    expect(compiled.modules[0].css).toContain("app-animation");
+    const capture = session.editorModules(["entry.tsx", "entry.tsx"]);
+    expect(capture).toHaveLength(1);
+    const css = capture[0]
+      .sites()
+      .find((site: import("../binding.js").NativeEditorSite) => site.kind === "style").css;
+    expect(css).toContain("animation-name:__keyframes_frames");
+    const rejected = new NativeProjectSession(loader, true, "release", {
+      keyframesName: () => {
+        throw new Error("name unavailable");
+      },
+    });
+    rejected.compile([source]);
+    expect(
+      rejected
+        .editorModules(["entry.tsx"])[0]
+        .sites()
+        .filter(
+          (site: import("../binding.js").NativeEditorSite) =>
+            site.kind === "definition" || site.kind === "style",
+        )
+        .every((site: import("../binding.js").NativeEditorSite) => !site.valid && !site.css),
+    ).toBe(true);
+  });
+
+  test("conditional helper names remain stable across replacement preview requests", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(specifier);
+    const loader = new NativeDesignSystemLoader({
+      useCssIf: false,
+    });
+    loader.provide(
+      0,
+      "theme.css",
+      "@utility red {color:--if(--visible,red,blue);} @utility green {color:--if(--active,green,blue);} @stillwind-animation-option fade {animation-duration:--if(--visible,1s,2s);} @utility picture {background-image:url('asset.svg');} @stillwind-slot utilities;",
+    );
+    const session = new NativeProjectSession(loader, true);
+    session.compile([
+      {
+        kind: "direct",
+        moduleId: "entry.tsx",
+        document: {
+          uri: "file:///entry.tsx",
+          code: 'import {style} from "stillwind/react"; const value=style("red");',
+          format: "jsx",
+        },
+        syntax: {
+          language: "tsx",
+          moduleKind: "module",
+        },
+        typeFacts: [],
+      },
+    ]);
+    const captured = session.editorModules(["entry.tsx"])[0];
+    const input = captured
+      .sites()
+      .find((site: import("../binding.js").NativeEditorSite) => site.kind === "input");
+    expect(input.css).toContain("--__if_fallback_1:var(--visible) red");
+    const first = captured.previewInput(input.start, "green");
+    expect(first).toContain("--__if_fallback_2:var(--active) green");
+    captured.previewInput(input.start, "[color:--if(--other,black,white)]");
+    expect(captured.previewInput(input.start, "green")).toBe(first);
+    expect(captured.previewInput(input.start, "red")).toBe(input.css);
+    const query = loader.editorQuery();
+    for (const context of ["utility", "keyframesFrame", "viewTransitionUtilities"]) {
+      expect(query.previewCandidate("red", context)).toContain("--__if_fallback_1");
+      expect(query.previewCandidate("picture", context)).toContain("asset.svg");
+    }
+    for (const context of ["animationOptions", "viewTransitionOptions"]) {
+      expect(query.previewCandidate("fade", context)).toContain("--__if_fallback_1");
+    }
+    expect(query.previewCandidate("[color:--if(--flag,red)]")).toBeNull();
+  });
+
   test("canonical replacements obey token and unit restrictions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const css =
@@ -117,7 +354,7 @@ export function registerEditorContract(specifier: string): void {
     );
     expect(loaded.kind).toBe("complete");
     const query = loader.editorQuery();
-    expect(query.hoverCandidate("good")).not.toBeNull();
+    expect(query.previewCandidate("good")).not.toBeNull();
     expect(() => query.canonicalCandidate("bad-[red]")).toThrow(/bad-\*/);
   });
 
@@ -173,7 +410,7 @@ export function registerEditorContract(specifier: string): void {
       pxToRem: true,
     });
     expect(query.canonicalCandidate("p-[20.5px]")).toBe("p-4");
-    expect(query.hoverCandidate("hover:bg-brand")).toContain("&:hover");
+    expect(query.previewCandidate("hover:bg-brand")).toContain("&:hover");
     expect(query.formatCss("&{color:red;&:hover{color:blue}}")).toBe(
       "& {\n  color: red;\n\n  &:hover {\n    color: #00f;\n  }\n}\n",
     );

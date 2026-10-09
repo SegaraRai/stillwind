@@ -67,8 +67,8 @@ impl Compiler {
 
     /// Compiles a module whose only role is to supply support declarations.
     ///
-    /// Support modules are analyzed like any other module, but their transforms are dropped:
-    /// they are not compiled into a file anyone applies edits to.
+    /// Support modules are analyzed like any other module, but their transforms are
+    /// dropped: they are not compiled into a file anyone applies edits to.
     pub(crate) fn compile_support_with_snapshot(
         source: &SourceFile,
         parsed: &ModuleAnalysis,
@@ -207,6 +207,7 @@ impl Compiler {
         );
         for call in module.style_calls {
             let Some(emission) = CallEmitter::run(CallEmitterInputs {
+                preview: None,
                 source,
                 module_id,
                 options,

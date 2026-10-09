@@ -3,14 +3,13 @@
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
-use stillwind_source::{ModuleId, Span};
+use stillwind_source::{ModuleId, Span, Spanned};
 
 use super::super::CssContribution;
 use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
-use super::super::utilities::combine_declarations_for_theme;
-use super::super::utilities::resolve_utility;
+use super::super::utilities::{combine_declarations_for_theme, resolve_utility};
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
 
@@ -129,42 +128,54 @@ fn emit_frames(
 ) {
     let output = &mut contribution.css;
     for frame in frames {
-        let mut utilities = Vec::new();
-        for utility in lex_utilities(&frame.utilities, diagnostics) {
-            match resolve_utility(&utility.value.raw, theme) {
-                Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
-                Ok(Some(_)) => diagnostics.push(CompileError::new(
-                    CompileDiagnostic::KeyframesFrameVariants,
-                    utility.span,
-                )),
-                Ok(None) => diagnostics.push(CompileError::new(
-                    CompileDiagnostic::UnavailableUtility {
-                        utility: utility.value.raw.clone(),
-                    },
-                    utility.span,
-                )),
-                Err(error) => diagnostics.push(CompileError::new(
-                    CompileDiagnostic::MalformedUtilityRequirement {
-                        utility: error.name,
-                        offset: error.source.offset,
-                    },
-                    utility.span,
-                )),
-            }
-        }
-        contribution.required_properties.extend(
-            utilities
-                .iter()
-                .flat_map(|utility| utility.required_properties.clone()),
-        );
+        let (declaration, properties) = resolve_frame(&frame.utilities, theme, diagnostics);
+        contribution.required_properties.extend(properties);
         output.push_str(&frame.selector.value);
         output.push('{');
-        output.push_str(&combine_declarations_for_theme(
-            &utilities.iter().collect::<Vec<_>>(),
-            theme,
-        ));
+        output.push_str(&declaration);
         output.push('}');
     }
+}
+
+/// Resolves a frame's decoded utility list against `theme`, rejecting utility variants.
+/// `input.span` locates token diagnostics in the original source or a synthetic query.
+/// Invalid tokens append diagnostics and contribute no declarations; valid tokens still
+/// contribute. Returns the combined declaration body without braces and the required
+/// property names in utility order, including repeated names.
+pub(crate) fn resolve_frame(
+    input: &Spanned<String>,
+    theme: &ThemeIndex,
+    diagnostics: &mut Vec<CompileError>,
+) -> (String, Vec<String>) {
+    let mut utilities = Vec::new();
+    for utility in lex_utilities(input, diagnostics) {
+        match resolve_utility(&utility.value.raw, theme) {
+            Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
+            Ok(Some(_)) => diagnostics.push(CompileError::new(
+                CompileDiagnostic::KeyframesFrameVariants,
+                utility.span,
+            )),
+            Ok(None) => diagnostics.push(CompileError::new(
+                CompileDiagnostic::UnavailableUtility {
+                    utility: utility.value.raw.clone(),
+                },
+                utility.span,
+            )),
+            Err(error) => diagnostics.push(CompileError::new(
+                CompileDiagnostic::MalformedUtilityRequirement {
+                    utility: error.name,
+                    offset: error.source.offset,
+                },
+                utility.span,
+            )),
+        }
+    }
+    let properties = utilities
+        .iter()
+        .flat_map(|utility| utility.required_properties.clone())
+        .collect();
+    let declaration = combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme);
+    (declaration, properties)
 }
 
 #[cfg(test)]

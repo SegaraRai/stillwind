@@ -19,7 +19,7 @@ use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, SourceError, SourceFile, Span};
 
 use super::super::CssContribution;
-use super::super::class_units::ClassUnits;
+use super::super::class_units::{ClassUnits, PreviewSlots};
 use super::super::fragment::{Emitted, Property, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmission, StyleEmissionPart};
@@ -104,6 +104,7 @@ impl<'a> CallEmitter<'a> {
                 inputs.identifiers,
                 inputs.theme,
                 inputs.call.span,
+                inputs.preview,
                 inputs.utility_css,
                 inputs.symbols,
                 inputs.emitted_utility_classes,
@@ -540,6 +541,9 @@ pub(super) struct PendingRegion {
 /// in the call must address `source`; destinations are appended during lowering and are
 /// not individually rolled back on failure.
 pub(in crate::compiler) struct CallEmitterInputs<'a> {
+    /// A present value replaces generated element selectors with `&` and captures or
+    /// replays transition slots. Ref markers use the names supplied by `identifiers`.
+    pub(in crate::compiler) preview: Option<&'a mut PreviewSlots>,
     /// Original buffer used to slice user expressions.
     pub(in crate::compiler) source: &'a SourceFile,
     /// Compiler identity of the source module.

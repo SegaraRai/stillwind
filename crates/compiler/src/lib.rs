@@ -59,8 +59,8 @@ pub use compiled_module::{
     ModuleTransformError,
 };
 pub use compiler::{
-    CompileResult, Compiler, CssContribution, GeneratedClass, GeneratedSymbol, GeneratedSymbolKind,
-    GuardStep, SymbolOrigin,
+    CompileResult, Compiler, CssContribution, EditorSite, EditorSiteKind, GeneratedClass,
+    GeneratedSymbol, GeneratedSymbolKind, GuardStep, ModuleEditor, SymbolOrigin,
 };
 pub use identifiers::{
     AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,
@@ -77,8 +77,8 @@ pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::CompilerOptions;
 pub use query::{
-    CandidateHover, CandidateResolution, CompletionInput, CompletionItem, DesignSystemQuery,
-    prepare_canonical_index,
+    CandidateContext, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
+    DesignSystemQuery, prepare_canonical_index,
 };
 pub use renderer::{StylesheetPlacement, StylesheetRenderer};
 pub use style_analysis::{

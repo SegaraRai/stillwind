@@ -1,7 +1,13 @@
 import { expect, test } from "vite-plus/test";
 
-import { orderInputs, type InputOrderItem, type InputOrder } from "./input-order.ts";
+import { orderInputs, type InputOrder, type InputOrderItem } from "./input-order.ts";
 
+/**
+ * Gives each input an independent range so tests can identify permitted exchanges.
+ *
+ * @param orders - Categories in the sequence that the test supplies to the sorter.
+ * @returns New items with one-unit ranges spaced ten units apart, in the supplied order.
+ */
 function items(orders: InputOrder[]): InputOrderItem[] {
   return orders.map((order, index) => ({ start: index * 10, end: index * 10 + 1, order }));
 }

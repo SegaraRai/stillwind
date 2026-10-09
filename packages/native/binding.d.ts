@@ -57,22 +57,47 @@ export declare class NativeEditorQuery {
    * Returns an error for unknown rules or invalid source bounds.
    */
   lintSuppressed(source: string, start: number, end: number, rule: string): boolean
-  /** Renders a valid candidate with the main selector replaced by `&`. Invalid candidates return null. */
-  hoverCandidate(candidate: string): string | null
+  /**
+   * Renders decoded text under `context`, using `&` as the utility subject. Omitted
+   * context selects one ordinary utility candidate. Declaration roles accept a token
+   * list; definition prefixes accept trailing colons and return empty enclosing
+   * at-rules. Results omit enclosing source conditions and document support
+   * declarations. Invalid input or failed conditional lowering returns null.
+   *
+   * # Errors
+   *
+   * Returns a malformed matching utility requirement for ordinary utility input.
+   */
+  previewCandidate(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
   /**
    * Returns a complete CSS preview with line breaks and two-space indentation.
    * Nesting and fallback declarations are retained. Invalid CSS returns an error.
    */
   formatCss(css: string): string
-  /** Completes utilities and variants against a partially typed candidate. */
-  completeCandidate(prefix: string): Array<string>
-  /** Returns -1, 0, or 1 in compiler order, or null if either candidate is unresolved. */
-  compareCandidates(left: string, right: string): number | null
   /**
-   * Returns ranks for full candidate spellings in input order, with null for unresolved inputs.
-   * Equal candidates share a rank. Ranks apply only to this batch.
+   * Completes decoded `prefix` text using the registries and variant constraints of
+   * `context`. The prefix is one partial candidate including any preceding variants;
+   * omitted context selects ordinary utilities. Returns unique labels in lexical
+   * order, retaining existing prefixes and ending variant labels with `:`.
    *
    * # Errors
+   *
+   * Returns a malformed requirement while validating a matching ordinary utility
+   * label.
+   */
+  completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null): Array<string>
+  /**
+   * Returns -1, 0, or 1 in compiler order, or null if either candidate is
+   * unresolved.
+   */
+  compareCandidates(left: string, right: string): number | null
+  /**
+   * Returns ranks for full candidate spellings in input order, with null for
+   * unresolved inputs. Equal candidates share a rank. Ranks apply only to this
+   * batch.
+   *
+   * # Errors
+   *
    * Returns malformed matching utility requirements or a rank that exceeds `u32`.
    */
   candidateRanks(candidates: Array<string>): Array<number | undefined | null>
@@ -82,12 +107,57 @@ export declare class NativeEditorQuery {
   spacingScale(): string | null
   /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
   colorRgba(value: string): Array<number> | null
-  /** Returns a concrete candidate color in RGBA, or null for contextual or ambiguous colors. */
+  /**
+   * Returns a concrete candidate color in RGBA, or null for contextual or ambiguous
+   * colors.
+   */
   candidateColor(candidate: string): Array<number> | null
+}
+
+/** Captured input plans and previews that remain valid after the session changes. */
+export declare class NativeModuleEditor {
+  /** Identifies the original module whose source ranges this capture addresses. */
+  moduleId(): string
+  /**
+   * Returns a fingerprint of the source, supporting analyses, design system,
+   * settings, and captured output. The value remains pinned when the project session
+   * changes.
+   */
+  revision(): string
+  /**
+   * Returns copies of recognized occurrences, including invalid literals.
+   * Definitions precede style calls in capture traversal order; the result is not
+   * sorted by position. All ranges use the original source identified by `moduleId`.
+   * Mutating returned objects does not change this capture.
+   */
+  sites(): Array<NativeEditorSite>
+  /**
+   * Renders decoded `candidate` text for the literal at the original inclusive UTF-8
+   * byte `start`. The text replaces the whole literal while retaining enclosing
+   * variants, JavaScript conditions, and slots from the complete call. Retained host
+   * callbacks run in the current Node-API environment during emission.
+   * Returns null for an unknown input, failed emission, or output with no CSS.
+   * The capture and its shared names remain unchanged by the query.
+   */
+  previewInput(start: number, candidate: string): string | null
 }
 
 /** Mutable project state for one Vite or CLI session. */
 export declare class NativeProjectSession {
+  /**
+   * Captures the latest finalized analyses for the requested module identities,
+   * including rejected attempts. Use the module identities passed with prepared
+   * sources.
+   *
+   * Returns one capture per known module in module identity order. Duplicate
+   * identities are collapsed, and unknown identities are omitted.
+   *
+   * Captures share display names and retain their analyses, settings, and host
+   * callbacks for later queries. Host callbacks run in the current Node-API
+   * environment during capture. This operation does not publish or replace project
+   * artifacts.
+   */
+  editorModules(moduleIds: Array<string>): Array<NativeModuleEditor>
   /**
    * Collects local diagnostics from available IR without generating or publishing artifacts.
    * Type facts may cover only some expressions. Unresolved lowering remains in the reports.
@@ -476,6 +546,13 @@ export interface NativeAssetRecord {
 /** Quote character that delimited a converted attribute value. */
 export type NativeAttributeQuote = 'single' | 'double'
 
+/**
+ * Selects the compiler contract of a candidate's source position.
+ * Option roles use the animation-option registry and its property mappings. Frame and
+ * phase utilities retain the declarations produced by ordinary utility resolution.
+ */
+export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants'
+
 /** The candidate set of a symbolic value. */
 export type NativeCandidates =
   | { kind: 'universe' }
@@ -739,6 +816,43 @@ export interface NativeEditorLintEdit {
   /** Replacement text for this source operation. */
   replacement: string
 }
+
+/** Generated output associated with an original module occurrence. */
+export interface NativeEditorSite {
+  /** Inclusive UTF-8 byte boundary in the original source. */
+  start: number
+  /** Exclusive UTF-8 byte boundary in the original source. */
+  end: number
+  /** Meaning of the occurrence. */
+  kind: NativeEditorSiteKind
+  /**
+   * Declaration or complete style-call identity. Literal inputs and use sites omit
+   * it.
+   */
+  identity?: NativeIdentity
+  /** Resolver contract of a literal input. Whole expressions omit it. */
+  context?: NativeCandidateContext
+  /**
+   * Whether emission succeeded. Whole calls and definitions also reject overlapping
+   * source diagnostics; diagnostics elsewhere do not invalidate this site.
+   */
+  valid: boolean
+  /**
+   * Generated CSS with `&` as the element subject and readable identifiers for other
+   * generated names. Empty on failure or when the occurrence contributes no CSS.
+   */
+  css: string
+  /** Required styles and global definitions, sorted and deduplicated by identity. */
+  dependencies: Array<NativeIdentity>
+  /**
+   * Authored runtime expressions for view-transition keys, in source order.
+   * Distinct source occurrences can contain the same expression text.
+   */
+  runtimeNames: Array<string>
+}
+
+/** The source object addressed by a preview. */
+export type NativeEditorSiteKind = 'style' | 'definition' | 'use' | 'input'
 
 /**
  * Named entries preserve arbitrary export names, including `__proto__`.

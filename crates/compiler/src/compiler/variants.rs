@@ -174,7 +174,7 @@ pub(super) fn document_scoped_selector(variant: &Variant, theme: &ThemeIndex) ->
 
 /// One condition wrapper a rule is nested under.
 #[derive(Debug)]
-pub(super) enum OptionCondition {
+pub(crate) enum OptionCondition {
     /// `@media <condition>`
     Media(String),
     /// `@supports (<condition>)`
@@ -204,7 +204,7 @@ impl OptionCondition {
 }
 
 /// Wraps one rule in a condition path, outermost condition first.
-pub(super) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> String {
+pub(crate) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> String {
     path.iter()
         .rev()
         .fold(rule.to_owned(), |wrapped, condition| {
@@ -217,7 +217,7 @@ pub(super) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> String {
 /// A view-transition pseudo-element has no element state of its own and no container ancestor,
 /// so only media and supports conditions can wrap it. Any other variant fails the utility rather
 /// than dropping its condition silently.
-pub(super) fn condition_paths(
+pub(crate) fn condition_paths(
     variants: &[Variant],
     theme: &ThemeIndex,
 ) -> Option<Vec<Vec<OptionCondition>>> {

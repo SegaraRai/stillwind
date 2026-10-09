@@ -4,11 +4,16 @@
 //! source edits, CSS rules, classes, symbols, diagnostics, and dependencies. Rule keys
 //! identify content, so the project layer can compare and manage individual rules.
 //! The compiler replaces CSS URLs with placeholders for the host to resolve.
+//! [`ModuleCompiler::editors`] instead captures occurrences and replacement plans for
+//! display queries. Captures render each site's CSS independently of artifact
+//! publication.
 //!
 //! Failed compilation returns empty transforms, classes, symbols, and CSS.
 //! Callers must check [`CompiledModule::is_success`] before applying output.
 
-use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
@@ -18,9 +23,12 @@ use stillwind_ir::{
 };
 use stillwind_source::{Fingerprint, ModuleId};
 
+use crate::compiler::reserve_preview_names;
+use crate::identifiers::PreviewNames;
 use crate::{
     CompilationDependencies, CompileResult, CompiledModule, Compiler, CompilerOptions,
-    IdentifierContext, Identifiers, ModuleArtifactKey, ModuleCssArtifact, ModuleResourceReference,
+    IdentifierContext, Identifiers, ModuleArtifactKey, ModuleCssArtifact, ModuleEditor,
+    ModuleResourceReference,
 };
 
 /// Compiles module analyses against one immutable design system.
@@ -33,10 +41,61 @@ pub struct ModuleCompiler {
 }
 
 impl ModuleCompiler {
-    /// Checks the available IR without returning generated artifacts or publishing a module.
+    /// Captures finalized `modules` in module identity order without publishing
+    /// artifacts. Analyses must contain finalized IR and the supporting analyses for
+    /// referenced assets. Repeated module identities keep the last analysis supplied.
+    /// `identifiers` supplies the normal generation and validation policy for capture
+    /// and replacement queries.
     ///
-    /// Frontend failures remain diagnostics. Other calls that the frontend could lower still
-    /// contribute local utility findings. The caller must preserve the analysis source registry.
+    /// All captures share display names reserved for the batch's declarations and
+    /// helpers. Each capture retains its analysis and settings for later queries.
+    /// Failed occurrences remain as invalid sites, and an empty iterator returns an
+    /// empty vector.
+    pub fn editors<'a>(
+        &self,
+        modules: impl IntoIterator<Item = &'a ModuleAnalysis>,
+        identifiers: &Identifiers,
+    ) -> Vec<ModuleEditor> {
+        let modules: BTreeMap<_, _> = modules
+            .into_iter()
+            .map(|module| (&module.module_id, module))
+            .collect();
+        let names = Rc::new(RefCell::new(PreviewNames::default()));
+        for module in modules.values() {
+            reserve_preview_names(module, &mut names.borrow_mut());
+        }
+        modules
+            .values()
+            .map(|module| {
+                ModuleEditor::new(
+                    module,
+                    self.design_system.clone(),
+                    self.options.clone(),
+                    identifiers.clone(),
+                    Fingerprint::of(format!(
+                        "{:?}{:?}{:?}{:?}{:?}",
+                        module.module_id,
+                        module.source_revision,
+                        self.design_system.fingerprints().content,
+                        self.options,
+                        module
+                            .asset_support
+                            .iter()
+                            .map(|support| (&support.module_id, &support.source_revision))
+                            .collect::<Vec<_>>(),
+                    )),
+                    Rc::clone(&names),
+                )
+            })
+            .collect()
+    }
+
+    /// Checks the available IR without returning generated artifacts or publishing a
+    /// module.
+    ///
+    /// Frontend failures remain diagnostics. Other calls that the frontend could lower
+    /// still contribute local utility findings. The caller must preserve the analysis
+    /// source registry.
     pub fn diagnose(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompileResult {
         let mut local = module.clone();
         local.diagnostics.clear();

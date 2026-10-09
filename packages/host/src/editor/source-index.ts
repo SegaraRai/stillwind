@@ -1,52 +1,97 @@
-import type { NativeAssetRecord, NativeProjectSession } from "@stillwind/native";
+import type {
+  NativeAssetRecord,
+  NativeCandidateContext,
+  NativeProjectSession,
+} from "@stillwind/native";
 import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { ModuleAnalysis } from "../compilation/compiler.ts";
 import { projectionPoints } from "../semantics/checker-source.ts";
 import type { InputOrder } from "./input-order.ts";
+import { GeneratedPreviews, type PreviewSite } from "./previews.ts";
 
 /** A literal in a compiler-recognized style input, with decoded-to-source boundaries. */
 export interface UtilityLiteral {
+  /** Prepared source whose original buffer owns all recorded boundaries. */
   source: PreparedSource;
+  /** Literal token in the source's checker AST, which may use projected text. */
   node: ts.StringLiteralLike | ts.TemplateLiteralToken;
+  /** Decoded literal content without delimiters or enclosing group variants. */
   text: string;
   /** Variants supplied by surrounding named style groups, including trailing colons. */
   prefix: string;
-  /** Original UTF-16 boundaries for each decoded UTF-16 position, including the end. */
+  /** Input role that selects completion registries, validation, and permitted variants. */
+  context: NativeCandidateContext;
+  /**
+   * Captured occurrence whose native plan retains original UTF-8 ranges.
+   * Syntactically recognized incomplete input can have a context without a site.
+   */
+  site?: PreviewSite;
+  /**
+   * Original UTF-16 boundaries for every position in `text`, including its end.
+   * The array has `text.length + 1` entries. One escape that emits several code units
+   * can give several decoded positions the same source boundary.
+   */
   boundaries: number[];
 }
 
 /** An array, argument list, or object written directly in a style input. */
 export interface StyleInputContainer {
+  /** Prepared source whose original text supplies the inputs to reorder. */
   source: PreparedSource;
+  /** Checker AST node. Use `SourceIndex.range` to obtain original document coordinates. */
   node: ts.ArrayLiteralExpression | ts.CallExpression | ts.ObjectLiteralExpression;
 }
 
 /**
  * Indexes producer identities, lexical aliases, and sortable inputs in one source graph.
  * Native producer identities provide authority; the TypeScript binder resolves aliases.
- * The graph and its source buffers must remain unchanged while this index is used.
+ * Prepared sources and checker ASTs must remain unchanged while this index is used.
  */
 export class SourceIndex {
+  /** Generated occurrences and replacement plans captured from the same source graph. */
+  readonly previews: GeneratedPreviews;
+  /** Indexed literals in discovery order. Callers must keep entries and their boundaries unchanged. */
   readonly literals: UtilityLiteral[] = [];
+  /** Direct inputs eligible for grouping, including nested containers. Callers must keep them unchanged. */
   readonly containers: StyleInputContainer[] = [];
+  /** In-memory files keyed by checker filename with slash separators and preserved casing. */
   readonly files = new Map<
     string,
     {
+      /** Prepared source that owns this AST and its projection correspondences. */
       source: PreparedSource;
+      /** AST parsed from direct source text or the prepared projection. */
       ast: ts.SourceFile;
     }
   >();
 
-  /** Original UTF-16 call ranges identify the producers in each module. */
+  /** Producers keyed first by module identity, then by `start:end` in original UTF-16 coordinates. */
   readonly #assets = new Map<string, Map<string, NativeAssetRecord>>();
+  /** Resolved producers and cached misses for nodes in these immutable checker ASTs. */
   readonly #nodeAssets = new WeakMap<ts.Node, NativeAssetRecord | undefined>();
+  /** Generated UTF-16 positions mapped to original positions. Null marks conflicting origins. */
   readonly #points = new Map<string, Map<number, number | null>>();
+  /** Binder over the in-memory files and the graph's resolved import dependencies. */
   readonly #checker: ts.TypeChecker;
+  /** Symbols found in assignment or increment/decrement targets, excluded from stable aliases. */
   readonly #mutated = new Set<ts.Symbol>();
 
+  /**
+   * Captures generated previews, rescans graph sources for producer records, and binds aliases.
+   * Checker ASTs use projected text when present. Editor ranges address original buffers.
+   * Source scanning updates the session's source registry and can replace reports for a failed scan.
+   *
+   * @param graph - Original buffers and resolved dependencies for the analyzed source revisions.
+   * Its prepared sources must remain unchanged while the index is used.
+   * @param session - Session whose latest analyses match those revisions. Captures are taken
+   * before rescanning, and later queries use the captured plans and the in-memory ASTs.
+   * @throws If source transport, a projection map, or an original UTF-8 boundary is invalid.
+   */
   constructor(graph: ModuleAnalysis, session: NativeProjectSession) {
+    this.previews = new GeneratedPreviews(graph, session);
+
     for (const source of graph.sources) {
       const text = source.kind === "direct" ? source.document.code : source.projection.code;
       const fileName = checkerName(source.checkerFileName);
@@ -114,6 +159,13 @@ export class SourceIndex {
               ? node.operand
               : undefined;
         if (target) {
+          /**
+           * Records symbols in assignment targets that can contain identifier bindings.
+           * Property accesses do not mark their receiver as a reassigned binding.
+           *
+           * @param node - Identifier or supported destructuring subtree of the target.
+           * Recognized symbols are added to `#mutated`, including nested pattern members.
+           */
           const mark = (node: ts.Node): void => {
             if (ts.isIdentifier(node)) {
               const symbol = this.#checker.getSymbolAtLocation(node);
@@ -153,11 +205,117 @@ export class SourceIndex {
           for (const argument of node.arguments) {
             this.#input(source, argument);
           }
+        } else if (
+          asset?.identity.kind === "keyframes" ||
+          this.#producer(node.expression, "keyframes")
+        ) {
+          this.#keyframes(source, node.arguments[0]);
+        } else if (
+          asset?.identity.kind === "viewTransition" ||
+          this.#producer(node.expression, "viewTransition")
+        ) {
+          const body = node.arguments[0];
+          if (body && ts.isObjectLiteralExpression(body)) {
+            for (const property of body.properties) {
+              if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+                continue;
+              }
+              const name = ts.isStringLiteralLike(property.name)
+                ? property.name.text
+                : property.name.getText();
+              if (
+                ["group", "old", "new", "imagePair"].includes(name) &&
+                ts.isStringLiteralLike(property.initializer)
+              ) {
+                this.#literal(
+                  source,
+                  property.initializer,
+                  "",
+                  name === "group" ? "viewTransitionOptions" : "viewTransitionUtilities",
+                );
+              }
+            }
+          }
+        } else if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
+          const options = node.arguments[0];
+          if (options && ts.isStringLiteralLike(options)) {
+            this.#literal(source, options, "", "animationOptions");
+          }
+        }
+      });
+      walk(ast, (node) => {
+        if (!ts.isStringLiteralLike(node) && !ts.isTemplateLiteralToken(node)) {
+          return;
+        }
+        const range = this.range(source, node);
+        const site = range && this.previews.input(source, ...range);
+        if (site?.native.context) {
+          this.#literal(source, node, "", site.native.context, site);
         }
       });
     }
   }
 
+  /**
+   * Recognizes a direct method of an imported Stillwind style producer.
+   * Other property accesses with the same spelling do not establish producer authority.
+   *
+   * @param node - Expression in one of this index's checker ASTs.
+   * @param name - Exact method spelling, such as `keyframes` or `viewTransition`.
+   * @returns Whether the receiver is a supported value import of `style` and the method matches.
+   */
+  #producer(node: ts.Expression, name: string): boolean {
+    return (
+      ts.isPropertyAccessExpression(node) &&
+      node.name.text === name &&
+      this.#styleImport(node.expression)
+    );
+  }
+
+  /**
+   * Indexes literal frame utilities and quoted condition keys in an authored keyframes body.
+   * Nested object bodies retain definition contexts. Computed properties, nonliteral frame
+   * values, and missing bodies add no literals.
+   *
+   * @param source - Prepared source stored in this index.
+   * @param node - Body in that source's checker AST, or undefined for a missing argument.
+   * Recognized quoted conditions and frame utilities are appended to `literals`.
+   */
+  #keyframes(source: PreparedSource, node: ts.Node | undefined): void {
+    if (!node || !ts.isObjectLiteralExpression(node)) {
+      return;
+    }
+
+    for (const property of node.properties) {
+      if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+        continue;
+      }
+
+      const name = ts.isStringLiteralLike(property.name)
+        ? property.name.text
+        : property.name.getText();
+      if (name.endsWith(":") || ts.isObjectLiteralExpression(property.initializer)) {
+        if (ts.isStringLiteralLike(property.name)) {
+          this.#literal(source, property.name, "", "definitionVariants");
+        }
+        this.#keyframes(source, property.initializer);
+      } else if (
+        /^(?:from|to|(?:\d+(?:\.\d+)?%)(?:\s*,\s*\d+(?:\.\d+)?%)*)$/.test(name) &&
+        ts.isStringLiteralLike(property.initializer)
+      ) {
+        this.#literal(source, property.initializer, "", "keyframesFrame");
+      }
+    }
+  }
+
+  /**
+   * Checks direct named imports of `style` and namespace accesses to that export.
+   *
+   * @param node - Expression in this index's checker ASTs. Supported imports come from
+   * Stillwind's React, Vue, Svelte, Astro, Solid, or Preact entry points.
+   * @returns Whether a value import establishes that producer. Type-only imports and symbols
+   * marked as mutated fail this check.
+   */
   #styleImport(node: ts.Expression): boolean {
     const namespace = ts.isPropertyAccessExpression(node) && node.name.text === "style";
     const symbol = this.#checker.getSymbolAtLocation(namespace ? node.expression : node);
@@ -188,7 +346,16 @@ export class SourceIndex {
     });
   }
 
-  /** Classifies direct input syntax and bound identities without reading base bodies or CSS. */
+  /**
+   * Classifies direct input syntax and bound identities without reading base bodies or CSS.
+   * Arrays and objects receive a category only when all children share one non-ref category.
+   * Attribute containers omit a single name so name sorting cannot cross their boundary.
+   *
+   * @param source - Prepared source stored in this index.
+   * @param node - Input or property in that source's checker AST.
+   * @returns The grouping category, or a barrier for unknown, mixed, empty, or computed input.
+   * Ref markers and supported projection calls share the declaration's opaque identity.
+   */
   inputOrder(source: PreparedSource, node: ts.Node): InputOrder {
     if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
       if (ts.isComputedPropertyName(node.name)) {
@@ -278,6 +445,16 @@ export class SourceIndex {
     };
   }
 
+  /**
+   * Maps a checker node to an exact range in its original document.
+   * For projections, an anchor is accepted only when the intervening and selected text match
+   * the original buffer. A conflicting mapping at the node's start prevents fallback to an anchor.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Node from this index, with leading trivia excluded from its selected range.
+   * @returns Inclusive start and exclusive end in original UTF-16 coordinates, or undefined
+   * when a projection cannot map the text exactly.
+   */
   range(source: PreparedSource, node: ts.Node): [number, number] | undefined {
     const ast = node.getSourceFile();
     const start = node.getStart(ast);
@@ -307,6 +484,15 @@ export class SourceIndex {
     return undefined;
   }
 
+  /**
+   * Resolves a native producer or an alias through stable variable initializers and imports.
+   * Both successful resolutions and misses are cached for the AST node.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Node from this index. Alias chains may reach another source in the same graph.
+   * @returns A shared native record that callers must keep unchanged, or undefined when no
+   * producer is found. Mutated bindings and cyclic aliases stop alias resolution.
+   */
   asset(source: PreparedSource, node: ts.Node): NativeAssetRecord | undefined {
     if (!this.#nodeAssets.has(node)) {
       this.#nodeAssets.set(node, this.#resolveAsset(source, node, new Set()));
@@ -314,6 +500,55 @@ export class SourceIndex {
     return this.#nodeAssets.get(node);
   }
 
+  /**
+   * Finds a captured expression contribution at `node` in `source`'s checker AST.
+   * Exact non-input ranges take precedence; calls then try their receiver's use site.
+   * Invalid sites remain identifiable.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Expression or call in this index.
+   * @returns A shared captured occurrence, or undefined for unmapped or unrecognized expressions.
+   * Callers must keep the returned site unchanged.
+   */
+  previewSite(source: PreparedSource, node: ts.Node): PreviewSite | undefined {
+    const range = this.range(source, node);
+    if (!range) {
+      return undefined;
+    }
+
+    const sites = this.previews.sites(source);
+    const exact = sites.find(
+      (site) => site.native.kind !== "input" && site.start === range[0] && site.end === range[1],
+    );
+    if (exact || !ts.isCallExpression(node)) {
+      return exact;
+    }
+
+    const receiver = ts.isPropertyAccessExpression(node.expression)
+      ? node.expression.expression
+      : node.expression;
+    const receiverRange = this.range(source, receiver);
+    return receiverRange
+      ? sites.find(
+          (site) =>
+            site.native.kind === "use" &&
+            site.start === receiverRange[0] &&
+            site.end === receiverRange[1],
+        )
+      : undefined;
+  }
+
+  /**
+   * Follows a producer range or a stable alias chain without caching intermediate nodes.
+   * Exact native producer records take precedence over checks on alias bindings.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Expression to resolve, including supported TypeScript wrappers.
+   * @param seen - Symbols already visited in the current chain. Visited symbols are added
+   * even when resolution fails, so a separate chain needs a fresh set.
+   * @returns The native record reached by the chain, or undefined for mutated, cyclic,
+   * missing, or unsupported bindings.
+   */
   #resolveAsset(
     source: PreparedSource,
     node: ts.Node,
@@ -354,6 +589,14 @@ export class SourceIndex {
     return undefined;
   }
 
+  /**
+   * Finds the smallest mapped AST node that contains an original document position.
+   *
+   * @param source - Prepared source whose checker filename selects a file in this index.
+   * @param offset - Original UTF-16 cursor offset. Containment uses half-open ranges.
+   * @returns The containing node, or undefined when the file is absent or no mapped node
+   * contains the position. A position at a node's exclusive end does not select that node.
+   */
   nodeAt(source: PreparedSource, offset: number): ts.Node | undefined {
     const file = this.files.get(checkerName(source.checkerFileName));
     let best: ts.Node | undefined;
@@ -373,6 +616,17 @@ export class SourceIndex {
     return best;
   }
 
+  /**
+   * Records literals and sortable containers in recognized direct style input syntax.
+   * Arrays and both conditional branches are traversed. Logical `&&`, `||`, and `??`
+   * expressions contribute only their right operand, and unrecognized syntax adds nothing.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Input expression to inspect. Object properties ending in `:` contribute
+   * their values under the accumulated group variants.
+   * @param prefix - Decoded enclosing variants, including trailing colons. Nested group
+   * names are appended before their literals are recorded.
+   */
   #input(source: PreparedSource, node: ts.Node, prefix = ""): void {
     if (ts.isStringLiteralLike(node)) {
       this.#literal(source, node, prefix);
@@ -427,33 +681,67 @@ export class SourceIndex {
     }
   }
 
-  #literal(source: PreparedSource, node: UtilityLiteral["node"], prefix: string): void {
+  /**
+   * Records decoded content and original UTF-16 boundaries for a literal in `source`'s AST.
+   * A captured `site` overrides an existing entry's context and plan at the same content start.
+   * Unmapped ranges or decoding that disagrees with the AST add nothing.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - String or template token whose raw spelling supplies the source boundaries.
+   * @param prefix - Decoded enclosing group variants, including trailing colons.
+   * @param context - Input role stored with a new entry. Defaults to ordinary utilities.
+   * @param site - Optional captured input. An existing entry keeps its prefix and boundaries
+   * when this site replaces its context and plan.
+   */
+  #literal(
+    source: PreparedSource,
+    node: UtilityLiteral["node"],
+    prefix: string,
+    context: NativeCandidateContext = "utility",
+    site?: PreviewSite,
+  ): void {
     const range = this.range(source, node);
     if (!range) {
       return;
     }
+
     const raw = source.document.code.slice(...range);
     const suffix =
       ts.isTemplateHead(node) || ts.isTemplateMiddle(node) ? 2 : node.isUnterminated ? 0 : 1;
     const content = raw.slice(1, suffix ? -suffix : undefined);
     const decoded = decodeLiteral(content, range[0] + 1);
-    if (
-      decoded?.text === node.text &&
-      !this.literals.some(
+    if (decoded?.text === node.text) {
+      const previous = this.literals.find(
         (literal) => literal.source === source && literal.boundaries[0] === decoded.boundaries[0],
-      )
-    ) {
+      );
+      if (previous) {
+        if (site) {
+          previous.context = context;
+          previous.site = site;
+        }
+        return;
+      }
+
       this.literals.push({
         source,
         node,
         prefix,
+        context,
+        site,
         ...decoded,
       });
     }
   }
 }
 
-/** Converts native call boundaries in one source traversal. Invalid UTF-8 boundaries throw. */
+/**
+ * Converts native producer call ranges with one traversal of the original source.
+ *
+ * @param text - Original document text that owns every producer range.
+ * @param assets - Native records whose call ranges use original UTF-8 byte offsets.
+ * @returns Records keyed by `start:end`, where both offsets use original UTF-16 coordinates.
+ * @throws If a call boundary falls inside a UTF-8 sequence or outside the source.
+ */
 function assetRanges(
   text: string,
   assets: readonly NativeAssetRecord[],
@@ -483,22 +771,47 @@ function assetRanges(
   );
 }
 
+/**
+ * Provides the separator spelling used by the in-memory checker file map.
+ *
+ * @param name - Checker filename with either slash or backslash separators.
+ * @returns The filename with slash separators. Casing and path segments remain unchanged.
+ */
 function checkerName(name: string): string {
   return name.replaceAll("\\", "/");
 }
 
+/**
+ * Visits an AST node before its descendants in TypeScript's child order.
+ *
+ * @param node - Root of the subtree to traverse.
+ * @param visit - Callback for each node. It must preserve the tree during traversal.
+ * Returning from the callback does not skip descendants.
+ * @throws If the callback throws, traversal stops and propagates that error.
+ */
 export function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
   visit(node);
   ts.forEachChild(node, (child) => walk(child, visit));
 }
 
-/** Decodes JS escapes while retaining the exact source boundaries used by editor replacements. */
+/**
+ * Decodes JS literal content while mapping every decoded position to its source spelling.
+ * CR and CRLF become LF. Escaped line continuations emit no text and move the preceding
+ * boundary past the continuation. The caller must compare the result with the AST's decoded text.
+ *
+ * @param raw - Literal content without its opening delimiter or closing delimiter/interpolation.
+ * @param start - Original UTF-16 offset of the first code unit in `raw`.
+ * @returns Decoded text and `text.length + 1` source boundaries, or undefined for a trailing
+ * backslash, invalid hex digits, a missing Unicode brace, or a code point above U+10FFFF.
+ */
 function decodeLiteral(
   raw: string,
   start: number,
 ):
   | {
+      /** Decoded content. Literal line endings are normalized to LF. */
       text: string;
+      /** Original UTF-16 offsets for every decoded position, including the end. */
       boundaries: number[];
     }
   | undefined {

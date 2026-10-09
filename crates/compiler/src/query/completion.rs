@@ -5,17 +5,19 @@ use std::collections::BTreeSet;
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
     BuiltinVariantValueType, DesignSystemRevision, ThemeNamespace, ThemeTokenKind,
-    UtilityResolutionError, builtin_utility_token_prefixes, resolve_variant,
+    UtilityResolutionError, builtin_utility_token_prefixes,
 };
-use stillwind_syntax::parse_candidate;
 
-use super::{DesignSystemQuery, last_top_level};
+use super::{CandidateContext, DesignSystemQuery, last_top_level};
 
 /// A partially typed candidate, as spelled in the editor.
 #[derive(Clone, Debug)]
 pub struct CompletionInput {
-    /// Text before the cursor, variant prefix included.
+    /// Decoded text of one partial candidate before the cursor, including its variant
+    /// prefix. JavaScript string escapes must already be decoded.
     pub prefix: String,
+    /// Input role used to validate labels and select their registry.
+    pub context: CandidateContext,
 }
 
 /// One label the editor may insert.
@@ -30,12 +32,13 @@ pub struct CompletionItem {
 impl DesignSystemQuery {
     /// Offers labels that continue `input.prefix`.
     ///
-    /// The vocabulary is the design system's utility names plus tokens rewritten
-    /// through their utility prefixes, and the variant vocabulary adds breakpoint token
-    /// names. Compound variants complete their nested variant argument. Utility labels
-    /// must resolve as candidates. Variant labels must resolve as variants and end in
-    /// `:`, where the caller can continue with a utility. The existing variant prefix
-    /// is retained.
+    /// The input role selects utility or animation-option names and their theme tokens.
+    /// Definition branches offer only variant prefixes. Every label must resolve under
+    /// the role's variant constraints. Compound variants complete their nested
+    /// argument, and the existing variant prefix is retained.
+    /// Returns unique labels in lexical order, each pinned to this query's
+    /// design-system revision. Variant labels end in `:` so the caller can continue the
+    /// input.
     ///
     /// # Errors
     ///
@@ -45,11 +48,33 @@ impl DesignSystemQuery {
         input: CompletionInput,
     ) -> Result<Vec<CompletionItem>, UtilityResolutionError> {
         let prefix = input.prefix;
+        let context = input.context;
         let split = last_top_level(&prefix, ':').map_or(0, |index| index + 1);
         let (variants, partial) = prefix.split_at(split);
         let utility_partial = partial.trim_start_matches('!').trim_start_matches('-');
         let utility_flags = &partial[..partial.len() - utility_partial.len()];
-        let vocabulary = self.utility_vocabulary_for(utility_partial);
+        let mut vocabulary = if context.options() || context == CandidateContext::DefinitionVariants
+        {
+            BTreeSet::new()
+        } else {
+            self.utility_vocabulary_for(utility_partial)
+        };
+        if context.options() {
+            let theme = self.context.design_system.theme();
+            for definition in theme.registry().animation_options() {
+                if let Some(root) = definition.name.strip_suffix('*') {
+                    for namespace in value_namespaces(&definition.body, "--value") {
+                        for token in theme.active_tokens() {
+                            if let Some(value) = token.name.value.strip_prefix(&namespace) {
+                                vocabulary.insert(format!("{root}{value}"));
+                            }
+                        }
+                    }
+                } else {
+                    vocabulary.insert(definition.name.to_string());
+                }
+            }
+        }
         let mut completions: BTreeSet<String> = BTreeSet::new();
         completions.extend(self.complete_theme_values(
             &prefix,
@@ -57,20 +82,25 @@ impl DesignSystemQuery {
             partial,
             utility_partial,
             utility_flags.len(),
+            context,
         )?);
         for label in vocabulary
             .into_iter()
             .filter(|label| label.starts_with(utility_partial))
         {
             let label = format!("{variants}{utility_flags}{label}");
-            if self.resolve_candidate(&label)?.diagnostics.is_empty() {
+            if context != CandidateContext::DefinitionVariants
+                && self.valid_input(&label, context)?
+            {
                 completions.insert(label);
             }
         }
         let mut variant_names = self.variant_vocabulary();
         variant_names.extend(self.compound_variant_vocabulary(partial, &variant_names, 0));
         for variant in variant_names {
-            if variant.starts_with(partial) && self.valid_variant(&format!("{variants}{variant}")) {
+            if variant.starts_with(partial)
+                && self.valid_input_variant(&format!("{variants}{variant}"), context)
+            {
                 completions.insert(format!("{variants}{variant}:"));
             }
         }
@@ -83,6 +113,15 @@ impl DesignSystemQuery {
             .collect())
     }
 
+    /// Completes theme references and modifiers permitted by `context`. `split` is the
+    /// UTF-8 byte start of `partial` in `prefix`, and `utility_partial` omits `flags`
+    /// bytes of leading importance or negative markers. All slices must describe that
+    /// prefix. Returns unique complete labels, adding closing delimiters for theme
+    /// references.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement while validating an ordinary utility label.
     fn complete_theme_values(
         &self,
         prefix: &str,
@@ -90,13 +129,14 @@ impl DesignSystemQuery {
         partial: &str,
         utility_partial: &str,
         flags: usize,
+        context: CandidateContext,
     ) -> Result<BTreeSet<String>, UtilityResolutionError> {
         let theme = self.context.design_system.theme();
         let mut completions = BTreeSet::new();
         let modifier = last_top_level(partial, '/');
         let input = modifier.map_or(partial, |index| &partial[index + 1..]);
         let domain_input = modifier.map_or(utility_partial, |index| &partial[flags..index]);
-        let domains = self.value_domains(domain_input, modifier.is_some());
+        let domains = self.value_domains(domain_input, modifier.is_some(), context);
         if let Some(index) = input.find("--") {
             let fragment = &input[index..];
             for token in theme.active_tokens() {
@@ -108,9 +148,11 @@ impl DesignSystemQuery {
                     let before = &prefix[..prefix.len() - input.len() + index];
                     let closing = completion_closers(before);
                     let label = format!("{before}{}{closing}", token.name.value);
-                    if self.resolve_candidate(&label)?.diagnostics.is_empty() {
+                    if context != CandidateContext::DefinitionVariants
+                        && self.valid_input(&label, context)?
+                    {
                         completions.insert(label);
-                    } else if modifier.is_none() && self.valid_variant(&label) {
+                    } else if modifier.is_none() && self.valid_input_variant(&label, context) {
                         completions.insert(format!("{label}:"));
                     }
                 }
@@ -124,7 +166,9 @@ impl DesignSystemQuery {
                         && name.starts_with(input)
                     {
                         let label = format!("{before}{name}");
-                        if self.resolve_candidate(&label)?.diagnostics.is_empty() {
+                        if context != CandidateContext::DefinitionVariants
+                            && self.valid_input(&label, context)?
+                        {
                             completions.insert(label);
                         }
                     }
@@ -134,23 +178,27 @@ impl DesignSystemQuery {
         Ok(completions)
     }
 
-    fn valid_variant(&self, text: &str) -> bool {
-        parse_candidate(&format!("{text}:[color:red]")).is_some_and(|candidate| {
-            candidate.variants.iter().all(|variant| {
-                resolve_variant(variant, self.context.design_system.theme()).is_some()
-            })
-        })
-    }
-
-    fn value_domains(&self, input: &str, modifier: bool) -> BTreeSet<String> {
+    /// Returns theme namespace prefixes used by matching definitions for `input` and
+    /// `context`. `modifier` selects modifier namespaces; value queries also include
+    /// variant namespaces when the role permits variants. Prefixes keep their `--`
+    /// spelling.
+    fn value_domains(
+        &self,
+        input: &str,
+        modifier: bool,
+        context: CandidateContext,
+    ) -> BTreeSet<String> {
         let mut domains = self
             .context
             .design_system
             .utilities()
             .iter()
             .filter(|(name, _)| {
-                name.strip_suffix('*')
-                    .is_some_and(|root| input.starts_with(root))
+                !context.options()
+                    && context != CandidateContext::DefinitionVariants
+                    && name
+                        .strip_suffix('*')
+                        .is_some_and(|root| input.starts_with(root))
             })
             .flat_map(|(_, definitions)| definitions.iter())
             .flat_map(|definition| {
@@ -160,7 +208,29 @@ impl DesignSystemQuery {
                 )
             })
             .collect::<BTreeSet<_>>();
-        if !modifier {
+        if context.options() {
+            domains.extend(
+                self.context
+                    .design_system
+                    .theme()
+                    .registry()
+                    .animation_options()
+                    .iter()
+                    .filter(|definition| {
+                        definition
+                            .name
+                            .strip_suffix('*')
+                            .is_some_and(|root| input.starts_with(root))
+                    })
+                    .flat_map(|definition| {
+                        value_namespaces(
+                            &definition.body,
+                            if modifier { "--modifier" } else { "--value" },
+                        )
+                    }),
+            );
+        }
+        if !modifier && context.variants() {
             domains.extend(
                 self.context
                     .design_system
@@ -391,6 +461,7 @@ mod tests {
             let items = query
                 .complete_candidate(CompletionInput {
                     prefix: prefix.into(),
+                    context: CandidateContext::Utility,
                 })
                 .unwrap();
             assert!(
@@ -408,7 +479,8 @@ mod tests {
         assert!(
             query
                 .complete_candidate(CompletionInput {
-                    prefix: "missing:bg-br".into()
+                    prefix: "missing:bg-br".into(),
+                    context: CandidateContext::Utility,
                 })
                 .unwrap()
                 .is_empty()

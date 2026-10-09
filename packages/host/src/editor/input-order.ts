@@ -1,27 +1,33 @@
 /** Syntax categories used to group direct style inputs. */
 export type InputOrder =
   | {
+      /** Prevents inputs on either side from exchanging positions. */
       kind: "barrier";
     }
   | {
+      /** Groups a ref marker with projections of the same declaration. */
       kind: "ref";
-      /** Opaque declaration identity; aliases of the same ref must share this value. */
+      /** Opaque declaration identity. Aliases of the same ref must share this value. */
       identity: string;
       /** True for a direct projection call, false for a marker attachment. */
       projection: boolean;
     }
   | {
+      /** Identifies composed styles whose relative order must be retained. */
       kind: "bases";
     }
   | {
+      /** Identifies utility text and named variant groups. */
       kind: "utilities";
     }
   | {
+      /** Identifies authored custom-property inputs. */
       kind: "customProperties";
     }
   | {
+      /** Identifies aria or data attributes, including containers of those attributes. */
       kind: "attributes";
-      /** Authored property name. Omission delimits name sorting for a container. */
+      /** Decoded name of one attribute. Omission delimits name sorting for a container. */
       name?: string;
     };
 
@@ -37,11 +43,16 @@ export interface InputOrderItem {
 
 /**
  * Groups `items` by syntax category without crossing barriers.
- * Ref groups retain their first appearance order; each marker precedes its projections.
+ * Ref groups retain their first appearance order, and each marker precedes its projections.
  * Bases, utilities, custom properties, and attributes follow in that order. Each
- * category retains its input order. `attributes` enables a separate name sort.
- * A supplied `allows` must approve each exchanged range, so this path uses adjacent
- * exchanges. Returns the original objects in their new order.
+ * category retains its input order unless attribute name sorting is enabled.
+ *
+ * @param items - Inputs in their current order, with a distinct object for each occurrence.
+ * @param attributes - Enables case-sensitive lexical ordering of named attributes after grouping.
+ * Entries without a single name delimit that ordering, and equal names retain their order.
+ * @param allows - Optional predicate that approves the original range covering each adjacent
+ * exchange. Rejected exchanges can prevent the result from reaching the full category order.
+ * @returns A new array of the original objects. The input array and its objects remain unchanged.
  */
 export function orderInputs<T extends InputOrderItem>(
   items: readonly T[],
@@ -62,6 +73,14 @@ export function orderInputs<T extends InputOrderItem>(
   return sorted;
 }
 
+/**
+ * Computes the category order for one run and applies any permitted adjacent exchanges.
+ *
+ * @param items - A run without barriers, with a distinct object for each occurrence.
+ * @param attributes - Enables the attribute name ordering described by {@link orderInputs}.
+ * @param allows - Optional predicate over the original range covering two adjacent inputs.
+ * @returns The same input objects in a new array. Neither the input array nor its objects change.
+ */
 function orderRun<T extends InputOrderItem>(
   items: readonly T[],
   attributes: boolean,
@@ -70,7 +89,9 @@ function orderRun<T extends InputOrderItem>(
   const refs = new Map<
     string,
     {
+      /** Marker occurrences in their original relative order. */
       markers: T[];
+      /** Projection occurrences in their original relative order. */
       projections: T[];
     }
   >();
@@ -138,6 +159,13 @@ function orderRun<T extends InputOrderItem>(
   return sorted;
 }
 
+/**
+ * Supplies the name used to sort individual attributes within a run.
+ *
+ * @param item - An input classified by its authored syntax.
+ * @returns The decoded attribute name, including an empty name when present, or undefined
+ * for a container or another input category. Undefined delimits name sorting.
+ */
 function attributeName(item: InputOrderItem): string | undefined {
   return item.order.kind === "attributes" ? item.order.name : undefined;
 }

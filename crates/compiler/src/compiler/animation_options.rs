@@ -1,9 +1,9 @@
 //! Resolution of option lists and the conditions their options carry.
 //!
-//! An `animation(options)` use and a view-transition group option list share this resolver;
-//! they differ only in whether a variant on an option is rejected or kept as a condition.
-//! Options resolve through the animation option registry, which is why a theme duration is
-//! usable as an option even though it is not a utility.
+//! An `animation(options)` use and a view-transition group option list share this
+//! resolver; they differ only in whether a variant on an option is rejected or kept as
+//! a condition. Options resolve through the animation option registry, which is why a
+//! theme duration is usable as an option even though it is not a utility.
 
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -15,7 +15,7 @@ use super::variants::{OptionCondition, condition_paths};
 
 /// How an option list treats the variants an option carries.
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub(super) enum OptionVariants {
+pub(crate) enum OptionVariants {
     /// A variant makes the option unknown: an animation option describes a value.
     Rejected,
     /// Media and supports conditions wrap the option's own rule.
@@ -24,31 +24,33 @@ pub(super) enum OptionVariants {
 
 /// Declarations one option list contributes, split by the conditions its options carry.
 #[derive(Default)]
-pub(super) struct ResolvedOptions {
+pub(crate) struct ResolvedOptions {
     /// Declarations of the options that apply unconditionally, in written order.
-    pub(super) declaration: String,
+    pub(crate) declaration: String,
     /// One entry per conditioned option, in written order. Always empty under
     /// [`OptionVariants::Rejected`].
-    pub(super) conditioned: Vec<ConditionedOption>,
+    pub(crate) conditioned: Vec<ConditionedOption>,
 }
 
 /// Declarations one option contributes under the conditions it carries.
-pub(super) struct ConditionedOption {
-    /// Condition paths this option applies under, outermost first.
-    pub(super) paths: Vec<Vec<OptionCondition>>,
+pub(crate) struct ConditionedOption {
+    /// Alternative paths for this option, each with conditions ordered outermost first.
+    pub(crate) paths: Vec<Vec<OptionCondition>>,
     /// Declarations the option contributes.
-    pub(super) declaration: String,
+    pub(crate) declaration: String,
 }
 
-/// Resolves a whitespace-separated option list, keeping the conditions its options carry.
+/// Resolves a whitespace-separated option list, keeping the conditions its options
+/// carry.
 ///
-/// Each option contributes its own declarations, so writing two durations is not rejected here
-/// but resolves in source order. An option that cannot apply — text that is not candidate syntax,
-/// a negative value, `!important`, or an unknown name — is reported as an unknown option at its
-/// own span and contributes nothing. A variant that cannot condition a rule is reported as an
-/// unknown option under [`OptionVariants::Rejected`] and as an invalid view-transition
-/// variant under [`OptionVariants::Conditions`].
-pub(super) fn resolve_options(
+/// Each option contributes its own declarations, so writing two durations is not
+/// rejected here but resolves in source order. An option that cannot apply - text that
+/// is not candidate syntax, a negative value, `!important`, or an unknown name - is
+/// reported as an unknown option at its own span and contributes nothing. A variant
+/// that cannot condition a rule is reported as an unknown option under
+/// [`OptionVariants::Rejected`] and as an invalid view-transition variant under
+/// [`OptionVariants::Conditions`].
+pub(crate) fn resolve_options(
     options: &Spanned<String>,
     variants: OptionVariants,
     theme: &ThemeIndex,
@@ -115,8 +117,8 @@ pub(super) fn resolve_options(
 
 /// The option text without its variant prefixes.
 ///
-/// A parsed candidate keeps each prefix's own spelling, so dropping them in order leaves the text
-/// the option registries resolve.
+/// A parsed candidate keeps each prefix's own spelling, so dropping them in order
+/// leaves the text the option registries resolve.
 fn strip_variants<'a>(raw: &'a str, variants: &[Variant]) -> &'a str {
     let prefixes: usize = variants.iter().map(|variant| variant.raw.len() + 1).sum();
     &raw[prefixes..]

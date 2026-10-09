@@ -24,7 +24,7 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
   const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
   const uri = "file:///workspace/entry.tsx";
   const source =
-    'import {style} from "stillwind/react"; const card=style("p-[16px] flex block hover:bg-brand");';
+    'import {style} from "stillwind/react"; const card=style("p-[16px] flex block hover:bg-brand"); const frames=style.keyframes({from:"block"}); const transition=style.viewTransition({group:"duration-normal both",old:"block"}); declare const id:string; const dynamic=style(transition.for(id));';
   const service = createLanguageServer(server, {
     openWorkspaces: async () => ({
       workspaces: new Map([
@@ -48,6 +48,9 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
 @utility p-* { padding:--value(--spacing-*, --spacing(), [length]); }
 @utility block { display:block; } @utility flex { display:flex; }
 @utility bg-* { background-color:--value(--color-*, [color]); }
+@theme { --duration-normal:180ms; }
+@stillwind-animation-option both { animation-fill-mode:both; }
+@stillwind-animation-option duration-* { animation-duration:--value(--duration-*); }
 @variant hover { &:hover { @slot; } } @stillwind-slot utilities;`,
               ],
             ]),
@@ -109,6 +112,51 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     expect(item.documentation).toBeUndefined();
     const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
     expect(JSON.stringify(resolved.documentation)).toContain("background-color");
+    const animationItems = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: {
+        uri,
+      },
+      position: {
+        line: 0,
+        character: source.indexOf("duration-normal"),
+      },
+    });
+    expect(animationItems.map((item) => item.label)).toEqual(
+      expect.arrayContaining(["duration-normal", "both"]),
+    );
+    expect(animationItems.some((item) => item.label === "block" || item.label === "hover:")).toBe(
+      false,
+    );
+    const animation = await client.sendRequest<CompletionItem>(
+      "completionItem/resolve",
+      animationItems.find((item) => item.label === "duration-normal")!,
+    );
+    expect(JSON.stringify(animation.documentation)).toContain("::view-transition-group");
+    expect(JSON.stringify(animation.documentation)).toContain("animation-duration:");
+    const definition = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: {
+        uri,
+      },
+      position: {
+        line: 0,
+        character: source.indexOf("style.keyframes"),
+      },
+    });
+    expect(JSON.stringify(definition.contents)).toContain("@keyframes");
+    expect(JSON.stringify(definition.contents)).toContain("__keyframes_frames");
+    const dynamic = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: {
+        uri,
+      },
+      position: {
+        line: 0,
+        character: source.indexOf("transition.for"),
+      },
+    });
+    expect(JSON.stringify(dynamic.contents)).toContain("__transition_transition");
+    expect(JSON.stringify(dynamic.contents)).toContain(
+      "view-transition-name is computed at runtime from ` id `.",
+    );
     const colors = await client.sendRequest<ColorInformation[]>("textDocument/documentColor", {
       textDocument: {
         uri,
@@ -174,7 +222,7 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
         },
       ],
     });
-    const stale = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
+    const stale = await client.sendRequest<CompletionItem>("completionItem/resolve", resolved);
     expect(stale.documentation).toBeUndefined();
   } finally {
     await service.dispose();

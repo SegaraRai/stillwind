@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use super::super::request::{
     LayerNameRequest, LocatorContext, NameRequest, RefMarkerName, ViewTransitionClassRequest,
     ViewTransitionSlotRequest,
 };
+use super::super::{PreviewNames, PreviewRequest};
 use super::{GeneratedName, GeneratorSet};
 
 /// One name a generator rejected, kept so a host can warn about its own generator.
@@ -123,6 +125,10 @@ pub struct IdentifierContext {
     rejected: RefCell<RejectedNames>,
     /// Names of the families that carry no declaration position.
     detached: RefCell<Vec<DetachedName>>,
+    /// Optional display names applied after normal generation and validation. Utility
+    /// classes retain their generated token; the preview emitter supplies their `&`
+    /// selector.
+    preview: Option<Rc<RefCell<PreviewNames>>>,
 }
 
 impl IdentifierContext {
@@ -139,7 +145,17 @@ impl IdentifierContext {
             memo: RefCell::new(BTreeMap::new()),
             rejected: RefCell::new(RejectedNames::default()),
             detached: RefCell::new(Vec::new()),
+            preview: None,
         }
+    }
+
+    /// Configures this context to return display names from `names` after normal host
+    /// generation, validation, and mode-specific fallback. The original allocation memo
+    /// and rejection records remain active. Later requests may extend the shared table;
+    /// callers must release any table borrows before requesting a name.
+    pub(crate) fn with_preview_names(mut self, names: Rc<RefCell<PreviewNames>>) -> Self {
+        self.preview = Some(names);
+        self
     }
 
     /// The mode this context was built for.
@@ -294,15 +310,17 @@ impl IdentifierContext {
 
     /// The text one request resolves to, asking the host generator first.
     ///
-    /// A host name is written as returned, with no built-in prefix; a built-in name is
-    /// prefixed by the compiler. A rejected request either fails the compilation or, in
-    /// development mode, resolves to the built-in name and is recorded once.
+    /// Normal generation uses a host name without a built-in prefix or a prefixed
+    /// built-in name. A rejected request either fails or, in development mode, uses the
+    /// built-in fallback and records the rejection. The memo and detached records keep
+    /// these original results. A configured display table substitutes the returned
+    /// token after validation, except for requests without a display role.
     ///
     /// # Errors
     ///
     /// Returns [`CompileDiagnostic::IdentifierGenerationFailed`] for a rejected request
-    /// in release mode.
-    pub(crate) fn resolve_name<T: Token, R: NameRequest<T>>(
+    /// in release mode or when the display token cannot be constructed.
+    pub(crate) fn resolve_name<T: Token, R: PreviewRequest<T>>(
         &self,
         request: &R,
     ) -> Result<T, CompileDiagnostic> {
@@ -310,7 +328,7 @@ impl IdentifierContext {
         let hash = request.hash();
         let key = (kind, hash, request.label().cloned());
         if let Some(cached) = self.memo.borrow().get(&key) {
-            return self.settle(request, &hash, cached.clone());
+            return self.display_name(request, self.settle(request, &hash, cached.clone())?);
         }
         let generated = self.generate(request, &hash);
         self.memo.borrow_mut().insert(key, generated.clone());
@@ -322,7 +340,34 @@ impl IdentifierContext {
                 identity: identity.into(),
             });
         }
-        settled
+        self.display_name(request, settled?)
+    }
+
+    /// Substitutes a display token for the already validated `original`, adding new
+    /// requests to the configured table. A missing table or role returns `original`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an identifier-generation diagnostic if the token family rejects the
+    /// display name.
+    fn display_name<T: Token>(
+        &self,
+        request: &impl PreviewRequest<T>,
+        original: T,
+    ) -> Result<T, CompileDiagnostic> {
+        let Some(name) = self
+            .preview
+            .as_ref()
+            .and_then(|names| names.borrow_mut().name(request))
+        else {
+            return Ok(original);
+        };
+        T::new(&name).map_err(|error| {
+            CompileDiagnostic::IdentifierGenerationFailed(
+                request.kind().as_str().into(),
+                error.to_string().into(),
+            )
+        })
     }
 
     /// Asks the host generator, or keeps the built-in name when it declines.

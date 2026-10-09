@@ -9,8 +9,7 @@ use super::super::CssContribution;
 use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_options};
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
-use super::super::utilities::combine_declarations_for_theme;
-use super::super::utilities::resolve_utility;
+use super::super::utilities::{combine_declarations_for_theme, resolve_utility};
 use super::super::variants::{condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
 
@@ -71,7 +70,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
 /// its declarations without changing what the unconditional rule says. Rejected tokens
 /// contribute nothing; successful tokens still append their property requirements, so callers
 /// must check diagnostics before publishing.
-fn emit_view_transition_utilities(
+pub(crate) fn emit_view_transition_utilities(
     output: &mut String,
     selector: &str,
     input: &Spanned<String>,

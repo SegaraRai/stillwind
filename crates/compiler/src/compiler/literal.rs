@@ -167,6 +167,9 @@ impl LiteralContribution {
 
 /// A transition token with its CSS application context and name supply.
 pub(super) struct TransitionContribution {
+    /// Inclusive UTF-8 byte start of the original use receiver in this module, used to
+    /// retain slot names when other call inputs are omitted from an isolated preview.
+    pub(super) source_offset: u32,
     /// Canonical generated token, escaped when serialized into CSS.
     pub(super) token: String,
     /// Escaped static participant name.

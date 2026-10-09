@@ -8,12 +8,22 @@ import type { EditorEdit } from "./snapshot.ts";
 import type { SourceIndex, UtilityLiteral } from "./source-index.ts";
 
 /**
- * Sorts recognized literals and arrays in `source` using `options` and the active
- * design system in `candidates`. `index` must describe the unchanged source graph.
- * `seed` contains nonoverlapping edits in original UTF-16 coordinates. The result
- * composes these edits with sorting edits, also in original coordinates.
- * `allows` can reject exchanged ranges, for example to preserve lint suppression.
- * False options keep only the seed edits and skip sorting.
+ * Composes existing edits with utility sorting and grouping of direct style inputs.
+ * Literal sorting applies only to ordinary utilities. Containers are processed from the
+ * smallest to the largest so an outer replacement includes edits to nested inputs.
+ * Unknown syntax, ambiguous comments, and text that cannot map exactly delimit grouping.
+ *
+ * @param source - The same prepared source object stored in `index`, with an unchanged buffer.
+ * @param index - Index built from that source graph before any edits are applied.
+ * @param candidates - Candidate query for the design system that compiled the source.
+ * @param options - Sorting targets. False returns only the seed edits in source order.
+ * @param seed - Nonoverlapping replacements in original UTF-16 coordinates. Inside a sortable
+ * literal, each edit must replace a complete utility token. Edits inside grouped containers must
+ * stay within one input. Replacement text must contain any JS escapes needed at its range.
+ * @param allows - Optional predicate that approves a whole literal's content range or the
+ * range covering an adjacent input exchange. Every range uses original UTF-16 coordinates.
+ * @returns Edits in ascending original offset order. The source and seed array remain unchanged.
+ * @throws If a matching utility definition has a malformed requirement or native ranking fails.
  */
 export function sortSource(
   source: PreparedSource,
@@ -34,7 +44,9 @@ export function sortSource(
     const literals = index.literals
       .filter(
         (literal) =>
-          literal.source === source && permits(literal.boundaries[0], literal.boundaries.at(-1)!),
+          literal.source === source &&
+          literal.context === "utility" &&
+          permits(literal.boundaries[0], literal.boundaries.at(-1)!),
       )
       .map((literal) => {
         const matches = [...literal.text.matchAll(/\S+/gu)];
@@ -73,7 +85,9 @@ export function sortSource(
       const queues = new Map<
         string,
         {
+          /** Authored or seeded spellings of duplicate candidates, in occurrence order. */
           texts: string[];
+          /** Zero-based index of the next spelling to consume. */
           position: number;
         }
       >();
@@ -215,7 +229,14 @@ export function sortSource(
   return edits.sort((a, b) => a.start - b.start);
 }
 
-/** Applies nonoverlapping replacements in descending original offset order. */
+/**
+ * Applies replacements from the end of a document so all ranges keep their original meaning.
+ *
+ * @param source - Original document text, or a slice whose coordinates match `edits`.
+ * @param edits - Nonoverlapping half-open UTF-16 ranges within `source`, in any order.
+ * The caller must provide valid boundaries because this function does not validate them.
+ * @returns The replaced text. The edit array and its objects remain unchanged.
+ */
 export function applyEdits(source: string, edits: readonly EditorEdit[]): string {
   for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
     source = source.slice(0, edit.start) + edit.newText + source.slice(edit.end);
@@ -223,11 +244,20 @@ export function applyEdits(source: string, edits: readonly EditorEdit[]): string
   return source;
 }
 
+/**
+ * Escapes replacement content for an existing JS string or template token.
+ *
+ * @param text - Decoded replacement text without surrounding delimiters.
+ * @param literal - Indexed literal whose AST token supplies the quote or backtick delimiter.
+ * @returns Content without delimiters, with backslashes, the delimiter, tabs, CR, and LF escaped.
+ * Template content also escapes `${` so it cannot introduce an interpolation.
+ */
 export function escapeContent(text: string, literal: UtilityLiteral): string {
   const quote = ts.isTemplateLiteralToken(literal.node) ? "`" : literal.node.getText()[0];
   let escaped = text
     .replaceAll("\\", "\\\\")
     .replaceAll(quote, `\\${quote}`)
+    .replaceAll("\t", "\\t")
     .replaceAll("\r", "\\r")
     .replaceAll("\n", "\\n");
   if (quote === "`") {
@@ -236,6 +266,14 @@ export function escapeContent(text: string, literal: UtilityLiteral): string {
   return escaped;
 }
 
+/**
+ * Decodes a seeded replacement using the original literal's delimiter.
+ *
+ * @param text - Source spelling of replacement content that can be wrapped in that delimiter.
+ * @param literal - Indexed literal that supplies the quote or backtick delimiter.
+ * @returns TypeScript's decoded string value, or the supplied text when parsing produces a
+ * different initializer kind. Parser diagnostics are not checked.
+ */
 function decodeReplacement(text: string, literal: UtilityLiteral): string {
   const quote = ts.isTemplateLiteralToken(literal.node) ? "`" : literal.node.getText()[0];
   const file = ts.createSourceFile(
@@ -249,6 +287,15 @@ function decodeReplacement(text: string, literal: UtilityLiteral): string {
   return node && ts.isStringLiteralLike(node) ? node.text : text;
 }
 
+/**
+ * Replaces edits covered by a larger, already composed replacement.
+ *
+ * @param edits - Existing edits in original coordinates. Every overlapping edit must be fully
+ * contained in `replacement` and already reflected in its text.
+ * @param replacement - Replacement whose text includes all contained edits.
+ * @returns A new array with overlapping edits removed and the replacement appended.
+ * The result is not sorted, and the input edit objects remain unchanged.
+ */
 function absorb(edits: readonly EditorEdit[], replacement: EditorEdit): EditorEdit[] {
   return [
     ...edits.filter((edit) => edit.end <= replacement.start || edit.start >= replacement.end),
@@ -256,6 +303,14 @@ function absorb(edits: readonly EditorEdit[], replacement: EditorEdit): EditorEd
   ];
 }
 
+/**
+ * Sorts contiguous runs of resolved utilities while keeping unresolved spellings in place.
+ *
+ * @param values - Decoded candidates in their original order.
+ * @param compare - Compiler comparator prepared for these spellings. A null self-comparison
+ * marks a boundary, and a null comparison within a run treats that pair as equal.
+ * @returns A new array with stable ordering inside each run. `values` remains unchanged.
+ */
 function sortRuns(
   values: string[],
   compare: (left: string, right: string) => number | null,

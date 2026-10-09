@@ -5,7 +5,7 @@
 //! publishes the base before those regions. The emitter supplies resolved rules;
 //! this module allocates identities and CSS output without choosing framework props.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
@@ -22,6 +22,38 @@ use crate::identifiers::{
     ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
 };
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
+
+/// Slot names allocated with every input of a call present. Isolated previews
+/// consume these names in occurrence order so sibling utilities do not rename slots.
+#[derive(Clone, Default)]
+pub(in crate::compiler) struct PreviewSlots {
+    /// Escaped custom-property names in occurrence order. Keys contain the original
+    /// receiver's UTF-8 start and NUL-separated token, variant plan, static name, and
+    /// dynamic-name property. The class unit's branch identity is excluded.
+    names: BTreeMap<(u32, String), VecDeque<String>>,
+    /// True appends allocations to the queues; false consumes them during isolated
+    /// emission.
+    capturing: bool,
+}
+
+impl PreviewSlots {
+    /// Starts empty queues for emission with every input of the original call present.
+    pub(in crate::compiler) fn capture() -> Self {
+        Self {
+            capturing: true,
+            ..Self::default()
+        }
+    }
+
+    /// Clones the captured queues for one isolated emission. Consumption of the
+    /// returned queues leaves the complete call's allocations unchanged.
+    pub(in crate::compiler) fn replay(&self) -> Self {
+        Self {
+            names: self.names.clone(),
+            capturing: false,
+        }
+    }
+}
 
 /// View-transition declarations owned by one class unit.
 ///
@@ -130,6 +162,10 @@ pub(super) struct ClassUnits<'a> {
     theme: &'a ThemeIndex,
     /// Original call span used in class identities and guard metadata.
     call_span: Span,
+    /// A present value selects `&` for generated element classes and captures or
+    /// replays transition slots. Ref marker selectors retain their separately allocated
+    /// names.
+    preview: Option<&'a mut PreviewSlots>,
     /// Published module CSS; the base is appended before deferred leaves.
     utility_css: &'a mut Vec<CssContribution>,
     /// Symbol records shared across calls in this module.
@@ -153,6 +189,10 @@ pub(super) struct ClassUnits<'a> {
 
 impl<'a> ClassUnits<'a> {
     /// Starts one call without publishing any CSS or allocating a class identity.
+    /// `module_id`, `call_span`, `theme`, and resolved `options` must describe the same
+    /// compilation. `identifiers` allocates its names, and the mutable destinations may
+    /// already contain output from earlier calls. A present `preview` replaces
+    /// generated element selectors with `&` and supplies slot capture or replay state.
     #[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
     pub(super) fn new(
         module_id: &'a ModuleId,
@@ -160,6 +200,7 @@ impl<'a> ClassUnits<'a> {
         identifiers: &'a IdentifierContext,
         theme: &'a ThemeIndex,
         call_span: Span,
+        preview: Option<&'a mut PreviewSlots>,
         utility_css: &'a mut Vec<CssContribution>,
         symbols: &'a mut Vec<GeneratedSymbol>,
         emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
@@ -170,6 +211,7 @@ impl<'a> ClassUnits<'a> {
             identifiers,
             theme,
             call_span,
+            preview,
             utility_css,
             symbols,
             emitted_utility_classes,
@@ -203,9 +245,9 @@ impl<'a> ClassUnits<'a> {
     ///
     /// # Errors
     ///
-    /// Returns an error if generating a class or slot name, or emitting utilities, fails.
-    /// Earlier allocations and shared registry changes remain. The caller must discard
-    /// the failed compilation.
+    /// Returns an error if generating a class or slot name, or emitting utilities,
+    /// fails. Earlier allocations and shared registry changes remain. The caller must
+    /// discard the failed compilation.
     pub(super) fn leaf(
         &mut self,
         contribution: LiteralContribution,
@@ -230,8 +272,8 @@ impl<'a> ClassUnits<'a> {
     ///
     /// # Errors
     ///
-    /// Returns an error if generating a class or slot name, or emitting utilities, fails.
-    /// Earlier allocations and registry changes remain.
+    /// Returns an error if generating a class or slot name, or emitting utilities,
+    /// fails. Earlier allocations and registry changes remain.
     pub(super) fn leaf_at(
         &mut self,
         mut contribution: LiteralContribution,
@@ -311,7 +353,7 @@ impl<'a> ClassUnits<'a> {
             deferred.extend(rules);
             let slots = self.view_transition_slots();
             let declarations =
-                self.view_transition_classes[0].class_rules(&format!(".{name}"), &slots);
+                self.view_transition_classes[0].class_rules(&self.selector(&name), &slots);
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
                     css: declarations,
@@ -388,7 +430,7 @@ impl<'a> ClassUnits<'a> {
         {
             emit_utility_rules(
                 &mut contributions,
-                &name.selector(),
+                &self.selector(name.as_str()),
                 definitions,
                 self.theme,
                 self.identifiers,
@@ -403,6 +445,17 @@ impl<'a> ClassUnits<'a> {
         Ok((name.as_str().to_owned(), contributions))
     }
 
+    /// Returns `&` during a preview or a class selector with the raw `name`
+    /// CSS-escaped. Ref marker selectors are allocated separately and do not pass
+    /// through this helper.
+    fn selector(&self, name: &str) -> String {
+        if self.preview.is_some() {
+            "&".to_owned()
+        } else {
+            format!(".{}", escaped_identifier(name))
+        }
+    }
+
     /// Queues one unit's CSS contributions with their source order for publication after the base.
     fn publish_unit(&mut self, order: u32, contributions: Vec<CssContribution>) {
         self.runtime_css.extend(
@@ -412,21 +465,24 @@ impl<'a> ClassUnits<'a> {
         );
     }
 
-    /// Converts `transitions` into token metadata and appends their rules to `utilities`.
-    /// The transitions keep their input order, and `branch` distinguishes their slots
-    /// from those of other units in this call.
+    /// Converts `transitions` into token metadata and appends their rules to
+    /// `utilities`. The transitions keep their input order, and `branch` distinguishes
+    /// their slots from those of other units in this call.
     ///
-    /// When `base` is true, a transition without a CSS plan keeps its token as a literal.
-    /// Other transitions use slots and apply their CSS plans. If a transition has a
-    /// dynamic-name property, the caller must provide both a plan and a runtime value
-    /// for that property.
+    /// When `base` is true, a transition without a CSS plan keeps its token as a
+    /// literal. Other transitions use slots and apply their CSS plans. If a transition
+    /// has a dynamic-name property, the caller must provide both a plan and a runtime
+    /// value for that property.
+    /// Preview capture records each allocated property by its original occurrence.
+    /// Preview replay consumes those queues, allocating a property when no entry
+    /// remains.
     ///
     /// # Errors
     ///
     /// Returns an error if slot generation fails. Rules already appended to `utilities`
     /// remain when a later transition fails.
     fn materialize_transitions(
-        &self,
+        &mut self,
         branch: &str,
         transitions: Vec<TransitionContribution>,
         utilities: &mut Vec<CompiledUtility>,
@@ -438,7 +494,43 @@ impl<'a> ClassUnits<'a> {
                 unit.attach(&transition.token, transition.name.as_deref());
                 continue;
             }
-            let property = self.view_transition_slot(&format!("{branch}\0{index}"))?;
+            let key = self.preview.as_ref().map(|_| {
+                (
+                    transition.source_offset,
+                    format!(
+                        "{}\0{}\0{}\0{}",
+                        transition.token,
+                        transition
+                            .plan
+                            .as_ref()
+                            .map_or("", |plan| plan.canonical.as_str()),
+                        transition.name.as_deref().unwrap_or(""),
+                        transition.dynamic_name_property.as_deref().unwrap_or(""),
+                    ),
+                )
+            });
+            let captured = self
+                .preview
+                .as_deref_mut()
+                .filter(|preview| !preview.capturing)
+                .and_then(|preview| preview.names.get_mut(key.as_ref()?))
+                .and_then(VecDeque::pop_front);
+            let property = match captured {
+                Some(property) => property,
+                None => self.view_transition_slot(&format!("{branch}\0{index}"))?,
+            };
+            if let Some(preview) = self
+                .preview
+                .as_deref_mut()
+                .filter(|preview| preview.capturing)
+                && let Some(key) = key
+            {
+                preview
+                    .names
+                    .entry(key)
+                    .or_default()
+                    .push_back(property.clone());
+            }
             let mut declaration = format!("{property}:{};", escaped_identifier(&transition.token));
             unit.slots.push(property);
             if let Some(name) = transition.name {
@@ -480,7 +572,8 @@ impl<'a> ClassUnits<'a> {
         self.view_transition_slot(&format!("view-transition-name:{source_offset}"))
     }
 
-    /// The slot properties the base unit references, in the order their units were allocated.
+    /// The slot properties the base unit references, in the order their units were
+    /// allocated.
     fn view_transition_slots(&self) -> Vec<String> {
         self.view_transition_classes
             .iter()

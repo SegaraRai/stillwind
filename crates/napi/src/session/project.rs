@@ -1,7 +1,5 @@
 //! Transports project updates, reloads, and revision-pinned reports for a host.
 
-use stillwind_ir::TypeScriptFactsProvider;
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
@@ -13,15 +11,15 @@ use stillwind_compiler::{
     CompileResult, IdentifierGenerator, IdentifierMode, Identifiers, MappedStylesheet,
     ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
-
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer};
+use stillwind_ir::{ModuleAnalysis, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
 
 use stillwind_source::{ModuleId, SourceRegistry};
 
 use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
+use crate::module_editor::NativeModuleEditor;
 use crate::naming::{NativeIdentifierNaming, NativeNaming};
 use crate::options::NativeCompilerOptions;
 use crate::output::{
@@ -105,6 +103,35 @@ pub struct NativeProjectSession {
 
 #[napi]
 impl NativeProjectSession {
+    /// Captures the latest finalized analyses for the requested module identities,
+    /// including rejected attempts. Use the module identities passed with prepared
+    /// sources.
+    ///
+    /// Returns one capture per known module in module identity order. Duplicate
+    /// identities are collapsed, and unknown identities are omitted.
+    ///
+    /// Captures share display names and retain their analyses, settings, and host
+    /// callbacks for later queries. Host callbacks run in the current Node-API
+    /// environment during capture. This operation does not publish or replace project
+    /// artifacts.
+    #[napi]
+    #[allow(clippy::needless_pass_by_value)] // Node-API supplies owned strings.
+    pub fn editor_modules(&self, env: Env, module_ids: Vec<String>) -> Vec<NativeModuleEditor> {
+        let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
+        let compiler = ModuleCompiler::new(self.session.snapshot(), self.session.options().clone());
+        let modules = module_ids.iter().filter_map(|id| {
+            self.session
+                .analyses()
+                .get(&ModuleId::from(id.as_str()))
+                .map(AsRef::as_ref)
+        });
+        compiler
+            .editors(modules, self.session.identifiers())
+            .into_iter()
+            .map(|editor| NativeModuleEditor::new(editor, self.naming.clone()))
+            .collect()
+    }
+
     /// Collects local diagnostics from available IR without generating or publishing artifacts.
     /// Type facts may cover only some expressions. Unresolved lowering remains in the reports.
     ///

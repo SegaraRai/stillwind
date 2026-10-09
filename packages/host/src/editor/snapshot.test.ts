@@ -16,6 +16,14 @@ const theme = `
 @stillwind-slot utilities;
 `;
 
+/**
+ * Creates an isolated virtual project for queries that do not require semantic type facts.
+ *
+ * @param source - Original TSX text stored at `/workspace/entry.tsx`.
+ * @param config - Overrides for the default entry, CSS path, and disabled type facts.
+ * @param css - Complete stylesheet stored at `/workspace/theme.css`.
+ * @returns A project whose lifecycle the caller must end with `close()`.
+ */
 function project(source: string, config: Partial<AnalysisProjectConfig> = {}, css = theme) {
   return new BrowserProject({
     root: "/workspace",
@@ -208,6 +216,8 @@ test("hover uses emitted selectors, bound identities, and candidate variants; co
     const resolve = (await current.query("/workspace/entry.tsx", {
       kind: "resolve",
       candidate: "hover:bg-brand",
+      input: completions[0].input,
+      snapshot: completions[0].snapshot,
     }))!.hover;
     expect(resolve?.css).toContain("&:hover");
     expect(resolve?.css).toBe(hover?.css);

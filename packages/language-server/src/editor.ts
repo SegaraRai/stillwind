@@ -33,6 +33,7 @@ export function registerEditorFeatures(
     if (!document) {
       return null;
     }
+
     const entries = await query(
       document.uri,
       {
@@ -45,16 +46,18 @@ export function registerEditorFeatures(
     if (!answers.length) {
       return null;
     }
+
     const seen = new Set<string>();
     const contents = answers
       .flatMap((entry) => {
-        const css = entry.result.hover!.css;
-        if (seen.has(css)) {
+        const hover = entry.result.hover!;
+        const key = JSON.stringify(hover);
+        if (seen.has(key)) {
           return [];
         }
-        seen.add(css);
+        seen.add(key);
         return [
-          `${answers.length > 1 ? `${entry.config} · project ${entry.project + 1}\n\n` : ""}\`\`\`css\n${css}\n\`\`\``,
+          `${answers.length > 1 ? `${entry.config} · project ${entry.project + 1}\n\n` : ""}${hoverMarkdown(hover)}`,
         ];
       })
       .join("\n\n");
@@ -66,11 +69,13 @@ export function registerEditorFeatures(
       range: offsets(document, answers[0].result.hover!),
     };
   });
+
   connection.onCompletion(async (params, token) => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
       return [];
     }
+
     const version = document.version;
     const entries = await query(
       document.uri,
@@ -93,6 +98,8 @@ export function registerEditorFeatures(
           version,
           revision: entry.result.revision,
           candidate: item.candidate,
+          input: item.input,
+          snapshot: item.snapshot,
           project: entry.project,
           config: entry.config,
         },
@@ -107,7 +114,9 @@ export function registerEditorFeatures(
         ) === index,
     );
   });
+
   connection.onCompletionResolve(async (item, token) => {
+    delete item.documentation;
     const data = item.data as
       | {
           uri?: unknown;
@@ -116,21 +125,28 @@ export function registerEditorFeatures(
           config?: unknown;
           project?: unknown;
           revision?: unknown;
+          input?: unknown;
+          snapshot?: unknown;
         }
       | undefined;
     if (
       !data ||
       typeof data.uri !== "string" ||
       typeof data.candidate !== "string" ||
+      typeof data.input !== "number" ||
+      typeof data.snapshot !== "string" ||
       documents.get(data.uri)?.version !== data.version
     ) {
       return item;
     }
+
     const entries = await query(
       data.uri,
       {
         kind: "resolve",
         candidate: data.candidate,
+        input: data.input,
+        snapshot: data.snapshot,
       },
       token,
     );
@@ -143,16 +159,18 @@ export function registerEditorFeatures(
     if (answer) {
       item.documentation = {
         kind: MarkupKind.Markdown,
-        value: `\`\`\`css\n${answer.css}\n\`\`\``,
+        value: hoverMarkdown(answer),
       };
     }
     return item;
   });
+
   connection.onDocumentColor(async (params, token) => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
       return [];
     }
+
     const entries = await query(
       document.uri,
       {
@@ -182,11 +200,13 @@ export function registerEditorFeatures(
         },
       }));
   });
+
   connection.onColorPresentation(async (params, token) => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
       return [];
     }
+
     const entries = await query(
       document.uri,
       {
@@ -212,6 +232,22 @@ export function registerEditorFeatures(
           items.findIndex((other) => JSON.stringify(item) === JSON.stringify(other)) === index,
       );
   });
+}
+
+/**
+ * Formats generated CSS as a fenced block and explains authored runtime key expressions.
+ * Expression line breaks become spaces, and code-span delimiters exceed every authored
+ * backtick run so expressions remain literal Markdown. The supplied hover remains unchanged.
+ */
+function hoverMarkdown(hover: { css: string; runtimeNames?: string[] }): string {
+  const notes = (hover.runtimeNames ?? []).map((expression) => {
+    const text = expression.replace(/\r\n?|\n/g, " ");
+    const ticks = "`".repeat(
+      Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length)) + 1,
+    );
+    return `view-transition-name is computed at runtime from ${ticks} ${text} ${ticks}.`;
+  });
+  return [`\`\`\`css\n${hover.css}\n\`\`\``, ...notes].join("\n\n");
 }
 
 /** Builds separate project actions; conflicting project edits are never combined into one action. */

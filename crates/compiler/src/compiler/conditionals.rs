@@ -47,7 +47,7 @@ fn helper(
 /// That branch is Y for a positive condition and N for a negated one. No partial
 /// output is returned. Negated variants and `--name:value` comparisons require native mode.
 /// Returns the host generator's failure for a helper's name.
-pub(super) fn lower(
+pub(crate) fn lower(
     css: &str,
     use_css_if: bool,
     identifiers: &IdentifierContext,
