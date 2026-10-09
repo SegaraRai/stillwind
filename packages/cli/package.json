@@ -22,7 +22,9 @@
   },
   "dependencies": {
     "@stillwind/analysis": "workspace:*",
-    "@stillwind/language-server": "workspace:*"
+    "@stillwind/language-server": "workspace:*",
+    "citty": "^0.2.2",
+    "consola": "^3.4.2"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",

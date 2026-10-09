@@ -11,6 +11,9 @@ stillwind fmt --check
 stillwind lint
 stillwind lint --fix
 stillwind lint --format json
+stillwind fmt --check --format json
+stillwind lint --format github
+stillwind lint --color always --hyperlinks always
 stillwind lsp --stdio
 ```
 
@@ -40,6 +43,27 @@ Exit codes:
 - `0`: formatting succeeded, formatting check found no changes, or lint found no remaining errors.
 - `1`: formatting check found changes, or lint found remaining errors. Warnings alone return `0`.
 - `2`: configuration, analysis, planning, or I/O failed, or no targets matched.
+
+`stillwind --help` lists commands, and `stillwind <command> --help` lists that command's options.
+`--version` prints the package version. `lsp` requires `--stdio` and keeps stdout for protocol messages.
+
+`fmt` and `lint` support `--format text|json|github`. The default is `github` when
+`GITHUB_ACTIONS=true` and `text` otherwise. Explicit formats override this choice.
+Text diagnostics include paths and one-based line and column positions. GitHub output uses
+workflow annotations that link findings and formatting failures to files in CI.
+
+`--color auto|always|never` controls colors. Auto mode enables colors for terminals and supported
+CI logs, respects `NO_COLOR`, `FORCE_COLOR=0`, and `TERM=dumb`, and honors other `FORCE_COLOR`
+values. An explicit mode overrides environment detection. `--hyperlinks auto|always|never`
+controls OSC 8 links to local source files. Auto mode enables links in recognized terminals,
+including VS Code and Windows Terminal, and disables them in CI and redirected output.
+Terminals that do not handle OSC 8 can still detect the printed `path:line:column` locations.
+
+JSON and GitHub output never contain display escapes. JSON success results preserve the analysis
+API's `config`, `results`, `changed` when available, and `exitCode` fields. Execution failures
+produce `{ "exitCode": 2, "error": { "message": "..." } }` on stdout. Configuration logs remain
+on stderr. Text execution errors are written to stderr using Consola. JSON source ranges use
+zero-based UTF-16 line and column positions and exclusive ends; text and CI positions are one-based.
 
 `fmt --check` and `lint` never save sources. `fmt` prints changed file paths. `lint --format json`
 returns structured findings; configuration logs are forwarded to stderr.

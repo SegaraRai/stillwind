@@ -24,7 +24,10 @@ test("fmt checks and sorts with byte preservation; unchanged fmt and lint fixes 
     const timestamp = new Date("2020-01-01T00:00:00Z");
     await utimes(file, timestamp, timestamp);
     const before = (await stat(file)).mtimeMs;
-    const check = await run(root, ["fmt", "--check"]);
+    const check = await run(root, ["fmt", "--check", "--format", "json"]);
+    expect(
+      JSON.parse(check.stdout).changed.map((changed: string) => path.normalize(changed)),
+    ).toEqual([file]);
     expect(check.code, check.stderr).toBe(1);
     expect(await readFile(file, "utf8")).toBe(source);
     expect((await stat(file)).mtimeMs).toBe(before);
@@ -217,9 +220,69 @@ test("failed batch planning preserves previously planned sources and reports unr
   }
 });
 
+test("CLI help, version, invalid options and structured failures keep their exit contracts", async () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  for (const args of [
+    [],
+    ["--help"],
+    ["fmt", "--help"],
+    ["lint", "--help"],
+    ["lsp", "--help"],
+    ["--version"],
+  ]) {
+    const result = await run(root, args);
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout).not.toBe("");
+  }
+  for (const args of [
+    ["fmt", "--fix"],
+    ["lint", "--check"],
+    ["lint", "--format", "xml"],
+    ["lint", "--config"],
+    ["lsp"],
+    ["lsp", "--no-stdio"],
+    ["missing"],
+  ]) {
+    const result = await run(root, args);
+    expect(result.code, result.stdout).toBe(2);
+    expect(result.stderr).not.toBe("");
+  }
+  for (const command of ["fmt", "lint"]) {
+    const result = await run(root, [command, "--config", "missing-config.ts", "--format", "json"]);
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stdout)).toEqual({
+      exitCode: 2,
+      error: { message: expect.any(String) },
+    });
+  }
+});
+
+test("CLI selects CI annotations and explicit display modes without corrupting structured output", async () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const args = ["lint", "--config", "missing-config.ts"];
+  const ci = await run(root, args, { GITHUB_ACTIONS: "true" });
+  expect(ci.code).toBe(2);
+  expect(ci.stdout).toMatch(/^::error/);
+  const text = await run(root, [...args, "--format", "text", "--color", "never"], {
+    GITHUB_ACTIONS: "true",
+  });
+  expect(text.stdout).toBe("");
+  expect(text.stderr).not.toContain("\u001b");
+  const colored = await run(root, [...args, "--format", "text", "--color", "always"], {
+    NO_COLOR: "1",
+  });
+  expect(colored.stderr).toContain("\u001b[31m");
+  const json = await run(root, ["--config", "missing-config.ts", "lint", "--format", "json"]);
+  expect(JSON.parse(json.stdout).exitCode).toBe(2);
+  const lsp = await run(root, ["lsp"], { GITHUB_ACTIONS: "true" });
+  expect(lsp.stdout).toBe("");
+  expect(lsp.code).toBe(2);
+});
+
 async function run(
   cwd: string,
   args: string[],
+  env: NodeJS.ProcessEnv = {},
 ): Promise<{
   code: number | null;
   stdout: string;
@@ -229,6 +292,7 @@ async function run(
     const child = spawn(process.execPath, [main, ...args], {
       cwd,
       windowsHide: true,
+      env: { ...process.env, ...env },
     });
     let stdout = "";
     let stderr = "";

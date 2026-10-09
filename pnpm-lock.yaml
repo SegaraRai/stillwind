@@ -2023,6 +2023,12 @@ importers:
       '@stillwind/language-server':
         specifier: workspace:*
         version: link:../language-server
+      citty:
+        specifier: ^0.2.2
+        version: 0.2.2
+      consola:
+        specifier: ^3.4.2
+        version: 3.4.2
     devDependencies:
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
