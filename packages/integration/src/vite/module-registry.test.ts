@@ -103,6 +103,30 @@ describe("CSS fragments with image resources", () => {
     return { id: file, file };
   };
 
+  test("registered fragments retain fixed resource paths and CSS", () => {
+    const registry = new ModuleRegistry(projectRoot, "client");
+    const resource = image("first.svg");
+    const originalFile = resource.file;
+    const resources = new Map([["IMAGE_PLACEHOLDER", resource]]);
+    const reference = registry.fragment(css, resources);
+    resource.file = path.join(projectRoot, "changed.svg");
+    resources.clear();
+    const entry = registry.get(reference);
+    if (entry?.kind !== "fragment") {
+      expect.fail("Expected a registered fragment");
+    }
+    expect(entry.resources).toEqual([
+      [
+        "IMAGE_PLACEHOLDER",
+        {
+          id: originalFile,
+          file: originalFile,
+        },
+      ],
+    ]);
+    expect(registry.get(reference)).toBe(entry);
+  });
+
   test("changing the image changes the fragment reference", () => {
     const registry = new ModuleRegistry(projectRoot, "client");
 

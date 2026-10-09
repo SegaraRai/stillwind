@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 /** Resolved local resource retained for CSS emission and development access checks. */
 export interface StylesheetResource {
   /** Resolver identity, including any resource query. */
-  id: string;
+  readonly id: string;
   /** Canonical absolute path checked before reading or serving the resource. */
-  file: string;
+  readonly file: string;
 }
 
 /**
@@ -15,7 +15,7 @@ export interface StylesheetResource {
  * @returns A new map of placeholders to JSON-escaped URL contents without surrounding quotes.
  */
 export function resourceReplacements(
-  resources: ReadonlyMap<string, StylesheetResource>,
+  resources: Iterable<readonly [string, StylesheetResource]>,
 ): Map<string, string> {
   return new Map(
     [...resources].map(([placeholder, resource]) => [

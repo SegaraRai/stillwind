@@ -1,4 +1,4 @@
-import type { AnalysisProjectConfig } from "@stillwind/config";
+import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/config";
 import {
   BrowserProject,
   virtualPath,
@@ -34,7 +34,7 @@ export interface BrowserWorkspaceOptions {
 
 /** Shares snapshot compilation between LSP analysis and application builds. */
 export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
-  /** Evaluated settings and saved inventory, which the caller must keep unchanged for this service. */
+  /** Owned settings and saved inventory fixed when this service is created. */
   readonly #options: BrowserWorkspaceOptions;
   /** Open buffers keyed by decoded virtual path, applied over the saved inventory. */
   readonly #documents = new Map<
@@ -85,11 +85,15 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Creates a service without compiling its projects yet.
-   * @param options - Evaluated settings and saved files. Keep these unchanged and replace the service
-   * when they change. The service retains the supplied object and inventory.
+   * @param options - Evaluated settings and saved files captured by this service.
+   * Replace the service to apply new configuration or saved inventory. Open buffers use update.
    */
   constructor(options: BrowserWorkspaceOptions) {
-    this.#options = options;
+    this.#options = {
+      ...options,
+      projects: options.projects.map(captureProjectConfig),
+      files: new Map(options.files),
+    };
   }
 
   /**

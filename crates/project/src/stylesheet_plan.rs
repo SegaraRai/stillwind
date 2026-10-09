@@ -158,7 +158,7 @@ impl ProjectSession {
         for module in &selection.modules {
             if let Some(artifact) = self.artifacts().get(module) {
                 stylesheet.replace(module.clone(), &artifact.css);
-                producers.insert(module.clone(), artifact.key.clone());
+                producers.insert(module.clone(), artifact.key().clone());
                 resources.extend(artifact.resources.iter().cloned());
             }
         }
@@ -296,7 +296,7 @@ impl ProjectSession {
         while let Some(module) = pending.pop() {
             if let Some(artifact) = self.artifacts().get(&module) {
                 for dependency in &artifact.composition {
-                    let base = dependency.base.module_id.clone();
+                    let base = dependency.base.module_id().clone();
                     if modules.insert(base.clone()) {
                         pending.push(base);
                     }
@@ -311,8 +311,8 @@ impl ProjectSession {
                 .find(|module| {
                     self.artifacts().get(*module).is_none_or(|artifact| {
                         artifact.composition.iter().all(|edge| {
-                            edge.base.module_id == **module
-                                || !remaining.contains(&edge.base.module_id)
+                            edge.base.module_id() == *module
+                                || !remaining.contains(edge.base.module_id())
                         })
                     })
                 })

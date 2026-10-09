@@ -9,25 +9,25 @@ import type { StylesheetResource } from "./resources.ts";
 type ModuleEntry =
   | {
       /** Selects explicit CSS values or source projections that compile CSS without application execution. */
-      kind: "value" | "projection";
+      readonly kind: "value" | "projection";
       /** Full source resolver identity, including any query selecting distinct source. */
-      sourceId: string;
+      readonly sourceId: string;
     }
   | {
       /** Selects the runtime registration module for an automatic CSS producer. */
-      kind: "producer";
+      readonly kind: "producer";
       /** Full source resolver identity. */
-      sourceId: string;
+      readonly sourceId: string;
       /** Compiler identity used for stylesheet activation and composition dependencies. */
-      moduleId: string;
+      readonly moduleId: string;
     }
   | {
       /** Selects a generated module exporting one stylesheet fragment. */
-      kind: "fragment";
+      readonly kind: "fragment";
       /** Fragment CSS containing the recorded resource placeholders. */
-      css: string;
+      readonly css: string;
       /** Placeholder records selected because they occur in this fragment. */
-      resources: ReadonlyMap<string, StylesheetResource>;
+      readonly resources: readonly (readonly [string, StylesheetResource])[];
     };
 
 /** References issued by one project environment. Unknown IDs never supply file paths. */
@@ -48,10 +48,10 @@ export class ModuleRegistry {
   ) {}
 
   /**
-   * Issues a deterministic reference and replaces its retained payload.
+   * Issues a deterministic reference. Identical fragments reuse their fixed payloads.
    * @param kind - Reference family included in the virtual prefix and fingerprint.
    * @param key - Source identity or serialized fragment content used within that family.
-   * @param entry - Payload retained by reference under the resulting identity.
+   * @param entry - Owned payload fixed under the resulting identity.
    * @returns A virtual:stillwind reference containing a SHA-256 token scoped to the environment.
    */
   #register(kind: string, key: string, entry: ModuleEntry): string {
@@ -59,6 +59,9 @@ export class ModuleRegistry {
       .update(JSON.stringify([this.environment, kind, key]))
       .digest("hex");
     const id = `virtual:stillwind/${kind}:${token}`;
+    if (entry.kind === "fragment" && this.#entries.has(id)) {
+      return id;
+    }
     this.#entries.set(id, entry);
     return id;
   }
@@ -85,8 +88,19 @@ export class ModuleRegistry {
    * @returns A reference fingerprinted from CSS and selected records in map order.
    */
   fragment(css: string, resources: ReadonlyMap<string, StylesheetResource>): string {
-    const selected = new Map([...resources].filter(([placeholder]) => css.includes(placeholder)));
-    return this.#register("fragment", JSON.stringify([css, [...selected]]), {
+    const selected: (readonly [string, StylesheetResource])[] = [];
+    for (const [placeholder, resource] of resources) {
+      if (css.includes(placeholder)) {
+        selected.push([
+          placeholder,
+          {
+            id: resource.id,
+            file: resource.file,
+          },
+        ]);
+      }
+    }
+    return this.#register("fragment", JSON.stringify([css, selected]), {
       kind: "fragment",
       css,
       resources: selected,

@@ -135,31 +135,12 @@ export interface EditorResult {
   edits?: EditorEdit[];
 }
 
-/**
- * Copies plain editor input records and freezes their nested arrays and objects.
- * @param input - Source metadata, dependencies, or fix actions without native handles.
- * @returns An owned capture whose records cannot change through aliases.
- */
-function captureInput<T>(input: T): T {
-  const captured = structuredClone(input);
-  const freeze = (value: unknown): void => {
-    if (value !== null && typeof value === "object") {
-      for (const child of Object.values(value)) {
-        freeze(child);
-      }
-      Object.freeze(value);
-    }
-  };
-  freeze(captured);
-  return captured;
-}
-
 /** Runs source queries and actionable sorting diagnostics using captured compiler output. */
 export class EditorSnapshot {
   /** Owned source buffers and projection metadata captured before publication. */
-  readonly #sources: PreparedSource[];
+  readonly #sources: readonly PreparedSource[];
   /** First fix actions from compilation reports, captured in original coordinates. */
-  readonly #fixes: BindingEdit[][];
+  readonly #fixes: readonly (readonly BindingEdit[])[];
   /** Checker ASTs, stable aliases, and captured emission plans for the graph's sources. */
   readonly #index: SourceIndex;
   /** Native design system and effective lint policy captured during construction. */
@@ -169,7 +150,7 @@ export class EditorSnapshot {
   /** Fingerprint of captures, graph dependencies, and configuration used for lazy resolution. */
   readonly #revision: string;
   /** Targets for explicit sorting and sorting fixes. False disables both. */
-  readonly #sort: UtilitySortOptions | false;
+  readonly #sort: Readonly<UtilitySortOptions> | false;
   /** Effective sort-utilities severity. Off skips its diagnostics and sorting in fixes. */
   readonly #sortSeverity: LintSeverity;
   /** Sorting reports cached by full compiler module identity, including empty results. */
@@ -192,12 +173,12 @@ export class EditorSnapshot {
     loader: NativeDesignSystemLoader,
     config: BaseConfig,
   ) {
-    const inputs = captureInput({
+    const inputs = structuredClone({
       sources: graph.sources,
       dependencies: graph.dependencies,
     });
     this.#sources = inputs.sources;
-    this.#fixes = captureInput(graph.fixes);
+    this.#fixes = structuredClone(graph.fixes);
     this.#index = new SourceIndex(inputs, session);
     this.#query = loader.editorQuery();
     this.#candidates = new CandidateQueries(this.#query);
@@ -205,11 +186,11 @@ export class EditorSnapshot {
     this.#sort =
       config.sort === false
         ? false
-        : Object.freeze({
+        : {
             stringLiterals: config.sort?.stringLiterals ?? true,
             arrays: config.sort?.arrays ?? true,
             attributes: config.sort?.attributes ?? false,
-          });
+          };
     this.#sortSeverity = (css["sort-utilities"] as LintSeverity) ?? "off";
     this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
   }

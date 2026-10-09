@@ -257,8 +257,8 @@ impl ModuleAnalysis {
             support.ir.ref_definitions.clear();
             support.ir.keyframes_declarations.retain(|declaration| {
                 identities.iter().any(|identity| {
-                    identity.kind == AssetKind::Keyframes
-                        && identity.binding_name == declaration.binding.value
+                    identity.kind() == AssetKind::Keyframes
+                        && identity.binding_name().as_str() == declaration.binding.value
                 })
             });
             support
@@ -266,8 +266,8 @@ impl ModuleAnalysis {
                 .view_transition_declarations
                 .retain(|declaration| {
                     identities.iter().any(|identity| {
-                        identity.kind == AssetKind::ViewTransition
-                            && identity.binding_name == declaration.binding.value
+                        identity.kind() == AssetKind::ViewTransition
+                            && identity.binding_name().as_str() == declaration.binding.value
                     })
                 });
             support

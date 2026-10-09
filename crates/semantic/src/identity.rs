@@ -41,19 +41,55 @@ pub enum AssetKind {
 #[serde(rename_all = "camelCase")]
 pub struct IdentityId {
     /// Asset kind, which also separates namespaces of derived names.
-    pub kind: AssetKind,
+    kind: AssetKind,
     /// Host module identity of the declaring module.
-    pub module_id: ModuleId,
+    module_id: ModuleId,
     /// UTF-8 byte offset where the declaration starts in the original source.
-    pub start: u32,
+    start: u32,
     /// UTF-8 byte offset where the declaration ends, exclusive.
-    pub end: u32,
+    end: u32,
     /// Local binding name at the declaration site. Empty for `style()` call sites,
     /// which are identified by their call span instead.
-    pub binding_name: LeanStr,
+    binding_name: LeanStr,
 }
 
 impl IdentityId {
+    /// Returns the declaration's asset kind.
+    pub const fn kind(&self) -> AssetKind {
+        self.kind
+    }
+
+    /// Returns the module identity of the declaration.
+    pub const fn module_id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    /// Returns the declaration's inclusive UTF-8 byte start.
+    pub const fn start(&self) -> u32 {
+        self.start
+    }
+
+    /// Returns the declaration's exclusive UTF-8 byte end.
+    pub const fn end(&self) -> u32 {
+        self.end
+    }
+
+    /// Returns the declaration's local binding name, or an empty name for anonymous calls.
+    pub const fn binding_name(&self) -> &LeanStr {
+        &self.binding_name
+    }
+
+    /// Consumes the identity and returns its declaration coordinates and binding.
+    pub fn into_parts(self) -> (AssetKind, ModuleId, u32, u32, LeanStr) {
+        (
+            self.kind,
+            self.module_id,
+            self.start,
+            self.end,
+            self.binding_name,
+        )
+    }
+
     /// Builds an identity, preserving the supplied module identity.
     ///
     /// Callers must pass the declaration's own span and binding. Deriving an identity

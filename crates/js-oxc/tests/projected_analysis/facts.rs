@@ -29,15 +29,15 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
         .summary
         .assets
         .iter()
-        .find(|asset| asset.identity.kind == AssetKind::Ref)
+        .find(|asset| asset.identity.kind() == AssetKind::Ref)
         .unwrap();
-    assert_eq!(asset.identity.module_id, "Component.svelte".into());
+    assert_eq!(asset.identity.module_id().as_str(), "Component.svelte");
     assert_eq!(
-        &original.text()[asset.identity.start as usize..asset.identity.end as usize],
+        &original.text()[asset.identity.start() as usize..asset.identity.end() as usize],
         "target"
     );
     assert_eq!(
-        asset.identity.start,
+        asset.identity.start(),
         scan.local_ir.ref_definitions[0].binding.span.start.0
     );
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
@@ -63,7 +63,7 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
         .summary
         .assets
         .iter()
-        .find(|asset| asset.identity.kind == AssetKind::Style)
+        .find(|asset| asset.identity.kind() == AssetKind::Style)
         .unwrap()
         .identity
         .clone();
@@ -102,7 +102,7 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
     assert_eq!(*value, probe);
     assert_eq!(candidates, std::slice::from_ref(&identity));
     assert_eq!(
-        &analysis.source.text()[identity.start as usize..identity.end as usize],
+        &analysis.source.text()[identity.start() as usize..identity.end() as usize],
         "style('flex')"
     );
     assert!(
@@ -136,8 +136,8 @@ fn projected_forward_ref_scopes_match_later_attachments_in_original_coordinates(
         .summary
         .assets
         .iter()
-        .filter(|asset| asset.identity.kind == AssetKind::Ref)
-        .map(|asset| (asset.identity.binding_name.as_str(), asset))
+        .filter(|asset| asset.identity.kind() == AssetKind::Ref)
+        .map(|asset| (asset.identity.binding_name().as_str(), asset))
         .collect::<BTreeMap<_, _>>();
     let facts = TypeFacts {
         schema: TypeFacts::SCHEMA,

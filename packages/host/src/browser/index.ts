@@ -1,4 +1,4 @@
-import type { AnalysisProjectConfig } from "@stillwind/config";
+import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/config";
 import {
   NativeProjectSession,
   type BindingRejectedIdentifier,
@@ -58,28 +58,18 @@ export interface BrowserModuleCss extends BrowserStylesheetOutput {
   }[];
 }
 
-type Immutable<T> = T extends object
+type ReadonlyData<T> = T extends object
   ? {
-      readonly [K in keyof T]: Immutable<T[K]>;
+      readonly [K in keyof T]: ReadonlyData<T[K]>;
     }
   : T;
 
 /** Analysis records shared by cache reads. Use structuredClone() to obtain editable records. */
-export type BrowserModuleAnalysis = Immutable<ModuleAnalysis>;
+export type BrowserModuleAnalysis = ReadonlyData<ModuleAnalysis>;
 
-function freezeAnalysis<T>(value: T): Immutable<T> {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) {
-      freezeAnalysis(child);
-    }
-    Object.freeze(value);
-  }
-  return value as Immutable<T>;
-}
-
-/** Owns the design system, semantic checker, and compiler artifacts for one immutable snapshot. */
+/** Owns the design system, semantic checker, and compiler artifacts for one captured inventory. */
 export class BrowserProject {
-  /** Editor views retained for each analyzed entry in the immutable inventory. */
+  /** Editor views retained for each analyzed entry in the captured inventory. */
   readonly #editors = new Map<string, EditorSnapshot>();
   /** Owned configuration records and callbacks fixed for this project's lifetime. */
   readonly #options: BrowserProjectOptions;
@@ -104,35 +94,7 @@ export class BrowserProject {
   constructor(options: BrowserProjectOptions) {
     this.#options = {
       ...options,
-      config: {
-        ...structuredClone({
-          ...options.config,
-          naming: undefined,
-          sources: undefined,
-          projection: undefined,
-        }),
-        ...(options.config.naming
-          ? {
-              naming: {
-                ...options.config.naming,
-              },
-            }
-          : {}),
-        ...(options.config.sources
-          ? {
-              sources: {
-                ...options.config.sources,
-              },
-            }
-          : {}),
-        ...(options.config.projection
-          ? {
-              projection: {
-                ...options.config.projection,
-              },
-            }
-          : {}),
-      },
+      config: captureProjectConfig(options.config),
     };
     this.#files = new Map(options.files);
     this.#facts = new BrowserTypeFactsService({
@@ -145,7 +107,7 @@ export class BrowserProject {
   /**
    * Analyzes and transforms an entry with its demanded semantic dependencies.
    * @param id - Absolute virtual source path, including any query selecting distinct source.
-   * @returns Deeply immutable reports, code, and dependency coverage, shared by cache reads.
+   * @returns Readonly reports, code, and dependency coverage, shared by cache reads.
    * @throws If the project is closed, CSS loading fails, or compilation fails.
    */
   analyze(id: string): Promise<BrowserModuleAnalysis> {
@@ -302,7 +264,7 @@ export class BrowserProject {
         }
       }
       this.#editors.set(id, editor);
-      const published = freezeAnalysis(result);
+      const published: BrowserModuleAnalysis = result;
       this.#cache.set(id, published);
       return published;
     });
@@ -353,7 +315,7 @@ export class BrowserProject {
   }
 
   /**
-   * Queries the immutable source graph after ensuring the entry has been analyzed.
+   * Queries the captured source graph after ensuring the entry has been analyzed.
    * @param id - Absolute virtual entry path, including a query that selects distinct source.
    * @param request - Operation with original UTF-16 offsets for that source.
    * @returns The editor answer, or undefined after closure or when no snapshot is available.

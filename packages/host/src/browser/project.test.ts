@@ -103,7 +103,7 @@ test("browser document and carrier outputs expose naming fallbacks", async () =>
   }
 });
 
-test("published analyses and caller configuration do not mutate cached editor or CSS inputs", async () => {
+test("projects capture caller inputs and share cached analyses independently of editable copies", async () => {
   const source = 'import {style} from "stillwind/react"; const card=style("flex block");';
   const options = {
     root: "/workspace",
@@ -136,9 +136,6 @@ test("published analyses and caller configuration do not mutate cached editor or
     });
     expect(sorted?.edits?.length).toBeGreaterThan(0);
     const css = project.css().css;
-    expect(() => Object.assign(graph.sources, { length: 0 })).toThrow(TypeError);
-    expect(() => Object.assign(graph.sources[0]!, { moduleId: "changed.ts" })).toThrow(TypeError);
-    expect(() => Object.assign(graph.modules[0]!, { code: "changed" })).toThrow(TypeError);
     Object.assign(editable.sources, { length: 0 });
     Object.assign(editable.modules, { length: 0 });
     Object.assign(editable.batches, { length: 0 });

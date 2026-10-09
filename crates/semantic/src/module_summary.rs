@@ -19,7 +19,7 @@ use stillwind_source::ModuleId;
 
 use super::assets::AssetRecord;
 use super::identity::IdentityId;
-use super::symbolic::{Candidates, ExportedValue};
+use super::symbolic::ExportedValue;
 
 /// One name bound by an `import` declaration.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -125,13 +125,13 @@ impl ModuleSummary {
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
                 | ExportedValue::ViewTransitions(value) => {
-                    if let Candidates::Finite(candidates) = &value.candidates {
+                    if let Some(candidates) = value.finite_candidates() {
                         identities.extend(candidates.iter().cloned());
                     } else {
                         identities.extend(
                             self.assets
                                 .iter()
-                                .filter(|asset| asset.identity.kind == value.kind)
+                                .filter(|asset| asset.identity.kind() == value.kind())
                                 .map(|asset| asset.identity.clone()),
                         );
                     }

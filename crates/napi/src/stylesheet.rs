@@ -214,11 +214,14 @@ impl NativeStylesheetPlan {
                 .into_iter()
                 .map(|(module, key)| NativeStylesheetProducer {
                     module: module.into_string(),
-                    source_revision: key.source_revision.0,
-                    semantic_revision: key.semantic_revision.map(|revision| revision.0),
-                    compiler_version: key.compiler_version,
-                    compiler_options: key.compiler_options.0,
-                    analysis_revision: key.analysis_revision.0,
+                    source_revision: key.source_revision().0.clone(),
+                    semantic_revision: key
+                        .semantic_revision()
+                        .as_ref()
+                        .map(|revision| revision.0.clone()),
+                    compiler_version: key.compiler_version().to_owned(),
+                    compiler_options: key.compiler_options().0.clone(),
+                    analysis_revision: key.analysis_revision().0.clone(),
                 })
                 .collect(),
         })

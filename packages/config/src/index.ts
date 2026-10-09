@@ -14,10 +14,12 @@ export {
   type UtilitySortOptions,
 } from "./compiler.ts";
 export {
+  captureProjectConfig,
   defineConfig,
   resolveConfig,
   validateConfig,
   type AnalysisProjectConfig,
+  type CapturedProjectConfig,
   type ProjectionProvider,
   type SourceProvider,
   type SourceProviderContext,

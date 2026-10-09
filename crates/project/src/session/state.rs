@@ -346,7 +346,7 @@ impl ProjectSession {
         }
         let key = self.analysis_keys.get(module)?;
         let artifact = self.artifacts.get(module)?;
-        (artifact.key == **key).then_some(artifact.as_ref())
+        (artifact.key() == key.as_ref()).then_some(artifact.as_ref())
     }
 
     /// Analyses by module, including ones whose compilation failed.
@@ -430,7 +430,7 @@ impl ProjectSession {
             && self
                 .artifacts
                 .get(&analysis.module_id)
-                .is_some_and(|artifact| artifact.key == key)
+                .is_some_and(|artifact| artifact.key() == &key)
         {
             self.analyses
                 .insert(analysis.module_id.clone(), Arc::new(analysis));
@@ -528,8 +528,8 @@ impl ProjectSession {
         while let Some(module) = pending.pop_first() {
             if let Some(artifact) = self.current_artifact(&module) {
                 for edge in &artifact.composition {
-                    if required.insert(edge.base.module_id.clone()) {
-                        pending.insert(edge.base.module_id.clone());
+                    if required.insert(edge.base.module_id().clone()) {
+                        pending.insert(edge.base.module_id().clone());
                     }
                 }
             }
@@ -584,7 +584,7 @@ impl ProjectSession {
                 if artifact
                     .composition
                     .iter()
-                    .any(|edge| edge.base.module_id == base)
+                    .any(|edge| edge.base.module_id() == &base)
                     && seen.insert(id.clone())
                 {
                     dependents.push(id.clone());

@@ -28,15 +28,79 @@ export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
    * Nonempty list of globs relative to root. Analysis enumerates these targets and filters reports
    * to their scope. Imported dependencies and global declarations can lie outside this scope.
    */
-  files: string[];
+  files: readonly string[];
   /** Globs relative to root that remove analysis targets. node_modules and .git are always excluded. */
-  exclude?: string[];
+  exclude?: readonly string[];
   /** Omission reads files and prepares supported framework documents. */
   sources?: SourceProvider;
   /** Omission uses built-in framework converters. Custom preparation applies to unprepared inputs only. */
   projection?: ProjectionProvider;
   /** False skips checker queries while retaining locally determined diagnostics. */
   typeFacts?: false;
+}
+
+type Captured<T> = T extends (...arguments_: never[]) => unknown
+  ? T
+  : T extends object
+    ? {
+        readonly [K in keyof T]: Captured<T[K]>;
+      }
+    : T;
+
+/** Project settings fixed for a service's lifetime, with provider functions preserved. */
+export type CapturedProjectConfig = Captured<AnalysisProjectConfig>;
+
+const capturedProjects = new WeakSet<object>();
+
+/**
+ * Captures configuration data and callback registries without changing the caller's objects.
+ * @param config - Evaluated project settings. Provider methods retain their original receivers.
+ * @returns Fixed settings. A previously captured configuration is shared without copying it again.
+ */
+export function captureProjectConfig(config: AnalysisProjectConfig): CapturedProjectConfig {
+  if (capturedProjects.has(config)) {
+    return config;
+  }
+
+  const { naming, sources, projection, ...settings } = config;
+  const data = structuredClone(settings);
+
+  const capturedSources =
+    sources?.kind === "custom"
+      ? {
+          kind: sources.kind,
+          supports: sources.supports.bind(sources),
+          load: sources.load.bind(sources),
+          ...(sources.resolve ? { resolve: sources.resolve.bind(sources) } : {}),
+        }
+      : sources && { kind: sources.kind };
+  const capturedProjection =
+    projection?.kind === "custom"
+      ? { kind: projection.kind, prepare: projection.prepare.bind(projection) }
+      : projection && { kind: projection.kind };
+
+  const captured: CapturedProjectConfig = {
+    ...data,
+    ...(naming
+      ? {
+          naming: {
+            utilityClass: naming.utilityClass,
+            refMarker: naming.refMarker,
+            anchorName: naming.anchorName,
+            containerName: naming.containerName,
+            keyframesName: naming.keyframesName,
+            viewTransitionClass: naming.viewTransitionClass,
+            viewTransitionSlot: naming.viewTransitionSlot,
+            conditionHelper: naming.conditionHelper,
+            layerName: naming.layerName,
+          },
+        }
+      : {}),
+    ...(capturedSources ? { sources: capturedSources } : {}),
+    ...(capturedProjection ? { projection: capturedProjection } : {}),
+  };
+  capturedProjects.add(captured);
+  return captured;
 }
 
 /** Supplies original or prepared sources without starting a bundler. */

@@ -355,9 +355,15 @@ fn codegen_options_change_artifact_identity_without_changing_the_snapshot() {
     let first = compile("first");
     let second = compile("second");
     assert!(first.is_success() && second.is_success());
-    assert_eq!(first.key.design_system, second.key.design_system);
-    assert_eq!(first.key.analysis_revision, second.key.analysis_revision);
-    assert_ne!(first.key.compiler_options, second.key.compiler_options);
+    assert_eq!(first.key().design_system(), second.key().design_system());
+    assert_eq!(
+        first.key().analysis_revision(),
+        second.key().analysis_revision()
+    );
+    assert_ne!(
+        first.key().compiler_options(),
+        second.key().compiler_options()
+    );
     assert_ne!(first.code_transforms, second.code_transforms);
     assert_ne!(first.css, second.css);
 }
@@ -416,8 +422,14 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
         .clone_from(&input.module_css_import);
     upstream_changed.input = rebuilt;
     let upstream_key = compiler.key_for(&upstream_changed);
-    assert_eq!(first.key.source_revision, upstream_key.source_revision);
-    assert_ne!(first.key.analysis_revision, upstream_key.analysis_revision);
+    assert_eq!(
+        first.key().source_revision(),
+        upstream_key.source_revision()
+    );
+    assert_ne!(
+        first.key().analysis_revision(),
+        upstream_key.analysis_revision()
+    );
     let StyleInput::Class(ClassExpression::Rule(rule)) = &mut analysis.ir.style_calls[0].inputs[0]
     else {
         panic!("literal utility")
@@ -428,9 +440,18 @@ fn changed_frontend_ir_invalidates_the_artifact_for_the_same_source_revision() {
     value.value = "grid".into();
     let second = compiler.compile(&analysis, &Identifiers::default());
     assert!(first.is_success() && second.is_success());
-    assert_eq!(first.key.source_revision, second.key.source_revision);
-    assert_eq!(first.key.semantic_revision, second.key.semantic_revision);
-    assert_ne!(first.key.analysis_revision, second.key.analysis_revision);
+    assert_eq!(
+        first.key().source_revision(),
+        second.key().source_revision()
+    );
+    assert_eq!(
+        first.key().semantic_revision(),
+        second.key().semantic_revision()
+    );
+    assert_ne!(
+        first.key().analysis_revision(),
+        second.key().analysis_revision()
+    );
     assert!(first.css.to_css().contains("display:flex"));
     assert!(second.css.to_css().contains("display:grid"));
 }

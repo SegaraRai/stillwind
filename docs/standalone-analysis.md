@@ -184,10 +184,15 @@ not return usable CSS or code for a module whose generation requires the unavail
 
 ## CLI and editor behavior
 
+Analysis workspaces capture configuration data, provider registries, and the project
+list when opened. Reopen the workspace to apply new settings. Browser workspaces also
+capture the saved file inventory; recreate them to apply changes to that inventory.
+Document APIs update open buffers.
+
 `EditorSnapshot` owns copies of source buffers, projection maps, dependencies,
 fix actions, and sorting settings. Later graph edits or native session updates
 do not change its answers. Node analysis graphs and sorting reports are
-independent copies. Browser analysis graphs are deeply immutable and shared by
+independent copies. Browser analysis graphs are readonly views shared by
 cache reads; TypeScript callers can use `structuredClone(graph) as ModuleAnalysis`
 to obtain editable records.
 Editing these copies does not change cached queries. A project query selects the

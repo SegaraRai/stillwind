@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { AnalysisProjectConfig } from "@stillwind/config";
+import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/config";
 import { resolveProjectConfig } from "@stillwind/config/node";
 import { ResolverFactory } from "oxc-resolver";
 
@@ -24,6 +24,7 @@ export function createFileSystemAnalysisHost(
   config: AnalysisProjectConfig,
   directory: string,
 ): AnalysisHost {
+  config = captureProjectConfig(config);
   const resolvedConfig = resolveProjectConfig(config, directory);
   const root = resolvedConfig.root!;
   const typeFactsEnvironment = resolveTypeFactsEnvironment(root, resolvedConfig.tsconfig);

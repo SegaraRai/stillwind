@@ -62,7 +62,7 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
         .summary
         .assets
         .iter()
-        .filter(|a| a.identity.kind == AssetKind::Keyframes)
+        .filter(|a| a.identity.kind() == AssetKind::Keyframes)
         .map(|a| a.identity.clone())
         .collect::<Vec<_>>();
     let start = u32::try_from(source.text().rfind("selected(").unwrap()).unwrap();

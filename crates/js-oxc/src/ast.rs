@@ -58,7 +58,7 @@ impl<'a> MacroExtractor<'a> {
         identity: &IdentityId,
         span: Span,
     ) -> Option<Spanned<String>> {
-        let declared = match identity.kind {
+        let declared = match identity.kind() {
             AssetKind::Keyframes => self
                 .keyframes_declarations
                 .iter()

@@ -9,7 +9,7 @@ import type { StylesheetPart } from "./runtime.ts";
  * @returns Combined CSS followed by a UTF-8, base64-encoded inline version 3 map.
  * @throws If a supplied source map cannot be decoded.
  */
-export function renderCssWithSourceMap(parts: StylesheetPart[]): string {
+export function renderCssWithSourceMap(parts: readonly StylesheetPart[]): string {
   const map = new GenMapping();
   let line = 0;
   let column = 0;
@@ -72,7 +72,7 @@ export function replaceCssResources(css: string, replacements: [string, string][
   let result = "";
   for (let offset = 0; offset < text.length;) {
     const replacement = replacements.find(([placeholder]) => text.startsWith(placeholder, offset));
-    if (replacement && replacement[0].length) {
+    if (replacement?.[0].length) {
       edits.push({
         from: offset,
         to: offset + replacement[0].length,

@@ -191,10 +191,10 @@ fn imported_module(
     previous: &ResolvedSupply<'_>,
     current: &ResolvedSupply<'_>,
 ) -> ModuleId {
-    if current.owner.module_id == style.root.identity.module_id {
-        previous.owner.module_id.clone()
+    if current.owner.module_id() == style.root.identity.module_id() {
+        previous.owner.module_id().clone()
     } else {
-        current.owner.module_id.clone()
+        current.owner.module_id().clone()
     }
 }
 
@@ -205,8 +205,8 @@ fn imported_interference(
     previous: &ResolvedSupply<'_>,
     current: &ResolvedSupply<'_>,
 ) -> bool {
-    !(current.owner.module_id == style.root.identity.module_id
-        && previous.owner.module_id == style.root.identity.module_id)
+    !(current.owner.module_id() == style.root.identity.module_id()
+        && previous.owner.module_id() == style.root.identity.module_id())
 }
 
 /// Returns one property name for equal inputs or an ordered pair for an overlap.
@@ -232,7 +232,7 @@ fn base_interference(
     let (Some(left), Some(right)) = (&previous.base, &current.base) else {
         return [&previous, &current]
             .iter()
-            .any(|s| s.base.is_some() && s.owner.module_id != style.root.identity.module_id)
+            .any(|s| s.base.is_some() && s.owner.module_id() != style.root.identity.module_id())
             .then(|| LintDiagnostic::ImportedBaseInterference {
                 module: imported_module(style, previous, current),
                 properties,

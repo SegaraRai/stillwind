@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AnalysisProjectConfig } from "@stillwind/config";
+import { captureProjectConfig, type CapturedProjectConfig } from "@stillwind/config";
 import { loadConfiguration } from "@stillwind/config/node";
 import { minimatch } from "minimatch";
 import { glob } from "tinyglobby";
@@ -13,11 +13,11 @@ import { createFileSystemAnalysisHost } from "./filesystem.ts";
 /** A project's configuration and results, retained independently when scopes overlap. */
 export interface WorkspaceProject {
   /** Evaluated project settings. Relative root and scope globs use configFile's directory and host root. */
-  config: AnalysisProjectConfig;
+  readonly config: CapturedProjectConfig;
   /** Absolute path of the configuration that owns this project. */
-  configFile: string;
+  readonly configFile: string;
   /** Owned analysis state. Buffers outside this project's target scope can still be dependencies. */
-  analysis: AnalysisProject;
+  readonly analysis: AnalysisProject;
 }
 
 /** Analysis results for one explicitly enumerated target in one project. */
@@ -34,8 +34,8 @@ export interface WorkspaceResult {
 export class AnalysisWorkspace {
   /** Absolute path evaluated when this workspace opened. Reopen the workspace to apply configuration changes. */
   readonly configFile: string;
-  /** Owned project hosts in configuration order. The caller must not mutate this array. */
-  readonly projects: WorkspaceProject[];
+  /** Fixed project records in configuration order. Each analysis service owns mutable state. */
+  readonly projects: readonly WorkspaceProject[];
 
   /**
    * Retains the evaluated configuration and takes ownership of its initialized projects.
@@ -59,7 +59,8 @@ export class AnalysisWorkspace {
     const { config } = await loadConfiguration(configFile);
     const projects: WorkspaceProject[] = [];
     try {
-      for (const project of config.projects) {
+      for (const supplied of config.projects) {
+        const project = captureProjectConfig(supplied);
         const host = createFileSystemAnalysisHost(project, path.dirname(configFile));
         projects.push({
           config: project,

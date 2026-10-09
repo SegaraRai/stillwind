@@ -80,10 +80,10 @@ export const Parent = () => <div {...style(menu)}><button {...style(trigger)} />
         let Some(ExportedValue::Refs(value)) = parsed.summary.exports.get(exported) else {
             panic!("{exported} should be an exported ref");
         };
-        assert_eq!(value.kind, AssetKind::Ref);
+        assert_eq!(value.kind(), AssetKind::Ref);
         let candidates = value.finite_candidates().unwrap();
         assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates.first().unwrap().binding_name, binding);
+        assert_eq!(candidates.first().unwrap().binding_name().as_str(), binding);
     }
     assert_eq!(parsed.summary.re_exports[0].exported, "transition");
     assert_eq!(parsed.summary.re_exports[0].imported, "sharedTransition");

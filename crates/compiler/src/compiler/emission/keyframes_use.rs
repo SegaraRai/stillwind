@@ -45,7 +45,9 @@ impl CallEmitter<'_> {
         plan.apply_rule(&mut utility);
         let canonical = format!(
             "{}\0keyframes\0{}\0{}\0",
-            plan.canonical, keyframes.identity.binding_name, options.value
+            plan.canonical,
+            keyframes.identity.binding_name(),
+            options.value
         );
         let contribution = LiteralContribution {
             canonical,

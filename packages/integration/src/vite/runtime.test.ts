@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vite-plus/test";
 
-import { createDevelopmentRuntime } from "./runtime.ts";
+import { createDevelopmentRuntime, type StylesheetPart } from "./runtime.ts";
 
 beforeEach(() => {
   Reflect.deleteProperty(globalThis, Symbol.for("stillwind.document"));
@@ -17,7 +17,11 @@ afterEach(() => {
  * @returns Runtime operations and the simulated style element whose text records rendered CSS.
  */
 function runtime(fetch: ReturnType<typeof vi.fn>) {
-  const style = { dataset: {}, isConnected: false, textContent: "" };
+  const style = {
+    dataset: {},
+    isConnected: false,
+    textContent: "",
+  };
   vi.stubGlobal("fetch", fetch);
   vi.stubGlobal("document", {
     createElement: () => style,
@@ -28,7 +32,11 @@ function runtime(fetch: ReturnType<typeof vi.fn>) {
     },
   });
   const api = createDevelopmentRuntime({
-    snapshot: { revision: 3, parts: [], dependencies: {} },
+    snapshot: {
+      revision: 3,
+      parts: [],
+      dependencies: {},
+    },
     endpoint: "/__stillwind/css",
   });
   return { ...api, style };
@@ -39,7 +47,12 @@ test("a cached runtime fetches current CSS even when its embedded revision satis
     ok: true,
     json: async () => ({
       revision: 4,
-      parts: [{ producers: ["button.tsx"], css: ".button{padding:32px}" }],
+      parts: [
+        {
+          producers: ["button.tsx"],
+          css: ".button{padding:32px}",
+        },
+      ],
       dependencies: {},
     }),
   });
@@ -61,13 +74,24 @@ test("concurrent producers share a fetch and retry until the required revision a
     )
     .mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ revision: 5, parts: [], dependencies: {} }),
+      json: async () => ({
+        revision: 5,
+        parts: [],
+        dependencies: {},
+      }),
     });
   const { synchronize } = runtime(fetch);
   const first = synchronize(4);
   const second = synchronize(5);
   expect(fetch).toHaveBeenCalledTimes(1);
-  release({ ok: true, json: async () => ({ revision: 4, parts: [], dependencies: {} }) });
+  release({
+    ok: true,
+    json: async () => ({
+      revision: 4,
+      parts: [],
+      dependencies: {},
+    }),
+  });
   await Promise.all([first, second]);
   expect(fetch).toHaveBeenCalledTimes(2);
 });
@@ -87,7 +111,11 @@ test("runtime instances share active producers and reject older snapshots", () =
   register("button.tsx");
   expect(style.textContent).toBe(".base{}.button{}.shared{}");
   const second = createDevelopmentRuntime({
-    snapshot: { revision: 3, parts: [], dependencies: {} },
+    snapshot: {
+      revision: 3,
+      parts: [],
+      dependencies: {},
+    },
     endpoint: "/__stillwind/css",
   });
   expect(style.textContent).toBe(".base{}.button{}.shared{}");
@@ -100,7 +128,11 @@ test("synchronization without a document does not fetch", async () => {
   vi.stubGlobal("fetch", fetch);
   vi.stubGlobal("document", undefined);
   const api = createDevelopmentRuntime({
-    snapshot: { revision: 3, parts: [], dependencies: {} },
+    snapshot: {
+      revision: 3,
+      parts: [],
+      dependencies: {},
+    },
     endpoint: "/__stillwind/css",
   });
   api.register("button.tsx");
@@ -111,13 +143,68 @@ test("synchronization without a document does not fetch", async () => {
 test("a failed fetch releases the pending request for a later synchronization", async () => {
   const fetch = vi
     .fn()
-    .mockResolvedValueOnce({ ok: false })
+    .mockResolvedValueOnce({
+      ok: false,
+    })
     .mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ revision: 4, parts: [], dependencies: {} }),
+      json: async () => ({
+        revision: 4,
+        parts: [],
+        dependencies: {},
+      }),
     });
   const { synchronize } = runtime(fetch);
   await expect(synchronize(4)).rejects.toThrow("Stillwind stylesheet synchronization failed");
   await synchronize(4);
   expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+test("accepted snapshots keep CSS, dependencies, and source maps fixed during later rendering", () => {
+  const { style } = runtime(vi.fn());
+  const map = {
+    version: 3 as const,
+    sources: ["entry.ts"],
+    names: [],
+    mappings: "AAAA",
+  };
+  const snapshot = {
+    revision: 4,
+    parts: [
+      {
+        css: ".base{}",
+        producers: ["base"],
+        map,
+      },
+    ],
+    dependencies: {
+      entry: ["base"],
+    },
+  };
+  const rendered: (readonly StylesheetPart[])[] = [];
+  const options = {
+    snapshot,
+    endpoint: "/__stillwind/css",
+    renders: 0,
+    renderCss(parts: readonly StylesheetPart[]) {
+      this.renders++;
+      rendered.push(parts);
+      return parts.map((part) => part.css).join("");
+    },
+  };
+  const api = createDevelopmentRuntime(options);
+  snapshot.parts[0].css = ".changed{}";
+  snapshot.parts[0].producers[0] = "other";
+  snapshot.dependencies.entry.length = 0;
+  map.sources[0] = "changed.ts";
+  options.renderCss = () => ".replaced{}";
+  api.register("entry");
+  expect(style.textContent).toBe(".base{}");
+  expect(options.renders).toBe(2);
+  const part = rendered.at(-1)![0];
+  expect(part.map?.sources).toEqual(["entry.ts"]);
+  api.unregister("entry");
+  api.register("entry");
+  expect(rendered.at(-1)![0]).toBe(part);
+  expect(style.textContent).toBe(".base{}");
 });

@@ -85,14 +85,17 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
             .transformed_modules
             .contains(&ModuleId::from("button.tsx"))
     );
-    assert_eq!(before.key.design_system, after.key.design_system);
-    assert_ne!(before.key.compiler_options, after.key.compiler_options);
+    assert_eq!(before.key().design_system(), after.key().design_system());
+    assert_ne!(
+        before.key().compiler_options(),
+        after.key().compiler_options()
+    );
     assert_ne!(before.code_transforms, after.code_transforms);
     assert_eq!(session.options(), &next);
     let plan = session
         .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Carrier)
         .unwrap();
-    assert_eq!(plan.producers[&ModuleId::from("button.tsx")], after.key);
+    assert_eq!(plan.producers[&ModuleId::from("button.tsx")], *after.key());
 }
 
 /// A carrier render carries the support a module needs and never the document rules.
@@ -390,7 +393,7 @@ fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
     let before = session
         .current_artifact(&analysis.module_id)
         .unwrap()
-        .key
+        .key()
         .clone();
     let StyleInput::Class(ClassExpression::Rule(rule)) = &mut analysis.ir.style_calls[0].inputs[0]
     else {
@@ -405,7 +408,7 @@ fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
         [] as [CompileError; 0]
     );
     let after = session.current_artifact(&analysis.module_id).unwrap();
-    assert_ne!(after.key, before);
-    assert_eq!(after.key.source_revision, before.source_revision);
+    assert_ne!(after.key(), &before);
+    assert_eq!(after.key().source_revision(), before.source_revision());
     assert!(after.css.to_css().contains("display:grid"));
 }

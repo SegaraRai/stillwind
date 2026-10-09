@@ -1,23 +1,32 @@
 import type { EncodedSourceMap } from "@jridgewell/trace-mapping";
 
+type StylesheetSourceMap = Readonly<
+  Omit<EncodedSourceMap, "names" | "sources" | "sourcesContent" | "ignoreList">
+> & {
+  readonly names: readonly string[];
+  readonly sources: readonly (string | null)[];
+  readonly sourcesContent?: readonly (string | null)[];
+  readonly ignoreList?: readonly number[];
+};
+
 /** Ordered CSS partition activated by its producers or included unconditionally. */
 export interface StylesheetPart {
   /** CSS with resources already resolved for the browser. */
-  css: string;
+  readonly css: string;
   /** Compiler module ids that need this part; an empty list keeps it active unconditionally. */
-  producers: string[];
+  readonly producers: readonly string[];
   /** Map for this part. Null or omission means that no map is available. */
-  map?: EncodedSourceMap | null;
+  readonly map?: StylesheetSourceMap | null;
 }
 
 /** Complete stylesheet and composition state published for one adapter revision. */
 export interface StylesheetSnapshot {
   /** Monotonic revision within the adapter environment. */
-  revision: number;
+  readonly revision: number;
   /** Partitions in stylesheet order, retained when filtering for active producers. */
-  parts: StylesheetPart[];
+  readonly parts: readonly StylesheetPart[];
   /** Composition dependencies keyed by compiler module id. */
-  dependencies: Record<string, string[]>;
+  readonly dependencies: Readonly<Record<string, readonly string[]>>;
 }
 
 declare module "vite" {
@@ -36,7 +45,7 @@ interface DocumentState {
   style?: HTMLStyleElement;
   /** Registered compiler producer identities. Composition dependencies are expanded during rendering. */
   active: Set<string>;
-  /** Latest accepted complete snapshot, retained by reference. */
+  /** Owned complete snapshot fixed when its revision was accepted. */
   snapshot?: StylesheetSnapshot;
   /** Fetch-and-apply operation shared by overlapping synchronization requests. */
   pending?: Promise<void>;
@@ -50,7 +59,7 @@ const documentKey = Symbol.for("stillwind.document");
  * must return CSS for the selected parts in their existing order.
  * Returns operations for producer registration, snapshot updates and synchronization.
  * Snapshots older than the shared document revision are ignored.
- * @param options - Initial snapshot, snapshot endpoint, and optional renderer. Keep supplied snapshots immutable.
+ * @param options - Initial snapshot, snapshot endpoint, and optional renderer. Accepted snapshots are captured.
  * @returns Operations that update shared producer state and the owned style element.
  */
 export function createDevelopmentRuntime(options: {
@@ -59,8 +68,10 @@ export function createDevelopmentRuntime(options: {
   /** URL returning a JSON snapshot for this compiler environment. */
   endpoint: string;
   /** Optional renderer receiving selected parts in stylesheet order and returning their combined CSS. */
-  renderCss?: (parts: StylesheetPart[]) => string;
+  renderCss?: (parts: readonly StylesheetPart[]) => string;
 }) {
+  const endpoint = options.endpoint;
+  const renderCss = options.renderCss?.bind(options);
   const globals = globalThis as typeof globalThis & {
     /** State shared through Symbol.for across runtime module replacements. */
     [documentKey]?: DocumentState;
@@ -89,9 +100,7 @@ export function createDevelopmentRuntime(options: {
       state.style.dataset.stillwind = "";
       document.head.append(state.style);
     }
-    state.style.textContent = options.renderCss
-      ? options.renderCss(parts)
-      : parts.map((part) => part.css).join("");
+    state.style.textContent = renderCss ? renderCss(parts) : parts.map((part) => part.css).join("");
   }
 
   /**
@@ -125,7 +134,7 @@ export function createDevelopmentRuntime(options: {
       return;
     }
     do {
-      state.pending ??= fetch(options.endpoint)
+      state.pending ??= fetch(endpoint)
         .then((response) => {
           if (!response.ok) {
             throw new Error("Stillwind stylesheet synchronization failed");
@@ -142,14 +151,14 @@ export function createDevelopmentRuntime(options: {
 
   /**
    * Accepts a current or newer snapshot and rerenders shared document styles.
-   * @param update - Complete immutable snapshot. Older revisions are ignored, and equal revisions are accepted.
+   * @param update - Complete snapshot to capture. Older revisions are ignored, and equal revisions are accepted.
    */
   function apply(update: StylesheetSnapshot) {
     if (update.revision < state.revision) {
       return;
     }
-    state.revision = update.revision;
-    state.snapshot = update;
+    state.snapshot = structuredClone(update);
+    state.revision = state.snapshot.revision;
     render();
   }
 

@@ -87,11 +87,11 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
         panic!("keyframes")
     };
     assert_eq!(
-        keyframes.identity.start,
+        keyframes.identity.start(),
         parsed.module.keyframes_declarations[0].binding.span.start.0
     );
     assert_eq!(
-        keyframes.identity.end,
+        keyframes.identity.end(),
         parsed.module.keyframes_declarations[0].binding.span.end.0
     );
     let StyleInput::Class(ClassExpression::Rule(rule)) = &parsed.module.style_calls[0].inputs[0]

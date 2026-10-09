@@ -7,7 +7,7 @@ export class CandidateQueries {
   /** Successful and failed previews keyed by input role and decoded candidate text. */
   readonly #previews = new Map<string, string | null>();
   /** Shared completion arrays keyed by input role and decoded prefix text. */
-  readonly #completions = new Map<string, string[]>();
+  readonly #completions = new Map<string, readonly string[]>();
 
   /**
    * Creates empty caches for one captured design system.
@@ -80,10 +80,10 @@ export class CandidateQueries {
    * @param prefix - Decoded partial candidate, including any enclosing variants.
    * @param context - Input role that selects the candidate registry and permitted variants.
    * Defaults to ordinary utilities.
-   * @returns A shared array of matching labels. Callers must keep the array unchanged.
+   * @returns A shared readonly array of matching labels.
    * @throws If a matching ordinary utility definition has a malformed requirement.
    */
-  complete(prefix: string, context: NativeCandidateContext = "utility"): string[] {
+  complete(prefix: string, context: NativeCandidateContext = "utility"): readonly string[] {
     const key = `${context}\0${prefix}`;
     if (!this.#completions.has(key)) {
       this.#completions.set(key, this.#query.completeCandidate(prefix, context));

@@ -3,6 +3,46 @@ import { expect, test } from "vite-plus/test";
 
 import { BrowserAnalysisWorkspace } from "./browser.ts";
 
+test("browser workspace captures configuration and files across inventory revisions", async () => {
+  const id = "/workspace/entry.ts";
+  const uri = `file://${id}`;
+  const code = 'import {style} from "stillwind/react"; export const card = style("block");';
+  const project = {
+    root: "/workspace",
+    files: ["*.ts"],
+    css: "theme.css",
+    typeFacts: false as const,
+  };
+  const projects = [project];
+  const files = new Map([
+    [id, code],
+    ["/workspace/theme.css", "@utility block { display:block; } @stillwind-slot utilities;"],
+  ]);
+  const options = {
+    config: "file:///workspace/stillwind.config.ts",
+    projects,
+    files,
+  };
+  const workspace = new BrowserAnalysisWorkspace(options);
+  try {
+    const first = await workspace.compile(uri, workspace.revision);
+    options.config = "changed";
+    project.css = "missing.css";
+    project.files[0] = "*.vue";
+    projects.length = 0;
+    files.clear();
+    expect(workspace.files().get(id)).toBe(code);
+    const cached = await workspace.compile(uri, workspace.revision);
+    expect(cached.css).toBe(first.css);
+    workspace.update(uri, code.replace("card", "updated"), 1);
+    const updated = await workspace.compile(uri, workspace.revision);
+    expect(updated.css).toContain("display:block");
+    expect(updated.graph.generation).toBe("complete");
+  } finally {
+    await workspace.close();
+  }
+});
+
 test("browser builds report a blocked dependency graph after a cached producer was analyzed", async () => {
   const workspace = new BrowserAnalysisWorkspace({
     config: "file:///workspace/stillwind.config.ts",

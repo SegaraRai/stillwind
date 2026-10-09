@@ -59,11 +59,11 @@ impl<'a> MacroExtractor<'a> {
 
     /// Resolves finite ref candidates to their declaration definitions.
     ///
-    /// Returns `None` for a universe value, a non-ref kind, or a candidate of another
-    /// kind. An empty finite set returns an empty vector. Candidate order follows
-    /// `IdentityId` ordering, and local declaration metadata is reused when available.
+    /// Returns `None` for a universe value or a non-ref kind. An empty finite set
+    /// returns an empty vector. Candidate order follows [`IdentityId`] ordering, and
+    /// local declaration metadata is reused when available.
     pub(crate) fn refs_from_value(&self, value: &SymbolicValue) -> Option<Vec<RefDefinition>> {
-        if value.kind != AssetKind::Ref || value.validate().is_err() {
+        if value.kind() != AssetKind::Ref {
             return None;
         }
         Some(
@@ -88,11 +88,11 @@ impl<'a> MacroExtractor<'a> {
         {
             return definition.clone();
         }
-        let span = Span::new(self.original.id(), identity.start, identity.end);
+        let span = Span::new(self.original.id(), identity.start(), identity.end());
         let metadata = self.imported_assets.get(identity);
         RefDefinition {
-            module_id: identity.module_id.clone(),
-            binding: Spanned::new(identity.binding_name.to_string(), span),
+            module_id: identity.module_id().clone(),
+            binding: Spanned::new(identity.binding_name().to_string(), span),
             label: metadata
                 .and_then(|metadata| metadata.label.clone())
                 .map(|label| Spanned::new(label, span)),
@@ -126,11 +126,11 @@ impl<'a> MacroExtractor<'a> {
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::BTreeMap;
 
     use oxc::semantic::Scoping;
 
-    use stillwind_semantic::{AssetMetadata, Candidates};
+    use stillwind_semantic::AssetMetadata;
     use stillwind_source::{FileId, ModuleId, SourceFile};
 
     use super::*;
@@ -216,8 +216,8 @@ mod tests {
         let value = SymbolicValue::finite(AssetKind::Ref, [imported.clone(), local_id]).unwrap();
         let refs = extractor.refs_from_value(&value).unwrap();
         assert_eq!(refs[0], local);
-        assert_eq!(refs[1].module_id, imported.module_id);
-        assert_eq!(refs[1].binding.value, imported.binding_name);
+        assert_eq!(refs[1].module_id, *imported.module_id());
+        assert_eq!(refs[1].binding.value, *imported.binding_name());
         assert_eq!(refs[1].label.as_ref().unwrap().value, "label");
         assert_eq!(refs[1].call_span, Span::new(source.id(), 2, 10));
     }
@@ -248,10 +248,5 @@ mod tests {
             extractor.refs_from_value(&SymbolicValue::exact(wrong.clone())),
             None
         );
-        let malformed = SymbolicValue {
-            kind: AssetKind::Ref,
-            candidates: Candidates::Finite(BTreeSet::from([wrong])),
-        };
-        assert_eq!(extractor.refs_from_value(&malformed), None);
     }
 }

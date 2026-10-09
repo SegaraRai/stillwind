@@ -113,7 +113,7 @@ impl Compiler {
         let mut runtime_assets = parsed.summary.export_reachable_identities();
         let mut required_definitions = runtime_assets
             .iter()
-            .filter(|identity| is_definition_kind(identity.kind))
+            .filter(|identity| is_definition_kind(identity.kind()))
             .cloned()
             .collect::<BTreeSet<_>>();
         let mut result = CompileResult {

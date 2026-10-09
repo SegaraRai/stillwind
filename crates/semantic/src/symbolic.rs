@@ -46,42 +46,45 @@ pub enum Candidates {
 
 /// A sound abstract value containing identities of exactly one asset kind.
 ///
-/// [`Self::finite`] checks candidate kinds and [`Self::exact`] derives the kind from
-/// its identity. Public fields and derived deserialization can bypass those checks;
-/// consumers of externally constructed values must validate them.
+/// Construction and deserialization reject candidates of another asset kind.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", try_from = "SymbolicValueInput")]
 pub struct SymbolicValue {
     /// Asset kind of every identity the value may contain.
-    pub kind: AssetKind,
+    kind: AssetKind,
     /// Finite candidate set or universe.
-    pub candidates: Candidates,
+    candidates: Candidates,
 }
 
 impl SymbolicValue {
-    /// Validates candidate kinds after construction or deserialization.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a finite candidate has another asset kind.
-    pub fn validate(&self) -> Result<(), SymbolicError> {
-        if let Candidates::Finite(candidates) = &self.candidates {
-            for identity in candidates {
-                if identity.kind != self.kind {
+    fn from_candidates(kind: AssetKind, candidates: Candidates) -> Result<Self, SymbolicError> {
+        if let Candidates::Finite(identities) = &candidates {
+            for identity in identities {
+                if identity.kind() != kind {
                     return Err(SymbolicError::KindMismatch {
-                        expected: self.kind,
-                        actual: identity.kind,
+                        expected: kind,
+                        actual: identity.kind(),
                     });
                 }
             }
         }
-        Ok(())
+        Ok(Self { kind, candidates })
+    }
+
+    /// Returns the asset kind shared by every candidate.
+    pub const fn kind(&self) -> AssetKind {
+        self.kind
+    }
+
+    /// Consumes the value and returns its kind and owned candidates.
+    pub fn into_parts(self) -> (AssetKind, Candidates) {
+        (self.kind, self.candidates)
     }
 
     /// The value denoting exactly `identity`, with the kind taken from it.
     pub fn exact(identity: IdentityId) -> Self {
         Self {
-            kind: identity.kind,
+            kind: identity.kind(),
             candidates: Candidates::Finite(BTreeSet::from([identity])),
         }
     }
@@ -109,17 +112,7 @@ impl SymbolicValue {
         kind: AssetKind,
         identities: impl IntoIterator<Item = IdentityId>,
     ) -> Result<Self, SymbolicError> {
-        let identities = identities.into_iter().collect::<BTreeSet<_>>();
-        if let Some(identity) = identities.iter().find(|identity| identity.kind != kind) {
-            return Err(SymbolicError::KindMismatch {
-                expected: kind,
-                actual: identity.kind,
-            });
-        }
-        Ok(Self {
-            kind,
-            candidates: Candidates::Finite(identities),
-        })
+        Self::from_candidates(kind, Candidates::Finite(identities.into_iter().collect()))
     }
 
     /// Returns the finite candidates, or `None` for [`Candidates::Universe`].
@@ -131,6 +124,21 @@ impl SymbolicValue {
             Candidates::Finite(candidates) => Some(candidates),
             Candidates::Universe => None,
         }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SymbolicValueInput {
+    kind: AssetKind,
+    candidates: Candidates,
+}
+
+impl TryFrom<SymbolicValueInput> for SymbolicValue {
+    type Error = SymbolicError;
+
+    fn try_from(value: SymbolicValueInput) -> Result<Self, Self::Error> {
+        Self::from_candidates(value.kind, value.candidates)
     }
 }
 
@@ -152,11 +160,11 @@ pub enum ExportedValue {
 }
 
 impl ExportedValue {
-    /// Validates the tagged kind and every finite candidate.
+    /// Validates that the export tag agrees with the symbolic value's kind.
     ///
     /// # Errors
     ///
-    /// Returns an error when the tag, value or candidate kinds disagree.
+    /// Returns an error when the tag and value kinds disagree.
     pub fn validate(&self) -> Result<(), SymbolicError> {
         match self {
             Self::Styles(value)
@@ -169,7 +177,7 @@ impl ExportedValue {
                         actual: value.kind,
                     });
                 }
-                value.validate()
+                Ok(())
             }
         }
     }
@@ -206,11 +214,6 @@ mod tests {
 
     #[test]
     fn validates_ref_candidates_and_export_tags() {
-        let malformed = SymbolicValue {
-            kind: AssetKind::Ref,
-            candidates: Candidates::Finite(BTreeSet::from([identity(AssetKind::Keyframes, 0)])),
-        };
-        assert!(ExportedValue::Refs(malformed).validate().is_err());
         assert!(
             ExportedValue::Refs(SymbolicValue::universe(AssetKind::Keyframes))
                 .validate()
@@ -230,6 +233,27 @@ mod tests {
             ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref))
                 .validate()
                 .is_ok()
+        );
+    }
+
+    #[test]
+    fn deserialization_validates_candidates_and_preserves_the_wire_shape() {
+        let value = SymbolicValue::exact(identity(AssetKind::Ref, 1));
+        let mut input = serde_json::to_value(&value).unwrap();
+        assert_eq!(input["kind"], "ref");
+        assert_eq!(input["candidates"]["kind"], "finite");
+        assert_eq!(
+            serde_json::from_value::<SymbolicValue>(input.clone()).unwrap(),
+            value
+        );
+        input["kind"] = serde_json::json!("keyframes");
+        assert!(serde_json::from_value::<SymbolicValue>(input).is_err());
+
+        let universe = SymbolicValue::universe(AssetKind::Ref);
+        assert_eq!(
+            serde_json::from_value::<SymbolicValue>(serde_json::to_value(&universe).unwrap())
+                .unwrap(),
+            universe
         );
     }
 

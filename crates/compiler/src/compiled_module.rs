@@ -37,25 +37,57 @@ pub struct ModuleTransformError(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleArtifactKey {
     /// Compiler version plus the build fingerprint of the compiler and its dependencies.
-    pub compiler_version: String,
+    pub(crate) compiler_version: String,
     /// Hash of the resolved [`crate::CompilerOptions`].
-    pub compiler_options: Fingerprint,
+    pub(crate) compiler_options: Fingerprint,
     /// The frontend's actual compiler inputs, independent of its implementation.
-    pub analysis_revision: Fingerprint,
+    pub(crate) analysis_revision: Fingerprint,
     /// Content fingerprint of the design system the module was compiled against.
-    pub design_system: Fingerprint,
+    pub(crate) design_system: Fingerprint,
     /// Fingerprint of the source buffer, so an edit invalidates the artifact.
-    pub source_revision: Fingerprint,
+    pub(crate) source_revision: Fingerprint,
     /// Identity of the module inside the project graph.
-    pub module_id: ModuleId,
+    pub(crate) module_id: ModuleId,
     /// Identity of the source file, which may differ from the module id after projection.
-    pub source_file_id: u32,
+    pub(crate) source_file_id: u32,
     /// Which frontend produced the analysis, for example `oxc`.
-    pub frontend_kind: String,
+    pub(crate) frontend_kind: String,
     /// Adapter mode the analysis was extracted under.
-    pub adapter_mode: AdapterKind,
+    pub(crate) adapter_mode: AdapterKind,
     /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
-    pub semantic_revision: Option<Fingerprint>,
+    pub(crate) semantic_revision: Option<Fingerprint>,
+}
+
+impl ModuleArtifactKey {
+    /// Returns the compiler version and build fingerprint used for this artifact.
+    pub fn compiler_version(&self) -> &str {
+        &self.compiler_version
+    }
+
+    /// Returns the fingerprint of the effective compiler options.
+    pub const fn compiler_options(&self) -> &Fingerprint {
+        &self.compiler_options
+    }
+
+    /// Returns the fingerprint of the frontend analysis inputs.
+    pub const fn analysis_revision(&self) -> &Fingerprint {
+        &self.analysis_revision
+    }
+
+    /// Returns the fingerprint of the compiled design system.
+    pub const fn design_system(&self) -> &Fingerprint {
+        &self.design_system
+    }
+
+    /// Returns the fingerprint of the original source buffer.
+    pub const fn source_revision(&self) -> &Fingerprint {
+        &self.source_revision
+    }
+
+    /// Returns the fingerprint of the semantic inputs, when supplied.
+    pub const fn semantic_revision(&self) -> &Option<Fingerprint> {
+        &self.semantic_revision
+    }
 }
 
 /// Records definitions that can affect a compiled module's output.
@@ -117,7 +149,7 @@ pub struct CompiledModule {
     /// URLs found in `css`, replaced there by their placeholders.
     pub resources: Vec<ModuleResourceReference>,
     /// Cache identity of this artifact.
-    pub key: ModuleArtifactKey,
+    pub(crate) key: ModuleArtifactKey,
     /// Replacements for the original source; empty after a failed compilation.
     pub code_transforms: Vec<SourceTransform>,
     /// The rules this module owns; empty after a failed compilation.
@@ -139,6 +171,11 @@ pub struct CompiledModule {
 }
 
 impl CompiledModule {
+    /// Returns the cache identity fixed when this artifact was compiled.
+    pub const fn key(&self) -> &ModuleArtifactKey {
+        &self.key
+    }
+
     /// Applies the module's transforms to the original source and returns the new text.
     ///
     /// Leaves `source` unchanged and returns a new string. Text outside the edit spans

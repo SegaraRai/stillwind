@@ -2111,6 +2111,7 @@ dependencies = [
  "lean_string",
  "proptest",
  "serde",
+ "serde_json",
  "stillwind-diagnostics",
  "stillwind-source",
  "thiserror",

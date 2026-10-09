@@ -1,12 +1,131 @@
+import type { ProjectInput } from "@stillwind/projection";
 import { expect, test } from "vite-plus/test";
 
 import {
+  captureProjectConfig,
   defineConfig,
   resolveConfig,
   validateConfig,
   type StillwindConfig,
   type StillwindConfigExport,
 } from "./configuration.ts";
+
+test("captured project settings own their data and share only provider functions", () => {
+  const naming = () => "card";
+  const config = {
+    css: "theme.css",
+    files: ["*.tsx"],
+    sort: {
+      arrays: false,
+    },
+    lint: {
+      rules: {
+        "length-units": {
+          rules: [
+            {
+              properties: ["*"],
+              disallow: ["px"],
+            },
+          ],
+        },
+      },
+    },
+    naming: {
+      utilityClass: naming,
+    },
+  };
+  const captured = captureProjectConfig(config);
+  config.files[0] = "*.vue";
+  config.sort.arrays = true;
+  config.lint.rules["length-units"].rules[0].disallow[0] = "rem";
+  config.naming.utilityClass = () => "changed";
+  expect(captured.files).toEqual(["*.tsx"]);
+  expect(captured.sort).toEqual({
+    arrays: false,
+  });
+  expect(captured.naming?.utilityClass).toBe(naming);
+  expect(captured.lint).toEqual({
+    rules: {
+      "length-units": {
+        rules: [
+          {
+            properties: ["*"],
+            disallow: ["px"],
+          },
+        ],
+      },
+    },
+  });
+  expect(captureProjectConfig(captured)).toBe(captured);
+});
+
+test("captured callbacks retain inherited methods and provider receivers", async () => {
+  const input = {
+    resolverId: "/entry.ts",
+    checkerFileName: "/entry.ts",
+    projectionFileName: "/entry.ts",
+    moduleId: "entry.ts",
+    document: { uri: "file:///entry.ts", format: "script", code: "export const value = 1;" },
+    syntax: { language: "ts", moduleKind: "module" },
+  } satisfies ProjectInput;
+  class Sources {
+    readonly kind = "custom";
+    #id = input.resolverId;
+
+    supports(id: string): boolean {
+      return id === this.#id;
+    }
+
+    async load(): Promise<ProjectInput> {
+      return { ...input, resolverId: this.#id };
+    }
+
+    async resolve(): Promise<string> {
+      return this.#id;
+    }
+  }
+  class Projection {
+    readonly kind = "custom";
+    #source = { ...input, kind: "direct" as const };
+
+    async prepare() {
+      return this.#source;
+    }
+  }
+  class Naming {
+    utilityClass(): string {
+      return "card";
+    }
+  }
+  const sources = new Sources();
+  const projection = new Projection();
+  const naming = new Naming();
+  const config = { css: "theme.css", files: ["*.ts"], sources, projection, naming };
+  validateConfig({ projects: [config] });
+  const captured = captureProjectConfig(config);
+  sources.supports = () => false;
+  sources.load = async () => expect.fail("Source method was replaced after capture");
+  sources.resolve = async () => expect.fail("Resolution method was replaced after capture");
+  projection.prepare = async () => expect.fail("Projection method was replaced after capture");
+  naming.utilityClass = () => "changed";
+
+  if (captured.sources?.kind !== "custom" || captured.projection?.kind !== "custom") {
+    expect.fail("Expected captured custom providers");
+  }
+  const context = { root: "/", documents: new Map<string, string>() };
+  expect(captured.sources.supports(input.resolverId)).toBe(true);
+  await expect(captured.sources.load(input.resolverId, context)).resolves.toEqual(input);
+  await expect(captured.sources.resolve?.("./entry", "/importer.ts", context)).resolves.toBe(
+    input.resolverId,
+  );
+  await expect(captured.projection.prepare(input)).resolves.toEqual({ ...input, kind: "direct" });
+  expect(
+    captured.naming?.utilityClass?.(
+      { module: input.moduleId, namespace: "", call: 0, branch: "test" },
+      Buffer.alloc(0),
+    ),
+  ).toBe("card");
+});
 
 test.each([
   [

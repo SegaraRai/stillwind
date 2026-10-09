@@ -52,9 +52,10 @@ impl TryFrom<NativeSymbolicValue> for SymbolicValue {
 
 impl From<SymbolicValue> for NativeSymbolicValue {
     fn from(value: SymbolicValue) -> Self {
+        let (kind, candidates) = value.into_parts();
         Self {
-            kind: value.kind.into(),
-            candidates: match value.candidates {
+            kind: kind.into(),
+            candidates: match candidates {
                 Candidates::Universe => NativeCandidates::Universe,
                 Candidates::Finite(values) => NativeCandidates::Finite {
                     values: values.into_iter().map(Into::into).collect(),
@@ -112,7 +113,7 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
             Self::Styles(value)
             | Self::Refs(value)
             | Self::Keyframes(value)
-            | Self::ViewTransitions(value) => value.kind,
+            | Self::ViewTransitions(value) => value.kind(),
         };
         if actual != expected {
             return Err(Error::from_reason(

@@ -89,13 +89,13 @@ pub fn validate_composition(
                 props.insert(key.clone());
             }
             for dependency in &dependencies {
-                if dependency.module_id != key.module_id {
+                if dependency.module_id() != key.module_id() {
                     module_edges
-                        .entry(key.module_id.clone())
+                        .entry(key.module_id().clone())
                         .or_default()
-                        .insert(dependency.module_id.clone());
+                        .insert(dependency.module_id().clone());
                     module_edges
-                        .entry(dependency.module_id.clone())
+                        .entry(dependency.module_id().clone())
                         .or_default();
                 }
             }

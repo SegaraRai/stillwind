@@ -424,12 +424,12 @@ mod tests {
             .key_for(&analysis)
         };
         assert_ne!(
-            key("builtin").compiler_options,
-            key("custom-1").compiler_options
+            key("builtin").compiler_options(),
+            key("custom-1").compiler_options()
         );
         assert_eq!(
-            key("custom-1").compiler_options,
-            key("custom-1").compiler_options
+            key("custom-1").compiler_options(),
+            key("custom-1").compiler_options()
         );
     }
 

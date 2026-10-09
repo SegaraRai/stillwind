@@ -75,12 +75,13 @@ impl From<NativeIdentity> for IdentityId {
 
 impl From<IdentityId> for NativeIdentity {
     fn from(value: IdentityId) -> Self {
+        let (kind, module_id, start, end, binding_name) = value.into_parts();
         Self {
-            kind: value.kind.into(),
-            module_id: value.module_id.into_string(),
-            start: value.start,
-            end: value.end,
-            binding_name: value.binding_name.to_string(),
+            kind: kind.into(),
+            module_id: module_id.into_string(),
+            start,
+            end,
+            binding_name: binding_name.to_string(),
         }
     }
 }

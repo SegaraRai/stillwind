@@ -33,7 +33,7 @@ export interface UtilityLiteral {
    * The array has `text.length + 1` entries. One escape that emits several code units
    * can give several decoded positions the same source boundary.
    */
-  boundaries: number[];
+  boundaries: readonly number[];
 }
 
 /** An array, argument list, or object written directly in a style input. */
@@ -52,12 +52,14 @@ export interface StyleInputContainer {
 export class SourceIndex {
   /** Generated occurrences and replacement plans captured from the same source graph. */
   readonly previews: GeneratedPreviews;
-  /** Indexed literals in discovery order. Callers must keep entries and their boundaries unchanged. */
-  readonly literals: UtilityLiteral[] = [];
-  /** Direct inputs eligible for grouping, including nested containers. Callers must keep them unchanged. */
-  readonly containers: StyleInputContainer[] = [];
+  /** Indexed literals in discovery order, with fixed source boundaries. */
+  readonly literals: readonly Readonly<UtilityLiteral>[];
+  readonly #literals: UtilityLiteral[] = [];
+  /** Fixed direct inputs eligible for grouping, including nested containers. */
+  readonly containers: readonly Readonly<StyleInputContainer>[];
+  readonly #containers: StyleInputContainer[] = [];
   /** In-memory files keyed by checker filename with slash separators and preserved casing. */
-  readonly files = new Map<
+  readonly #files = new Map<
     string,
     {
       /** Prepared source that owns this AST and its projection correspondences. */
@@ -69,7 +71,7 @@ export class SourceIndex {
 
   /** Producers keyed first by module identity, then by `start:end` in original UTF-16 coordinates. */
   readonly #assets = new Map<string, Map<string, NativeAssetRecord>>();
-  /** Resolved producers and cached misses for nodes in these immutable checker ASTs. */
+  /** Resolved producers and cached misses for nodes in the captured checker ASTs. */
   readonly #nodeAssets = new WeakMap<ts.Node, NativeAssetRecord | undefined>();
   /** Generated UTF-16 positions mapped to original positions. Null marks conflicting origins. */
   readonly #points = new Map<string, Map<number, number | null>>();
@@ -105,7 +107,7 @@ export class SourceIndex {
         true,
         ts.ScriptKind.TSX,
       );
-      this.files.set(fileName, {
+      this.#files.set(fileName, {
         source,
         ast,
       });
@@ -118,19 +120,19 @@ export class SourceIndex {
     }
 
     const host: ts.CompilerHost = {
-      getSourceFile: (name) => this.files.get(checkerName(name))?.ast,
+      getSourceFile: (name) => this.#files.get(checkerName(name))?.ast,
       getDefaultLibFileName: () => "lib.d.ts",
       writeFile: () => {},
       getCurrentDirectory: () => "/",
       getDirectories: () => [],
-      fileExists: (name) => this.files.has(checkerName(name)),
-      readFile: (name) => this.files.get(checkerName(name))?.ast.text,
+      fileExists: (name) => this.#files.has(checkerName(name)),
+      readFile: (name) => this.#files.get(checkerName(name))?.ast.text,
       getCanonicalFileName: checkerName,
       useCaseSensitiveFileNames: () => true,
       getNewLine: () => "\n",
       resolveModuleNames: (names, containingFile) =>
         names.map((name) => {
-          const source = this.files.get(checkerName(containingFile))?.source;
+          const source = this.#files.get(checkerName(containingFile))?.source;
           const dependency = graph.dependencies.find(
             (item) => item.importer === source?.resolverId && item.specifier === name,
           );
@@ -141,7 +143,7 @@ export class SourceIndex {
         }),
     };
     const program = ts.createProgram(
-      [...this.files.keys()],
+      [...this.#files.keys()],
       {
         noLib: true,
         allowJs: true,
@@ -150,7 +152,7 @@ export class SourceIndex {
     );
     this.#checker = program.getTypeChecker();
 
-    for (const { ast } of this.files.values()) {
+    for (const { ast } of this.#files.values()) {
       walk(ast, (node) => {
         const target =
           ts.isBinaryExpression(node) &&
@@ -192,7 +194,7 @@ export class SourceIndex {
       });
     }
 
-    for (const { source, ast } of this.files.values()) {
+    for (const { source, ast } of this.#files.values()) {
       walk(ast, (node) => {
         if (!ts.isCallExpression(node)) {
           return;
@@ -200,7 +202,7 @@ export class SourceIndex {
         const asset = this.asset(source, node);
         if (asset?.identity.kind === "style" || this.#styleImport(node.expression)) {
           if (node.arguments.length > 1) {
-            this.containers.push({
+            this.#containers.push({
               source,
               node,
             });
@@ -257,6 +259,8 @@ export class SourceIndex {
         }
       });
     }
+    this.literals = this.#literals;
+    this.containers = this.#containers;
   }
 
   /**
@@ -586,7 +590,7 @@ export class SourceIndex {
     }
     const declaration = symbol.valueDeclaration;
     if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
-      const owner = this.files.get(declaration.getSourceFile().fileName)?.source;
+      const owner = this.#files.get(declaration.getSourceFile().fileName)?.source;
       return owner ? this.#resolveAsset(owner, declaration.initializer, seen) : undefined;
     }
     return undefined;
@@ -601,7 +605,7 @@ export class SourceIndex {
    * contains the position. A position at a node's exclusive end does not select that node.
    */
   nodeAt(source: PreparedSource, offset: number): ts.Node | undefined {
-    const file = this.files.get(checkerName(source.checkerFileName));
+    const file = this.#files.get(checkerName(source.checkerFileName));
     let best: ts.Node | undefined;
     if (file) {
       walk(file.ast, (node) => {
@@ -639,7 +643,7 @@ export class SourceIndex {
         this.#literal(source, span.literal, prefix);
       }
     } else if (ts.isArrayLiteralExpression(node)) {
-      this.containers.push({
+      this.#containers.push({
         source,
         node,
       });
@@ -665,7 +669,7 @@ export class SourceIndex {
     ) {
       this.#input(source, node.expression, prefix);
     } else if (ts.isObjectLiteralExpression(node)) {
-      this.containers.push({
+      this.#containers.push({
         source,
         node,
       });
@@ -714,7 +718,7 @@ export class SourceIndex {
     const content = raw.slice(1, suffix ? -suffix : undefined);
     const decoded = decodeLiteral(content, range[0] + 1);
     if (decoded?.text === node.text) {
-      const previous = this.literals.find(
+      const previous = this.#literals.find(
         (literal) => literal.source === source && literal.boundaries[0] === decoded.boundaries[0],
       );
       if (previous) {
@@ -725,7 +729,7 @@ export class SourceIndex {
         return;
       }
 
-      this.literals.push({
+      this.#literals.push({
         source,
         node,
         prefix,
@@ -815,7 +819,7 @@ function decodeLiteral(
       /** Decoded content. Literal line endings are normalized to LF. */
       text: string;
       /** Original UTF-16 offsets for every decoded position, including the end. */
-      boundaries: number[];
+      boundaries: readonly number[];
     }
   | undefined {
   let text = "";

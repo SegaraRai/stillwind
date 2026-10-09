@@ -316,10 +316,10 @@ pub(super) fn named_declaration(
 /// carries.
 pub(super) fn identity_declaration(reference: &AssetReference) -> DeclarationContext {
     DeclarationContext {
-        module: reference.identity.module_id.clone(),
-        start: reference.identity.start,
-        end: reference.identity.end,
-        binding: reference.identity.binding_name.clone(),
+        module: reference.identity.module_id().clone(),
+        start: reference.identity.start(),
+        end: reference.identity.end(),
+        binding: reference.identity.binding_name().clone(),
         label: declared_label(reference.label.as_ref()),
     }
 }
@@ -489,20 +489,20 @@ pub(super) fn definition_name_symbol(
         kind: kind.into(),
         pool: kind_pool(kind),
         identity: identity_input(&reference.identity),
-        origin: SymbolOrigin::Module(reference.identity.module_id.clone()),
-        start: Some(reference.identity.start),
-        end: Some(reference.identity.end),
+        origin: SymbolOrigin::Module(reference.identity.module_id().clone()),
+        start: Some(reference.identity.start()),
+        end: Some(reference.identity.end()),
     })
 }
 
 /// Owner identity of a declaration referenced through its semantic identity.
 fn identity_input(identity: &IdentityId) -> LeanStr {
     owner_declaration_identity(
-        &identity.module_id,
-        kind_name(identity.kind),
-        identity.start,
-        identity.end,
-        &identity.binding_name,
+        identity.module_id(),
+        kind_name(identity.kind()),
+        identity.start(),
+        identity.end(),
+        identity.binding_name(),
     )
 }
 

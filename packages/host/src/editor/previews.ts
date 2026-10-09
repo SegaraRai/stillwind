@@ -11,14 +11,22 @@ import type { ModuleAnalysis } from "../compilation/compiler.ts";
 import { byteToUtf16 } from "../compilation/module-source.ts";
 import { identityKey } from "../semantics/checker-source.ts";
 
+type CapturedEditorSite = Readonly<
+  Omit<NativeEditorSite, "identity" | "dependencies" | "runtimeNames">
+> & {
+  readonly identity?: Readonly<NativeIdentity>;
+  readonly dependencies: readonly Readonly<NativeIdentity>[];
+  readonly runtimeNames: readonly string[];
+};
+
 /** A compiler occurrence mapped to the original document's UTF-16 coordinates. */
 export interface PreviewSite {
   /** Compiler output with original UTF-8 ranges and any literal replacement context. */
-  native: NativeEditorSite;
+  readonly native: CapturedEditorSite;
   /** Inclusive UTF-16 offset in the original document, before projection. */
-  start: number;
+  readonly start: number;
   /** Exclusive UTF-16 offset in the original document, before projection. */
-  end: number;
+  readonly end: number;
 }
 
 /** CSS for a captured occurrence and any runtime expressions that supply view-transition names. */
@@ -41,11 +49,11 @@ export class GeneratedPreviews {
       /** Frozen module plans whose generated names belong to this capture batch. */
       editor: NativeModuleEditor;
       /** Captured occurrences mapped to original UTF-16 offsets, in compiler traversal order. */
-      sites: PreviewSite[];
+      sites: readonly PreviewSite[];
     }
   >();
   /** Declaration and style-call sites keyed by semantic identity, including imported values. */
-  readonly #declarations = new Map<string, NativeEditorSite>();
+  readonly #declarations = new Map<string, CapturedEditorSite>();
 
   /**
    * Captures the graph's known modules together so their display names share one table.
@@ -54,7 +62,7 @@ export class GeneratedPreviews {
    *
    * @param graph - Original buffers and dependencies for the source revisions to capture.
    * @param session - Session whose latest analyses match those buffers. Captures remain usable
-   * after later session updates, provided callers keep the captured sites unchanged.
+   * after later session updates. Published sites are readonly.
    * @throws If a captured UTF-8 range is invalid for its original buffer.
    */
   constructor(
@@ -74,7 +82,7 @@ export class GeneratedPreviews {
         continue;
       }
 
-      const sites = editor.sites().map((native) => ({
+      const sites: readonly PreviewSite[] = editor.sites().map((native) => ({
         native,
         start: byteToUtf16(source.document.code, native.start),
         end: byteToUtf16(source.document.code, native.end),
@@ -97,7 +105,7 @@ export class GeneratedPreviews {
    *
    * @param source - Prepared source whose full module identity selects the capture.
    * @returns Occurrences in compiler traversal order, or an empty list for an unknown module.
-   * The array and its entries are shared with this capture and must remain unchanged.
+   * The array and its entries are readonly and shared with this capture.
    */
   sites(source: PreparedSource): readonly PreviewSite[] {
     return this.#modules.get(source.moduleId)?.sites ?? [];
@@ -111,15 +119,18 @@ export class GeneratedPreviews {
    * @param start - Inclusive original UTF-16 offset of the content or opening delimiter.
    * @param end - Exclusive original UTF-16 offset of the content or closing delimiter.
    * @returns A shared occurrence with an input context, or undefined when no range matches exactly.
-   * Callers must keep the returned site unchanged.
    */
   input(source: PreparedSource, start: number, end: number): PreviewSite | undefined {
-    return this.sites(source).find(
-      (site) =>
+    for (const site of this.sites(source)) {
+      if (
         site.native.context &&
         ((site.start === start && site.end === end) ||
-          (site.start === start + 1 && site.end === end - 1)),
-    );
+          (site.start === start + 1 && site.end === end - 1))
+      ) {
+        return site;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -160,7 +171,7 @@ export class GeneratedPreviews {
    * @returns CSS and runtime key expressions, or undefined if any required site is missing or
    * invalid, or if the assembled CSS is empty. The site and declaration captures remain unchanged.
    */
-  preview(site: NativeEditorSite): GeneratedPreview | undefined {
+  preview(site: CapturedEditorSite): GeneratedPreview | undefined {
     const parts: string[] = [];
     const runtimeNames = new Set<string>();
     const seen = new Set<string>();
@@ -171,7 +182,7 @@ export class GeneratedPreviews {
      * @param site - Occurrence from the same capture batch as its dependency declarations.
      * @returns Whether the occurrence and every newly visited dependency are valid and present.
      */
-    const collect = (site: NativeEditorSite): boolean => {
+    const collect = (site: CapturedEditorSite): boolean => {
       if (!site.valid) {
         return false;
       }
