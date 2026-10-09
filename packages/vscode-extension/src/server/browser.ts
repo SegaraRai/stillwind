@@ -1,3 +1,9 @@
+/**
+ * Runs the browser LSP worker over files captured by the extension's workspace provider.
+ * Configurations are bundled from that inventory and evaluated as ESM. Node imports fail resolution.
+ * Snapshot and compile requests require one workspace and matching document and reload revisions.
+ */
+
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
 import { loadBrowserConfig } from "@stillwind/config/browser";
 import { resolveVirtualModule, virtualPath } from "@stillwind/host/browser";
@@ -21,6 +27,7 @@ const connection = createConnection(
 let workspaces: BrowserAnalysisWorkspace[] = [];
 let initialization: Promise<void> | undefined;
 let initial = true;
+/** Counts workspace openings so compile requests can reject snapshots captured before a reload. */
 let generation = 0;
 let libraries: Promise<[string, string][]> | undefined;
 
@@ -29,11 +36,15 @@ const server = createLanguageServer(connection, {
     generation++;
     const captured = initial
       ? (initializationOptions as {
+          /** Original document URI and captured text for each file, including open-buffer overrides. */
           files: [string, string][];
+          /** Optional explicit configuration path passed to discovery for each workspace root. */
           configFile?: string;
         })
       : await connection.sendRequest<{
+          /** Original document URI and freshly captured text for each file. */
           files: [string, string][];
+          /** Optional configuration path from the current extension setting. */
           configFile?: string;
         }>("stillwind/readWorkspace", {
           roots: workspaceFolders,
@@ -73,6 +84,11 @@ const server = createLanguageServer(connection, {
                 plugins: [
                   {
                     name: "virtual-configuration",
+                    /**
+                     * Resolves configuration imports and loads source from the captured inventory.
+                     *
+                     * @param build - esbuild registration API. Resolution rejects Node and missing imports.
+                     */
                     setup(build) {
                       build.onResolve({ filter: /.*/ }, (args) => {
                         if (args.path.startsWith("node:")) {
@@ -149,25 +165,38 @@ const server = createLanguageServer(connection, {
   },
 });
 
-connection.onRequest("stillwind/snapshot", async (input?: { reload?: boolean }) => {
-  if (input?.reload) {
-    await server.reload();
-  }
-  await server.ready();
-  if (workspaces.length !== 1) {
-    throw new Error("Application builds require exactly one opened workspace");
-  }
-  const workspace = workspaces[0];
-  return {
-    generation,
-    revision: workspace.revision,
-    files: [...workspace.files()],
-  };
-});
+connection.onRequest(
+  "stillwind/snapshot",
+  async (input?: {
+    /** Whether to recapture workspace files and configuration before returning the snapshot. */
+    reload?: boolean;
+  }) => {
+    if (input?.reload) {
+      await server.reload();
+    }
+    await server.ready();
+    if (workspaces.length !== 1) {
+      throw new Error("Application builds require exactly one opened workspace");
+    }
+    const workspace = workspaces[0];
+    return {
+      generation,
+      revision: workspace.revision,
+      files: [...workspace.files()],
+    };
+  },
+);
 
 connection.onRequest(
   "stillwind/compile",
-  async (input: { uri: string; revision: number; generation: number }) => {
+  async (input: {
+    /** Original document URI to compile within the sole opened workspace. */
+    uri: string;
+    /** Workspace revision captured by stillwind/snapshot, including open-buffer updates. */
+    revision: number;
+    /** Opening generation captured by stillwind/snapshot, which must match the current worker. */
+    generation: number;
+  }) => {
     await server.ready();
     if (input.generation !== generation) {
       throw new Error("Obsolete workspace snapshot");

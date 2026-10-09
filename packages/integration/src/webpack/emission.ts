@@ -80,19 +80,48 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
   __stillwindConfiguration?: ResolvedIntegrationConfig;
   /** Missing configuration candidates whose creation must trigger a watch rebuild. */
   missingDependencies: {
+    /**
+     * Registers a missing path so its creation invalidates this compilation.
+     * @param id - Absolute missing configuration candidate.
+     * @returns The bundler collection's insertion result, which Stillwind ignores.
+     */
     add(id: string): unknown;
   };
+  /** Compilation lifecycle operations used to wait for the completed producer graph. */
   hooks: {
+    /** Runs after ordinary module builds, before document carriers are rebuilt. */
     finishModules: {
+      /**
+       * Registers asynchronous CSS reconstruction for the completed modules.
+       * @param name - Plugin registration name.
+       * @param callback - Operation receiving cached and newly built modules. Rejections fail compilation.
+       */
       tapPromise(name: string, callback: (modules: Iterable<Module>) => Promise<void>): void;
     };
   };
+  /** Files whose changes invalidate reconstructed CSS. */
   fileDependencies: {
+    /**
+     * Adds a compiler or source file to watch tracking.
+     * @param id - Absolute dependency path.
+     * @returns The bundler collection's insertion result, which Stillwind ignores.
+     */
     add(id: string): unknown;
   };
+  /** Bundler warning collection receiving compiler lint and rejected-name messages. */
   warnings: {
+    /**
+     * Appends a warning without failing reconstruction.
+     * @param error - Warning represented as an Error instance.
+     * @returns The collection's append result, which Stillwind ignores.
+     */
     push(error: Error): unknown;
   };
+  /**
+   * Reruns a document carrier after reconstructed CSS has been stored on the compilation.
+   * @param module - Carrier from the completed module graph.
+   * @param callback - Completion handler receiving an error when rebuilding fails.
+   */
   rebuildModule(module: Module, callback: (error?: Error | null) => void): void;
   /**
    * Reconstructed document CSS, optionally including an inline source map. Undefined before
@@ -108,7 +137,9 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
 export interface EmissionContext<
   Module extends EmissionModule = EmissionModule,
 > extends ResolverHost {
+  /** Current compilation, required when recording producers or installing document CSS reconstruction. */
   _compilation?: EmissionCompilation<Module>;
+  /** Current bundler module whose buildInfo retains producer metadata. */
   _module?: Module;
   /**
    * Bundler mode forwarded to CSS reconstruction. Only `development` selects development

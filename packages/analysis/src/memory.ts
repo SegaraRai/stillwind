@@ -33,6 +33,7 @@ export interface MemoryAnalysisOptions {
    */
   compile(input: MemoryAnalysisInput): Promise<
     Pick<AnalysisResult, "reports" | "dependencies" | "unverified" | "generation" | "error"> & {
+      /** Coverage of the captured snapshot. Compiler error reports can still have complete coverage. */
       status: "complete" | "incomplete";
     }
   >;
@@ -55,7 +56,15 @@ export interface MemoryAnalysisOptions {
 export function createMemoryAnalysisWorkspace(
   options: MemoryAnalysisOptions,
 ): AnalysisWorkspaceService {
-  const documents = new Map<string, { source: string; version: number }>();
+  const documents = new Map<
+    string,
+    {
+      /** Complete unsaved original document text. */
+      source: string;
+      /** Last accepted safe integer version while this URI is open. */
+      version: number;
+    }
+  >();
 
   let revision = 0;
   let queue: Promise<unknown> = Promise.resolve();
@@ -63,6 +72,13 @@ export function createMemoryAnalysisWorkspace(
   let closing: Promise<void> | undefined;
 
   return {
+    /**
+     * Replaces an open buffer and advances the workspace revision when its state changes.
+     * @param uri - Original document URI, including dependencies outside the target scope.
+     * @param source - Complete unsaved text.
+     * @param version - Increasing safe integer. An identical update at the same version is accepted.
+     * @throws If the service is closed or the version is invalid or does not increase.
+     */
     update(uri, source, version) {
       if (closed) {
         throw new Error("Analysis workspace is closed");
@@ -77,11 +93,23 @@ export function createMemoryAnalysisWorkspace(
       documents.set(uri, { source, version });
       revision++;
     },
+    /**
+     * Removes a buffer and advances the revision if it existed.
+     * @param uri - Original document URI. Unknown URIs have no effect.
+     */
     closeDocument(uri) {
       if (documents.delete(uri)) {
         revision++;
       }
     },
+    /**
+     * Captures open buffers and queues compilation for an included target.
+     * @param uri - Target URI tested by the embedding's includes callback.
+     * @param signal - Optional cancellation checked before and after compilation.
+     * @returns One project result, or no result for an excluded target. Compiler failures become
+     * incomplete results, and stale or cancelled results omit reports.
+     * @throws If the service is closed or the membership callback fails.
+     */
     analyze(uri, signal): Promise<WorkspaceResult[]> {
       if (closed) {
         return Promise.reject(new Error("Analysis workspace is closed"));
@@ -92,6 +120,10 @@ export function createMemoryAnalysisWorkspace(
       const captured = revision;
       const snapshot = new Map([...documents].map(([uri, doc]) => [uri, doc.source]));
       const task = queue.then(async () => {
+        /**
+         * Classifies work that can no longer publish results from the captured revision.
+         * @returns `cancelled` for an aborted signal, `stale` for a newer revision, or undefined.
+         */
         const obsolete = () =>
           signal?.aborted
             ? ("cancelled" as const)
@@ -139,6 +171,11 @@ export function createMemoryAnalysisWorkspace(
       queue = task.catch(() => {});
       return task;
     },
+    /**
+     * Invalidates queued snapshots and invokes the embedding's cleanup after queued work.
+     * @returns The same cleanup promise on repeated calls.
+     * @throws If the embedding's cleanup fails.
+     */
     close() {
       closing ??= (async () => {
         closed = true;

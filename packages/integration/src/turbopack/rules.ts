@@ -28,8 +28,10 @@ export interface TurbopackRule {
    * modules.
    */
   condition?: {
+    /** Turbopack condition excluding modules classified as foreign packages. */
     not: "foreign";
   };
+  /** Loader chain in bundler rule order, using shared captured options. */
   loaders: {
     /** Absolute path to an installed Stillwind loader. */
     loader: string;

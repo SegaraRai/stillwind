@@ -3,7 +3,12 @@ import { TraceMap, eachMapping } from "@jridgewell/trace-mapping";
 
 import type { StylesheetPart } from "./runtime.ts";
 
-/** Returns the ordered CSS parts with a combined inline source map. */
+/**
+ * Concatenates ordered CSS parts and combines their mappings without embedding original sources.
+ * @param parts - Partitions in stylesheet order, each with an optional map for its own CSS text.
+ * @returns Combined CSS followed by a UTF-8, base64-encoded inline version 3 map.
+ * @throws If a supplied source map cannot be decoded.
+ */
 export function renderCssWithSourceMap(parts: StylesheetPart[]): string {
   const map = new GenMapping();
   let line = 0;
@@ -43,15 +48,25 @@ export function renderCssWithSourceMap(parts: StylesheetPart[]): string {
   return `${parts.map((part) => part.css).join("")}\n/*# sourceMappingURL=data:application/json;base64,${encoded} */`;
 }
 
-/** Replaces recorded placeholders and shifts an inline map to the resulting CSS positions. */
+/**
+ * Replaces recorded placeholders and shifts an inline map to the resulting CSS positions.
+ * @param css - Generated CSS with an optional trailing inline map in the format emitted by this module.
+ * @param replacements - Placeholder/replacement pairs. First matching pair wins at each original position.
+ * @returns Replaced CSS with adjusted mappings when an inline map was present. Replacement text is not rescanned.
+ * @throws If a recognized inline map contains invalid base64, JSON, or source-map data.
+ */
 export function replaceCssResources(css: string, replacements: [string, string][]): string {
   const match =
     /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(css);
   const text = match ? css.slice(0, match.index) : css;
   const edits: {
+    /** Inclusive UTF-16 placeholder offset in CSS before replacement. */
     from: number;
+    /** Exclusive UTF-16 placeholder offset in that original CSS. */
     to: number;
+    /** Replacement contents whose UTF-16 length shifts subsequent mappings. */
     text: string;
+    /** Inclusive UTF-16 replacement offset in the resulting CSS. */
     start: number;
   }[] = [];
   let result = "";

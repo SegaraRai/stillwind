@@ -33,6 +33,14 @@ const hooks = new WeakMap<Plugin, Pick<Plugin, "load" | "transform">>();
  * original Vue file.
  */
 export function attachVueSourceMaps(plugins: readonly Plugin[], project: ViteProject): void {
+  /**
+   * Composes a Vue block's map through the recorded Stillwind transform for its source file.
+   * @param result - Original load or transform result, left unchanged when a required map is absent.
+   * @param id - Full Vue block identity, including its `vue` query.
+   * @param name - Vite environment name, or undefined for `client`.
+   * @returns The original result or a copy containing a serialized composed map.
+   * @throws If the input map cannot be parsed or the maps cannot be composed.
+   */
   const compose = <T extends Awaited<ReturnType<Load>> | Awaited<ReturnType<Transform>>>(
     result: T,
     id: string,
@@ -69,6 +77,13 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
     if (original.load) {
       const hook = original.load;
       const handler = typeof hook === "function" ? hook : hook.handler;
+      /**
+       * Runs the saved Vue load hook with its original receiver, then composes its map.
+       * @param id - Resolver identity passed by Vite.
+       * @param args - Remaining load-hook arguments forwarded unchanged.
+       * @returns The delegated result with its map composed when the recorded input permits it.
+       * @throws If the original hook or map composition fails.
+       */
       const wrapped: Load = async function (id, ...args) {
         return compose(await handler.call(this, id, ...args), id, this.environment?.name);
       };
@@ -83,6 +98,14 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
     if (original.transform) {
       const hook = original.transform;
       const handler = typeof hook === "function" ? hook : hook.handler;
+      /**
+       * Runs the saved Vue transform hook with its original receiver, then composes its map.
+       * @param code - Vue block source passed by Vite.
+       * @param id - Resolver identity passed by Vite.
+       * @param args - Remaining transform-hook arguments forwarded unchanged.
+       * @returns The delegated result with its map composed when the recorded input permits it.
+       * @throws If the original hook or map composition fails.
+       */
       const wrapped: Transform = async function (code, id, ...args) {
         return compose(await handler.call(this, code, id, ...args), id, this.environment?.name);
       };

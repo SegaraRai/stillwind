@@ -17,12 +17,17 @@ export function loaderOptionsId(config: InlineConfig): string {
 
 /** webpack-compatible producer and source-map rules, also consumed by Rspack. */
 export interface StillwindRule {
+  /** Matches resource paths, including synthetic component script suffixes where required. */
   test: RegExp;
+  /** Optional exclusion applied before the loader chain, normally for node_modules. */
   exclude?: RegExp;
+  /** Placement relative to ordinary loaders. Omission uses the normal loader phase. */
   enforce?: "pre" | "post";
+  /** Loader entries in webpack rule order, executed according to the bundler's loader phases. */
   use: (
     | string
     | {
+        /** Absolute installed loader path. */
         loader: string;
         /** Discovery and inline settings retained by the rule and evaluated by its producer loader. */
         options: InlineConfig;

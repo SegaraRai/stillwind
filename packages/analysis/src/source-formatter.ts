@@ -7,15 +7,23 @@ import { AnalysisWorker } from "./worker-client.ts";
 
 /** Reuses an isolated process while refreshing trusted configuration for each formatting request. */
 export class SourceFormatter {
+  /** Child process reused across formatting requests and owned until close completes. */
   readonly #worker = new AnalysisWorker();
+  /** Serializes requests while allowing a new request after a preceding failure. */
   #queue: Promise<unknown> = Promise.resolve();
 
+  /**
+   * Starts the isolated worker that evaluates configuration on each formatting request.
+   * @param config - Configuration path resolved in the worker's inherited working directory.
+   */
   constructor(private readonly config: string) {}
 
   /**
-   * Sorts the supplied buffer with current project settings. Relative file paths use cwd.
-   * Files outside all configured scopes return unchanged text. Throws when parsing, analysis,
-   * or project agreement fails. Requests are serialized and never write files.
+   * Sorts the supplied buffer with current project settings.
+   * Files outside all configured scopes return unchanged text. Requests are serialized and never write files.
+   * @param input - Original buffer and optional protected ranges. Relative paths are resolved from cwd.
+   * @returns The sorted buffer and original findings after configuration is reopened.
+   * @throws If configuration loading, parsing, analysis, project agreement, rewriting, or worker communication fails.
    */
   format(input: RewriteInput): Promise<RewriteResult> {
     const task = this.#queue.then(async () => {
@@ -35,14 +43,23 @@ export class SourceFormatter {
     return task;
   }
 
-  /** Waits for pending formatting and releases the child process. */
+  /**
+   * Waits for queued formatting and releases the child process. Stop submitting requests before closure.
+   * @returns Completion of worker cleanup.
+   * @throws If the worker's cleanup request fails.
+   */
   async close(): Promise<void> {
     await this.#queue;
     await this.#worker.close();
   }
 }
 
-/** Finds a formatter configuration above file. An explicit config is resolved from cwd. */
+/**
+ * Finds a configuration above a source file or resolves an explicit path from cwd.
+ * @param file - Source path whose parent starts upward discovery. Relative paths use cwd.
+ * @param config - Optional explicit configuration path, returned without an existence check.
+ * @returns The absolute configuration path, or undefined when discovery finds none.
+ */
 export function findFormatterConfig(file: string, config?: string): string | undefined {
   if (config) {
     return path.resolve(config);

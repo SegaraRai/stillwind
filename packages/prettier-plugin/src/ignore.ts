@@ -1,15 +1,25 @@
 import type { Parser, ParserOptions } from "prettier";
 import { parsers as typescriptParsers } from "prettier/plugins/typescript";
 
+/** Original text that Stillwind sorting must leave untouched. */
 interface SourceRange {
+  /** Inclusive UTF-16 offset in the original buffer. */
   start: number;
+  /** Exclusive UTF-16 offset in the original buffer. */
   end: number;
 }
 
 /**
  * Finds ignored nodes and returns half-open UTF-16 ranges in the original source.
- * The AST must match source and parser. Vue and Astro script bodies are parsed separately
- * when they contain ignore directives. Throws if an embedded script cannot be parsed.
+ * Vue and Astro script bodies are parsed separately when they contain ignore directives.
+ *
+ * @param ast - AST parsed from `source` by `parser` before Stillwind edits are applied.
+ * @param parser - Parser whose location functions return original UTF-16 offsets for that AST.
+ * @param source - Original buffer, including comments and any embedded script delimiters.
+ * @param options - Parser options reused for embedded TypeScript parsing with its own original text.
+ * @returns Protected ranges in discovery order. Ranges can overlap, and an unmatched ignore-start
+ * protects the remaining source. Neither the AST nor the options object is changed.
+ * @throws If a parser location function fails or an embedded script cannot be parsed.
  */
 export async function ignoredRanges(
   ast: unknown,
@@ -17,10 +27,20 @@ export async function ignoredRanges(
   source: string,
   options: ParserOptions,
 ): Promise<SourceRange[]> {
-  const nodes: (SourceRange & { comment: boolean })[] = [];
+  const nodes: (SourceRange & {
+    /** Whether the parser's kind string identifies this node as a comment. */
+    comment: boolean;
+  })[] = [];
   const scripts: SourceRange[] = [];
   const seen = new Set<object>();
 
+  /**
+   * Collects valid node locations and embedded scripts while avoiding cycles and AST metadata.
+   *
+   * @param value - Root, child, or array from the supplied AST. Visited objects are added to `seen`,
+   * and valid source ranges are appended to `nodes` and `scripts` without changing those objects.
+   * @throws If the parser cannot provide a location for a node with a string kind.
+   */
   const visit = (value: unknown) => {
     if (!value || typeof value !== "object" || seen.has(value)) {
       return;

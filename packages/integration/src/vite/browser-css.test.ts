@@ -39,6 +39,12 @@ describe("source names in public CSS maps", () => {
   );
 });
 
+/**
+ * Publishes one CSS mapping through the adapter's source-name policy.
+ * @param projectRoot - Absolute project directory used to decide whether source names can be relative.
+ * @param sourceFile - Absolute known CSS path encoded as a file URI in the input map.
+ * @returns The public map with source content removed.
+ */
 function publishCssMap(projectRoot: string, sourceFile: string) {
   const inputMap = new GenMapping();
   addSegment(inputMap, 0, 0, pathToFileURL(sourceFile).href, 0, 0);

@@ -126,6 +126,10 @@ test("configuration keeps independent scopes and compiler settings", () => {
 });
 
 test("validation preserves objects and callbacks without executing providers", () => {
+  /**
+   * Fails if validation invokes a provider or naming callback instead of checking its shape.
+   * @throws Whenever invoked.
+   */
   const callback = () => expect.fail("Validation must not execute callbacks");
   const config = {
     projects: [
@@ -189,6 +193,10 @@ test.each(["function", "async function", "promise"])(
       ],
     };
     let calls = 0;
+    /**
+     * Records factory evaluation separately from configuration definition.
+     * @returns The same settings object after increasing the invocation count.
+     */
     const create = () => {
       calls++;
       return config;

@@ -1,10 +1,10 @@
 import type { AnalysisProjectConfig } from "@stillwind/config";
 import {
   NativeProjectSession,
-  type NativeDesignSystemLoader,
   type NativeCssResource,
+  type NativeDesignSystemLoader,
 } from "@stillwind/native";
-import { relative, resolve, dirname } from "pathe";
+import { dirname, relative, resolve } from "pathe";
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/compiler.ts";
 import { fileSourceKind } from "../compilation/module-source.ts";
@@ -32,21 +32,35 @@ export interface BrowserProjectOptions {
   config: AnalysisProjectConfig;
   /** Original sources, package files, and declarations captured for this project revision. */
   files: ReadonlyMap<string, string>;
-  /** Maps an absolute virtual path to its original workspace URI. */
+  /**
+   * Maps an absolute virtual path to its original workspace URI.
+   * @param id - Decoded virtual source path.
+   * @returns URI used for diagnostic locations and source-map names.
+   */
   documentUri?(id: string): string;
 }
 
 /** Owns the design system, semantic checker, and compiler artifacts for one immutable snapshot. */
 export class BrowserProject {
+  /** Editor views retained for each analyzed entry in the immutable inventory. */
   readonly #editors = new Map<string, EditorSnapshot>();
+  /** Settings retained by reference and kept unchanged by the caller for this project. */
   readonly #options: BrowserProjectOptions;
+  /** Copy of the original inventory used by source, CSS, and checker reads. */
   readonly #files: Map<string, string>;
+  /** Owned checker for the captured virtual inventory. */
   readonly #facts: BrowserTypeFactsService;
+  /** Lazily loaded CSS graph shared by all entry analyses. */
   #loader?: NativeDesignSystemLoader;
+  /** Native session retaining successful compiler artifacts across entry analyses. */
   #session?: NativeProjectSession;
+  /** Serializes analyses and permits subsequent work after a failure. */
   #queue: Promise<unknown> = Promise.resolve();
+  /** Prevents new analyses and suppresses editor answers after closure starts. */
   #closed = false;
+  /** Resource placeholders supplied by the loaded CSS graph. */
   #resources: NativeCssResource[] = [];
+  /** Analysis graphs keyed by full entry identity, invalidated when native artifacts are removed. */
   readonly #cache = new Map<string, ModuleAnalysis>();
 
   /** @param options - Captured files and configuration. Source mutations require a new project. */
@@ -64,6 +78,7 @@ export class BrowserProject {
    * Analyzes and transforms an entry with its demanded semantic dependencies.
    * @param id - Absolute virtual source path, including any query selecting distinct source.
    * @returns Reports, code, and dependency coverage for the captured snapshot.
+   * @throws If the project is closed, CSS loading fails, or compilation fails.
    */
   analyze(id: string): Promise<ModuleAnalysis> {
     if (this.#closed) {
@@ -78,7 +93,18 @@ export class BrowserProject {
 
       const { config, root } = this.#options;
 
+      /**
+       * Selects the document identity shared by compiler reports and CSS maps.
+       * @param file - Absolute path in the virtual filesystem.
+       * @returns The configured URI, or the path prefixed with `file://`.
+       */
       const uri = (file: string) => this.#options.documentUri?.(file) ?? `file://${file}`;
+      /**
+       * Reads captured text without accessing the physical filesystem.
+       * @param file - Exact path key in the virtual filesystem.
+       * @returns The text currently stored under that key.
+       * @throws If the virtual file is absent.
+       */
       const read = async (file: string) => {
         const text = this.#files.get(file);
         if (text === undefined) {
@@ -107,6 +133,11 @@ export class BrowserProject {
         this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
       }
 
+      /**
+       * Describes a virtual file for compilation and checker preparation.
+       * @param file - Absolute virtual path whose extension selects its source format.
+       * @returns Metadata with project-relative module and projection names and an absolute checker path.
+       */
       const descriptor = (file: string) => ({
         moduleId: relative(root, file),
         checkerFileName: file,
@@ -200,6 +231,7 @@ export class BrowserProject {
    * Returns document CSS for successfully compiled graphs. automatic:false includes
    * only shared base CSS. Local text resources become data URLs; remote URLs retain
    * their authored values.
+   * @returns Document CSS for retained successful graphs, or empty text before session creation.
    * @throws If an emitted local resource is absent from the captured files.
    */
   css(): string {
@@ -220,7 +252,13 @@ export class BrowserProject {
     ]);
   }
 
-  /** Queries the immutable source graph after ensuring the entry has been analyzed. */
+  /**
+   * Queries the immutable source graph after ensuring the entry has been analyzed.
+   * @param id - Absolute virtual entry path, including a query that selects distinct source.
+   * @param request - Operation with original UTF-16 offsets for that source.
+   * @returns The editor answer, or undefined after closure or when no snapshot is available.
+   * @throws If entry analysis fails.
+   */
   async query(id: string, request: EditorRequest): Promise<EditorResult | undefined> {
     await this.analyze(id);
     if (this.#closed) {
@@ -232,10 +270,37 @@ export class BrowserProject {
   /**
    * Returns CSS values keyed by absolute source path for explicit stillwind/module-css imports.
    * Parts preserve stylesheet occurrence order and include their content fingerprints.
+   * @returns A new map of module CSS records. No session produces an empty map.
    * @throws If an emitted local resource is absent from the captured files.
    */
-  cssValues(): ReadonlyMap<string, { css: string; parts: { key: string; css: string }[] }> {
-    const values = new Map<string, { css: string; parts: { key: string; css: string }[] }>();
+  cssValues(): ReadonlyMap<
+    string,
+    {
+      /** Complete CSS emitted for this module's carrier. */
+      css: string;
+      /** Partitions in stylesheet occurrence order. */
+      parts: {
+        /** Compiler partition key including its content fingerprint. */
+        key: string;
+        /** CSS after local resources are embedded. */
+        css: string;
+      }[];
+    }
+  > {
+    const values = new Map<
+      string,
+      {
+        /** Complete CSS emitted for this module's carrier. */
+        css: string;
+        /** Partitions in stylesheet occurrence order. */
+        parts: {
+          /** Compiler partition key including its content fingerprint. */
+          key: string;
+          /** CSS after local resources are embedded. */
+          css: string;
+        }[];
+      }
+    >();
     if (!this.#session) {
       return values;
     }
@@ -260,6 +325,10 @@ export class BrowserProject {
     return values;
   }
 
+  /**
+   * Collects modules with generated code from retained successful graphs.
+   * @returns Distinct compiler identities in first graph occurrence order.
+   */
   #modules(): string[] {
     return [
       ...new Set(
@@ -272,6 +341,10 @@ export class BrowserProject {
     ];
   }
 
+  /**
+   * Removes cached graphs and editor snapshots affected by a rejected native transaction.
+   * @param modules - Compiler identities attempted by that transaction, including dependencies.
+   */
   #invalidate(modules: ReadonlySet<string>): void {
     for (const [id, graph] of this.#cache) {
       if (
@@ -284,9 +357,23 @@ export class BrowserProject {
     }
   }
 
+  /**
+   * Replaces emitted CSS placeholders with authored remote URLs or embedded local text.
+   * @param css - Generated CSS containing zero or more resource placeholders.
+   * @param resources - Placeholder records with source names relative to the project root or absolute.
+   * @returns CSS with JSON-escaped URL contents. SVG uses image/svg+xml and other local text uses text/plain.
+   * @throws If a referenced local file is absent from the captured inventory.
+   */
   #replaceResources(
     css: string,
-    resources: readonly { placeholder: string; specifier: string; sourceName: string }[],
+    resources: readonly {
+      /** Exact emitted token to replace in CSS. */
+      placeholder: string;
+      /** Authored URL, resolved relative to its source when it is local. */
+      specifier: string;
+      /** Source path whose directory determines local resource resolution. */
+      sourceName: string;
+    }[],
   ): string {
     for (const resource of resources) {
       if (!css.includes(resource.placeholder)) {
@@ -307,7 +394,10 @@ export class BrowserProject {
     return css;
   }
 
-  /** Waits for pending work and releases the checker. */
+  /**
+   * Prevents new analyses, waits for queued work, and releases the checker, snapshots, and native session.
+   * @returns Completion of project cleanup.
+   */
   async close(): Promise<void> {
     this.#closed = true;
     await this.#queue;

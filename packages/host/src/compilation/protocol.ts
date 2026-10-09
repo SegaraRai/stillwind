@@ -7,5 +7,6 @@ import type { TypeFact } from "../semantics/index.ts";
  * The host attaches these facts before native compilation.
  */
 export type PreparedSource = ProjectionPreparedSource & {
+  /** Semantic answers for original UTF-8 probe ranges. Omission supplies no additional facts. */
   typeFacts?: TypeFact[];
 };

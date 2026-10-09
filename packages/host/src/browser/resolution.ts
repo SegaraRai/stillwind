@@ -5,8 +5,9 @@ import { dirname, join, resolve } from "pathe";
  * @param files - Absolute paths to text, including package.json files.
  * @param specifier - Authored request. Relative and package subpath imports are accepted.
  * @param importer - Absolute importing file path.
- * @param kind - Source resolution selects browser/import exports; style resolution also selects style exports.
+ * @param kind - Source resolution selects browser/import exports. Style resolution also selects style exports.
  * @returns An existing virtual path, or undefined when the request cannot be resolved.
+ * @throws If a consulted package.json contains invalid JSON.
  */
 export function resolveVirtualModule(
   files: ReadonlyMap<string, string>,
@@ -14,6 +15,11 @@ export function resolveVirtualModule(
   importer: string,
   kind: "source" | "style" = "source",
 ): string | undefined {
+  /**
+   * Finds the first existing file using extension substitution and directory index candidates.
+   * @param name - Absolute candidate path before extension or index fallback.
+   * @returns An existing path, or undefined when the candidates for the requested kind are absent.
+   */
   const find = (name: string): string | undefined => {
     if (files.has(name)) {
       return name;
@@ -55,6 +61,11 @@ export function resolveVirtualModule(
     const text = files.get(join(base, "package.json"));
     if (text) {
       const metadata = JSON.parse(text) as Record<string, unknown>;
+      /**
+       * Selects an exports target using active conditions in package declaration order.
+       * @param entry - A string target, an array of alternatives, or a conditional exports object.
+       * @returns The selected string without checking whether its file exists, or undefined.
+       */
       const choose = (entry: unknown): string | undefined => {
         if (typeof entry === "string") {
           return entry;

@@ -10,10 +10,21 @@ import { lintPresets } from "./lint-presets.ts";
 import { mergeConfig } from "./merge.ts";
 import { findConfiguration, loadConfiguration, resolveIntegrationConfig } from "./node.ts";
 
+/**
+ * Creates an isolated configuration directory and registers its removal after the test.
+ * @returns The root, default TypeScript config path, and a helper for replacing its project list.
+ * @throws If creating the temporary directory fails.
+ */
 async function fixture() {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-"));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
   const configFile = path.join(root, "stillwind.config.ts");
+  /**
+   * Replaces the fixture's configuration with a default export of the supplied projects.
+   * @param projects - Project records, including intentionally invalid records used by validation tests.
+   * @returns Completion of writing the TypeScript configuration.
+   * @throws If serialization or file writing fails.
+   */
   const write = (projects: object[]) =>
     writeFile(configFile, `export default ${JSON.stringify({ projects })}`);
   return {
@@ -28,6 +39,11 @@ test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
   async (extension) => {
     const { root } = await fixture();
     const configFile = path.join(root, `stillwind.config.${extension}`);
+    /**
+     * Creates settings for checking configuration loading across module formats.
+     * @param css - Authored stylesheet path that identifies the current fixture revision.
+     * @returns One project whose scope contains TSX files in the configuration directory.
+     */
     const settings = (css: string) => ({
       projects: [
         {
@@ -501,6 +517,11 @@ test.each(["ts", "cjs", "json"])(
   async (extension) => {
     const { root, configFile } = await fixture();
     const helper = path.join(root, `settings.${extension}`);
+    /**
+     * Creates settings for detecting edits to an imported configuration helper.
+     * @param css - Authored stylesheet path that identifies the helper revision.
+     * @returns One project whose scope contains TSX files in the configuration directory.
+     */
     const settings = (css: string) => ({
       projects: [
         {
@@ -509,6 +530,11 @@ test.each(["ts", "cjs", "json"])(
         },
       ],
     });
+    /**
+     * Serializes the imported helper in the module format selected by the test.
+     * @param css - Authored stylesheet path inserted into the helper's project settings.
+     * @returns JSON text, a CommonJS assignment, or an ESM default export.
+     */
     const source = (css: string) =>
       extension === "json"
         ? JSON.stringify(settings(css))
@@ -567,7 +593,15 @@ test("configuration merge replaces arrays and validates duplicate optional names
 });
 
 test("nested overrides preserve naming callbacks and replace providers when kind changes", () => {
+  /**
+   * Supplies a stable utility callback for checking identity preservation during merging.
+   * @returns The fixture's utility identifier.
+   */
   const utilityClass = () => "utility";
+  /**
+   * Supplies a separate marker callback for checking identity preservation during merging.
+   * @returns The fixture's marker identifier.
+   */
   const refMarker = () => "marker";
   const base: BaseConfig = {
     naming: {
@@ -584,6 +618,7 @@ test("nested overrides preserve naming callbacks and replace providers when kind
     }).naming?.refMarker,
   ).toBe(refMarker);
   const project: {
+    /** Provider whose changed kind must replace the previous preparation callback. */
     projection: ProjectionProvider;
   } = {
     projection: {

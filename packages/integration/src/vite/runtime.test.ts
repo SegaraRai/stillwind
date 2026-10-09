@@ -11,6 +11,11 @@ afterEach(() => {
   Reflect.deleteProperty(globalThis, Symbol.for("stillwind.document"));
 });
 
+/**
+ * Installs a simulated document and fetch implementation for the development runtime.
+ * @param fetch - Mock that controls snapshot responses and records requests.
+ * @returns Runtime operations and the simulated style element whose text records rendered CSS.
+ */
 function runtime(fetch: ReturnType<typeof vi.fn>) {
   const style = { dataset: {}, isConnected: false, textContent: "" };
   vi.stubGlobal("fetch", fetch);

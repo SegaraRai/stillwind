@@ -6,7 +6,7 @@ import type { Plugin } from "vite";
 import { emitBuildCss, emitBuildResources } from "./build-assets.ts";
 import { renderChunkStyles } from "./chunk-styles.ts";
 import { partitionStylesheet } from "./emission.ts";
-import { runtimeId, projectionPrefix, producerPrefix } from "./module-ids.ts";
+import { producerPrefix, projectionPrefix, runtimeId } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 import { resolveResources } from "./resources.ts";
 
@@ -100,8 +100,19 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         settings.assetsDirectory,
       );
       const css = resolveResources(plan.originalCss, replacements);
+      /**
+       * Emits a stylesheet using this build's environment, asset directory, and map settings.
+       * @param text - Final CSS with resource placeholders replaced.
+       * @param sourceMap - Optional serialized map for the final CSS.
+       * @returns The bundler's reference for the emitted asset.
+       */
       const emitCss = (text: string, sourceMap?: string) =>
         emitBuildCss(project, name, this, text, sourceMap);
+      /**
+       * Builds the stylesheet URL recorded in the document manifest.
+       * @param reference - Asset reference already issued by this build context.
+       * @returns The emitted filename prefixed by the configured public base.
+       */
       const href = (reference: string) => settings.publicBase + this.getFileName(reference);
       const revision = createHash("sha256")
         .update(plan.designSystem)
@@ -136,7 +147,12 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         };
       } else {
         const references = new Map<string, string>();
-        const parts: { id: string; href: string }[] = [];
+        const parts: {
+          /** Occurrence identity preserving partition position even when content shares an asset. */
+          id: string;
+          /** Public URL of the emitted partition asset. */
+          href: string;
+        }[] = [];
         const partitions = partitionStylesheet(plan.rawParts);
         for (const [index, part] of partitions.entries()) {
           let reference = references.get(part.key);

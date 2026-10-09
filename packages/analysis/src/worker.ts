@@ -6,23 +6,31 @@ import type { WorkerRequest } from "./worker-client.ts";
 let workspace: AnalysisWorkspace | undefined;
 let rewriter: SourceRewriter | undefined;
 
-process.on("message", (message: { id: number; request: WorkerRequest }) => {
-  void handle(message.request).then(
-    (value) => {
-      process.send?.({ id: message.id, value }, () => {
-        if (message.request.method === "close") {
-          process.disconnect?.();
-        }
-      });
-    },
-    (error: unknown) => {
-      process.send?.({
-        id: message.id,
-        error: String(error),
-      });
-    },
-  );
-});
+process.on(
+  "message",
+  (message: {
+    /** Sequence number copied into the IPC reply. */
+    id: number;
+    /** Operation payload sent by AnalysisWorker. Callers serialize workspace replacement and rewrites. */
+    request: WorkerRequest;
+  }) => {
+    void handle(message.request).then(
+      (value) => {
+        process.send?.({ id: message.id, value }, () => {
+          if (message.request.method === "close") {
+            process.disconnect?.();
+          }
+        });
+      },
+      (error: unknown) => {
+        process.send?.({
+          id: message.id,
+          error: String(error),
+        });
+      },
+    );
+  },
+);
 
 process.on("disconnect", () => {
   void Promise.resolve(workspace?.close()).finally(() => {
@@ -30,6 +38,12 @@ process.on("disconnect", () => {
   });
 });
 
+/**
+ * Dispatches one IPC operation against the child-owned workspace and rewriter.
+ * @param request - Operation payload. Open must complete before other operations except close.
+ * @returns The operation result, or undefined for state changes. Target paths are sorted and deduplicated.
+ * @throws If no workspace is open or the selected workspace operation fails.
+ */
 async function handle(request: WorkerRequest): Promise<unknown> {
   if (request.method === "open") {
     await workspace?.close();

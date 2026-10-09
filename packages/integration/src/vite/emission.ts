@@ -2,7 +2,11 @@ import { createHash } from "node:crypto";
 
 import type { NativeStylesheetPart } from "@stillwind/native";
 
-/** Packs adjacent occurrences with the same activation set without moving any rule. */
+/**
+ * Packs adjacent occurrences with identical ordered producer lists without moving any rule.
+ * @param parts - Native partitions in stylesheet order. Input records and source-map arrays are unchanged.
+ * @returns New partitions with concatenated CSS, shifted UTF-8 source-map offsets, and content hashes for merged parts.
+ */
 export function partitionStylesheet(
   parts: readonly NativeStylesheetPart[],
 ): NativeStylesheetPart[] {

@@ -69,7 +69,9 @@ export async function emitBuildResources(
  */
 export async function emitBuildCss(
   project: {
+    /** Effective minification policy and emitted asset directory for the environment. */
     settings: Pick<ViteProject["settings"], "minifyCss" | "assetsDirectory">;
+    /** Rewrites source-map identities for publicly emitted CSS. */
     publicSourceMap: ViteProject["publicSourceMap"];
   },
   name: string | undefined,

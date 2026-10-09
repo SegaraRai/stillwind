@@ -34,6 +34,12 @@ export function startBrowserLanguageServer(
   connection.listen();
 
   return {
+    /**
+     * Closes analysis before releasing the connection, reader, and writer in the cleanup block.
+     *
+     * @returns Completion of service and transport cleanup.
+     * @throws If service cleanup fails, after transport resources have been released.
+     */
     async dispose() {
       try {
         await server.dispose();

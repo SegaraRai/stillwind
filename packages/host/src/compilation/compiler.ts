@@ -56,10 +56,13 @@ export interface CompilerHost {
     specifier: string,
     importer: string,
     options?: {
+      /** Requests resolution without calling the initiating plugin again. */
       skipSelf: boolean;
     },
   ): Promise<{
+    /** Full host identity used to load the resolved source. */
     id: string;
+    /** Truthy values mark a dependency that the host does not load as source. */
     external?: boolean | string;
   } | null>;
   /**
@@ -239,6 +242,19 @@ export async function compileModule(
   return compileGraph(session, factsService, code, id, host, options);
 }
 
+/**
+ * Prepares the demanded graph, compiles it into the session, and derives the entry output.
+ * @param session - Initialized native session that retains successful module artifacts.
+ * @param factsService - Lazy checker backend for semantic probes.
+ * @param code - Original entry text used when entryInput is absent.
+ * @param id - Full host identity of the entry.
+ * @param host - Stable source metadata, resolution, and notification operations.
+ * @param options - Diagnostic policy, captured checker inputs, and entry transport imports.
+ * @param analysis - Optional object populated with sources, dependencies, reports, and generation status.
+ * @param entryInput - Optional loaded entry, which takes precedence over code and host.describe.
+ * @returns Entry output, a diagnostic-only output after a collected failure, or undefined when no code is emitted.
+ * @throws If strict compilation fails or a host or transport failure cannot be collected.
+ */
 async function compileGraph(
   session: NativeProjectSession,
   factsService: () => TypeFactsBackend | undefined,
@@ -297,6 +313,14 @@ async function compileGraph(
   }
 }
 
+/**
+ * Selects the entry and computes its composition dependency identities and topology fingerprint.
+ * @param modules - Native outputs in compiler order.
+ * @param entryModuleId - Compiler identity of the requested entry.
+ * @param hasModuleCssImport - Whether the entry requested an explicit CSS value.
+ * @param options - Diagnostic policy controlling whether reports from all modules are attached.
+ * @returns Enriched entry output. Throw mode omits entries without nonempty code, and collect mode retains them.
+ */
 function entryOutput(
   modules: ProjectModuleOutput[],
   entryModuleId: string,
@@ -337,6 +361,14 @@ function entryOutput(
   };
 }
 
+/**
+ * Populates analysis batches and removes artifacts when missing semantic facts block lowering.
+ * @param analysis - Mutable result whose unverified ranges are deduplicated and generation status updated.
+ * @param modules - Mutable native outputs whose reports are filtered and artifacts may be cleared.
+ * @param session - Session used to diagnose sources independently when facts are unavailable.
+ * @param typedSources - Prepared sources from the same compilation, with available type facts attached.
+ * @param graph - Graph retaining scanner summaries for the compiled modules.
+ */
 function recordAnalysis(
   analysis: ModuleAnalysis,
   modules: ProjectModuleOutput[],
@@ -368,6 +400,12 @@ function recordAnalysis(
   }
 }
 
+/**
+ * Checks whether unavailable semantic information affects a probe required for lowering.
+ * @param summary - Scanner summary for the module, or undefined if unavailable.
+ * @param ranges - Unverified ranges in original UTF-8 bytes. Missing bounds cover the whole module.
+ * @returns Whether an unbounded range exists or a bounded range overlaps a probe beyond recognition.
+ */
 function generationNeedsFacts(
   summary: NativeModuleSummary | undefined,
   ranges: UnverifiedRange[],
@@ -382,7 +420,12 @@ function generationNeedsFacts(
   });
 }
 
-/** Keeps source failures while omitting identity lowering errors in unverified ranges. */
+/**
+ * Keeps source failures while omitting identity lowering errors in unverified ranges.
+ * @param reports - Reports with original UTF-8 locations.
+ * @param ranges - Unverified original UTF-8 ranges for the same module.
+ * @returns A filtered array in report order. Other diagnostic codes remain unchanged.
+ */
 function verifiedReports(reports: BindingReport[], ranges: UnverifiedRange[]): BindingReport[] {
   return reports.filter((report) => {
     if (!identityDiagnosticCodes.has(report.code)) {
@@ -402,6 +445,13 @@ const identityDiagnosticCodes = new Set([
   "SW03019",
 ]);
 
+/**
+ * Tests whether a diagnostic or probe overlaps an unavailable semantic range.
+ * @param range - Half-open original UTF-8 range. Missing bounds cover the entire module.
+ * @param start - Inclusive original UTF-8 byte offset.
+ * @param end - Exclusive original UTF-8 byte offset.
+ * @returns Whether the ranges intersect, treating an unbounded range as intersecting everything.
+ */
 function overlaps(range: UnverifiedRange, start: number, end: number): boolean {
   if (range.start === undefined || range.end === undefined) {
     return true;
@@ -409,6 +459,10 @@ function overlaps(range: UnverifiedRange, start: number, end: number): boolean {
   return start < range.end && end > range.start;
 }
 
+/**
+ * Removes generated artifacts while keeping reports and composition metadata for analysis.
+ * @param module - Mutable output whose missing facts make its generated artifacts unreliable.
+ */
 function clearArtifacts(module: ProjectModuleOutput): void {
   module.code = null;
   module.css = "";
@@ -418,6 +472,14 @@ function clearArtifacts(module: ProjectModuleOutput): void {
   module.mappings = [];
 }
 
+/**
+ * Checks output identities, reports lint and rejected-name warnings, and enforces diagnostic policy.
+ * @param modules - Native outputs with identities registered in graph.
+ * @param graph - Source graph used to verify each output's host identity.
+ * @param host - Warning receiver, which may receive messages before a later failure.
+ * @param options - Collect mode retains compiler and denied-lint reports instead of throwing.
+ * @throws If an output identity is unknown or throw mode encounters compiler errors or denied lint.
+ */
 function reportOutputDiagnostics(
   modules: ProjectModuleOutput[],
   graph: ModuleGraph,
@@ -456,6 +518,12 @@ function reportOutputDiagnostics(
   }
 }
 
+/**
+ * Sends enabled warning-level findings through the host and records whether any finding is denied.
+ * @param output - Findings and per-rule lint levels. Missing settings default to off.
+ * @param host - Receiver for warning text with original source positions.
+ * @returns Whether at least one finding has deny level.
+ */
 function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): boolean {
   let denied = false;
   for (const finding of output.lintFindings ?? []) {

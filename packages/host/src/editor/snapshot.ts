@@ -616,6 +616,11 @@ function colorReplacement(
   );
   const rgb = rgba.slice(0, 3).map((value) => Math.round(value * 255));
   for (const spelling of spellings) {
+    /**
+     * Rebuilds a color candidate with its variants, importance, and opacity modifier preserved.
+     * @param value - CSS color encoded for an arbitrary utility value.
+     * @returns A candidate using the current spelling, without the separately supplied outer variants.
+     */
     const build = (value: string) =>
       `${prefix}${importance}${spelling(value)}${modifier ? `/${modifier}` : ""}`;
     const probe = candidates.color(outer + build("#ffffff"));

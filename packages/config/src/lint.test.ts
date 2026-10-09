@@ -237,7 +237,9 @@ test("preset errors identify the name and path, and cycles do not reject shared 
     "config.lint.extends[0] (company/broken).rules.canonical-utilities.rootFontSize",
   );
   const cycle: {
+    /** Display name included in the cycle's configuration error path. */
     name: string;
+    /** Mutable parent list that receives this preset itself to construct the cycle. */
     extends: LintPreset[];
   } = {
     name: "company/cycle",

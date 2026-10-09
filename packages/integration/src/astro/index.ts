@@ -43,11 +43,16 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
   const plugins = createVitePlugins(project);
   const bridgeId = randomUUID();
 
+  /** Removes the current server's bridge registrations after configuration installs them. */
   let disposeBridge = () => {};
 
   return {
     name: "@stillwind/integration",
     hooks: {
+      /**
+       * Captures Astro's root and installs middleware plus Stillwind's Vite and document plugins.
+       * @param options - Astro setup operations and application configuration.
+       */
       "astro:config:setup"({ config: astroConfig, updateConfig, addMiddleware }) {
         applicationRoot = fileURLToPath(astroConfig.root);
         addMiddleware({
@@ -63,6 +68,11 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
               plugins,
               {
                 name: "stillwind:astro-document",
+                /**
+                 * Registers a current-CSS bridge for each server environment and ties cleanup to server closure.
+                 * @param server - Vite server whose environments resolve SSR dependencies and register watches.
+                 * @throws If no SSR environment is available.
+                 */
                 configureServer(server) {
                   disposeBridge();
                   if (!server.environments.ssr) {
@@ -82,6 +92,7 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                         return plan.css;
                       }),
                     );
+                  /** Removes all bridge registrations owned by this server configuration. */
                   const dispose = () => {
                     for (const dispose of disposers) {
                       dispose();
@@ -90,9 +101,16 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                   disposeBridge = dispose;
                   server.httpServer?.once("close", dispose);
                 },
+                /** Removes development bridge registrations when the plugin's bundle closes. */
                 closeBundle() {
                   disposeBridge();
                 },
+                /**
+                 * Resolves stylesheet virtual modules and keeps the development bridge external on the server.
+                 * @param source - Authored module specifier.
+                 * @returns A virtual identity, an external bridge, or undefined for unrelated requests.
+                 * @throws If a client environment imports server-only styles or the CSS bridge.
+                 */
                 resolveId(source) {
                   if (source === BRIDGE_ID) {
                     if (this.environment?.name === "client") {
@@ -111,6 +129,11 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                   }
                   return undefined;
                 },
+                /**
+                 * Generates SSR stylesheet markup or the client listener that refreshes inline SSR CSS.
+                 * @param source - Resolved virtual module identity including its leading NUL.
+                 * @returns Generated JavaScript, or undefined for unrelated modules. Production markup retains a manifest placeholder.
+                 */
                 load(source) {
                   if (source === "\0" + CLIENT_ID) {
                     const endpoint =
@@ -157,6 +180,12 @@ export async function getStyles() {
 }
 `;
                 },
+                /**
+                 * Replaces the production SSR marker with links from the rendered stylesheet manifest.
+                 * @param code - Rendered JavaScript containing zero or one stylesheet marker.
+                 * @param chunk - Chunk whose filename identifies the generated source map.
+                 * @returns Replaced code and a source map, or undefined when no marker is present.
+                 */
                 renderChunk(code, chunk) {
                   if (!code.includes(MARKER)) {
                     return;

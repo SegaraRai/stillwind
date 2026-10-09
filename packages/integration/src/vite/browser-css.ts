@@ -48,6 +48,11 @@ export function publicCssSourceMap(
   map: BrowserSourceMapInput,
 ): EncodedSourceMap {
   const visible = new Map<string, string>();
+
+  /**
+   * Allows a known source inside the project to use a public relative name.
+   * @param id - Resolver identity whose query and fragment are removed before checking its path.
+   */
   const add = (id: string) => {
     const relative = sourceModuleId(sources.root, cleanModuleId(id));
     if (relative !== ".." && !relative.startsWith("../") && !isAbsolute(relative)) {
@@ -64,6 +69,7 @@ export function publicCssSourceMap(
       }
     }
   }
+
   const publicNames = new Set(visible.values());
   return browserSourceMap(map, (source) => {
     if (/^stillwind-source:[a-f0-9]{64}$/.test(source) || publicNames.has(source)) {

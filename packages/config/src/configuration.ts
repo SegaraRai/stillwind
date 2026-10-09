@@ -20,9 +20,9 @@ import {
 
 /** One project's compiler settings, analysis scope, and source preparation operations. */
 export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
-  /** Required design-system stylesheet, absolute or relative to root. */
+  /** Nonempty design-system stylesheet path, absolute or relative to root. Authored whitespace is preserved. */
   css: string;
-  /** Optional identifier used to select this project from a build integration. Names must be unique. */
+  /** Optional nonempty identifier used to select this project. Names must be unique, and authored whitespace is preserved. */
   name?: string;
   /**
    * Nonempty list of globs relative to root. Analysis enumerates these targets and filters reports
@@ -233,7 +233,14 @@ const configurationSchema = v.pipe(
   }),
 );
 
-/** Validates an evaluated configuration without calling providers or resolving paths. Throws with the invalid field's path. */
+/**
+ * Validates evaluated projects and their compiler settings without running providers or resolving paths.
+ * @param value - Evaluated settings with a nonempty project list, required CSS paths and file globs,
+ * and unique names when names are supplied.
+ * @returns The supplied settings with object and callback identities preserved.
+ * @throws If a field, project name, effective lint policy, or compiler namespace is invalid.
+ * Validation errors include the authored field path.
+ */
 export function validateConfig(value: unknown): StillwindConfig {
   validate(configurationSchema, value, "config");
 

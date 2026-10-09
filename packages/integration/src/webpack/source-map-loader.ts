@@ -49,6 +49,7 @@ export type SourceTransformContext<Options> = Omit<LoaderContext<Options>, "data
     data?: SourceTransformData;
     /** Pitch data exposed through Rspack 2's loader item. */
     loaderItem?: {
+      /** Optional per-loader pitch data containing the preceding Stillwind transform. */
       data?: SourceTransformData;
     };
   })[];

@@ -42,10 +42,12 @@ export interface LoadedConfiguration {
 export interface ResolvedIntegrationConfig {
   /** Selected compiler settings after inline overrides and defaults. Filesystem paths are absolute. */
   config: NormalizedCompilerConfig & {
+    /** Absolute selected project directory after applying inline overrides. */
     root: string;
+    /** Absolute design-system stylesheet path, without an existence check. */
     css: string;
   };
-  /** Absolute evaluated configuration path. Omitted when no file was loaded. */
+  /** Absolute evaluated configuration path, or undefined when no file was loaded. */
   configFile?: string;
   /** Existing configuration dependency paths to watch. Empty when settings are entirely inline. */
   dependencies: string[];
@@ -97,6 +99,11 @@ export async function loadConfiguration(file: string): Promise<LoadedConfigurati
     plugins: [
       {
         name: "stillwind-configuration",
+        /**
+         * Registers module resolution tracking and per-file Node location values for bundled code.
+         * @param builder - esbuild plugin operations. Callbacks add resolved external paths to
+         * dependencies and inject each local file's URL, filename, and directory.
+         */
         setup(builder) {
           builder.onResolve({ filter: /.*/ }, async (args) => {
             if (
@@ -172,11 +179,18 @@ ${readFileSync(args.path, "utf8")}`,
  * @param project - Evaluated project configuration with paths relative to its root.
  * @param directory - Base directory for a relative project root, normally the configuration directory.
  * @returns Compiler settings with absolute root, CSS, and tsconfig paths. The supplied project is not modified.
+ * A false or omitted tsconfig setting is preserved.
+ * @throws If compiler normalization fails or the project does not supply a valid CSS path.
  */
 export function resolveProjectConfig(
   project: AnalysisProjectConfig,
   directory: string,
-): NormalizedCompilerConfig & { root: string; css: string } {
+): NormalizedCompilerConfig & {
+  /** Absolute root resolved against directory. */
+  root: string;
+  /** Absolute CSS entrypoint resolved against the project's root. */
+  css: string;
+} {
   const resolved = resolveProjectPaths(project, directory, path);
   return resolveCompilerSettings(compilerConfig(resolved), {}, resolved.root, path);
 }
@@ -244,6 +258,12 @@ export async function resolveIntegrationConfig(
   };
 }
 
+/**
+ * Enumerates Node configuration candidates without checking existence.
+ * @param directory - Starting directory. Relative paths use the process working directory.
+ * @returns Absolute paths ordered from the nearest directory to the filesystem root, with
+ * configurationFiles precedence within each directory.
+ */
 function configurationCandidates(directory: string): string[] {
   return candidates(directory, path);
 }

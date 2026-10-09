@@ -55,9 +55,17 @@ export function createLanguageServer(
   connection: Connection,
   options: LanguageServerOptions,
 ): {
-  /** Waits for queued document and workspace changes before an embedding requests compiler output. */
+  /**
+   * Waits for document and workspace changes already queued by the server.
+   *
+   * @returns The current control queue's completion promise. Queued failures are logged.
+   */
   ready(): Promise<void>;
-  /** Reopens workspace configuration and files, then replays the current document buffers. */
+  /**
+   * Reopens workspace configuration and files, replays current buffers, and schedules analysis.
+   *
+   * @returns Completion of the queued reload. Reload failures are logged, and analysis runs separately.
+   */
   reload(): Promise<void>;
   /**
    * Stops scheduling analysis, cancels publication, and closes services after queued control work.
@@ -84,6 +92,12 @@ export function createLanguageServer(
   let active: AbortController | undefined;
   let disposal: Promise<void> | undefined;
 
+  /**
+   * Invalidates current results and serializes a workspace or document mutation.
+   * Callback failures are logged and absorbed so subsequent mutations can run.
+   *
+   * @param action - Mutation to execute after previous control work. Shutdown skips registration.
+   */
   const control = (action: () => Promise<void>) => {
     if (shutdown) {
       return;
@@ -96,6 +110,12 @@ export function createLanguageServer(
     });
   };
 
+  /**
+   * Closes existing services, opens the current roots, and replays every open buffer.
+   *
+   * @returns Completion of service replacement and buffer replay.
+   * @throws If service closure, the workspace factory, or buffer replay fails.
+   */
   const open = async () => {
     await Promise.all([...workspaces.values()].map((workspace) => workspace.close()));
     workspaces.clear();
@@ -115,9 +135,19 @@ export function createLanguageServer(
     }
   };
 
+  /**
+   * Sends deduplicated cached diagnostics and workspace errors, then records their document URIs.
+   * Empty notifications clear diagnostics for previously published or currently open documents.
+   */
   const publish = () => {
     const grouped = new Map<string, Diagnostic[]>();
     const seen = new Set<string>();
+    /**
+     * Appends a diagnostic only once for its document and complete serialized value.
+     *
+     * @param uri - Original document URI used to group publication.
+     * @param diagnostic - Diagnostic with original LSP positions.
+     */
     const add = (uri: string, diagnostic: Diagnostic) => {
       const key = JSON.stringify([uri, diagnostic]);
       if (!seen.has(key)) {
@@ -200,6 +230,13 @@ export function createLanguageServer(
     }
   };
 
+  /**
+   * Analyzes open buffers after queued mutations and publishes only a current, non-stale batch.
+   * Service failures become workspace errors. An obsolete or cancelled batch leaves the cache unchanged.
+   *
+   * @param revision - Control generation captured when analysis was scheduled.
+   * @returns Completion of the analysis pass or its early discard.
+   */
   const analyze = async (revision: number) => {
     await controls;
     if (shutdown || revision !== generation) {
@@ -237,6 +274,7 @@ export function createLanguageServer(
     }
   };
 
+  /** Replaces the pending 40 ms timer with an analysis pass for the current control generation. */
   const schedule = () => {
     if (timer) {
       clearTimeout(timer);
@@ -249,6 +287,15 @@ export function createLanguageServer(
     }, 40);
   };
 
+  /**
+   * Queries services after queued mutations and checks document versions and source fingerprints.
+   * Query failures are logged, and the cancellation subscription is released after the request.
+   *
+   * @param uri - URI of the open original document.
+   * @param request - Editor operation expressed in that document's UTF-16 coordinates.
+   * @param token - LSP cancellation forwarded through an AbortSignal.
+   * @returns Current project results, or an empty list after changes, cancellation, or failure.
+   */
   const query: EditorQuery = async (uri, request, token: CancellationToken) => {
     await controls;
     const document = documents.get(uri);
@@ -454,6 +501,12 @@ export function createLanguageServer(
         index,
     );
   });
+  /**
+   * Stops publication and closes all services after the control queue settles.
+   *
+   * @returns A shared cleanup promise, including on repeated calls.
+   * @throws An AggregateError containing every service closure failure.
+   */
   const dispose = (): Promise<void> => {
     disposal ??= (async () => {
       shutdown = true;
@@ -494,10 +547,20 @@ export function createLanguageServer(
   };
 }
 
+/**
+ * Copies a native diagnostic location into LSP positions.
+ *
+ * @param location - Original document positions with zero-based lines and UTF-16 columns.
+ * @returns The half-open range, or an empty range at document start when no location is supplied.
+ */
 function range(location?: {
+  /** Zero-based line containing the inclusive start. */
   startLine: number;
+  /** UTF-16 column of the inclusive start. */
   startColumn: number;
+  /** Zero-based line containing the exclusive end. */
   endLine: number;
+  /** UTF-16 column of the exclusive end. */
   endColumn: number;
 }) {
   return {

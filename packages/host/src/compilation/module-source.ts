@@ -35,7 +35,9 @@ export type ModuleDescriptor = Pick<
  * extensions select projected formats. Unrecognized extensions default to JavaScript script input.
  */
 export function fileSourceKind(id: string): {
+  /** Parser language and module kind inferred from the cleaned extension. */
   syntax: ScriptSyntax;
+  /** Original document format used to select direct input or framework projection. */
   format: SourceDocument["format"];
 } {
   const name = cleanModuleId(id).toLowerCase();

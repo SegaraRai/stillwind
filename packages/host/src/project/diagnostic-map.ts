@@ -34,6 +34,14 @@ export async function mapAnalysisReports(
 ): Promise<BindingReport[]> {
   const documents = new Map(sources.map((source) => [source.document.uri, source]));
 
+  /**
+   * Maps a location when both endpoints identify exact segments in the same original file.
+   * @param location - Prepared document range with zero-based lines and UTF-16 columns.
+   * @param exact - Whether the mapped and prepared ranges must contain identical text.
+   * @returns The original location when no upstream map exists, a mapped location, or undefined
+   * when endpoints, source identity, bounds, or required text equality cannot be established.
+   * @throws If map decoding or a required original file read fails.
+   */
   const mapLocation = async (
     location: BindingLocation,
     exact: boolean,
@@ -57,6 +65,12 @@ export async function mapAnalysisReports(
       column: location.endColumn,
     });
     const mappings = decodedMappings(trace);
+    /**
+     * Checks whether a generated position has a segment containing an original source position.
+     * @param line - Zero-based generated line.
+     * @param column - Zero-based UTF-16 column that must equal a segment start.
+     * @returns Whether a matching segment exists, or undefined when the line has no mappings.
+     */
     const endpoint = (line: number, column: number) =>
       mappings[line]?.some((segment) => segment.length > 1 && segment[0] === column);
     if (
@@ -84,6 +98,12 @@ export async function mapAnalysisReports(
       return;
     }
     const code = sourceContentFor(trace, start.source) ?? (await read(fileURLToPath(uri)));
+    /**
+     * Converts an original map position to an offset in the captured text.
+     * @param line - One-based original line.
+     * @param column - Nonnegative UTF-16 column that excludes a trailing carriage return.
+     * @returns A UTF-16 offset, or undefined when the line or column exceeds the text bounds.
+     */
     const offset = (line: number, column: number) => {
       const lines = code.split("\n");
       if (line < 1 || line > lines.length || column > lines[line - 1].replace(/\r$/, "").length) {
@@ -117,6 +137,12 @@ export async function mapAnalysisReports(
     };
   };
 
+  /**
+   * Maps a label or limits it to document scope when its range cannot be mapped.
+   * @param value - Label in a prepared document. The input object is not mutated.
+   * @returns A copied label. A readable file fallback receives a current fingerprint and zero range.
+   * @throws If map decoding or a required file read fails.
+   */
   const label = async (value: BindingLabel): Promise<BindingLabel> => {
     const mapped = await mapLocation(value.location, false);
     if (mapped) {

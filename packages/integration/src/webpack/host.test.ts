@@ -5,6 +5,10 @@ import { expect, test, vi } from "vite-plus/test";
 import type { ProducerInput } from "./emission.ts";
 import { createCompilationHost, createLoaderHost, type ResolverHost } from "./host.ts";
 
+/**
+ * Creates a loader chain with framework transformation preceding Stillwind and recording host operations.
+ * @returns A context whose resolver echoes requests and whose filesystem and capture mocks are configured by each test.
+ */
 function loaderContext() {
   return {
     fs: {

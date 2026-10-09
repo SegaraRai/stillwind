@@ -100,8 +100,19 @@ export function checkerEnvironment(source: PreparedSource): CheckerEnvironment {
  * @throws If the source map cannot be decoded.
  */
 function clientProjectionStart(
-  source: Extract<PreparedSource, { kind: "projected" }>,
-  region: { start: number; end: number },
+  source: Extract<
+    PreparedSource,
+    {
+      /** Selects the prepared source variant that contains generated code and a map. */
+      kind: "projected";
+    }
+  >,
+  region: {
+    /** Inclusive UTF-16 offset of the script body in the original document. */
+    start: number;
+    /** Exclusive original UTF-16 offset, strictly after `start`. */
+    end: number;
+  },
 ): number {
   if (source.projection.map.kind !== "v3") {
     throw new PreparationError(
@@ -115,6 +126,11 @@ function clientProjectionStart(
 
   const trace = new TraceMap(source.projection.map.json);
   const selected = trace.sources.indexOf(source.projection.map.source);
+  /**
+   * Builds line starts for converting map positions to text offsets.
+   * @param text - Generated or original source whose LF characters delimit lines.
+   * @returns Ordered UTF-16 offsets, including zero and the position after every LF.
+   */
   const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
   const generated = lines(source.projection.code);
   const original = lines(source.document.code);

@@ -264,6 +264,12 @@ export function createViteProject(
   let missingConfigurations: string[] = [];
 
   const environments = new Map<string, ViteEnvironment>();
+  /**
+   * Gets or creates the compiler state owned by one Vite environment.
+   * @param name - Environment name. Omission selects `client`.
+   * @returns The retained environment state. Newly created non-client states invalidate their
+   * affected modules in the corresponding development module graph.
+   */
   const environment = (name = "client") => {
     let state = environments.get(name);
     if (!state) {
@@ -283,12 +289,20 @@ export function createViteProject(
     return state;
   };
 
+  /** Releases checker services in all currently retained compiler environments. */
   const closeTypeFacts = () => {
     for (const state of environments.values()) {
       state.closeTypeFacts();
     }
   };
 
+  /**
+   * Replaces compiler environments and applied settings after resolving project configuration.
+   * @param viteConfig - Resolved Vite configuration supplying root, asset, source-map, and watch settings.
+   * @returns A promise that resolves after old environments close and configuration dependencies
+   * and missing paths replace the previous discovery state.
+   * @throws If the emission mode is invalid, project configuration fails, or an old environment cannot close.
+   */
   const configure = async (viteConfig: ResolvedConfig) => {
     const { emission, ...inline } = supplied;
     if (emission !== undefined && emission !== "single" && emission !== "split") {
@@ -321,8 +335,14 @@ export function createViteProject(
     settings.compilerMode = settings.watching ? "development" : "release";
   };
 
+  /** Detaches the current server's change listeners and closes its configuration discovery watchers. */
   let stopCssWatching = () => {};
 
+  /**
+   * Replaces server watch registrations and retains the server for module invalidation and HMR.
+   * @param server - Configured development server. A null watch setting disables these watches.
+   * @throws If a missing configuration's parent directory cannot be watched.
+   */
   const attachServer = (server: ViteDevServer) => {
     settings.devServerRef = server;
     stopCssWatching();
@@ -330,6 +350,11 @@ export function createViteProject(
     if (!settings.cssWatching) {
       return;
     }
+    /**
+     * Restarts on configuration changes or invalidates affected compiler environments.
+     * @param event - Watch event. Only `add`, `change`, and `unlink` are handled.
+     * @param file - Changed filesystem path, normalized before dependency lookup.
+     */
     const changed = (event: string, file: string) => {
       if (event !== "add" && event !== "change" && event !== "unlink") {
         return;
@@ -343,6 +368,7 @@ export function createViteProject(
         state.changed(path);
       }
     };
+    /** Closes discovery watchers, detaches server listeners, and clears the CSS-watching flag. */
     const stop = () => {
       for (const watcher of discoveryWatchers) {
         watcher.close();
@@ -366,6 +392,7 @@ export function createViteProject(
     stopCssWatching = stop;
   };
 
+  /** Detaches server listeners, closes discovery watchers, and closes every retained compiler environment. */
   const close = () => {
     stopCssWatching();
     for (const state of environments.values()) {
@@ -373,6 +400,13 @@ export function createViteProject(
     }
   };
 
+  /**
+   * Publishes a CSS snapshot through the matching environment's HMR channel when serving.
+   * @param name - Vite environment name, or undefined for `client`.
+   * @param context - Resolver and watch operations used to refresh the environment's CSS.
+   * @returns A promise that resolves after publication, or immediately when no active server exists.
+   * @throws If refreshing the environment or generating its CSS snapshot fails.
+   */
   const publish = (name: string | undefined, context: CssContext) => {
     if (!settings.watching || !settings.devServerRef) {
       return Promise.resolve();

@@ -14,6 +14,7 @@ import { loaderCompletion } from "./source-map-loader.ts";
  * linking. The first pass supplies empty CSS until reconstruction has stored the completed
  * stylesheet.
  *
+ * @param this - Document carrier context with registered emission state and asynchronous completion.
  * @throws If the request is not a document carrier or the compilation has no registered emission
  * hook.
  */

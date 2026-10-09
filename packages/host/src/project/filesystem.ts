@@ -12,7 +12,7 @@ import type { AnalysisHost } from "./analysis.ts";
 
 /**
  * Creates a Node analysis host with captured buffers, source providers, and CSS resolution.
- * Script imports use the semantic backend, with optional custom source resolution as a fallback.
+ * Custom source resolution takes precedence over identities supplied by the semantic backend.
  *
  * @param config - One evaluated project. Custom source and projection callbacks receive the
  * buffers installed by setDocuments. Prepared inputs bypass custom projection preparation.
@@ -35,10 +35,26 @@ export function createFileSystemAnalysisHost(
 
   let documents: ReadonlyMap<string, string> = new Map();
   let buffers: ReadonlyMap<string, string> = new Map();
+  /**
+   * Normalizes paths for lookup in the captured buffer map.
+   * @param id - File path resolved against the process working directory when relative.
+   * @returns An absolute path, lowercased on Windows to share keys across case variations.
+   */
   const documentKey = (id: string) =>
     process.platform === "win32" ? path.resolve(id).toLowerCase() : path.resolve(id);
+  /**
+   * Reads a captured buffer before falling back to the physical file.
+   * @param id - File path accepted by the Node filesystem.
+   * @returns Captured text when present, otherwise UTF-8 file text.
+   * @throws If the required physical file cannot be read.
+   */
   const read = (id: string) =>
     Promise.resolve(buffers.get(documentKey(id)) ?? readFile(id, "utf8"));
+  /**
+   * Selects script and framework sources eligible for default analysis.
+   * @param id - File path tested case-insensitively by extension.
+   * @returns Whether the path has a supported extension and is not a TypeScript declaration file.
+   */
   const supports = (id: string) =>
     /\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/i.test(id) && !/\.d\.[cm]?ts$/i.test(id);
 

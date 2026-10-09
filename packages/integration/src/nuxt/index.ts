@@ -20,6 +20,11 @@ export function stillwind(config: IntegrationConfig = {}): NuxtModule {
     meta: {
       name: "@stillwind/integration",
     },
+    /**
+     * Installs compiler plugins and connects the client development server to SSR stylesheet delivery.
+     * @param _ - Nuxt module options. Stillwind settings are captured by the factory instead.
+     * @param nuxt - Application whose Vite hooks and development plugin template are registered.
+     */
     setup(_, nuxt) {
       let ssr: ViteDevServer | undefined;
 

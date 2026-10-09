@@ -8,30 +8,39 @@ import type { RewriteInput, RewriteResult } from "./rewrite.ts";
 /** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
 export type WorkerRequest =
   | {
+      /** Serialized discriminator for replacing the child workspace. */
       method: "open";
       /** Configuration path evaluated in the child process, replacing any previously opened workspace. */
       config: string;
     }
   | {
+      /** Serialized discriminator for analyzing configured targets. */
       method: "lint";
       /** Additional target globs relative to each project root. Omission checks all configured targets. */
       patterns?: readonly string[];
     }
   | {
+      /** Serialized discriminator for enumerating distinct targets. */
       method: "targets";
+      /** Additional project-relative globs. An empty or omitted list keeps every configured target. */
       patterns?: readonly string[];
     }
   | {
+      /** Serialized discriminator for computing source replacements. */
       method: "rewrite";
+      /** Distinct absolute target paths and captured text, retained in result order. */
       inputs: readonly RewriteInput[];
+      /** Selects one sort pass or lint fixes that must converge. */
       operation: "sort" | "fixes";
     }
   | {
+      /** Serialized discriminator for analyzing one target in matching projects. */
       method: "analyze";
       /** Absolute target path. Each project whose scope contains the file returns a result. */
       file: string;
     }
   | {
+      /** Serialized discriminator for an editor query against original text. */
       method: "query";
       /** Absolute target file path. */
       file: string;
@@ -39,6 +48,7 @@ export type WorkerRequest =
       request: EditorRequest;
     }
   | {
+      /** Serialized discriminator for replacing an unsaved buffer. */
       method: "update";
       /** Absolute source path, including dependencies outside target scopes. */
       file: string;
@@ -48,14 +58,17 @@ export type WorkerRequest =
       version: number;
     }
   | {
+      /** Serialized discriminator for removing an unsaved buffer. */
       method: "closeDocument";
       /** Absolute path of the buffer to remove. Unknown files have no effect. */
       file: string;
     }
   | {
+      /** Serialized discriminator for refreshing disk and compiler caches. */
       method: "invalidate";
     }
   | {
+      /** Serialized discriminator for closing hosts and disconnecting the child. */
       method: "close";
     };
 
@@ -71,18 +84,26 @@ export interface WorkerReply {
 
 /** Isolates configuration and plugin logs from CLI JSON and the LSP stdout transport. */
 export class AnalysisWorker {
+  /** Owned child with IPC enabled. Both output streams are forwarded to the parent's stderr. */
   readonly #child: ChildProcess;
+  /** Unanswered requests keyed by monotonically assigned IPC sequence number. */
   readonly #pending = new Map<
     number,
     {
+      /** Settles the request with the child's unvalidated reply value. */
       resolve: (value: unknown) => void;
+      /** Rejects the request after delivery, child-operation, or process failure. */
       reject: (error: Error) => void;
     }
   >();
+  /** Resolves on process closure after outstanding requests have been rejected. */
   readonly #closed: Promise<void>;
 
+  /** Next IPC sequence number, independent of source document versions. */
   #nextId = 0;
+  /** Whether process closure has been observed. */
   #exited = false;
+  /** Prevents repeated close calls from sending another cleanup request. */
   #closing = false;
 
   /** Starts the child process immediately. Call open before analysis and close when finished. */
@@ -192,7 +213,12 @@ export class AnalysisWorker {
     });
   }
 
-  /** Returns distinct targets in configured scopes, filtered by project-relative globs. */
+  /**
+   * Enumerates distinct targets in the opened workspace.
+   * @param patterns - Additional project-relative globs. Omission or an empty list retains all targets.
+   * @returns Sorted absolute paths, deduplicated across projects.
+   * @throws If the workspace has not opened, enumeration fails, or transport fails.
+   */
   targets(patterns?: readonly string[]): Promise<string[]> {
     return this.request({
       method: "targets",
@@ -200,7 +226,13 @@ export class AnalysisWorker {
     });
   }
 
-  /** Computes replacements from captured buffers without writing files. Throws on incomplete or conflicting results. */
+  /**
+   * Computes replacements from captured buffers without writing files.
+   * @param inputs - Distinct absolute target paths and complete original text.
+   * @param operation - Utility sorting or lint fixes that must converge within ten passes.
+   * @returns Replacements and project findings in input order. Captured buffers are removed after planning.
+   * @throws If analysis is incomplete, edits are invalid or conflicting, fixes do not converge, or transport fails.
+   */
   rewrite(inputs: readonly RewriteInput[], operation: "sort" | "fixes"): Promise<RewriteResult[]> {
     return this.request({
       method: "rewrite",

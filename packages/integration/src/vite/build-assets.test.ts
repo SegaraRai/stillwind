@@ -96,9 +96,18 @@ test.each([false, true])(
   },
 );
 
+/**
+ * Creates a recording asset emitter without a filesystem or bundler build.
+ * @returns The emitter context and its mutable array of emitted files in call order.
+ */
 function assetContext() {
   const emitted: Rollup.EmittedFile[] = [];
   const context: Pick<Rollup.PluginContext, "emitFile" | "getFileName"> = {
+    /**
+     * Records an asset and returns a deterministic reference for filename assertions.
+     * @param asset - Emission descriptor retained in the recorded array.
+     * @returns Its explicit filename or a reference based on the emission count.
+     */
     emitFile(asset) {
       emitted.push(asset);
       return asset.fileName ?? `asset-${emitted.length}`;

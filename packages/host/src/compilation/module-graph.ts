@@ -85,11 +85,17 @@ function formatReport(report: BindingReport) {
 
 /** Collects prepared sources and semantic facts for one entry's demanded dependency graph. */
 export class ModuleGraph {
+  /** Prepared sources keyed by compiler identity, including sources that later fail scanning. */
   readonly #attempted = new Map<string, PreparedSource>();
+  /** Successful scanner summaries keyed by compiler identity. */
   readonly #summaries = new Map<string, NativeModuleSummary>();
+  /** Sources retained for compilation, keyed by full host identity. */
   readonly #sources = new Map<string, PreparedSource>();
+  /** Correspondence from compiler identities to full host resolver identities. */
   readonly #resolverIds = new Map<string, string>();
+  /** Observed import resolutions keyed by importing resolver identity and authored specifier. */
   readonly #resolutions = new Map<string, Map<string, string>>();
+  /** Whether entry probes require semantic traversal and checker collection. */
   #needsTypeFacts = false;
 
   /**
@@ -194,7 +200,9 @@ export class ModuleGraph {
     this.#register(entry);
     const visited = new Map<string, Set<string | null>>();
     const pending: {
+      /** Registered source whose exported value or entry probes remain to be traversed. */
       source: PreparedSource;
+      /** Null for entry probes, * for namespace demand, or a demanded export name. */
       requested: string | null;
     }[] = [
       {
@@ -280,6 +288,11 @@ export class ModuleGraph {
     return new CompilationFailure([batch], error);
   }
 
+  /**
+   * Registers the source and enforces one-to-one host and compiler identities within the graph.
+   * @param source - Prepared source to retain for traversal and compilation.
+   * @throws If a compiler identity is shared or a host identity changes its compiler identity.
+   */
   #register(source: PreparedSource): void {
     const previous = this.#resolverIds.get(source.moduleId);
     if (previous !== undefined && previous !== source.resolverId) {
@@ -295,6 +308,12 @@ export class ModuleGraph {
     this.#sources.set(source.resolverId, source);
   }
 
+  /**
+   * Converts a preparation error into an original-document diagnostic batch.
+   * @param input - Source whose document metadata identifies the failing preparation.
+   * @param error - Preparation issue with optional original UTF-16 range and converter identity.
+   * @returns A compilation failure retaining the preparation error as its cause.
+   */
   #preparationFailure(
     input: ProjectInput | PreparedSource,
     error: PreparationError,
@@ -313,6 +332,14 @@ export class ModuleGraph {
     );
   }
 
+  /**
+   * Reuses or scans a source summary and records dependency syntax failures in analysis mode.
+   * @param source - Registered dependency or entry source.
+   * @param entry - Entry source whose initial scan is already available.
+   * @param entrySummary - Summary with the entry's compiler identity.
+   * @returns A retained summary, or undefined after an analysis-mode scan failure removes the source.
+   * @throws If scanning fails in strict mode or a summary changes the source's compiler identity.
+   */
   #dependencySummary(
     source: PreparedSource,
     entry: PreparedSource,
@@ -343,6 +370,11 @@ export class ModuleGraph {
     return summary;
   }
 
+  /**
+   * Attaches checker environments, scanner probes, and observed resolutions to retained sources.
+   * @returns Checker inputs in source registration order. Missing summaries are scanned and cached.
+   * @throws If scanning or checker preparation fails.
+   */
   #checkerSources(): TypeFactSource[] {
     return [...this.#sources.values()].map((source) => {
       const summary = this.#summaries.get(source.moduleId) ?? this.scan(source);
@@ -378,10 +410,19 @@ export class ModuleGraph {
     });
   }
 
+  /**
+   * Collects declared assets for checker interpretation.
+   * @returns A new map from compiler identity to the corresponding scanner asset array.
+   */
   #assets() {
     return new Map([...this.#summaries].map(([id, summary]) => [id, summary.assets]));
   }
 
+  /**
+   * Adds an unverified range for each retained probe when analysis mode has no usable facts.
+   * @param source - Source whose scanner probes use original UTF-8 byte coordinates.
+   * @param reason - Explanation included in every added range. Strict mode has no analysis to update.
+   */
   #unavailable(source: PreparedSource, reason: string): void {
     this.analysis?.unverified.push(
       ...(this.#summaries.get(source.moduleId)?.typeProbes ?? []).map((probe) => ({
@@ -393,6 +434,12 @@ export class ModuleGraph {
     );
   }
 
+  /**
+   * Requests checker resolutions when the host enables them, recording failures as unverified probes.
+   * @param source - Importing source whose resolver identity selects the returned map.
+   * @returns Authored specifiers mapped to host identities, or undefined when disabled or unavailable.
+   * @throws If resolution fails outside analysis mode.
+   */
   async #semanticResolutions(
     source: PreparedSource,
   ): Promise<ReadonlyMap<string, string> | undefined> {
@@ -416,6 +463,14 @@ export class ModuleGraph {
     return undefined;
   }
 
+  /**
+   * Resolves a demanded dependency, records its status, and loads supported source for traversal.
+   * @param source - Registered importing source.
+   * @param specifier - Authored module request.
+   * @param semanticId - Optional checker fallback used when the host returns no resolution.
+   * @returns Registered dependency source, or undefined for external, unresolved, or unsupported requests.
+   * @throws If strict loading fails. Analysis mode records loading failures and available diagnostics.
+   */
   async #followDependency(
     source: PreparedSource,
     specifier: string,
@@ -462,6 +517,14 @@ export class ModuleGraph {
     return undefined;
   }
 
+  /**
+   * Uses host resolution first and a checker identity only when the host returns null.
+   * @param source - Importer whose full resolver identity is passed to the host.
+   * @param specifier - Authored module request.
+   * @param semanticId - Optional identity supplied by checker resolution.
+   * @returns A resolution, or null when unavailable. Analysis mode converts host exceptions to null.
+   * @throws If host resolution fails in strict mode.
+   */
   async #resolveDependency(source: PreparedSource, specifier: string, semanticId?: string) {
     try {
       return (
@@ -476,6 +539,12 @@ export class ModuleGraph {
     }
   }
 
+  /**
+   * Distinguishes traversable sources from checker declarations and unsupported dependencies.
+   * @param id - Full resolved host identity.
+   * @param observed - Mutable dependency record whose status becomes types or unsupported when skipped.
+   * @returns Whether the dependency should be loaded as source.
+   */
   #canLoadDependency(id: string, observed: SemanticDependency): boolean {
     const name = cleanModuleId(id);
     // Build hosts can resolve runtime exports without identifying declaration files.
@@ -494,6 +563,12 @@ export class ModuleGraph {
     return true;
   }
 
+  /**
+   * Loads through the host's preparation hook or combines its descriptor with original text.
+   * @param id - Full resolved dependency identity.
+   * @returns Original input or prepared source supplied by the host.
+   * @throws If host loading, description, or reading fails.
+   */
   async #load(id: string): Promise<ProjectInput | PreparedSource> {
     if (this.host.load) {
       return this.host.load(id);
@@ -509,6 +584,11 @@ export class ModuleGraph {
     };
   }
 
+  /**
+   * Collects available facts for retained sources when entry probes require semantic information.
+   * @returns Facts keyed by compiler identity. Analysis mode records unavailable queries and may return partial facts.
+   * @throws If strict checker collection fails or a compilation failure occurs while preparing checker sources.
+   */
   async #collectFacts(): Promise<Map<string, NativeTypeFact[]>> {
     if (!this.#needsTypeFacts) {
       return new Map();

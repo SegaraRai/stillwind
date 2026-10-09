@@ -143,6 +143,13 @@ selected;`;
   }
 });
 
+/**
+ * Probes expressions against ref declarations using a temporary isolated checker.
+ * @param expressions - Expression text appended after the shared ref declarations, in probe order.
+ * @param recognitionOnly - Whether each probe only needs asset-family recognition.
+ * @returns Facts, native declaration records, and original UTF-8 probe ranges.
+ * @throws If checker construction or strict fact collection fails.
+ */
 function collect(expressions: readonly string[], recognitionOnly = false) {
   const declarations = `import { style } from '../../../core/src/frameworks/react.ts';
 import type { StyleRef } from '../../../core/src/macro/index.ts';
@@ -320,6 +327,12 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
   );
 });
 
+/**
+ * Probes expressions against style, ref, keyframes, and view-transition brands.
+ * @param expressions - Expression text appended after the shared declarations, in probe order.
+ * @returns Strict checker facts and the declaration records used to interpret them.
+ * @throws If finite declaration candidates cannot be verified.
+ */
 function collectBrands(expressions: readonly string[]) {
   const moduleId = "brand-facts.ts";
   let code = `import {style} from 'stillwind/react';

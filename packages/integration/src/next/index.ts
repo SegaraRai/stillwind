@@ -30,6 +30,13 @@ export function withStillwind<T extends object>(
   config?: SerializableInlineConfig,
 ): T;
 
+/**
+ * Builds the Next wrapper while deferring project evaluation to isolated loaders.
+ * @param nextConfig - Application settings. Omission uses an empty configuration.
+ * @param config - Serializable discovery settings and compiler overrides.
+ * @returns A copy that preserves existing rules and invokes the original webpack hook before adding Stillwind rules.
+ * @throws If inline settings cannot be cloned or installed loader paths cannot be resolved.
+ */
 export function withStillwind(nextConfig: NextConfig = {}, config: SerializableInlineConfig = {}) {
   const loaderOptions = {
     ...createLoaderOptions(config, []),
@@ -46,6 +53,13 @@ export function withStillwind(nextConfig: NextConfig = {}, config: SerializableI
       ...nextConfig.turbopack,
       rules,
     },
+    /**
+     * Runs the application hook, then appends source and document-carrier rules to its result.
+     * @param webpackConfig - Mutable Next webpack configuration passed to the original hook.
+     * @param context - Next's build context forwarded unchanged to that hook.
+     * @returns The hook's configuration with Stillwind rules appended.
+     * @throws If the application hook fails.
+     */
     webpack(
       webpackConfig: Configuration,
       context: Parameters<NonNullable<NextConfig["webpack"]>>[1],

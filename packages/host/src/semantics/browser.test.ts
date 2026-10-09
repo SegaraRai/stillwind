@@ -22,7 +22,20 @@ selectedStyle;`;
   const file = path.join(root, ".test-browser-facts.ts");
   const virtual = "/workspace/.test-browser-facts.ts";
   const assets = summarizeSource(sourceCode, "entry.ts", "ts", "module").assets;
-  const source = (id: string): Extract<TypeFactSource, { kind: "direct" }> => ({
+  /**
+   * Creates equivalent original-coordinate input for the Node or browser checker.
+   * @param id - Checker and resolver path in the chosen environment.
+   * @returns A direct TypeScript source using the shared original URI and probes.
+   */
+  const source = (
+    id: string,
+  ): Extract<
+    TypeFactSource,
+    {
+      /** Selects source whose checker text is the original document. */
+      kind: "direct";
+    }
+  > => ({
     kind: "direct",
     moduleId: "entry.ts",
     resolverId: id,
@@ -112,6 +125,14 @@ selectedStyle;`;
   }
 });
 
+/**
+ * Copies package metadata and declarations into a browser inventory.
+ * @param directory - Filesystem directory to traverse, skipping node_modules, src, and typecheck.
+ * @param virtual - Absolute virtual directory under which captured paths are stored.
+ * @param files - Mutable inventory receiving UTF-8 text from JSON and .d.ts files.
+ * @returns Completion of recursive capture.
+ * @throws If enumeration or reading fails.
+ */
 async function capture(
   directory: string,
   virtual: string,

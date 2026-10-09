@@ -37,6 +37,11 @@ export class AnalysisWorkspace {
   /** Owned project hosts in configuration order. The caller must not mutate this array. */
   readonly projects: WorkspaceProject[];
 
+  /**
+   * Retains the evaluated configuration and takes ownership of its initialized projects.
+   * @param configFile - Absolute configuration path.
+   * @param projects - Successfully opened hosts in configuration order.
+   */
   private constructor(configFile: string, projects: WorkspaceProject[]) {
     this.configFile = configFile;
     this.projects = projects;
@@ -79,6 +84,11 @@ export class AnalysisWorkspace {
    */
   includes(project: WorkspaceProject, file: string): boolean {
     const name = path.relative(project.analysis.host.root, file).replaceAll("\\", "/");
+    /**
+     * Matches this project-relative path, including dotfiles.
+     * @param pattern - Include or exclude glob interpreted by minimatch.
+     * @returns Whether the normalized path matches the pattern.
+     */
     const matches = (pattern: string) => minimatch(name, pattern, { dot: true });
     return (
       project.config.files.some(matches) &&
@@ -118,21 +128,33 @@ export class AnalysisWorkspace {
       .sort();
   }
 
-  /** Keeps editor answers separate when several projects include the same target. */
+  /**
+   * Keeps editor answers separate when several projects include the same target.
+   * @param file - Absolute target path used for independent scope checks.
+   * @param request - Operation in the original document's UTF-16 coordinates.
+   * @param signal - Optional cancellation forwarded to each project's queued query.
+   * @returns Available answers in configuration order, including overlapping project memberships.
+   */
   async query(
     file: string,
     request: EditorRequest,
     signal?: AbortSignal,
   ): Promise<
     {
+      /** Zero-based index into the configured projects. */
       project: number;
+      /** Absolute configuration path that owns this project. */
       config: string;
+      /** Answer tied to the captured original source and design system. */
       result: EditorResult;
     }[]
   > {
     const results: {
+      /** Zero-based index into the configured projects. */
       project: number;
+      /** Absolute configuration path that owns this project. */
       config: string;
+      /** Answer tied to the captured original source and design system. */
       result: EditorResult;
     }[] = [];
     for (const [index, project] of this.projects.entries()) {
@@ -227,7 +249,13 @@ export class AnalysisWorkspace {
     return results;
   }
 
-  /** Keeps dependency context while publishing source diagnostics only for the configured scope. */
+  /**
+   * Keeps dependency context while filtering findings from known sources to the project's target scope.
+   * @param project - Project whose host and globs identify owned source documents.
+   * @param result - Captured analysis with original document URIs.
+   * @returns A copy with filtered reports. Reports for unknown source documents remain available.
+   * @throws If a file URI in a report cannot be converted to a path.
+   */
   private scopedResult(project: WorkspaceProject, result: AnalysisResult): AnalysisResult {
     return {
       ...result,

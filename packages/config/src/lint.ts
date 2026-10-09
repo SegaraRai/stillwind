@@ -11,12 +11,19 @@ export type LintSeverity = "warn" | "deny" | "off";
 
 /** Detection and reporting policies for source utilities and compiler ordering. */
 export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
+  /** Severity or additional CSS property domains checked for arbitrary spacing. */
   "no-arbitrary-spacing"?: LintSeverity | ArbitrarySpacingOptions;
+  /** Severity or patterns restricting authored utility spellings. */
   "no-restricted-utilities"?: LintSeverity | RestrictedUtilitiesOptions;
+  /** Severity or restrictions on resolved CSS properties and values. */
   "no-restricted-declarations"?: LintSeverity | RestrictedDeclarationsOptions;
+  /** Severity or exceptions for a narrower property overriding a shorthand. */
   "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
+  /** Severity or ordered restrictions on nonzero CSS length units. */
   "length-units"?: LintSeverity | LengthUnitsOptions;
+  /** Severity or patterns restricting direct references to theme custom properties. */
   "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
+  /** Severity or spacing-conversion settings for canonical utility replacements. */
   "canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
 };
 
@@ -37,14 +44,17 @@ export type LintConfig = LintPreset | false;
 export type ResolvedLintRules = {
   [K in keyof LintRules]-?: Exclude<LintRules[K], LintSeverity | undefined> extends never
     ? LintSeverity
-    : Required<Exclude<LintRules[K], LintSeverity | undefined>> & { severity: LintSeverity };
+    : Required<Exclude<LintRules[K], LintSeverity | undefined>> & {
+        /** Effective reporting policy after preset composition and rule defaults. */
+        severity: LintSeverity;
+      };
 };
 
 /** Selects additional domains beyond margin, padding, and gap. */
 export type ArbitrarySpacingOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
-  /** Case-insensitive full property globs using `*` and `?`. */
+  /** Complete property globs using `*` and `?`, with no whitespace and comparison that ignores ASCII case. */
   properties?: readonly string[];
 };
 
@@ -52,9 +62,11 @@ export type ArbitrarySpacingOptions = {
 export type RestrictedUtilitiesOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
-  /** Full utility globs exclude enclosing variants and important modifiers. */
+  /** Restrictions on authored utility spellings. Each matching entry can supply an explanation. */
   utilities?: readonly {
+    /** Nonempty, case-sensitive full utility glob without whitespace, enclosing variants, or important modifiers. */
     pattern: string;
+    /** Optional project-specific diagnostic explanation, preserved without trimming. */
     message?: string;
   }[];
 };
@@ -63,10 +75,13 @@ export type RestrictedUtilitiesOptions = {
 export type RestrictedDeclarationsOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
-  /** Property and value globs ignore ASCII case. Values match complete serialized CSS text. */
+  /** Every matching declaration restriction applies. Later entries do not override earlier entries. */
   rules?: readonly {
+    /** Nonempty list of complete property globs with no whitespace. Comparison ignores ASCII case. */
     properties: readonly string[];
+    /** Nonempty list of complete serialized value globs. Comparison ignores ASCII case, and whitespace, strings, and URLs remain CSS text. */
     values: readonly string[];
+    /** Optional project-specific diagnostic explanation, preserved without trimming. */
     message?: string;
   }[];
 };
@@ -83,9 +98,11 @@ export type ConflictingUtilitiesOptions = {
 export type LengthUnitsOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
-  /** Property names use case-insensitive full-name globs with `*` and `?`. */
+  /** Restrictions in precedence order. The last matching entry determines the forbidden units. */
   rules?: readonly {
+    /** Nonempty list of complete property globs supporting `*` and `?`, without whitespace. Comparison ignores ASCII case. */
     properties: readonly string[];
+    /** CSS length unit names compared without ASCII case. An empty list clears restrictions for matching properties. */
     disallow: readonly string[];
   }[];
 };
@@ -157,7 +174,10 @@ export function mergeLintConfig(
 export function resolveLintConfig(
   config?: LintConfig,
   location = "config.lint",
-): { rules: ResolvedLintRules } {
+): {
+  /** Complete lint policies with cloned detection options and default values. */
+  rules: ResolvedLintRules;
+} {
   const value =
     config === false
       ? {}
@@ -170,7 +190,14 @@ export function resolveLintConfig(
   return { rules };
 }
 
-/** Accepts false or validates preset fields and cycles; partial overrides defer required options until composition. */
+/**
+ * Validates lint settings and preset ancestry before or after composition.
+ * @param value - False to disable lint, or a preset object with optional parents and rules.
+ * @param location - Field path used to identify invalid values and cyclic extends lists.
+ * @param partial - Whether to defer required effective options until presets and overrides are composed.
+ * @throws If preset fields or rule options are invalid, ancestry has a cycle, or complete settings
+ * enable a theme restriction without token patterns.
+ */
 export function validateLintConfig(value: unknown, location: string, partial: boolean): void {
   if (value === false) {
     return;
@@ -282,6 +309,14 @@ const presetSchema = strictObject({
   rules: v.optional(lintRulesSchema),
 });
 
+/**
+ * Validates preset fields and rejects cycles along the current ancestry while allowing shared parents.
+ * @param value - Preset object to check without modifying it or invoking callbacks.
+ * @param location - Authored field path, extended with parent indexes and supplied display names.
+ * @param active - Objects on the current ancestry. Success restores the previous contents.
+ * A failure can leave objects from the failing ancestry in this set.
+ * @throws If fields are invalid or a preset already belongs to active.
+ */
 function validatePreset(
   value: unknown,
   location: string,
@@ -303,6 +338,13 @@ function validatePreset(
   active.delete(value);
 }
 
+/**
+ * Expands a validated preset and supplies reporting and detection defaults for every catalog rule.
+ * @param config - Validated preset with acyclic ancestry.
+ * @returns Complete rule settings. Detection options and their arrays are cloned, unconfigured
+ * rules are off, and configured option objects without a severity use warn.
+ * @throws If a detection option cannot be cloned.
+ */
 function resolvedRules(config: LintPreset): ResolvedLintRules {
   const expanded = expand(config);
   return Object.fromEntries(
@@ -325,6 +367,11 @@ function resolvedRules(config: LintPreset): ResolvedLintRules {
   ) as ResolvedLintRules;
 }
 
+/**
+ * Composes parent presets from left to right before applying the preset's own rule overrides.
+ * @param config - Validated preset with acyclic ancestry. The input is not modified.
+ * @returns A new rule map whose option arrays can still share references with the presets.
+ */
 function expand(config: LintPreset): LintRules {
   let rules: LintRules = {};
   for (const preset of config.extends ?? []) {
@@ -333,6 +380,12 @@ function expand(config: LintPreset): LintRules {
   return mergeRules(rules, config.rules ?? {});
 }
 
+/**
+ * Merges rule overrides while retaining inherited options for severity-only settings.
+ * @param base - Rules using validated catalog names and option fields.
+ * @param overrides - Validated fields. Undefined values preserve prior values, and arrays replace them.
+ * @returns A new rule map without mutating either input. Retained or replacement arrays can share input references.
+ */
 function mergeRules(base: LintRules, overrides: LintRules): LintRules {
   const rules = { ...base };
   for (const [name, setting] of Object.entries(overrides)) {
@@ -357,6 +410,12 @@ function mergeRules(base: LintRules, overrides: LintRules): LintRules {
   return rules;
 }
 
+/**
+ * Checks effective rule settings after all presets, overrides, and defaults have been applied.
+ * @param value - Complete rules whose required options can now be checked.
+ * @param location - Field path for the rules object in validation errors.
+ * @throws If rule settings are invalid or an active theme restriction has no token patterns.
+ */
 function validateResolvedRules(value: ResolvedLintRules, location: string) {
   validate(lintRulesSchema, value, location);
   validate(

@@ -3,9 +3,10 @@ import { join } from "pathe";
 /**
  * Adds compiler libraries and fallback Stillwind packages to a captured workspace.
  * @param files - Mutable inventory using decoded virtual paths.
- * @param libraries - Static standard libraries and package files from the extension bundle.
+ * @param libraries - Virtual path/text pairs from the extension bundle. Standard libraries replace
+ * existing entries. Files under /__stillwind/packages/ provide fallback package contents.
  * @param roots - Workspace roots where absent packages are installed in the virtual inventory.
- * Existing package.json files retain the workspace's selected package version.
+ * A package.json already present under a root skips that package's entire fallback inventory.
  */
 export function installLibraries(
   files: Map<string, string>,

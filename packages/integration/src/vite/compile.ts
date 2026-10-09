@@ -141,6 +141,12 @@ export async function compileProducer(
   previous?: Readonly<ProducerInput>,
 ): Promise<ProducerCompilation | undefined> {
   const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
+
+  /**
+   * Gives a producer a document identity suitable for compiler reports and maps.
+   * @param id - Full resolver identity. Queries and fragments are removed from the document name.
+   * @returns An encoded `stillwind-virtual:` URI for virtual modules, or a file URL for a file.
+   */
   const documentUri = (id: string) => {
     const clean = cleanModuleId(id);
     return clean.startsWith("\0") || clean.startsWith("virtual:")

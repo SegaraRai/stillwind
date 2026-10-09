@@ -19,6 +19,7 @@ export interface RewriteOptions {
 
 /** A completed rewrite batch with findings kept separately for each owning project. */
 interface RewriteFilesResult {
+  /** Absolute configuration path used by the isolated worker. */
   config: string;
   /** Absolute paths whose original and final bytes differ, in sorted order. */
   changed: string[];
@@ -28,7 +29,12 @@ interface RewriteFilesResult {
 
 /**
  * Computes all replacements before optionally saving changed files. Fixes return final findings.
- * Throws on empty selection, invalid UTF-8, configuration or planning failures, or failed saving.
+ * @param options - Configuration discovery and optional filters within configured target scopes.
+ * @param operation - Utility sorting or converged lint fixes.
+ * @param write - Whether to verify and save changed bytes after every replacement is planned.
+ * @returns Configuration, sorted changed paths, and findings grouped in project order.
+ * @throws If selection is empty, a source is not valid UTF-8, or discovery, reading, rewriting,
+ * saving, or worker cleanup fails.
  */
 export async function rewriteFiles(
   options: RewriteOptions,
@@ -73,7 +79,12 @@ export async function rewriteFiles(
   }
 }
 
-/** Resolves an explicit configuration or searches above cwd. Throws if discovery finds no configuration. */
+/**
+ * Resolves an explicit configuration path or searches above the chosen working directory.
+ * @param options - Optional config path and cwd, defaulting to process.cwd().
+ * @returns An absolute path. Explicit paths are resolved without evaluating the configuration.
+ * @throws If discovery finds no configuration.
+ */
 export function resolveRewriteConfig(options: RewriteOptions): string {
   const cwd = options.cwd ?? process.cwd();
   const config = options.config ? path.resolve(cwd, options.config) : findConfiguration(cwd);

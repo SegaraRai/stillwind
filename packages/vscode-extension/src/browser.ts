@@ -9,6 +9,7 @@ let worker: Worker | undefined;
 /**
  * Starts the LSP worker with files read through the embedding's workspace provider.
  * @param context - Extension context that owns command registrations and file watching.
+ * @returns Completion of command registration, workspace capture, and LSP initialization.
  * @throws If cross-origin isolation is unavailable or server initialization fails.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -17,6 +18,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   const options = clientOptions(context);
+  /**
+   * Stops the previous client, replaces its worker, and captures the current workspace for initialization.
+   *
+   * @returns Completion of the replacement client's initialization.
+   * @throws If stopping, workspace capture, or client startup fails.
+   */
   const start = async () => {
     await client?.stop();
     worker?.terminate();
@@ -40,11 +47,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
       },
     });
-    client.onRequest("stillwind/readWorkspace", async ({ roots }: { roots: string[] }) => ({
-      files: await readWorkspace(roots),
-      configFile:
-        vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
-    }));
+    client.onRequest(
+      "stillwind/readWorkspace",
+      async ({
+        roots,
+      }: {
+        /** Workspace directory URIs requested by the server during reload. */
+        roots: string[];
+      }) => ({
+        files: await readWorkspace(roots),
+        configFile:
+          vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
+      }),
+    );
     await client.start();
   };
 
@@ -61,7 +76,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await start();
 }
 
-/** Stops the LSP and releases its browser worker. */
+/**
+ * Stops the LSP and releases its worker and stored references even if client shutdown fails.
+ *
+ * @returns Completion of client shutdown and worker termination.
+ * @throws If the client fails to stop, after worker cleanup.
+ */
 export async function deactivate(): Promise<void> {
   try {
     await client?.stop();

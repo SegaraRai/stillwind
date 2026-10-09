@@ -27,10 +27,13 @@ export interface CssContext {
     specifier: string,
     importer: string,
     options: {
+      /** Avoids re-entering the Stillwind plugin that initiated resolution. */
       skipSelf: boolean;
     },
   ) => Promise<{
+    /** Full resolved identity, including any resource query. */
     id: string;
+    /** Truthy values mark an external resolution that requires a readable filesystem identity. */
     external?: boolean | string;
   } | null>;
   /**
@@ -302,6 +305,10 @@ export class DesignSystem {
     const observed = new Set<string>();
     // Keep this set so reads that finish later cannot change the next revision's file set.
     const tracking = this.cssObservedFiles;
+    /**
+     * Records a dependency once for this load and registers it with Vite's watchers.
+     * @param file - Attempted or resolved file path, normalized to an absolute path.
+     */
     const watch = (file: string) => {
       const path = resolve(file);
       if (observed.has(path)) {
@@ -369,6 +376,13 @@ async function loadDesignSystem(
   const entry = resolve(settings.projectRoot, cssEntrypoint(config));
   watch(entry);
   const root = realpathSync(entry);
+  /**
+   * Watches relative candidates before resolution and the resolved file after success.
+   * @param specifier - CSS import or resource request passed to the configured resolver.
+   * @param importer - Full identity of the source containing the request.
+   * @returns The resolver's identity with its query and fragment retained.
+   * @throws If resolution or a watch callback fails.
+   */
   const resolveCss = async (specifier: string, importer: string) => {
     if (specifier.startsWith(".")) {
       watch(resolve(dirname(importer), cleanModuleId(specifier)));

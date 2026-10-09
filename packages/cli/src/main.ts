@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import { parseArgs } from "node:util";
 
 import { format, formatLint, lint } from "@stillwind/analysis/node";

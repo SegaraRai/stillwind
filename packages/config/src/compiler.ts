@@ -35,9 +35,12 @@ export interface BuildOptions {
  * Compiler and design-system settings shared by build integrations and analysis services.
  */
 export interface BaseConfig {
-  /** Lint presets and rule overrides. Omission uses recommended; false or an empty object disables all rules. */
+  /**
+   * Lint presets and rule overrides. Omission uses recommended.
+   * False or an empty object disables lint rules and fixes while retaining compiler diagnostics.
+   */
   lint?: LintConfig;
-  /** Targets for explicit Stillwind sorting and the optional sorting diagnostic. False disables all sorting. */
+  /** Targets for Stillwind sorting. False disables explicit sorting and its diagnostics and fixes. */
   sort?: UtilitySortOptions | false;
   /**
    * Project directory, absolute or relative to the configuration file's directory.
@@ -53,11 +56,22 @@ export interface BaseConfig {
   tsconfig?: string | false;
   /** Design-system stylesheet, absolute or relative to the project root.  */
   css?: string;
-  /** Orders utilities by authored definition positions or Tailwind property metadata. Defaults to authored. */
+  /**
+   * Orders utilities by authored definition positions or Tailwind property metadata.
+   * Defaults to authored.
+   */
   utilityOrder?: "authored" | "tailwind";
-  /** Namespace for Stillwind-owned CSS identifiers. Defaults to --sw-. */
+  /**
+   * Namespace for Stillwind-owned CSS identifiers.
+   * Starts with --, ends with -, and contains no whitespace.
+   * Defaults to --sw-.
+   */
   prefix?: string;
-  /** Namespace for Tailwind-compatible internal custom properties. Defaults to --tw-. */
+  /**
+   * Namespace for Tailwind-compatible custom properties.
+   * Uses the same format as prefix and must differ from it.
+   * Defaults to --tw-.
+   */
   tailwindPrefix?: string;
   /**
    * Stable namespace included in generated class identities. Use the same value for
@@ -107,6 +121,7 @@ const sortOptionsSchema = strictObject({
   attributes: v.optional(v.boolean()),
 });
 
+/** Shared schemas for compiler fields, excluding delivery options and analysis scope. Lint is validated separately. */
 export const compilerEntries = {
   root: v.optional(v.string()),
   css: v.optional(cssPath),
@@ -137,6 +152,12 @@ export const compilerEntries = {
 
 const compilerSchema = strictObject(compilerEntries);
 
+/**
+ * Checks namespace collisions after deciding whether defaults can be applied.
+ * @param partial - Whether to defer the check when either namespace is absent from an override.
+ * @returns A schema check that attributes collisions to `tailwindPrefix`. Complete settings use
+ * the default namespace for each omitted field.
+ */
 const distinctNamespaces = (partial: boolean) =>
   v.forward(
     v.check(
@@ -148,7 +169,14 @@ const distinctNamespaces = (partial: boolean) =>
     ["tailwindPrefix"],
   );
 
-/** Validates compiler settings independently of analysis scope. CSS is optional here. Partial overrides defer namespace collisions until merging. Throws with the invalid field's path. */
+/**
+ * Validates compiler fields and lint policies without resolving paths or invoking naming callbacks.
+ * @param value - Compiler settings with no analysis or delivery fields. CSS is optional here.
+ * @param location - Field path prepended to validation errors. Defaults to `config`.
+ * @param partial - Whether incomplete overrides can defer namespace collisions and required lint
+ * options until they are merged with project settings.
+ * @throws If a field is unknown or invalid, namespaces collide, or lint presets or effective options are invalid.
+ */
 export function validateCompilerConfig(
   value: unknown,
   location = "config",
@@ -162,19 +190,38 @@ export function validateCompilerConfig(
 
 /** Compiler and delivery settings after defaults are applied. Authored paths remain unresolved. */
 export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
+  /** Validated Stillwind namespace, defaulting to --sw-. */
   prefix: string;
+  /** Validated Tailwind namespace, defaulting to --tw- and distinct from prefix. */
   tailwindPrefix: string;
+  /** Namespace shared by client and server class identities, defaulting to an empty string. */
   classNamespace: string;
+  /** Ordering policy after applying the authored-order default. */
   utilityOrder: "authored" | "tailwind";
+  /** Whether native CSS if() features are enabled. Defaults to false. */
   useCssIf: boolean;
+  /** Caller-supplied revision of naming callbacks, defaulting to an empty string. */
   namingRevision: string;
+  /** Number of base-36 digits in generated hashes, between 1 and 50 inclusive. Defaults to 5. */
   hashLength: number;
+  /** Explicit flags for every sorting target. A disabled sort setting makes every flag false. */
   sort: Required<UtilitySortOptions>;
-  lint: { rules: ResolvedLintRules };
+  /** Expanded lint settings with a severity and default detection options for every rule. */
+  lint: {
+    /** Complete rules after ordered preset composition. Unconfigured rules are off. */
+    rules: ResolvedLintRules;
+  };
+  /** Whether producer CSS applies to the document. Defaults to true. */
   automatic: boolean;
 }
 
-/** Validates compiler fields and applies defaults without resolving paths. Returns a new object containing only compiler and delivery settings. */
+/**
+ * Validates compiler fields and applies defaults without resolving paths.
+ * @param config - Compiler and delivery settings. Other fields are discarded before validation.
+ * @returns A new object containing compiler and delivery settings with explicit sort flags and
+ * expanded lint rules. Naming callbacks and other unchanged objects can retain input references.
+ * @throws If compiler fields, delivery settings, namespace combinations, or effective lint policies are invalid.
+ */
 export function normalizeCompilerConfig(
   config: BaseConfig & BuildOptions,
 ): NormalizedCompilerConfig {
@@ -215,4 +262,5 @@ export function normalizeCompilerConfig(
   };
 }
 
+/** Compiler field names used to discard analysis and delivery fields before compiler validation. */
 export const compilerKeys = Object.keys(compilerEntries) as (keyof BaseConfig)[];

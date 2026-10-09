@@ -19,9 +19,13 @@ export class IntegrationSession {
   /** Absolute project directory captured when TypeScript settings were selected. */
   readonly root: string;
 
+  /** Fixed TypeScript settings selected before any lazy checker startup. */
   readonly #typeFactsEnvironment: TypeFactsEnvironment;
+  /** Compiler-to-resolver correspondences recorded only after compilation returns successfully. */
   readonly #resolverIdsByModuleId = new Map<string, string>();
+  /** Reverse correspondences used to reject a host identity that changes compiler identity. */
   readonly #moduleIdsByResolverId = new Map<string, string>();
+  /** Lazily started Node checker, released and recreated independently of native compiler state. */
   #facts?: TypeScriptFactsService;
 
   /**

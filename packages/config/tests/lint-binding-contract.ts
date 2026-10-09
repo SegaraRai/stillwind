@@ -11,6 +11,13 @@ import { lintPresets, lintRules, resolveLintConfig, type LintRule } from "../src
  * @param target - Expected target exported by @stillwind/native.
  */
 export function registerLintBindingContract(target: "native" | "wasm32-wasi") {
+  /**
+   * Creates a standalone compilation input for comparing resolved policies across binding targets.
+   * @param source - TSX source, including invalid syntax when compiler diagnostics are exercised.
+   * @param moduleId - Compiler identity also used to derive document and source-map URLs.
+   * @param theme - CSS design-system text loaded as the fixture's root stylesheet.
+   * @returns Unambiguous TSX input with source and stylesheet metadata expected by compileSource.
+   */
   const oneShotInput = (
     source: string,
     moduleId: string,
@@ -53,9 +60,14 @@ export function registerLintBindingContract(target: "native" | "wasm32-wasi") {
       );
       const output = compileSource(input, { lint });
       expect(output.code).toBe(defaults.code);
-      expect(output.reports.map((report: { severity: string }) => report.severity)).toEqual(
-        severity === undefined ? [] : [severity],
-      );
+      expect(
+        output.reports.map(
+          (report: {
+            /** Serialized report level compared with the policy's expected severity. */
+            severity: string;
+          }) => report.severity,
+        ),
+      ).toEqual(severity === undefined ? [] : [severity]);
       const expected = Object.fromEntries(
         Object.entries(rules).map(([name, setting]) => [
           name,

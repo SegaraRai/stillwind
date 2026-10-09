@@ -7,6 +7,14 @@ import type { LoaderContext } from "webpack";
 import { loaderCompletion } from "../webpack/source-map-loader.ts";
 import { createProject, type TurbopackLoaderOptions } from "./project.ts";
 
+/**
+ * Compiles producer source or emits a JavaScript CSS value for its module-css query.
+ * @param this - Bundler loader context that supplies options, source identity, resolution, and async completion.
+ * @param source - Original module text. Sources without recognized Stillwind imports pass through unchanged.
+ * @param inputMap - Optional upstream map composed with compiler replacements for producer output.
+ * @returns The immediate callback result for pass-through source, or undefined while asynchronous compilation runs.
+ * Compilation registers dependencies, may add an automatic document carrier import, and closes its checker afterward.
+ */
 export default function turbopackLoader(
   this: LoaderContext<TurbopackLoaderOptions>,
   source: string,

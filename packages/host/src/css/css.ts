@@ -98,16 +98,30 @@ export async function loadCssGraph(
     host.sourceMapSource(root),
   );
 
-  let resourceReferences: Extract<NativeCssLoadStep, { kind: "complete" }>["resources"] = [];
+  let resourceReferences: Extract<
+    NativeCssLoadStep,
+    {
+      /** Native loading-step discriminator whose resources are available after graph completion. */
+      kind: "complete";
+    }
+  >["resources"] = [];
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
     let queued = false;
     let ready: NativeCssFileInput[] = [];
+    /**
+     * Stops graph advancement and rejects the pending load.
+     * @param error - Resolution, reading, or native loading failure passed to the caller.
+     */
     const fail = (error: unknown) => {
       stopped = true;
       rejectLoad(error);
     };
+    /**
+     * Completes the graph or starts reads for requests that have not already started.
+     * @param step - Native loading step. Completion stores resources and resolves the load.
+     */
     const advance = (step: NativeCssLoadStep) => {
       if (step.kind === "complete") {
         resourceReferences = step.resources;
@@ -121,6 +135,11 @@ export async function loadCssGraph(
           continue;
         }
         started.add(request.id);
+        /**
+         * Resolves, watches, and reads this request, then schedules a batch of ready responses.
+         * @returns A promise that resolves after queuing the response, or after observing a stopped load.
+         * @throws If host resolution or reading fails. The attached rejection handler stops the load.
+         */
         const read = async () => {
           const name = await host.resolve(request.specifier, request.importer);
           if (stopped) {

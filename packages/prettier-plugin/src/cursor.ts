@@ -4,6 +4,12 @@ import type { RewriteResult } from "@stillwind/analysis/node";
  * Maps an original UTF-16 cursor offset through nonoverlapping edits ordered by start.
  * Negative offsets return unchanged. A cursor follows a token whose spelling occurs once in
  * its replacement. Otherwise, the cursor keeps its relative position within the replacement.
+ *
+ * @param offset - Original UTF-16 cursor position, or a negative Prettier sentinel.
+ * @param source - Original text addressed by every edit range.
+ * @param edits - Nonoverlapping replacements in ascending original offset order.
+ * @returns The cursor position after the edits. A relative position is clamped to the replacement's
+ * length when no unique matching token is available. The input edits remain unchanged.
  */
 export function mapOffset(offset: number, source: string, edits: RewriteResult["edits"]): number {
   if (offset < 0) {

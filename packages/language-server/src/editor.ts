@@ -4,8 +4,8 @@ import {
   MarkupKind,
   type CancellationToken,
   type CodeAction,
-  type Connection,
   type CompletionItem,
+  type Connection,
   type TextDocuments,
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
@@ -13,16 +13,30 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 const sortKind = "source.sort.stillwind";
 const fixAllKind = "source.fixAll.stillwind";
 
+/** Source actions advertised in fix-all order followed by utility sorting. */
 export const editorCodeActionKinds = [fixAllKind, sortKind];
 
-/** Queries the current original buffer; implementations discard changed revisions and cancellation. */
+/**
+ * Queries the current original buffer and discards results after a document change or cancellation.
+ *
+ * @param uri - URI of an open original document.
+ * @param request - Editor operation with offsets in that document's UTF-16 text.
+ * @param token - Cancellation for this request.
+ * @returns Results whose source fingerprints match the current document.
+ */
 export type EditorQuery = (
   uri: string,
   request: EditorRequest,
   token: CancellationToken,
 ) => Promise<WorkspaceEditorResult[]>;
 
-/** Registers standard editor requests. Transports and captured workspace ownership remain with the caller. */
+/**
+ * Registers hover, completion, completion resolution, and color handlers on the connection.
+ *
+ * @param connection - Caller-owned connection on which handlers are installed.
+ * @param documents - Open original buffers used to convert UTF-16 offsets to LSP positions.
+ * @param query - Query implementation that rejects obsolete results and honors cancellation.
+ */
 export function registerEditorFeatures(
   connection: Connection,
   documents: TextDocuments<TextDocument>,
@@ -119,13 +133,21 @@ export function registerEditorFeatures(
     delete item.documentation;
     const data = item.data as
       | {
+          /** Original document URI captured when completion was requested. */
           uri?: unknown;
+          /** Document version that must still match the open buffer. */
           version?: unknown;
+          /** Full completion candidate, including surrounding variants. */
           candidate?: unknown;
+          /** Configuration identity used to select the same project result. */
           config?: unknown;
+          /** Zero-based project index within the configuration. */
           project?: unknown;
+          /** Source fingerprint that must match the resolved result. */
           revision?: unknown;
+          /** Original UTF-16 offset that identifies the completion's utility input. */
           input?: unknown;
+          /** Graph and configuration fingerprint required by the resolve request. */
           snapshot?: unknown;
         }
       | undefined;
@@ -238,8 +260,16 @@ export function registerEditorFeatures(
  * Formats generated CSS as a fenced block and explains authored runtime key expressions.
  * Expression line breaks become spaces, and code-span delimiters exceed every authored
  * backtick run so expressions remain literal Markdown. The supplied hover remains unchanged.
+ *
+ * @param hover - CSS preview and optional authored expressions for runtime view-transition names.
+ * @returns Markdown with CSS first and expression notes in their supplied order.
  */
-function hoverMarkdown(hover: { css: string; runtimeNames?: string[] }): string {
+function hoverMarkdown(hover: {
+  /** Formatted generated CSS included verbatim inside the CSS fence. */
+  css: string;
+  /** Authored expressions in the order in which their notes should appear. */
+  runtimeNames?: string[];
+}): string {
   const notes = (hover.runtimeNames ?? []).map((expression) => {
     const text = expression.replace(/\r\n?|\n/g, " ");
     const ticks = "`".repeat(
@@ -250,7 +280,17 @@ function hoverMarkdown(hover: { css: string; runtimeNames?: string[] }): string 
   return [`\`\`\`css\n${hover.css}\n\`\`\``, ...notes].join("\n\n");
 }
 
-/** Builds separate project actions; conflicting project edits are never combined into one action. */
+/**
+ * Builds versioned source actions for each project and removes actions with identical edits.
+ * Each action contains one project's edits, so differing project results remain separate.
+ *
+ * @param document - Open original buffer that the query reads and the returned edits target.
+ * @param only - Requested source kinds or their prefixes. Omission or an empty list produces no actions.
+ * @param token - Cancellation forwarded to each query.
+ * @param query - Query implementation that discards changed buffers and cancelled requests.
+ * @returns Fix-all actions followed by sort actions, preserving project order within each kind.
+ * @throws If a query rejects.
+ */
 export async function sourceActions(
   document: TextDocument,
   only: readonly string[] | undefined,
@@ -307,10 +347,19 @@ export async function sourceActions(
   return actions;
 }
 
+/**
+ * Converts original UTF-16 offsets to positions using the open document's line table.
+ *
+ * @param document - Document containing the text from which the offsets were measured.
+ * @param range - Half-open UTF-16 range. TextDocument clamps offsets outside the document.
+ * @returns LSP positions with zero-based lines and UTF-16 character offsets.
+ */
 function offsets(
   document: TextDocument,
   range: {
+    /** Inclusive UTF-16 offset in the original document. */
     start: number;
+    /** Exclusive UTF-16 offset in the original document. */
     end: number;
   },
 ) {

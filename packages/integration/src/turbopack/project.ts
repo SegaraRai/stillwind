@@ -21,6 +21,7 @@ import type { LoaderContext } from "webpack";
 import { nativeBindingFiles } from "../binding-files.ts";
 import { IntegrationSession } from "../session.ts";
 
+/** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
 type MutableSettings<T> = T extends readonly (infer Item)[]
   ? MutableSettings<Item>[]
   : T extends object
@@ -42,7 +43,10 @@ export type TurbopackLoaderOptions = {
 /** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
 export interface TurbopackProject {
   /** Evaluated compiler settings with an absolute project root, captured entry selection, and mode. */
-  options: Omit<TurbopackLoaderOptions, "compiler"> & { compiler: BuildConfig };
+  options: Omit<TurbopackLoaderOptions, "compiler"> & {
+    /** Evaluated settings selected from configuration and inline overrides. */
+    compiler: BuildConfig;
+  };
   /** Initialized compiler. The caller must close it after compilation or stylesheet reconstruction. */
   compiler: IntegrationSession;
   /** Filesystem, source metadata, resolver, dependency watcher, and warning operations. */
@@ -69,7 +73,15 @@ export interface TurbopackHost extends CompilerHost {
    * @returns A promise for the resolved identity and optional external status. Resolution failures
    * reject the promise.
    */
-  resolve: (specifier: string, importer: string) => Promise<{ id: string; external?: boolean }>;
+  resolve: (
+    specifier: string,
+    importer: string,
+  ) => Promise<{
+    /** Resolved absolute source identity or external module name. */
+    id: string;
+    /** Whether the graph must skip loading this module as source. */
+    external?: boolean;
+  }>;
 }
 
 /**
@@ -97,6 +109,10 @@ export async function createProject(
     compiler: configuration.config,
     root: configuration.config.root,
   };
+  /**
+   * Registers a file whose changes invalidate this loader result.
+   * @param id - Filesystem path for configuration, compiler code, CSS, or a resolved dependency.
+   */
   const watch = (id: string) => {
     context.addDependency(id);
   };
@@ -116,12 +132,24 @@ export async function createProject(
       fileURLToPath(new URL(`./${file}`, import.meta.resolve("@stillwind/integration/turbopack"))),
     );
   }
+  /**
+   * Reads text through Turbopack's loader filesystem.
+   * @param id - File path accepted by the loader filesystem.
+   * @returns File contents converted to a string.
+   * @throws If the filesystem reports a read error.
+   */
   const read = (id: string) =>
     new Promise<string>((done, reject) => {
       context.fs.readFile(id, (error, contents) =>
         error ? reject(error) : done(String(contents)),
       );
     });
+  /**
+   * Adapts a Turbopack resolver to imports relative to a source file.
+   * @param settings - Resolution policy passed to the loader's resolver factory.
+   * @returns An asynchronous resolver accepting a specifier and full importer identity. Its promise
+   * rejects on resolver errors or missing results, and otherwise returns the resolved identity.
+   */
   const resolver = (settings: Parameters<typeof context.getResolve>[0]) => {
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>

@@ -45,6 +45,7 @@ export function convert(source: string, filename: string): SourceProjection {
 
   const globals = (
     vue as typeof vue & {
+      /** Optional declaration generator. Omission leaves checker globals to the caller. */
       generateGlobalTypes?: (compilerOptions: typeof options) => string;
     }
   ).generateGlobalTypes?.(options);
@@ -152,11 +153,20 @@ function quotedRegions(
   }
 
   const quotes: Array<{
+    /** Inclusive original UTF-16 offset of the directive expression, excluding its quote. */
     start: number;
+    /** Exclusive original UTF-16 offset, before the closing quote. */
     end: number;
+    /** HTML quote surrounding the expression, retained when compiler edits are inserted. */
     attributeQuote: "single" | "double";
   }> = [];
 
+  /**
+   * Records directive expressions whose original text has matching surrounding quotes.
+   *
+   * @param node - Template subtree parsed from `source`. Root and element children are traversed,
+   * and matching expression ranges are appended to `quotes` without changing the AST.
+   */
   function visit(node: RootNode | TemplateChildNode) {
     if (node.type === NodeTypes.ELEMENT) {
       for (const prop of node.props) {

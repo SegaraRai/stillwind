@@ -41,6 +41,11 @@ export type Resolver = (directory: string, specifier: string, callback: ResolveC
 export interface ResolverHost {
   /** Bundler input filesystem. Reads may return UTF-8 text or bytes through the callback. */
   fs: {
+    /**
+     * Reads through the bundler filesystem rather than bypassing its virtual files.
+     * @param id - Filesystem identity without a resource query.
+     * @param callback - Receives an error or file contents. Callers convert successful contents to text.
+     */
     readFile(id: string, callback: (error?: Error | null, value?: string | Buffer) => void): void;
   };
   /**
@@ -61,7 +66,10 @@ interface LoaderHostContext extends ResolverHost {
    * Complete loader chain. Entries after `loaderIndex` run before Stillwind in the normal loader
    * phase.
    */
-  loaders: readonly { request: string }[];
+  loaders: readonly {
+    /** Complete inline loader request, including its options, reused for dependency capture. */
+    request: string;
+  }[];
   /** Index of the currently executing Stillwind loader within `loaders`. */
   loaderIndex: number;
   /**
@@ -142,7 +150,12 @@ export interface LoaderHost {
   resolve: (
     specifier: string,
     importer: string,
-  ) => Promise<{ id: string; external?: boolean } | null>;
+  ) => Promise<{
+    /** Full resolved source identity or Node builtin name. */
+    id: string;
+    /** Whether semantic traversal must skip loading the dependency as source. */
+    external?: boolean;
+  } | null>;
   /**
    * Registers the underlying file of a resolver identity as a loader dependency.
    *
@@ -175,6 +188,12 @@ export interface LoaderHost {
 export function createLoaderHost(context: LoaderHostContext, loaderPath: string): LoaderHost {
   const read = createReadFile(context.fs);
   const dependencySources = new Map<string, Promise<CapturedDependency>>();
+  /**
+   * Reads an ordinary dependency or captures transformed text through preceding loaders.
+   * @param dependency - Full resolver identity. A query or fragment requires a loader capture.
+   * @returns File text or captured text. Capture promises, including failures, are retained by identity.
+   * @throws If filesystem reading or the dependency's loader chain fails.
+   */
   const readDependency = async (dependency: string) => {
     if (cleanModuleId(dependency) === dependency) {
       return read(dependency);
@@ -194,6 +213,12 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
     }
     return (await pending).source;
   };
+  /**
+   * Adapts loader resolution to requests relative to a source file.
+   * @param settings - Resolution policy passed to the loader's resolver factory.
+   * @returns An asynchronous resolver accepting a specifier and full importer identity. Resolver
+   * errors reject its promise, and a missing result becomes an empty string.
+   */
   const resolver = (settings: ResolveSettings) => {
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>
@@ -209,6 +234,10 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".cjs", ".json"],
   });
   const resolveAsset = resolver({});
+  /**
+   * Registers a filesystem dependency for loader invalidation.
+   * @param id - Full resolver identity whose query and fragment are removed before registration.
+   */
   const watch = (id: string) => context.addDependency(cleanModuleId(id));
   watch(loaderPath);
   return {
@@ -311,6 +340,12 @@ export interface CompilationHost {
  */
 export function createCompilationHost(context: ResolverHost): CompilationHost {
   const read = createReadFile(context.fs, cleanModuleId);
+  /**
+   * Adapts compilation resolution to requests relative to a source file.
+   * @param settings - Resolution policy passed to the bundler's resolver factory.
+   * @returns An asynchronous resolver accepting a specifier and full importer identity. It forwards
+   * successful resolver results without checking for an absent identity, and rejects resolver errors.
+   */
   const resolver = (settings: ResolveSettings) => {
     const resolve = context.getResolve(settings);
     return (specifier: string, importer: string) =>
@@ -322,6 +357,11 @@ export function createCompilationHost(context: ResolverHost): CompilationHost {
   };
   return {
     read,
+    /**
+     * Creates a reader using source captured by the completed module graph.
+     * @param producers - Producer and dependency records. Later records replace earlier text for the same identity.
+     * @returns A reader that uses exact captured identities before falling back to ordinary filesystem reads.
+     */
     dependencyReader(producers: readonly ProducerInput[]) {
       const sources = new Map<string, string>();
       for (const input of producers) {

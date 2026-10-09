@@ -76,9 +76,24 @@ export class CheckerSource {
   /** Serialized identity keys mapped to the native declarations supplied during construction. */
   readonly identities = new Map<string, NativeAssetRecord["identity"]>();
   /** Independent module that supplies helper declarations in the virtual project. */
-  readonly helperModule?: { id: string; text: string };
+  readonly helperModule?: {
+    /** Virtual TypeScript module filename used by the inserted import. */
+    id: string;
+    /** Generated helper declarations installed as that module's text. */
+    text: string;
+  };
   /** Shadow UTF-16 AST ranges keyed to original UTF-8 probe ranges. */
-  readonly probes = new Map<string, { start: number; end: number; recognitionOnly?: boolean }>();
+  readonly probes = new Map<
+    string,
+    {
+      /** Inclusive original UTF-8 byte offset. */
+      start: number;
+      /** Exclusive original UTF-8 byte offset. */
+      end: number;
+      /** Whether the probe only recognizes an asset family without requiring a declaration identity. */
+      recognitionOnly?: boolean;
+    }
+  >();
   /** Producer call ranges after identity insertion, keyed to their asset families. */
   readonly producers = new Map<string, NativeAssetRecord["identity"]["kind"]>();
 
@@ -126,8 +141,11 @@ export class CheckerSource {
     this.#points = projectionPoints(source);
     const producers = new Map<number, string>();
     const producerRanges: Array<{
+      /** Inclusive UTF-16 producer call offset before checker edits. */
       start: number;
+      /** Exclusive UTF-16 producer call offset before checker edits. */
       end: number;
+      /** Asset family used to interpret the producer's result. */
       kind: NativeAssetRecord["identity"]["kind"];
     }> = [];
     for (const asset of assets) {
@@ -352,6 +370,11 @@ export class CheckerSource {
  */
 export function projectionPoints(source: PreparedSource): Map<number, number | null> {
   const points = new Map<number, number | null>();
+  /**
+   * Records a projection point and keeps conflicting mappings ambiguous.
+   * @param generated - UTF-16 offset in the generated checker source.
+   * @param original - Corresponding UTF-16 offset in the original document.
+   */
   const add = (generated: number, original: number) => {
     if (points.has(generated) && points.get(generated) !== original) {
       points.set(generated, null);
@@ -376,6 +399,11 @@ export function projectionPoints(source: PreparedSource): Map<number, number | n
       }
     }
   } else {
+    /**
+     * Builds line starts for converting source-map columns to offsets.
+     * @param text - Original or generated text whose LF characters delimit lines.
+     * @returns Ordered UTF-16 offsets, beginning with zero and including the position after every LF.
+     */
     const lines = (text: string) => [
       0,
       ...[...text.matchAll(/\n/g)].map((match) => match.index + 1),
@@ -395,6 +423,11 @@ export function projectionPoints(source: PreparedSource): Map<number, number | n
   return points;
 }
 
+/**
+ * Encodes identity JSON as an unpadded base64url key.
+ * @param text - Serialized identity text encoded as UTF-8 before base64 conversion.
+ * @returns Base64 with URL-safe characters and no trailing padding.
+ */
 function base64url(text: string): string {
   return btoa(String.fromCharCode(...new TextEncoder().encode(text)))
     .replaceAll("+", "-")
@@ -402,6 +435,12 @@ function base64url(text: string): string {
     .replace(/=+/, "");
 }
 
+/**
+ * Finds the next token start after whitespace and comments.
+ * @param text - Checker call text to scan.
+ * @param offset - UTF-16 position at which scanning starts.
+ * @returns UTF-16 start of the next token, or text.length at end of input.
+ */
 function skipTrivia(text: string, offset: number): number {
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, true);
   scanner.setText(text);

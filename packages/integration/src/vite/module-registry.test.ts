@@ -93,6 +93,11 @@ describe("imports of server CSS", () => {
 
 describe("CSS fragments with image resources", () => {
   const css = 'a{background:url("IMAGE_PLACEHOLDER")}';
+  /**
+   * Describes an image resource for fragment identity tests.
+   * @param name - Image path relative to the fixture project root.
+   * @returns A resource whose resolver identity and readable path refer to the same file.
+   */
   const image = (name: string) => {
     const file = path.join(projectRoot, name);
     return { id: file, file };

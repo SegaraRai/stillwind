@@ -18,27 +18,49 @@ export interface BrowserWorkspaceOptions {
   projects: readonly AnalysisProjectConfig[];
   /** Saved source and dependency files, keyed by absolute virtual path. */
   files: ReadonlyMap<string, string>;
-  /** Maps virtual paths back to workspace URIs. Defaults to file URIs. */
+  /**
+   * Maps virtual paths back to workspace URIs. Defaults to file URIs.
+   *
+   * @param path - Decoded absolute virtual path.
+   * @returns Original URI used in diagnostics and source maps.
+   */
   documentUri?(this: void, path: string): string;
 }
 
 /** Shares snapshot compilation between LSP analysis and application builds. */
 export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
+  /** Evaluated settings and saved inventory, which the caller must keep unchanged for this service. */
   readonly #options: BrowserWorkspaceOptions;
+  /** Open buffers keyed by decoded virtual path, applied over the saved inventory. */
   readonly #documents = new Map<
     string,
     {
+      /** Complete original text of the open document. */
       source: string;
+      /** Last accepted safe integer version for this open document. */
       version: number;
     }
   >();
 
+  /** Change counter captured by analyses, editor queries, and application builds. */
   #revision = 0;
+  /** Retained projects shared by editor queries and builds for one inventory revision. */
   #projects?: BrowserProject[];
+  /** Revision represented by the retained projects. -1 means they have not been prepared. */
   #buildRevision = -1;
+  /** Prevents new analysis and invalidates queued editor queries during closure. */
   #closed = false;
+  /** Serializes compiler operations and absorbs failures for subsequent operations. */
   #queue: Promise<unknown> = Promise.resolve();
 
+  /**
+   * Replaces retained projects when their inventory revision changes.
+   *
+   * @param revision - Revision captured with the supplied files by the queued caller.
+   * @param files - Complete saved inventory with captured open buffers applied.
+   * @returns Completion of old project closure and new project creation, or no change for the same revision.
+   * @throws If a retained project fails to close or a replacement cannot be constructed.
+   */
   async #prepareProjects(revision: number, files: ReadonlyMap<string, string>): Promise<void> {
     if (this.#buildRevision === revision) {
       return;
@@ -56,17 +78,30 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     this.#buildRevision = revision;
   }
 
-  /** @param options - Evaluated settings and saved files. Create a new service when these change. */
+  /**
+   * Creates a service without compiling its projects yet.
+   * @param options - Evaluated settings and saved files. Keep these unchanged and replace the service
+   * when they change. The service retains the supplied object and inventory.
+   */
   constructor(options: BrowserWorkspaceOptions) {
     this.#options = options;
   }
 
-  /** Workspace revision increases after each effective buffer update or closure. */
+  /**
+   * Reads the revision required when requesting an application build.
+   * @returns Change counter that increases after an effective buffer update or closure.
+   */
   get revision(): number {
     return this.#revision;
   }
 
-  /** @inheritdoc */
+  /**
+   * Stores an original buffer and increments the workspace revision when it changes.
+   * @param uri - Original document URI or virtual path, including dependency files outside target scopes.
+   * @param source - Complete unsaved text.
+   * @param version - Safe integer greater than the previous version. Identical text at the same version is accepted.
+   * @throws If the service is closed or the version is invalid or does not increase.
+   */
   update(uri: string, source: string, version: number): void {
     if (this.#closed) {
       throw new Error("Browser workspace is closed");
@@ -89,14 +124,20 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     this.#revision++;
   }
 
-  /** @inheritdoc */
+  /**
+   * Removes an open buffer and increments the revision only when that buffer existed.
+   * @param uri - Original URI or virtual path. Future snapshots use saved text for this path.
+   */
   closeDocument(uri: string): void {
     if (this.#documents.delete(virtualPath(uri))) {
       this.#revision++;
     }
   }
 
-  /** Returns a captured file inventory with open buffers applied. */
+  /**
+   * Captures saved files with open buffers applied.
+   * @returns An independent map keyed by absolute virtual path. Later buffer changes do not alter it.
+   */
   files(): ReadonlyMap<string, string> {
     return new Map([
       ...this.#options.files,
@@ -104,7 +145,14 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     ]);
   }
 
-  /** @inheritdoc */
+  /**
+   * Serializes analysis of a captured inventory using a temporary project for each matching scope.
+   * @param uri - Original target URI or virtual path.
+   * @param signal - Optional cancellation checked before and after compiler work.
+   * @returns Results in project order. Compiler failures produce incomplete results, and obsolete
+   * or cancelled results omit reports. Targets outside all scopes return an empty list.
+   * @throws If the service is closed or a temporary project cannot be created or closed.
+   */
   analyze(uri: string, signal?: AbortSignal): Promise<WorkspaceResult[]> {
     const revision = this.#revision;
     const files = this.files();
@@ -115,6 +163,10 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         throw new Error("Browser workspace is closed");
       }
 
+      /**
+       * Classifies work that can no longer publish results from the captured revision.
+       * @returns `cancelled` for an aborted signal, `stale` for a newer revision, or undefined.
+       */
       const obsolete = () =>
         signal?.aborted
           ? ("cancelled" as const)
@@ -201,9 +253,25 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     uri: string,
     revision: number,
   ): Promise<{
+    /** Transformed source graph, including diagnostic reports and generation eligibility. */
     graph: Awaited<ReturnType<BrowserProject["analyze"]>>;
+    /** Current combined CSS, empty when the graph blocks generation. */
     css: string;
-    cssValues: [string, { css: string; parts: { key: string; css: string }[] }][];
+    /** Module identity and its CSS record, empty when generation is blocked. */
+    cssValues: [
+      string,
+      {
+        /** Module's complete emitted CSS. */
+        css: string;
+        /** CSS partitions in compiler order. */
+        parts: {
+          /** Stable compiler partition key used to deduplicate stylesheet parts. */
+          key: string;
+          /** CSS belonging to this partition. */
+          css: string;
+        }[];
+      },
+    ][];
   }> {
     const files = this.files();
     const id = virtualPath(uri);
@@ -240,7 +308,14 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     return task;
   }
 
-  /** @inheritdoc */
+  /**
+   * Queries retained projects against a captured inventory and discards obsolete answers.
+   * @param uri - Original target URI or virtual path.
+   * @param request - Operation with offsets in the original UTF-16 document.
+   * @param signal - Optional cancellation checked around project preparation and queries.
+   * @returns Answers in project order, or an empty list after closure, cancellation, or a revision change.
+   * @throws If project preparation or an editor query fails.
+   */
   query(
     uri: string,
     request: EditorRequest,
@@ -250,6 +325,10 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     const files = this.files();
     const id = virtualPath(uri);
     const task = this.#queue.then(async () => {
+      /**
+       * Checks whether this query must discard its captured results.
+       * @returns Whether the service is closed, the signal is aborted, or the revision has changed.
+       */
       const obsolete = () => this.#closed || signal?.aborted || revision !== this.#revision;
       if (obsolete()) {
         return [];
@@ -274,7 +353,11 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     return task;
   }
 
-  /** Releases retained build sessions and waits for queued analyses. */
+  /**
+   * Marks the service closed, invalidates captured revisions, and releases retained projects after queued work.
+   * @returns Completion of queued work and project cleanup.
+   * @throws If a retained project fails to close.
+   */
   async close(): Promise<void> {
     this.#closed = true;
     this.#revision++;
@@ -283,6 +366,12 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   }
 }
 
+/**
+ * Checks a virtual path against a project's target globs and exclusions.
+ * @param config - Evaluated configuration with an absolute root.
+ * @param id - Absolute virtual file path.
+ * @returns Whether the path is under the root, outside node_modules, included, and not excluded.
+ */
 function includes(config: AnalysisProjectConfig, id: string): boolean {
   const name = relative(resolve(config.root!), id);
 

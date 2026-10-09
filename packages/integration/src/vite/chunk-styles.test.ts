@@ -46,6 +46,11 @@ test("the generated loader inserts missing links in manifest order and keeps exi
     querySelectorAll: () => links,
     createElement: () => ({ dataset: {}, href: "" }),
     head: {
+      /**
+       * Inserts a stylesheet occurrence into the simulated document order.
+       * @param link - New link whose occurrence metadata is inspected by the generated loader.
+       * @param before - Existing link to precede, or null to append.
+       */
       insertBefore(link: (typeof links)[number], before: (typeof links)[number] | null) {
         links.splice(before ? links.indexOf(before) : links.length, 0, link);
       },
@@ -94,6 +99,12 @@ test("a chunk rendered before build output exists needs no CSS metadata", () => 
   expect(chunk.viteMetadata).toBeUndefined();
 });
 
+/**
+ * Creates chunk metadata with cyclic static dependencies and a separate lazy stylesheet.
+ * @param base - Vite public base used in manifest URLs and loader URL classification.
+ * @param output - Optional build output replacing the default split manifest.
+ * @returns Project, graph lookup context, and a rendered entry chunk with existing asset metadata.
+ */
 function fixture(base: string, output?: BuildOutput) {
   const manifest: StylesheetManifest = {
     version: 1,
@@ -183,8 +194,21 @@ function fixture(base: string, output?: BuildOutput) {
   return { project, context, chunk };
 }
 
-function loaderParts(
-  code: string,
-): { id: string; order: number; href: string; relative: boolean }[] {
+/**
+ * Reads the serialized stylesheet occurrences embedded in a generated chunk loader.
+ * @param code - Generated chunk JavaScript containing the expected for-of loader loop.
+ * @returns Occurrence descriptors in the order emitted by the chunk renderer.
+ * @throws If the expected loop is missing or its array is invalid JSON.
+ */
+function loaderParts(code: string): {
+  /** Manifest occurrence identity, distinct for repeated stylesheet content. */
+  id: string;
+  /** Zero-based manifest position used to insert links in cascade order. */
+  order: number;
+  /** Public or chunk-relative stylesheet URL. */
+  href: string;
+  /** Whether href must be resolved against import.meta.url. */
+  relative: boolean;
+}[] {
   return JSON.parse(code.match(/for \(const p of (\[.*\])\) \{/)![1]);
 }

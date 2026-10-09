@@ -51,6 +51,13 @@ function composeUpstream(
   if (!Array.isArray(original.sources) || !original.mappings) {
     return map;
   }
+  /**
+   * Resolves a map source while retaining its query and fragment.
+   * @param source - Absolute path or URL reference. Backslashes are normalized to slashes.
+   * @param base - Absolute URL used to resolve relative references.
+   * @returns A file URL for an absolute path, or the resolved URL for another reference.
+   * @throws If the reference or base cannot form a valid URL.
+   */
   const sourceUrl = (source: string, base: string) => {
     const normalized = source.replaceAll("\\", "/");
     const clean = normalized.split(/[?#]/, 1)[0];
@@ -218,7 +225,12 @@ export interface DecodedCssSourceMap {
    * Decoded version 3 map with mutable arrays and string source identities, or null when the CSS
    * has no recognized trailing map.
    */
-  map: (MutableEncodedSourceMap & { sources: string[] }) | null;
+  map:
+    | (MutableEncodedSourceMap & {
+        /** Source identities indexed by the decoded map's segments. */
+        sources: string[];
+      })
+    | null;
 }
 
 /**

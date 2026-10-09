@@ -14,9 +14,17 @@ export interface FormatResult {
   exitCode: 0 | 1;
 }
 
-/** Sorts configured targets and saves changed files unless check is true. Throws on empty selection or failed planning or saving. */
+/**
+ * Sorts configured targets and saves changed files unless check is true.
+ * @param options - Configuration discovery, target filters, and optional check mode.
+ * @returns Changed paths and original findings, with exitCode 1 only when check mode finds changes.
+ * @throws If selection, configuration, planning, saving, or worker cleanup fails.
+ */
 export async function format(
-  options: RewriteOptions & { check?: boolean } = {},
+  options: RewriteOptions & {
+    /** Whether to report changes without saving them. Defaults to false. */
+    check?: boolean;
+  } = {},
 ): Promise<FormatResult> {
   const result = await rewriteFiles(options, "sort", !options.check);
   return { ...result, exitCode: options.check && result.changed.length ? 1 : 0 };

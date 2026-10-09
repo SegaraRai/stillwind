@@ -16,6 +16,11 @@ const literal = 'import { style } from "stillwind/react"; export const props = s
 const imported =
   'import { style } from "stillwind/react"; import { token } from "./tokens"; export const props = style(token(""));';
 
+/**
+ * Creates an editor project with an in-memory theme and untitled diagnostic URIs.
+ * @param read - Fallback source reader. The default fails if analysis attempts a disk read.
+ * @returns A project whose relative imports resolve to sibling TypeScript paths.
+ */
 function project(
   read: (id: string) => Promise<string> = async () => {
     expect.fail("Unexpected disk read");

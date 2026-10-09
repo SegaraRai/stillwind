@@ -2,8 +2,8 @@ import * as vscode from "vscode";
 import type { LanguageClientOptions } from "vscode-languageclient";
 
 /**
- * Creates document selection and file watching for a Node or Web client.
- * @param context - Owns the watcher for the extension's lifetime, including client restarts.
+ * Creates document selection and file watching, and registers the utility-sort command.
+ * @param context - Receives the watcher and command registrations for the extension's lifetime.
  * @returns Options that synchronize source, theme, and configuration buffers.
  */
 export function clientOptions(context: vscode.ExtensionContext): LanguageClientOptions {
@@ -41,11 +41,20 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
 /**
  * Captures text files through VS Code's filesystem provider and overlays open buffers.
  * @param roots - Workspace directory URIs. Symlinks, .git, and Rust target directories are skipped.
- * @returns URI/text pairs including package metadata and declarations for browser resolution.
+ * Files with supported lowercase extensions are decoded as UTF-8. Open buffers beneath the roots
+ * replace captured text or add entries regardless of their extension.
+ * @returns Unique URI/text pairs in traversal order, with newly added open buffers appended.
  * @throws If the provider cannot enumerate or read a file.
  */
 export async function readWorkspace(roots: readonly string[]): Promise<[string, string][]> {
   const files: [string, string][] = [];
+  /**
+   * Appends supported text files by recursively reading a provider directory.
+   *
+   * @param directory - Directory URI supported by VS Code's filesystem provider.
+   * @returns Completion of traversal, skipping symlinks, .git, and target directories.
+   * @throws If a directory or selected file cannot be read.
+   */
   const read = async (directory: vscode.Uri) => {
     for (const [name, kind] of await vscode.workspace.fs.readDirectory(directory)) {
       if (name === ".git" || name === "target") {

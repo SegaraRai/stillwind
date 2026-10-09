@@ -45,8 +45,16 @@ export function convert(source: string, filename: string): SourceProjection {
       throw error;
     }
     const diagnostic = error as Error & {
-      start?: { character: number };
-      end?: { character: number };
+      /** First character identified by the compiler, when a location is available. */
+      start?: {
+        /** Inclusive UTF-16 offset in the original component. */
+        character: number;
+      };
+      /** Boundary after the characters identified by the compiler, when available. */
+      end?: {
+        /** Exclusive UTF-16 offset in the original component. */
+        character: number;
+      };
     };
     throw new PreparationError(
       {

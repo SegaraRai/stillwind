@@ -17,6 +17,10 @@ export interface StillwindRsbuildPlugin extends RsbuildPlugin {
    * @param api - Host API that accepts a modifier for the mutable Rspack configuration.
    */
   setup(api: {
+    /**
+     * Registers a modifier for each generated Rspack configuration.
+     * @param callback - Receives mutable host options and returns the configuration to use.
+     */
     modifyRspackConfig(callback: (options: RspackOptions) => RspackOptions): void;
   }): void;
 }
@@ -77,6 +81,10 @@ function configureCssRules(rules: NonNullable<NonNullable<RspackOptions["module"
 export function pluginStillwind(config: InlineConfig = {}): StillwindRsbuildPlugin {
   return {
     name: "stillwind",
+    /**
+     * Registers CSS rule adaptation and the compiler plugin on Rsbuild's Rspack configuration hook.
+     * @param api - Host API that applies the registered modifier before compilation.
+     */
     setup(api) {
       api.modifyRspackConfig((options) => {
         options.module ??= {};

@@ -48,11 +48,13 @@ const fingerprint = (source: string) => createHash("sha256").update(source).dige
  * compilation. Results and failures are delivered through the callback. SFC transforms also store
  * their code and map in `this.data` for framework map composition.
  *
+ * @param this - Active loader context whose data and module metadata retain successful producer transforms.
  * @param source - Source supplied by the preceding loaders. CSS subrequests read the original
  * resource instead.
  * @param inputMap - Map from the supplied source to its original source, when available.
  * @param additionalData - Metadata from preceding loaders, including a prior Stillwind transform
  * fingerprint.
+ * @returns No synchronous source. Pass-through and asynchronous results use the loader callback.
  */
 export default function webpackLoader(
   this: SourceTransformContext<LoaderOptions>,
@@ -108,6 +110,11 @@ export default function webpackLoader(
     if (config.naming) {
       this.cacheable(false);
     }
+    /**
+     * Creates a virtual module request using this source file's framework and compiler settings.
+     * @param query - Stillwind virtual query selecting the requested CSS or value module.
+     * @returns An inline loader request retaining the resource path and resolved configuration.
+     */
     const request = (query: string) =>
       virtualRequest(this.resourcePath, sfc, config, import.meta.filename, query, supplied);
     watchCompilerFiles(watch);

@@ -143,7 +143,12 @@ export function moduleSourceMap(
   compiled: string,
   id: string,
   mappings: readonly CompilerMapping[],
-  removed: readonly { from: number; to: number }[],
+  removed: readonly {
+    /** Inclusive UTF-16 offset removed from compiled. */
+    from: number;
+    /** Exclusive UTF-16 offset in the same compiled buffer. */
+    to: number;
+  }[],
   prefix: string,
 ): EncodedSourceMap {
   const map = new GenMapping({ file: id });

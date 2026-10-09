@@ -1,7 +1,7 @@
 import {
   NativeProjectSession,
-  type NativeDesignSystemLoader,
   type BindingOutput,
+  type NativeDesignSystemLoader,
 } from "@stillwind/native";
 
 import { cleanModuleId, compileModule, type CompilerHost } from "../compilation/index.ts";
@@ -111,6 +111,7 @@ export class EditorProject {
    * on every analysis.
    */
   readonly designSystem: () => NativeDesignSystemLoader;
+  /** Fixed checker settings reused by independent analyses and retained without rereading tsconfig. */
   readonly #typeFactsEnvironment: TypeFactsEnvironment;
 
   /**
@@ -208,6 +209,10 @@ export class EditorProject {
       dependencies: [],
       previousSuccess: this.#successes.get(id),
     };
+    /**
+     * Requires this analysis to retain the captured project revision and an active signal.
+     * @throws If cancellation or a newer project revision makes this analysis obsolete.
+     */
     const assertActive = () => {
       if (signal?.aborted) {
         throw new Error("Editor analysis cancelled");

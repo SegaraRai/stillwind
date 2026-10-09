@@ -43,6 +43,11 @@ export async function openNodeWorkspaces(
     const worker = new AnalysisWorker();
     try {
       await worker.open(file);
+      /**
+       * Selects document identities that can be forwarded to the filesystem worker.
+       * @param uri - Document URI whose syntax is validated later by `fileURLToPath`.
+       * @returns Whether the URI begins with the `file:` scheme.
+       */
       const accepts = (uri: string) => uri.startsWith("file:");
       workspaces.set(file, {
         query: async (uri, request, signal) => {

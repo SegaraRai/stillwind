@@ -15,7 +15,9 @@ export function finalizeModule(code: string, stylesheetSpecifier?: string): stri
  * finalizer returns no removed ranges.
  */
 export type FinalizedModuleEdit = {
+  /** Inclusive UTF-16 offset in the compiled buffer before finalization. */
   from: number;
+  /** Exclusive UTF-16 offset in that same buffer. */
   to: number;
 };
 

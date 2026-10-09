@@ -6,6 +6,10 @@ test("styles are inserted before a closing head tag split across stream chunks",
   const html = "<html><head><title>日本語</title></HEAD><body>🧭</body></html>";
   const bytes = new TextEncoder().encode(html);
   const body = new ReadableStream<Uint8Array>({
+    /**
+     * Sends HTML one byte at a time to exercise split UTF-8 characters and head tags.
+     * @param controller - Stream controller receiving the byte sequence and end-of-stream signal.
+     */
     start(controller) {
       for (const byte of bytes) {
         controller.enqueue(new Uint8Array([byte]));

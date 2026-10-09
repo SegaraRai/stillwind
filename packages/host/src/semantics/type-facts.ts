@@ -199,10 +199,14 @@ class AssetTypeDecoder {
    *
    * @param type - Type of a probed expression from the current checker snapshot.
    * @returns A native value when every union member carries known declarations from the same
-   * family. Otherwise value is null. Recognized still records detected branding or a known asset
-   * type name.
+   * family.
    */
-  decode(type: Type): { value: NativeExportedValue | null; recognized: boolean } {
+  decode(type: Type): {
+    /** Finite declarations, or null when a member lacks a valid identity or the families differ. */
+    value: NativeExportedValue | null;
+    /** Whether branding or a known asset type name was detected, even when decoding failed. */
+    recognized: boolean;
+  } {
     const constituents = type.isUnionType() ? type.getTypes() : [type];
     const values: IdentityId[] = [];
     let family: IdentityId["kind"] | undefined;
@@ -325,11 +329,13 @@ export interface TypeScriptFactsStats {
 /** TypeScript settings inherited by the generated project used for semantic queries. */
 export type TypeScriptProject =
   | {
+      /** Selects settings inherited from a consumer tsconfig. */
       readonly kind: "configured";
       /** Absolute path to the consumer's tsconfig. */
       readonly configPath: string;
     }
   | {
+      /** Selects Stillwind's defaults without a consumer tsconfig. */
       readonly kind: "isolated";
     };
 
@@ -539,6 +545,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     diskReadRequests: 0,
   };
 
+  /** Copy of the selected TypeScript settings, fixed for this service's lifetime. */
   readonly #project: TypeScriptProject;
   /** Filesystem root supplied as the checker API working directory. */
   readonly #projectRoot: string;
@@ -689,6 +696,15 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     return result;
   }
 
+  /**
+   * Prepares one request and retries an unexpected checker failure once with a clean API.
+   * @param sources - Prepared sources and original UTF-8 probes.
+   * @param assetsByModuleId - Declaration records grouped by compiler identity.
+   * @param inputs - Complete overlays and ambient declarations for the request.
+   * @param available - Whether unavailable facts are recorded instead of rejecting the request.
+   * @returns Collected facts and unavailable ranges from the successful attempt.
+   * @throws If preparation fails, a TypeFactsError occurs, restart fails, or both query attempts fail.
+   */
   #collect(
     sources: readonly TypeFactSource[],
     assetsByModuleId: ReadonlyMap<string, readonly AssetRecord[]>,
@@ -831,7 +847,12 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     this.#api = this.#startApi();
   }
 
-  /** Replaces virtual files and retains the new snapshot after releasing the previous one. */
+  /**
+   * Replaces virtual files and retains the new snapshot after releasing the previous one.
+   * @param prepared - Complete normalized virtual project, retained as the new filesystem overlay.
+   * @returns The checker project from the new snapshot. Snapshot counters are incremented after update.
+   * @throws If snapshot update or disposal fails, or the generated project cannot be opened.
+   */
   #updateProject(prepared: PreparedProject) {
     const changed: string[] = [];
     const created: string[] = [];
@@ -874,6 +895,13 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     return project;
   }
 
+  /**
+   * Updates the snapshot and collects facts from the prepared checker buffers.
+   * @param prepared - Virtual files, original-coordinate mappings, and serialized declaration identities.
+   * @param available - Whether contract failures become unverified ranges where recovery is possible.
+   * @returns Deduplicated facts by compiler identity and unverified original UTF-8 ranges.
+   * @throws If snapshot update fails, a checker file is missing, facts conflict, or strict collection fails.
+   */
   #collectPrepared(prepared: PreparedProject, available: boolean): AvailableFacts {
     const project = this.#updateProject(prepared);
     const unverified: UnverifiedRange[] = [];

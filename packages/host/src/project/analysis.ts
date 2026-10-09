@@ -87,30 +87,46 @@ export class AnalysisProject {
   /** Owned host. The project serializes its operations and closes it during cleanup. */
   readonly host: AnalysisHost;
 
+  /** Optional factory used once when semantic analysis first needs a backend. */
   readonly #backend?: () => TypeFactsBackend;
+  /** Unsaved original buffers keyed by absolute path and captured before each queued operation. */
   readonly #documents = new Map<
     string,
     {
+      /** Complete original document text. */
       source: string;
+      /** Last accepted safe integer version while the path is open. */
       version: number;
     }
   >();
+  /** Editor snapshots retained by entry identity until their project revision changes. */
   readonly #editors = new Map<
     string,
     {
+      /** Project change counter represented by this snapshot. */
       revision: number;
+      /** Immutable source and design-system view used for editor queries. */
       snapshot: EditorSnapshot;
     }
   >();
 
+  /** Lazily selected custom or Node semantic backend owned by this project. */
   #semantics?: TypeFactsBackend;
+  /** Change counter used to discard pending analyses and editor answers. */
   #revision = 0;
+  /** Serializes transactions and absorbs failures before subsequent work. */
   #queue: Promise<unknown> = Promise.resolve();
+  /** Node backend retained separately to expose checker statistics. */
   #facts?: TypeScriptFactsService;
+  /** CSS loader retained until a CSS update or explicit invalidation. */
   #loader?: NativeDesignSystemLoader;
+  /** Requests backend invalidation before the next transaction. */
   #dirty = true;
+  /** Requests replacement of the cached CSS loader. */
   #cssDirty = true;
+  /** Requests semantic disk-cache invalidation after an external change. */
   #diskDirty = true;
+  /** Prevents transactions from producing new results during cleanup. */
   #closed = false;
 
   /**
@@ -125,7 +141,10 @@ export class AnalysisProject {
     this.#backend = backend;
   }
 
-  /** Returns a copy of Node checker counters, or undefined before creation or when a custom backend is used. */
+  /**
+   * Reads counters from the owned Node checker without exposing its mutable statistics object.
+   * @returns A copy of the counters, or undefined before checker creation or with a custom backend.
+   */
   get checkerStats(): TypeScriptFactsStats | undefined {
     return this.#facts && { ...this.#facts.stats };
   }
@@ -208,7 +227,13 @@ export class AnalysisProject {
     return task;
   }
 
-  /** Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer. */
+  /**
+   * Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer.
+   * @param entry - Full resolver identity. The workspace applies target membership filtering.
+   * @param request - Operation with offsets in the original UTF-16 document.
+   * @param signal - Optional cancellation checked before and after queued work.
+   * @returns The current editor answer, or undefined after closure, cancellation, or a revision change.
+   */
   query(
     entry: string,
     request: EditorRequest,
@@ -260,6 +285,12 @@ export class AnalysisProject {
     }
   }
 
+  /**
+   * Determines whether a captured operation can still publish its result.
+   * @param revision - Change counter captured when the operation was queued.
+   * @param signal - Optional request cancellation, which takes precedence over staleness.
+   * @returns The discard status, or undefined while the capture remains current.
+   */
   #discardReason(revision: number, signal?: AbortSignal): "cancelled" | "stale" | undefined {
     if (signal?.aborted) {
       return "cancelled";
@@ -270,6 +301,13 @@ export class AnalysisProject {
     return undefined;
   }
 
+  /**
+   * Installs captured buffers, refreshes caches, and retains an editor snapshot after compilation.
+   * @param entry - Supported full resolver identity to analyze.
+   * @param revision - Change counter associated with the captured documents.
+   * @param documents - Independent map of open absolute paths to original text.
+   * @returns Findings mapped to original documents. Host failures become incomplete results with error text.
+   */
   async #analyzeSnapshot(
     entry: string,
     revision: number,
@@ -314,6 +352,11 @@ export class AnalysisProject {
     return result;
   }
 
+  /**
+   * Consumes dirty flags and invalidates semantic, CSS, and host caches as requested.
+   * @returns Completion of required invalidation, or no work when the project is clean.
+   * @throws If semantic or host invalidation fails.
+   */
   async #resetCaches(): Promise<void> {
     if (!this.#dirty) {
       return;
@@ -330,6 +373,11 @@ export class AnalysisProject {
     await this.host.invalidate();
   }
 
+  /**
+   * Loads the configured CSS graph once until CSS invalidation clears it.
+   * @returns The retained loader with compiler options applied.
+   * @throws If resolving or reading the CSS graph fails.
+   */
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
       const css = path.resolve(this.host.root, cssEntrypoint(this.host.config));
@@ -340,6 +388,11 @@ export class AnalysisProject {
     return this.#loader;
   }
 
+  /**
+   * Lazily selects the custom backend or creates the Node checker with fixed project settings.
+   * @returns The owned backend, or undefined when type facts are disabled.
+   * @throws If backend creation fails.
+   */
   #semanticBackend(): TypeFactsBackend | undefined {
     if (this.host.typeFacts === false) {
       return undefined;
@@ -357,6 +410,13 @@ export class AnalysisProject {
   }
 }
 
+/**
+ * Creates a result that carries no reports or graph after a capture becomes unusable.
+ * @param entry - Requested resolver identity.
+ * @param revision - Change counter captured when the request was queued.
+ * @param status - Reason the capture was discarded.
+ * @returns An empty analysis result preserving request identity and revision.
+ */
 function discardedResult(
   entry: string,
   revision: number,
@@ -370,6 +430,11 @@ function discardedResult(
   };
 }
 
+/**
+ * Checks whether all demanded semantic inputs were available, independently of compiler error reports.
+ * @param graph - Observed graph returned by compilation.
+ * @returns Whether no ranges are unverified and no dependency is unresolved or unsupported.
+ */
 function analysisComplete(graph: ModuleAnalysis): boolean {
   return (
     graph.unverified.length === 0 &&

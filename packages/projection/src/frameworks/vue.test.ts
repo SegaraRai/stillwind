@@ -46,6 +46,10 @@ test("Vue language-core 3.0.2 supplies globals that preserve template value type
     const file = program.getSourceFile(filename)!;
     const checker = program.getTypeChecker();
     let expression: ts.PropertyAccessExpression | undefined;
+    /**
+     * Records the last matching Vue context access while traversing the checker subtree.
+     * @param node - Root of the subtree searched for `__VLS_ctx.chosen`.
+     */
     const visit = (node: ts.Node) => {
       if (
         ts.isPropertyAccessExpression(node) &&

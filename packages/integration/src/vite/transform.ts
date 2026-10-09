@@ -25,6 +25,11 @@ export function transformHooks(
   const cachedVirtualModules = new Map<string, Set<string>>();
 
   return {
+    /**
+     * Selects cached modules that need current compiler state and records virtual modules for reloading.
+     * @param module - Cached module descriptor whose id includes any source query.
+     * @returns Whether to rerun transformation for Stillwind virtual modules or supported application sources.
+     */
     shouldTransformCachedModule({ id }) {
       if (id.startsWith("\0stillwind:")) {
         const name = this.environment?.name ?? "client";
@@ -41,6 +46,13 @@ export function transformHooks(
         !id.includes("node_modules")
       );
     },
+    /**
+     * Invalidates changed configuration or removes deleted source state and publishes resulting CSS.
+     * @param id - Watched filesystem identity.
+     * @param change - Vite event. Source removal is performed only for delete events.
+     * @returns Completion of removal and publication when required.
+     * @throws If environment removal or CSS publication fails.
+     */
     async watchChange(id, change) {
       if (project.configurationChanged(id)) {
         return;
@@ -56,6 +68,13 @@ export function transformHooks(
     },
     transform: {
       order: "pre",
+      /**
+       * Reserves authored CSS names, registers source projections, and compiles supported producers.
+       * @param code - Source before ordinary framework lowering.
+       * @param id - Full Vite identity, including queries that select distinct source.
+       * @returns Compiler output, a reloaded virtual module, or undefined when no transformed source is needed.
+       * @throws If a projection cannot resolve or pass access checks, or compilation or publication fails.
+       */
       async handler(code, id) {
         const name = this.environment?.name;
         if (cachedVirtualModules.get(name ?? "client")?.delete(id)) {

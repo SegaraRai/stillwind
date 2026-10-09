@@ -30,13 +30,21 @@ export interface BrowserCheckerOptions {
 
 /** Answers Stillwind probes using the JavaScript TypeScript checker without filesystem access. */
 export class BrowserTypeFactsService implements TypeFactsBackend {
+  /** Root, settings, and inventory read again when preparing each request. */
   readonly #options: BrowserCheckerOptions;
+  /** Language service reused while snapshots and project versions change. */
   #service?: ts.LanguageService;
+  /** Current captured inventory with overlays, checker buffers, and helper declarations applied. */
   #files = new Map<string, string>();
+  /** Per-file change counters exposed as language-service script versions. */
   #versions = new Map<string, number>();
+  /** Effective TypeScript options from the virtual tsconfig and enforced checker settings. */
   #compilerOptions: ts.CompilerOptions = {};
+  /** Checker buffers and ambient declaration filenames selected as current project roots. */
   #roots: string[] = [];
+  /** Project version incremented every time a request installs a captured inventory. */
   #revision = 0;
+  /** Prevents preparing further requests after cleanup. */
   #closed = false;
 
   /**
@@ -47,7 +55,14 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     this.#options = options;
   }
 
-  /** @inheritdoc */
+  /**
+   * Collects finite declaration candidates and rejects unavailable required queries.
+   * @param sources - Prepared sources with probes in original UTF-8 coordinates.
+   * @param assets - Declaration records grouped by compiler module identity.
+   * @param inputs - Captured overlays and ambient declarations applied over the configured inventory.
+   * @returns Facts keyed by compiler identity, deduplicated by original range across checker buffers.
+   * @throws If the service is closed, preparation fails, or checker contracts cannot be verified.
+   */
   collect(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -56,7 +71,14 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     return this.#collect(sources, assets, inputs, false).facts;
   }
 
-  /** @inheritdoc */
+  /**
+   * Collects usable facts while retaining unavailable original ranges for analysis.
+   * @param sources - Prepared sources with original UTF-8 probes and checker correspondences.
+   * @param assets - Declaration records grouped by compiler module identity.
+   * @param inputs - Captured overlays and ambient declarations for this request.
+   * @returns Verified facts and unverified ranges without discarding other expressions' answers.
+   * @throws If preparation fails or checker results conflict for one original range.
+   */
   collectAvailable(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -65,7 +87,14 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     return this.#collect(sources, assets, inputs, true);
   }
 
-  /** @inheritdoc */
+  /**
+   * Resolves authored imports and exports from module symbols in the virtual checker.
+   * @param sources - Prepared sources whose checker buffers contain module requests.
+   * @param assets - Declaration records used to prepare checker identities and helpers.
+   * @param inputs - Captured overlays and ambient declarations for this request.
+   * @returns Maps from importing resolver identity to specifier and resolved identity. Unmatched requests are omitted.
+   * @throws If the service is closed or checker preparation fails.
+   */
   resolveModules(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -119,6 +148,14 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     this.invalidate();
   }
 
+  /**
+   * Captures the inventory, builds checker buffers, and updates the reusable language service.
+   * @param sources - Prepared sources with original probes and checker environments.
+   * @param assets - Declaration records used to insert identities into producer calls.
+   * @param inputs - Overlays and ambient declarations, which replace matching configured inventory entries.
+   * @returns The current program, checker mappings, and serialized declaration identities.
+   * @throws If the service is closed, probes cannot be mapped, tsconfig is invalid, or no program is available.
+   */
   #prepare(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -255,6 +292,11 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
       ]),
     ];
     if (!this.#service) {
+      /**
+       * Infers a virtual directory from the captured files beneath it.
+       * @param directory - Absolute virtual directory with an optional trailing slash.
+       * @returns Whether at least one file key starts with the directory prefix.
+       */
       const directoryExists = (directory: string) =>
         [...this.#files.keys()].some((id) => id.startsWith(directory.replace(/\/$/, "") + "/"));
       this.#service = ts.createLanguageService({
@@ -294,6 +336,15 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     };
   }
 
+  /**
+   * Decodes current checker expressions and enforces finite declaration identities for probes.
+   * @param sources - Prepared sources with validated checker correspondences.
+   * @param assets - Native declarations keyed by compiler identity.
+   * @param inputs - Overlays and ambient declarations for this snapshot.
+   * @param available - Whether unavailable queries are recorded instead of thrown.
+   * @returns Facts grouped by compiler identity and original UTF-8 ranges that could not be verified.
+   * @throws If preparation fails, checker results conflict, or strict mode encounters unavailable facts.
+   */
   #collect(
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
@@ -328,6 +379,11 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
         }
       });
     }
+    /**
+     * Records an unverifiable use when partial facts are allowed.
+     * @param error - Failure with the original module identity and UTF-8 range, when available.
+     * @throws The supplied error when this collection requires complete facts.
+     */
     const unavailable = (error: TypeFactsError) => {
       if (!available) {
         throw error;
@@ -431,7 +487,13 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
   }
 }
 
-/** Applies tsconfig file and directory patterns to paths in the virtual filesystem. */
+/**
+ * Applies tsconfig file and directory patterns to paths in the virtual filesystem.
+ * @param directory - Absolute virtual base directory.
+ * @param id - Absolute virtual file path.
+ * @param pattern - Absolute or directory-relative glob. A plain directory name expands to its descendants.
+ * @returns Whether the relative path matches, including dot-prefixed segments.
+ */
 function matchesFile(directory: string, id: string, pattern: string): boolean {
   const name = path.relative(directory, id);
   const glob = path.isAbsolute(pattern) ? path.relative(directory, pattern) : pattern;
@@ -439,18 +501,37 @@ function matchesFile(directory: string, id: string, pattern: string): boolean {
   return minimatch(name, expanded, { dot: true });
 }
 
+/**
+ * Visits an AST in parent-first order.
+ * @param node - Root of the subtree to traverse.
+ * @param callback - Operation invoked for the root and every child node. Exceptions propagate.
+ */
 function visit(node: ts.Node, callback: (node: ts.Node) => void): void {
   callback(node);
   node.forEachChild((child) => visit(child, callback));
 }
 
+/**
+ * Decodes a checker type into finite declarations from one registered asset family.
+ * @param checker - Checker that owns type and location.
+ * @param type - Probed type, including unions of declaration candidates.
+ * @param location - AST node used to obtain property types.
+ * @param identities - Serialized keys mapped to declarations inserted into this snapshot.
+ * @param brands - Checker symbol names registered from asset producers and mapped to their families.
+ * @returns A native value only when every union member identifies known declarations from one family.
+ */
 function decode(
   checker: ts.TypeChecker,
   type: ts.Type,
   location: ts.Node,
   identities: ReadonlyMap<string, NativeIdentity>,
   brands: ReadonlyMap<string, NativeIdentity["kind"]>,
-): { value: NativeExportedValue | null; recognized: boolean } {
+): {
+  /** Finite declarations, or null when any member lacks a valid identity or belongs to another family. */
+  value: NativeExportedValue | null;
+  /** Whether branding or a known asset type name was detected, even when identity decoding failed. */
+  recognized: boolean;
+} {
   let family: NativeIdentity["kind"] | undefined;
   let recognized = false;
   let valid = true;

@@ -60,6 +60,13 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
   } = project;
 
   return {
+    /**
+     * Resolves runtime aliases and issued references in the current environment's registry.
+     * @param id - Authored request or resolved virtual identity.
+     * @param importer - Full importer identity required for registered projection edges.
+     * @returns A resolved virtual identity or packaged runtime path, or undefined for unrelated requests.
+     * @throws If a projection or source-backed reference is unregistered.
+     */
     async resolveId(id, importer) {
       const registry = moduleRegistry(this.environment?.name);
       if (id === runtimeEntry) {
@@ -89,6 +96,12 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
       }
       return undefined;
     },
+    /**
+     * Loads generated runtime, producer, projection, fragment, and explicit CSS-value modules.
+     * @param id - Resolved virtual identity issued or recognized by this environment.
+     * @returns Generated JavaScript or snapshot CSS and its map, or undefined for unrelated modules.
+     * @throws If a reference is invalid, source or resource access fails, or CSS planning or compilation fails.
+     */
     async load(id) {
       const name = this.environment?.name;
       const registry = moduleRegistry(name);

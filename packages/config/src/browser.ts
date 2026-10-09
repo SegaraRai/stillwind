@@ -1,3 +1,5 @@
+/** Evaluates and selects configuration from virtual paths through an embedding's captured files and module runtime. */
+
 import * as paths from "pathe";
 import { dirname, resolve } from "pathe";
 
@@ -14,9 +16,18 @@ import {
 
 /** Configuration evaluation supplied by a browser module runtime. */
 export interface BrowserConfigHost {
-  /** Tests whether an absolute virtual path exists in the captured workspace. */
+  /**
+   * Tests whether a configuration candidate exists in the captured workspace.
+   * @param id - Absolute virtual path supplied by discovery or an explicit file selection.
+   * @returns Whether the evaluator can load this path from the captured inventory.
+   */
   exists(id: string): boolean;
-  /** Evaluates a module and returns its default export without invoking a configuration factory. */
+  /**
+   * Evaluates a configuration module without invoking its exported factory.
+   * @param id - Existing absolute virtual path selected from the same captured inventory.
+   * @returns The module's default export, which resolveConfig subsequently evaluates and validates.
+   * @throws If loading or evaluating the module fails.
+   */
   evaluate(id: string): Promise<unknown>;
 }
 
@@ -26,15 +37,19 @@ export interface BrowserConfigHost {
  * @param host - Captured file inventory and browser module evaluator.
  * @param inline - Explicit file, project selection, and compiler overrides.
  * @returns The selected project, configuration identity, and every evaluated project.
- * @throws If an explicit file is missing, evaluation fails, or project selection is ambiguous.
+ * @throws If an explicit file is missing, evaluation or validation fails, project selection is
+ * unsuccessful or ambiguous, or the effective settings lack a nonempty CSS path.
  */
 export async function resolveBrowserConfig(
   root: string,
   host: BrowserConfigHost,
   inline: InlineConfig = {},
 ): Promise<{
+  /** Selected project with merged overrides, compiler defaults, and absolute paths. */
   config: AnalysisProjectConfig;
+  /** Absolute virtual configuration path, or undefined when no file was loaded. */
   configFile?: string;
+  /** Projects in authored order, with the selected entry replaced by config. Inline-only settings return one project. */
   projects: AnalysisProjectConfig[];
 }> {
   root = resolve(root);
@@ -49,7 +64,15 @@ export async function resolveBrowserConfig(
   }
 
   const selected = file
-    ? selectProject(projects as (AnalysisProjectConfig & { root: string })[], root, inline, paths)
+    ? selectProject(
+        projects as (AnalysisProjectConfig & {
+          /** Absolute virtual root resolved from the configuration directory. */
+          root: string;
+        })[],
+        root,
+        inline,
+        paths,
+      )
     : undefined;
   const settings = resolveCompilerSettings(
     selected
@@ -81,15 +104,24 @@ export async function resolveBrowserConfig(
  * Loads every configured project for analysis across a workspace.
  * @param root - Absolute virtual directory where discovery starts.
  * @param host - Captured files and module evaluator.
- * @param requested - File relative to root; false disables discovery.
- * @returns Evaluated projects with absolute roots, or undefined when discovery finds no file.
+ * @param requested - Absolute path or nonempty path relative to root. False disables loading, and
+ * omission searches root and its ancestors in configurationFiles order within each directory.
+ * @returns Evaluated projects with absolute roots, or undefined when loading is disabled or discovery finds no file.
  * @throws If an explicit path is invalid or missing, or evaluation or validation fails.
  */
 export async function loadBrowserConfig(
   root: string,
   host: BrowserConfigHost,
   requested?: string | false,
-): Promise<{ configFile: string; projects: AnalysisProjectConfig[] } | undefined> {
+): Promise<
+  | {
+      /** Absolute virtual path selected for evaluation. */
+      configFile: string;
+      /** Validated projects in authored order with root, CSS, and string tsconfig paths resolved. */
+      projects: AnalysisProjectConfig[];
+    }
+  | undefined
+> {
   if (requested === false) {
     return undefined;
   }

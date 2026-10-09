@@ -22,6 +22,12 @@ afterEach(() => {
 });
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+/**
+ * Creates CSS that exposes a revision through both an ordinary rule and a utility.
+ * @param color - CSS color inserted directly into both declarations.
+ * @returns CSS defining `.environment` and the `paint` utility with the supplied color.
+ */
 const definePaint = (color: string) =>
   `.environment { color: ${color}; } @utility paint { color: ${color}; }`;
 const rootWithImport = "@import './part.css'; @stillwind-slot utilities;";
@@ -285,6 +291,11 @@ test("deleting a producer while its transform waits for CSS removes the complete
   expect(await fixture.getCss()).not.toMatch(/color:\s*(red|green)/);
 });
 
+/**
+ * Replaces the readFile mock so the first read of one file pauses after capturing its contents.
+ * @param file - Exact absolute filename to pause. Other reads continue through the real filesystem.
+ * @returns A started signal and resume operation. Register resume for test cleanup to release pending work.
+ */
 async function pauseFirstRead(file: string) {
   const original = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
   const started = Promise.withResolvers<void>();
@@ -306,10 +317,19 @@ async function pauseFirstRead(file: string) {
   };
 }
 
+/**
+ * Creates a temporary Vite project and starts a development server with real file watching.
+ * @param files - Root-relative filenames and contents written into the temporary directory.
+ * @param options - Optional environment-specific CSS resolution and HMR settings.
+ * @returns Project, server, and helpers for compilation and observed CSS changes. Test cleanup closes and removes them.
+ * @throws If file creation, server setup, or startup fails.
+ */
 async function createWatchedProject(
   files: Record<string, string>,
   options: {
+    /** Whether environment-css resolves to separate client.css and ssr.css files. */
     environmentCss?: boolean;
+    /** Whether Vite HMR is enabled for this fixture. Defaults to false. */
     hmr?: boolean;
   } = {},
 ) {
@@ -326,6 +346,11 @@ async function createWatchedProject(
     plugins: [
       {
         name: "environment-css",
+        /**
+         * Resolves a fixture import to the current environment's stylesheet.
+         * @param id - Requested specifier.
+         * @returns An absolute client or SSR CSS path when enabled, or undefined for other requests.
+         */
         resolveId(id) {
           if (options.environmentCss && id === "environment-css") {
             return path.join(root, this.environment.name === "ssr" ? "ssr.css" : "client.css");
@@ -351,6 +376,11 @@ async function createWatchedProject(
     rmSync(root, { recursive: true, force: true });
   });
   await server.listen();
+  /**
+   * Creates hook operations for a named server environment.
+   * @param environmentName - Existing Vite environment, normally client or ssr.
+   * @returns Resolution, watching, and warning operations. Warnings fail the test.
+   */
   const context = (environmentName: string) => {
     const environment = server.environments[environmentName];
     return {
@@ -365,8 +395,20 @@ async function createWatchedProject(
     root,
     project,
     server,
+    /**
+     * Plans current document CSS through a selected development environment.
+     * @param environment - Existing environment name, defaulting to client.
+     * @returns CSS after the environment's pending work and resource resolution.
+     */
     getCss: async (environment = "client") =>
       (await project.documentPlan(environment, context(environment))).css,
+    /**
+     * Runs the producer fixture through the compiler's transform handler.
+     * @param environment - Existing environment name, defaulting to client.
+     * @param suffix - Extra source appended to distinguish later producer updates.
+     * @returns The transform result after compilation and CSS publication.
+     * @throws If the transform hook is unavailable or compilation fails.
+     */
     async compileProducer(environment = "client", suffix = "") {
       const transform = plugin.transform;
       if (!transform || typeof transform === "function" || !transform.handler) {
@@ -378,11 +420,23 @@ async function createWatchedProject(
         path.join(root, "producer.ts"),
       );
     },
+    /**
+     * Waits until Vite's watcher includes the requested basename.
+     * @param filename - Basename recorded in the watcher's directory inventory.
+     * @returns Completion after the watch appears, or a rejected polling assertion after timeout.
+     */
     async waitUntilWatched(filename: string) {
       await expect
         .poll(() => Object.values(server.watcher.getWatched()).flat())
         .toContain(filename);
     },
+    /**
+     * Performs a filesystem mutation and waits until an environment observes a CSS revision change.
+     * @param filename - Root-relative CSS path expected in an environment's observed file set.
+     * @param change - Synchronous filesystem mutation performed after capturing prior revision counters.
+     * @returns Completion once at least one matching environment advances its CSS counter.
+     * @throws If the mutation fails or watcher polling times out.
+     */
     async changeCss(filename: string, change: () => void) {
       const file = path.join(root, filename);
       const states = [
@@ -400,6 +454,13 @@ async function createWatchedProject(
         )
         .toBe(true);
     },
+    /**
+     * Replaces a fixture stylesheet and waits for its watcher event.
+     * @param filename - Root-relative CSS filename.
+     * @param content - Complete replacement text written as UTF-8.
+     * @returns Completion after an environment observes the change.
+     * @throws If writing fails or watcher polling times out.
+     */
     async writeCss(filename: string, content: string) {
       await this.changeCss(filename, () => {
         writeFileSync(path.join(root, filename), content);
@@ -408,6 +469,11 @@ async function createWatchedProject(
   };
 }
 
+/**
+ * Starts client and SSR producers with different environment-resolved paint utilities.
+ * @returns A watched fixture with both CSS files observed and read counters cleared after initial compilation.
+ * @throws If fixture setup, watching, or initial compilation fails.
+ */
 async function createEnvironmentProject() {
   const fixture = await createWatchedProject(
     {
@@ -427,6 +493,10 @@ async function createEnvironmentProject() {
   return fixture;
 }
 
+/**
+ * Extracts CSS reads recorded since the filesystem mock was last cleared.
+ * @returns String filenames ending in .css, retaining call order and duplicates.
+ */
 function cssFilesRead() {
   return vi
     .mocked(readFile)

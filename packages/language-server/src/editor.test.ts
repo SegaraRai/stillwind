@@ -4,10 +4,10 @@ import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
 import { expect, test } from "vite-plus/test";
 import type {
   CodeAction,
-  CompletionItem,
-  Hover,
   ColorInformation,
   ColorPresentation,
+  CompletionItem,
+  Hover,
 } from "vscode-languageserver";
 import {
   createConnection,
@@ -63,9 +63,15 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
   client.listen();
   try {
     const initialized = await client.sendRequest<{
+      /** Provider declarations returned by the LSP initialize response. */
       capabilities: {
+        /** Whether the opened service supports hover queries. */
         hoverProvider: boolean;
-        codeActionProvider: { codeActionKinds: string[] };
+        /** Source action kinds advertised alongside quick fixes. */
+        codeActionProvider: {
+          /** LSP kind strings that clients can request through context.only. */
+          codeActionKinds: string[];
+        };
       };
     }>("initialize", {
       rootUri: "file:///workspace",

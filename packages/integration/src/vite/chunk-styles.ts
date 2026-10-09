@@ -28,6 +28,11 @@ export function renderChunkStyles(
 ) {
   const { config, settings, inputs, moduleRegistry } = project;
   const { manifest, buildCss } = project.buildOutput(name);
+
+  /**
+   * Records a stylesheet in the chunk's Vite metadata, creating the metadata when absent.
+   * @param file - Emitted asset filename without the public base prefix.
+   */
   const attachCss = (file: string) => {
     chunk.viteMetadata ??= {
       importedCss: new Set(),
@@ -36,6 +41,7 @@ export function renderChunkStyles(
     };
     chunk.viteMetadata.importedCss.add(file);
   };
+
   if (config.emission === "split" && manifest) {
     const graph = new Set(Object.keys(chunk.modules));
     if (chunk.facadeModuleId) {
@@ -104,5 +110,6 @@ if (typeof document !== "undefined") {
   if (buildCss) {
     attachCss(context.getFileName(buildCss));
   }
+
   return null;
 }

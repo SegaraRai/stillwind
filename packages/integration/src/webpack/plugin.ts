@@ -44,6 +44,11 @@ export class StillwindPlugin {
     compiler.options.module.rules ??= [];
     this.configureRules(compiler.options.module.rules);
     let configuration: ResolvedIntegrationConfig | undefined;
+    /**
+     * Evaluates current configuration before a normal or watch build run.
+     * @returns Completion after the settings shared by subsequent compilations have been replaced.
+     * @throws If configuration discovery, evaluation, or project selection fails.
+     */
     const configure = async () => {
       configuration = await resolveIntegrationConfig(
         this.config,
@@ -67,6 +72,11 @@ export class StillwindPlugin {
         _compilation: compilation,
         fs: compiler.inputFileSystem!,
         mode: compiler.options.mode,
+        /**
+         * Adapts the compiler's normal resolver for document CSS reconstruction.
+         * @param settings - Requested dependency conditions, extensions, and metadata fields.
+         * @returns A callback resolver using the compiler's configured input filesystem.
+         */
         getResolve(settings) {
           const resolver = compiler.resolverFactory.get("normal", settings);
           return (directory, specifier, callback) =>
@@ -82,30 +92,70 @@ export class StillwindPlugin {
  * compilation.
  */
 interface EmissionCompiler<Module extends EmissionModule> {
+  /** Run and compilation hooks used to evaluate configuration before registering emission. */
   hooks: {
+    /** Normal build hook that initializes settings before thisCompilation. */
     beforeRun: {
+      /**
+       * Registers asynchronous work before a normal build run.
+       * @param name - Plugin registration name.
+       * @param callback - Configuration initializer whose rejection fails the run.
+       */
       tapPromise(name: string, callback: () => Promise<void>): void;
     };
+    /** Watch build hook that reevaluates settings before each compilation. */
     watchRun: {
+      /**
+       * Registers asynchronous work before a watch build run.
+       * @param name - Plugin registration name.
+       * @param callback - Configuration initializer whose rejection fails the run.
+       */
       tapPromise(name: string, callback: () => Promise<void>): void;
     };
+    /** Hook that exposes each new compilation after run configuration has been initialized. */
     thisCompilation: {
+      /**
+       * Registers settings, dependency watches, and emission on a new compilation.
+       * @param name - Plugin registration name.
+       * @param callback - Operation receiving the current compilation.
+       */
       tap(name: string, callback: (compilation: EmissionCompilation<Module>) => void): void;
     };
   };
+  /** Bundler input filesystem, which must be initialized before compilation registration. */
   inputFileSystem: ResolverHost["fs"] | null;
+  /** Mutable compiler options to which Stillwind loader rules are added. */
   options: {
+    /** Application directory for configuration discovery. Omission uses process.cwd(). */
     context?: string;
+    /** Bundler mode forwarded to reconstruction. Only development selects development compilation. */
     mode?: string;
+    /** Module rule configuration, initialized by apply when absent. */
     module?: {
+      /** Mutable rules retained by the compiler and extended before framework plugins clone them. */
       rules?: unknown[];
     };
   };
+  /** Resolver factory bound to this compiler's filesystem and configuration. */
   resolverFactory: {
+    /**
+     * Obtains a bundler resolver with a selected policy.
+     * @param type - Resolver category. Stillwind requests normal.
+     * @param settings - Import conditions, extensions, and package fields.
+     * @returns Resolver that reports completion through its callback.
+     */
     get(
       type: string,
       settings: ResolveSettings,
     ): {
+      /**
+       * Resolves a request without changing compiler state.
+       * @param context - Bundler request metadata. Stillwind passes an empty object.
+       * @param directory - Absolute importer directory.
+       * @param specifier - Authored import or resource request.
+       * @param resolveContext - Bundler resolution metadata. Stillwind passes an empty object.
+       * @param callback - Receives a failure or resolved identity.
+       */
       resolve(
         context: object,
         directory: string,

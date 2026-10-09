@@ -19,9 +19,13 @@ import { sortBuffer } from "./session.ts";
 
 const processed = Symbol("stillwind.preprocessed");
 
+/** Prettier options shared with the delegated parser during one formatting operation. */
 type Options = ParserOptions & {
+  /** Configuration path resolved from cwd. Omission searches above the formatted file. */
   stillwindConfig?: string;
+  /** Original UTF-16 cursor position, updated after sorting. A negative value disables mapping. */
   cursorOffset?: number;
+  /** Marks an options object whose Stillwind preprocessing has already begun, including nested parses. */
   [processed]?: boolean;
 };
 
@@ -63,9 +67,26 @@ export const parsers: Record<string, Parser> = Object.fromEntries(
   Object.entries(bases).map(([name, base]) => {
     const wrapper: Parser = {
       ...base,
+      /**
+       * Sorts the original buffer before delegating language-specific preprocessing.
+       *
+       * @param text - Original source supplied by Prettier for this parser invocation.
+       * @param rawOptions - Resolved Prettier options. The shared processed marker prevents nested
+       * invocations from sorting again, and `cursorOffset` is mapped through the sorting edits.
+       * Ignore directives and text outside the formatting range are protected from sorting.
+       * @returns Sorted text after the delegate's preprocessing, or delegated original text when
+       * the file is unsupported, already processed, or has no Stillwind configuration.
+       * @throws If delegate loading, parsing, ignore extraction, configuration, or sorting fails.
+       */
       async preprocess(text, rawOptions) {
         const current = rawOptions as Options;
         const delegate = await delegateParser(name, wrapper, base, current);
+        /**
+         * Applies the delegate's preprocessing with the current shared options.
+         * @param source - Original or sorted buffer selected for this formatting invocation.
+         * @returns The delegate's synchronous or asynchronous result, or unchanged text when absent.
+         * @throws If the delegate fails, synchronously or through its returned promise.
+         */
         const preprocess = (source: string) =>
           delegate.preprocess ? delegate.preprocess(source, current) : source;
         const source = text;
@@ -103,6 +124,14 @@ export const parsers: Record<string, Parser> = Object.fromEntries(
         current.cursorOffset = mapOffset(current.cursorOffset ?? -1, source, result.edits);
         return preprocess(result.code);
       },
+      /**
+       * Parses the preprocessed buffer using the nearest preceding language plugin.
+       *
+       * @param text - Buffer after this wrapper's preprocessing.
+       * @param rawOptions - Resolved Prettier options shared with the selected delegate.
+       * @returns The delegate's AST without changing its representation.
+       * @throws If delegate loading or parsing fails.
+       */
       async parse(text, rawOptions) {
         const current = rawOptions as Options;
         return (await delegateParser(name, wrapper, base, current)).parse(text, current);
@@ -112,6 +141,17 @@ export const parsers: Record<string, Parser> = Object.fromEntries(
   }),
 );
 
+/**
+ * Selects the nearest preceding plugin that supplies the same parser name.
+ *
+ * @param name - Parser registry key used by this wrapper.
+ * @param wrapper - Parser object used to identify this plugin in the resolved plugin list.
+ * @param fallback - Built-in or optional language parser used when no preceding parser is found.
+ * @param current - Resolved options whose object-valued plugins retain Prettier's plugin order.
+ * @returns The selected parser, awaiting its factory when present. An absent wrapper also uses
+ * the fallback.
+ * @throws If the selected parser factory fails.
+ */
 async function delegateParser(
   name: string,
   wrapper: Parser,
@@ -130,6 +170,14 @@ async function delegateParser(
   return fallback;
 }
 
+/**
+ * Checks whether a filepath can be analyzed by the selected parser.
+ *
+ * @param parser - Prettier parser name. Component parsers require their exact lowercase suffix.
+ * @param file - Filepath supplied by Prettier, before resolution to an absolute path.
+ * @returns Whether the component suffix matches, or a case-insensitive JS/TS suffix matches
+ * without a TypeScript declaration suffix.
+ */
 function matchesFile(parser: string, file: string): boolean {
   if (["vue", "svelte", "astro"].includes(parser)) {
     return file.endsWith(`.${parser}`);
