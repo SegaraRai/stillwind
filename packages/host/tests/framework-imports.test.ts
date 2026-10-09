@@ -9,7 +9,7 @@ import {
   type ProjectBindingOutput,
 } from "@stillwind/native";
 import { prepareSource, type ProjectInput } from "@stillwind/projection";
-import * as vueRuntime from "stillwind/vue/runtime";
+import * as vueRuntime from "stillwind/runtime/vue";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";

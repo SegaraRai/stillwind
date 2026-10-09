@@ -1,4 +1,4 @@
-import { stillwindClsx } from "stillwind/react/runtime";
+import { stillwindClsx } from "stillwind/runtime/react";
 
 const loading = Date.now() % 2 === 0;
 const emphasized = location.hash === "#emphasized";

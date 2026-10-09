@@ -170,7 +170,7 @@ export const props = style('red', { '--x': progress },
     logLevel: "silent",
     resolve: {
       alias: {
-        "stillwind/react/runtime": fileURLToPath(
+        "stillwind/runtime/react": fileURLToPath(
           new URL("../../../core/src/runtime/react.ts", import.meta.url),
         ),
       },

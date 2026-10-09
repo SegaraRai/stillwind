@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import * as runtime from "stillwind/react/runtime";
+import * as runtime from "stillwind/runtime/react";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";

@@ -6,8 +6,8 @@ use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Solid,
     macro_import: "stillwind/solid",
-    runtime_import: "stillwind/solid/runtime",
-    runtime_import_dev: "stillwind/runtime/dev",
+    runtime_import: "stillwind/runtime/solid",
+    runtime_import_dev: "stillwind/runtime/solid/development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::Object,

@@ -331,7 +331,7 @@ impl<'a> CallEmitter<'a> {
                         Some((index, refs.len())),
                     );
                 }
-                let expression = ref_class_read(self.source_expression(*value)?);
+                let expression = ref_class_read(self.source_expression(*value)?, *value);
                 self.push_expression(expression, value.start.0);
             }
             StyleInput::ViewTransitionUse { transition, name } => {

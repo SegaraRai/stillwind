@@ -246,8 +246,8 @@ fn render_anchor_scope(
 /// Returns an expression that will read the marker token from a compiled ref's `c`
 /// field. The caller must supply code that yields a compiled ref record. This
 /// function does not evaluate or validate that code.
-pub(super) fn ref_class_read(value: Code) -> ValueExpr {
-    ValueExpr::RefClassRead { value }
+pub(super) fn ref_class_read(value: Code, span: Span) -> ValueExpr {
+    ValueExpr::RefClassRead { value, span }
 }
 
 /// Returns the CSS declaration and optional generated-name symbol for `projection`.

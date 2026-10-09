@@ -17,9 +17,7 @@ use stillwind_source::Span;
 
 use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
 
-/// One exported helper of a per-framework runtime module.
-///
-/// The set mirrors the exports of [`stillwind_ir::FrameworkSpec::runtime_import`].
+/// One compiler helper exported by a framework runtime or its development module.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum RuntimeHelper {
     /// The `stillwindClassKey` runtime export.
@@ -34,14 +32,22 @@ pub(crate) enum RuntimeHelper {
     CustomPropertiesKey,
     /// The `stillwindMerge` runtime export.
     Merge,
+    /// The checked fragment merge exported by the development module.
+    MergeChecked,
+    /// The checked ref class reader exported by the development module.
+    RefClassChecked,
     /// The `stillwindStyleKey` runtime export.
     StyleKey,
     /// The `stillwindStyleValue` runtime export.
     StyleValue,
     /// The `stillwindToFragment` runtime export.
     ToFragment,
+    /// The checked props converter exported by the development module.
+    ToFragmentChecked,
     /// The `stillwindViewTransitionName` runtime export.
     ViewTransitionName,
+    /// The checked keyed transition namer exported by the development module.
+    ViewTransitionNameChecked,
 }
 
 impl RuntimeHelper {
@@ -54,10 +60,14 @@ impl RuntimeHelper {
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
             Self::Merge => "stillwindMerge",
+            Self::MergeChecked => "stillwindMergeChecked",
+            Self::RefClassChecked => "stillwindRefClassChecked",
             Self::StyleKey => "stillwindStyleKey",
             Self::StyleValue => "stillwindStyleValue",
             Self::ToFragment => "stillwindToFragment",
+            Self::ToFragmentChecked => "stillwindToFragmentChecked",
             Self::ViewTransitionName => "stillwindViewTransitionName",
+            Self::ViewTransitionNameChecked => "stillwindViewTransitionNameChecked",
         }
     }
 
@@ -68,6 +78,10 @@ impl RuntimeHelper {
     fn development_variant(self) -> Option<Self> {
         match self {
             Self::Clsx => Some(Self::ClsxChecked),
+            Self::Merge => Some(Self::MergeChecked),
+            Self::ToFragment => Some(Self::ToFragmentChecked),
+            Self::RefClassChecked => Some(Self::RefClassChecked),
+            Self::ViewTransitionName => Some(Self::ViewTransitionNameChecked),
             _ => None,
         }
     }
@@ -129,6 +143,11 @@ impl<'a> RuntimeBindings<'a> {
     pub(crate) fn in_mode(mut self, mode: IdentifierMode) -> Self {
         self.development = mode == IdentifierMode::Development;
         self
+    }
+
+    /// Returns whether this compilation requests explicit runtime validation.
+    pub(crate) fn is_development(&self) -> bool {
+        self.development
     }
 
     /// Records a use of `helper` at `at` and returns the local name to call it with.

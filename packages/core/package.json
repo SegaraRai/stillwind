@@ -9,6 +9,9 @@
     "css"
   ],
   "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
@@ -35,41 +38,17 @@
       "types": "./dist/frameworks/react.d.ts",
       "default": "./dist/frameworks/react.js"
     },
-    "./react/runtime": {
-      "types": "./dist/runtime/react.d.ts",
-      "default": "./dist/runtime/react.js"
-    },
-    "./runtime/dev": {
-      "types": "./dist/runtime/dev.d.ts",
-      "default": "./dist/runtime/dev.js"
-    },
     "./preact": {
       "types": "./dist/frameworks/preact.d.ts",
       "default": "./dist/frameworks/preact.js"
-    },
-    "./preact/runtime": {
-      "types": "./dist/runtime/preact.d.ts",
-      "default": "./dist/runtime/preact.js"
-    },
-    "./vue/runtime": {
-      "types": "./dist/runtime/vue.d.ts",
-      "default": "./dist/runtime/vue.js"
     },
     "./vue": {
       "types": "./dist/frameworks/vue.d.ts",
       "default": "./dist/frameworks/vue.js"
     },
-    "./svelte/runtime": {
-      "types": "./dist/runtime/svelte.d.ts",
-      "default": "./dist/runtime/svelte.js"
-    },
     "./svelte": {
       "types": "./dist/frameworks/svelte.d.ts",
       "default": "./dist/frameworks/svelte.js"
-    },
-    "./astro/runtime": {
-      "types": "./dist/runtime/astro.d.ts",
-      "default": "./dist/runtime/astro.js"
     },
     "./astro": {
       "types": "./dist/frameworks/astro.d.ts",
@@ -79,11 +58,59 @@
       "types": "./dist/frameworks/solid.d.ts",
       "default": "./dist/frameworks/solid.js"
     },
-    "./solid/runtime": {
+    "./package.json": "./package.json",
+    "./development": {
+      "types": "./dist/runtime/development.d.ts",
+      "default": "./dist/runtime/development.js"
+    },
+    "./runtime/react": {
+      "types": "./dist/runtime/react.d.ts",
+      "default": "./dist/runtime/react.js"
+    },
+    "./runtime/react/development": {
+      "types": "./dist/runtime/react-development.d.ts",
+      "default": "./dist/runtime/react-development.js"
+    },
+    "./runtime/preact": {
+      "types": "./dist/runtime/preact.d.ts",
+      "default": "./dist/runtime/preact.js"
+    },
+    "./runtime/preact/development": {
+      "types": "./dist/runtime/preact-development.d.ts",
+      "default": "./dist/runtime/preact-development.js"
+    },
+    "./runtime/solid": {
       "types": "./dist/runtime/solid.d.ts",
       "default": "./dist/runtime/solid.js"
     },
-    "./package.json": "./package.json"
+    "./runtime/solid/development": {
+      "types": "./dist/runtime/solid-development.d.ts",
+      "default": "./dist/runtime/solid-development.js"
+    },
+    "./runtime/vue": {
+      "types": "./dist/runtime/vue.d.ts",
+      "default": "./dist/runtime/vue.js"
+    },
+    "./runtime/vue/development": {
+      "types": "./dist/runtime/vue-development.d.ts",
+      "default": "./dist/runtime/vue-development.js"
+    },
+    "./runtime/svelte": {
+      "types": "./dist/runtime/svelte.d.ts",
+      "default": "./dist/runtime/svelte.js"
+    },
+    "./runtime/svelte/development": {
+      "types": "./dist/runtime/svelte-development.d.ts",
+      "default": "./dist/runtime/svelte-development.js"
+    },
+    "./runtime/astro": {
+      "types": "./dist/runtime/astro.d.ts",
+      "default": "./dist/runtime/astro.js"
+    },
+    "./runtime/astro/development": {
+      "types": "./dist/runtime/astro-development.d.ts",
+      "default": "./dist/runtime/astro-development.js"
+    }
   },
   "dependencies": {
     "@stillwind/config": "workspace:*",

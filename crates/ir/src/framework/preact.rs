@@ -6,8 +6,8 @@ use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Preact,
     macro_import: "stillwind/preact",
-    runtime_import: "stillwind/preact/runtime",
-    runtime_import_dev: "stillwind/runtime/dev",
+    runtime_import: "stillwind/runtime/preact",
+    runtime_import_dev: "stillwind/runtime/preact/development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::Object,

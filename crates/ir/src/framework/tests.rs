@@ -17,6 +17,6 @@ fn frameworks_declare_their_materialized_style_format() {
     assert_eq!(astro::SPEC.style_format, StyleFormat::String);
     for spec in FRAMEWORKS {
         assert!(spec.class_property == "className" || spec.class_property == "class");
-        assert!(spec.runtime_import.ends_with("/runtime"));
+        assert!(spec.runtime_import.starts_with("stillwind/runtime/"));
     }
 }

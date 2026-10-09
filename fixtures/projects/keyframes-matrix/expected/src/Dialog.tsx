@@ -1,4 +1,4 @@
-import { stillwindClsx } from "stillwind/react/runtime";
+import { stillwindClsx } from "stillwind/runtime/react";
 
 import { exit, selectedAnimation } from "./keyframes";
 

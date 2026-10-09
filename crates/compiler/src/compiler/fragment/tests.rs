@@ -540,3 +540,59 @@ fn style_fields_follow_framework_specification() {
         assert!(!output.text.contains("style:"), "{}", output.text);
     }
 }
+
+#[test]
+fn ref_reads_select_validation_by_compiler_mode_and_keep_source_evaluation_once() {
+    let source = Arc::new(
+        SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "import { style } from 'stillwind/react'; style('flex');",
+        )
+        .unwrap(),
+    );
+    let analysis = OxcSourceAnalyzer.finalize(
+        OxcSourceAnalyzer.scan(
+            source,
+            ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        ),
+        None,
+    );
+    let span = Span::new(FileId(1), 39, 45);
+    let expression = ValueExpr::RefClassRead {
+        value: "load()".into(),
+        span,
+    };
+    for (mode, expected) in [
+        (crate::IdentifierMode::Release, "(load()).c"),
+        (
+            crate::IdentifierMode::Development,
+            "stillwindRefClassChecked(load())",
+        ),
+    ] {
+        let mut runtime = RuntimeBindings::new(&analysis).in_mode(mode);
+        assert_eq!(expression.render(&mut runtime).text, expected);
+    }
+    let lookup = ValueExpr::Lookup {
+        value: Box::new(ValueExpr::Source("load()".into())),
+        key: "c".to_owned(),
+        table: "{marker:'class'}".into(),
+        span,
+    };
+    for (mode, expected) in [
+        (
+            crate::IdentifierMode::Release,
+            "({marker:'class'})[(load()).c]",
+        ),
+        (
+            crate::IdentifierMode::Development,
+            "({marker:'class'})[stillwindRefClassChecked(load())]",
+        ),
+    ] {
+        let mut runtime = RuntimeBindings::new(&analysis).in_mode(mode);
+        assert_eq!(lookup.render(&mut runtime).text, expected);
+    }
+}

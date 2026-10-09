@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 
 import { stillwind } from "@stillwind/integration/vite";
 import { compileSource } from "@stillwind/native";
-import * as runtime from "stillwind/react/runtime";
+import * as runtime from "stillwind/runtime/react";
 import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 

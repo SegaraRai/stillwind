@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "vite-plus/test";
 
+import { stillwindViewTransitionNameChecked } from "./development.ts";
 import { stillwindEscapedIdentifier, stillwindViewTransitionName } from "./shared.ts";
 
 test("view transition names pair a class token with a key", () => {
@@ -9,7 +10,7 @@ test("view transition names pair a class token with a key", () => {
   expect(stillwindViewTransitionName("sw-vt-card", "item 1")).toBe("sw-vt-card-item\\ 1");
   expect(stillwindViewTransitionName({ v: "sw-vt-card" }, 7)).toBe("sw-vt-card-7");
   expect(stillwindViewTransitionName({ v: "sw-vt-card", w: 7 }, "hero")).toBe("sw-vt-card-hero");
-  expect(() => stillwindViewTransitionName({}, "hero")).toThrow(TypeError);
+  expect(() => stillwindViewTransitionNameChecked({}, "hero")).toThrow(TypeError);
 });
 
 test("escapes identifiers the way the compiler does", () => {

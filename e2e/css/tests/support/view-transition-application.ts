@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 import type { ScenarioContext } from "@stillwind-internal/e2e-harness/scenario";
 import { compileSource } from "@stillwind/native";
 import { chromium, type Browser, type Page } from "playwright";
-import * as runtime from "stillwind/react/runtime";
+import * as runtime from "stillwind/runtime/react";
 import { expect } from "vite-plus/test";
 
 type CompiledProps = {

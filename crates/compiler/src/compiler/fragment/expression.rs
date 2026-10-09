@@ -30,6 +30,8 @@ pub(crate) enum ValueExpr {
     RefClassRead {
         /// Ref value expression with its source occurrence mappings.
         value: Code,
+        /// Source span selecting the checked helper import realm.
+        span: Span,
     },
     /// A compiler-owned call; arguments retain their evaluation order.
     Call {
@@ -49,6 +51,8 @@ pub(crate) enum ValueExpr {
         key: String,
         /// Table literal mapping candidate identities to generated classes.
         table: Code,
+        /// Source span selecting the helper import realm for checked ref reads.
+        span: Span,
     },
     /// A one-entry style payload whose value a deferred expression produces.
     ///
@@ -70,8 +74,13 @@ impl ValueExpr {
     pub(crate) fn render(&self, runtime: &mut RuntimeBindings<'_>) -> Code {
         match self {
             Self::Source(expression) => expression.clone(),
-            Self::RefClassRead { value } => {
-                code!["(", value.clone(), ").", CLASS_KEY]
+            Self::RefClassRead { value, span } => {
+                if runtime.is_development() {
+                    let helper = runtime.require(RuntimeHelper::RefClassChecked, *span);
+                    code![helper, "(", value.clone(), ")"]
+                } else {
+                    code!["(", value.clone(), ").", CLASS_KEY]
+                }
             }
             Self::Call {
                 helper,
@@ -82,7 +91,24 @@ impl ValueExpr {
                 let helper = runtime.require(*helper, *span);
                 code![helper, "(", Code::join(arguments.clone(), ","), ")"]
             }
-            Self::Lookup { value, key, table } => {
+            Self::Lookup {
+                value,
+                key,
+                table,
+                span,
+            } => {
+                if key == CLASS_KEY && runtime.is_development() {
+                    let helper = runtime.require(RuntimeHelper::RefClassChecked, *span);
+                    return code![
+                        "(",
+                        table.clone(),
+                        ")[",
+                        helper,
+                        "(",
+                        value.render(runtime),
+                        ")]"
+                    ];
+                }
                 // The parenthesis keeps the object literal out of statement position and
                 // a runtime ref's dot read unambiguous.
                 code![

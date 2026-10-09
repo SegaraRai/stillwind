@@ -42,7 +42,8 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .find(|replacement| replacement.starts_with("import "))
         .unwrap_or_else(|| panic!("{:?}", development.code_transforms));
     assert!(
-        import.contains("stillwindClsxChecked") && import.contains("stillwind/runtime/dev"),
+        import.contains("stillwindClsxChecked")
+            && import.contains("stillwind/runtime/react/development"),
         "{import}"
     );
     let release = compile(IdentifierMode::Release);
@@ -53,7 +54,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .find(|replacement| replacement.starts_with("import "))
         .unwrap_or_else(|| panic!("{:?}", release.code_transforms));
     assert!(
-        import.contains("stillwindClsx") && import.contains("stillwind/react/runtime"),
+        import.contains("stillwindClsx") && import.contains("stillwind/runtime/react"),
         "{import}"
     );
 }

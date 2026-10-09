@@ -9,8 +9,8 @@ use super::{AdapterKind, FrameworkSpec, StyleFormat, preserve};
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Astro,
     macro_import: "stillwind/astro",
-    runtime_import: "stillwind/astro/runtime",
-    runtime_import_dev: "stillwind/runtime/dev",
+    runtime_import: "stillwind/runtime/astro",
+    runtime_import_dev: "stillwind/runtime/astro/development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::String,

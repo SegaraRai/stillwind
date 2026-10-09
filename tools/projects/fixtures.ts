@@ -310,7 +310,7 @@ function runnableOutput(module: ModuleOutput, fixture: string) {
   const finalized = finalizeModuleWithMap(module.code!);
   const output = finalized.code;
   const runtimeImport = output.match(
-    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/react\/runtime["']/,
+    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/runtime\/react["']/,
   );
   const imported = new Set(runtimeImport?.[1].split(",").map((name) => name.trim()) ?? []);
   const calledHelpers = [...output.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)].map(

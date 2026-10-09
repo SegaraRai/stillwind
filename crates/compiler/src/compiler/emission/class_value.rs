@@ -519,6 +519,7 @@ impl CallEmitter<'_> {
             value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
             key: key.to_owned(),
             table: format!("{{{}}}", table.join(",")).into(),
+            span: *value,
         }))
     }
 

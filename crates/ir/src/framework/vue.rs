@@ -11,8 +11,8 @@ use super::{AdapterKind, FrameworkSpec, ProjectionDecision, ProjectionExpression
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
-    runtime_import: "stillwind/vue/runtime",
-    runtime_import_dev: "stillwind/runtime/dev",
+    runtime_import: "stillwind/runtime/vue",
+    runtime_import_dev: "stillwind/runtime/vue/development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::Object,

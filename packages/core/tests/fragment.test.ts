@@ -1,9 +1,9 @@
-import * as astro from "stillwind/astro/runtime";
-import * as react from "stillwind/react/runtime";
-import * as svelte from "stillwind/svelte/runtime";
+import * as astro from "stillwind/runtime/astro";
+import * as react from "stillwind/runtime/react";
+import * as reactDevelopment from "stillwind/runtime/react/development";
+import * as svelte from "stillwind/runtime/svelte";
+import * as svelteDevelopment from "stillwind/runtime/svelte/development";
 import { expect, test } from "vite-plus/test";
-
-import { createFragmentRuntime } from "../src/runtime/fragment.ts";
 
 test("react merges fragments, arrays, and falsy values in argument order", () => {
   const frozenBase = Object.freeze({ className: "a" });
@@ -107,15 +107,15 @@ test("toFragment converts materialized bases and is idempotent", () => {
 });
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
-  const foreign = createFragmentRuntime({
-    classProperty: "className",
-    styleFormat: "object",
-  });
-  expect(() => react.stillwindMerge({ [foreign.stillwindClassKey]: "_x" })).toThrow(
-    /different runtime instance/,
+  expect(() =>
+    reactDevelopment.stillwindMergeChecked({ [svelte.stillwindClassKey]: "_x" }),
+  ).toThrow(/different runtime instance/);
+  expect(() => reactDevelopment.stillwindMergeChecked({ className: "_x" })).toThrow(
+    /stillwindToFragment/,
   );
-  expect(() => react.stillwindMerge({ className: "_x" })).toThrow(/stillwindToFragment/);
-  expect(() => svelte.stillwindMerge({ class: "_x" })).toThrow(/stillwindToFragment/);
+  expect(() => svelteDevelopment.stillwindMergeChecked({ class: "_x" })).toThrow(
+    /stillwindToFragment/,
+  );
 });
 
 test("class concatenation keeps falsy and non-string fragments empty", () => {

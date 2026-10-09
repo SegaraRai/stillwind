@@ -441,7 +441,7 @@ for (const { extension, source, name, imports } of [
     if (explicit) {
       expect(module.code).toMatch(/import css from "virtual:stillwind\/module-css\?test=1"/);
     }
-    expect(module.code!, module.code!).toContain(`stillwind/${extension}/runtime`);
+    expect(module.code!, module.code!).toContain(`stillwind/runtime/${extension}`);
     expect(module.code!, module.code!).not.toContain("import { style }");
     expect(module.code!, module.code!).not.toContain("style(active");
     if (source.includes("__VLS_ctx")) {

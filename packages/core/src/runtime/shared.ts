@@ -31,23 +31,6 @@ export function stillwindClsx(...values: readonly unknown[]): string {
 }
 
 /**
- * Checks flattened class contributions before joining them with spaces.
- *
- * @param values - Contributions accepted by `stillwindClsx`. Flattening converts numeric values to
- * strings.
- * @returns The same class text as `stillwindClsx` when all flattened values are strings.
- * @throws If flattening produces a non-string value.
- */
-export function stillwindClsxChecked(...values: readonly unknown[]): string {
-  for (const value of values.flatMap(flatten)) {
-    if (typeof value !== "string") {
-      throw new TypeError(`Stillwind received a non-string class value: ${typeof value}.`);
-    }
-  }
-  return stillwindClsx(...values);
-}
-
-/**
  * Escapes text for use as one CSS identifier.
  *
  * @param value - Unescaped identifier text.
@@ -95,15 +78,9 @@ export function stillwindEscapedIdentifier(value: string): string {
  * @param value - Nonempty class token or an object whose `v` property contains that token.
  * @param key - Key appended to the token after a hyphen using `String`.
  * @returns The combined token and key escaped as a CSS identifier.
- * @throws If the value does not supply a nonempty string token.
  */
 export function stillwindViewTransitionName(value: unknown, key: string | number): string {
-  const record =
-    value && typeof value === "object" && "v" in value ? (value as { v?: unknown }) : undefined;
-  const token = typeof value === "string" ? value : record?.v;
-  if (typeof token !== "string" || token.length === 0) {
-    throw new TypeError("Stillwind received a view transition without a class token.");
-  }
+  const token = typeof value === "string" ? value : (value as { v: string }).v;
   return stillwindEscapedIdentifier(`${token}-${String(key)}`);
 }
 
