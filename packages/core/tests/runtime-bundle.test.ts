@@ -4,7 +4,7 @@ import path from "node:path";
 import { build } from "vite-plus";
 import { expect, test } from "vite-plus/test";
 
-async function bundle(source: string): Promise<string> {
+async function bundle(source: string, minify = false): Promise<string> {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-runtime-bundle-"));
   try {
     const entry = path.join(root, "entry.js");
@@ -14,8 +14,11 @@ async function bundle(source: string): Promise<string> {
       logLevel: "silent",
       build: {
         write: false,
-        minify: false,
-        lib: { entry, formats: ["es"] },
+        minify,
+        lib: {
+          entry,
+          formats: ["es"],
+        },
       },
     });
     const output = Array.isArray(result) ? result[0] : result;
@@ -57,9 +60,9 @@ test("packaged production merges exclude validation and unused conversion", asyn
   expect(code).not.toMatch(/function toFragment\b|Checked|NODE_ENV|different runtime instance/);
 });
 
-test("development class checks can be bundled without framework materialization", async () => {
+test("framework development readers can be bundled without materialization", async () => {
   const code = await bundle(
-    'export { stillwindRefClassChecked as read } from "stillwind/development";',
+    'export { stillwindRefClassChecked as read } from "stillwind/runtime/react-development";',
   );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
@@ -67,4 +70,39 @@ test("development class checks can be bundled without framework materialization"
   expect(runtime.read({ c: "marker" })).toBe("marker");
   expect(() => runtime.read({})).toThrow(/class token/);
   expect(code).not.toMatch(/mergeFragments|toFragment|stillwindClassKey/);
+});
+
+test("minified framework runtimes materialize fragments without configuration property names", async () => {
+  for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+    for (const development of [false, true]) {
+      const suffix = development ? "-development" : "";
+      const checked = development ? "Checked" : "";
+      const code = await bundle(
+        `export { stillwindMerge${checked} as merge, stillwindToFragment${checked} as convert } from "stillwind/runtime/${framework}${suffix}";`,
+        true,
+      );
+      const runtime = await import(
+        `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+      );
+      const classProperty = framework === "react" ? "className" : "class";
+      const props = {
+        [classProperty]: "card",
+        style: {
+          color: "red",
+        },
+        title: "ready",
+      };
+      expect(runtime.merge(runtime.convert(props))).toEqual({
+        ...props,
+        style: ["svelte", "astro"].includes(framework) ? "color:red" : props.style,
+      });
+      if (development) {
+        expect(() => runtime.convert(null)).toThrow(/materialized props object/);
+        expect(() => runtime.merge(props)).toThrow(/materialized props object/);
+      }
+      expect(code).not.toMatch(
+        /classProperty|styleFormat|stillwindClassKey|stillwindStyleKey|stillwindCustomPropertiesKey/,
+      );
+    }
+  }
 });

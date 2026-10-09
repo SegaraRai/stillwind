@@ -10,7 +10,7 @@ pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Astro,
     macro_import: "stillwind/astro",
     runtime_import: "stillwind/runtime/astro",
-    runtime_import_dev: "stillwind/runtime/astro/development",
+    runtime_import_dev: "stillwind/runtime/astro-development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::String,

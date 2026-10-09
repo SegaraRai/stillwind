@@ -17,7 +17,6 @@ export default defineConfig({
       "src/frameworks/vue.ts",
       "src/runtime/astro.ts",
       "src/runtime/astro-development.ts",
-      "src/runtime/development.ts",
       "src/runtime/preact.ts",
       "src/runtime/preact-development.ts",
       "src/runtime/react.ts",

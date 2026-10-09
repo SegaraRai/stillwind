@@ -3,18 +3,20 @@ import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 export * from "./shared.ts";
 
 export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.svelte.class");
+
 export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.svelte.style");
+
 export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.svelte.custom-properties",
 );
 
-const options = {
-  classProperty: "class",
-  styleFormat: "string",
+const options = [
+  "class",
+  "string",
   stillwindClassKey,
   stillwindStyleKey,
   stillwindCustomPropertiesKey,
-} as const;
+] as const;
 
 /** Materializes ordered fragments with the svelte class and style conventions. */
 export function stillwindMerge(...values: readonly unknown[]): Record<string, unknown> {

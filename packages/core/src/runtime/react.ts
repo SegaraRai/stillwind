@@ -3,18 +3,20 @@ import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 export * from "./shared.ts";
 
 export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.react.class");
+
 export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.react.style");
+
 export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.react.custom-properties",
 );
 
-const options = {
-  classProperty: "className",
-  styleFormat: "object",
+const options = [
+  "className",
+  "object",
   stillwindClassKey,
   stillwindStyleKey,
   stillwindCustomPropertiesKey,
-} as const;
+] as const;
 
 /** Materializes ordered fragments with the react class and style conventions. */
 export function stillwindMerge(...values: readonly unknown[]): Record<string, unknown> {

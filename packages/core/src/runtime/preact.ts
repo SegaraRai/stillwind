@@ -3,18 +3,20 @@ import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 export * from "./shared.ts";
 
 export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.preact.class");
+
 export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.preact.style");
+
 export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.preact.custom-properties",
 );
 
-const options = {
-  classProperty: "class",
-  styleFormat: "object",
+const options = [
+  "class",
+  "object",
   stillwindClassKey,
   stillwindStyleKey,
   stillwindCustomPropertiesKey,
-} as const;
+] as const;
 
 /** Materializes ordered fragments with the preact class and style conventions. */
 export function stillwindMerge(...values: readonly unknown[]): Record<string, unknown> {

@@ -1,8 +1,8 @@
 import * as astro from "stillwind/runtime/astro";
 import * as react from "stillwind/runtime/react";
-import * as reactDevelopment from "stillwind/runtime/react/development";
+import * as reactDevelopment from "stillwind/runtime/react-development";
 import * as svelte from "stillwind/runtime/svelte";
-import * as svelteDevelopment from "stillwind/runtime/svelte/development";
+import * as svelteDevelopment from "stillwind/runtime/svelte-development";
 import { expect, test } from "vite-plus/test";
 
 test("react merges fragments, arrays, and falsy values in argument order", () => {
@@ -27,14 +27,26 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
       react.stillwindToFragment(frozenBase),
       react.stillwindToFragment(frozenNext),
     ),
-  ).toStrictEqual({ className: "a b" });
+  ).toStrictEqual({
+    className: "a b",
+  });
   expect(
     Object.getOwnPropertySymbols(react.stillwindMerge(react.stillwindToFragment(frozenBase))),
   ).toStrictEqual([]);
   const first = { [react.stillwindClassKey]: "_a", "data-state": "ready" };
   const second = { [react.stillwindClassKey]: "_b" };
   expect(
-    react.stillwindMerge(first, null, [second, false, [[{ [react.stillwindClassKey]: "_c" }]]]),
+    react.stillwindMerge(first, null, [
+      second,
+      false,
+      [
+        [
+          {
+            [react.stillwindClassKey]: "_c",
+          },
+        ],
+      ],
+    ]),
   ).toStrictEqual({
     className: "_a _b _c",
     "data-state": "ready",
@@ -74,19 +86,27 @@ test("string-style frameworks serialize the payload and pass strings through", (
         [svelte.stillwindStyleKey]: "--y:3",
       },
     ),
-  ).toStrictEqual({ class: "_a", style: "--y:3" });
+  ).toStrictEqual({
+    class: "_a",
+    style: "--y:3",
+  });
   expect(
     astro.stillwindMerge({
       [astro.stillwindClassKey]: "_z",
       [astro.stillwindStyleKey]: { "--x": "1" },
     }),
-  ).toStrictEqual({ class: "_z", style: "--x:1" });
+  ).toStrictEqual({
+    class: "_z",
+    style: "--x:1",
+  });
 });
 
 test("toFragment converts materialized bases and is idempotent", () => {
   const fragment = react.stillwindToFragment({
     className: "_base",
-    style: { "--x": "1" },
+    style: {
+      "--x": "1",
+    },
     "data-a": "1",
   });
   expect(fragment[react.stillwindClassKey]).toBe("_base");
@@ -96,7 +116,9 @@ test("toFragment converts materialized bases and is idempotent", () => {
   expect(react.stillwindMerge(fragment, { [react.stillwindClassKey]: "_own" })).toStrictEqual({
     className: "_base _own",
     "data-a": "1",
-    style: { "--x": "1" },
+    style: {
+      "--x": "1",
+    },
   });
   const svelteFragment = svelte.stillwindToFragment({
     class: "_base",
@@ -108,24 +130,38 @@ test("toFragment converts materialized bases and is idempotent", () => {
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
   expect(() =>
-    reactDevelopment.stillwindMergeChecked({ [svelte.stillwindClassKey]: "_x" }),
+    reactDevelopment.stillwindMergeChecked({
+      [svelte.stillwindClassKey]: "_x",
+    }),
   ).toThrow(/different runtime instance/);
-  expect(() => reactDevelopment.stillwindMergeChecked({ className: "_x" })).toThrow(
-    /stillwindToFragment/,
-  );
-  expect(() => svelteDevelopment.stillwindMergeChecked({ class: "_x" })).toThrow(
-    /stillwindToFragment/,
-  );
+  expect(() =>
+    reactDevelopment.stillwindMergeChecked({
+      className: "_x",
+    }),
+  ).toThrow(/stillwindToFragment/);
+  expect(() =>
+    svelteDevelopment.stillwindMergeChecked({
+      class: "_x",
+    }),
+  ).toThrow(/stillwindToFragment/);
 });
 
 test("class concatenation keeps falsy and non-string fragments empty", () => {
   expect(
     react.stillwindMerge(
-      { [react.stillwindClassKey]: "" },
-      { [react.stillwindClassKey]: undefined },
+      {
+        [react.stillwindClassKey]: "",
+      },
+      {
+        [react.stillwindClassKey]: undefined,
+      },
     ),
   ).toStrictEqual({});
-  expect(react.stillwindMerge({ title: "only" })).toStrictEqual({
+  expect(
+    react.stillwindMerge({
+      title: "only",
+    }),
+  ).toStrictEqual({
     title: "only",
   });
 });
@@ -165,7 +201,9 @@ test("custom properties merge independently and coexist with generated styles", 
     );
     expect(Object.getOwnPropertySymbols(result)).toStrictEqual([]);
     const fragment = {
-      [key]: { "--x": "1" },
+      [key]: {
+        "--x": "1",
+      },
     };
     expect(runtime.stillwindToFragment(fragment)).toBe(fragment);
   }

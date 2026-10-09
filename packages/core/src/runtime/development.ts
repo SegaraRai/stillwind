@@ -1,9 +1,11 @@
 /** Runtime validation selected explicitly by development compilations. */
+
 import { isObject, mergeFragments, toFragment, type FragmentRuntimeOptions } from "./fragment.ts";
 import { stillwindClsx, stillwindViewTransitionName } from "./shared.ts";
 
 /**
  * Reads a compiled ref's class token once.
+ *
  * @param value - A ref record whose `.c` property contains a nonempty string.
  * @returns The class token.
  * @throws TypeError if the record or token is missing, or the token is empty or not a string.
@@ -18,6 +20,7 @@ export function stillwindRefClassChecked(value: unknown): string {
 
 /**
  * Validates external class inputs before concatenating them.
+ *
  * @param values - Strings, numbers, bigints, nested arrays, or objects whose truthy entries enable their keys.
  * Booleans, null, and undefined add no text.
  * @returns Class text in contribution order without deduplication.
@@ -43,6 +46,7 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
 
 /**
  * Validates fragment channels before materializing framework props.
+ *
  * @param options - The receiving framework's conventions and distinct fragment keys.
  * @param values - Inputs accepted by `mergeFragments`.
  * @returns The same props as `mergeFragments` for valid inputs.
@@ -52,11 +56,10 @@ export function mergeFragmentsChecked(
   options: FragmentRuntimeOptions,
   values: readonly unknown[],
 ): Record<string, unknown> {
-  const keys = [
-    options.stillwindClassKey,
-    options.stillwindStyleKey,
-    options.stillwindCustomPropertiesKey,
-  ];
+  const [classProperty, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] =
+    options;
+  const keys = [stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey];
+
   function check(value: unknown): void {
     if (Array.isArray(value)) {
       value.forEach(check);
@@ -69,22 +72,24 @@ export function mergeFragmentsChecked(
     if (symbols.some((key) => !keys.includes(key))) {
       throw new TypeError("Stillwind received a fragment from a different runtime instance.");
     }
-    if (!symbols.some((key) => keys.includes(key)) && Object.hasOwn(value, options.classProperty)) {
+    if (!symbols.some((key) => keys.includes(key)) && Object.hasOwn(value, classProperty)) {
       throw new TypeError(
         "Stillwind received a materialized props object; convert it with stillwindToFragment() first.",
       );
     }
-    const classes = value[options.stillwindClassKey];
+    const classes = value[stillwindClassKey];
     if (classes != null && typeof classes !== "string") {
       throw new TypeError("Stillwind received a fragment with a non-string class value.");
     }
   }
+
   values.forEach(check);
   return mergeFragments(options, values);
 }
 
 /**
  * Validates materialized props before converting them to fragment channels.
+ *
  * @param options - The receiving framework's conventions and distinct fragment keys.
  * @param value - A non-null props object or a fragment belonging to this runtime.
  * @returns The result of `toFragment` for the object.
@@ -102,6 +107,7 @@ export function toFragmentChecked(
 
 /**
  * Names a keyed view transition after reading its token once.
+ *
  * @param value - A nonempty class token or a record whose `.v` contains that token.
  * @param key - A key appended after a hyphen using `String`.
  * @returns The token and key escaped as one CSS identifier.

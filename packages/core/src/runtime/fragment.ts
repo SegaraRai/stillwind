@@ -1,18 +1,19 @@
-/** Framework conventions and private channels used to materialize fragments.
+/**
+ * Framework conventions and private channels used to materialize fragments.
  * The three keys must be distinct and belong to the runtime that created the fragments.
  */
-export interface FragmentRuntimeOptions {
+export type FragmentRuntimeOptions = readonly [
   /** Element prop that receives the combined class text. */
-  readonly classProperty: "class" | "className";
+  classProperty: "class" | "className",
   /** Whether style records become objects or semicolon-separated declaration text. */
-  readonly styleFormat: "object" | "string";
+  styleFormat: "object" | "string",
   /** Own fragment property containing class text. */
-  readonly stillwindClassKey: symbol;
+  stillwindClassKey: symbol,
   /** Own fragment property containing the last authored style payload. */
-  readonly stillwindStyleKey: symbol;
+  stillwindStyleKey: symbol,
   /** Own fragment property containing generated custom properties applied last. */
-  readonly stillwindCustomPropertiesKey: symbol;
-}
+  stillwindCustomPropertiesKey: symbol,
+];
 
 export function isObject(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === "object" && value !== null;
@@ -20,6 +21,7 @@ export function isObject(value: unknown): value is Record<PropertyKey, unknown> 
 
 /**
  * Converts a style payload using the framework's style convention.
+ *
  * @param payload - Arbitrary payload. String mode accepts text and objects whose entries become declarations.
  * @param styleFormat - Object mode returns the payload unchanged; string mode serializes object entries in order.
  * @returns The payload, declaration text, or undefined for an unsupported string-mode payload.
@@ -41,6 +43,7 @@ export function serializeStyle(payload: unknown, styleFormat: "object" | "string
 
 /**
  * Materializes fragments and ordinary props without mutating the inputs.
+ *
  * @param options - Framework conventions and the keys of the runtime that created the fragments.
  * @param values - Fragments, ordinary prop records without an own class prop, or nested arrays.
  * Nonobjects are ignored. Materialized bases must first be converted with `toFragment`.
@@ -52,13 +55,13 @@ export function mergeFragments(
   options: FragmentRuntimeOptions,
   values: readonly unknown[],
 ): Record<string, unknown> {
-  const {
+  const [
     classProperty,
     styleFormat,
     stillwindClassKey,
     stillwindStyleKey,
     stillwindCustomPropertiesKey,
-  } = options;
+  ] = options;
   const classes: string[] = [];
   const props: Record<string, unknown> = {};
   const customProperties: Record<string, string> = {};
@@ -132,6 +135,7 @@ export function mergeFragments(
 
 /**
  * Converts materialized props to private fragment channels without mutating them.
+ *
  * @param options - The receiving framework's prop conventions and fragment keys.
  * @param value - A non-null object containing materialized props or this runtime's fragment channels.
  * @returns The input when it already owns a fragment key; otherwise a new object whose class and style
@@ -141,7 +145,7 @@ export function toFragment(
   options: FragmentRuntimeOptions,
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {
-  const { classProperty, stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey } =
+  const [classProperty, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] =
     options;
   if (
     Object.hasOwn(value, stillwindClassKey) ||

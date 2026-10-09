@@ -1,5 +1,5 @@
 import { mergeFragmentsChecked, toFragmentChecked } from "./development.ts";
-import { stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey } from "./react.ts";
+import { stillwindClassKey, stillwindCustomPropertiesKey, stillwindStyleKey } from "./react.ts";
 
 export {
   stillwindClsxChecked,
@@ -7,13 +7,13 @@ export {
   stillwindViewTransitionNameChecked,
 } from "./development.ts";
 
-const options = {
-  classProperty: "className",
-  styleFormat: "object",
+const options = [
+  "className",
+  "object",
   stillwindClassKey,
   stillwindStyleKey,
   stillwindCustomPropertiesKey,
-} as const;
+] as const;
 
 /** Checks fragment ownership and class channels before materializing react props. */
 export function stillwindMergeChecked(...values: readonly unknown[]): Record<string, unknown> {

@@ -43,7 +43,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .unwrap_or_else(|| panic!("{:?}", development.code_transforms));
     assert!(
         import.contains("stillwindClsxChecked")
-            && import.contains("stillwind/runtime/react/development"),
+            && import.contains("stillwind/runtime/react-development"),
         "{import}"
     );
     let release = compile(IdentifierMode::Release);

@@ -1,5 +1,5 @@
 import { mergeFragmentsChecked, toFragmentChecked } from "./development.ts";
-import { stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey } from "./svelte.ts";
+import { stillwindClassKey, stillwindCustomPropertiesKey, stillwindStyleKey } from "./svelte.ts";
 
 export {
   stillwindClsxChecked,
@@ -7,13 +7,13 @@ export {
   stillwindViewTransitionNameChecked,
 } from "./development.ts";
 
-const options = {
-  classProperty: "class",
-  styleFormat: "string",
+const options = [
+  "class",
+  "string",
   stillwindClassKey,
   stillwindStyleKey,
   stillwindCustomPropertiesKey,
-} as const;
+] as const;
 
 /** Checks fragment ownership and class channels before materializing svelte props. */
 export function stillwindMergeChecked(...values: readonly unknown[]): Record<string, unknown> {

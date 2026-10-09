@@ -7,7 +7,7 @@ pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Svelte,
     macro_import: "stillwind/svelte",
     runtime_import: "stillwind/runtime/svelte",
-    runtime_import_dev: "stillwind/runtime/svelte/development",
+    runtime_import_dev: "stillwind/runtime/svelte-development",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::String,

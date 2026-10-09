@@ -117,7 +117,7 @@ ref マーカー・anchor 名・container 名は同じ宣言 identity から、�
 ### 3.1 ランタイム側の検査
 
 通常のヘルパは `stillwind/runtime/<framework>` から import する。dev で検査が必要な
-ヘルパは、専用の `stillwind/runtime/<framework>/development` から import する。
+ヘルパは、専用の `stillwind/runtime/<framework>-development` から import する。
 この specifier は常に検査付きのモジュールを参照し、通常の runtime と symbol キーを共有する。
 
 - class 連結は有効な入力型を保ち、関数と symbol を拒否する
