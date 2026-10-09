@@ -318,8 +318,7 @@ startBrowserLanguageServer(self, {
                 language: "tsx",
                 moduleKind: "unambiguous",
                 css: {
-                  content:
-                    "@utility flex{display:flex}@stillwind-slot utilities;",
+                  content: "@utility flex{display:flex}@stillwind-slot utilities;",
                   name: "theme.css",
                   uri: "inmemory://preview/theme.css",
                   sourceMapSource: "inmemory://preview/theme.css",
