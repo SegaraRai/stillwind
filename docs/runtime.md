@@ -82,3 +82,47 @@ All options contribute CSS at compilation. The factory performs no utility mergi
 at runtime. Generated rules follow Stillwind's CSS ordering; competing utilities
 from separate values are not guaranteed to reproduce Tailwind's global utility order.
 Additional `class` and `className` inputs are external class values and generate no CSS.
+
+## Lowering and materialization
+
+`StyleInput` retains arrays, JavaScript conditionals, props, composition, and rule
+inputs. CSS variants contain only `RuleExpression` children. Attributes, external
+classes, ref attachments, custom properties, and composition cannot occur below
+a CSS variant. Conditional branches distinguish conjunctions from ternaries.
+
+Lowering resolves the rules in each JavaScript condition region before allocating
+its class. Rules without their own runtime identity share that class. A nested
+condition starts a new region. Provider rules require their ref marker through
+`:where(...)`; only ref attachments add the marker. Finite dynamic declarations
+generate every candidate's CSS and select its class through the receiver value.
+Singleton candidates can fold to static output.
+
+Fragments carry three framework-owned symbol channels:
+
+| Symbol                         | Value                                                   |
+| ------------------------------ | ------------------------------------------------------- |
+| `stillwindClassKey`            | Ordered class contributions                             |
+| `stillwindStyleKey`            | A whole style payload; the last non-null payload wins   |
+| `stillwindCustomPropertiesKey` | Individual custom properties; later values win per name |
+
+Other keys are ordinary props. `stillwindMerge` recursively visits arrays and
+fragments, joins class text without deduplication, and materializes framework props.
+Custom properties overlay the whole style payload. `stillwindToFragment` converts
+materialized composition bases back to these channels and rejects nonobjects.
+An existing string style payload is passed through without parsing.
+
+The completed macro always returns framework props. Symbolic fragments remain
+inside that macro expression and belong to the runtime instance that created
+their keys. They cannot cross serialization or framework runtime boundaries.
+
+The fragment compiler chooses direct props, class expressions, or a general merge
+under the [macro purity contract](macro-contract.md). It removes empty branches
+and flattens compiler-owned sequences when the result preserves class order,
+property overwrite precedence, and materialized key order. It keeps opaque
+payloads and value-bearing conditionals as boundaries. CSS variant conditions
+stay in CSS; JavaScript guards retain their execution scope and short-circuiting.
+
+Retained expression mappings identify each source occurrence independently.
+Moving an argument changes its generated position while preserving its original
+span. Generated syntax and helpers have synthetic mappings; removed expressions
+have no output mapping. Fragment selection does not change CSS order or identity.

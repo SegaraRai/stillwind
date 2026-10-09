@@ -237,10 +237,6 @@ export default defineConfig(({ mode }) => ({
         command: "",
         dependsOn: ["@stillwind-internal/benchmarks#bench:sorting:profile"],
       },
-      "bench:research": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:research"],
-      },
       "bench:source-map": {
         command: "",
         dependsOn: ["@stillwind-internal/benchmarks#bench:source-map"],

@@ -1,38 +1,42 @@
-# マクロ引数の契約
+# Macro argument contracts
 
-Stillwind のマクロは UI を記述するための宣言である。値を計算する式は同じ入力から同じ意味の値を返し、外部へ観測可能な変更を起こさない。
-この条件はコンポーネント全体だけでなく、**マクロ内の各引数式**に適用する。
+Stillwind macros declare UI. Expressions that compute values must return values
+with the same meaning for the same inputs and make no externally observable
+changes. This condition applies to **each argument expression inside a macro**.
 
-## フレームワークの入口と共通型
+## Framework entrypoints and shared types
 
-`style` は `stillwind/react`、`stillwind/preact`、`stillwind/solid`、`stillwind/vue`、
-`stillwind/svelte`、`stillwind/astro` から取得する。各入口は `packages/core/src/frameworks/`
-にあり、React は `className`、その他は `class` を返す。`style` 属性は Svelte と Astro では
-文字列、React・Preact・Solid・Vue ではオブジェクトになる。
+Import `style` from `stillwind/react`, `stillwind/preact`, `stillwind/solid`,
+`stillwind/vue`, `stillwind/svelte`, or `stillwind/astro`. These entrypoints live in
+`packages/core/src/frameworks/`. React returns `className`; the other frameworks
+return `class`. The `style` prop is a string in Svelte and Astro and an object in
+React, Preact, Solid, and Vue.
 
-共通の引数型・宣言 identity・語彙は `stillwind/macro`（`packages/core/src/macro/`）が所有する。
-生成された語彙ファイルはこのモジュールを拡張し、各フレームワークの型に共通で反映される。
-コンパイル後の props 合成は `packages/core/src/runtime/` が担当する。
+`stillwind/macro` (`packages/core/src/macro/`) owns shared argument types and
+declaration identities. `packages/core/src/runtime/` combines compiled props.
 
-## 実体化と消費位置
+## Materialization and consumption sites
 
-単独で実体化して保持・受け渡しできるのは、完成した `style(...inputs)` と
-`style.ref(...)` / `style.keyframes(...)` / `style.viewTransition(...)` の宣言である。
-宣言は binding 初期化子に置く。`style()` の直接ネストは禁止し、完成した props を
-変数経由で composition する。
+Completed `style(...inputs)` results and declarations from `style.ref(...)`,
+`style.keyframes(...)`, and `style.viewTransition(...)` can be stored and passed
+independently. Place declarations in binding initializers. Directly nested
+`style()` calls are forbidden; compose completed props through variables.
 
-次の構文は `style()` 内の対応する入力位置で直接消費する。
+Consume the following syntax directly at its supported input position in `style()`:
 
-- `ref.asAnchor(scope?)`、`ref.asContainer(type?)`、`ref.positionAnchor()`、
-  `style.anchorScope(scope)`、`keyframes(options)`、`transition.for(key?)` は
-  class/rule を供給できる入力位置に置く。対応する配列・条件分岐・variant value も含む。
-- `ref()`、`ref("hover:")`、ref タグとその `.in(scope)`、`ref.at(query?)`、ref.at タグは
-  variant object の計算キー、または対応する utility template 補間に置く。
+- `ref.asAnchor(scope?)`, `ref.asContainer(type?)`, `ref.positionAnchor()`,
+  `style.anchorScope(scope)`, `keyframes(options)`, and `transition.for(key?)`
+  belong at positions that accept classes or rules. Supported arrays,
+  conditional branches, and variant values can contain them.
+- `ref()`, `ref("hover:")`, ref tags and their `.in(scope)` calls,
+  `ref.at(query?)`, and ref.at tags belong in computed variant-object keys or
+  supported utility-template interpolations.
 
-`style()` 内にあっても属性値、任意関数の引数などでは消費できない。
-未消費の keyframes call は `SW04002`、その他の projection / ref variant は
-`SW01011` で拒否する。判定には解決済み binding と checker の receiver 情報を使う。
-公開の use 型は入力構文の型検査用であり、独立した実行時の値を保証しない。
+Attribute values and arguments to arbitrary functions cannot consume these uses,
+even inside `style()`. Unconsumed keyframes calls produce `SW04002`; other
+unconsumed projections and ref variants produce `SW01011`. Validation uses resolved
+bindings and checker receiver information. Public use types describe accepted
+input syntax; they do not guarantee independently usable runtime values.
 
 ```ts
 const transition = style.viewTransition({ old: "opacity-0" });
@@ -43,24 +47,32 @@ const data = { transition, key };
 const composed = style({ "hover:": data.transition.for(data.key) });
 ```
 
-`const use = transition.for(key)` のように projection を保存せず、完成した props、
-または declaration と引数を持つ普通のデータを再利用する。
+Reuse completed props or ordinary data containing a declaration and its arguments.
+Do not store a projection such as `const use = transition.for(key)`.
 
-## 実行時の値式
+## Runtime value expressions
 
-`style()` の条件式、`class`、カスタムプロパティ、`aria-*` / `data-*` の値、合成元 style、
-動的な identity の選択式、`transition.for(key)` の receiver と key は次を満たす必要がある。
+Conditions, `class`, custom properties, `aria-*` and `data-*` values, composition
+bases, dynamic identity selections, and the receiver and key of `transition.for(key)`
+must meet these conditions:
 
-- 入力は評価中に安定しており、式はほかの引数が参照するデータを変更しない。
-- 呼び出す関数、constructor、getter、proxy、iterator、値変換にも同じ条件を適用する。
-- 関数内で新しく作った一時データの変更は許可する。ほかの引数と共有するデータの変更は許可しない。
-- 評価順・評価回数・結果に不要な式の実行には依存しない。`PURE` コメントは不要。
-- `Date.now()`、`Math.random()`、通信、DOM 書き換え、状態更新は外で実行し、その結果を渡す。
-- `await` / `yield`、dynamic import は外で評価し、その結果を渡す。
-  省略される式が投げる例外の観測は保証しない。
-- 関数名や class / JSX という構文自体に追加の規約はない。内部の値計算にも同じ純粋性契約を適用する。
-- リアクティブ値の読み取りは現在の計算スコープ内で行う。マクロの値以外を目的とする購読や
-  実行回数には依存しない。必要なら値の読み取りを同じスコープ内でマクロより前に記述する。
+- Inputs remain stable during evaluation. Expressions must not modify data that
+  other arguments read.
+- Called functions, constructors, getters, proxies, iterators, and value
+  conversions obey the same contract.
+- Functions may modify newly created temporary data. They must not modify data
+  shared with other arguments.
+- Do not depend on evaluation order, evaluation count, or execution of expressions
+  whose results are unnecessary. `PURE` comments are not required.
+- Evaluate `Date.now()`, `Math.random()`, network operations, DOM changes, and
+  state updates outside the macro, then pass their results.
+- Evaluate `await`, `yield`, and dynamic imports outside the macro, then pass
+  their results. Exceptions from omitted expressions are not guaranteed to be observed.
+- Function names and class or JSX syntax impose no additional convention. Their
+  internal value computations obey the same purity contract.
+- Read reactive values in the current computation scope. Do not depend on
+  subscriptions unrelated to the macro's value or on execution counts. If needed,
+  read the value before the macro within that same scope.
 
 ```ts
 const props = style(isSelected(item) && "bg-accent", {
@@ -69,15 +81,16 @@ const props = style(isSelected(item) && "bg-accent", {
 });
 ```
 
-`buildClasses` 内部で新規配列に `push()` して返すことは許可する。
-一方、次の引数間の通信は契約違反になる。
+`buildClasses` may create an array, call `push()` on it, and return it.
+Communication between arguments as shown below violates the contract:
 
 ```ts
 const classes = { active: true };
 style({ class: classes }, { "data-value": (classes.active = false) });
 ```
 
-非同期処理や状態更新が必要なら、順序を通常の JavaScript として指定する。
+When asynchronous work or state updates are needed, specify their order with
+ordinary JavaScript:
 
 ```ts
 const value = await read();
@@ -85,78 +98,92 @@ updateState();
 const props = style({ "--progress": value });
 ```
 
-## 宣言と静的な構文
+## Declarations and static syntax
 
-| マクロ／入力                                                              | 引数の契約                                                                                                                                                                         |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `style.ref(name?)`                                                        | 名前は省略または任意の文字列リテラル。空白は `_` にし、CSS 出力時に記号を escape                                                                                                   |
-| `style.keyframes(definition)`                                             | 静的 object。frame は utility 文字列、variant key は完全置換の定義 object                                                                                                          |
-| `keyframes(options)`                                                      | options は文字列リテラル。receiver は有限の animation 候補。use は `style()` の class 入力としてのみ置ける                                                                         |
-| `style.viewTransition(definition)`                                        | 静的 object。`group` は animation option、`old` / `new` / `imagePair` は utility 文字列リテラル。条件 variant は 4 bucket とも media / supports のみ可。値は `{v:"<class token>"}` |
-| `transition.for(key?)`                                                    | receiver は有限の transition 候補。リテラル key はコンパイル時に畳み込み、式は実行時。名前は `serializeIdentifier(token + "-" + String(key))`                                      |
-| `ref.asAnchor(scope?)` / `.positionAnchor()` / `style.anchorScope(scope)` | ref は有限候補。receiver は純粋な選択式                                                                                                                                            |
-| `ref.asContainer(type?)`                                                  | type は省略可能。CSS container-type の有限 keyword union の文字列リテラル                                                                                                          |
-| `ref.at(query?)` / ref.at タグ                                            | receiver は raw ref の有限候補。query は静的文字列で variant を返す。省略または空文字列なら、条件と括弧を省いた `@container <container-name>` を生成する                           |
-| `ref()` / `ref("variant:")` / ref タグ                                    | prefix は静的。タグ内の補間は不可                                                                                                                                                  |
-| `ref(state).in(scope)`                                                    | scope は raw ref、または scope を付けていない ref call/tag。scope operand 内の `.in()` / `.at()` は不可。繰り返す `.in()` は元の ref と対象要素の包含条件を独立に AND で結合する   |
-| `style()` の utility / variant key                                        | 静的な CSS 記述。utility テンプレートの補間は所定の ref variant のみ                                                                                                               |
-| 配列・variant object                                                      | 対応する入力を再帰的に記述。literal spread と配列の穴に対応。getter・method は不可                                                                                                 |
+| Macro or input                                                            | Argument contract                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `style.ref(name?)`                                                        | The name is omitted or any string literal. Whitespace becomes `_`; punctuation is escaped when CSS is emitted.                                                                                                            |
+| `style.keyframes(definition)`                                             | A static object. Frames contain utility strings; variant keys contain definition objects that replace the entire definition.                                                                                              |
+| `keyframes(options)`                                                      | Options are a string literal. The receiver has finite animation candidates. The use belongs only in a `style()` class input.                                                                                              |
+| `style.viewTransition(definition)`                                        | A static object. `group` contains animation options; `old`, `new`, and `imagePair` contain utility string literals. All four buckets accept only media/supports conditional variants. The value is `{v:"<class token>"}`. |
+| `transition.for(key?)`                                                    | The receiver has finite transition candidates. Literal keys fold at compile time; expressions run at runtime. Names use `serializeIdentifier(token + "-" + String(key))`.                                                 |
+| `ref.asAnchor(scope?)` / `.positionAnchor()` / `style.anchorScope(scope)` | Refs have finite candidates. Receivers are pure selection expressions.                                                                                                                                                    |
+| `ref.asContainer(type?)`                                                  | The optional type is a string literal representing a finite union of CSS container-type keywords.                                                                                                                         |
+| `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                         |
+| `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                 |
+| `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.           |
+| Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                          |
+| Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                   |
 
-ref 宣言は独立した identity を作り、親を引数に取らない。
-`ref(state)` は状態に一致する ref 要素を対象要素の祖先として要求する。
-`ref(state).in(parent)` は parent が ref 要素と対象要素を子孫として含むことを要求する。
-`parent("focus")` を operand にすると、包含関係に加えて parent の focus 状態を検査する。
-複数の `.in()` の順序は条件の意味に影響しない。
-selector call/tag と `.in()` の結果には `.at()` を付けられない。
-container query と selector scope は `style()` の key の入れ子で合成する。
-call/tag、scope 付き variant、container query は `style()` 内で直接消費し、変数には保存しない。
-詳細は [ref use design](ref-use-design.md#selector-scope) を参照する。
+A ref declaration creates an independent identity and accepts no parent argument.
+`ref(state)` requires a ref element matching the state to be an ancestor of the
+target element. `ref(state).in(parent)` requires the parent to contain both the ref
+and target as descendants. A `parent("focus")` operand also checks the parent's
+focus state. The order of repeated `.in()` calls does not change their meaning.
 
-`style()` の variant value には utility、ref projection、view transition use、
-keyframes use と、それらの配列・条件分岐・variant object を置ける。
-ref attachment、外部 `class`、inline custom property、attribute、style composition は
-variant value に置けない。これらも `style()` の配列や条件分岐の中には置ける。
-動的な view transition name を CSS variant 内で使う場合は、値を条件付きの
-inline custom property に置き、`view-transition-name: var(...)` を variant の
-CSS rule に出力する。詳細は [style input design](style-input-design.md) を参照。
+Selector calls/tags and `.in()` results cannot use `.at()`. Combine container
+queries and selector scopes by nesting `style()` keys. Consume calls/tags, scoped
+variants, and container queries directly inside `style()`; do not store them in variables.
 
-コンパイル時に identity が確定すれば、receiver を実行時に読む必要がなくなる場合もある。
-型定義にある `StillwindDeclarationIdentity` の追加引数は checker 用の内部情報であり、
-ユーザーが副作用の実行場所として使う引数ではない。
+Variant values accept utilities, ref projections, view-transition uses, keyframes
+uses, and arrays, conditionals, or variant objects containing those inputs.
+Ref attachments, external `class` values, inline custom properties, attributes,
+and style composition cannot occur in variant values. They can occur in other
+`style()` arrays and conditional branches. A dynamic view-transition name inside
+a CSS variant is stored in a conditional inline custom property; the variant's
+rule emits `view-transition-name: var(...)`.
 
-入力の `class` は全 FW 共通。最終出力は React が `className`、ほかが `class`。
-`style` 出力は Svelte / Astro が文字列、それ以外が object。入力に直接 `style` キーは指定しない。
+When an identity is known at compile time, reading the receiver at runtime may
+be unnecessary. The extra `StillwindDeclarationIdentity` argument in the type
+definitions is internal checker information. Users must not use it to execute effects.
 
-## 最適化と診断
+Every framework accepts `class` as input. React emits `className`; the others
+emit `class`. Svelte and Astro emit a string `style` prop; the others emit an
+object. Do not supply a `style` key directly as input.
 
-コンパイラはこの契約を前提に引数評価を並べ替え、空の条件分岐を除去し、配列を展開し、
-隣接する `clsx` の変換を統合する。CSS の優先順位、クラスの連結順、重複プロパティの優先順位、
-最終 props のキー順は維持する。値を持つ条件分岐は選択構造を維持し、別の実行スコープへ移動しない。
+## Optimization and diagnostics
 
-直接の代入・更新・delete は `MacroArgumentMutation` (`macro-argument-mutation`) の lint finding とする。
-`await` / `yield` / dynamic import は `MacroExecutionBoundary` (`macro-execution-boundary`) とする。
-要素にも宣言 identity にも紐づかない選択子（`[:host]:`、`[::view-transition-old(*)]:` など）は
-`DocumentScopedSelector` (`require-element-scope`) の lint finding とする。その CSS は要素の有無に
-かかわらず有効になるため、文書全体の規則は stylesheet に書く。
-これらのルールの既定 severity は `deny`（error）。CSS の `@stillwind` による `warn` / `off` の設定と
-`swlint-disable*` による局所抑制に対応する。lint finding があっても変換結果は保持し、
-view transition はクラス（identity）でマークし、名前（pairing key）で参加する。名前の供給源が
-無い call は `MissingViewTransitionName` (`require-view-transition-name`)、2つ以上ある call は
-`DuplicateViewTransitionName` (`single-view-transition-name`) の lint finding とする。どちらも既定は
-`warn` で、名前の値そのものは検査しない（別 call・stylesheet・ユーザーの inline style が見えないため）。
-合成した base と自 call が別々の遷移クラスを宣言する場合は `SplitViewTransitionClasses`
-(`single-view-transition-class`、既定 `warn`) とする。`view-transition-class` は単一プロパティなので
-マージされず、derived のリストが base のリストを置き換える。
-build host は有効 policy が `deny` の finding が残っていれば失敗とする。
-抑制しても、契約に違反する副作用の順序・回数の保存を保証することにはならない。
-構造の抽出や構文変換ができない場合は、引き続き抑制不可能なコンパイルエラーとする。
-通常の関数呼び出しの本体や入力オブジェクト内部の実装までは証明しない。
-診断がないことは純粋性の証明ではなく、ユーザーが契約を満たす責任を持つ。
+The compiler uses this contract to reorder argument evaluation, remove empty
+branches, expand arrays, and combine adjacent `clsx` transformations. It preserves
+CSS precedence, class concatenation order, precedence for duplicate properties,
+and the final props' key order. Conditions that carry values retain their selection
+structure and remain in their execution scope.
 
-API は `packages/core/src/macro/index.ts`、検証は `crates/js-oxc/src/contract.rs`、
-出力形式の選択は [fragment folding](style-fragment-folding.md) を参照。
+Direct assignments, updates, and `delete` produce `MacroArgumentMutation`
+(`macro-argument-mutation`) findings. `await`, `yield`, and dynamic imports produce
+`MacroExecutionBoundary` (`macro-execution-boundary`) findings. Selectors that
+refer to neither an element nor a declaration identity, such as `[:host]:` and
+`[::view-transition-old(*)]:`, produce `DocumentScopedSelector`
+(`require-element-scope`) findings. Their CSS applies whether the element exists
+or not; place document-wide rules in a stylesheet.
 
-## Animation の条件分岐
+These rules default to `deny` (error). CSS `@stillwind` settings can select `warn`
+or `off`, and `swlint-disable*` directives can suppress individual findings.
+Transform output is retained even when lint findings exist.
+
+A view transition uses a class for identity and a name for its pairing key.
+A call without a name supplier produces `MissingViewTransitionName`
+(`require-view-transition-name`); a call with two or more produces
+`DuplicateViewTransitionName` (`single-view-transition-name`). Both default to
+`warn`. They do not inspect name values because other calls, stylesheets, and
+user inline styles are outside their view.
+
+If a composition base and the current call declare separate transition classes,
+the compiler reports `SplitViewTransitionClasses` (`single-view-transition-class`,
+default `warn`). `view-transition-class` is one property: the lists do not merge,
+and the derived list replaces the base list. Build hosts fail when findings with
+an effective `deny` policy remain.
+
+Suppression does not guarantee preservation of the order or count of effects that
+violate this contract. Inputs whose structure cannot be extracted or transformed
+produce compilation errors that cannot be suppressed. The compiler does not prove
+the behavior of arbitrary function bodies or implementations inside input objects.
+An absence of diagnostics does not prove purity; users must satisfy the contract.
+
+The API lives in `packages/core/src/macro/index.ts`, and validation lives in
+`crates/js-oxc/src/contract.rs`. See [runtime](runtime.md) for output forms and composition.
+
+## Conditional animation definitions
 
 ```ts
 style.keyframes({
@@ -166,8 +193,285 @@ style.keyframes({
 });
 ```
 
-分岐は完全置換で、通常定義の `from` は継承しない。入れ子は条件を積み重ね、同時成立時は
-共通 variant 順の後の定義が有効になる。frame 内 utility の variant は使用できない。
-定義の条件には、要素の selector を必要としない media / supports variant を使える。
-`@container` は内側の `@keyframes` の有効性を制限しないため、定義分岐では拒否する。
-詳しい根拠は [改善計画](design-intent-improvement-plan.md) を参照。
+Each branch replaces the complete definition; it does not inherit `from` from
+the ordinary definition. Nested branches accumulate conditions. When several
+conditions match, the later definition in the shared variant order takes effect.
+Frame utilities cannot contain variants. Definition conditions accept media and
+supports variants that do not require an element selector. Container queries are
+rejected because `@container` does not restrict the validity of nested `@keyframes`.
+
+## Ref attachments and providers
+
+```tsx
+const menu = style.ref("menu");
+const trigger = style.ref("trigger");
+
+<section {...style(menu, menu.asContainer("inline-size"))}>
+  <button {...style(trigger, trigger.asAnchor())}>Open</button>
+  <div {...style({ [trigger("hover").in(menu)]: "text-accent" })}>Menu</div>
+</section>;
+```
+
+Only `style(ref)` attaches a marker. `asAnchor` and `asContainer` supply CSS to
+the class unit at their use site and apply only to elements carrying that ref's
+marker. `positionAnchor` and `style.anchorScope` have no gate requiring a marker.
+The relative output order of providers and utilities is not guaranteed. Providers
+that simultaneously supply the same property do not combine their values
+automatically; detectable conflicts produce lint warnings.
+
+`asAnchor()` supplies only `anchor-name`. Its scope can be omitted, `"all"`,
+`"none"`, or a literal array of refs. An array includes the anchor names of every
+finite candidate; the receiver itself is included only when explicitly listed.
+`style.anchorScope(scope)` supplies only the scope. `asContainer()` supplies
+`container-name` and, when its argument is present, `container-type`. Omitted
+properties are not reset to their initial values.
+
+Each `.in()` scope must contain both the ref and target elements as descendants.
+The scope element itself is excluded from the target. Stateful operands also
+check the scope's state. Selector scope and CSS `anchor-scope` are independent.
+Container queries use `.at(query?)` on raw refs; combine them with selector scope
+by nesting variant keys.
+
+## Style composition
+
+```ts
+const base = style("m-10 hover:m-20");
+const compact = style(base, "m-4");
+const selected = style(flag ? base : compact, "hover:m-30");
+```
+
+Composing completed styles places base CSS before derived CSS. Ordinary
+specificity and importance still apply. Bases with additional props or runtime
+style payloads are rejected, as are cyclic dependencies. See
+[CSS emission](css-emission.md) and [CSS ordering](css-ordering.md) for transport
+and output order.
+
+## View transition
+
+```tsx
+const transition = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
+<article {...style(transition.for(product.id))} />;
+```
+
+A declaration has a `view-transition-class` identity. Its name is a pairing key
+that matches participants before and after a transition. `.for()` uses an empty
+string key. Names for literal keys are emitted in CSS; names for dynamic keys are
+assembled at runtime. Dynamic names inside CSS variants use inline custom
+properties referenced through `var(...)` in the variant's CSS.
+
+Multiple transitions in one call combine into one class list. Conditional uses
+have separate slots, and the list contains every token whose use is active.
+Class lists from separate calls replace each other through the cascade. Supply
+an explicit name from one source. Different identities can share a name. The
+compiler does not validate document-wide pairing or name uniqueness at capture time.
+
+## CVA
+
+`style.cva(base?, config?)` generates CSS for every option at compile time and
+creates a factory that returns selected props at runtime. Write its static
+configuration object directly in the call. Completed-style composition and
+declaration uses are not accepted as CVA inputs. See
+[runtime](runtime.md#cva-factories) for selection, defaults, compounds, and examples.
+
+## Custom properties
+
+`style()` accepts quoted `--*` fields alongside utility strings, attributes,
+external classes, and variant wrappers. Values remain JavaScript expressions:
+conditional values retain their short-circuiting. Evaluation is governed by the
+macro purity contract above.
+
+```tsx
+import imageUrl from "./image.png?url";
+import { style } from "stillwind/react";
+
+const props = style("bg-(image:--image) w-[calc(var(--progress)*100%)]", {
+  "--image": `url("${imageUrl}")`,
+  "--progress": progress,
+});
+```
+
+The bundler processes the image import, including asset hashing and deployment
+base handling. Stillwind does not resolve or rewrite these runtime values.
+`bg-(image:--image)` explicitly selects background-image; an untyped background
+variable can select the color utility instead.
+
+| Value                                      | Inline CSS text                        |
+| ------------------------------------------ | -------------------------------------- |
+| `"1rem"`                                   | `1rem`                                 |
+| `0.5`                                      | `0.5` (no automatic unit)              |
+| `true` / `false`                           | One space / `initial`                  |
+| `new URL("https://example.com/image.png")` | `url("https://example.com/image.png")` |
+
+Strings are already CSS values. A `?url` import produces a string, so wrap it
+in `url(...)` when using it as an image. URL objects receive CSS quoting and
+escaping automatically. Supply valid CSS text for the property consuming a string.
+
+```tsx
+style({ "--progress": 0, "--size": "1rem" }, active && { "--progress": progress });
+```
+
+Boolean values act as switches for unregistered custom properties:
+
+```tsx
+style({ "--enabled": enabled });
+```
+
+```css
+.button {
+  --enabled-color: var(--enabled) green;
+  color: var(--enabled-color, gray);
+}
+```
+
+True supplies an empty CSS value, leaving `green`; false supplies `initial`,
+making the intermediate variable invalid and selecting `gray`. A single space
+preserves the empty value through CSSOM, where an empty string would remove the
+property. The same switch can be queried with `if(style(--enabled): green; else: gray)`.
+Registering the property with `@property` can change its initial-value semantics.
+Use `Number(enabled)` when a numeric 1/0 is needed for calculations.
+
+Properties merge independently; a later active entry with the same name wins.
+Zero and false are values, not omitted entries. Conditional objects and arrays
+work like other style inputs. Keys must be quoted literal names; computed keys
+and object spreads retain their existing restrictions. Custom properties cannot
+be nested inside CSS variant wrappers: put the variable on the element and let
+the variant's utility reference it.
+
+React, Preact, Solid, and Vue receive an object in the returned `style` prop.
+Svelte and Astro receive a serialized style string. Custom properties overlay
+the generated style payload, preserving an unrelated view transition name.
+The existing restriction on composing props-bearing style results also applies
+to results containing custom properties.
+
+## Runtime CSS conditions
+
+`--if(--condition, yes, no)` chooses a utility value at computed-value time.
+`if(--condition):utility` conditionally applies a utility. Neither changes the
+element's class list when the condition changes.
+
+```tsx
+import { style } from "stillwind/react";
+
+const props = style("grid if(--enabled):flex w-[--if(--enabled,20rem,10rem)]", {
+  "--enabled": enabled,
+});
+```
+
+Boolean conditions are **unregistered custom-property names**. Stillwind's boolean
+serialization supplies one space for true and `initial` for false. A missing
+property is false; inherited values follow ordinary CSS inheritance. Strings
+such as `"true"`, numeric flags and media queries are not boolean
+conditions. Native value comparisons use the separate `--name:value` form below. `@property` registration changes the initial-value contract and must
+not be used for these flags.
+
+One leading `!` negates a condition: `--if(!--enabled,20px,10px)` and
+`if(!--enabled):flex`. Two or more leading exclamation marks are rejected.
+Negated value conditions swap the branches in both strategies. **Negated variants
+require `useCssIf: true`**: swapping their branches would store `revert-rule` in
+a fallback helper, which cannot preserve that keyword's meaning.
+
+Native mode also supports value comparisons: `if(--mode:compact):flex` and
+`--if(--mode:compact,20px,10px)` lower to `style(--mode:compact)` tests. Set
+`useCssIf: true`; fallback mode reports a compilation error. Comparison values
+must be nonempty, and commas must be inside a CSS function or quoted string.
+Matching follows native CSS style-query semantics, including any `@property`
+registration. `if(!--mode:compact):flex` negates the comparison; comparisons can
+also be combined with boolean conditions using repeated variants.
+
+Repeated variants form an AND: `if(--a):if(--b):flex`. Ordinary variants compose
+with them, for example `hover:if(--enabled):flex`. The condition is evaluated on
+the styled element (or pseudo-element), not a referenced ancestor. A condition
+inside a `ref` wrapper is rejected; put `if(...)` outside that wrapper to test
+the target instead.
+
+Value conditionals can nest and appear inside expressions:
+
+```tsx
+style("w-[calc(--if(--wide,20,10)*1px)]");
+style("bg-[--if(--enabled,red,blue)]");
+style("w-[--if(--a,--if(--b,30px,20px),10px)]");
+```
+
+Both branches participate in typed utility selection. Use the usual explicit
+hint when ambiguous, such as `bg-[image:--if(--enabled,var(--image),none)]`.
+Wrap a branch containing top-level commas in braces: `--if(--a,{Arial,sans-serif},serif)`.
+Strings, URLs, nested function arguments, and comments keep their lexical boundaries.
+Authored declaration values and `@variant if(--enabled) { ... }` use the same
+lowering. `@apply grid if(--enabled):flex;` keeps the unconditional declaration
+before its conditional rule.
+
+### Output strategy
+
+```ts
+stillwind({ css: "./src/root.css", useCssIf: true });
+```
+
+`useCssIf` defaults to `false`. It is also available in native compiler options;
+Rust uses `CompilerOptions::use_css_if`, and the CLI accepts `--use-css-if`.
+The option applies to both values and variants and participates in module cache
+identity.
+
+| Input                    | Default fallback strategy                                            | `useCssIf: true`                                  |
+| ------------------------ | -------------------------------------------------------------------- | ------------------------------------------------- |
+| `--if(--flag,20px,10px)` | Local helper `--sw-if-…:var(--flag) 20px;` and `var(--sw-if-…,10px)` | `if(style(--flag):20px;else:10px)`                |
+| `if(--flag):flex`        | Same helper pattern, with `revert-rule` as the false branch          | `display:if(style(--flag):flex;else:revert-rule)` |
+
+Helper names are deterministic and honor the configured Stillwind prefix.
+They are defined next to their consumers to avoid inheriting a helper value
+already computed on another element. Conditions must not depend on the
+declaration they guard; normal CSS variable cycle rules still apply.
+
+Fallback mode requires the branch used when the underlying property is true
+(the false branch for `!--condition`) to resolve to a valid custom
+property token value. An invalid `var()` in that branch can select the false
+branch instead. CSS-wide values in that branch (`initial`, `inherit`, `unset`, `revert`,
+`revert-layer`, `revert-rule`) require native mode and literal occurrences are
+reported as compilation errors. Indirect values that become CSS-wide keywords
+have the same limitation. Fallback substitution is not a general replacement
+for native `if()`'s branch evaluation semantics.
+
+### Browser and minifier requirements
+
+Conditional **variants require `revert-rule` in both strategies**. Native mode
+additionally requires CSS `if()` and its style conditions. This feature is
+experimental and is not supported by every browser. The compiler adds a
+`@supports (x:revert-rule)` gate around conditional rules; browsers without
+that feature retain the unconditional styling.
+
+Conditional rules share a support-query name within each nonconflicting interval
+of their owner's emission order: `@supports (x:revert-rule) and (--<hash>:)`.
+A property conflict starts a new interval, including shorthand/longhand and
+logical/physical overlap. Each `style()` call owns its intervals; authored CSS
+uses the outer rule, sharing state across expanded `@apply`, `@variant`, and nested
+rules. The default name hashes the owner and interval without a prefix. These
+names use a separate `rule-boundary` collision pool and may share spelling with
+actual custom properties.
+
+`revert-rule` discards the current rule's declarations for the affected property.
+Merging conflicting rules would also discard a declaration the false branch
+should fall back to. Custom minifier pipelines must preserve distinct support
+queries. Value conditionals alone do not need `revert-rule`
+unless a branch explicitly requests it.
+
+Browser acceptance runs with `vp run test:e2e`.
+
+### CSS registration
+
+The package registers the public variant name and its ordering position in CSS:
+
+```css
+@stillwind-variant if\(*\) (value: [if-condition]) {
+  @stillwind-intrinsic builtin-if-variant;
+}
+```
+
+`[if-condition]` validates the captured presence test, negation, or value comparison.
+The compiler intrinsic lowers it to a computed-value condition. The complete body
+must be that intrinsic statement; extra declarations and unknown intrinsics reject.
+The capture preserves CSS text, including slashes in comparison values.
+
+Names belong to the CSS registry. The same definition can register `when\(*\)`
+instead, and an absent registration does not make `if(...)` a built-in name in
+Rust. Literal prefix and suffix text surround the single unescaped `*`; escaped
+asterisks are literal. Ordinary CSS overrides keep their normal registry precedence.
+`--if(...)` remains a compiler-defined value function, independent of variant registration.

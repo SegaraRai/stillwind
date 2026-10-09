@@ -25,8 +25,12 @@ export default defineConfig({
       css: "src/theme.css",
       tsconfig: "tsconfig.app.json",
       classNamespace: "app",
-      sources: { kind: "filesystem" },
-      projection: { kind: "framework" },
+      sources: {
+        kind: "filesystem",
+      },
+      projection: {
+        kind: "framework",
+      },
     },
   ],
 });
@@ -45,7 +49,12 @@ settings. For example:
 
 ```ts
 export default defineConfig(async () => ({
-  projects: [{ css: "src/theme.css", files: ["src/**/*.tsx"] }],
+  projects: [
+    {
+      css: "src/theme.css",
+      files: ["src/**/*.tsx"],
+    },
+  ],
 }));
 ```
 
@@ -66,7 +75,9 @@ For Vite, use `stillwind()` without duplicating compiler settings:
 import { defineConfig } from "vite-plus";
 import { stillwind } from "@stillwind/integration/vite";
 
-export default defineConfig({ plugins: [stillwind()] });
+export default defineConfig({
+  plugins: [stillwind()],
+});
 ```
 
 Each integration keeps its bundler's plugin or wrapper form. webpack and Rspack use
@@ -297,7 +308,10 @@ startBrowserLanguageServer(self, {
                   sourceMapSource: "inmemory://preview/theme.css",
                 },
               });
-              return { status: "complete", reports: output.reports };
+              return {
+                status: "complete",
+                reports: output.reports,
+              };
             },
           }),
         ],
@@ -353,7 +367,9 @@ import { defineConfig, lintPresets, type LintPreset } from "stillwind/config";
 const team = {
   name: "team/design-system",
   extends: [lintPresets.recommended],
-  rules: { "no-arbitrary-colors": "deny" },
+  rules: {
+    "no-arbitrary-colors": "deny",
+  },
 } as const satisfies LintPreset;
 
 export default defineConfig({
@@ -363,7 +379,9 @@ export default defineConfig({
       files: ["src/**/*.tsx"],
       lint: {
         extends: [team, lintPresets.stylistic],
-        rules: { "sort-utilities": "off" },
+        rules: {
+          "sort-utilities": "off",
+        },
       },
     },
   ],
@@ -425,8 +443,14 @@ lint: {
     "prefer-logical-properties": "warn",
     "length-units": {
       rules: [
-        { properties: ["*"], disallow: ["px"] },
-        { properties: ["border-*-width", "outline-width"], disallow: ["rem"] },
+        {
+          properties: ["*"],
+          disallow: ["px"],
+        },
+        {
+          properties: ["border-*-width", "outline-width"],
+          disallow: ["rem"],
+        },
       ],
     },
     "no-restricted-theme-tokens": {
@@ -446,14 +470,26 @@ lint: {
   extends: [lintPresets.recommended],
   rules: {
     "no-arbitrary-colors": "warn",
-    "no-arbitrary-spacing": { properties: ["width", "inset", "inset-*"] },
+    "no-arbitrary-spacing": {
+      properties: ["width", "inset", "inset-*"],
+    },
     "no-class-property": "warn",
     "no-important": "warn",
     "no-restricted-utilities": {
-      utilities: [{ pattern: "legacy-*", message: "Use semantic utilities" }],
+      utilities: [
+        {
+          pattern: "legacy-*",
+          message: "Use semantic utilities",
+        },
+      ],
     },
     "no-restricted-declarations": {
-      rules: [{ properties: ["transition-property"], values: ["all"] }],
+      rules: [
+        {
+          properties: ["transition-property"],
+          values: ["all"],
+        },
+      ],
     },
     "valid-lint-suppressions": "warn",
     "no-unused-lint-suppressions": "warn",
@@ -586,7 +622,11 @@ export default defineConfig({
     {
       css: "theme.css",
       files: ["src/**/*.tsx"],
-      sort: { arrays: true, stringLiterals: true, attributes: true },
+      sort: {
+        arrays: true,
+        stringLiterals: true,
+        attributes: true,
+      },
     },
   ],
 });

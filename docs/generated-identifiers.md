@@ -1,366 +1,71 @@
-# 生成識別子の設計
-
-Status: 実装中。第 1 節から第 7 節までを実装し、第 8 節の残件を記録する。
-
-## 実装の現状
-
-本文の設計のうち、次が実装済みである。
-
-1. 段 1（生成）: 種別ごとの生成関数を `IdentifierGenerator` として注入できる。種別ごとに引数が
-   異なり、どの種別にも識別子のハッシュが渡される。未対応種別はビルトイン生成へフォールバックし、
-   結果は 1 コンパイル内でメモ化される。ホストが生成関数を変えたときは
-   `CompilerOptions::naming_revision` が成果物キャッシュを無効化する。条件ヘルパと匿名レイヤも
-   この経路で命名され、スタイルシート描画はセッションの命名入力を渡される。
-   NAPI からは JS の関数をそのまま渡せる（第 6 節）。
-2. 段 2（正規化）: 種別ごとの brand type（`UtilityClass`、`RefMarker`、`KeyframesName` など）の
-   コンストラクタが、その種別を書ける位置に置けない文字を置換する。JavaScript のオブジェクト
-   キーにもなる種別は、継承メンバーとの衝突もここで解消する（第 4.2 節）。ビルトイン生成の
-   名前もホスト生成の名前も同じコンストラクタを通る。
-3. 段 2（エスケープ）: brand type のレンダーメソッドが書き出し位置ごとにエスケープする。
-   種別は自分が書かれる位置のメソッドだけを持つ（`UtilityClass::selector`、
-   `AnchorName::dashed_ident`、`ConditionHelperName::property`、`RefMarker::javascript_string`
-   など）。書き出し側はカノニカルな綴りを自分でエスケープしない。
-4. 段 3（プール）: 名前空間ごとに `名前 → identity` で衝突を検査する。anchor 名と container 名も
-   シンボルとして報告される。デザインシステムの authored CSS にある custom property /
-   レイヤ / keyframes 名に加え、クラスセレクタ、`anchor-name` / `position-anchor` /
-   `anchor-scope`、`container-name` と `@container` 名、`view-transition-class` の値が予約として
-   先に登録される。`view-transition-name` は identity 間で共有されうる pairing key なので予約しない。
-   予約名の走査は `cssparser` の
-   トークン走査である。宣言を持たない種別（条件ヘルパと匿名レイヤ）も報告に載り、
-   文書単位の検査がそれらの綴りも見る。producer 自身が authored した CSS は
-   `ProjectSession::reserve_authored_css` で供給され、同じ検査に入る。バンドラプラグインは
-   producer が import したスタイルシートをこの経路で渡す。
-5. 第 2 節（値の形）: 宣言は `{ c: <canonical> }`、添付は `.c` の読み、射影は
-   `({...})[value.c]` の表引きになる。`stillwindRef` / `stillwindScope` /
-   `stillwindHandleClass` と `_swp_` 射影クラスは削除された。
-6. 第 3 節（dev / prod）のコード生成側: `IdentifierMode` がコンパイル入力として存在し、
-   release では生成失敗が診断に、development ではビルトイン名へのフォールバックと
-   `RejectedNames` への記録になる。
-
-生成関数が返す body には prefix（`sw_`、`sw-a-`、`--sw-if` など）を付けない。prefix はビルトイン生成だけが
-付ける。
-
-生成失敗は lint ではない。lint は author が書いたコードに対する静的な検証であり、生成失敗には
-対応する元ソースの位置が無い。development では `CompileResult::rejected_names` に記録し、
-バンドラプラグインが受け取って直接警告を出せるようにする。
-
-残件。
-
-- ランタイム側の export condition（第 3.1 節）は、dev 専用 specifier へ移した `stillwindClsx` の
-  検査版だけが実装済みである。以降に増える検査も同じ規則に従う。
-- `view-transition-class` の値はランタイムが遷移名から設定するため、生成関数を持たない。
-  プール F は名前空間として残る。
-
-`style.viewTransition()` の宣言は `{v:"<class token>"}` になる。クラスファミリ（`sw-vt-`、base36 5 桁）が
-このトークンを生成し、ホスト生成関数もこのファミリにだけある。`view-transition-name` は生成名では
-なく `token + "-" + String(key)` を CSS Syntax の identifier として escape した値なので、名前ファミリも
-名前プールも持たない。ホスト生成関数が返すトークンに `-` を含めないことはホストの責務である
-（名前の単射性がそこに依存する）。
-
-関連: [compiler-design.md](compiler-design.md)（identity と producer のモデル）、
-[macro-contract.md](macro-contract.md)（マクロ引数の純粋性契約）、
-[style-fragment-lowering.md](style-fragment-lowering.md)（lower の出力形式）。
-
-## 目的
-
-コンパイラが生成する識別子について、生成・正規化・検証・書き出しの責務を一箇所に固定する。
-利用者が命名を差し替えられるようにし、あわせて lower された値の形を単純化する。
-
-## 非目標
-
-- 実行時の CSS 生成。識別子はすべてコンパイル段階で確定する。
-- lower された値を任意のランタイムが解釈すること。値はコンパイラが生成し、同じコンパイラが
-  生成したコードだけが読む。
-- ソースがビルドグラフに無いパッケージ（ビルド済みライブラリ）からの asset 取り込み。
-  現状は未サポートで、versioned manifest 経由の identity チャネル拡張が将来課題になる。
-
-## 1. lower の原則
-
-すべてのマクロ呼び出し（`style()`、`style.ref()`、`style.keyframes()`、
-`style.viewTransition()`、`ref.asAnchor()` などの射影）は、呼び出し単位で「何らかの値」へ lower される。
-置換はマクロ呼び出しのスパン単位で行われ、lower に付随して CSS が生成される。
-
-lower の結果は全体最適化の後に、プレーンなリテラル、オブジェクト、ヘルパ呼び出しのいずれにも
-なり得る。どの形を選ぶかは実装の自由度であり、外部に約束するものではない。
-
-lower された値はコンパイル成果物であって、維持すべき外部契約ではない。外部のランタイムが
-解釈する対象ではなく、同じコンパイルが生成したコードだけが読む。したがって形状は
-コンパイル単位で一貫していればよい。ただし同一コンパイラバージョン間の一貫性は要る
-（ビルド済みライブラリを扱う場合に効く。第 8 節）。
-
-## 2. ref の値
-
-宣言は次の形に lower する。
-
-```js
-const primary = { c: "sw_primary_3k9xa" };
-```
-
-キーは 1 文字の `c`。値はその宣言のカノニカル識別子で、既定では ref の
-マーカークラスになる。将来、値が 1 つしかないことを活かして単なる文字列へ縮めてもよい。
-
-- 添付: `style(selectedRef)` → `selectedRef.c`
-- 射影: `style(selectedRef.asAnchor())` → `({ "sw_a…": "sw_x", "sw_b…": "sw_y" })[selectedRef.c]`
-- animation / view transition も同じ形（`c` が identity 文字列）
-
-この形にすると、投影用の第 2 識別子（`_swp_<marker>_<suffix>`）とその実行時組み立て、
-宣言ヘルパ（ref / keyframes / view transition）の出力、prod の表引きヘルパが
-すべて不要になる。
-
-ref マーカー・anchor 名・container 名は同じ宣言 identity から、それぞれの名前空間で生成する。`ref.asContainer(type)` が書く container 名と `ref.at(query)` が読む `@container` 名も、同じ 1 名になる。
-
-## 3. dev / prod
-
-コンパイラがモードに応じて生成コードとランタイムの import を選ぶ。
-ランタイムの検査を export condition や `NODE_ENV` で切り替えない。
-
-### 3.1 ランタイム側の検査
-
-通常のヘルパは `stillwind/runtime/<framework>` から import する。dev で検査が必要な
-ヘルパは、専用の `stillwind/runtime/<framework>-development` から import する。
-この specifier は常に検査付きのモジュールを参照し、通常の runtime と symbol キーを共有する。
-
-- class 連結は有効な入力型を保ち、関数と symbol を拒否する
-- 断片のマージは runtime の所有権と class の型を検査する
-- props の断片化は、入力が null ではないオブジェクトであることを検査する
-- ref の読み取りは `.c` を一度読み、空ではない文字列であることを検査する
-- keyed view transition は `.v` または文字列トークンを一度読み、空ではない文字列であることを検査する
-
-### 3.2 コード生成側の区別
-
-dev では通常のヘルパと同じローカル名に検査付きの export を割り当てる。
-動的 ref の添付と、候補表で `.c` を読む射影では `stillwindRefClassChecked(value)` を呼ぶ。
-prod では `value.c` を直接読む。
-どちらのモードでも ref の式を一度だけ評価する。
-
-モードはコンパイル時の入力であり、検査の選択は生成コードに残る。
-生成済みの dev コードを prod のバンドラで扱っても、専用の import は検査付きの実装を参照する。
-
-### 3.3 モードの与え方
-
-コード生成側のモードは `CompilerOptions` に置かない。`CompilerOptions` は利用者が設定する
-構成であり、成果物キャッシュのキーがその `Debug` 出力の fingerprint だからである。モードは
-バンドラプラグインが自動設定する、セッション（プロセス）定数の入力とする。同一セッション
-内でモードが変わることはない前提にする。
-
-成果物キャッシュをモード間で共有しないことは統合側の要件とする。バンドラの永続キャッシュを
-含み、キャッシュ済み成果物が他方のモードの形を配らないようにする。
-
-`view-transition-name` は生成名ではない。クラストークンと key から成る pairing key で、
-コンパイル時に確定できる場合は宣言に、実行時にしか分からない場合は inline の値になる。
-名前の値は検証しない（別 call・stylesheet・ユーザーの inline style と共有されうるため）。
-
-## 4. 識別子生成のパイプライン
-
-1. 生成: ユーザー定義関数またはビルトイン生成器が生の文字列を作る。与える情報は種別ごとに異なる。
-2. 正規化: ビルトイン生成器だけが種別ごとの prefix を前置し、種別ごとの brand type が
-   使用できない文字を置換・削除する。結果を **カノニカル識別子**と呼ぶ。この段では CSS
-   エスケープをしない。
-3. 検証: 衝突してはならない識別子のまとまり（プール）ごとに一意性を検証する。
-
-現行実装との対応は、段 2 が `sw_` / `sw-a-` などの前置とラベル正規化、段 3 が `SW07001` に
-あたる。新しいのは段 1 の注入点と、段 3 を名前空間ごとのプールへ拡張する部分。
-
-### 4.1 段 1: 生成
-
-種別ごとに別の関数を指定できる。コンパイラはファミリトークン（`sw_`、`sw-a-`、`--sw-if` など）を
-持たない。ファミリトークンを含め、名前の形は生成側の裁量にする。コンパイラが必ず付けるのは
-CSS 構文上どうしても外に出せない部分（custom property と `<dashed-ident>` の `--`）だけとする。
-
-| 種別                             | 与える情報                                                              | 既定の形                          |
-| -------------------------------- | ----------------------------------------------------------------------- | --------------------------------- |
-| ユーティリティクラス             | canonical 入力のハッシュ（namespace、module、呼び出し位置、分岐、内容） | `sw_<5base36>`                    |
-| ref マーカー                     | identity のハッシュ、正規化済みラベル                                   | `sw_[label_]<5base36>`            |
-| anchor 名                        | identity のハッシュ、正規化済みラベル                                   | `sw-a-[label-]<5base36>`          |
-| container 名                     | identity のハッシュ、正規化済みラベル                                   | `sw-c-[label-]<5base36>`          |
-| keyframes 名                     | identity のハッシュ、正規化済みラベル                                   | `sw-kf-[label-]<5base36>`         |
-| view transition クラス           | identity のハッシュ、正規化済みラベル                                   | `sw-vt-[label-]<5base36>`         |
-| 条件ヘルパ / ゲート / ルール分離 | 役割と CSS 断片のハッシュ、および断片だけのハッシュ                     | `--sw-if[r/g/v/n]-<5base36>` ほか |
-| view transition slot             | ガード付き use の class context のハッシュ                              | `--sw-vtc-<5base36>`              |
-| 匿名レイヤ                       | テンプレート identity と class namespace                                | `sw-anon-<5base36>-<index>`       |
-
-ラベルは宣言ごとに 1 つで、その宣言が生成するすべての名前（ref マーカー、anchor 名、container
-名、keyframes 名、view transition クラス）に同じ綴りで入る。綴りの区切りは prefix 自身の流儀に
-合わせ、アンダースコア系（`sw_`）は `_`、ダッシュ系は `-` を使う。`anchor-name` などの
-`<dashed-ident>` を取る位置では、値の文法が要求する `--` を書き出し側が前置する。
-
-提供方法は、種別ごとにメソッドを持つ `IdentifierGenerator` trait を実装として渡す形にする。
-メソッドは種別ごとに異なる引数を取り、いずれの種別にも識別子のハッシュが渡される。ハッシュは
-切り詰めない 32 バイトのダイジェストで渡し、ビルトイン名の綴りに使う桁数は
-`CompilerOptions::hash_length`（既定 5、`hashLength`）が全種別で決める。桁は base36 で、
-ダイジェストを 1 つの整数と見たときの下位桁から取る。
-`GeneratedName::Builtin` を返した種別はビルトイン生成を使う。種別ごとに独立しているので、
-一部の種別だけを差し替える使い方が自然に成立する。
-
-条件ヘルパは役割（ルール分離、宣言フォールバック、ゲート、ゲート値、ゲート否定）を
-コンテキストとハッシュの両方に含める。あわせて役割を含めない断片だけのハッシュも渡す。
-前者だけを使えば役割ごとに異なる名前になり、後者と役割の綴りを組み合わせれば同じ断片の
-2 つの役割が同じ接尾辞を共有できる。
-
-コンパイラは prefix（`sw_`、`sw-a-`、`--sw-if` など）をビルトイン生成にだけ付ける。ホストが返した
-body はそのまま書き出し、prefix を足さない。prefix はコンパイラが生成した名前と authored CSS を
-分けるためのものであり、自前で名前を決めるホストはその分離も自分で持つ。
-
-匿名レイヤの走査インデックスはコンパイラが付加する。テンプレート内の単射性はこれで
-構造的に保証され、テンプレート間の衝突はレイヤ名のプールが検出する。生成関数が返すのは
-テンプレートごとの名前で、ホストが名前を返した場合もインデックスはコンパイラが後置する。
-プールが比較するのはこの後置後の綴りなので、書き出し側が実際に書いた名前を報告する。
-
-`CompilerOptions` の prefix は現状の意味のまま維持する。ビルトインの固定識別子（生成では
-ないもの）にも使われており、既定の生成実装がこれを参照する可能性がある。生成名の形を
-生成側が決められるようになっても、この設定の位置づけは変えない。
-
-生成関数の要件は、同じ入力に同じ出力を返す純粋関数であること。呼び出し順、呼び出し回数、
-時刻、乱数に依存してはならない。dev と prod で結果を変えてもならない。
-
-### 4.2 段 2: 正規化
-
-置換は生成器の出力（body）にだけかけ、prefix はその後に前置する。全体へ置換をかけると
-削除ルールが prefix の文字を食い得る。
-
-使用できない文字は種別ではなく、その識別子が書かれる**位置の共通部分**で決まる。
-
-| 位置                | 空白                         | 空白以外   | 備考                                                         |
-| ------------------- | ---------------------------- | ---------- | ------------------------------------------------------------ |
-| DOM クラストークン  | 置換必須                     | そのまま   | class 属性は空白区切りなので空白を含むトークンは存在できない |
-| セレクタ（`.name`） | 置換必須（DOM トークン由来） | エスケープ | 第 5 節                                                      |
-| custom-ident 値     | エスケープ可                 | エスケープ | 置換は簡単化のための選択                                     |
-| custom property 名  | エスケープ可                 | エスケープ | `--` の前置はコンパイラが行う                                |
-| `@layer` 名         | エスケープ可                 | エスケープ | `.` は `_` に置換する（`.` は入れ子レイヤになるため）        |
-
-ref の runtime 値は `{ c: "<marker>" }` を持つ。動的 attachment は `c` をクラス文字列として読み、
-動的 use は候補 class unit の lookup キーとして読む。`__proto__` は computed key で出力し、
-オブジェクトリテラルの prototype 設定として解釈されるのを防ぐ。
-
-NUL は置換する。置換と正規化は生の名前に対して 1 回だけ行い、比較・CSS・JS が同じ
-カノニカルを見るようにする。エスケープ後に置換すると、CSS だけ別の名前になる。
-
-削除は衝突を生む（`a:b` と `ab` が同じカノニカルになる）。これは段 3 が検出する。
-空になった body は拒否する。
-
-### 4.3 段 3: プール
-
-プールの単位は CSS の名前空間そのものとする。既定の生成実装が同じ文字列を流用するといった
-実装都合でプールを統合してはならない。名前空間が違えば、同じ文字列が両方に現れても CSS は
-干渉しない。逆に、別のプロパティでも同じ名前空間を共有するものは同じプールに入れる
-（`anchor-name` と `position-anchor`、`@keyframes` 名と `animation-name` など）。
-
-| プール                   | 名前空間                                                     | 含む生成物                                                  | 重複したときの干渉                                     |
-| ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------ |
-| A クラストークン         | class 属性とクラスセレクタ                                   | ユーティリティクラス、ref マーカー、射影クラス              | 同じクラスリストに照合され、規則が融合する             |
-| B anchor 名              | `anchor-name` / `position-anchor` / `anchor-scope`           | ref マーカー（流用時）、anchor 名                           | 解決先が曖昧になり、別の要素を anchor として参照し得る |
-| C container 名           | `container-name` / `@container` 名                           | ref マーカー（流用時）、container 名                        | 別の宣言の `@container` 規則が同じ名前の容器に一致する |
-| D keyframes 名           | `@keyframes` 名と `animation-name`                           | keyframes 名                                                | 別の宣言の keyframes を参照する                        |
-| E view transition 名     | `view-transition-name`                                       | 生成しない（token と key から成る pairing key。共有が正当） | 検査しない。同じ名前の遷移が文書内で組になる           |
-| F view transition クラス | `view-transition-class`                                      | view transition クラス（identity そのもの）                 | 別の宣言の擬似要素規則が同じ遷移群に適用される         |
-| G custom property 名     | `--*`（宣言、`var()`、`@property` 登録、ビルトインの固定名） | 条件ヘルパ、Tailwind 互換の `--tw-*`                        | 登録内容や参照先が混ざる                               |
-| H レイヤ名               | `@layer`                                                     | 匿名レイヤ名（文書と carrier の両方の歩査）                 | 層の同一性が変わりカスケード順が変わる                 |
-
-ref マーカーを anchor 名や container 名に流用する既定では、同じ宣言が複数のプールに同じ
-名前で現れる。これは同一 identity なのでどのプールでも衝突ではない。異なるプール間の一致
-（ある宣言のクラス名と別の宣言の anchor 名が同じ）は、名前空間が違うため検査しない。
-
-判定は `名前 → identity` の表で行う。同じ名前で identity が違うときだけ衝突とする。
-同一 identity の再出現（同じ宣言のマーカーが複数の規則に現れる場合）は衝突ではない。
-これは現行の `SW07001` と同じ規則。
-
-プールは文書単位で閉じる。モジュール単体のコンパイラでは閉じないので、プロジェクト層で
-結合して検証する。衝突は修復しない（黙ってリネームすると、名前を跨いだ参照と
-ビルド間の一貫性が壊れる）。
-
-各プールは、展開済み CSS（import を展開した後の authored CSS）を解析して得た既存の名前を
-最初に含める。CSS 変数、レイヤ名、アニメーション名、クラスセレクタなど、そのプールに
-対応する名前を拾って予約として登録する。これにより、生成名が authored の名前と衝突して
-意味が変わる事故を防ぐ。展開済み CSS の外にある authored の名前は、producer 自身の CSS として
-ホストが `ProjectSession::reserve_authored_css` に渡した分だけが対象になる。
-
-条件ヘルパとレイヤ名は宣言を持たないため、位置を持たない `GeneratedSymbol` として報告する。
-レイヤは走査インデックスを後置した後の綴りを書き出し側が報告し、ヘルパは要求の identity を
-そのまま報告する。どちらもプールの検査対象になる。
-
-なお、クラス名の重複出力抑制（同名・同カノニカルなら 1 回だけ出力する仕組み）は
-段 3 とは別の機構である。プロジェクト層のルール単位 dedupe も同様に別物。
-
-## 5. エスケープと書き出し
-
-エスケープは書き出し位置ごとに、その種別の brand type のレンダーメソッドで行う。種別は自分が
-書かれる位置のメソッドだけを持ち、書き出し側はカノニカルな綴りから文字列を組み立てない。
-カノニカル識別子はエスケープ前の文字列で、比較・報告はこの生の名前で行う。
-
-| 書き出し位置                                                                                                                            | 処理                                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| セレクタ（`.name`）                                                                                                                     | `serialize_identifier`                                          |
-| custom-ident 値（`anchor-name`、`@container` 名、`@keyframes` 名、`animation-name`、`view-transition-*`、`::view-transition-*(.name)`） | `serialize_identifier`（出力は値位置でも有効）                  |
-| `@layer` 名                                                                                                                             | `serialize_identifier`                                          |
-| custom property 名                                                                                                                      | `serialize_identifier` 済みの本体に `--` を前置                 |
-| JS の文字列                                                                                                                             | `js_string`（JSON エスケープ）                                  |
-| JS のオブジェクトキー                                                                                                                   | 書かない。キーはカノニカルなクラストークンそのもの（第 4.2 節） |
-| DOM トークン                                                                                                                            | エスケープ不可。空白と NUL は段 2 で置換済み                    |
-
-コンパイラ自身が生成 CSS を再パースする箇所（ルール分割、ソースマップの逆引き、
-条件付き宣言の走査）は、パーサが解決済みの ident を返すため、生の名前と比較すれば成立する。
-コンパイラが生成した名前をリテラルの prefix で見分けてはならない。条件付き宣言のゲートは、
-そのパスが書いた名前の集合で見分ける。
-
-ラウンドトリップは行わない。デコード処理を持たず、報告にも生の名前だけを載せる。
-ツールが CSS テキストと識別子を突き合わせるときは、必ずパースしてから比較する。
-
-## 6. 統合
-
-生成器は `Arc` で持つ。`CompilerOptions` には入れない。`CompilerOptions` は Serialize /
-Deserialize / Clone / Debug / Eq であり、成果物キャッシュのキーがその `Debug` 出力の
-fingerprint だからである。
-
-代わりに `CompilerOptions` へ命名リビジョンの文字列を足し、呼び出し側（プラグイン）が
-生成関数の内容から算出して更新する。これが無いと、関数を変えても成果物キャッシュが
-古い名前を返し続ける。
-
-同じ種別と入力の組は 1 コンパイル内でメモ化する。同じ宣言のマーカーは宣言側と使用側の
-両方で計算されるため、JS 呼び出し回数と不純な関数の影響を同時に抑えられる。
-
-生成関数が失敗したときは panic にせず診断へ変換する。例外は種別と入力情報を添えて報告する。
-
-保持場所はセッションにする。条件ヘルパと匿名レイヤは描画のときにも命名されるため、
-モジュールのコンパイルだけに生成器を渡すと、同じ文書の中で命名の出所が 2 つになる。
-
-NAPI では JS の関数をそのまま生成器として渡せる。JS の値は所有するスレッドでしか呼べないので、
-trait は `Send + Sync` を要求せず `Debug` だけを要求する。NAPI 層は永続参照を保持し、ホスト
-呼び出し 1 回の間だけ呼び出し可能として印を付ける。したがってセッションは、その生成器を
-使う限りスレッドを跨がない。跨がせる必要が出た場合は、参照の受け渡しごと再検討する。
-
-## 7. 現状との差分
-
-段 2 と段 3 は現行の仕組みを一般化したもの。新規に必要なのは次。
-
-- 段 1 の注入点（種別ごとの生成関数と `None` によるビルトインフォールバック）: 実装済み。
-  モジュールは `identifiers/` 配下で、`kind.rs`（種別・名前空間・モード）、`name.rs`（brand
-  type とレンダーメソッド）、`request.rs`（コンテキスト・identity 文字列・ハッシュ）、
-  `generator.rs`（注入点とメモ）に分かれる。
-- 段 2 の正規化ルール表（位置ごとの置換・削除、`--` の前置、レイヤの `.` から `_` への置換）:
-  実装済み。置換は種別ごとの brand type のコンストラクタが持つ。
-- 段 3 のプール（CSS 名前空間ごとの分割、文書単位の結合、展開済み CSS からの予約投入）:
-  実装済み。宣言を持たない種別も報告に載る。
-- 値の形の変更（`{ c }`）と、それに伴う実行時キー組み立てとヘルパの削除
-- dev / prod の分岐（ランタイム側は export condition、コード生成側はコンパイラのモード入力。第 3 節）
-- 衝突検査の対象拡張（レイヤ名、条件ヘルパ）: 実装済み。宣言を持たない名前は位置なしの
-  シンボルとして報告され、文書単位の検査が綴りを見る。
-
-## 8. 決定と残件
-
-決定（本文の各節に反映済み）。
-
-- プールは統合しない。単位は CSS の名前空間そのもの（第 4.3 節）。
-- 匿名レイヤの走査インデックスはコンパイラが付加する（第 4.1 節）。
-- レイヤ名の `.` は `_` に置換する（第 4.2 節）。
-- `CompilerOptions` の prefix は現状維持。ビルトインの固定識別子と既定の生成実装が参照する。
-- 生成器はセッションが保持し、trait は `Debug` だけを要求する（第 6 節）。ホスト呼び出しの
-  引数として渡すのではなく保持するのは、描画も名前を決めるためである。
-- dev / prod の区別は、ランタイム側（export condition）とコード生成側（コンパイラのモード入力）の
-  2つに分ける。コード生成側のモードは `CompilerOptions` に置かない（第 3 節）。
-- 各プールは展開済み CSS を解析した既存名を予約として最初に含める（第 4.3 節）。
-
-TODO。
-
-- ビルド済みライブラリ（ソースがビルドグラフに無いパッケージ）からの asset 取り込みは
-  現状未サポートのままにする。manifest の契約（identity レコード、prefix、命名リビジョン、
-  値形状のバージョン）、CSS の帰属、衝突検査への予約投入は将来課題。
+# Generated identifiers
+
+Generated names are allocated from semantic identity and written through types
+that normalize and escape names for each CSS or JavaScript position. Consumers
+must not infer identity from a prefix or decode a name back into a declaration.
+
+## Identity and naming
+
+Utility classes retain the producer, style call, and branch identity. Ref,
+keyframes, and view-transition declarations retain their own declaration identity.
+Set `classNamespace` when independently built projects share a document, and use
+the same value in client and server builds. Configured property prefixes must
+start with `--`, end with `-`, contain at least four bytes with no whitespace,
+and differ from each other.
+
+`Identifiers` supplies a generator for each name family. The generator receives
+the family's context and its full hash. Returning the builtin choice preserves
+the compiler's generator. Host-generated names have no automatically added builtin
+prefix. Each compilation memoizes the family, identity, and label, including
+rejections. Hosts update `namingRevision` when callback behavior changes so old
+artifacts cannot reuse names from the previous generator.
+
+Naming callbacks run synchronously on their owning JavaScript thread. Sessions
+retain them because stylesheet rendering also allocates names. Moving such a
+session across threads is outside the callback contract.
+
+## Values and escaping
+
+Refs lower to `{ c: token }`; attachments read `.c`, and dynamic projections use
+candidate tables keyed by it. Keyframes lower to `{ k: name }`. View transitions
+lower to `{ v: token }`, where the token also names `view-transition-class`.
+Literal candidates can become static output without a runtime receiver read.
+
+Brand constructors normalize canonical names. Render methods escape those names
+for selectors, custom identifiers, properties, or JavaScript strings. Hosts and
+emitters must not escape canonical names a second time.
+
+A keyed transition name is the CSS identifier serialization of
+`token + "-" + String(key)`. It has no generator or collision pool. Different
+transition identities may share a pairing name. A host generator must keep `-`
+out of transition tokens so token/key composition stays unambiguous.
+
+## Collision domains
+
+| Pool                    | Members                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| Class tokens            | Utility classes and ref markers                                 |
+| Anchor names            | `anchor-name`, `position-anchor`, and `anchor-scope` names      |
+| Container names         | `container-name` and `@container` names                         |
+| Keyframes               | `@keyframes` and animation names                                |
+| View-transition classes | Transition identity tokens                                      |
+| Custom properties       | Conditional helpers and guarded transition slots                |
+| Rule boundaries         | Support-query identities preserving conditional rule boundaries |
+| Layers                  | Generated layer names                                           |
+
+Within one pool, a spelling can belong to only one identity. Different pools
+can share a spelling. The design system's authored CSS reserves existing names.
+`ProjectSession::reserve_authored_css` adds producer-owned CSS to that reservation
+set. Names without declaration sites, including anonymous layers and condition
+helpers, still participate in document-level checks.
+
+## Development and release
+
+Compiler mode chooses explicit `stillwind/runtime/<framework>-development`
+imports for runtime validation. Export conditions and `NODE_ENV` do not choose
+those helpers. Checked helpers share their framework's production symbol keys.
+
+Release generation failures produce compilation diagnostics. Development mode
+can retain builtin names and records rejected host names for the host to report.
+Rejected names are separate from author-code lint findings. See
+[open work](TODO.md) for gaps in reporting rejections from rendering entrypoints.

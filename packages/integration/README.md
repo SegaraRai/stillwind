@@ -232,5 +232,5 @@ addition/removal. These probes do not claim expression-level dead-code eliminati
 The current Next acceptance fixture pins `16.4.0-canary.25` and exercises both
 Turbopack and webpack; other Next versions are not covered by that run.
 
-The [historical acceptance matrix](../../docs/module-graph-implementation.md)
-records framework and source-map results for the earlier transport.
+The [CSS emission contract](../../docs/css-emission.md) describes producer
+selection, linking, explicit values, and transport boundaries.

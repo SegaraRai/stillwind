@@ -1,7 +1,0 @@
-@import "tailwindcss/theme" layer(theme);
-@import "tailwindcss/utilities" layer(utilities);
-@layer components {
-  .radius {
-    @apply rounded-lg rounded-t-sm;
-  }
-}

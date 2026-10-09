@@ -16,7 +16,7 @@ import {
 } from "./native-input.ts";
 
 // These are explicit harness contracts, not general CSS equivalences. See
-// docs/tailwind-comparison-contract.md. Never discard arbitrary layers, property
+// docs/css-emission.md#tailwind-comparison. Never discard arbitrary layers, property
 // registrations, var fallbacks, declaration order, or keyframes to pass parity.
 const layers = new Set(["properties", "theme", "base", "components", "utilities"]);
 const layerOrder = "@layer properties,theme,base,components,utilities;";

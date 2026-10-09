@@ -89,9 +89,6 @@ impl<'a> StylesheetRenderer<'a> {
                 }
             }
         }
-        // TODO: this is the only entry point that drains the rejections. A host that
-        // renders a carrier or a project stylesheet with its own generator never learns
-        // which of its names were rejected; return them from those entry points too.
         result.rejected_names = self.identifiers.drain_rejected().into_entries();
         // Helpers written for authored CSS and anonymous layers belong to no
         // declaration, so they are reported under the stylesheet that named them.

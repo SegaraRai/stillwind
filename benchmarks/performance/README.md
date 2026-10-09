@@ -74,7 +74,7 @@ These cases measure two operations: creating a design-system snapshot and editin
 | Editor sorting, 1000 inputs            |          10 / 30 |
 | Snapshot and source index construction |         30 / 300 |
 
-The comparison limits correspond to 0.01 / 0.1ms per call. Rank batches include preparation, sorting, and the binding boundary. Fresh source queries begin without candidate keys; repeated queries reuse them. Construction is measured separately and excludes compilation. The mixed cases use six categories of entries, rounded up to a multiple of six. See [the sorting report](../../docs/sorting-optimization-2026-10-07.md) for results and limits.
+The comparison limits correspond to 0.01 / 0.1ms per call. Rank batches include preparation, sorting, and the binding boundary. Fresh source queries begin without candidate keys; repeated queries reuse them. Construction is measured separately and excludes compilation. The mixed cases use six categories of entries, rounded up to a multiple of six. See [editor sorting](../../docs/standalone-analysis.md#editor-sorting) for the input contract.
 
 ## Measurement boundaries
 

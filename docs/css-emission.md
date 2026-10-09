@@ -8,7 +8,7 @@ preserve the cascade of the [reference order](css-ordering.md).
 
 Compilation produces ordered rule occurrences, their support requirements,
 resource references, and dependencies on other producers. These dependencies
-come from [style composition](style-composition.md).
+come from [style composition](macro-contract.md#style-composition).
 A content fingerprint identifies shareable bytes. Repeated rules retain their
 positions: removing a red rule repeated after a competing blue rule can change
 the winning color.
@@ -115,3 +115,124 @@ Equal payloads share a sheet within the same Document. Different Documents use
 different caches and constructors. Consumers must treat returned sheets as
 immutable, since mutation is visible to every shadow root adopting that sheet.
 Each shadow root needs its own ordered adoption list.
+
+## CSS values and output slots
+
+The compiler preserves CSS meaning. Whitespace, color abbreviations, and
+constant-expression shortening are not public output contracts. The final asset
+pipeline owns minification. Compilation preserves lexical boundaries, declaration
+order, empty fallbacks, and selector tokens; it does not repair arbitrary generated
+strings to match an oracle's spelling.
+
+`@stillwind-slot theme` and `property-initials` insert declarations inside an
+authored style rule. The stylesheet supplies their selectors. `utilities`,
+`keyframes`, and `properties` insert rules. A slot in the wrong syntactic position
+is an error, as is a missing slot for a selected contribution. Repeated slots
+repeat their selected contributions at every position; the application owns the
+resulting cascade across conditions and layers.
+
+Generated keyframes and property requirements travel as metadata with CSS
+contributions. Renderers do not reconstruct them from serialized CSS.
+`StylesheetRenderer::render_mapped_stylesheet` and `ModuleCssArtifact::mapped`
+retain that metadata. String-only renderers accept authored CSS; `module_css` and
+`to_css` are inspection outputs rather than reconstruction inputs.
+
+## Tailwind comparison
+
+`tools/tailwind-compat/comparison.ts` compares CSS under an explicit shared
+environment. It reserves `properties, theme, base, components, utilities` order,
+places Tailwind's theme keyframes into Stillwind's theme slot for comparison,
+removes `source(none)` when candidates are supplied explicitly, and resolves only
+recorded resource placeholders against the fixture's virtual base.
+Inside support conditions, equal-valued `background` and `background-image`
+tests are equivalent for this comparison; ordinary declarations have no such exception.
+
+The comparison retains layer bodies and conditions, property registrations,
+fallbacks, importance, selectors, keyframe contents, and interfering declaration
+order. CSS parsing, calc evaluation, and Lightning CSS normalize representation.
+Empty custom-property values remain distinct from missing or invalid values.
+These rules define the harness context; they do not prove arbitrary CSS equivalence.
+Integration tests separately check real resource owners, URLs, maps, and delivery order.
+
+## Final asset minification
+
+`stillwind-css` provides final asset minification through Lightning CSS with the
+`minify` Cargo feature. The operation is independent of compilation and project
+selection. Call it after expanding Stillwind directives, selecting the asset's
+rules, and resolving resource URLs.
+
+```rust
+use stillwind_css::{CssMinifyOptions, minify_css};
+
+let result = minify_css(css, &CssMinifyOptions {
+    filename: "app.css".into(),
+    source_map: true,
+    ..CssMinifyOptions::default()
+})?;
+```
+
+The Node binding exposes the same service:
+
+```ts
+import { minifyCss } from "@stillwind/native";
+
+const result = minifyCss(css, {
+  filename: "app.css",
+  targets: {
+    chrome: 120 << 16,
+    safari: (17 << 16) | (2 << 8),
+  },
+  sourceMap: true,
+  inputSourceMap: upstreamMapJson,
+});
+// result.css, result.sourceMap (JSON string when requested), result.warnings
+```
+
+The existing bundler integrations choose their own minification path. Exporting
+this function does not automatically apply it to compiler output.
+
+### Options
+
+| Rust field                | JavaScript field        | Default and contract                                              |
+| ------------------------- | ----------------------- | ----------------------------------------------------------------- |
+| `filename`                | `filename`              | `input.css`; input identity for diagnostics and maps              |
+| `targets`                 | `targets`               | Unspecified; browser names mapped to packed versions              |
+| `include`                 | `include`               | Empty; features to always transform                               |
+| `exclude`                 | `exclude`               | Empty; features to preserve even for older targets                |
+| `source_map`              | `sourceMap`             | `false`; return a separate v3 map                                 |
+| `input_source_map`        | `inputSourceMap`        | Absent; v3 JSON mapping this exact input CSS to its sources       |
+| `include_sources_content` | `includeSourcesContent` | `true`; include source text in the output map                     |
+| `unused_symbols`          | `unusedSymbols`         | Empty; names the caller has established are unused                |
+| `error_recovery`          | `errorRecovery`         | `false`; allow invalid input to be discarded with parser warnings |
+
+Browser keys are `android`, `chrome`, `edge`, `firefox`, `ie`, `ios_saf`, `opera`,
+`safari`, and `samsung`. Versions are `major << 16 | minor << 8 | patch`, with one
+byte per component. Configuration lookup and Browserslist resolution belong to the
+host. Unknown browser keys and values larger than 24 bits are errors.
+
+Features use Lightning CSS's case-sensitive names: `Nesting`, `NotSelectorList`,
+`DirSelector`, `LangSelectorList`, `IsSelector`, `TextDecorationThicknessPercent`,
+`MediaIntervalSyntax`, `MediaRangeSyntax`, `CustomMediaQueries`, `ClampFunction`,
+`ColorFunction`, `OklabColors`, `LabColors`, `P3Colors`, `HexAlphaColors`,
+`SpaceSeparatedColorNotation`, `FontFamilySystemUi`, `DoublePositionGradients`,
+`VendorPrefixes`, `LogicalProperties`, and `LightDark`. The groups `Selectors`,
+`MediaQueries`, and `Colors` are also accepted. Unknown names and overlapping
+include/exclude flags are errors, including overlap through group flags.
+
+### Source maps and errors
+
+An input map requires output mapping to be enabled. Ordinary v3 maps are accepted;
+indexed maps are rejected. Input map `sourceRoot` is retained on the composed map.
+Embedded `sourceMappingURL` comments are ignored. The host publishes the returned
+map and attaches its URL to the CSS if needed. Neither CSS imports nor map URLs
+are fetched by this API.
+
+Mapping granularity, coordinate behavior, and CSS optimization follow Lightning
+CSS and Parcel Source Map. The wrapper does not repair upstream map coordinates.
+Merged rules can have coarser source attribution than the compiler's original
+range mappings. The returned map is debugging metadata, not an exact edit map.
+
+Rust errors distinguish options, parsing, minification, printing, and source-map
+processing. NAPI converts them to JavaScript errors. Parser warnings are returned
+as strings with locations when available. Recovery does not suppress failures in
+later processing stages.

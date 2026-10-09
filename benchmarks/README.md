@@ -1,50 +1,77 @@
-# Compiler and source-map benchmarks
+# Benchmarks
 
-Run these tasks from the repository root:
+Run one benchmark task at a time from the repository root so build and measurement
+processes do not compete for CPU time.
 
-- `vp run bench:compiler`: native loader, standalone compilation, unchanged updates, single-file edits, stylesheet planning, and canonical utility queries.
-- `vp run bench:compiler:wasm`: the canonical query scenarios using the WASM binding in a separate process.
-- `vp run bench:compiler:browser`: uncached canonical queries and CSS revision preparation in headless Chrome using the browser WASM binding.
-- `vp run bench:host`: reused and fresh checker services, direct scripts and Vue/Svelte/Astro input.
-- `vp run bench:sorting`: candidate comparisons and editor sorting for strings, utility arrays, refs, and base styles using the native binding.
-- `vp run bench:sorting:wasm`: the same sorting cases using the WASM binding in a separate Node process.
-- `vp run bench:sorting:profile`: counts identity lookups while grouping ref and base inputs.
-- `vp run bench:source-map`: production CSS map generation versus the candidate in `source-map/candidate.ts`.
-- `vp run test:performance`: quick checks with soft targets and hard limits; see [performance budgets and measurement boundaries](performance/README.md).
-- `vp run test:performance:full`: the same checks including 1000 modules, 1000 imported CSS files, and 10,000 unused utility definitions.
+| Task                            | Workload                                                                           |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `vp run bench:compiler`         | Native loading, compilation, graph updates, stylesheet planning, canonical queries |
+| `vp run bench:compiler:wasm`    | Canonical queries through the Node WASI binding                                    |
+| `vp run bench:compiler:browser` | Browser WASM canonical queries and CSS revision preparation                        |
+| `vp run bench:host`             | Fresh and reused checker services; script, Vue, Svelte, and Astro inputs           |
+| `vp run bench:sorting`          | Native candidate comparisons and editor input sorting                              |
+| `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                       |
+| `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                             |
+| `vp run bench:source-map`       | Production CSS map generation with Unicode, CRLF, and resource replacements        |
+| `vp run bench:architecture`     | CSS definition and import scale, native graphs, Vite builds and watch updates      |
+| `vp run test:performance`       | Quick workloads with soft targets and hard limits                                  |
+| `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions        |
 
-The tasks run Vitest benchmarks from `.bench.ts` files with `vite-plus/test`. Benchmark and performance modes use native Node ESM. Node transforms TypeScript syntax such as constructor parameter properties; Vite does not transform the measured modules. The WASM task forces the WASI binding and checks which artifact loaded before accepting its results. It measures WASM through Node, including the binding boundary, rather than browser worker startup or LSP transport. Run one benchmark task at a time to avoid competition for CPU time. Ordinary tests run correctness checks from `source-map/*.test.ts`, `research/*.test.ts`, and `performance/*.test.ts`.
+Vitest benchmarks use `vite-plus/test`. Benchmark and performance modes measure
+native Node ESM modules with TypeScript transformation enabled. They retain raw
+samples and record Git revision, Node version, platform, timestamp, and workload
+settings. Reports go to ignored `benchmarks/results/`. Finite measurement runs
+do not impose universal latency guarantees. Ordinary verification runs budget
+configuration tests without machine-dependent timing checks.
 
-Vitest JSON reports are written to ignored `results/compiler.json`, `results/canonical-wasm.json`, `results/canonical-browser.json`, `results/host.json`, and `results/source-map.json`. Each assertion result includes benchmark statistics, raw latency samples, and metadata with the Git revision, Node version, platform, timestamp, and measurement options. Fresh compiler graph cases also record output fingerprints. Latency values use milliseconds; `latency.p50` is the median. Canonical compiler and sorting scenarios also check explicit performance budgets. Ordinary verification does not impose machine-dependent timing thresholds.
+Measurements use fixed iteration counts and disable time-based repetition.
+Callbacks state whether they are asynchronous so Tinybench does not execute them
+to infer that property. Fixture construction, correctness checks, and fingerprints
+run outside measured callbacks unless the scenario explicitly includes them.
+Three-sample cases provide limited information about variance.
 
-Measurements use fixed iteration counts with time-based repetition disabled. Callbacks declare whether they are asynchronous so Tinybench does not execute them to infer that property. Compiler cases use one warmup and nine measured iterations, except fresh graphs use five measured iterations and fresh or unchanged 1000-module graphs use three. Host cases use two warmups and nine measured iterations; the fresh checker case uses one warmup and five measured iterations. Source-map comparisons use one warmup and five measured iterations for each implementation. Three-sample results provide limited evidence about variance. Benchmark cases have a ten-minute timeout, including fixture preparation; ordinary tests retain Vitest's default timeout.
+To select workloads, enter `benchmarks/` and run, for example:
 
-Initial fixture construction, correctness assertions, and fingerprint generation run outside the measured callbacks. Unchanged cases reuse a compiled session. Edit cases alternate input on every invocation, including warmup; constructing each edit is part of the measurement. CSS planning and carrier cases initialize their own sessions. Host cases use synthetic modules without a disk dependency graph and load converters before measuring reused sessions. The fresh checker case includes checker subprocess creation and closure; it reuses already loaded JavaScript modules.
+```sh
+vp test bench compiler/compiler.bench.ts --run --mode benchmark -t "graph/single-edit"
+```
 
-To filter cases, enter `benchmarks/` and run, for example, `vp test bench compiler/compiler.bench.ts --run --mode benchmark -t "graph/single-edit"`. Configure reporters and `--outputFile` when a JSON report is needed.
+## Measurement boundaries
 
-The CSS-map candidate indexes mapping starts, advances source cursors and scans placeholders with a compiled pattern. It is used only by the benchmark and its colocated behavior tests. The production host still indexes source positions and searches resource replacements in `packages/host/src/css/css-source-map.ts`. Both benchmark variants use the current source identity and upstream-map contracts. Candidate correctness tests run in the ordinary JS test suite.
+Compiler unchanged-update cases reuse a compiled session. Edit cases alternate
+input on each invocation, including warmup, and include edit construction.
+Graph and stylesheet cases record output fingerprints.
 
-`vp run --filter @stillwind-internal/benchmarks bench:research` measures checker phases, synthetic graphs with files on disk, loader reuse, and source-map variants. The source-map replacement-count cases deliberately use keys absent from the CSS to measure lookup cost. The graph edit appends a comment to the entry; it does not change the imported declarations. Phase probes include timing overhead. See `research/evidence.json` and `../docs/benchmark-investigation-2026-10-03.md` for results and limitations.
+Canonical CSS-revision preparation includes parsing and index preparation.
+Revision reuse measures another query against the prepared snapshot. Cold-query
+cases create the query outside the timer and measure one uncached candidate.
+Pairwise diagnostic workloads measure complete reports separately from independent
+canonical queries. Native and WASI cases run in separate processes; WASI verifies
+which binding loaded. Node WASI timings do not include browser worker startup.
 
-`python benchmarks/research/profile-native.py`, run from the repository root, temporarily instruments three Rust files, builds a release addon at `target/benchmark-research/profile.node`, and restores the original source bytes. Run it without concurrent source edits or builds. `node benchmarks/research/native-profile.mjs` uses this diagnostic addon. It records nested phase timings and counts; those timings must not be added together. `node --cpu-prof --cpu-prof-dir=target/benchmark-research --cpu-prof-name=production.cpuprofile benchmarks/research/source-profile.mjs production` profiles source-map production code; replace both `production` values with `candidate` to profile the candidate.
+Host reused-service cases preload converters and use synthetic modules without
+a disk dependency graph. Fresh checker cases include subprocess creation and
+closure while reusing loaded JavaScript modules.
 
-`vp run --filter @stillwind-internal/benchmarks bench:architecture` measures JavaScript graph size, CSS definition counts, CSS import topology, Vite build and watch operations, and CSS content hashing with different read concurrency limits. See `research/architecture-evidence.json` and `../docs/performance-architecture-2026-10-03.md` for results and measurement boundaries. The `vite/watch-edit` cases include transform and CSS publication; they exclude filesystem event delivery and browser application. Cases with `/watch-enabled` use the real filesystem watcher; the other edit cases set `watch: null` and retain content hashing on each request. The `vite/watch-event` case writes a producer file and waits for the real watcher and Vite hot-update hook to send `stillwind:css`. It excludes a browser's subsequent module request and application of CSS. No browser connects during these cases. Server startup metadata records `listenMs` without closure; the benchmark callback itself includes closure. Native graph cases with 1000 modules use one measured iteration. Vite builds use three measured iterations for each design system. Filter cases during investigation; running the full group also compiles 1000 producers before measuring each edit case.
+Source-map cases measure the production `cssWithSourceMap` implementation for
+10 through 10,000 rules. They validate resource replacement and retained source
+content, then record an output fingerprint outside the timer.
 
-`node benchmarks/research/registry-profile.mjs` uses the same diagnostic addon to record the cost of cloning and replacing a session as unused CSS utility definitions increase. The addon must be built with `profile-native.py` first.
+Sorting source cases query an already compiled `EditorSnapshot`. Fresh cases
+start without prepared candidate keys; repeated cases reuse those keys on the
+same source. Snapshot construction is measured separately. Ref and base fixtures
+use syntax identities with type facts disabled. Input grouping follows
+[editor sorting](../docs/standalone-analysis.md#editor-sorting).
 
-Optimization results and raw samples are retained in `research/optimization-evidence.json` and `../docs/performance-optimization-2026-10-03.md`. The evidence records hashes of the changed production files as well as the base Git revision. `python benchmarks/research/profile-native.py --check` verifies the instrumentation anchors without changing source files or building an addon.
+Architecture `vite/watch-edit` cases include transform and CSS publication;
+they exclude filesystem delivery and browser application. Cases marked
+`watch-enabled` use the real watcher; other edit cases set `watch: null` and
+check CSS contents on each request. `vite/watch-event` measures a real file write
+through the watcher and hot-update hook until `stillwind:css` publication. It
+excludes the browser's subsequent module request and CSS application.
+`listenMs` excludes server closure; benchmark callbacks include closure.
+`watchReadyMs` also waits for the watcher's initial scan. Filter cases when
+investigating large graphs because their setup compiles all producers first.
 
-Watch generation tracking is measured separately in `research/watch-evidence.json` and `../docs/performance-watch-2026-10-03.md`. Reproduce the selected cases from `benchmarks/` with `vp test bench research/architecture.bench.ts --run --mode benchmark -t "vite/watch-edit/1000/8-calls|vite/watch-event|vite/css-files|vite/watch-ready" --reporter default --reporter json --outputFile results/watch.json`. Startup cases also record `watchReadyMs`, which waits for both `listen()` and the watcher's initial `ready` event before stopping the timer. Their callbacks wait for this event before closing the server.
-
-Canonical queries share indexes through an immutable design-system snapshot. The loader prepares them when CSS loading completes. `canonical/prepare-css-revision` includes CSS parsing and preparation, while `canonical/reuse-prepared-revision` measures creating another query from that snapshot. Cold-query measurements create a new query outside the timer and measure one uncached candidate. Theme values that utilities copy share a namespace index; complex definitions use verified CSS templates or finite CSS signatures. Full CSS and property requirements are checked before a suggested replacement is returned.
-
-Canonical measurements and implementation boundaries are recorded in [canonical performance](../docs/canonical-performance-2026-10-07.md), with raw samples in [canonical-evidence.json](compiler/canonical-evidence.json) and a frozen comparison in [canonical-baseline-2026-10-07.json](compiler/canonical-baseline-2026-10-07.json).
-
-Sorting measures stable grouping by input kind separately from utility ordering inside strings. Ref markers precede their own projections; bases, utilities, custom properties, and attributes follow. Each category retains source order. Base bodies and CSS interference do not affect grouping. Fixtures include repeated properties, distinct properties, and mixed input categories.
-
-Source cases measure `EditorSnapshot.query(sort)` after compilation and source indexing. Fresh cases construct the snapshot outside the timer and start without prepared candidate keys. Repeated cases reuse those keys on the same unchanged source. Construction cases measure creating a snapshot, including `SourceIndex`, separately. Candidate rank batches measure preparing and sorting keys in one native request. All cases exclude browser worker startup, LSP transport, and applying edits. Ref and base fixtures disable type facts and use syntax identities even when compilation reports unverified uses.
-
-The earlier measurements remain in [sorting-evidence.json](compiler/sorting-evidence.json) and [the baseline report](../docs/sorting-performance-2026-10-07.md). Current results and measurement limits are documented in [sorting optimization](../docs/sorting-optimization-2026-10-07.md). Reports go to ignored `results/sorting-native.json` and `results/sorting-wasm.json`. Run these tasks individually. Most cases use two warmups and nine samples; stress cases use one warmup and three samples.
-
-The ownership cleanup follow-up measures CSS preparation and complete pairwise diagnostics separately from independent canonical uses. See [the investigation and reproduction steps](../docs/ownership-performance-2026-10-08.md) and [all samples and profiles](compiler/ownership-performance-evidence.json).
+See [performance budgets](performance/README.md) for thresholds and
+[open work](../docs/TODO.md) for gaps in application-level measurement.

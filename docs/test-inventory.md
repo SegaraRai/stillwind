@@ -4,19 +4,19 @@ Tasks are defined in each workspace's `vite.config.ts`. Run them with Vite+.
 
 | Root task                       | Scope                                                                                         |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `vp run check`                  | Formatting, lint, TypeScript checks, Cargo formatting, Clippy, and generated-data consistency |
-| `vp run test`                   | Rust tests, ordinary JS tests, and project output comparisons                                 |
 | `vp run check:generated`        | Tailwind fixture expectations and catalogs, Webref data, and both Tailwind ordering outputs   |
-| `vp run test:fixtures:projects` | Generated project JS, CSS, diagnostics, source maps, and the viewer catalog                   |
-| `vp run verify`                 | `check` and `test`                                                                            |
-| `vp run test:tailwind`          | Tailwind differential comparison, property ordering, and numeric domains                      |
-| `vp run test:browser`           | CSS cascade, rendered filters, and ref scopes in Vitest Browser Mode                          |
-| `vp run test:wasm`              | WASM build, loader contracts, package fallback, production bundling, and Browser Mode         |
-| `vp run test:e2e`               | Framework and bundler browser acceptance                                                      |
-| `vp run test:performance`       | Performance budgets; `test:performance:full` uses the complete workload                       |
+| `vp run check`                  | Formatting, lint, TypeScript checks, Cargo formatting, Clippy, and generated-data consistency |
 | `vp run generate`               | Rust input data, project expectations and viewer catalog, Tailwind catalogs and fixtures      |
+| `vp run test:browser`           | CSS cascade, rendered filters, and ref scopes in Vitest Browser Mode                          |
+| `vp run test:e2e`               | Framework and bundler browser acceptance                                                      |
+| `vp run test:fixtures:projects` | Generated project JS, CSS, diagnostics, source maps, and the viewer catalog                   |
+| `vp run test:performance`       | Performance budgets; `test:performance:full` uses the complete workload                       |
+| `vp run test:tailwind`          | Tailwind differential comparison, property ordering, and numeric domains                      |
+| `vp run test:wasm`              | WASM build, loader contracts, package fallback, production bundling, and Browser Mode         |
+| `vp run test`                   | Rust tests, ordinary JS tests, and project output comparisons                                 |
+| `vp run verify`                 | `check` and `test`                                                                            |
 
-The root `test.projects` configuration registers ten ordinary JS projects.
+The root `test.projects` configuration selects ordinary JS projects.
 `vp run test:js` builds their dependencies and runs them together. Use
 `vp test --run --project host` to select one project after its dependencies have
 been built. `vp test list --filesOnly` lists the selected files and project names.
@@ -54,8 +54,7 @@ Framework E2E suites start separate applications and retain their Playwright har
 - Native and WASM suites register the same binding contract with different entry
   points and execute in separate processes.
 - Framework production builds run in the integration package's ordinary suite.
-  Browser behavior uses the dedicated browser task. The independent module-graph
-  experiments keep their own workspace and explicit acceptance commands.
+  Browser behavior uses the dedicated browser task.
 - Project fixtures under `fixtures/projects/` record generated JS, CSS,
   diagnostics, and source mappings. Their expected files and the fixtures viewer
   catalog are produced by the same runner.
@@ -69,11 +68,11 @@ runtime contracts.
 
 | Package                                     | Responsibility                                                                              | Stillwind prerequisites |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
-| `@stillwind-internal/tools-webref`          | Generate and check Rust Webref data                                                         | None                    |
-| `@stillwind-internal/tools-tailwind`        | Generate upstream expectations, registrations, and ordering data; compare declaration order | None                    |
-| `@stillwind-internal/tools-tailwind-compat` | Compare native output against Tailwind, run browser checks, and report coverage             | Native binding          |
-| `@stillwind-internal/tools-projects`        | Generate or compare project expectations and the viewer catalog                             | Host and native builds  |
 | `@stillwind-internal/tools-fixture-css`     | Load CSS for verification consumers                                                         | Core CSS source files   |
+| `@stillwind-internal/tools-projects`        | Generate or compare project expectations and the viewer catalog                             | Host and native builds  |
+| `@stillwind-internal/tools-tailwind-compat` | Compare native output against Tailwind, run browser checks, and report coverage             | Native binding          |
+| `@stillwind-internal/tools-tailwind`        | Generate upstream expectations, registrations, and ordering data; compare declaration order | None                    |
+| `@stillwind-internal/tools-webref`          | Generate and check Rust Webref data                                                         | None                    |
 | `@stillwind-internal/tools-workspace`       | Share task cache configuration                                                              | None                    |
 
 Tailwind comparison adapters live beside the comparison that uses them. The CSS
@@ -96,8 +95,8 @@ test prerequisites.
 | ---------------------------------------------------------------------------- | --------------------------------------------------- |
 | `vp run generate:fixtures:projects`                                          | Stillwind project expected files and viewer catalog |
 | `vp run generate:fixtures:tailwind`                                          | Tailwind fixture expectations                       |
-| `vp run generate:webref`                                                     | Rust Webref property data                           |
 | `vp run generate:tailwind-order`                                             | Rust Tailwind property order                        |
+| `vp run generate:webref`                                                     | Rust Webref property data                           |
 | `vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order` | Utility-order fixture                               |
 | `vp run @stillwind-internal/tools-tailwind#generate:tailwind-registrations`  | Registration catalogs and candidate lists           |
 | `vp run @stillwind/native#generate:platform-packages`                        | Platform package manifests and runtime dependencies |
@@ -189,3 +188,25 @@ compare the same files still need to run sequentially.
 
 The pre-commit hook checks formatting, lint, Cargo formatting, and Clippy. It does
 not run the test suites; use the tasks above to verify behavior.
+
+## Review fixtures
+
+Projects under `fixtures/projects` have a stable `project.json`, a theme, ordered
+inputs, and generated expected JS, CSS, diagnostics, and maps. Keep broad Tailwind
+fixtures and package-local test inputs in their owning harnesses. Add the smallest
+representative project when output changes, regenerate explicitly, review the
+expected diff, then compare with `vp run test:fixtures:projects`.
+
+`vp run --filter @stillwind-internal/apps-fixtures-viewer dev` serves the catalog.
+The viewer's build and development tasks generate it first. Production output is
+static. Module fragments omit shared theme/base/property layers; `project.css`
+contains the complete stylesheet. Formatted `.min.css` siblings show optimization
+changes rather than compact production byte sizes.
+
+Viewer links use `/#/projects/<project-id>/files/<percent-encoded-source-path>`.
+Project IDs and source paths remain stable so review links keep working. Use the
+relevant permalink in a PR or issue when a representative transform changes.
+
+Performance workloads and measurement boundaries are documented beside their
+[benchmarks](../benchmarks/README.md). Open design and validation work belongs in
+[TODO.md](TODO.md).

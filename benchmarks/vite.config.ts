@@ -5,7 +5,7 @@ export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   test: {
     name: "benchmarks",
-    include: ["source-map/*.test.ts", "research/*.test.ts", "performance/*.test.ts"],
+    include: ["performance/*.test.ts"],
     benchmark: {
       include: ["**/*.bench.ts"],
       retainSamples: true,
@@ -83,12 +83,6 @@ export default defineConfig(({ mode }) => ({
           "vp test bench compiler/sorting-profile.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/sorting-profile.json",
         cache: false,
         dependsOn: ["@stillwind/host#build", "@stillwind/native#build"],
-      },
-      "bench:research": {
-        command:
-          "vp test bench research/investigation.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/research.json",
-        cache: false,
-        dependsOn: ["@stillwind/host#build", "@stillwind/native#build", "stillwind#build"],
       },
       "bench:source-map": {
         command:

@@ -1,9 +1,7 @@
 # CSS ordering
 
-Status: implemented. This document is the single source of truth for how
-generated Stillwind CSS is ordered; the other documents link here instead of
-restating the rules. Examples use short, illustrative class names (`._a`,
-`.sw_x`); compiled output carries hashed names.
+Generated CSS follows the declaration, class-unit, module, and delivery order
+below. Examples use illustrative class names; compiled output carries hashed names.
 
 ## Principles
 
@@ -289,25 +287,8 @@ Practical guidance:
 - Keep utilities that must compete at equal specificity in the same call, so
   the canonical variant order (L2) applies to them.
 - A derived rule wins by placement only when earlier cascade criteria tie.
-  See [style composition](style-composition.md#ordering) for base placement.
+  See [style composition](macro-contract.md#style-composition) for base placement.
 - Use the ordered plan when loading split CSS. Independent builds and manual
   rearrangement are outside that ordering domain.
 - Do not rely on the order of utilities inside one string to override a variant
   selector; specificity decides that case.
-
-## Verifying a build
-
-- Review fixtures compare declaration order, selector blocks, and module order
-  for the pinned review projects.
-- Property-order parity compares every interfering declaration pair in the
-  Tailwind-generated fixture cases against Tailwind's own output; the harness
-  fails the run on any mismatch. The current fixture set checks about 12,000
-  candidates and 523 interfering-property constraints.
-- Variant generation order is compared against fixtures generated from Tailwind
-  v4 whose candidates are deliberately spelled out of canonical order, so the
-  check cannot pass by preserving the input order.
-- `vp run test:e2e` (inside `e2e/css`) drives a real
-  browser through development, production, reverse lazy-route order, and
-  JavaScript-disabled SSR and Shadow DOM, and checks equivalent computed styles.
-- `vp run test:e2e` in `e2e/frameworks/vite8-react19` covers nested conditions, SSR/hydration class
-  equality, and content reload.

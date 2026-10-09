@@ -35,6 +35,10 @@
 
 These rules apply to all prose, including comments, documentation, explanations, and status reports.
 
+- Write repository documentation in English. Preserve non-English source examples and fixture data when their content is required by the contract or test.
+- Keep documentation small and focused on current contracts, usage, and required verification. Update or merge existing documents before adding one.
+- Do not keep documents that record implementation steps, completed work, review transcripts, or one-off benchmark results.
+- Keep unresolved design and validation work in `docs/TODO.md`. Remove resolved entries and avoid separate plans or TODO comments.
 - Write for a reader who knows the subject but may not be a native English speaker. Keep established technical terms and code identifiers.
   Simplify the grammar around them. Explain a term where it is introduced when readers need that definition; do not repeat the definition at every use.
 - State each relationship with an explicit verb. Write "`span` identifies the source use, and `guard` contains its conditions" instead of

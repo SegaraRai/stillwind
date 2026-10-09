@@ -1,9 +1,8 @@
 //! The golden demo: one TSX component compiled end to end.
 //!
 //! Run with `cargo run -p stillwind-compiler --example golden` to print the props
-//! replacement, the generated stylesheet, and any diagnostics for the component
-//! described in `docs/golden-case.md`. It is a manual inspection aid for reviewing
-//! output, not a test.
+//! replacement, the generated stylesheet, and any diagnostics. This example
+//! supports manual output inspection.
 
 use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};

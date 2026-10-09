@@ -1,6 +1,0 @@
-@import "tailwindcss/theme" layer(theme);
-@import "tailwindcss/utilities" layer(utilities);
-@theme static {
-  --color-brand: oklch(0.62 0.2 255);
-  --spacing: 0.25rem;
-}
