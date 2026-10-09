@@ -364,13 +364,13 @@ mod tests {
         // Queries use their own synthetic producer. Compare declarations, not identities.
         assert_eq!(resolved.generated_rules.len(), compiled.css.rules.len());
         for (queried, generated) in resolved.generated_rules.iter().zip(&compiled.css.rules) {
-            assert_eq!(queried.syntax.prelude, generated.syntax.prelude);
+            assert_eq!(queried.syntax().prelude, generated.syntax().prelude);
             let declarations = |body: &Option<String>| {
                 body.as_ref().unwrap().split_once('{').unwrap().1.to_owned()
             };
             assert_eq!(
-                declarations(&queried.syntax.body),
-                declarations(&generated.syntax.body)
+                declarations(&queried.syntax().body),
+                declarations(&generated.syntax().body)
             );
         }
         assert!(

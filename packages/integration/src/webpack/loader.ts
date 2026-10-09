@@ -11,6 +11,7 @@ import {
   finalizeModuleWithMap,
   loadCssGraph,
   moduleSourceMap,
+  warnRejectedNames,
   type UpstreamSourceMap,
 } from "@stillwind/host";
 
@@ -161,6 +162,7 @@ export default function webpackLoader(
       coverage: { kind: "observed" },
       placement: "document",
     });
+    warnRejectedNames(plan.rejectedNames, warn);
 
     const valueResources: CssValueResource[] = [];
     for (const resource of [...loaded.resources, ...plan.resources]) {

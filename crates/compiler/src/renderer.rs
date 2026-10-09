@@ -5,8 +5,8 @@
 //! registrations the CSS actually needs, and walks the template's layers and slots.
 //! [`StylesheetPlacement`] decides whether authored document rules and Preflight
 //! participate, so a per-module carrier does not duplicate them. Assembly failures come
-//! back as [`CompileDiagnostic`], or, when rendering a whole compilation, as a CSS diagnostic that invalidates the generated output instead of shipping CSS known to be
-//! incomplete.
+//! back as [`StylesheetRenderError`] with any naming fallback reports. Rendering a whole
+//! compilation attaches the fatal cause to the source and invalidates generated output.
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -15,7 +15,7 @@ use stillwind_source::Span;
 use crate::compiler::{
     detached_symbol, render_mapped, render_module_stylesheet, render_stylesheet,
 };
-use crate::identifiers::{IdentifierContext, Identifiers};
+use crate::identifiers::{IdentifierContext, Identifiers, RejectedIdentifier, RejectedNames};
 use crate::{
     CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet, SymbolOrigin,
 };
@@ -27,6 +27,34 @@ pub enum StylesheetPlacement {
     Document,
     /// A module's own CSS carrier: only what that module needs, without document rules.
     Carrier,
+}
+
+/// A failed render and the generator rejections observed before it failed.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("{diagnostic}")]
+pub struct StylesheetRenderError {
+    /// Fatal assembly or generated-name collision failure. No CSS is published.
+    pub diagnostic: CompileDiagnostic,
+    /// Development fallbacks observed during this render, in request order.
+    pub rejected_names: Vec<RejectedIdentifier>,
+}
+
+impl From<CompileDiagnostic> for StylesheetRenderError {
+    fn from(diagnostic: CompileDiagnostic) -> Self {
+        Self {
+            diagnostic,
+            rejected_names: Vec::new(),
+        }
+    }
+}
+
+/// Assembled CSS and the generator rejections observed in one render.
+#[derive(Clone, Debug)]
+pub struct RenderedStylesheet {
+    /// Complete CSS, source mappings, and template segments for this placement.
+    pub stylesheet: MappedStylesheet,
+    /// Development fallbacks, deduplicated within this render in request order.
+    pub rejected_names: Vec<RejectedIdentifier>,
 }
 
 /// Renders stylesheets against a snapshot held for the renderer's lifetime.
@@ -76,11 +104,17 @@ impl<'a> StylesheetRenderer<'a> {
         if module.is_success() {
             match self.render_mapped_stylesheet(&module.css.mapped(), StylesheetPlacement::Document)
             {
-                Ok(css) => result.css = css.css,
+                Ok(css) => {
+                    result.css = css.stylesheet.css;
+                    result.rejected_names =
+                        merge_rejected_names(result.rejected_names, css.rejected_names);
+                }
                 Err(error) => {
+                    result.rejected_names =
+                        merge_rejected_names(result.rejected_names, error.rejected_names);
                     result
                         .diagnostics
-                        .push(CompileError::new(error, diagnostic_span));
+                        .push(CompileError::new(error.diagnostic, diagnostic_span));
                     result.module_css.clear();
                     result.contributions.clear();
                     result.transforms.clear();
@@ -89,10 +123,12 @@ impl<'a> StylesheetRenderer<'a> {
                 }
             }
         }
-        result.rejected_names = self.identifiers.drain_rejected().into_entries();
         // Helpers written for authored CSS and anonymous layers belong to no
         // declaration, so they are reported under the stylesheet that named them.
-        result.symbols.extend(self.take_detached_symbols());
+        let detached = self.take_detached_symbols();
+        if result.diagnostics.is_empty() {
+            result.symbols.extend(detached);
+        }
         result
     }
 
@@ -125,12 +161,21 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// authored theme-reference errors. No partial stylesheet is returned.
-    pub fn render_stylesheet(&self, module_css: &str) -> Result<String, CompileDiagnostic> {
-        render_stylesheet(
-            self.snapshot.theme(),
-            module_css,
-            &self.options,
-            &self.identifiers,
+    pub fn render_stylesheet(
+        &self,
+        module_css: &str,
+    ) -> Result<RenderedStylesheet, StylesheetRenderError> {
+        self.finish_render(
+            render_stylesheet(
+                self.snapshot.theme(),
+                module_css,
+                &self.options,
+                &self.identifiers,
+            )
+            .map(|css| MappedStylesheet {
+                css,
+                ..MappedStylesheet::default()
+            }),
         )
     }
 
@@ -143,12 +188,21 @@ impl<'a> StylesheetRenderer<'a> {
     ///
     /// Returns missing-slot, malformed property requirement or usage, and unresolved
     /// theme-reference errors in retained carrier CSS.
-    pub fn render_module_stylesheet(&self, module_css: &str) -> Result<String, CompileDiagnostic> {
-        render_module_stylesheet(
-            self.snapshot.theme(),
-            module_css,
-            &self.options,
-            &self.identifiers,
+    pub fn render_module_stylesheet(
+        &self,
+        module_css: &str,
+    ) -> Result<RenderedStylesheet, StylesheetRenderError> {
+        self.finish_render(
+            render_module_stylesheet(
+                self.snapshot.theme(),
+                module_css,
+                &self.options,
+                &self.identifiers,
+            )
+            .map(|css| MappedStylesheet {
+                css,
+                ..MappedStylesheet::default()
+            }),
         )
     }
 
@@ -163,8 +217,8 @@ impl<'a> StylesheetRenderer<'a> {
         &self,
         module_css: &MappedStylesheet,
         placement: StylesheetPlacement,
-    ) -> Result<MappedStylesheet, CompileDiagnostic> {
-        render_mapped(
+    ) -> Result<RenderedStylesheet, StylesheetRenderError> {
+        self.finish_render(render_mapped(
             self.snapshot.theme().output_template(),
             self.snapshot.theme(),
             module_css,
@@ -172,12 +226,44 @@ impl<'a> StylesheetRenderer<'a> {
             placement == StylesheetPlacement::Document,
             Some(self.snapshot.sources()),
             &self.identifiers,
-        )
+        ))
     }
+
+    /// Takes this call's rejection records after either successful or failed assembly.
+    fn finish_render(
+        &self,
+        result: Result<MappedStylesheet, CompileDiagnostic>,
+    ) -> Result<RenderedStylesheet, StylesheetRenderError> {
+        let rejected_names = self.identifiers.drain_rejected().into_entries();
+        match result {
+            Ok(stylesheet) => Ok(RenderedStylesheet {
+                stylesheet,
+                rejected_names,
+            }),
+            Err(diagnostic) => Err(StylesheetRenderError {
+                diagnostic,
+                rejected_names,
+            }),
+        }
+    }
+}
+
+/// Combines generator reports in encounter order, deduplicating family, hash, and reason.
+pub fn merge_rejected_names(
+    first: Vec<RejectedIdentifier>,
+    second: Vec<RejectedIdentifier>,
+) -> Vec<RejectedIdentifier> {
+    let mut rejected = RejectedNames::default();
+    for entry in first.into_iter().chain(second) {
+        rejected.push(entry);
+    }
+    rejected.into_entries()
 }
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+    use std::rc::Rc;
     use std::sync::Arc;
 
     use stillwind_design_system::{DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions};
@@ -187,7 +273,104 @@ mod tests {
     use stillwind_test_support::css_source;
 
     use super::*;
-    use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
+    use crate::{
+        ClassContext, CompilerOptions, GeneratedName, IdentifierGenerator, IdentifierHash,
+        IdentifierMode, Identifiers, LayerContext, LayerName, ModuleCompiler, StylesheetRenderer,
+        UtilityClass,
+    };
+
+    #[derive(Debug, Default)]
+    struct RejectNames {
+        layers: Cell<usize>,
+    }
+
+    impl IdentifierGenerator for RejectNames {
+        fn layer_name(
+            &self,
+            _context: &LayerContext,
+            _hash: &IdentifierHash,
+        ) -> Result<GeneratedName<LayerName>, String> {
+            self.layers.set(self.layers.get() + 1);
+            Err("layer rejected".into())
+        }
+
+        fn utility_class(
+            &self,
+            _context: &ClassContext,
+            _hash: &IdentifierHash,
+        ) -> Result<GeneratedName<UtilityClass>, String> {
+            Err("class rejected".into())
+        }
+    }
+
+    #[test]
+    fn every_render_returns_fallback_reports_while_names_remain_memoized() {
+        let design = snapshot("@layer { @stillwind-slot utilities; }");
+        let options = CompilerOptions::default();
+        let generator = Rc::new(RejectNames::default());
+        let identifiers = Identifiers::new(Some(generator.clone()), IdentifierMode::Development);
+        let renderer = StylesheetRenderer::new(&design, &options, &identifiers);
+        let input = MappedStylesheet {
+            css: ".x{display:flex}".into(),
+            ..MappedStylesheet::default()
+        };
+        let first = renderer
+            .render_mapped_stylesheet(&input, StylesheetPlacement::Document)
+            .unwrap();
+        assert_eq!(first.rejected_names.len(), 1);
+        assert_eq!(first.rejected_names[0].reason, "layer rejected");
+        assert!(first.rejected_names[0].substituted);
+        for next in [
+            renderer
+                .render_mapped_stylesheet(&input, StylesheetPlacement::Carrier)
+                .unwrap(),
+            renderer.render_stylesheet(&input.css).unwrap(),
+            renderer.render_module_stylesheet(&input.css).unwrap(),
+        ] {
+            assert_eq!(next.rejected_names, first.rejected_names);
+            assert_eq!(
+                next.stylesheet.css.rsplit("@layer sw-anon-").next(),
+                first.stylesheet.css.rsplit("@layer sw-anon-").next()
+            );
+        }
+        assert_eq!(generator.layers.get(), 1);
+        let release = Identifiers::new(Some(generator), IdentifierMode::Release);
+        let error = StylesheetRenderer::new(&design, &options, &release)
+            .render_stylesheet(&input.css)
+            .unwrap_err();
+        assert!(matches!(
+            error.diagnostic,
+            CompileDiagnostic::IdentifierGenerationFailed(..)
+        ));
+        assert_eq!(error.rejected_names, [] as [RejectedIdentifier; 0]);
+    }
+
+    #[test]
+    fn caller_constructed_rules_validate_registration_dependencies_during_rendering() {
+        let design = snapshot("@stillwind-slot utilities;");
+        let syntax = stillwind_css::CssRule::parse(".x{display:flex}")
+            .unwrap()
+            .remove(0);
+        let artifact = crate::ModuleCssArtifact {
+            rules: vec![crate::GeneratedRule::new(
+                syntax,
+                false,
+                vec!["--unknown-registration".into()],
+            )],
+        };
+        let options = CompilerOptions::default();
+        let identifiers = Identifiers::default();
+        let renderer = StylesheetRenderer::new(&design, &options, &identifiers);
+        for placement in [StylesheetPlacement::Document, StylesheetPlacement::Carrier] {
+            let error = renderer
+                .render_mapped_stylesheet(&artifact.mapped(), placement)
+                .unwrap_err();
+            assert_eq!(
+                error.diagnostic,
+                CompileDiagnostic::InvalidPropertyRequirement
+            );
+        }
+    }
 
     fn snapshot(css: &str) -> DesignSystemSnapshot {
         DesignSystemSnapshot::from_source(
@@ -201,7 +384,8 @@ mod tests {
     /// Rendering a compilation keeps the module fragment separate from the document CSS.
     #[test]
     fn document_rendering_keeps_the_module_fragment() {
-        let design = snapshot("@utility flex { display:flex; } @stillwind-slot utilities;");
+        let design =
+            snapshot("@utility flex { display:flex; } @layer { @stillwind-slot utilities; }");
         let source = Arc::new(
             SourceFile::new(
                 FileId(1),
@@ -221,14 +405,26 @@ mod tests {
             None,
         );
         let options = CompilerOptions::default();
-        let compiled = ModuleCompiler::new(design.clone(), options.clone())
-            .compile(&analysis, &Identifiers::default());
+        let identifiers = Identifiers::new(
+            Some(Rc::new(RejectNames::default())),
+            IdentifierMode::Development,
+        );
+        let compiled =
+            ModuleCompiler::new(design.clone(), options.clone()).compile(&analysis, &identifiers);
         assert!(compiled.is_success());
-        let output = StylesheetRenderer::new(&design, &options, &Identifiers::default())
+        let output = StylesheetRenderer::new(&design, &options, &identifiers)
             .render_compilation(&compiled, source.full_span());
         assert_eq!(output.diagnostics, [] as [CompileError; 0]);
         assert_ne!(output.module_css, "");
         assert_eq!(output.module_css, compiled.css.to_css());
+        assert_eq!(
+            output
+                .rejected_names
+                .iter()
+                .map(|entry| entry.reason.as_str())
+                .collect::<Vec<_>>(),
+            ["class rejected", "layer rejected"]
+        );
     }
 
     /// Authored CSS reached through an import keeps the physical file and byte range it
@@ -264,7 +460,8 @@ mod tests {
             &Identifiers::default(),
         )
         .render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
-        .unwrap();
+        .unwrap()
+        .stylesheet;
         assert_eq!(
             output.css,
             StylesheetRenderer::new(
@@ -274,6 +471,8 @@ mod tests {
             )
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
         );
         let authored = output
             .mappings

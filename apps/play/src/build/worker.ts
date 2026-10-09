@@ -1,5 +1,9 @@
 import * as Babel from "@babel/standalone";
-import type { ModuleAnalysis } from "@stillwind/host";
+import type {
+  BrowserModuleAnalysis,
+  BrowserModuleCss,
+  BrowserStylesheetOutput,
+} from "@stillwind/host/browser";
 import { resolveVirtualModule } from "@stillwind/host/resolution";
 import * as esbuild from "esbuild-wasm";
 import { resolve } from "pathe";
@@ -16,18 +20,10 @@ let initialization: Promise<void> | undefined;
 
 /** Stillwind output sent from the extension's LSP worker for one captured source. */
 interface Compilation {
-  graph: ModuleAnalysis;
+  graph: BrowserModuleAnalysis;
   css: string;
-  cssValues: [
-    string,
-    {
-      css: string;
-      parts: {
-        key: string;
-        css: string;
-      }[];
-    },
-  ][];
+  rejectedNames: BrowserStylesheetOutput["rejectedNames"];
+  cssValues: [string, BrowserModuleCss][];
 }
 
 self.onmessage = async ({
@@ -71,6 +67,7 @@ self.onmessage = async ({
     const files = new Map(data.files);
     const transformed = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
+    const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
     let css = "";
     const output = await esbuild.build({
       entryPoints: ["/workspace/Component.tsx"],
@@ -163,6 +160,16 @@ self.onmessage = async ({
                       }
                     }
                     css = compilation.css;
+                    for (const entry of [
+                      ...compilation.rejectedNames,
+                      ...compilation.graph.modules.flatMap((module) => module.rejectedNames),
+                      ...compilation.cssValues.flatMap(([, value]) => value.rejectedNames),
+                    ]) {
+                      rejectedNames.set(
+                        JSON.stringify([entry.kind, entry.hash, entry.reason]),
+                        entry,
+                      );
+                    }
                     for (const [file, value] of compilation.cssValues) {
                       cssValues.set(file, value);
                     }
@@ -223,6 +230,7 @@ self.onmessage = async ({
           .map((file) => file.text)
           .join("\n"),
       transformed: [...transformed],
+      rejectedNames: [...rejectedNames.values()],
     });
   } catch (error) {
     self.postMessage({

@@ -128,8 +128,8 @@ for (const shape of ["fanout", "chain"] as const) {
           resultKind = result.kind;
         }).run(options);
         expect(resultKind).toBe("complete");
-        expect(new NativeProjectSession(batched, true).css()).toEqual(
-          new NativeProjectSession(loaded.loader, true).css(),
+        expect(new NativeProjectSession(batched, true).css().css).toEqual(
+          new NativeProjectSession(loaded.loader, true).css().css,
         );
       }
     });
@@ -163,7 +163,7 @@ for (const count of [100, 1000]) {
         individual.compile([source]);
       }
     }).run(slowOptions);
-    expect(individual.css()).toEqual(batch.css());
+    expect(individual.css().css).toEqual(batch.css().css);
     let edit = 0;
     await bench("edit-plus-document-css", { async: false }, () => {
       individual.compile([
@@ -177,7 +177,7 @@ for (const count of [100, 1000]) {
       ]);
       individual.css();
     }).run(options);
-    expect(individual.moduleCss(input[0].moduleId)).not.toBe("");
+    expect(individual.moduleCss(input[0].moduleId).css).not.toBe("");
   });
 }
 
@@ -209,7 +209,7 @@ for (const utilities of [10, 100, 1000, 10_000]) {
       ]);
     }).run(options);
     task.meta.memory = process.memoryUsage();
-    expect(session.moduleCss(input[0].moduleId)).not.toBe("");
+    expect(session.moduleCss(input[0].moduleId).css).not.toBe("");
   });
 }
 

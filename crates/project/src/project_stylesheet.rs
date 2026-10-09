@@ -7,7 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use stillwind_compiler::{
-    GeneratedRule, MappedStylesheet, ModuleCssArtifact, StylesheetPlacement, StylesheetRenderer,
+    GeneratedRule, MappedStylesheet, ModuleCssArtifact, RenderedStylesheet, StylesheetPlacement,
+    StylesheetRenderError, StylesheetRenderer,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{ModuleId, SourceFile, Span};
@@ -89,7 +90,7 @@ impl ProjectStylesheet {
     }
 
     /// Uses `renderer` to assemble the rules in order within the design-system
-    /// template. Returns the CSS text without changing this stylesheet.
+    /// template. Returns mapped CSS and naming fallbacks without changing this stylesheet.
     ///
     /// # Errors
     ///
@@ -97,21 +98,17 @@ impl ProjectStylesheet {
     pub fn serialize(
         &self,
         renderer: &StylesheetRenderer<'_>,
-    ) -> Result<String, CompileDiagnostic> {
-        renderer
-            .render_mapped_stylesheet(
-                &self.module_css_with_origins(|_, _| None),
-                StylesheetPlacement::Document,
-            )
-            .map(|mapped| mapped.css)
+    ) -> Result<RenderedStylesheet, StylesheetRenderError> {
+        renderer.render_mapped_stylesheet(
+            &self.module_css_with_origins(|_, _| None),
+            StylesheetPlacement::Document,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use stillwind_compiler::RuleKey;
     use stillwind_css::CssRule;
-    use stillwind_source::Fingerprint;
 
     use super::*;
 
@@ -120,12 +117,7 @@ mod tests {
             rules: CssRule::parse(css)
                 .unwrap()
                 .into_iter()
-                .map(|syntax| GeneratedRule {
-                    syntax,
-                    key: RuleKey(Fingerprint::of("untrusted")),
-                    keyframes: false,
-                    required_properties: Vec::new(),
-                })
+                .map(|syntax| GeneratedRule::new(syntax, false, Vec::new()))
                 .collect(),
         }
     }
@@ -147,26 +139,30 @@ mod tests {
         assert_eq!(sheet.module_css().unwrap(), ".x{color:blue}.x{color:red}");
     }
 
-    /// Replacing a producer keeps one occurrence per content payload, so editing a body
-    /// adds a payload while a repeat of one spelling can still be removed alone.
     #[test]
-    fn publication_rekeys_publicly_edited_rules_before_sharing_them() {
-        let key = RuleKey(Fingerprint::of("stale"));
+    fn publication_copies_rules_and_retracts_each_owner_independently() {
         let mut artifact = ModuleCssArtifact {
-            rules: vec![GeneratedRule {
-                keyframes: false,
-                required_properties: Vec::new(),
-                key,
-                syntax: CssRule {
+            rules: vec![GeneratedRule::new(
+                CssRule {
                     range: 0..0,
                     prelude: ".x".into(),
                     body: Some("color:red;".into()),
                 },
-            }],
+                false,
+                Vec::new(),
+            )],
         };
         let mut sheet = ProjectStylesheet::default();
         sheet.replace(ModuleId::from("a"), &artifact);
-        artifact.rules[0].syntax.body = Some("color:blue;".into());
+        artifact.rules[0] = GeneratedRule::new(
+            CssRule {
+                range: 0..0,
+                prelude: ".x".into(),
+                body: Some("color:blue;".into()),
+            },
+            false,
+            Vec::new(),
+        );
         sheet.replace(ModuleId::from("b"), &artifact);
         assert_eq!(sheet.rule_count(), 2);
         assert!(sheet.module_css().unwrap().contains("color:red;"));

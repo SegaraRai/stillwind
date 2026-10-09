@@ -4,20 +4,6 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
-## Editor snapshot ownership
-
-`EditorSnapshot` retains a mutable `ModuleAnalysis`. `AnalysisProject` exposes it
-through `AnalysisResult.graph`, and `BrowserProject` appends reports after creating
-the editor snapshot. Readonly fields do not prevent mutation through other aliases.
-Define the publication boundary for sources, dependencies, reports, and sorting
-configuration. Verify that retained hover, fixes, sorting, and reports remain
-consistent after graph mutation and later project updates. An editor failure from
-this mutation has not been reproduced.
-
-Sources: [snapshot](../packages/host/src/editor/snapshot.ts),
-[analysis project](../packages/host/src/project/analysis.ts),
-[browser project](../packages/host/src/browser/index.ts).
-
 ## Semantic fingerprints and prefix rewriting
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in
@@ -36,15 +22,6 @@ and overlapping configured prefixes and resource references.
 
 Sources: [design-system options](../crates/design-system/src/options.rs),
 [compiler options](../crates/compiler/src/options.rs).
-
-## Rendering rejection reports
-
-`StylesheetRenderer::render_compilation` drains rejected host-generated names.
-Carrier and project stylesheet rendering do not return the same rejection report.
-Expose rendering rejections consistently and test development fallback through
-each public rendering path.
-
-Source: [renderer](../crates/compiler/src/renderer.rs).
 
 ## Selective CSS reloads
 
@@ -73,15 +50,6 @@ or unstable-key use. Establish which framework facts can support actionable
 warnings without treating valid cross-component pairing as a collision.
 
 Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_transition.rs).
-
-## Public generated-rule invariants
-
-Public generated-rule fields can separate the saved key from current content.
-Review validation at public input boundaries and decide whether mutation should
-be restricted or followed by explicit revalidation. Test caller-constructed
-values rather than assuming they came from compiler constructors.
-
-Source: [generated rules](../crates/compiler/src/module_css.rs).
 
 ## Measurement coverage
 

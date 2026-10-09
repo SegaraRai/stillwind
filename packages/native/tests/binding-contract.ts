@@ -8,6 +8,88 @@ import { expect, test } from "vite-plus/test";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("all stylesheet outputs retain development naming fallbacks and fatal render reports", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      "@utility flex {display:flex;} @layer { .authored { color:red; } @stillwind-slot utilities; }",
+      sourceUri("theme.css"),
+      "theme.css",
+    );
+    const naming = {
+      layerName: () => {
+        throw new Error("layer rejected");
+      },
+    };
+    const session = new NativeProjectSession(loader, false, "development", naming);
+    session.compile([
+      {
+        kind: "direct",
+        moduleId: "entry.tsx",
+        document: {
+          uri: sourceUri("entry.tsx"),
+          sourceMapSource: "entry.tsx",
+          format: "jsx",
+          code: 'import {style} from "stillwind/react"; export const card=style("flex");',
+        },
+        syntax: {
+          language: "tsx",
+          moduleKind: "module",
+        },
+      },
+    ]);
+    const base = session.baseCss();
+    expect(base.rejectedNames).toHaveLength(1);
+    expect(base.rejectedNames[0]).toMatchObject({
+      reason: expect.stringContaining("layer rejected"),
+      substituted: true,
+    });
+    const selection = {
+      modules: ["entry.tsx"],
+      coverage: { kind: "observed" },
+      placement: "document",
+    };
+    for (const output of [
+      session.css(),
+      session.baseCssWithMap(),
+      session.moduleCss("entry.tsx"),
+      session.planStylesheet(selection),
+      session.planStylesheet({
+        ...selection,
+        placement: "carrier",
+      }),
+      session.planStylesheet({
+        ...selection,
+        coverage: {
+          kind: "complete",
+          target: "app",
+          revision: "1",
+        },
+      }),
+    ]) {
+      expect(output.css).toContain("@layer");
+      expect(output.rejectedNames).toEqual(base.rejectedNames);
+    }
+    const layer = /@layer (sw-anon-[\w-]+)\{/.exec(base.css)?.[1];
+    expect(layer).toBeTruthy();
+    session.reserveAuthoredCss("authored.css", `@layer ${layer};`);
+    for (const render of [() => session.css(), () => session.planStylesheet(selection)]) {
+      try {
+        render();
+        expect.fail("Expected a generated layer collision");
+      } catch (error) {
+        expect(error).toMatchObject({
+          rejectedNames: base.rejectedNames,
+        });
+        expect(String(error)).toMatch(/collision|collid/i);
+      }
+    }
+    const release = new NativeProjectSession(loader, false, "release", naming);
+    expect(() => release.baseCss()).toThrow(/layer rejected/);
+  });
+
   test("fingerprints accept UTF-8 text and bytes and match diagnostic source revisions", async () => {
     const { fingerprint, compileSource } = await import(bindingSpecifier);
     expect(fingerprint("")).toBe(
@@ -192,7 +274,7 @@ export const valid=style('[display:block]');`,
       },
     };
     expect(session.compile([input]).modules[0].diagnostics).toEqual([]);
-    const before = session.css();
+    const before = session.css().css;
     const start = source.indexOf("props");
     const batch = session.reportSourceFailure({
       moduleId: input.moduleId,
@@ -219,12 +301,12 @@ export const valid=style('[display:block]');`,
       },
     });
     expect(session.diagnosticBatches()).toEqual([batch]);
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     const replacement = session.newLoader();
     replacement.provide(0, "root", css, sourceUri("root"));
     expect(() => session.reload(replacement)).toThrow(/SW12003/);
     expect(session.diagnosticBatches()).toEqual([batch]);
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     const surrogate = source.indexOf("🧭") + 1;
     expect(() =>
       session.reportSourceFailure({
@@ -260,7 +342,7 @@ export const valid=style('[display:block]');`,
         ],
       },
     });
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     expect(session.diagnosticBatches()).toEqual([failed.batch]);
   });
 
@@ -1061,7 +1143,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     for (const watch of [true, false]) {
       const session = new NativeProjectSession(loader, watch);
       session.compile([source("a.ts", "'red'"), source("b.ts", "'red'")]);
-      const css = session.css();
+      const css = session.css().css;
       const result = session.compile([source("a.ts", "'blue'"), source("b.ts", "unknown")]);
       expect(
         result.modules.some(
@@ -1074,7 +1156,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       expect(attempted.reports[0].primary.location.uri).toBe(sourceUri("b.ts"));
       expect(attempted.reports[0].primary.location.startLine).toBe(0);
       if (watch) {
-        expect(session.css()).toBe(css);
+        expect(session.css().css).toBe(css);
       }
       expect(() =>
         session.planStylesheet({
@@ -1290,17 +1372,17 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         },
       },
     ]);
-    const shared = session.css();
+    const shared = session.css().css;
     expect(session.remove("a.ts")).toBe(true);
     expect(
       session
         .diagnosticBatches()
         .some((batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === "a.ts"),
     ).toBe(false);
-    expect(session.css()).not.toBe(shared);
+    expect(session.css().css).not.toBe(shared);
     expect(session.remove("a.ts")).toBe(false);
     expect(session.remove("b.ts")).toBe(true);
-    expect(session.css()).not.toBe(shared);
+    expect(session.css().css).not.toBe(shared);
   });
 
   test("native semantic unions validate nested asset kinds and candidate payloads", async () => {
@@ -1424,8 +1506,8 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         cssInput(css),
       ).modules[0].diagnostics,
     ).toStrictEqual([]);
-    expect(() => session.css()).toThrow(/@stillwind-slot/);
-    expect(() => session.moduleCss("button.tsx")).toThrow(/@stillwind-slot/);
+    expect(() => session.css().css).toThrow(/@stillwind-slot/);
+    expect(() => session.moduleCss("button.tsx").css).toThrow(/@stillwind-slot/);
     expect(() =>
       session.planStylesheet({
         modules: ["button.tsx"],
@@ -1448,10 +1530,10 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     const foreign = new NativeDesignSystemLoader();
     foreign.provide(0, "root.css", css + " @stillwind-slot utilities;", sourceUri("root.css"));
     expect(() => session.reload(foreign)).toThrow(/another source scope/);
-    const valid = session.css();
+    const valid = session.css().css;
     expect(valid).toMatch(/display:flex/);
     expect(() => session.reload(loader)).toThrow(/@stillwind-slot/);
-    expect(session.css()).toBe(valid);
+    expect(session.css().css).toBe(valid);
   });
 
   test("projected session edits original SFC text and preserves watch recovery", async () => {
@@ -1529,7 +1611,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       ),
     ).toBeTruthy();
     expect(before.code).not.toContain("stillwind/svelte");
-    const css = session.css();
+    const css = session.css().css;
     for (const consume of [
       scanSource,
       (source: unknown) =>
@@ -1565,7 +1647,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       },
     ]).modules[0];
     expect(outsideRegions.diagnostics[0].code).toBe("SW11007");
-    expect(session.css()).toBe(css);
+    expect(session.css().css).toBe(css);
     const invalid = {
       ...input,
       projection: {
@@ -1578,7 +1660,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     };
     const failed = session.compile([invalid]).modules[0];
     expect(failed.diagnostics[0].code).toBe("SW10002");
-    expect(session.css()).toBe(css);
+    expect(session.css().css).toBe(css);
     const recovered = session.compile([input]).modules[0];
     expect(recovered.diagnostics).toStrictEqual([]);
     expect(recovered.code).toBe(before.code);
@@ -1669,11 +1751,11 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       },
     ];
     const before = session.compile(sources);
-    const beforeCss = session.css();
+    const beforeCss = session.css().css;
     const update = session.reload(load("second", session));
     expect(update.cssChanged).toBe(true);
     expect(update.transformedModules).toStrictEqual(["button.tsx"]);
-    expect(session.css()).not.toBe(beforeCss);
+    expect(session.css().css).not.toBe(beforeCss);
     const after = session.compile(sources);
     expect(before.modules[0].code).not.toBe(after.modules[0].code);
     expect(after.modules[0].diagnostics).toStrictEqual([]);
@@ -1741,11 +1823,11 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         (module: import("../binding.js").ProjectModuleOutput) => module.diagnostics.length === 0,
       ),
     ).toBeTruthy();
-    const before = session.css();
+    const before = session.css().css;
     expect(before.length).toBeGreaterThan(0);
     expect(session.remove("a.tsx")).toBe(true);
-    expect(session.css()).not.toBe(before);
-    expect((session.css().match(/background-color:/g) ?? []).length).toBe(1);
+    expect(session.css().css).not.toBe(before);
+    expect((session.css().css.match(/background-color:/g) ?? []).length).toBe(1);
     const next = session.newLoader();
     next.provide(
       0,
@@ -1754,7 +1836,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       sourceUri("root"),
     );
     expect(session.reload(next).cssChanged).toBe(true);
-    expect(session.css()).not.toBe(before);
+    expect(session.css().css).not.toBe(before);
     expect(session.remove("b.tsx")).toBe(true);
   });
 
@@ -1840,7 +1922,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       },
     ]);
     expect(output.modules[0].diagnostics).toStrictEqual([]);
-    const before = session.css();
+    const before = session.css().css;
     expect(before.length).toBeGreaterThan(0);
     const invalid = session.newLoader();
     invalid.provide(0, "theme", "", sourceUri("theme"));
@@ -1850,7 +1932,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(session.diagnosticBatches()[0].reports[0].primary.location.uri).toBe(
       sourceUri("motion.tsx"),
     );
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     const recovered = session.newLoader();
     recovered.provide(
       0,
@@ -1860,7 +1942,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     );
     expect(session.reload(recovered).cssChanged).toBe(true);
     expect(session.diagnosticBatches()[0].reports).toStrictEqual([]);
-    expect(session.css()).not.toBe(before);
+    expect(session.css().css).not.toBe(before);
   });
 
   test("native sessions join supplied type facts with another module's asset metadata", async () => {

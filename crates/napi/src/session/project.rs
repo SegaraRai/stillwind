@@ -14,7 +14,9 @@ use stillwind_compiler::{
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
 use stillwind_ir::{ModuleAnalysis, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_project::{ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection};
+use stillwind_project::{
+    ProjectSession, SessionMode, StylesheetCoverage, StylesheetPlanError, StylesheetSelection,
+};
 
 use stillwind_source::{ModuleId, SourceRegistry};
 
@@ -29,7 +31,7 @@ use crate::output::{
 use crate::source_input::{HostPreparedSource, NativePreparedSource, NativeSourceFailure};
 use crate::stylesheet::{
     NativeCoverage, NativeReload, NativeStylesheetOutput, NativeStylesheetPlacement,
-    NativeStylesheetPlan, NativeStylesheetSelection, stylesheet_locations,
+    NativeStylesheetPlan, NativeStylesheetSelection, stylesheet_error, stylesheet_locations,
 };
 
 use super::{NativeDesignSystemLoader, ProvidedTypeScriptFacts};
@@ -365,11 +367,12 @@ impl NativeProjectSession {
 
     /// Renders the complete stylesheet for the current revision.
     #[napi]
-    pub fn css(&self, env: Env) -> napi::Result<String> {
+    pub fn css(&self, env: Env) -> napi::Result<NativeStylesheetOutput> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         self.session
             .css()
-            .map_err(|error| Error::from_reason(error.to_string()))
+            .map_err(|error| stylesheet_error(env, error))
+            .and_then(|output| NativeStylesheetOutput::from_render(output, false))
     }
 
     /// Returns CSS and producer revisions for the modules selected by the host.
@@ -419,13 +422,16 @@ impl NativeProjectSession {
                 },
                 placement,
             )
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+            .map_err(|error| match error {
+                StylesheetPlanError::Stylesheet(error) => stylesheet_error(env, error),
+                error => Error::from_reason(error.to_string()),
+            })?;
         NativeStylesheetPlan::from_plan(plan, input.placement, include_source_maps)
     }
 
     /// Stable document CSS without a source map, independent of visited JS modules.
     #[napi]
-    pub fn base_css(&self, env: Env) -> napi::Result<String> {
+    pub fn base_css(&self, env: Env) -> napi::Result<NativeStylesheetOutput> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         StylesheetRenderer::new(
             &self.session.snapshot(),
@@ -433,7 +439,8 @@ impl NativeProjectSession {
             self.session.identifiers(),
         )
         .render_stylesheet("")
-        .map_err(|error| Error::from_reason(error.to_string()))
+        .map_err(|error| stylesheet_error(env, error))
+        .and_then(|output| NativeStylesheetOutput::from_render(output, false))
     }
 
     /// Base document CSS with a source map, for review tooling.
@@ -446,17 +453,14 @@ impl NativeProjectSession {
             self.session.identifiers(),
         )
         .render_mapped_stylesheet(&MappedStylesheet::default(), StylesheetPlacement::Document)
-        .map_err(|error| Error::from_reason(error.to_string()))?;
-        Ok(NativeStylesheetOutput {
-            css: output.css,
-            source_map: stylesheet_locations(&output.mappings)?,
-        })
+        .map_err(|error| stylesheet_error(env, error))?;
+        NativeStylesheetOutput::from_render(output, true)
     }
 
     /// Complete CSS for one producer, safe to transport across loader workers.
     #[napi]
     #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-    pub fn module_css(&self, env: Env, module: String) -> napi::Result<String> {
+    pub fn module_css(&self, env: Env, module: String) -> napi::Result<NativeStylesheetOutput> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         self.session
             .plan_stylesheet(
@@ -466,8 +470,17 @@ impl NativeProjectSession {
                 },
                 StylesheetPlacement::Carrier,
             )
-            .map(|output| output.css)
-            .map_err(|error| Error::from_reason(error.to_string()))
+            .map_err(|error| match error {
+                StylesheetPlanError::Stylesheet(error) => stylesheet_error(env, error),
+                error => Error::from_reason(error.to_string()),
+            })
+            .and_then(|output| {
+                Ok(NativeStylesheetOutput {
+                    css: output.css,
+                    source_map: stylesheet_locations(&[])?,
+                    rejected_names: output.rejected_names.into_iter().map(Into::into).collect(),
+                })
+            })
     }
 
     /// Removes a producer, returning whether it was registered.

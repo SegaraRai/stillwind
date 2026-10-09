@@ -89,7 +89,10 @@ export class SourceIndex {
    * before rescanning, and later queries use the captured plans and the in-memory ASTs.
    * @throws If source transport, a projection map, or an original UTF-8 boundary is invalid.
    */
-  constructor(graph: ModuleAnalysis, session: NativeProjectSession) {
+  constructor(
+    graph: Pick<ModuleAnalysis, "sources" | "dependencies">,
+    session: NativeProjectSession,
+  ) {
     this.previews = new GeneratedPreviews(graph, session);
 
     for (const source of graph.sources) {

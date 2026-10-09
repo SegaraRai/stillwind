@@ -1,4 +1,4 @@
-import { decodeCssSourceMap, type DecodedCssSourceMap } from "@stillwind/host";
+import { decodeCssSourceMap, warnRejectedNames, type DecodedCssSourceMap } from "@stillwind/host";
 import type { NativeStylesheetPlan } from "@stillwind/native";
 
 import { cssForBrowser, type BrowserCssSources } from "./browser-css.ts";
@@ -93,6 +93,7 @@ export async function resolveStylesheet(
     },
     settings.watching ? settings.devSourceMaps : settings.sourceMaps,
   );
+  warnRejectedNames(plan.rejectedNames, (message) => context.warn(message));
 
   const resources = new Map(designSystem.resources);
   for (const resource of plan.resources) {

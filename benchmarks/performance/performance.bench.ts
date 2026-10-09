@@ -519,7 +519,7 @@ for (const count of (full ? [100, 1000, 10000] : [100, 1000]) as (100 | 1000 | 1
         ]);
       })
       .run(options);
-    expect(session.moduleCss(input[0].moduleId)).not.toBe("");
+    expect(session.moduleCss(input[0].moduleId).css).not.toBe("");
     await assertBudget(context, "definitions-edit", edited, budgets.definitionEdit[count]);
   });
 }

@@ -42,6 +42,12 @@ export interface CssContext {
    * @param id - Resolved file identity to observe for changes.
    */
   addWatchFile: (id: string) => void;
+  /**
+   * Reports compiler warnings, including generator fallbacks without source locations.
+   *
+   * @param message - Formatted warning text.
+   **/
+  warn: (message: string) => void;
 }
 
 /**

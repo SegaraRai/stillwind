@@ -9,7 +9,8 @@ use std::sync::{Arc, OnceLock};
 
 use stillwind_compiler::{
     CompiledModule, CompilerOptions, GeneratedSymbol, Identifiers, ModuleArtifactKey,
-    ModuleCompiler, StyleResolver, StylesheetRenderer, check_style,
+    ModuleCompiler, RenderedStylesheet, StyleResolver, StylesheetRenderError, StylesheetRenderer,
+    check_style,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
@@ -36,7 +37,7 @@ pub enum SessionReloadError {
     Stylesheet(
         /// Failure rendering the project stylesheet for the reload.
         #[from]
-        CompileDiagnostic,
+        StylesheetRenderError,
     ),
 }
 
@@ -377,22 +378,26 @@ impl ProjectSession {
     ///
     /// Returns an error if the stylesheet cannot be rendered or a generated name
     /// collides with another name in the same CSS namespace.
-    pub fn css(&self) -> Result<String, CompileDiagnostic> {
+    pub fn css(&self) -> Result<RenderedStylesheet, StylesheetRenderError> {
         let renderer = StylesheetRenderer::new(&self.current, &self.options, &self.identifiers);
         let mut stylesheet = self.stylesheet.clone();
         let mut modules = self.artifacts.keys().cloned().collect();
         let order = self
             .stylesheet_order(&mut modules)
-            .map_err(|_| CompileDiagnostic::MissingRule)?;
+            .map_err(|_| StylesheetRenderError::from(CompileDiagnostic::MissingRule))?;
         if modules
             .iter()
             .any(|module| !self.artifacts.contains_key(module))
         {
-            return Err(CompileDiagnostic::MissingRule);
+            return Err(CompileDiagnostic::MissingRule.into());
         }
         stylesheet.set_order(order);
         let css = stylesheet.serialize(&renderer)?;
-        self.check_document_names(&renderer.take_detached_symbols())?;
+        self.check_document_names(&renderer.take_detached_symbols())
+            .map_err(|diagnostic| StylesheetRenderError {
+                diagnostic,
+                rejected_names: css.rejected_names.clone(),
+            })?;
         Ok(css)
     }
 
@@ -676,7 +681,8 @@ impl ProjectSession {
             return Ok(update);
         }
         let next_css = next.css()?;
-        update.css_changed = !old_css.is_ok_and(|previous| previous == next_css);
+        update.css_changed =
+            !old_css.is_ok_and(|previous| previous.stylesheet.css == next_css.stylesheet.css);
         *self = next;
         Ok(update)
     }

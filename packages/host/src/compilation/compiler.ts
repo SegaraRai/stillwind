@@ -1,6 +1,8 @@
 import type {
   BindingDiagnostic,
+  BindingEdit,
   BindingReport,
+  BindingRejectedIdentifier,
   NativeDiagnosticBatch,
   NativeModuleSummary,
   NativePreparedSource,
@@ -139,6 +141,8 @@ export interface ModuleAnalysis {
   modules: ProjectModuleOutput[];
   /** Structured diagnostic batches keyed by compiler module identity. */
   batches: NativeDiagnosticBatch[];
+  /** Nonempty first fix actions in report order, excluding editor sorting actions. */
+  fixes: BindingEdit[][];
   /** Prepared original sources retained for mapping reports, including sources that later fail scanning. */
   sources: PreparedSource[];
   /** Import requests and their resolution or support status observed during traversal. */
@@ -186,6 +190,7 @@ export async function analyzeModule(
     coverage: "observed",
     modules: [],
     batches: [],
+    fixes: [],
     sources: [],
     dependencies: [],
     unverified: [],
@@ -208,6 +213,14 @@ export async function analyzeModule(
     analysis,
     input,
   );
+  for (const batch of analysis.batches) {
+    for (const report of batch.reports) {
+      const edits = report.actions[0]?.edits;
+      if (edits?.length && report.code !== "sort-utilities") {
+        analysis.fixes.push(edits);
+      }
+    }
+  }
   return analysis;
 }
 
@@ -507,14 +520,21 @@ function reportOutputDiagnostics(
         },
       ]);
     }
-    // A rejected name comes from the host's own generator rather than from the source, so it
-    // carries no position: it is reported over the warning channel, and the compilation has
-    // already substituted the built-in name.
-    for (const rejected of output.rejectedNames ?? []) {
-      host.warn(
-        `stillwind: the ${rejected.kind} name for ${rejected.hash} was rejected: ${rejected.reason}`,
-      );
-    }
+    warnRejectedNames(output.rejectedNames ?? [], (message) => host.warn(message));
+  }
+}
+
+/**
+ * Reports naming fallbacks through the host warning channel without a source location.
+ * @param rejected - Generator rejections in request order.
+ * @param warn - Receives the family, input hash, and rejection reason for each fallback.
+ */
+export function warnRejectedNames(
+  rejected: readonly BindingRejectedIdentifier[],
+  warn: (message: string) => void,
+): void {
+  for (const entry of rejected) {
+    warn(`stillwind: the ${entry.kind} name for ${entry.hash} was rejected: ${entry.reason}`);
   }
 }
 

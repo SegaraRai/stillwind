@@ -107,6 +107,9 @@ export function developmentHooks(
             addWatchFile: (id) => {
               server.watcher.add(id);
             },
+            warn: (message) => {
+              server.config.logger.warn(message);
+            },
           },
           false,
           selection.length ? selection : undefined,
@@ -134,6 +137,9 @@ export function developmentHooks(
               environment.pluginContainer.resolveId(specifier, importer),
             addWatchFile: (id) => {
               server.watcher.add(id);
+            },
+            warn: (message) => {
+              server.config.logger.warn(message);
             },
           })
           .then((snapshot) => sendJson(response, snapshot))

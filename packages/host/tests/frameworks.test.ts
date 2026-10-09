@@ -180,7 +180,7 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
     expect(output).toBeTruthy();
     expect(output?.code).toContain(`<${extension === "astro" ? "div" : "script"}`);
     expect(output!.diagnostics).toStrictEqual([]);
-    expect(session.moduleCss(output!.moduleId)).toMatch(/display:\s*flex/);
+    expect(session.moduleCss(output!.moduleId).css).toMatch(/display:\s*flex/);
     const edited = await compileModule(
       session,
       () => facts,
@@ -189,8 +189,8 @@ test("host compiles raw SFCs and updates session CSS after edits", async (t) => 
       host,
     );
     expect(edited?.code).toBeTruthy();
-    expect(session.moduleCss(output!.moduleId)).not.toMatch(/display:\s*flex/);
-    expect(session.moduleCss(output!.moduleId)).toMatch(/display:\s*grid/);
+    expect(session.moduleCss(output!.moduleId).css).not.toMatch(/display:\s*flex/);
+    expect(session.moduleCss(output!.moduleId).css).toMatch(/display:\s*grid/);
   }
 });
 

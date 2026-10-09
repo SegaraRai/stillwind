@@ -67,5 +67,11 @@ those helpers. Checked helpers share their framework's production symbol keys.
 
 Release generation failures produce compilation diagnostics. Development mode
 can retain builtin names and records rejected host names for the host to report.
-Rejected names are separate from author-code lint findings. See
-[open work](TODO.md) for gaps in reporting rejections from rendering entrypoints.
+Rejected names have no source location and are separate from author-code lint findings.
+Every `StylesheetRenderer` call returns its rejection records beside the CSS, or
+beside the fatal cause when rendering fails. A stylesheet plan combines records
+from its reference and optimized renders, deduplicating by family, input hash,
+and reason. `render_compilation` also retains the module's generation records.
+N-API and browser stylesheet outputs expose these records as `rejectedNames`;
+bundler integrations report them through their warning channel. Failed N-API
+renders attach `rejectedNames` to the thrown error and return no partial CSS.

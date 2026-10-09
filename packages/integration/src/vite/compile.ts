@@ -73,12 +73,6 @@ export interface ProducerInput {
 /** Vite operations needed to compile producers and compose their upstream source maps. */
 export interface CompileContext extends CssContext {
   /**
-   * Reports a compiler warning through the current Vite operation.
-   *
-   * @param message - Formatted warning text.
-   */
-  warn: (message: string) => void;
-  /**
    * Reads the map produced by plugins that transformed the source before Stillwind.
    *
    * @returns The upstream map supplied by the Vite transform context.

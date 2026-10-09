@@ -12,6 +12,7 @@ import {
   cssEntrypoint,
   fileModuleDescriptor,
   loadCssGraph,
+  warnRejectedNames,
   type CompilerHost,
   type LoadedCssGraph,
 } from "@stillwind/host";
@@ -281,7 +282,7 @@ export async function compileGraph(entries: readonly string[], project: Turbopac
       selection.push(output.moduleId);
     }
   }
-  return compiler.native.planStylesheet({
+  const plan = compiler.native.planStylesheet({
     modules: selection,
     coverage: {
       kind: "complete",
@@ -290,4 +291,6 @@ export async function compileGraph(entries: readonly string[], project: Turbopac
     },
     placement: "document",
   });
+  warnRejectedNames(plan.rejectedNames, (message) => host.warn(message));
+  return plan;
 }

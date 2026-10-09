@@ -67,7 +67,8 @@ impl Compiler {
                 .map_err(|error| error.into_compile_error(source.full_span()))?;
         StylesheetRenderer::new(&snapshot, options, &Identifiers::default())
             .render_stylesheet(module_css)
-            .map_err(|kind| CompileError::new(kind, source.full_span()))
+            .map(|output| output.stylesheet.css)
+            .map_err(|error| CompileError::new(error.diagnostic, source.full_span()))
     }
 
     /// Compiles one source against an explicit theme buffer and options.

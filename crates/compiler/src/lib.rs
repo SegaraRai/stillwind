@@ -80,7 +80,10 @@ pub use query::{
     CandidateContext, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
     DesignSystemQuery, prepare_canonical_index,
 };
-pub use renderer::{StylesheetPlacement, StylesheetRenderer};
+pub use renderer::{
+    RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,
+    merge_rejected_names,
+};
 pub use style_analysis::{
     ResolvedStyle, StyleEffects, StyleResolver, check_style, is_style_analysis_lint,
 };

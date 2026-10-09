@@ -6,6 +6,7 @@
 export {
   analyzeModule,
   compileModule,
+  warnRejectedNames,
   type CompilerHost,
   type ModuleAnalysis,
   type ModuleCompileOptions,

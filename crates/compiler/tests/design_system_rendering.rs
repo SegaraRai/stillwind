@@ -51,10 +51,14 @@ fn renders_repeated_imports_in_authored_order() {
             &Identifiers::default()
         )
         .render_stylesheet("")
-        .unwrap(),
+        .unwrap()
+        .stylesheet
+        .css,
         StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
     );
 }
 
@@ -89,7 +93,9 @@ fn imported_styles_retain_layer_supports_and_media_conditions() {
         &Identifiers::default(),
     )
     .render_stylesheet("")
-    .unwrap();
+    .unwrap()
+    .stylesheet
+    .css;
     assert!(css.contains("@layer components"), "{css}");
     assert!(css.contains("@supports (display: grid)"), "{css}");
     assert!(css.contains("@media screen and (width > 40rem)"), "{css}");
@@ -141,12 +147,16 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
         StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
             .contains("box-sizing")
     );
     assert!(
         !StylesheetRenderer::new(&first, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
             .contains("--theme(")
     );
     let bare = DesignSystemSnapshot::from_source(
@@ -159,6 +169,8 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
         !StylesheetRenderer::new(&bare, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
             .contains("box-sizing")
     );
 }
@@ -198,10 +210,14 @@ fn rendering_is_independent_of_import_response_order() {
             &Identifiers::default()
         )
         .render_stylesheet("")
-        .unwrap(),
+        .unwrap()
+        .stylesheet
+        .css,
         StylesheetRenderer::new(&flat, &CompilerOptions::default(), &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
     );
     assert_eq!(
         StylesheetRenderer::new(
@@ -210,7 +226,9 @@ fn rendering_is_independent_of_import_response_order() {
             &Identifiers::default()
         )
         .render_stylesheet("")
-        .unwrap(),
+        .unwrap()
+        .stylesheet
+        .css,
         StylesheetRenderer::new(
             &batch_snapshot,
             &CompilerOptions::default(),
@@ -218,6 +236,8 @@ fn rendering_is_independent_of_import_response_order() {
         )
         .render_stylesheet("")
         .unwrap()
+        .stylesheet
+        .css
     );
 }
 
@@ -249,7 +269,9 @@ fn renders_each_diamond_import_occurrence() {
         &Identifiers::default(),
     )
     .render_stylesheet("")
-    .unwrap();
+    .unwrap()
+    .stylesheet
+    .css;
     assert_eq!(css.matches(".leaf").count(), 2);
     assert_eq!(css.matches(".shared").count(), 2);
 }
@@ -267,10 +289,14 @@ fn cloned_snapshots_render_identically() {
     assert_eq!(
         StylesheetRenderer::new(&snapshot, &options, &Identifiers::default())
             .render_stylesheet("")
-            .unwrap(),
+            .unwrap()
+            .stylesheet
+            .css,
         StylesheetRenderer::new(&pinned, &options, &Identifiers::default())
             .render_stylesheet("")
             .unwrap()
+            .stylesheet
+            .css
     );
 }
 

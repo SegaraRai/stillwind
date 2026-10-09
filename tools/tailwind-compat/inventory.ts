@@ -274,7 +274,7 @@ for (const file of readdirSync(join(fixtureRoot, "cases"))
         const native: ProjectModuleOutput = loaded.session.compile([
           fixturePreparedSource(source, "src/Parity.tsx"),
         ]).modules[0];
-        actual = loaded.session.css();
+        actual = loaded.session.css().css;
         if (loaded.uses++ % 250 === 0) {
           const direct = compileFixtureSource(source, "src/Parity.tsx", loaded.css);
           assert.equal(actual, direct.css, `session differs: ${file} ${candidate}`);

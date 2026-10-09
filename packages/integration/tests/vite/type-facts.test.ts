@@ -259,7 +259,7 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
   ) as typeof withFacts;
   expect(selected.modules.map((module) => module.moduleId)).toStrictEqual(["src/consumer.ts"]);
   expect(selected.modules[0].diagnostics).toStrictEqual([]);
-  expect(session.moduleCss("src/consumer.ts")).toMatch(/animation-name:sw-kf-/);
+  expect(session.moduleCss("src/consumer.ts").css).toMatch(/animation-name:sw-kf-/);
   const selection: import("@stillwind/native").NativeStylesheetSelection = {
     modules: ["src/consumer.ts"],
     coverage: {
@@ -286,7 +286,7 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
     ...selection,
     coverage: { kind: "observed" },
   });
-  expect(reference.css).toBe(session.moduleCss("src/consumer.ts"));
+  expect(reference.css).toBe(session.moduleCss("src/consumer.ts").css);
   expect(plan.css).toMatch(/animation-iteration-count:infinite/);
   expect(plan.css).toMatch(/@keyframes sw-kf-/);
   expect(plan.css.match(/@keyframes /g)?.length).toBe(2);
@@ -307,7 +307,7 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
       modules: [...selection.modules, "src/unvisited.ts"],
     }),
   ).toThrow(/unregistered modules/);
-  expect(session.moduleCss("src/producer.ts")).toMatch(/display:flex/);
+  expect(session.moduleCss("src/producer.ts").css).toMatch(/display:flex/);
   session.compile(
     sources.map((source) => ({
       ...source,

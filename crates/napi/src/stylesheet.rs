@@ -7,14 +7,37 @@
 
 use std::collections::BTreeMap;
 
-use napi::Error;
+use napi::bindgen_prelude::{Env, JsObjectValue};
+use napi::{Error, Status};
 use napi_derive::napi;
 
-use stillwind_compiler::StylesheetMapping;
+use stillwind_compiler::{RenderedStylesheet, StylesheetMapping, StylesheetRenderError};
 use stillwind_project::{StylesheetCoverage, StylesheetPlan};
 use stillwind_source::ModuleId;
 
-use crate::output::NativeModuleResource;
+use crate::output::{BindingRejectedIdentifier, NativeModuleResource};
+
+/// Throws an assembly error with its fallback reports attached as `rejectedNames`.
+/// Returns the pending-exception status so native and WASM bindings preserve the same JS object.
+pub(crate) fn stylesheet_error(env: Env, error: StylesheetRenderError) -> Error {
+    let create = || -> napi::Result<Error> {
+        let mut value = env.create_error(Error::from_reason(error.to_string()))?;
+        value.set_named_property(
+            "rejectedNames",
+            error
+                .rejected_names
+                .into_iter()
+                .map(BindingRejectedIdentifier::from)
+                .collect::<Vec<_>>(),
+        )?;
+        env.throw(value)?;
+        Ok(Error::new(
+            Status::PendingException,
+            "Stylesheet rendering failed",
+        ))
+    };
+    create().unwrap_or_else(|error| error)
+}
 
 /// One step of the design-system load state machine.
 ///
@@ -119,6 +142,8 @@ pub struct NativeStylesheetPlan {
     pub parts: Vec<NativeStylesheetPart>,
     /// The rendered CSS text.
     pub css: String,
+    /// Development fallbacks observed during this plan's renders, in request order.
+    pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Source locations for the rules that have one.
     pub source_map: NativeStylesheetMap,
     /// Assets and resources the selected producers reference.
@@ -174,6 +199,7 @@ impl NativeStylesheetPlan {
                 })
                 .collect::<napi::Result<_>>()?,
             css: plan.css,
+            rejected_names: plan.rejected_names.into_iter().map(Into::into).collect(),
             source_map: stylesheet_locations(if include_source_maps {
                 &plan.mappings
             } else {
@@ -240,6 +266,27 @@ pub struct NativeStylesheetOutput {
     pub css: String,
     /// Source locations for the rules that have one.
     pub source_map: NativeStylesheetMap,
+    /// Development fallbacks observed during this render, in request order.
+    pub rejected_names: Vec<BindingRejectedIdentifier>,
+}
+
+impl NativeStylesheetOutput {
+    /// Converts rendered CSS and fallback reports, omitting mappings when the host does not need them.
+    /// Returns an error for offsets outside the host range or unresolved map sources.
+    pub(crate) fn from_render(
+        output: RenderedStylesheet,
+        include_source_maps: bool,
+    ) -> napi::Result<Self> {
+        Ok(Self {
+            css: output.stylesheet.css,
+            source_map: stylesheet_locations(if include_source_maps {
+                &output.stylesheet.mappings
+            } else {
+                &[]
+            })?,
+            rejected_names: output.rejected_names.into_iter().map(Into::into).collect(),
+        })
+    }
 }
 
 /// Source map for generated CSS.

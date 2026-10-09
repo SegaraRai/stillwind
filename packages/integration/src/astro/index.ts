@@ -88,6 +88,9 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                           addWatchFile: (id) => {
                             server.watcher.add(id);
                           },
+                          warn: (message) => {
+                            server.config.logger.warn(message);
+                          },
                         });
                         return plan.css;
                       }),

@@ -57,7 +57,10 @@ export class GeneratedPreviews {
    * after later session updates, provided callers keep the captured sites unchanged.
    * @throws If a captured UTF-8 range is invalid for its original buffer.
    */
-  constructor(graph: ModuleAnalysis, session: NativeProjectSession) {
+  constructor(
+    graph: Pick<ModuleAnalysis, "sources" | "dependencies">,
+    session: NativeProjectSession,
+  ) {
     const revisions: string[] = [];
     const captures = new Map(
       session

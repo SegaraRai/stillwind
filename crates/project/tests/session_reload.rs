@@ -77,7 +77,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     let other_artifact = session.artifacts()[&ModuleId::from("other.tsx")]
         .css
         .to_css();
-    let before_css = session.css().unwrap();
+    let before_css = session.css().unwrap().stylesheet.css;
     let revision = session.snapshot().revision();
     let before_artifact = session.artifacts()[&ModuleId::from("motion.tsx")]
         .css
@@ -96,7 +96,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
     assert!(!update.css_changed);
     assert!(update.transformed_modules.is_empty());
     assert_eq!(session.snapshot().revision(), revision);
-    assert_eq!(session.css().unwrap(), before_css);
+    assert_eq!(session.css().unwrap().stylesheet.css, before_css);
     assert_eq!(
         session.artifacts()[&ModuleId::from("motion.tsx")]
             .css

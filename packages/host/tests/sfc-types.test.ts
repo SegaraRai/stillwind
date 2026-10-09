@@ -106,7 +106,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     expect(Buffer.from(files[producer]).subarray(base.start, base.end).toString()).toBe(
       "style('red')",
     );
-    expect(session.moduleCss(entry)).toMatch(/color:\s*blue/);
+    expect(session.moduleCss(entry).css).toMatch(/color:\s*blue/);
     expect(first!.code).not.toMatch(/stillwind-identity\/v1:|__stillwindDeclarationIdentity/);
     files[producer] = files[producer].replace("'red'", "'green'");
     const second = await compile();

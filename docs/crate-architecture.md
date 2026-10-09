@@ -112,6 +112,11 @@ module compilers and renderers combine generation policy with the snapshot's
 resolved prefixes. Different compilation settings can share one snapshot.
 
 `StylesheetRenderer` owns CSS rendering.
+`GeneratedRule::new` normalizes registration dependencies and fixes each rule's
+syntax and placement. Its fields are read-only after construction; replacing a
+rule requires constructing a new value. The constructor stores the identity of
+its CSS, placement, and normalized registration dependencies. `content_key()`
+returns that stored key.
 `DesignSystemQuery` lives in `compiler` so queries reuse the real resolver and
 emitter. Neither operation introduces a dependency from snapshots to codegen.
 

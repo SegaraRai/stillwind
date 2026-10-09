@@ -1,6 +1,7 @@
 import type { BaseConfig, LintSeverity, UtilitySortOptions } from "@stillwind/config";
 import {
   fingerprint,
+  type BindingEdit,
   type BindingReport,
   type NativeDesignSystemLoader,
   type NativeEditorQuery,
@@ -134,10 +135,31 @@ export interface EditorResult {
   edits?: EditorEdit[];
 }
 
+/**
+ * Copies plain editor input records and freezes their nested arrays and objects.
+ * @param input - Source metadata, dependencies, or fix actions without native handles.
+ * @returns An owned capture whose records cannot change through aliases.
+ */
+function captureInput<T>(input: T): T {
+  const captured = structuredClone(input);
+  const freeze = (value: unknown): void => {
+    if (value !== null && typeof value === "object") {
+      for (const child of Object.values(value)) {
+        freeze(child);
+      }
+      Object.freeze(value);
+    }
+  };
+  freeze(captured);
+  return captured;
+}
+
 /** Runs source queries and actionable sorting diagnostics using captured compiler output. */
 export class EditorSnapshot {
-  /** Source buffers and compilation reports addressed by queries. Original buffers must stay unchanged. */
-  readonly #graph: ModuleAnalysis;
+  /** Owned source buffers and projection metadata captured before publication. */
+  readonly #sources: PreparedSource[];
+  /** First fix actions from compilation reports, captured in original coordinates. */
+  readonly #fixes: BindingEdit[][];
   /** Checker ASTs, stable aliases, and captured emission plans for the graph's sources. */
   readonly #index: SourceIndex;
   /** Native design system and effective lint policy captured during construction. */
@@ -155,13 +177,13 @@ export class EditorSnapshot {
 
   /**
    * Captures recognized producers and compiler output for one set of source revisions.
-   * The caller must keep the graph's prepared sources, dependencies, and sorting settings unchanged.
+   * Copies source metadata, dependencies, fix actions, and sorting settings before indexing them.
    * Building the source index also scans graph sources in the session.
    *
    * @param graph - Original sources, demanded dependencies, emitted CSS, and lint reports.
    * @param session - Session that compiled the graph and recognizes its producer identities.
    * @param loader - Completed design system with the same compiler options as the session.
-   * @param config - Shared sorting targets. Effective lint policy comes from the loader.
+   * @param config - Sorting targets to capture. Effective lint policy comes from the loader.
    * @throws If source transport, a projection map, or an original UTF-8 boundary is invalid.
    */
   constructor(
@@ -170,14 +192,26 @@ export class EditorSnapshot {
     loader: NativeDesignSystemLoader,
     config: BaseConfig,
   ) {
-    this.#graph = graph;
-    this.#index = new SourceIndex(graph, session);
+    const inputs = captureInput({
+      sources: graph.sources,
+      dependencies: graph.dependencies,
+    });
+    this.#sources = inputs.sources;
+    this.#fixes = captureInput(graph.fixes);
+    this.#index = new SourceIndex(inputs, session);
     this.#query = loader.editorQuery();
     this.#candidates = new CandidateQueries(this.#query);
-    this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
     const css = this.#query.lintSettings();
-    this.#sort = config.sort ?? {};
+    this.#sort =
+      config.sort === false
+        ? false
+        : Object.freeze({
+            stringLiterals: config.sort?.stringLiterals ?? true,
+            arrays: config.sort?.arrays ?? true,
+            attributes: config.sort?.attributes ?? false,
+          });
     this.#sortSeverity = (css["sort-utilities"] as LintSeverity) ?? "off";
+    this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
   }
 
   /**
@@ -185,14 +219,14 @@ export class EditorSnapshot {
    * Effective lint severity and source suppression determine which reports are returned.
    * Compilation reports already present in the graph remain separate.
    *
-   * @returns A new array containing cached report objects. Callers must keep those objects unchanged.
+   * @returns Independent copies of sorting reports for the captured sources.
    * @throws If candidate ranking fails or native report construction rejects a source URI or range.
    */
   reports(): BindingReport[] {
-    for (const source of this.#graph.sources) {
+    for (const source of this.#sources) {
       this.#lint(source);
     }
-    return [...this.#reports.values()].flat();
+    return structuredClone([...this.#reports.values()].flat());
   }
 
   /**
@@ -207,7 +241,7 @@ export class EditorSnapshot {
    * @throws If native candidate resolution, CSS formatting, or lint suppression checks fail.
    */
   query(id: string, request: EditorRequest): EditorResult | undefined {
-    const source = this.#graph.sources.find((source) => source.resolverId === id);
+    const source = this.#sources.find((source) => source.resolverId === id);
     if (!source) {
       return undefined;
     }
@@ -217,19 +251,15 @@ export class EditorSnapshot {
       const seed =
         request.kind === "fixes"
           ? uniqueEdits(
-              this.#graph.batches
-                .flatMap((batch) => batch.reports)
-                .filter((report) => report.code !== "sort-utilities")
-                .flatMap((report) => {
-                  const edits = report.actions[0]?.edits ?? [];
-                  return edits.every(
+              this.#fixes
+                .filter((edits) =>
+                  edits.every(
                     (edit) =>
                       edit.location.uri === source.document.uri &&
                       edit.location.revision === result.revision,
-                  )
-                    ? edits
-                    : [];
-                })
+                  ),
+                )
+                .flat()
                 .map((edit) => ({
                   start: edit.location.startUtf16,
                   end: edit.location.endUtf16,

@@ -116,7 +116,10 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
         assert!(fragment.apply_to_source(&source).is_ok());
         let renderer = StylesheetRenderer::new(&snapshot, &options, &Identifiers::default());
         assert_eq!(
-            renderer.render_stylesheet(&fragment.css).unwrap_err(),
+            renderer
+                .render_stylesheet(&fragment.css)
+                .unwrap_err()
+                .diagnostic,
             expected
         );
         let document = renderer.render_compilation(&compiled, source.full_span());

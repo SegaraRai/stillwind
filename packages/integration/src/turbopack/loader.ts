@@ -1,7 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { composeModuleSourceMap, moduleSourceMap, type UpstreamSourceMap } from "@stillwind/host";
+import {
+  composeModuleSourceMap,
+  moduleSourceMap,
+  warnRejectedNames,
+  type UpstreamSourceMap,
+} from "@stillwind/host";
 import type { LoaderContext } from "webpack";
 
 import { loaderCompletion } from "../webpack/source-map-loader.ts";
@@ -40,6 +45,7 @@ export default function turbopackLoader(
           coverage: { kind: "observed" },
           placement: "document",
         });
+        warnRejectedNames(plan.rejectedNames, (message) => project.host.warn(message));
         const imports: string[] = [];
         const replacements: string[] = [];
         for (const resource of [...project.loaded.resources, ...plan.resources]) {

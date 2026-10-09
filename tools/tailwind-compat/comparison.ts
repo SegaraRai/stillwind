@@ -252,7 +252,10 @@ export function compileParity(source: string, css: string) {
   }
   const module = entry.session.compile([fixturePreparedSource(source, "src/Parity.tsx")])
     .modules[0];
-  const output = { ...module, css: entry.session.css() };
+  const output = {
+    ...module,
+    css: entry.session.css().css,
+  };
   if (entry.uses++ % 250 === 0) {
     const direct = compileFixtureSource(source, "src/Parity.tsx", css);
     assert.equal(output.css, direct.css);

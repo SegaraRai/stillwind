@@ -216,7 +216,7 @@ export declare class NativeProjectSession {
    */
   reload(loader: NativeDesignSystemLoader): NativeReload
   /** Renders the complete stylesheet for the current revision. */
-  css(): string
+  css(): NativeStylesheetOutput
   /**
    * Returns CSS and producer revisions for the modules selected by the host.
    *
@@ -240,11 +240,11 @@ export declare class NativeProjectSession {
    */
   planStylesheet(input: NativeStylesheetSelection, includeSourceMaps?: boolean | undefined | null): NativeStylesheetPlan
   /** Stable document CSS without a source map, independent of visited JS modules. */
-  baseCss(): string
+  baseCss(): NativeStylesheetOutput
   /** Base document CSS with a source map, for review tooling. */
   baseCssWithMap(): NativeStylesheetOutput
   /** Complete CSS for one producer, safe to transport across loader workers. */
-  moduleCss(module: string): string
+  moduleCss(module: string): NativeStylesheetOutput
   /** Removes a producer, returning whether it was registered. */
   remove(module: string): boolean
   /**
@@ -1395,6 +1395,8 @@ export interface NativeStylesheetOutput {
   css: string
   /** Source locations for the rules that have one. */
   sourceMap: NativeStylesheetMap
+  /** Development fallbacks observed during this render, in request order. */
+  rejectedNames: Array<BindingRejectedIdentifier>
 }
 
 /** A CSS fragment at one position in an output plan. */
@@ -1422,6 +1424,8 @@ export interface NativeStylesheetPlan {
   parts: Array<NativeStylesheetPart>
   /** The rendered CSS text. */
   css: string
+  /** Development fallbacks observed during this plan's renders, in request order. */
+  rejectedNames: Array<BindingRejectedIdentifier>
   /** Source locations for the rules that have one. */
   sourceMap: NativeStylesheetMap
   /** Assets and resources the selected producers reference. */

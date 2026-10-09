@@ -1,7 +1,11 @@
 import { lintPresets, type AnalysisProjectConfig } from "@stillwind/config";
+import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
 import { BrowserProject } from "../browser/index.ts";
+import { analyzeModule, fileModuleDescriptor } from "../compilation/index.ts";
+import { compilerOptions } from "../project/options.ts";
+import { EditorSnapshot } from "./snapshot.ts";
 import { applyEdits } from "./sort.ts";
 
 const theme = `
@@ -15,6 +19,72 @@ const theme = `
 @variant focus { &:focus { @slot; } }
 @stillwind-slot utilities;
 `;
+
+test("captured editor inputs and reports survive mutation and later native compilation", async () => {
+  const id = "/workspace/entry.tsx";
+  const source = 'import {style} from "stillwind/react"; const card=style("p-[16px] flex block");';
+  const config: AnalysisProjectConfig = {
+    css: "theme.css",
+    files: ["*.tsx"],
+    typeFacts: false,
+    sort: {
+      stringLiterals: true,
+    },
+    lint: {
+      extends: [lintPresets.recommended, lintPresets.stylistic],
+    },
+  };
+  const loader = new NativeDesignSystemLoader(compilerOptions(config));
+  expect(loader.provide(0, "theme.css", theme).kind).toBe("complete");
+  const session = new NativeProjectSession(loader, false, "development");
+  let text = source;
+  const host = {
+    describe: (file: string) => fileModuleDescriptor("/workspace", file),
+    resolve: async () => null,
+    read: async () => text,
+    watch: () => {},
+    warn: () => {},
+  };
+  const graph = await analyzeModule(session, () => undefined, id, host);
+  const snapshot = new EditorSnapshot(graph, session, loader, config);
+  const requests = [
+    { kind: "hover", offset: source.indexOf("flex") },
+    { kind: "fixes" },
+    { kind: "sort" },
+  ] as const;
+  const expected = requests.map((request) => snapshot.query(id, request));
+  expect(expected[0]?.hover?.css).toContain("display: flex");
+  expect(expected[1]?.edits?.length).toBeGreaterThan(0);
+  const reports = snapshot.reports();
+  expect(reports.length).toBeGreaterThan(0);
+  const expectedReports = structuredClone(reports);
+  reports[0].actions[0].edits[0].replacement = "changed";
+  reports[0].primary.location.uri = "untitled:changed";
+  expect(graph.fixes.length).toBeGreaterThan(0);
+  graph.fixes[0][0].replacement = "changed";
+  graph.fixes.length = 0;
+  const prepared = graph.sources[0];
+  expect(prepared.kind).toBe("direct");
+  if (prepared.kind === "direct") {
+    prepared.syntax = { language: "js", moduleKind: "script" };
+  }
+  Object.assign(graph.sources[0].document, {
+    code: "",
+    uri: "untitled:changed",
+  });
+  graph.sources.length = 0;
+  graph.dependencies.push({
+    importer: id,
+    specifier: "changed",
+    status: "unresolved",
+  });
+  graph.batches.length = 0;
+  config.sort = false;
+  text = 'import {style} from "stillwind/react"; const card=style("block");';
+  await analyzeModule(session, () => undefined, id, host);
+  expect(requests.map((request) => snapshot.query(id, request))).toEqual(expected);
+  expect(snapshot.reports()).toEqual(expectedReports);
+});
 
 /**
  * Creates an isolated virtual project for queries that do not require semantic type facts.

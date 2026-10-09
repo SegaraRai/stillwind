@@ -333,7 +333,7 @@ export class AnalysisProject {
       const graph = await analyzeModule(session, () => this.#semanticBackend(), entry, this.host, {
         overlayFiles: documents,
       });
-      result.graph = graph;
+      result.graph = structuredClone(graph);
       result.reports = await mapAnalysisReports(
         graph.batches.flatMap((batch) => batch.reports),
         graph.sources,

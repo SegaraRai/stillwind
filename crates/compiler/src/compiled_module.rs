@@ -182,8 +182,8 @@ impl CompiledModule {
                 .iter()
                 .map(|rule| CssContribution {
                     css: rule.to_css(),
-                    keyframes: rule.keyframes,
-                    required_properties: rule.required_properties.clone(),
+                    keyframes: rule.keyframes(),
+                    required_properties: rule.required_properties().to_vec(),
                 })
                 .collect(),
             composition: self.composition.clone(),

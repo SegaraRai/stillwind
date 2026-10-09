@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { BaseConfig } from "@stillwind/config";
 import { createServer, type ViteDevServer } from "vite";
 import { expect, onTestFinished } from "vite-plus/test";
 
@@ -14,7 +15,10 @@ import { style } from 'stillwind/react';
 export const props = style('red');
 `;
 
-export async function createTestServer() {
+export async function createTestServer(
+  config: BaseConfig = {},
+  css = "@utility red{color:red} @stillwind-slot utilities;",
+) {
   const root = await mkdtemp(path.join(packageRoot, ".test-security-"));
   let server: ViteDevServer | undefined = undefined;
   onTestFinished(async () => {
@@ -24,12 +28,10 @@ export async function createTestServer() {
       await rm(root, { recursive: true, force: true });
     }
   });
-  await writeFile(
-    path.join(root, "root.css"),
-    "@utility red{color:red} @stillwind-slot utilities;",
-  );
+  await writeFile(path.join(root, "root.css"), css);
   const project = createViteProject({
     css: "root.css",
+    ...config,
   });
   const plugin = createVitePlugins(project);
   server = await createServer({

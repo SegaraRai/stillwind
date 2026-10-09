@@ -83,7 +83,7 @@ for (const { format, broken, code, converter } of [
     const files = { [entry]: component(format) };
     const { compile, session } = harness(t, files, entry);
     expect((await compile())?.diagnostics).toEqual([]);
-    const before = session.css();
+    const before = session.css().css;
     files[entry] = broken;
     const failure = await compile().catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(CompilationFailure);
@@ -102,20 +102,20 @@ for (const { format, broken, code, converter } of [
     expect(output?.reports[0].notes).toContainEqual(
       expect.stringMatching(new RegExp(`^Converter: ${converter}@`)),
     );
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     expect(session.diagnosticBatches().find((batch) => batch.module === entry)?.reports).toEqual(
       output?.reports,
     );
     const reload = session.newLoader();
     reload.provide(0, "theme.css", css, "untitled:theme.css");
     expect(() => session.reload(reload)).toThrow(/CSS reload compilation failed/);
-    expect(session.css()).toBe(before);
+    expect(session.css().css).toBe(before);
     expect(session.diagnosticBatches().find((batch) => batch.module === entry)?.reports).toEqual(
       output?.reports,
     );
     files[entry] = component(format, "blue");
     expect((await compile("collect"))?.reports).toEqual([]);
-    expect(session.css()).toMatch(/color:\s*blue/);
+    expect(session.css().css).toMatch(/color:\s*blue/);
     expect(session.diagnosticBatches().find((batch) => batch.module === entry)?.reports).toEqual(
       [],
     );
@@ -150,7 +150,7 @@ test("a failed dependency reports its own revision and remains watched for recov
   files["Broken.vue"] =
     "<script lang='ts'>import {style} from 'stillwind/vue';export const base=style('blue');</script>";
   expect((await compile("collect"))?.diagnostics).toEqual([]);
-  expect(session.css()).toMatch(/color:\s*blue/);
+  expect(session.css().css).toMatch(/color:\s*blue/);
   expect(
     session.diagnosticBatches().find((batch) => batch.module === "Broken.vue")?.reports,
   ).toEqual([]);

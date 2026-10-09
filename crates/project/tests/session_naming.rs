@@ -61,7 +61,14 @@ fn session_generators_name_generated_classes() {
         .expect("class symbol");
     // The host body is written as returned, with no built-in class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);
-    assert!(session.css().unwrap().contains(class.name.as_str()));
+    assert!(
+        session
+            .css()
+            .unwrap()
+            .stylesheet
+            .css
+            .contains(class.name.as_str())
+    );
 }
 
 /// Names the keyframes family with one fixed body so it can collide with authored CSS.
@@ -287,7 +294,7 @@ fn a_layer_name_is_checked_against_the_authored_document() {
     let failure = session.css().unwrap_err();
     assert!(
         matches!(
-            failure,
+            failure.diagnostic,
             CompileDiagnostic::GeneratedIdentifierCollision { .. }
         ),
         "{failure:?}"

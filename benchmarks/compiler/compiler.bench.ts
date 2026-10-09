@@ -147,7 +147,7 @@ for (const count of [10, 100, 300, 1000]) {
     task.meta.measurement = repeated;
     let output!: string;
     await bench(`css/carrier/${count}`, { async: false }, () => {
-      output = session.moduleCss(input[0].moduleId);
+      output = session.moduleCss(input[0].moduleId).css;
     }).run(repeated);
     expect(output).not.toBe("");
   });

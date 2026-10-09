@@ -114,7 +114,9 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         &Identifiers::default(),
     )
     .render_stylesheet("")
-    .unwrap();
+    .unwrap()
+    .stylesheet
+    .css;
     assert!(base.starts_with("@layer properties, theme, base, components, utilities;"));
     let mut session = ProjectSession::new(
         snapshot.clone(),
@@ -131,7 +133,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
         &Identifiers::default(),
     )
     .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-    .map(|output| output.css)
+    .map(|output| output.stylesheet.css)
     .unwrap();
     assert!(css.contains("--color-brand:red"));
     assert!(css.contains("@keyframes spin"));
@@ -148,7 +150,9 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
             &Identifiers::default()
         )
         .render_stylesheet("")
-        .unwrap(),
+        .unwrap()
+        .stylesheet
+        .css,
         base
     );
     assert_eq!(
@@ -158,7 +162,7 @@ fn module_stylesheets_include_support_without_repeating_document_rules() {
             &Identifiers::default()
         )
         .render_mapped_stylesheet(&artifact.css.mapped(), StylesheetPlacement::Carrier)
-        .map(|output| output.css)
+        .map(|output| output.stylesheet.css)
         .unwrap(),
         css
     );
@@ -176,13 +180,13 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         Identifiers::default(),
     );
     let pinned = session.snapshot();
-    let base_css = session.css().unwrap();
+    let base_css = session.css().unwrap().stylesheet.css;
     assert!(
         session
             .update_module(module("a.tsx", "bg-brand hover:flex"))
             .transformed
     );
-    let shared_css = session.css().unwrap();
+    let shared_css = session.css().unwrap().stylesheet.css;
     assert_ne!(shared_css, base_css);
     let count = session.stylesheet().rule_count();
     assert!(
@@ -190,13 +194,13 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
             .update_module(module("b.tsx", "bg-brand hover:flex"))
             .transformed
     );
-    assert_ne!(session.css().unwrap(), shared_css);
+    assert_ne!(session.css().unwrap().stylesheet.css, shared_css);
     assert_eq!(session.stylesheet().rule_count(), 2 * count);
     assert!(session.remove_module(&ModuleId::from("a.tsx")));
     assert!(!session.remove_module(&ModuleId::from("a.tsx")));
-    assert_ne!(session.css().unwrap(), shared_css);
+    assert_ne!(session.css().unwrap().stylesheet.css, shared_css);
     assert_eq!(session.stylesheet().rule_count(), count);
-    let old_css = session.css().unwrap();
+    let old_css = session.css().unwrap().stylesheet.css;
     assert!(
         session
             .reload(
@@ -205,7 +209,7 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
             )
             .is_err()
     );
-    assert_eq!(session.css().unwrap(), old_css);
+    assert_eq!(session.css().unwrap().stylesheet.css, old_css);
     assert_eq!(session.snapshot().revision(), pinned.revision());
     let analysis_revision = session.analyses()[&ModuleId::from("b.tsx")]
         .source_revision
@@ -220,9 +224,9 @@ fn stylesheet_reference_counts_rules_and_preserves_last_good_reload() {
         analysis_revision
     );
     assert_ne!(session.snapshot().revision(), pinned.revision());
-    let before_removal = session.css().unwrap();
+    let before_removal = session.css().unwrap().stylesheet.css;
     assert!(session.remove_module(&ModuleId::from("b.tsx")));
-    assert_ne!(session.css().unwrap(), before_removal);
+    assert_ne!(session.css().unwrap().stylesheet.css, before_removal);
     assert_eq!(session.stylesheet().rule_count(), 0);
 }
 
@@ -326,7 +330,10 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
         rebuilt.update_module(analysis.as_ref().clone());
     }
     assert_eq!(session.dependencies(), rebuilt.dependencies());
-    assert_eq!(session.css().unwrap(), rebuilt.css().unwrap());
+    assert_eq!(
+        session.css().unwrap().stylesheet.css,
+        rebuilt.css().unwrap().stylesheet.css
+    );
 
     assert!(session.remove_module(&ModuleId::from("b.tsx")));
     assert_eq!(session.dependencies().assets.len(), 1);
@@ -352,16 +359,16 @@ fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
     );
     let id = ModuleId::from("a.tsx");
     original.update_module(module("a.tsx", "bg-brand"));
-    let css = original.css().unwrap();
+    let css = original.css().unwrap().stylesheet.css;
     let dependencies = original.dependencies().clone();
     let mut edited = original.clone();
     assert_eq!(
         edited.update_module(module("a.tsx", "flex")).diagnostics,
         [] as [CompileError; 0]
     );
-    assert_ne!(edited.css().unwrap(), css);
+    assert_ne!(edited.css().unwrap().stylesheet.css, css);
     assert!(edited.dependencies().theme_tokens.is_empty());
-    assert_eq!(original.css().unwrap(), css);
+    assert_eq!(original.css().unwrap().stylesheet.css, css);
     assert_eq!(original.dependencies(), &dependencies);
     assert!(original.current_artifact(&id).is_some());
     assert!(edited.remove_module(&id));

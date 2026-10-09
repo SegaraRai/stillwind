@@ -119,7 +119,7 @@ pub fn compile_project_input(
         result
             .css
             .rules
-            .retain(|rule| emitted_css_rules.insert(rule.key.clone()));
+            .retain(|rule| emitted_css_rules.insert(rule.content_key()));
     }
     let modules = scans
         .iter()

@@ -6,16 +6,18 @@
 //! and producer revisions. It rejects output kept after a failed design-system load.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_compiler::{
-    MappedStylesheet, ModuleArtifactKey, ModuleResourceReference, StylesheetMapping,
-    StylesheetPlacement, StylesheetRenderer,
+    GeneratedRule, MappedStylesheet, ModuleArtifactKey, ModuleResourceReference,
+    RejectedIdentifier, StylesheetMapping, StylesheetPlacement, StylesheetRenderError,
+    StylesheetRenderer, merge_rejected_names,
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_source::{FileId, Fingerprint, ModuleId, Span};
+use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile, Span};
 
 use crate::{ProjectSession, ProjectStylesheet};
 
@@ -38,9 +40,9 @@ pub enum StylesheetPlanError {
     /// Producer dependencies contain a cycle.
     #[error("Cyclic stylesheet producer dependencies: {0:?}")]
     CyclicModules(BTreeSet<ModuleId>),
-    /// Rendering the selected CSS failed.
+    /// Rendering failed, retaining generator rejection records collected before the failure.
     #[error("{0}")]
-    Stylesheet(#[from] CompileDiagnostic),
+    Stylesheet(#[from] StylesheetRenderError),
 }
 
 /// How much the host knows about the selected producer set.
@@ -81,6 +83,8 @@ pub struct StylesheetPlan {
     pub resources: Vec<ModuleResourceReference>,
     /// The rendered CSS text.
     pub css: String,
+    /// Development fallbacks observed while rendering the reference and optimized outputs.
+    pub rejected_names: Vec<RejectedIdentifier>,
     /// Coverage claim carried over from the selection.
     pub coverage: StylesheetCoverage,
     /// Where the host should place this stylesheet.
@@ -146,8 +150,80 @@ impl ProjectSession {
             return Err(StylesheetPlanError::MissingCoverageIdentity);
         }
         let order = self.stylesheet_order(&mut selection.modules)?;
-        let missing = selection
-            .modules
+        self.validate_producers(&selection.modules)?;
+        let mut stylesheet = ProjectStylesheet::default();
+        stylesheet.set_order(order);
+        let mut producers = BTreeMap::new();
+        let mut resources = Vec::new();
+        for module in &selection.modules {
+            if let Some(artifact) = self.artifacts().get(module) {
+                stylesheet.replace(module.clone(), &artifact.css);
+                producers.insert(module.clone(), artifact.key.clone());
+                resources.extend(artifact.resources.iter().cloned());
+            }
+        }
+        let snapshot = self.snapshot();
+        let utility_css =
+            stylesheet.module_css_with_origins(|module, rule| self.rule_origin(module, rule));
+        let renderer = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers());
+        let reference = renderer.render_mapped_stylesheet(&utility_css, placement)?;
+        let mut rejected_names = reference.rejected_names;
+        let reference = reference.stylesheet;
+        let mapped = if matches!(selection.coverage, StylesheetCoverage::Complete { .. }) {
+            let optimized =
+                optimize_stylesheet(&utility_css).map_err(|diagnostic| StylesheetRenderError {
+                    diagnostic,
+                    rejected_names: rejected_names.clone(),
+                })?;
+            let output = renderer
+                .render_mapped_stylesheet(&optimized, placement)
+                .map_err(|mut error| {
+                    error.rejected_names =
+                        merge_rejected_names(rejected_names.clone(), error.rejected_names);
+                    error
+                })?;
+            rejected_names = merge_rejected_names(rejected_names, output.rejected_names);
+            output.stylesheet
+        } else {
+            reference.clone()
+        };
+        let source_modules: BTreeMap<FileId, ModuleId> = self
+            .analyses()
+            .values()
+            .flat_map(|analysis| {
+                std::iter::once(analysis.as_ref()).chain(analysis.asset_support.iter())
+            })
+            .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
+            .collect();
+        let parts =
+            stylesheet_parts(&reference, &producers, &source_modules).map_err(|diagnostic| {
+                StylesheetRenderError {
+                    diagnostic,
+                    rejected_names: rejected_names.clone(),
+                }
+            })?;
+        // The selected producers were checked when they were published; the names this render
+        // generated belong to no declaration, so they are checked against the document here.
+        self.check_document_names(&renderer.take_detached_symbols())
+            .map_err(|diagnostic| StylesheetRenderError {
+                diagnostic,
+                rejected_names: rejected_names.clone(),
+            })?;
+        Ok(StylesheetPlan {
+            parts,
+            mappings: mapped.mappings,
+            resources,
+            css: mapped.css,
+            rejected_names,
+            coverage: selection.coverage,
+            placement,
+            design_system: snapshot.fingerprints().content.clone(),
+            producers,
+        })
+    }
+
+    fn validate_producers(&self, modules: &BTreeSet<ModuleId>) -> Result<(), StylesheetPlanError> {
+        let missing = modules
             .iter()
             .filter(|id| !self.artifacts().contains_key(*id))
             .cloned()
@@ -155,8 +231,7 @@ impl ProjectSession {
         if !missing.is_empty() {
             return Err(StylesheetPlanError::MissingModules(missing));
         }
-        let stale = selection
-            .modules
+        let stale = modules
             .iter()
             .filter(
                 |id| match (self.analyses().get(*id), self.artifacts().get(*id)) {
@@ -173,74 +248,38 @@ impl ProjectSession {
         if !stale.is_empty() {
             return Err(StylesheetPlanError::StaleModules(stale));
         }
-        let mut stylesheet = ProjectStylesheet::default();
-        stylesheet.set_order(order);
-        let mut producers = BTreeMap::new();
-        let mut resources = Vec::new();
-        for module in &selection.modules {
-            if let Some(artifact) = self.artifacts().get(module) {
-                stylesheet.replace(module.clone(), &artifact.css);
-                producers.insert(module.clone(), artifact.key.clone());
-                resources.extend(artifact.resources.iter().cloned());
-            }
+        Ok(())
+    }
+
+    fn rule_origin(
+        &self,
+        module: &ModuleId,
+        rule: &GeneratedRule,
+    ) -> Option<(Arc<SourceFile>, Span)> {
+        let artifact = self.artifacts().get(module)?;
+        let analysis = self.analyses().get(module)?;
+        let identifiers = rule_identifiers(&rule.to_css());
+        if let Some(class) = artifact
+            .classes
+            .iter()
+            .find(|class| identifiers.contains(&class.class_name))
+        {
+            return Some((analysis.source.clone(), class.call_span));
         }
-        let snapshot = self.snapshot();
-        let utility_css = stylesheet.module_css_with_origins(|module, rule| {
-            let artifact = self.artifacts().get(module)?;
-            let analysis = self.analyses().get(module)?;
-            let identifiers = rule_identifiers(&rule.to_css());
-            if let Some(class) = artifact
-                .classes
-                .iter()
-                .find(|class| identifiers.contains(&class.class_name))
-            {
-                return Some((analysis.source.clone(), class.call_span));
-            }
-            let symbol = artifact
-                .symbols
-                .iter()
-                .find(|symbol| identifiers.contains(symbol.name.as_str()))?;
-            // A name without a declaration, such as a conditional helper, has no position in the
-            // module to map the rule back to.
-            let (start, end) = symbol.start.zip(symbol.end)?;
-            let source = std::iter::once(analysis.as_ref())
-                .chain(analysis.asset_support.iter())
-                .find(|input| symbol.origin.module_id() == Some(&input.module_id))?
-                .source
-                .clone();
-            let span = Span::new(source.id(), start, end);
-            Some((source, span))
-        });
-        let renderer = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers());
-        let reference = renderer.render_mapped_stylesheet(&utility_css, placement)?;
-        let mapped = if matches!(selection.coverage, StylesheetCoverage::Complete { .. }) {
-            let optimized = optimize_stylesheet(&utility_css)?;
-            renderer.render_mapped_stylesheet(&optimized, placement)?
-        } else {
-            reference.clone()
-        };
-        let source_modules: BTreeMap<FileId, ModuleId> = self
-            .analyses()
-            .values()
-            .flat_map(|analysis| {
-                std::iter::once(analysis.as_ref()).chain(analysis.asset_support.iter())
-            })
-            .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
-            .collect();
-        let parts = stylesheet_parts(&reference, &producers, &source_modules)?;
-        // The selected producers were checked when they were published; the names this render
-        // generated belong to no declaration, so they are checked against the document here.
-        self.check_document_names(&renderer.take_detached_symbols())?;
-        Ok(StylesheetPlan {
-            parts,
-            mappings: mapped.mappings,
-            resources,
-            css: mapped.css,
-            coverage: selection.coverage,
-            placement,
-            design_system: snapshot.fingerprints().content.clone(),
-            producers,
-        })
+        let symbol = artifact
+            .symbols
+            .iter()
+            .find(|symbol| identifiers.contains(symbol.name.as_str()))?;
+        // A name without a declaration, such as a conditional helper, has no position in the
+        // module to map the rule back to.
+        let (start, end) = symbol.start.zip(symbol.end)?;
+        let source = std::iter::once(analysis.as_ref())
+            .chain(analysis.asset_support.iter())
+            .find(|input| symbol.origin.module_id() == Some(&input.module_id))?
+            .source
+            .clone();
+        let span = Span::new(source.id(), start, end);
+        Some((source, span))
     }
 
     /// Adds transitive base producers from composition edges to `modules` and returns
@@ -290,11 +329,10 @@ impl ProjectSession {
 
 fn optimize_stylesheet(
     utility_css: &MappedStylesheet,
-) -> Result<MappedStylesheet, StylesheetPlanError> {
+) -> Result<MappedStylesheet, CompileDiagnostic> {
     let mut optimized = utility_css.clone();
-    let mut syntax = CssRule::parse(&utility_css.css).map_err(|offset| {
-        StylesheetPlanError::Stylesheet(CompileDiagnostic::InvalidGeneratedCss { offset })
-    })?;
+    let mut syntax = CssRule::parse(&utility_css.css)
+        .map_err(|offset| CompileDiagnostic::InvalidGeneratedCss { offset })?;
     optimize_rules(&mut syntax);
     optimized.css.clear();
     optimized.mappings.clear();
@@ -317,7 +355,7 @@ fn stylesheet_parts(
     reference: &MappedStylesheet,
     producers: &BTreeMap<ModuleId, ModuleArtifactKey>,
     source_modules: &BTreeMap<FileId, ModuleId>,
-) -> Result<Vec<StylesheetPart>, StylesheetPlanError> {
+) -> Result<Vec<StylesheetPart>, CompileDiagnostic> {
     let mut sequences = BTreeMap::new();
     let mappings = IntervalIndex::new(
         reference
@@ -327,9 +365,7 @@ fn stylesheet_parts(
     );
     let segments = IntervalIndex::new(reference.segments.iter().map(|(range, _)| range.clone()));
     let parts = stylesheet_fragments(&reference.css)
-        .map_err(|offset| {
-            StylesheetPlanError::Stylesheet(CompileDiagnostic::InvalidGeneratedCss { offset })
-        })?
+        .map_err(|offset| CompileDiagnostic::InvalidGeneratedCss { offset })?
         .into_iter()
         .map(|(css, range)| {
             let overlapping = mappings.overlapping(&range);
@@ -521,7 +557,7 @@ mod tests {
             );
             session.update_module(analysis);
         }
-        assert!(session.css().unwrap().contains("color:red"));
+        assert!(session.css().unwrap().stylesheet.css.contains("color:red"));
         assert!(matches!(
             session.plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document),
             Err(StylesheetPlanError::StaleModules(_))

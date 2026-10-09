@@ -184,6 +184,15 @@ not return usable CSS or code for a module whose generation requires the unavail
 
 ## CLI and editor behavior
 
+`EditorSnapshot` owns copies of source buffers, projection maps, dependencies,
+fix actions, and sorting settings. Later graph edits or native session updates
+do not change its answers. Node analysis graphs and sorting reports are
+independent copies. Browser analysis graphs are deeply immutable and shared by
+cache reads; TypeScript callers can use `structuredClone(graph) as ModuleAnalysis`
+to obtain editable records.
+Editing these copies does not change cached queries. A project query selects the
+snapshot for its current document revision.
+
 ```sh
 stillwind fmt
 stillwind fmt --check

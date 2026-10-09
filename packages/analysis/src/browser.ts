@@ -1,5 +1,10 @@
 import type { AnalysisProjectConfig } from "@stillwind/config";
-import { BrowserProject, virtualPath } from "@stillwind/host/browser";
+import {
+  BrowserProject,
+  virtualPath,
+  type BrowserModuleCss,
+  type BrowserStylesheetOutput,
+} from "@stillwind/host/browser";
 import { minimatch } from "minimatch";
 import { relative, resolve } from "pathe";
 
@@ -195,8 +200,16 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         try {
           if (!obsolete()) {
             const graph = await project.analyze(id);
+            const observations = structuredClone({
+              reports: graph.batches
+                .flatMap((batch) => batch.reports)
+                .filter((report) => includes(config, virtualPath(report.primary.location.uri))),
+              dependencies: graph.dependencies,
+              unverified: graph.unverified,
+            }) as Pick<WorkspaceResult["result"], "reports" | "dependencies" | "unverified">;
             result = {
               ...result,
+              ...observations,
               status:
                 graph.unverified.length ||
                 graph.dependencies.some(
@@ -205,11 +218,6 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
                 )
                   ? "incomplete"
                   : "complete",
-              reports: graph.batches
-                .flatMap((batch) => batch.reports)
-                .filter((report) => includes(config, virtualPath(report.primary.location.uri))),
-              dependencies: graph.dependencies,
-              unverified: graph.unverified,
               generation: graph.generation,
             };
           }
@@ -257,21 +265,10 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     graph: Awaited<ReturnType<BrowserProject["analyze"]>>;
     /** Current combined CSS, empty when the graph blocks generation. */
     css: string;
+    /** Naming fallbacks observed during document assembly. */
+    rejectedNames: BrowserStylesheetOutput["rejectedNames"];
     /** Module identity and its CSS record, empty when generation is blocked. */
-    cssValues: [
-      string,
-      {
-        /** Module's complete emitted CSS. */
-        css: string;
-        /** CSS partitions in compiler order. */
-        parts: {
-          /** Stable compiler partition key used to deduplicate stylesheet parts. */
-          key: string;
-          /** CSS belonging to this partition. */
-          css: string;
-        }[];
-      },
-    ][];
+    cssValues: [string, BrowserModuleCss][];
   }> {
     const files = this.files();
     const id = virtualPath(uri);
@@ -296,9 +293,16 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         throw new Error("Browser build snapshot is obsolete");
       }
 
+      const stylesheet =
+        graph.generation === "complete"
+          ? project.css()
+          : {
+              css: "",
+              rejectedNames: [],
+            };
       return {
         graph,
-        css: graph.generation === "complete" ? project.css() : "",
+        ...stylesheet,
         cssValues: graph.generation === "complete" ? [...project.cssValues()] : [],
       };
     });

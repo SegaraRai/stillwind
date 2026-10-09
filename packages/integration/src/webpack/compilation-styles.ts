@@ -8,6 +8,7 @@ import {
   cssEntrypoint,
   cssWithSourceMap,
   loadCssGraph,
+  warnRejectedNames,
   type CssUpstreamMap,
 } from "@stillwind/host";
 
@@ -102,6 +103,7 @@ export async function compilationStyles(
       },
       placement: "document",
     });
+    warnRejectedNames(plan.rejectedNames, warn);
     const replacements = new Map<string, string>();
     for (const resource of [...loaded.resources, ...plan.resources]) {
       const owner =

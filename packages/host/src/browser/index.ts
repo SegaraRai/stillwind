@@ -1,6 +1,7 @@
 import type { AnalysisProjectConfig } from "@stillwind/config";
 import {
   NativeProjectSession,
+  type BindingRejectedIdentifier,
   type NativeCssResource,
   type NativeDesignSystemLoader,
 } from "@stillwind/native";
@@ -40,11 +41,47 @@ export interface BrowserProjectOptions {
   documentUri?(id: string): string;
 }
 
+/** Rendered browser CSS and the naming fallbacks observed during its assembly. */
+export interface BrowserStylesheetOutput {
+  /** CSS after local resources are embedded. */
+  css: string;
+  /** Generator rejection records without source locations, in request order. */
+  rejectedNames: BindingRejectedIdentifier[];
+}
+
+/** One module's carrier and its ordered template fragments. */
+export interface BrowserModuleCss extends BrowserStylesheetOutput {
+  /** Fragments in stylesheet occurrence order, with their content fingerprints. */
+  parts: {
+    key: string;
+    css: string;
+  }[];
+}
+
+type Immutable<T> = T extends object
+  ? {
+      readonly [K in keyof T]: Immutable<T[K]>;
+    }
+  : T;
+
+/** Analysis records shared by cache reads. Use structuredClone() to obtain editable records. */
+export type BrowserModuleAnalysis = Immutable<ModuleAnalysis>;
+
+function freezeAnalysis<T>(value: T): Immutable<T> {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) {
+      freezeAnalysis(child);
+    }
+    Object.freeze(value);
+  }
+  return value as Immutable<T>;
+}
+
 /** Owns the design system, semantic checker, and compiler artifacts for one immutable snapshot. */
 export class BrowserProject {
   /** Editor views retained for each analyzed entry in the immutable inventory. */
   readonly #editors = new Map<string, EditorSnapshot>();
-  /** Settings retained by reference and kept unchanged by the caller for this project. */
+  /** Owned configuration records and callbacks fixed for this project's lifetime. */
   readonly #options: BrowserProjectOptions;
   /** Copy of the original inventory used by source, CSS, and checker reads. */
   readonly #files: Map<string, string>;
@@ -61,11 +98,42 @@ export class BrowserProject {
   /** Resource placeholders supplied by the loaded CSS graph. */
   #resources: NativeCssResource[] = [];
   /** Analysis graphs keyed by full entry identity, invalidated when native artifacts are removed. */
-  readonly #cache = new Map<string, ModuleAnalysis>();
+  readonly #cache = new Map<string, BrowserModuleAnalysis>();
 
   /** @param options - Captured files and configuration. Source mutations require a new project. */
   constructor(options: BrowserProjectOptions) {
-    this.#options = options;
+    this.#options = {
+      ...options,
+      config: {
+        ...structuredClone({
+          ...options.config,
+          naming: undefined,
+          sources: undefined,
+          projection: undefined,
+        }),
+        ...(options.config.naming
+          ? {
+              naming: {
+                ...options.config.naming,
+              },
+            }
+          : {}),
+        ...(options.config.sources
+          ? {
+              sources: {
+                ...options.config.sources,
+              },
+            }
+          : {}),
+        ...(options.config.projection
+          ? {
+              projection: {
+                ...options.config.projection,
+              },
+            }
+          : {}),
+      },
+    };
     this.#files = new Map(options.files);
     this.#facts = new BrowserTypeFactsService({
       root: options.root,
@@ -77,10 +145,10 @@ export class BrowserProject {
   /**
    * Analyzes and transforms an entry with its demanded semantic dependencies.
    * @param id - Absolute virtual source path, including any query selecting distinct source.
-   * @returns Reports, code, and dependency coverage for the captured snapshot.
+   * @returns Deeply immutable reports, code, and dependency coverage, shared by cache reads.
    * @throws If the project is closed, CSS loading fails, or compilation fails.
    */
-  analyze(id: string): Promise<ModuleAnalysis> {
+  analyze(id: string): Promise<BrowserModuleAnalysis> {
     if (this.#closed) {
       return Promise.reject(new Error("Browser project is closed"));
     }
@@ -161,11 +229,17 @@ export class BrowserProject {
         load: async (file) => {
           const input =
             config.sources?.kind === "custom"
-              ? await config.sources.load(file, { root, documents: this.#files })
+              ? await config.sources.load(file, {
+                  root,
+                  documents: this.#files,
+                })
               : {
                   resolverId: file,
                   ...descriptor(file),
-                  document: { ...descriptor(file).document, code: await read(file) },
+                  document: {
+                    ...descriptor(file).document,
+                    code: await read(file),
+                  },
                 };
           return !("kind" in input) && config.projection?.kind === "custom"
             ? config.projection.prepare(input)
@@ -174,16 +248,25 @@ export class BrowserProject {
         resolve: async (specifier, importer) => {
           const custom =
             config.sources?.kind === "custom" && config.sources.resolve
-              ? await config.sources.resolve(specifier, importer, { root, documents: this.#files })
+              ? await config.sources.resolve(specifier, importer, {
+                  root,
+                  documents: this.#files,
+                })
               : null;
           if (custom) {
-            return { id: custom };
+            return {
+              id: custom,
+            };
           }
           const resolved =
             specifier.startsWith(".") || specifier.startsWith("/")
               ? resolveVirtualModule(this.#files, specifier, importer, "source")
               : null;
-          return resolved ? { id: resolved } : null;
+          return resolved
+            ? {
+                id: resolved,
+              }
+            : null;
         },
         watch: () => {},
         warn: () => {},
@@ -207,6 +290,7 @@ export class BrowserProject {
         // A rejected native transaction can remove previously compiled dependencies.
         this.#invalidate(attempted);
       }
+      result.sources = structuredClone(result.sources);
       const editor = new EditorSnapshot(result, this.#session!, this.#loader!, config);
       for (const report of editor.reports()) {
         const batch =
@@ -218,8 +302,9 @@ export class BrowserProject {
         }
       }
       this.#editors.set(id, editor);
-      this.#cache.set(id, result);
-      return result;
+      const published = freezeAnalysis(result);
+      this.#cache.set(id, published);
+      return published;
     });
 
     this.#queue = task.catch(() => {});
@@ -231,25 +316,40 @@ export class BrowserProject {
    * Returns document CSS for successfully compiled graphs. automatic:false includes
    * only shared base CSS. Local text resources become data URLs; remote URLs retain
    * their authored values.
-   * @returns Document CSS for retained successful graphs, or empty text before session creation.
+   * @returns Document CSS and naming fallbacks, or empty CSS and reports before session creation.
    * @throws If an emitted local resource is absent from the captured files.
    */
-  css(): string {
+  css(): BrowserStylesheetOutput {
     if (!this.#session) {
-      return "";
+      return {
+        css: "",
+        rejectedNames: [],
+      };
     }
     if (this.#options.config.automatic === false) {
-      return this.#replaceResources(this.#session.baseCss(), this.#resources);
+      const output = this.#session.baseCss();
+      return {
+        css: this.#replaceResources(output.css, this.#resources),
+        rejectedNames: output.rejectedNames,
+      };
     }
     const plan = this.#session.planStylesheet({
       modules: this.#modules(),
-      coverage: { kind: "observed" },
+      coverage: {
+        kind: "observed",
+      },
       placement: "document",
     });
-    return this.#replaceResources(plan.css, [
-      ...this.#resources,
-      ...plan.resources.map((resource) => ({ ...resource, sourceName: resource.moduleId })),
-    ]);
+    return {
+      css: this.#replaceResources(plan.css, [
+        ...this.#resources,
+        ...plan.resources.map((resource) => ({
+          ...resource,
+          sourceName: resource.moduleId,
+        })),
+      ]),
+      rejectedNames: plan.rejectedNames,
+    };
   }
 
   /**
@@ -273,34 +373,8 @@ export class BrowserProject {
    * @returns A new map of module CSS records. No session produces an empty map.
    * @throws If an emitted local resource is absent from the captured files.
    */
-  cssValues(): ReadonlyMap<
-    string,
-    {
-      /** Complete CSS emitted for this module's carrier. */
-      css: string;
-      /** Partitions in stylesheet occurrence order. */
-      parts: {
-        /** Compiler partition key including its content fingerprint. */
-        key: string;
-        /** CSS after local resources are embedded. */
-        css: string;
-      }[];
-    }
-  > {
-    const values = new Map<
-      string,
-      {
-        /** Complete CSS emitted for this module's carrier. */
-        css: string;
-        /** Partitions in stylesheet occurrence order. */
-        parts: {
-          /** Compiler partition key including its content fingerprint. */
-          key: string;
-          /** CSS after local resources are embedded. */
-          css: string;
-        }[];
-      }
-    >();
+  cssValues(): ReadonlyMap<string, BrowserModuleCss> {
+    const values = new Map<string, BrowserModuleCss>();
     if (!this.#session) {
       return values;
     }
@@ -316,6 +390,7 @@ export class BrowserProject {
       ];
       values.set(resolve(this.#options.root, id), {
         css: this.#replaceResources(plan.css, resources),
+        rejectedNames: plan.rejectedNames,
         parts: plan.parts.map((part) => ({
           key: part.key,
           css: this.#replaceResources(part.css, resources),

@@ -1,3 +1,4 @@
+import type { BrowserStylesheetOutput } from "@stillwind/host/browser";
 import type * as vscode from "vscode";
 
 /** Output of a complete browser build from one revision of the virtual workspace. */
@@ -8,6 +9,8 @@ export interface ApplicationBuild {
   css: string;
   /** Absolute virtual source paths paired with code after Stillwind macro transformation. */
   transformed: [string, string][];
+  /** Naming fallbacks observed during compilation and stylesheet assembly. */
+  rejectedNames: BrowserStylesheetOutput["rejectedNames"];
 }
 
 /** Builds the application in a worker and requests Stillwind transformations from the active extension. */

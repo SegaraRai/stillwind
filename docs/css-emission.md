@@ -134,7 +134,7 @@ resulting cascade across conditions and layers.
 Generated keyframes and property requirements travel as metadata with CSS
 contributions. Renderers do not reconstruct them from serialized CSS.
 `StylesheetRenderer::render_mapped_stylesheet` and `ModuleCssArtifact::mapped`
-retain that metadata. String-only renderers accept authored CSS; `module_css` and
+retain that metadata. Renderers with string inputs accept authored CSS; `module_css` and
 `to_css` are inspection outputs rather than reconstruction inputs.
 
 ## Tailwind comparison
