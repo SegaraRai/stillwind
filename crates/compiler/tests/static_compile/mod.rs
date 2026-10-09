@@ -20,6 +20,7 @@ use support::*;
 
 mod acceptance;
 mod conditional_flow;
+mod cva;
 mod definitions;
 mod folding;
 mod numeric;

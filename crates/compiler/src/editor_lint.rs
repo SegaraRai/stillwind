@@ -25,7 +25,7 @@ pub(crate) fn detect(
         return Vec::new();
     }
     let mut literals = Vec::new();
-    for call in &module.ir.style_calls {
+    for call in module.ir.style_inputs() {
         collect_inputs(&call.inputs, "", &mut literals);
     }
     let mut findings = Vec::new();

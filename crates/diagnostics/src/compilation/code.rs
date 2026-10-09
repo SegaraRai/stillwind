@@ -70,6 +70,8 @@ define_compile_codes! {
     UnconsumedMacroUse { .. } => "SW01011",
     JavaScriptParse => "SW01012",
     ComponentSyntax { .. } => "SW01013",
+    InvalidCvaConfig { .. } => "SW01014",
+    InvalidCvaInput => "SW01015",
     // 02: utilities and variants
     InvalidVariantInput { .. } => "SW02001",
     InvalidUtilityTemplate => "SW02002",

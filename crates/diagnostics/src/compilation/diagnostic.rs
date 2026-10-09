@@ -61,6 +61,17 @@ pub enum CompileDiagnostic {
         "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
     )]
     InvalidStyleInput,
+    /// A CVA configuration cannot be enumerated statically or contains invalid choices.
+    #[error("invalid style.cva() configuration: {reason}")]
+    InvalidCvaConfig {
+        /// Concrete static syntax or selection requirement that failed.
+        reason: String,
+    },
+    /// A CVA value is outside the supported utility and custom-property forms.
+    #[error(
+        "style.cva() values require static utilities, arrays, branches, CSS variants, or custom properties"
+    )]
+    InvalidCvaInput,
     /// An attribute object contains a spread whose properties cannot be resolved.
     #[error("style() object spreads require a literal object")]
     AttributeSpread,

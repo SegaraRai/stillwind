@@ -60,6 +60,16 @@ impl ModuleIr {
                 map_input(input, &mut map)?;
             }
         }
+        for cva in &mut result.cva_calls {
+            cva.span = map(cva.span)?;
+            cva.callee_span = map(cva.callee_span)?;
+            for value in &mut cva.values {
+                value.span = map(value.span)?;
+                for input in &mut value.inputs {
+                    map_input(input, &mut map)?;
+                }
+            }
+        }
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }

@@ -187,6 +187,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// Every other call is checked for
     /// a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        if self.is_style_member(call.callee.get_inner_expression(), "cva") {
+            self.collect_cva(call);
+            walk::walk_call_expression(self, call);
+            return;
+        }
         if !self.is_style_call(call) {
             self.report_unconsumed_call(call);
             walk::walk_call_expression(self, call);
@@ -198,6 +203,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             .style_calls
             .iter()
             .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
+            || self
+                .cva_calls
+                .iter()
+                .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {
             self.diagnostics
                 .push(CompileError::new(CompileDiagnostic::NestedStyleCall, span));

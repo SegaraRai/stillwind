@@ -26,6 +26,7 @@ pub(crate) fn validate(program: &Program<'_>, module: &ModuleIr, file: FileId) -
         .style_calls
         .iter()
         .map(|call| call.span)
+        .chain(module.cva_calls.iter().map(|call| call.span))
         .chain(module.ref_definitions.iter().map(|item| item.call_span))
         .chain(
             module

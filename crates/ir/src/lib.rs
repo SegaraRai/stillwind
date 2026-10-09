@@ -59,7 +59,7 @@ pub use input::{
 };
 pub use model::{
     AnchorScope, AssetReference, AttributeEntry, ClassExpression, ConditionalBranches,
-    ContainerType, CustomPropertyEntry, GroupEntry, KeyframesBody, KeyframesBranch,
+    ContainerType, CustomPropertyEntry, CvaCall, GroupEntry, KeyframesBody, KeyframesBranch,
     KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier, ModuleImports,
     ModuleIr, RefCondition, RefDefinition, RefProjection, RuleExpression, RuleExpressionError,
     RuleExpressionErrorKind, StyleCall, StyleInput, StyleVariant, ViewTransitionDefinition,

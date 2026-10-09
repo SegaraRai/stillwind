@@ -61,6 +61,48 @@ pub(in super::super) fn render_style_call(
     code![helper, "(", Code::join(arguments, ","), ")"]
 }
 
+/// Renders one CVA value as class text or private fragments for runtime selection.
+/// Inputs must contain only classes and custom properties and satisfy the macro purity contract.
+pub(in super::super) fn render_cva_value(
+    emission: &StyleEmission,
+    fw: &FrameworkSpec,
+    runtime: &mut RuntimeBindings<'_>,
+) -> Code {
+    let folded = fold(Fragment::from_emission(emission), fw);
+    let mut renderer = Renderer {
+        fw,
+        runtime,
+        span: emission.call_span,
+    };
+    if let Some(atoms) = known_record(&folded)
+        && atoms.iter().all(|atom| matches!(atom, Atom::Class(_)))
+    {
+        let classes = atoms
+            .iter()
+            .filter_map(|atom| match atom {
+                Atom::Class(value) => Some(value),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if let Some(names) = classes
+            .iter()
+            .map(|value| static_class(value))
+            .collect::<Option<Vec<_>>>()
+        {
+            return js_string(
+                &names
+                    .into_iter()
+                    .filter(|name| !name.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            )
+            .into();
+        }
+        return renderer.classes(&classes);
+    }
+    renderer.fragment(&folded)
+}
+
 /// Per-call rendering context shared by selected fragment subtrees.
 struct Renderer<'a, 'b> {
     /// Final property names, style format, and runtime conventions.

@@ -1,3 +1,4 @@
+import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 
 export * from "./shared.ts";
@@ -33,4 +34,9 @@ export function stillwindToFragment(
 /** Returns the style representation accepted by svelte; null and undefined omit style. */
 export function stillwindStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "string");
+}
+
+/** Selects compiled CVA values and materializes fresh svelte props. */
+export function stillwindCva(base?: CvaValue, config?: CompiledCvaConfig) {
+  return createCva(options, base, config);
 }

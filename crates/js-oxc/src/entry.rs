@@ -154,6 +154,7 @@ pub(crate) fn parse_with_coordinates(
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
         imports,
         style_calls: extractor.style_calls,
+        cva_calls: extractor.cva_calls,
         ref_definitions: extractor.ref_definitions,
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,

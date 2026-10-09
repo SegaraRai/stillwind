@@ -14,7 +14,7 @@ mod fold;
 mod render;
 
 pub(super) use expression::{Emitted, EmittedEntry, Property, ValueExpr};
-pub(super) use render::render_style_call;
+pub(super) use render::{render_cva_value, render_style_call};
 
 #[cfg(test)]
 mod tests;

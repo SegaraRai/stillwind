@@ -85,6 +85,19 @@ impl<'a> CallEmitter<'a> {
     /// must inspect diagnostics and discard failed output transactionally.
     #[allow(clippy::needless_pass_by_value)] // The struct owns the borrows this call consumes.
     pub(in crate::compiler) fn run(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
+        Self::run_with_properties(inputs, false)
+    }
+
+    /// Lowers a CVA value while retaining all custom properties in runtime fragments.
+    /// The caller must validate that the inputs are within the CVA subset.
+    pub(in crate::compiler) fn run_cva(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
+        Self::run_with_properties(inputs, true)
+    }
+
+    fn run_with_properties(
+        inputs: CallEmitterInputs<'a>,
+        inline_properties: bool,
+    ) -> Option<StyleEmission> {
         let emitter = Self {
             source: inputs.source,
             module_id: inputs.module_id,
@@ -111,7 +124,11 @@ impl<'a> CallEmitter<'a> {
             ),
             written_name_symbols: Vec::new(),
             style_effects: Vec::new(),
-            static_custom_properties: static_custom_properties(&inputs.call.inputs),
+            static_custom_properties: if inline_properties {
+                BTreeMap::new()
+            } else {
+                static_custom_properties(&inputs.call.inputs)
+            },
         };
         emitter.emit()
     }

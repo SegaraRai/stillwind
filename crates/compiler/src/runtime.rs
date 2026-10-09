@@ -30,6 +30,8 @@ pub(crate) enum RuntimeHelper {
     CssValue,
     /// The `stillwindCustomPropertiesKey` runtime export.
     CustomPropertiesKey,
+    /// Selects compiled CVA values and materializes framework props.
+    Cva,
     /// The `stillwindMerge` runtime export.
     Merge,
     /// The checked fragment merge exported by the development module.
@@ -59,6 +61,7 @@ impl RuntimeHelper {
             Self::ClsxChecked => "stillwindClsxChecked",
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
+            Self::Cva => "stillwindCva",
             Self::Merge => "stillwindMerge",
             Self::MergeChecked => "stillwindMergeChecked",
             Self::RefClassChecked => "stillwindRefClassChecked",
@@ -79,8 +82,8 @@ impl RuntimeHelper {
         match self {
             Self::Clsx => Some(Self::ClsxChecked),
             Self::Merge => Some(Self::MergeChecked),
-            Self::ToFragment => Some(Self::ToFragmentChecked),
             Self::RefClassChecked => Some(Self::RefClassChecked),
+            Self::ToFragment => Some(Self::ToFragmentChecked),
             Self::ViewTransitionName => Some(Self::ViewTransitionNameChecked),
             _ => None,
         }

@@ -17,7 +17,7 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition,
+    AdapterKind, CvaCall, KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
@@ -68,6 +68,10 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
     pub(crate) style_calls: Vec<StyleCall>,
+    /// CVA factory calls whose values use the ordinary style-input parser.
+    pub(crate) cva_calls: Vec<CvaCall>,
+    /// Allows boolean literals as empty contributions while parsing CVA values.
+    pub(crate) in_cva: bool,
     /// Diagnostics raised during extraction, in visit order.
     pub(crate) diagnostics: Vec<CompileError>,
     /// Advisory findings raised during extraction, in visit order.
@@ -129,6 +133,8 @@ impl<'a> MacroExtractor<'a> {
             view_transition_declarations: Vec::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
+            cva_calls: Vec::new(),
+            in_cva: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
             imports: Vec::new(),

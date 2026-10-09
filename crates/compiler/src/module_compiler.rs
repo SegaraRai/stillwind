@@ -370,7 +370,7 @@ impl ModuleCompiler {
 /// design-system change.
 fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
     let mut candidates = BTreeSet::new();
-    for call in &module.ir.style_calls {
+    for call in module.ir.style_inputs() {
         collect(&call.inputs, "", &mut candidates);
     }
     candidates

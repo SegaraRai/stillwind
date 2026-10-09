@@ -1,0 +1,4 @@
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/preflight.css" layer(base);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";

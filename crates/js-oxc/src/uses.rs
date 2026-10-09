@@ -79,7 +79,9 @@ impl<'a> MacroExtractor<'a> {
                 self.unconsumed_use(span, "macro variant tag".into());
             }
         } else if !consumed {
-            if self.is_style_member(expression, "anchorScope") {
+            if self.is_style_member(expression.get_inner_expression(), "cva") {
+                self.unconsumed_use(span, "style.cva".into());
+            } else if self.is_style_member(expression, "anchorScope") {
                 self.unconsumed_use(span, "style.anchorScope".into());
             } else if let Some((receiver, name, kind)) = macro_member(expression)
                 && self.use_receiver_is(receiver, kind)

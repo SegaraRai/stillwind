@@ -23,6 +23,9 @@ pub struct ModuleIr {
     pub imports: ModuleImports,
     /// In source order. A call can emit a base unit plus conditional units, or no CSS.
     pub style_calls: Vec<StyleCall>,
+    /// CVA factories and their independently compiled style values, in source order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cva_calls: Vec<CvaCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.keyframes()` declaration.
@@ -32,6 +35,13 @@ pub struct ModuleIr {
 }
 
 impl ModuleIr {
+    /// Iterates ordinary style calls and CVA value expressions with their original spans.
+    pub fn style_inputs(&self) -> impl Iterator<Item = &StyleCall> {
+        self.style_calls
+            .iter()
+            .chain(self.cva_calls.iter().flat_map(|call| &call.values))
+    }
+
     /// Empty React IR. Frameworks without an explicit adapter start here and
     /// overwrite `adapter` through their own conversion.
     pub const fn react() -> Self {
@@ -44,11 +54,24 @@ impl ModuleIr {
                 module_css: Vec::new(),
             },
             style_calls: Vec::new(),
+            cva_calls: Vec::new(),
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
         }
     }
+}
+
+/// A CVA call whose configuration remains ordinary JavaScript after lowering.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CvaCall {
+    /// Whole factory call in the original source, used to validate nested macro uses.
+    pub span: Span,
+    /// Callee expression replaced by the framework's CVA runtime helper.
+    pub callee_span: Span,
+    /// Base and option expressions compiled independently in source order.
+    pub values: Vec<StyleCall>,
 }
 
 /// Binding-aware import information. All spans belong to the editable source.

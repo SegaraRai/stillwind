@@ -20,8 +20,9 @@
 //!
 //! `analyzer` implements scanning and finalization. `state` holds one extraction, and
 //! `visit` collects module structure and macro uses. `bindings` recognizes imported
-//! macro symbols, and `style_bindings` seeds local producers. `imports` records bindings
-//! and their reads. `expressions` lowers style inputs, and `templates` preserves ref
+//! macro symbols, and `style_bindings` seeds local producers. `imports` records
+//! bindings and their reads. `cva` validates factory configurations and extracts their
+//! values. `expressions` lowers style inputs, and `templates` preserves ref
 //! substitutions. `refs`, `keyframes`, and `view_transition` extract their declarations
 //! and uses. `demand` finds the imports needed by unresolved values. `ast` tags Oxc
 //! ranges with their analysis buffer identity before coordinate mapping.
@@ -42,6 +43,7 @@ mod analyzer;
 mod ast;
 mod bindings;
 mod contract;
+mod cva;
 mod demand;
 mod entry;
 mod expressions;

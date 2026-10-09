@@ -28,7 +28,7 @@ use super::definitions::{emit_keyframes_definition, emit_view_transition_definit
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
 };
-use super::fragment::render_style_call;
+use super::fragment::{render_cva_value, render_style_call};
 use super::output::CompileResult;
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
@@ -39,7 +39,7 @@ use super::{Compiler, CssContribution};
 use crate::editor_lint::detect;
 use crate::identifiers::IdentifierContext;
 use crate::options::validate_lint_settings;
-use crate::runtime::{RuntimeBindings, encode_projected_edits};
+use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
 use crate::transforms::SourceTransform;
 use crate::{
     CompilerOptions, DesignSystemQuery, GeneratedSymbol, GeneratedSymbolKind, StyleResolver,
@@ -205,14 +205,34 @@ impl Compiler {
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
-        for call in module.style_calls {
-            let Some(emission) = CallEmitter::run(CallEmitterInputs {
+        let mut cva_values = module
+            .cva_calls
+            .iter()
+            .flat_map(|cva| cva.values.iter())
+            .collect::<Vec<_>>();
+        cva_values.sort_by_key(|call| call.span.start);
+        let mut cva_values = cva_values.into_iter().peekable();
+        let mut calls = Vec::new();
+        for call in &module.style_calls {
+            while cva_values
+                .peek()
+                .is_some_and(|value| value.span.start < call.span.start)
+            {
+                if let Some(value) = cva_values.next() {
+                    calls.push((value, true));
+                }
+            }
+            calls.push((call, false));
+        }
+        calls.extend(cva_values.map(|value| (value, true)));
+        for (call, cva) in calls {
+            let emitter_inputs = CallEmitterInputs {
                 preview: None,
                 source,
                 module_id,
                 options,
                 theme,
-                call: &call,
+                call,
                 identifiers,
                 diagnostics: &mut diagnostics,
                 lint_findings: &mut result.lint_findings,
@@ -221,17 +241,34 @@ impl Compiler {
                 emitted_utility_classes: &mut emitted_utility_classes,
                 runtime_assets: &mut runtime_assets,
                 required_definitions: &mut required_definitions,
+            };
+            let Some(emission) = (if cva {
+                CallEmitter::run_cva(emitter_inputs)
+            } else {
+                CallEmitter::run(emitter_inputs)
             }) else {
                 continue;
             };
             result.style_effects.push(emission.style_effects.clone());
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
-            let replacement = render_style_call(&emission, module.adapter.spec(), &mut runtime);
+            let replacement = if cva {
+                render_cva_value(&emission, module.adapter.spec(), &mut runtime)
+            } else {
+                render_style_call(&emission, module.adapter.spec(), &mut runtime)
+            };
             result.transforms.push(SourceTransform {
                 call_span: call.span,
                 replacement: replacement.text,
                 expressions: replacement.mappings,
+            });
+        }
+        for cva in &module.cva_calls {
+            let helper = runtime.require(RuntimeHelper::Cva, cva.callee_span);
+            result.transforms.push(SourceTransform {
+                call_span: cva.callee_span,
+                replacement: helper,
+                expressions: Vec::new(),
             });
         }
         let mut definition_css = Vec::new();

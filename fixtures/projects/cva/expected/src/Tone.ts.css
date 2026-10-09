@@ -1,0 +1,12 @@
+.sw_eloo8 {
+  font-size: var(--tone);
+}
+@media (hover: hover) {
+  .sw_b9uo2:hover {
+    text-decoration-line: underline;
+  }
+}
+.sw_jqgrh {
+  --tw-font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-bold);
+}

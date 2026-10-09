@@ -150,7 +150,7 @@ impl ModuleEditor {
         for definition in &module.ir.view_transition_declarations {
             editor.add_transition(definition);
         }
-        for call in &module.ir.style_calls {
+        for call in module.ir.style_inputs() {
             editor.add_call(call);
         }
         editor.revision = Fingerprint::of(format!(
@@ -454,7 +454,18 @@ impl ModuleEditor {
                 for input in &call.inputs {
                     collect_bases(input, &mut dependencies);
                 }
-                CallEmitter::run(CallEmitterInputs {
+                let cva = self
+                    .module
+                    .ir
+                    .cva_calls
+                    .iter()
+                    .any(|factory| factory.values.iter().any(|value| value.span == call.span));
+                let run = if cva {
+                    CallEmitter::run_cva
+                } else {
+                    CallEmitter::run
+                };
+                run(CallEmitterInputs {
                     preview: Some(slots),
                     source: &self.module.source,
                     module_id: &self.module.module_id,

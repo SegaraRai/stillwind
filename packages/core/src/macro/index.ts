@@ -9,6 +9,17 @@
  * @packageDocumentation
  */
 
+import type {
+  CvaClassProps,
+  CvaConfig,
+  CvaInput,
+  CvaResult,
+  CvaSelection,
+  CvaVariants,
+} from "./cva.ts";
+
+export type * from "./cva.ts";
+
 /**
  * Attribute names accepted by `style()` objects. Attribute values remain props.
  */
@@ -953,6 +964,21 @@ export type StyleMacro<Props = object> = {
    * @returns Rule input that supplies anchor-scope when consumed by `style()`.
    */
   anchorScope(scope: AnchorScope): StyleRefProjection;
+
+  /**
+   * Compiles a CVA definition and returns a function that selects element props.
+   * Write the configuration and utility inputs directly in the call. Custom properties
+   * remain inline and value expressions obey this macro's purity contract.
+   *
+   * @param base - Optional styles included in every selection.
+   * @param config - Static variants, defaults, and compound conditions.
+   * @returns A reusable factory returning fresh framework class and style props.
+   * Its results cannot be passed to style() for composition.
+   */
+  cva<const Variants extends CvaVariants = Record<never, never>>(
+    base?: CvaInput,
+    config?: CvaConfig<Variants>,
+  ): (props?: CvaSelection<Variants> & CvaClassProps) => CvaResult<Props>;
 };
 
 /**
@@ -984,6 +1010,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       },
       viewTransition(): never {
         throw new Error("Stillwind style.viewTransition() is a compile-time macro.");
+      },
+      cva(): never {
+        throw new Error("Stillwind style.cva() is a compile-time macro.");
       },
     },
   );
