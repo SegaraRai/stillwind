@@ -33,14 +33,48 @@ export function fixtureTasks(driver: string, root: string) {
     metadata.dependencies?.["@tanstack/react-start"] ||
     metadata.dependencies?.["@tanstack/solid-start"],
   );
+  const sveltekit = Boolean(metadata.dependencies?.["@sveltejs/kit"]);
+  const generateTypes = driver === "nuxt" || sveltekit;
   const port = 5200 + fixtureTypechecks.indexOf(`${metadata.name}#typecheck`);
   const command = (mode: string) =>
     `node "${cli}" ${driver} ${mode} . ${mode === "serve" ? port + 100 : port}`;
-  const dependencies = routes
-    ? ["@stillwind/integration#build", "stillwind#build", "generate:routes"]
-    : ["@stillwind/integration#build", "stillwind#build"];
+  const dependencies = [
+    "@stillwind/integration#build",
+    "stillwind#build",
+    ...(routes ? ["generate:routes"] : []),
+    ...(generateTypes ? ["generate:types"] : []),
+  ];
 
   return {
+    ...(generateTypes
+      ? {
+          "generate:types": {
+            command: driver === "nuxt" ? "nuxt prepare" : "svelte-kit sync",
+            dependsOn: ["@stillwind/integration#build", "stillwind#build"],
+            cache: {
+              env: ["STILLWIND_E2E_PROFILE"],
+              input: [
+                { auto: true },
+                "!node_modules/.vite-temp/**",
+                "!.nuxt/**",
+                "!.svelte-kit/**",
+              ],
+              output:
+                driver === "nuxt"
+                  ? [".nuxt/**", "!.nuxt/dist/**", "!.nuxt/dev/**", "!.nuxt/cache/**"]
+                  : [
+                      ".svelte-kit/tsconfig.json",
+                      ".svelte-kit/ambient.d.ts",
+                      ".svelte-kit/non-ambient.d.ts",
+                      ".svelte-kit/env.d.ts",
+                      ".svelte-kit/generated/**",
+                      ".svelte-kit/types/**",
+                      "node_modules/$app/**",
+                    ],
+            },
+          },
+        }
+      : {}),
     ...(routes
       ? {
           "generate:routes": {
@@ -90,7 +124,7 @@ export function fixtureTasks(driver: string, root: string) {
     },
     "test:e2e": {
       command: "vp test --run --config acceptance.config.ts",
-      dependsOn: ["@stillwind/integration#build", "stillwind#build"],
+      dependsOn: dependencies,
       cache: false,
     },
   };
