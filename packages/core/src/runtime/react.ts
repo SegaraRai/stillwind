@@ -11,7 +11,7 @@ export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.react.custom-properties",
 );
 
-const options = [
+export const options = [
   "className",
   "object",
   stillwindClassKey,

@@ -24,12 +24,16 @@ function optionKey(value: unknown): unknown {
  * @param options - Framework conventions and the keys used by compiled fragments.
  * @param base - Compiled styles included in every selection.
  * @param config - Immutable compiled option maps, defaults, and compound conditions.
+ * @param classes - Concatenates external class inputs. Development calls supply validation.
+ * @param merge - Materializes selected fragments. Development calls supply validation.
  * @returns A selector that materializes class and optional style props without private symbols.
  */
 export function createCva(
   options: FragmentRuntimeOptions,
   base: CvaValue,
   config: CompiledCvaConfig = {},
+  classes: typeof stillwindClsx = stillwindClsx,
+  merge: typeof mergeFragments = mergeFragments,
 ): (props?: Readonly<Record<string, unknown>>) => Record<string, unknown> {
   const axes = Object.keys(config.variants ?? {});
   const compounds = (config.compoundVariants ?? []).map((compound) => ({
@@ -69,7 +73,7 @@ export function createCva(
         }
       }
     }
-    values.push({ [options[2]]: stillwindClsx(props.class, props.className) });
-    return mergeFragments(options, values);
+    values.push({ [options[2]]: classes(props.class, props.className) });
+    return merge(options, values);
   };
 }

@@ -16,7 +16,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
             FileId(1),
             None,
             None,
-            "import { style } from 'stillwind/react'; const x = style('flex', flag && 'grid');",
+            "import { style } from 'stillwind/react'; const x = style('flex', flag && 'grid'); const choose = style.cva('flex');",
         )
         .unwrap(),
     );
@@ -43,6 +43,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .unwrap_or_else(|| panic!("{:?}", development.code_transforms));
     assert!(
         import.contains("stillwindClsxChecked")
+            && import.contains("stillwindCvaChecked as stillwindCva")
             && import.contains("stillwind/runtime/react-development"),
         "{import}"
     );
@@ -54,7 +55,9 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .find(|replacement| replacement.starts_with("import "))
         .unwrap_or_else(|| panic!("{:?}", release.code_transforms));
     assert!(
-        import.contains("stillwindClsx") && import.contains("stillwind/runtime/react"),
+        import.contains("stillwindClsx")
+            && import.contains("stillwindCva")
+            && import.contains("stillwind/runtime/react"),
         "{import}"
     );
 }

@@ -72,6 +72,46 @@ test("framework development readers can be bundled without materialization", asy
   expect(code).not.toMatch(/mergeFragments|toFragment|stillwindClassKey/);
 });
 
+test("packaged CVA factories select validation through the framework entrypoint", async () => {
+  for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+    for (const development of [false, true]) {
+      const suffix = development ? "-development" : "";
+      const checked = development ? "Checked" : "";
+      const code = await bundle(
+        `export { stillwindCva${checked} as cva } from "stillwind/runtime/${framework}${suffix}";`,
+        true,
+      );
+      const runtime = await import(
+        `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+      );
+      const choose = runtime.cva("base", {
+        variants: {
+          kind: {
+            active: "selected",
+          },
+        },
+        defaultVariants: {
+          kind: "active",
+        },
+        compoundVariants: [
+          {
+            kind: "active",
+            className: "compound",
+          },
+        ],
+      });
+      expect(choose({ class: "extra" })).toEqual({
+        [framework === "react" ? "className" : "class"]: "base selected compound extra",
+      });
+      if (development) {
+        expect(() => choose({ class: Symbol("class") })).toThrow(/unsupported class value/);
+      } else {
+        expect(code).not.toMatch(/unsupported class value|different runtime instance/);
+      }
+    }
+  }
+});
+
 test("minified framework runtimes materialize fragments without configuration property names", async () => {
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     for (const development of [false, true]) {

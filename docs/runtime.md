@@ -19,7 +19,9 @@ and materialized props before merging or converting them. Dynamic ref attachment
 `stillwindRefClassChecked(ref)` to validate `.c`; release compilations read `ref.c` directly.
 The generated code evaluates the ref expression once in either mode.
 
-The framework development modules provide checked class concatenation, ref reads, and keyed view transition names.
+The framework development modules import their complete `options` tuple from the production module.
+They provide checked class concatenation, ref reads, keyed view transition names, and CVA selection.
+`stillwindCvaChecked` checks external class inputs and selected fragments each time the factory is called.
 Checked class concatenation accepts strings, numbers, bigints, nested arrays, and objects
 whose truthy values enable their keys. Booleans, null, and undefined add no class text.
 Functions and symbols are rejected. A checked ref must supply a nonempty string in `.c`. Checked view transitions require a nonempty

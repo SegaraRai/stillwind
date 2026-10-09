@@ -1,19 +1,12 @@
-import { mergeFragmentsChecked, toFragmentChecked } from "./development.ts";
-import { stillwindClassKey, stillwindCustomPropertiesKey, stillwindStyleKey } from "./vue.ts";
+import type { CompiledCvaConfig, CvaValue } from "./cva.ts";
+import { createCvaChecked, mergeFragmentsChecked, toFragmentChecked } from "./development.ts";
+import { options } from "./vue.ts";
 
 export {
   stillwindClsxChecked,
   stillwindRefClassChecked,
   stillwindViewTransitionNameChecked,
 } from "./development.ts";
-
-const options = [
-  "class",
-  "object",
-  stillwindClassKey,
-  stillwindStyleKey,
-  stillwindCustomPropertiesKey,
-] as const;
 
 /** Checks fragment ownership and class channels before materializing vue props. */
 export function stillwindMergeChecked(...values: readonly unknown[]): Record<string, unknown> {
@@ -23,4 +16,9 @@ export function stillwindMergeChecked(...values: readonly unknown[]): Record<str
 /** Rejects nonobjects before converting materialized vue props to fragment channels. */
 export function stillwindToFragmentChecked(value: unknown): Record<PropertyKey, unknown> {
   return toFragmentChecked(options, value);
+}
+
+/** Checks external classes and selected fragments before materializing vue CVA props. */
+export function stillwindCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
+  return createCvaChecked(options, base, config);
 }

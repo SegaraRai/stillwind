@@ -1,10 +1,16 @@
 import { expect, test } from "vite-plus/test";
 
+import * as astroDevelopment from "./astro-development.ts";
 import * as astro from "./astro.ts";
+import * as preactDevelopment from "./preact-development.ts";
 import * as preact from "./preact.ts";
+import * as reactDevelopment from "./react-development.ts";
 import * as react from "./react.ts";
+import * as solidDevelopment from "./solid-development.ts";
 import * as solid from "./solid.ts";
+import * as svelteDevelopment from "./svelte-development.ts";
 import * as svelte from "./svelte.ts";
+import * as vueDevelopment from "./vue-development.ts";
 import * as vue from "./vue.ts";
 
 test("CVA selects defaults, boolean and numeric options, and every matching compound", () => {
@@ -87,6 +93,82 @@ test("CVA ignores inherited options and supports base-only and empty factories",
   expect(react.stillwindCva("base", { compoundVariants: [{ class: "unused" }] })()).toEqual({
     className: "base",
   });
+});
+
+test("checked CVA factories share production channels and validate selected inputs", () => {
+  for (const [production, development] of [
+    [react, reactDevelopment],
+    [preact, preactDevelopment],
+    [solid, solidDevelopment],
+    [vue, vueDevelopment],
+    [svelte, svelteDevelopment],
+    [astro, astroDevelopment],
+  ] as const) {
+    const base = {
+      [production.stillwindClassKey]: "base",
+      [production.stillwindCustomPropertiesKey]: {
+        "--size": "4",
+      },
+    };
+    const foreign = {
+      [Symbol("foreign")]: "wrong",
+    };
+    const config = {
+      variants: {
+        kind: {
+          valid: {
+            [production.stillwindClassKey]: "selected",
+          },
+          foreign,
+          malformed: {
+            [production.stillwindClassKey]: 7,
+          },
+        },
+      },
+      defaultVariants: {
+        kind: "valid",
+      },
+      compoundVariants: [
+        {
+          kind: "valid",
+          class: {
+            [production.stillwindCustomPropertiesKey]: { "--tone": "red" },
+          },
+        },
+      ],
+    };
+    const choose = development.stillwindCvaChecked(base, config);
+    const props = {
+      kind: undefined,
+      class: ["extra", false],
+      className: {
+        active: true,
+      },
+    };
+    expect(choose(props)).toEqual(production.stillwindCva(base, config)(props));
+    expect(() => choose({ kind: "foreign" })).toThrow(/different runtime/);
+    expect(() => choose({ kind: "malformed" })).toThrow(/non-string class/);
+    for (const invalidProps of [
+      {
+        class: Symbol("class"),
+      },
+      {
+        className: [() => "class"],
+      },
+    ]) {
+      expect(() => choose(invalidProps)).toThrow(/unsupported class value/);
+    }
+    expect(() =>
+      development.stillwindCvaChecked(undefined, {
+        variants: {},
+        compoundVariants: [
+          {
+            class: foreign,
+          },
+        ],
+      })(),
+    ).toThrow(/different runtime/);
+  }
 });
 
 test("CVA merges custom properties without mutating saved fragments or leaking channels", () => {

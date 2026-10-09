@@ -1,5 +1,6 @@
 /** Runtime validation selected explicitly by development compilations. */
 
+import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import { isObject, mergeFragments, toFragment, type FragmentRuntimeOptions } from "./fragment.ts";
 import { stillwindClsx, stillwindViewTransitionName } from "./shared.ts";
 
@@ -42,6 +43,23 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
   }
   values.forEach(check);
   return stillwindClsx(...values);
+}
+
+/**
+ * Creates a CVA selector that validates external classes and selected fragment channels.
+ * The selector throws TypeError for inputs rejected by `stillwindClsxChecked` or `mergeFragmentsChecked`.
+ *
+ * @param options - Framework conventions and the keys of the runtime that created the fragments.
+ * @param base - Compiled styles included in every selection.
+ * @param config - Immutable compiled option maps, defaults, and compound conditions.
+ * @returns A selector with the same selection and props behavior as `createCva`.
+ */
+export function createCvaChecked(
+  options: FragmentRuntimeOptions,
+  base?: CvaValue,
+  config?: CompiledCvaConfig,
+) {
+  return createCva(options, base, config, stillwindClsxChecked, mergeFragmentsChecked);
 }
 
 /**
