@@ -252,7 +252,9 @@ test("CLI help, version, invalid options and structured failures keep their exit
     expect(result.code).toBe(2);
     expect(JSON.parse(result.stdout)).toEqual({
       exitCode: 2,
-      error: { message: expect.any(String) },
+      error: {
+        message: expect.any(String),
+      },
     });
   }
 });
@@ -260,7 +262,9 @@ test("CLI help, version, invalid options and structured failures keep their exit
 test("CLI selects CI annotations and explicit display modes without corrupting structured output", async () => {
   const root = path.resolve(import.meta.dirname, "..");
   const args = ["lint", "--config", "missing-config.ts"];
-  const ci = await run(root, args, { GITHUB_ACTIONS: "true" });
+  const ci = await run(root, args, {
+    GITHUB_ACTIONS: "true",
+  });
   expect(ci.code).toBe(2);
   expect(ci.stdout).toMatch(/^::error/);
   const text = await run(root, [...args, "--format", "text", "--color", "never"], {
@@ -274,9 +278,48 @@ test("CLI selects CI annotations and explicit display modes without corrupting s
   expect(colored.stderr).toContain("\u001b[31m");
   const json = await run(root, ["--config", "missing-config.ts", "lint", "--format", "json"]);
   expect(JSON.parse(json.stdout).exitCode).toBe(2);
-  const lsp = await run(root, ["lsp"], { GITHUB_ACTIONS: "true" });
+  const lsp = await run(root, ["lsp"], {
+    GITHUB_ACTIONS: "true",
+  });
   expect(lsp.stdout).toBe("");
   expect(lsp.code).toBe(2);
+});
+
+test("CLI rejects invalid display values before analysis or help and keeps JSON failures structured", async () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  for (const args of [
+    ["lint", "--format", "yaml"],
+    ["fmt", "--format=xml"],
+    ["lint", "--format"],
+    ["lint", "--no-format"],
+    ["lint", "--format", "yaml", "--help"],
+    ["lint", "--color", "rainbow"],
+    ["fmt", "--hyperlinks", "sometimes"],
+  ]) {
+    const result = await run(root, args);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("Invalid value for argument");
+  }
+  for (const args of [
+    ["lint", "--config="],
+    ["lint", "--no-config"],
+    ["--fix", "fmt"],
+    ["fmt", "--version"],
+    ["__proto__"],
+  ]) {
+    expect((await run(root, args)).code).toBe(2);
+  }
+  for (const option of ["color", "hyperlinks"]) {
+    const result = await run(root, ["lint", "--format", "json", `--${option}`, "invalid"]);
+    expect(result.code).toBe(2);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual({
+      exitCode: 2,
+      error: {
+        message: expect.stringContaining(`--${option}`),
+      },
+    });
+  }
 });
 
 async function run(
@@ -292,7 +335,10 @@ async function run(
     const child = spawn(process.execPath, [main, ...args], {
       cwd,
       windowsHide: true,
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        ...env,
+      },
     });
     let stdout = "";
     let stderr = "";

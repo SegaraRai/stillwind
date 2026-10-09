@@ -42,13 +42,15 @@ Exit codes:
 
 - `0`: formatting succeeded, formatting check found no changes, or lint found no remaining errors.
 - `1`: formatting check found changes, or lint found remaining errors. Warnings alone return `0`.
-- `2`: configuration, analysis, planning, or I/O failed, or no targets matched.
+- `2`: command-line options are invalid, configuration, analysis, planning, or I/O failed,
+  or no targets matched.
 
 `stillwind --help` lists commands, and `stillwind <command> --help` lists that command's options.
 `--version` prints the package version. `lsp` requires `--stdio` and keeps stdout for protocol messages.
 
 `fmt` and `lint` support `--format text|json|github`. The default is `github` when
 `GITHUB_ACTIONS=true` and `text` otherwise. Explicit formats override this choice.
+Unknown options, missing option values, and unsupported format or display values return `2`.
 Text diagnostics include paths and one-based line and column positions. GitHub output uses
 workflow annotations that link findings and formatting failures to files in CI.
 
