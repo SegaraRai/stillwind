@@ -24,7 +24,11 @@ before the Stillwind plugin:
 
 ```js
 export default {
-  plugins: ["prettier-plugin-svelte", "prettier-plugin-astro", "prettier-plugin-stillwind"],
+  plugins: [
+    "prettier-plugin-svelte",
+    "prettier-plugin-astro",
+    "prettier-plugin-stillwind",
+  ],
 };
 ```
 

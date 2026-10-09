@@ -58,8 +58,11 @@ composition, refs and scope operands at their use sites, keyframes, and view tra
 ```ts
 const a = style("flex");
 const b = style("grid");
+
 let selected: typeof a | typeof b = a;
-if (flag) selected = b;
+if (flag) {
+  selected = b;
+}
 const result = style(selected, "items-center");
 
 function identity<T>(value: T): T {

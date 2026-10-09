@@ -28,7 +28,10 @@ Split CSS assets also participate in Vite's chunk metadata so framework SSR asse
 manifests can include them in document links.
 
 ```ts
-stillwind({ css: "./root.css", emission: "split" });
+stillwind({
+  css: "./root.css",
+  emission: "split",
+});
 ```
 
 `import { css, parts } from 'stillwind/module-css'` returns the module's CSS and

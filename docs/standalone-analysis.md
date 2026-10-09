@@ -262,7 +262,9 @@ import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
 const connection = createConnection(ProposedFeatures.all);
 const server = createLanguageServer(connection, {
   openWorkspaces: openNodeWorkspaces,
-  onExit: (shutdown) => process.exit(shutdown ? 0 : 1),
+  onExit: (shutdown) => {
+    process.exit(shutdown ? 0 : 1);
+  },
 });
 connection.listen();
 ```
@@ -316,7 +318,8 @@ startBrowserLanguageServer(self, {
                 language: "tsx",
                 moduleKind: "unambiguous",
                 css: {
-                  content: "@utility flex{display:flex}@stillwind-slot utilities;",
+                  content:
+                    "@utility flex{display:flex}@stillwind-slot utilities;",
                   name: "theme.css",
                   uri: "inmemory://preview/theme.css",
                   sourceMapSource: "inmemory://preview/theme.css",
@@ -332,7 +335,9 @@ startBrowserLanguageServer(self, {
       ]),
     };
   },
-  onExit: () => self.close(),
+  onExit: () => {
+    self.close();
+  },
 });
 ```
 

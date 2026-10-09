@@ -43,11 +43,26 @@ or private fragments. Calls to the returned factory remain ordinary JavaScript.
 ```tsx
 const button = style.cva("inline-flex rounded-md", {
   variants: {
-    size: { small: "px-2 py-1", large: "px-4 py-2" },
-    disabled: { false: null, true: "opacity-50" },
+    size: {
+      small: "px-2 py-1",
+      large: "px-4 py-2",
+    },
+    disabled: {
+      false: null,
+      true: "opacity-50",
+    },
   },
-  defaultVariants: { size: "small", disabled: false },
-  compoundVariants: [{ size: ["small", "large"], disabled: false, class: "hover:shadow-md" }],
+  defaultVariants: {
+    size: "small",
+    disabled: false,
+  },
+  compoundVariants: [
+    {
+      size: ["small", "large"],
+      disabled: false,
+      class: "hover:shadow-md",
+    },
+  ],
 });
 
 <button {...button({ size: "large" })} />;

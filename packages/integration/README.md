@@ -18,8 +18,14 @@ Application tasks must depend on the integration build, including development:
 ```ts
 run: {
   tasks: {
-    dev: { command: "vp dev", dependsOn: ["@stillwind/integration#build"] },
-    build: { command: "vp build", dependsOn: ["@stillwind/integration#build"] },
+    dev: {
+      command: "vp dev",
+      dependsOn: ["@stillwind/integration#build"],
+    },
+    build: {
+      command: "vp build",
+      dependsOn: ["@stillwind/integration#build"],
+    },
   },
 }
 ```
@@ -61,11 +67,15 @@ and framework placement.
 ## Astro
 
 ```ts
-import { defineConfig } from "astro/config";
 import { stillwind } from "@stillwind/integration/astro";
+import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  integrations: [stillwind({ css: "./src/stillwind.css" })],
+  integrations: [
+    stillwind({
+      css: "./src/stillwind.css",
+    }),
+  ],
 });
 ```
 
@@ -108,7 +118,13 @@ by that fixture.
 
 ```js
 import { withStillwind } from "@stillwind/integration/next";
-export default withStillwind({}, { css: "./src/stillwind.css" });
+
+export default withStillwind(
+  {},
+  {
+    css: "./src/stillwind.css",
+  },
+);
 ```
 
 This installs Next-specific loaders for both webpack and Turbopack. Existing
@@ -139,10 +155,20 @@ loader rather than webpack compilation hooks. See the official
 
 ```js
 import { StillwindPlugin } from "@stillwind/integration/rspack";
+
 export default {
-  plugins: [new StillwindPlugin({ css: "./src/stillwind.css" })],
+  plugins: [
+    new StillwindPlugin({
+      css: "./src/stillwind.css",
+    }),
+  ],
   module: {
-    rules: [{ test: /\.css$/, type: "css" }],
+    rules: [
+      {
+        test: /\.css$/,
+        type: "css",
+      },
+    ],
   },
 };
 ```
@@ -166,8 +192,13 @@ still installs the producer loaders; ordinary producers do not import document C
 ```js
 import { defineConfig } from "@rsbuild/core";
 import { pluginStillwind } from "@stillwind/integration/rsbuild";
+
 export default defineConfig({
-  plugins: [pluginStillwind({ css: "./src/stillwind.css" })],
+  plugins: [
+    pluginStillwind({
+      css: "./src/stillwind.css",
+    }),
+  ],
 });
 ```
 

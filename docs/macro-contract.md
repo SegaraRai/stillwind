@@ -43,8 +43,13 @@ const transition = style.viewTransition({ old: "opacity-0" });
 const props = style(transition.for(key));
 const reused = style(props, "block");
 
-const data = { transition, key };
-const composed = style({ "hover:": data.transition.for(data.key) });
+const data = {
+  transition,
+  key,
+};
+const composed = style({
+  "hover:": data.transition.for(data.key),
+});
 ```
 
 Reuse completed props or ordinary data containing a declaration and its arguments.
@@ -85,8 +90,18 @@ const props = style(isSelected(item) && "bg-accent", {
 Communication between arguments as shown below violates the contract:
 
 ```ts
-const classes = { active: true };
-style({ class: classes }, { "data-value": (classes.active = false) });
+const classes = {
+  active: true,
+};
+
+style(
+  {
+    class: classes,
+  },
+  {
+    "data-value": (classes.active = false),
+  },
+);
 ```
 
 When asynchronous work or state updates are needed, specify their order with
@@ -95,7 +110,10 @@ ordinary JavaScript:
 ```ts
 const value = await read();
 updateState();
-const props = style({ "--progress": value });
+
+const props = style({
+  "--progress": value,
+});
 ```
 
 ## Declarations and static syntax
@@ -189,7 +207,9 @@ The API lives in `packages/core/src/macro/index.ts`, and validation lives in
 style.keyframes({
   from: "opacity-0",
   to: "opacity-100",
-  "motion-reduce:": { to: "opacity-100" },
+  "motion-reduce:": {
+    to: "opacity-100",
+  },
 });
 ```
 
@@ -249,7 +269,10 @@ and output order.
 ## View transition
 
 ```tsx
-const transition = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
+const transition = style.viewTransition({
+  old: "opacity-0",
+  new: "opacity-100",
+});
 <article {...style(transition.for(product.id))} />;
 ```
 
@@ -307,7 +330,13 @@ in `url(...)` when using it as an image. URL objects receive CSS quoting and
 escaping automatically. Supply valid CSS text for the property consuming a string.
 
 ```tsx
-style({ "--progress": 0, "--size": "1rem" }, active && { "--progress": progress });
+style(
+  {
+    "--progress": 0,
+    "--size": "1rem",
+  },
+  active && { "--progress": progress },
+);
 ```
 
 Boolean values act as switches for unregistered custom properties:
@@ -403,7 +432,10 @@ before its conditional rule.
 ### Output strategy
 
 ```ts
-stillwind({ css: "./src/root.css", useCssIf: true });
+stillwind({
+  css: "./src/root.css",
+  useCssIf: true,
+});
 ```
 
 `useCssIf` defaults to `false`. It is also available in native compiler options;

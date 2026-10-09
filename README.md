@@ -29,7 +29,12 @@ guaranteed; perform effects outside the macro.
 import { defineConfig } from "stillwind/config";
 
 export default defineConfig({
-  projects: [{ css: "./src/stillwind.css", files: ["src/**/*.{ts,tsx}"] }],
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+    },
+  ],
 });
 ```
 
@@ -43,10 +48,12 @@ export default defineConfig({
 
 ```ts
 // vite.config.ts
-import { defineConfig } from "vite-plus";
 import { stillwind } from "@stillwind/integration/vite";
+import { defineConfig } from "vite";
 
-export default defineConfig({ plugins: [stillwind()] });
+export default defineConfig({
+  plugins: [stillwind()],
+});
 ```
 
 The application depends on `stillwind` and `@stillwind/integration`.
@@ -71,7 +78,9 @@ four bytes with no whitespace, and differ from each other.
 ```ts
 const base = style("m-10 hover:m-20");
 const compact = style(base, "m-4");
-const progress = style("w-[calc(var(--progress)*100%)]", { "--progress": value });
+const progress = style("w-[calc(var(--progress)*100%)]", {
+  "--progress": value,
+});
 ```
 
 Composition places base CSS before derived CSS; ordinary specificity and importance
