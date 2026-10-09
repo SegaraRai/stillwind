@@ -43,15 +43,18 @@ function composeUpstream(map: EncodedSourceMap, upstream?: CssUpstreamMap) {
 }
 
 export interface CssLocations {
-  sources: Array<{ sourceMapSource: string; content: string }>;
-  entries: Array<{
+  sources: {
+    sourceMapSource: string;
+    content: string;
+  }[];
+  entries: {
     source: number;
     generatedStart: number;
     generatedEnd: number;
     originalStart: number;
     originalEnd: number;
     exact: boolean;
-  }>;
+  }[];
 }
 
 // Only index mapping starts. A cursor then advances through exact source text.

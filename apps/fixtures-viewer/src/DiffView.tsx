@@ -12,7 +12,12 @@ export default function DiffView({
   before: string;
   after: string;
   language: CodeLanguage;
-  changes?: Array<{ fromA: number; toA: number; fromB: number; toB: number }>;
+  changes?: {
+    fromA: number;
+    toA: number;
+    fromB: number;
+    toB: number;
+  }[];
 }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {

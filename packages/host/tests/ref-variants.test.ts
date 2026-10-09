@@ -75,7 +75,12 @@ export const props = style(${expression});`;
 @utility accent { color:red; }
 @stillwind-slot utilities;`),
       ) as {
-        modules: Array<{ moduleId: string; code: string; css: string; diagnostics: unknown[] }>;
+        modules: {
+          moduleId: string;
+          code: string;
+          css: string;
+          diagnostics: unknown[];
+        }[];
       };
       const output = result.modules.find((module) => module.moduleId === "ref-consumer.ts");
       expect(output).toBeTruthy();

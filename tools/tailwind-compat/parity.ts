@@ -300,7 +300,9 @@ for (const file of readdirSync(caseRoot)
       const expected = comparisonCss(tailwind, frames);
       let native: {
         css: string;
-        classes: Array<{ className: string }>;
+        classes: {
+          className: string;
+        }[];
         diagnostics: unknown[];
       };
       try {

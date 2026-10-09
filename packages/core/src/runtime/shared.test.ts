@@ -27,7 +27,13 @@ test("composes names matching the shared escape vectors", () => {
       new URL("../../../../fixtures/view-transitions/name-escapes.json", import.meta.url),
       "utf8",
     ),
-  ) as { readonly token: string; readonly vectors: ReadonlyArray<{ key: string; name: string }> };
+  ) as {
+    readonly token: string;
+    readonly vectors: readonly {
+      key: string;
+      name: string;
+    }[];
+  };
   expect(fixtures.vectors.length).not.toBe(0);
   for (const vector of fixtures.vectors) {
     expect(

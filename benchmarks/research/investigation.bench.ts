@@ -100,11 +100,11 @@ const host = {
 
 for (const operation of ["unchanged", "edit"] as const) {
   test(`host/phases/${operation}`, async ({ bench, task }) => {
-    const samples: Array<{
+    const samples: {
       checkerMs: number;
       nativeMs: number;
       totalMs: number;
-    }> = [];
+    }[] = [];
     const session = new NativeProjectSession(loader, true);
     const facts = new TypeScriptFactsService({
       root,
@@ -164,11 +164,11 @@ for (const operation of ["unchanged", "edit"] as const) {
 }
 
 test("host/fresh/phases", async ({ bench, task }) => {
-  const samples: Array<{
+  const samples: {
     createMs: number;
     compileMs: number;
     closeMs: number;
-  }> = [];
+  }[] = [];
   let output: Awaited<ReturnType<typeof compileModule>>;
   task.meta.measurement = options;
   await bench("fresh", { async: true }, async () => {

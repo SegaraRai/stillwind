@@ -108,7 +108,7 @@ export interface CompilerMapping {
    * Nonempty, nonoverlapping intervals contained in this replacement, sorted by
    * generated start. Source order may differ. Missing/empty means anchor-only mapping.
    */
-  expressions?: Array<{
+  expressions?: {
     /** Inclusive original offset. The anchor for a nonexact interval. */
     originalStart: number;
     /** Exclusive original offset of the expression or encoded character. */
@@ -119,7 +119,7 @@ export interface CompilerMapping {
     generatedEnd: number;
     /** True requires identical text/equal lengths. False anchors all units at original start. */
     exact: boolean;
-  }>;
+  }[];
 }
 
 /**

@@ -21,7 +21,9 @@ test("style value conversion matches merge serialization", () => {
       Symbol("value"),
     ]) {
       expect(runtime.stillwindStyleValue(value)).toStrictEqual(
-        runtime.stillwindMerge({ [runtime.stillwindStyleKey]: value }).style,
+        runtime.stillwindMerge({
+          [runtime.stillwindStyleKey]: value,
+        }).style,
       );
     }
   }

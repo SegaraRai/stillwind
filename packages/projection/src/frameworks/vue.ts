@@ -152,14 +152,14 @@ function quotedRegions(
     return regions;
   }
 
-  const quotes: Array<{
+  const quotes: {
     /** Inclusive original UTF-16 offset of the directive expression, excluding its quote. */
     start: number;
     /** Exclusive original UTF-16 offset, before the closing quote. */
     end: number;
     /** HTML quote surrounding the expression, retained when compiler edits are inserted. */
     attributeQuote: "single" | "double";
-  }> = [];
+  }[] = [];
 
   /**
    * Records directive expressions whose original text has matching surrounding quotes.

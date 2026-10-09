@@ -90,7 +90,7 @@ test("guarded view transitions preserve short-circuiting through type collection
 });
 
 test("conditional transition trees select only the active class and key", async () => {
-  const cases: Array<[string, (enabled: boolean, outer: boolean) => string | null]> = [
+  const cases: [string, (enabled: boolean, outer: boolean) => string | null][] = [
     ["enabled ? a : b", () => "literal"],
     ['enabled ? a : b.for(key("b"))', (enabled) => (enabled ? "literal" : "b")],
     ['(enabled ? a.for("a") : b.for("b"))', () => "literal"],
@@ -123,7 +123,7 @@ test("conditional transition trees select only the active class and key", async 
         [
           [`enabled ? (a.for(key("a"))) : ${empty}`, (enabled: boolean) => (enabled ? "a" : null)],
           [`enabled ? ${empty} : (b.for(key("b")))`, (enabled: boolean) => (enabled ? null : "b")],
-        ] as Array<[string, (enabled: boolean, outer: boolean) => string | null]>,
+        ] as [string, (enabled: boolean, outer: boolean) => string | null][],
     ),
   ];
   for (const [expression, selected] of cases) {

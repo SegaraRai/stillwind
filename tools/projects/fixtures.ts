@@ -37,13 +37,16 @@ type ModuleOutput = {
   path: string;
   code: string | null;
   css: string;
-  mappings: Array<{
+  mappings: {
     originalStart: number;
     originalEnd: number;
     generatedStart: number;
     generatedEnd: number;
-  }>;
-  diagnostics: Array<{ code: string; message: string }>;
+  }[];
+  diagnostics: {
+    code: string;
+    message: string;
+  }[];
 };
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -273,12 +276,12 @@ function finalizedPosition(position: number, prefix: string, removed: FinalizedM
 }
 
 function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: FinalizedModuleEdit[]) {
-  const changes: Array<{
+  const changes: {
     fromA: number;
     toA: number;
     fromB: number;
     toB: number;
-  }> = [];
+  }[] = [];
   const remainingRemoved = [...removed];
   if (remainingRemoved[0]?.from === 0) {
     const header = remainingRemoved.shift()!;

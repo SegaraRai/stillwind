@@ -17,6 +17,7 @@ use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
 use super::fold::{Demand, fold, record_fields};
 use super::render::{render_reference, render_style_call};
+use crate::IdentifierMode;
 use crate::compiler::expression_render::render_plain;
 use crate::compiler::props::{StyleEmission, StyleEmissionPart};
 use crate::runtime::{RuntimeBindings, RuntimeHelper};
@@ -567,9 +568,9 @@ fn ref_reads_select_validation_by_compiler_mode_and_keep_source_evaluation_once(
         span,
     };
     for (mode, expected) in [
-        (crate::IdentifierMode::Release, "(load()).c"),
+        (IdentifierMode::Release, "(load()).c"),
         (
-            crate::IdentifierMode::Development,
+            IdentifierMode::Development,
             "stillwindRefClassChecked(load())",
         ),
     ] {
@@ -583,12 +584,9 @@ fn ref_reads_select_validation_by_compiler_mode_and_keep_source_evaluation_once(
         span,
     };
     for (mode, expected) in [
+        (IdentifierMode::Release, "({marker:'class'})[(load()).c]"),
         (
-            crate::IdentifierMode::Release,
-            "({marker:'class'})[(load()).c]",
-        ),
-        (
-            crate::IdentifierMode::Development,
+            IdentifierMode::Development,
             "({marker:'class'})[stillwindRefClassChecked(load())]",
         ),
     ] {

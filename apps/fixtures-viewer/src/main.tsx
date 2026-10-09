@@ -10,7 +10,12 @@ type FixtureFile = {
   after: string;
   css: string;
   minifiedCss: string;
-  diff?: Array<{ fromA: number; toA: number; fromB: number; toB: number }>;
+  diff?: {
+    fromA: number;
+    toA: number;
+    fromB: number;
+    toB: number;
+  }[];
 };
 type FixtureProject = {
   id: string;

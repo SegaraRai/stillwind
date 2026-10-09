@@ -9,7 +9,11 @@ import type { TypeScriptFactsService } from "../src/semantics/index.ts";
 test("host name generators decide the names the compiler writes", async () => {
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "design.css", "@utility flex {display:flex} @stillwind-slot utilities;");
-  const seen: Array<{ hash: number; module: string }> = [];
+
+  const seen: {
+    hash: number;
+    module: string;
+  }[] = [];
   const session = new NativeProjectSession(loader, false, undefined, {
     utilityClass: (context, hash) => {
       seen.push({ hash: hash.length, module: context.module });

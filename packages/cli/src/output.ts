@@ -6,13 +6,17 @@ import type { FormatResult, LintResult } from "@stillwind/analysis/node";
 import { createConsola } from "consola";
 
 export type OutputFormat = "text" | "json" | "github";
+
 export type DisplayMode = "auto" | "always" | "never";
+
 export interface OutputOptions {
   format: OutputFormat;
   color: DisplayMode;
   hyperlinks: DisplayMode;
 }
+
 type Report = LintResult["results"][number]["result"]["reports"][number];
+
 type Location = Report["primary"]["location"];
 
 export function displayEnabled(
@@ -51,6 +55,7 @@ export function renderLint(result: LintResult, options: OutputOptions): string {
   if (options.format === "json") {
     return JSON.stringify(result);
   }
+
   const lines: string[] = [];
   const seen = new Set<string>();
   const color =
@@ -70,6 +75,7 @@ export function renderLint(result: LintResult, options: OutputOptions): string {
       if (seen.has(key)) {
         continue;
       }
+
       seen.add(key);
       const message = clean(report.message);
       if (options.format === "github") {
@@ -120,6 +126,7 @@ export function renderLint(result: LintResult, options: OutputOptions): string {
         lines.push(...report.notes.map((note) => `  ${clean(note)}`));
       }
     }
+
     if (entry.result.status !== "complete") {
       const details = [`incomplete analysis${entry.result.error ? `: ${entry.result.error}` : ""}`];
       for (const dependency of entry.result.graph?.dependencies ?? []) {
@@ -143,10 +150,12 @@ export function renderLint(result: LintResult, options: OutputOptions): string {
       );
     }
   }
+
   if (!result.results.length) {
     const message = "No analysis targets matched the configured scopes";
     lines.push(options.format === "github" ? annotation("error", {}, message) : message);
   }
+
   return lines.join("\n");
 }
 
@@ -154,19 +163,24 @@ export function renderFormat(result: FormatResult, options: OutputOptions, check
   if (options.format === "json") {
     return JSON.stringify(result);
   }
+
   if (options.format === "github") {
     return check
       ? result.changed
           .map((file) =>
             annotation(
               "error",
-              { file, title: "Stillwind formatting" },
+              {
+                file,
+                title: "Stillwind formatting",
+              },
               "Stillwind utilities need sorting. Run stillwind fmt.",
             ),
           )
           .join("\n")
       : result.changed.map(clean).join("\n");
   }
+
   const hyperlinks = displayEnabled(
     options.hyperlinks,
     "hyperlinks",
@@ -174,16 +188,39 @@ export function renderFormat(result: FormatResult, options: OutputOptions, check
     process.env,
   );
   return result.changed
-    .map((file) => link(clean(file), { uri: file, startLine: 0, startColumn: 0 }, hyperlinks))
+    .map((file) =>
+      link(
+        clean(file),
+        {
+          uri: file,
+          startLine: 0,
+          startColumn: 0,
+        },
+        hyperlinks,
+      ),
+    )
     .join("\n");
 }
 
 export function writeFailure(error: unknown, options: OutputOptions): void {
   const message = clean(error instanceof Error ? error.message : String(error));
   if (options.format === "json") {
-    process.stdout.write(JSON.stringify({ exitCode: 2, error: { message } }) + "\n");
+    process.stdout.write(
+      JSON.stringify({
+        exitCode: 2,
+        error: { message },
+      }) + "\n",
+    );
   } else if (options.format === "github") {
-    process.stdout.write(annotation("error", { title: "Stillwind" }, message) + "\n");
+    process.stdout.write(
+      annotation(
+        "error",
+        {
+          title: "Stillwind",
+        },
+        message,
+      ) + "\n",
+    );
   } else {
     createConsola({
       fancy: false,
@@ -195,7 +232,9 @@ export function writeFailure(error: unknown, options: OutputOptions): void {
       },
     }).error(
       displayEnabled(options.color, "color", !!process.stderr.isTTY, process.env)
-        ? styleText("red", message, { validateStream: false })
+        ? styleText("red", message, {
+            validateStream: false,
+          })
         : message,
     );
   }
@@ -206,12 +245,15 @@ function clean(text: string): string {
     character === "\n" || character === "\r" || character === "\t" ? character : "",
   );
 }
+
 function sourcePath(uri: string): string {
   return clean(uri.startsWith("file:") ? fileURLToPath(uri) : uri);
 }
+
 function at(location: Location): string {
   return `${sourcePath(location.uri)}:${location.startLine + 1}:${location.startColumn + 1}`;
 }
+
 function link(
   label: string,
   location: Pick<Location, "uri" | "startLine" | "startColumn">,
@@ -221,10 +263,12 @@ function link(
   if (!enabled || !path.isAbsolute(file)) {
     return label;
   }
+
   const url = pathToFileURL(file);
   url.hash = `L${location.startLine + 1}:${location.startColumn + 1}`;
   return `\u001b]8;;${url.href}\u001b\\${label}\u001b]8;;\u001b\\`;
 }
+
 export function annotation(
   level: "error" | "warning",
   properties: Record<string, string | number>,

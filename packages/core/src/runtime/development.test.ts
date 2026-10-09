@@ -30,17 +30,24 @@ test("checked class concatenation retains external-class input conventions", () 
 });
 
 test("production and development runtimes share keys and valid materialization", () => {
-  const fragment = react.stillwindToFragment({ className: "a", style: { color: "red" } });
+  const fragment = react.stillwindToFragment({
+    className: "a",
+    style: { color: "red" },
+  });
   expect(reactDevelopment.stillwindToFragmentChecked(fragment)).toBe(fragment);
   expect(reactDevelopment.stillwindMergeChecked(fragment)).toEqual(react.stillwindMerge(fragment));
   expect(() => reactDevelopment.stillwindToFragmentChecked(null)).toThrow(
     /materialized props object/,
   );
-  expect(() => reactDevelopment.stillwindMergeChecked({ [react.stillwindClassKey]: 7 })).toThrow(
-    /non-string/,
-  );
-  expect(() => reactDevelopment.stillwindMergeChecked({ [svelte.stillwindStyleKey]: {} })).toThrow(
-    /different runtime/,
-  );
+  expect(() =>
+    reactDevelopment.stillwindMergeChecked({
+      [react.stillwindClassKey]: 7,
+    }),
+  ).toThrow(/non-string/);
+  expect(() =>
+    reactDevelopment.stillwindMergeChecked({
+      [svelte.stillwindStyleKey]: {},
+    }),
+  ).toThrow(/different runtime/);
   expect(react.stillwindMerge({ className: "a" })).toEqual({ className: "a" });
 });

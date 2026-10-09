@@ -12,7 +12,7 @@ import { writeFrameworkFixture, type Framework } from "../shared/framework-fixtu
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-const close: Array<() => Promise<void>> = [];
+const close: (() => Promise<void>)[] = [];
 const roots: string[] = [];
 let port = 5174;
 for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {

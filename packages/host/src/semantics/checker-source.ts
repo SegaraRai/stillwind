@@ -140,14 +140,14 @@ export class CheckerSource {
     this.#original = source.document.code;
     this.#points = projectionPoints(source);
     const producers = new Map<number, string>();
-    const producerRanges: Array<{
+    const producerRanges: {
       /** Inclusive UTF-16 producer call offset before checker edits. */
       start: number;
       /** Exclusive UTF-16 producer call offset before checker edits. */
       end: number;
       /** Asset family used to interpret the producer's result. */
       kind: NativeAssetRecord["identity"]["kind"];
-    }> = [];
+    }[] = [];
     for (const asset of assets) {
       const targets = this.targets(asset.callStart, asset.callEnd, "producer");
       const key = identityKey(asset.identity);
@@ -277,7 +277,7 @@ export class CheckerSource {
    * list.
    * @throws If either original byte boundary is invalid.
    */
-  targets(start: number, end: number, role: string): Array<[number, number]> {
+  targets(start: number, end: number, role: string): [number, number][] {
     const a = byteToUtf16(this.#original, start);
     const b = byteToUtf16(this.#original, end);
     if (this.buffer.region) {

@@ -18,7 +18,10 @@ interface DeclarationBlock {
 
 interface StyleRule {
   declarations?: DeclarationBlock;
-  selectors: Array<Array<{ name?: string; type: string }>>;
+  selectors: {
+    name?: string;
+    type: string;
+  }[][];
 }
 
 interface ClassRule {
@@ -28,7 +31,9 @@ interface ClassRule {
 }
 
 interface NativeOutput {
-  classes: Array<{ className: string }>;
+  classes: {
+    className: string;
+  }[];
   css: string;
   diagnostics: unknown[];
 }
