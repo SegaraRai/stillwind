@@ -1,6 +1,6 @@
 import { AnalysisWorkspace } from "@stillwind/host";
 
-import { SourceRewriter } from "./rewrite.ts";
+import { RewriteFailure, SourceRewriter } from "./rewrite.ts";
 import type { WorkerRequest } from "./worker-client.ts";
 
 let workspace: AnalysisWorkspace | undefined;
@@ -25,7 +25,10 @@ process.on(
       (error: unknown) => {
         process.send?.({
           id: message.id,
-          error: String(error),
+          error: {
+            message: error instanceof Error ? error.message : String(error),
+            results: error instanceof RewriteFailure ? error.results : undefined,
+          },
         });
       },
     );

@@ -17,6 +17,8 @@ mod compilation;
 mod mapping;
 mod reporting;
 
+pub(crate) use reporting::report_error;
+
 pub use compilation::{
     BindingOutput, BindingRejectedIdentifier, NativeModuleResource, ProjectBindingOutput,
     ProjectModuleOutput,

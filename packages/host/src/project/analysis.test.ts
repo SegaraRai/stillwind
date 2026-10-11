@@ -1,11 +1,37 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
 import { TypeScriptFactsService } from "../semantics/index.ts";
 import { AnalysisProject } from "./analysis.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
+
+test("failed CSS loading retains structured diagnostics in the analysis result", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-analysis-"));
+  const entry = path.join(root, "entry.tsx");
+  const css = path.join(root, "root.css");
+  const project = new AnalysisProject(
+    createFileSystemAnalysisHost({ css: "root.css", files: ["*.tsx"] }, root),
+  );
+  try {
+    await writeFile(css, "@theme {");
+    await writeFile(entry, "export const value = 1;");
+    expect(await project.analyze(entry)).toMatchObject({
+      status: "incomplete",
+      reports: [
+        {
+          code: "SW08026",
+          primary: { location: { uri: pathToFileURL(css).href } },
+        },
+      ],
+    });
+  } finally {
+    await project.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("queued analysis discards an obsolete snapshot and reloads CSS from the next overlay", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-analysis-"));

@@ -347,7 +347,10 @@ export class AnalysisProject {
       });
       result.status = analysisComplete(graph) ? "complete" : "incomplete";
     } catch (error) {
-      result.error = String(error);
+      result.error = error instanceof Error ? error.message : String(error);
+      if (error instanceof Error && "reports" in error && Array.isArray(error.reports)) {
+        result.reports = error.reports as BindingReport[];
+      }
     }
     return result;
   }

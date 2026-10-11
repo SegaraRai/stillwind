@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import type { EditorRequest, WorkspaceResult } from "@stillwind/host";
 
-import type { RewriteInput, RewriteResult } from "./rewrite.ts";
+import { RewriteFailure, type RewriteInput, type RewriteResult } from "./rewrite.ts";
 
 /** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
 export type WorkerRequest =
@@ -78,8 +78,8 @@ export interface WorkerReply {
   id: number;
   /** Serialized operation result when error is absent. */
   value?: unknown;
-  /** Stringified exception from the child operation. */
-  error?: string;
+  /** Exception message and any analysis results that prevented a rewrite. */
+  error?: { message: string; results?: WorkspaceResult[] };
 }
 
 /** Isolates configuration and plugin logs from CLI JSON and the LSP stdout transport. */
@@ -123,7 +123,11 @@ export class AnalysisWorker {
       const request = this.#pending.get(reply.id);
       this.#pending.delete(reply.id);
       if (reply.error) {
-        request?.reject(new Error(reply.error));
+        request?.reject(
+          reply.error.results
+            ? new RewriteFailure(reply.error.message, reply.error.results)
+            : new Error(reply.error.message),
+        );
       } else {
         request?.resolve(reply.value);
       }

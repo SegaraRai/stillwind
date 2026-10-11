@@ -1,5 +1,7 @@
 //! Transfers resolved diagnostics, editor ranges, fixes, and scan failures.
 
+use napi::bindgen_prelude::{Env, JsObjectValue};
+use napi::{Error, Status};
 use napi_derive::napi;
 use serde::Serialize;
 
@@ -10,6 +12,17 @@ use stillwind_diagnostics::{
 use stillwind_source::ModuleId;
 
 use crate::semantic::NativeModuleSummary;
+
+/// Throws an error with source-resolved diagnostics attached as `reports`.
+pub(crate) fn report_error(env: Env, message: String, reports: Vec<BindingReport>) -> Error {
+    let create = || -> napi::Result<Error> {
+        let mut value = env.create_error(Error::from_reason(message))?;
+        value.set_named_property("reports", reports)?;
+        env.throw(value)?;
+        Ok(Error::new(Status::PendingException, "Analysis failed"))
+    };
+    create().unwrap_or_else(|error| error)
+}
 
 /// One source-resolved diagnostic transferred from the common reporting layer.
 #[napi(object, object_from_js = false)]
