@@ -3,6 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters, styleText } from "node:util";
 
 import type { CliDiagnostic, CliFailure, CliResult, ResultPolicy } from "./result.ts";
+import type { SourceFrames } from "./source-frame.ts";
 
 export type OutputFormat = "text" | "json" | "github" | "files";
 export type DisplayMode = "auto" | "always" | "never";
@@ -50,7 +51,12 @@ export function displayEnabled(
 }
 
 /** Renders one CLI result independently of the original analysis graph. */
-export function renderResult(result: CliResult, options: OutputOptions, stderr = false): string {
+export function renderResult(
+  result: CliResult,
+  options: OutputOptions,
+  stderr = false,
+  frames?: SourceFrames,
+): string {
   if (options.format === "json") {
     return JSON.stringify(result);
   }
@@ -58,7 +64,10 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
     options.format === "github"
       ? (process.env.GITHUB_WORKSPACE ?? options.cwd ?? process.cwd())
       : (options.cwd ?? process.cwd());
-  const file = (uri: string) => displayPath(uri, root);
+  const file = (uri: string) => {
+    const displayed = displayPath(uri, root);
+    return options.format === "github" ? displayed.replaceAll("\\", "/") : displayed;
+  };
   if (options.format === "files") {
     return result.changed.map(file).join("\n");
   }
@@ -72,6 +81,12 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
       ? file(label.location.uri)
       : `${file(label.location.uri)}:${label.location.startLine + 1}:${label.location.startColumn + 1}`;
   const linked = (label: Label) => link(at(label), label.location, hyperlinks);
+  const addFrame = (label: Label) => {
+    const frame = frames?.render(label);
+    if (frame) {
+      lines.push(...frame.split("\n").map((line) => `  ${line}`));
+    }
+  };
   const lines: string[] = [];
   for (const { project, report } of result.diagnostics) {
     const message = clean(report.message);
@@ -93,9 +108,14 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
         properties.line = location.startLine + 1;
         properties.col = location.startColumn + 1;
         // GitHub annotation ends are inclusive; report ranges are exclusive.
-        if (location.endColumn > 0) {
+        if (
+          location.endColumn > 0 &&
+          (location.endLine > location.startLine || location.endColumn > location.startColumn)
+        ) {
           properties.endLine = location.endLine + 1;
           properties.endColumn = location.endColumn;
+        } else if (location.endLine > location.startLine) {
+          properties.endLine = location.endLine;
         }
       }
       lines.push(
@@ -114,6 +134,7 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
       lines.push(
         `${linked(report.primary)}: ${severity} ${clean(report.code)} [project ${project + 1}]: ${message}`,
       );
+      addFrame(report.primary);
       if (report.primary.message) {
         lines.push(`  note: ${clean(report.primary.message)}`);
       }
@@ -121,6 +142,7 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
         lines.push(
           `  related: ${linked(related)}${related.message ? `: ${clean(related.message)}` : ""}`,
         );
+        addFrame(related);
       }
       lines.push(...report.notes.map((note) => `  note: ${clean(note)}`));
       lines.push(...report.actions.map((action) => `  help: ${clean(action.title)}`));
@@ -170,9 +192,10 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
           : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
         : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
-    if (result.command === "lint" && summary.suggestions) {
+    const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
+    if (result.command === "lint" && suggestions) {
       lines.push(
-        `help: Suggested edits are available for ${count(summary.suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
+        `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
       );
     }
   }
@@ -180,9 +203,13 @@ export function renderResult(result: CliResult, options: OutputOptions, stderr =
 }
 
 /** Writes text execution failures to stderr and command results to stdout. */
-export function writeResult(result: CliResult, options: OutputOptions): void {
+export async function writeResult(result: CliResult, options: OutputOptions): Promise<void> {
   const stderr = options.format === "text" && result.failures.length > 0;
-  const output = renderResult(result, options, stderr);
+  const frames =
+    options.format === "text" && result.diagnostics.length
+      ? new (await import("./source-frame.ts")).SourceFrames()
+      : undefined;
+  const output = renderResult(result, options, stderr, frames);
   if (output) {
     (stderr ? process.stderr : process.stdout).write(output + "\n");
   }

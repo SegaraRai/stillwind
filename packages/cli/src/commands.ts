@@ -27,6 +27,10 @@ const fmtArgs = {
 
 const lintArgs = {
   ...targetArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
+  },
   ...warningArgs,
   fix: {
     type: "boolean",
@@ -62,7 +66,7 @@ const subCommands = {
         check: args.check,
       });
       const result = cliResult("fmt", analysis, { check: args.check });
-      writeResult(result, options);
+      await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
   }),
@@ -75,9 +79,6 @@ const subCommands = {
     plugins: [strictArguments],
     async run({ args, data }) {
       const options = data as OutputOptions;
-      if (args.format === "files") {
-        throw new Error("--format files is only available for fmt");
-      }
       const maxWarnings = warningLimit(args["max-warnings"]);
       options.quiet = args.quiet;
       options.maxWarnings = maxWarnings;
@@ -89,7 +90,7 @@ const subCommands = {
         fix: args.fix,
       });
       const result = cliResult("lint", analysis, { quiet: args.quiet, maxWarnings });
-      writeResult(result, options);
+      await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
   }),
@@ -181,7 +182,10 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
     }
   } catch (error) {
     const result = failureResult(name, error, options);
-    writeResult(result, options.format === "files" ? { ...options, format: "text" } : options);
+    await writeResult(
+      result,
+      options.format === "files" ? { ...options, format: "text" } : options,
+    );
     process.exitCode = 2;
   }
 }

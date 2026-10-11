@@ -1,5 +1,6 @@
 import type { WorkspaceResult } from "@stillwind/host";
 
+import { lintReports } from "./index.ts";
 import { resolveRewriteConfig, rewriteFiles, type RewriteOptions } from "./rewrite-files.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
@@ -17,21 +18,6 @@ export interface LintResult {
    * - 2: incomplete execution
    */
   exitCode: 0 | 1 | 2;
-}
-
-/** Collects distinct reports per project while preserving their analysis order. */
-export function lintReports(results: WorkspaceResult[]) {
-  const seen = new Set<string>();
-  return results.flatMap((entry) =>
-    entry.result.reports.flatMap((report) => {
-      const key = JSON.stringify([entry.project, report]);
-      if (seen.has(key)) {
-        return [];
-      }
-      seen.add(key);
-      return [{ project: entry.project, report }];
-    }),
-  );
 }
 
 /**

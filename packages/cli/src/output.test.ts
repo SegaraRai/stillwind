@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 
 import type { LintResult } from "@stillwind/analysis/node";
-import { expect, test } from "vite-plus/test";
+import { expect, test, vi } from "vite-plus/test";
 
 import { annotation, displayEnabled, renderResult } from "./output.ts";
 import { cliResult, failureResult } from "./result.ts";
@@ -124,6 +124,56 @@ test("GitHub messages and metadata escape command delimiters", () => {
       "bad%\r\n::error",
     ),
   ).toBe("::error file=a%2Cb%3Ac%25,title=title%0A%3A%3Awarning::bad%25%0D%0A::error");
+});
+
+test("GitHub paths use the workspace root and zero-length ranges remain point annotations", () => {
+  vi.stubEnv("GITHUB_WORKSPACE", path.dirname(path.dirname(file)));
+  try {
+    const github = renderResult(result, { ...options, format: "github" });
+    expect(github).toContain(
+      `file=src/${path
+        .basename(file)
+        .replace(/,/g, "%2C")
+        .replace(/%\.tsx$/, "%25.tsx")}`,
+    );
+    const point = cliResult("lint", {
+      ...analysis,
+      results: [
+        {
+          ...analysis.results[0],
+          result: {
+            ...analysis.results[0].result,
+            reports: [
+              {
+                ...report,
+                primary: {
+                  ...report.primary,
+                  location: { ...location, endColumn: location.startColumn },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    expect(renderResult(point, { ...options, format: "github" })).toContain("line=3,col=4::");
+    const document = cliResult("lint", {
+      ...analysis,
+      results: [
+        {
+          ...analysis.results[0],
+          result: {
+            ...analysis.results[0].result,
+            reports: [{ ...report, primary: { ...report.primary, scope: "document" as const } }],
+          },
+        },
+      ],
+    });
+    expect(renderResult(document, options)).toContain(`${path.basename(file)}: error`);
+    expect(renderResult(document, { ...options, format: "github" })).not.toContain(",line=");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 test("display auto mode distinguishes pipes, CI, and capable terminals", () => {

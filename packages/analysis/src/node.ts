@@ -5,7 +5,8 @@
  */
 
 export { format, type FormatResult } from "./format.ts";
-export { formatLint, lint, lintReports, type LintResult } from "./lint.ts";
+export { lintReports } from "./index.ts";
+export { formatLint, lint, type LintResult } from "./lint.ts";
 export { openNodeWorkspaces } from "./node-workspace.ts";
 export type { RewriteOptions } from "./rewrite-files.ts";
 export type { RewriteInput, RewriteResult } from "./rewrite.ts";

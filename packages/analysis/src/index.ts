@@ -59,6 +59,21 @@ export interface WorkspaceResult {
   result: AnalysisResult;
 }
 
+/** Collects distinct reports per project while preserving their analysis order. */
+export function lintReports(results: readonly WorkspaceResult[]) {
+  const seen = new Set<string>();
+  return results.flatMap((entry) =>
+    entry.result.reports.flatMap((report) => {
+      const key = JSON.stringify([entry.project, report]);
+      if (seen.has(key)) {
+        return [];
+      }
+      seen.add(key);
+      return [{ project: entry.project, report }];
+    }),
+  );
+}
+
 /** URI-based operations shared by Node hosts and browser compiler workers. */
 export interface AnalysisWorkspaceService {
   /**

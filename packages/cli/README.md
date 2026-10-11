@@ -57,6 +57,11 @@ Exit codes:
 Unknown options, missing option values, and unsupported format or display values return `2`.
 Text diagnostics include paths and one-based line and column positions. GitHub output uses
 workflow annotations that link findings and formatting failures to files in CI.
+Text and GitHub columns count UTF-16 code units; their line and column numbers start at one.
+Range diagnostics include source excerpts, related locations, notes, and suggestions. Excerpts
+use four spaces per tab and account for wide characters and emoji. Long ranges show their first
+four lines. Document diagnostics omit coordinates and excerpts. If a source cannot be read or its
+fingerprint differs from the diagnostic revision, the diagnostic is printed without an excerpt.
 Text paths are relative to the invocation's working directory. GitHub paths are relative to
 `GITHUB_WORKSPACE`, falling back to the working directory. Paths across filesystem volumes remain
 absolute. OSC 8 links use absolute file URLs.
