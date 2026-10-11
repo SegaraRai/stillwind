@@ -3,7 +3,7 @@ import { prepareSource, type PreparedSource } from "@stillwind/projection";
 import { expect, test } from "vite-plus/test";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
-import { BrowserProject } from "./index.ts";
+import { BrowserProject } from "./project.ts";
 
 test("browser projects capture custom source and projection operations and their results", async () => {
   const root = "/workspace";

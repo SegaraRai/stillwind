@@ -1,4 +1,4 @@
-import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./index.ts";
+import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
 
 /** Rule inputs accepted by CSS variant wrappers in a CVA definition. */
 export type CvaRuleInput =

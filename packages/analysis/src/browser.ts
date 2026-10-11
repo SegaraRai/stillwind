@@ -4,16 +4,16 @@ import {
   virtualPath,
   type BrowserModuleCss,
   type BrowserStylesheetOutput,
+  type EditorRequest,
 } from "@stillwind/host/browser";
 import { minimatch } from "minimatch";
 import { relative, resolve } from "pathe";
 
 import type {
   AnalysisWorkspaceService,
-  EditorRequest,
   WorkspaceEditorResult,
   WorkspaceResult,
-} from "./index.ts";
+} from "./workspace.ts";
 
 /** Browser workspace with original URIs and a complete virtual dependency inventory. */
 export interface BrowserWorkspaceOptions {

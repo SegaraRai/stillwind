@@ -1,4 +1,4 @@
-import type { AnalysisResult, AnalysisWorkspaceService, WorkspaceResult } from "./index.ts";
+import type { AnalysisResult, AnalysisWorkspaceService, WorkspaceResult } from "./workspace.ts";
 
 /** Compiler input captured from URI documents before asynchronous compilation starts. */
 export interface MemoryAnalysisInput {

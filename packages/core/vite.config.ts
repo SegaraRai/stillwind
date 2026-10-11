@@ -31,6 +31,8 @@ export default defineConfig({
     format: ["esm"],
     fixedExtension: false,
     dts: true,
+    // The semantic checker discovers asset brands through exported type names.
+    outputOptions: { minifyInternalExports: false },
     sourcemap: true,
   },
   test: {

@@ -1,6 +1,6 @@
 import type { WorkspaceResult } from "@stillwind/host";
 
-import { lintReports } from "./index.ts";
+import { lintReports } from "./reports.ts";
 import { resolveRewriteConfig, rewriteFiles, type RewriteOptions } from "./rewrite-files.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 

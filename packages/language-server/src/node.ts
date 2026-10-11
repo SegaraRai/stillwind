@@ -1,7 +1,7 @@
 import { openNodeWorkspaces } from "@stillwind/analysis/node";
 import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
 
-import { createLanguageServer } from "./index.ts";
+import { createLanguageServer } from "./server.ts";
 
 /**
  * Starts a stdio LSP connection with isolated Node analysis processes.
