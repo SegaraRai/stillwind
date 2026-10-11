@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vite-plus/test";
+
+import type { CliResult } from "../src/result.ts";
 
 const main = path.resolve(import.meta.dirname, "../dist/main.js");
 
@@ -31,8 +34,11 @@ test("fmt checks and sorts with byte preservation; unchanged fmt and lint fixes 
     expect(check.code, check.stderr).toBe(1);
     expect(await readFile(file, "utf8")).toBe(source);
     expect((await stat(file)).mtimeMs).toBe(before);
+    const files = await run(root, ["fmt", "--check", "--format", "files"]);
+    expect(files).toMatchObject({ code: 1, stdout: "entry.tsx\n", stderr: "" });
     const formatted = await run(root, ["fmt"]);
     expect(formatted.code, formatted.stderr).toBe(0);
+    expect(formatted.stdout).toContain("entry.tsx: formatted");
     expect(await readFile(file, "utf8")).toBe(
       source.replace("flex \\u0062lock", "\\u0062lock flex"),
     );
@@ -68,8 +74,8 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     expect(fixed.code, fixed.stderr).toBe(0);
     expect(await readFile(file, "utf8")).toContain('style("block flex p-4")');
     expect(
-      JSON.parse(fixed.stdout).results[0].result.reports.map(
-        (report: { code: string }) => report.code,
+      JSON.parse(fixed.stdout).diagnostics.map(
+        ({ report }: { report: { code: string } }) => report.code,
       ),
     ).toEqual(["conflicting-utilities"]);
     await writeFile(
@@ -96,8 +102,8 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const remaining = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(remaining.code, remaining.stderr).toBe(1);
     expect(
-      JSON.parse(remaining.stdout).results[0].result.reports.map(
-        (report: { code: string }) => report.code,
+      JSON.parse(remaining.stdout).diagnostics.map(
+        ({ report }: { report: { code: string } }) => report.code,
       ),
     ).toEqual(["unknown-utility", "conflicting-utilities"]);
     expect(await readFile(file, "utf8")).toContain('style("block flex missing")');
@@ -128,37 +134,80 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
     const result = await run(root, ["lint", "--format", "json"]);
     expect(result.code, result.stderr).toBe(1);
     expect(result.stderr).toContain("configuration log");
-    const json = JSON.parse(result.stdout) as {
-      results: {
-        project: number;
-        result: {
-          entry: string;
-          reports: {
-            code: string;
-          }[];
-        };
-      }[];
-    };
-    expect(json.results.map((entry) => [entry.project, path.basename(entry.result.entry)])).toEqual(
-      [
-        [0, "entry.tsx"],
-        [0, "unused.tsx"],
-        [1, "unused.tsx"],
-      ],
-    );
-    expect(json.results[1].result.reports[0].code).toBe("unknown-utility");
+    const json = JSON.parse(result.stdout) as CliResult;
+    expect(json.summary.files).toBe(2);
+    expect(
+      json.diagnostics.map(({ project, report }) => [
+        project,
+        path.basename(fileURLToPath(report.primary.location.uri)),
+      ]),
+    ).toEqual([
+      [0, "unused.tsx"],
+      [1, "unused.tsx"],
+    ]);
+    expect(json.diagnostics[0].report.code).toBe("unknown-utility");
     const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(fixed.code, fixed.stderr).toBe(1);
-    expect(
-      JSON.parse(fixed.stdout).results.map(
-        (entry: { project: number; result: { entry: string } }) => [
-          entry.project,
-          path.basename(entry.result.entry),
-        ],
-      ),
-    ).toEqual(json.results.map((entry) => [entry.project, path.basename(entry.result.entry)]));
+    expect(JSON.parse(fixed.stdout).diagnostics).toEqual(json.diagnostics);
     expect((await run(root, ["lint", "entry.tsx"])).code).toBe(0);
+    expect((await run(root, ["lint", "./entry.tsx"])).code).toBe(0);
+    expect((await run(root, ["lint", path.join(root, "entry.tsx")])).code).toBe(0);
     expect((await run(root, ["lint", "absent.tsx"])).code).toBe(2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("quiet preserves warning thresholds and CLI failures retain CSS reports", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-output-"));
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.json"),
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["*.tsx"],
+            typeFacts: false,
+            lint: { rules: { "unknown-utility": "warn" } },
+          },
+        ],
+      }),
+    );
+    await writeFile(path.join(root, "root.css"), "@stillwind-slot utilities;");
+    await writeFile(
+      path.join(root, "entry.tsx"),
+      'import {style} from "stillwind/react";const value=style("missing");',
+    );
+    const quiet = await run(root, ["lint", "--quiet", "--max-warnings", "0", "--format", "json"]);
+    expect(quiet.code, quiet.stderr).toBe(1);
+    expect(JSON.parse(quiet.stdout)).toMatchObject({
+      diagnostics: [],
+      summary: { errors: 0, warnings: 1, warningLimitExceeded: true },
+    });
+    const text = await run(root, ["lint", "--quiet", "--max-warnings=0"]);
+    expect(text.stdout).toContain("exceeds --max-warnings");
+    expect(text.stdout).not.toContain("Unknown utility");
+    expect((await run(root, ["lint", "--quiet", "--max-warnings=1"])).code).toBe(0);
+    await writeFile(path.join(root, "root.css"), "@theme {");
+    for (const args of [["lint"], ["lint", "--fix"], ["fmt", "--check"]]) {
+      const failed = await run(root, [...args, "--format", "json"]);
+      expect(failed.code, failed.stderr).toBe(2);
+      expect(JSON.parse(failed.stdout)).toMatchObject({
+        command: args[0],
+        exitCode: 2,
+        diagnostics: [
+          {
+            report: {
+              code: "SW08026",
+              severity: "error",
+              primary: { location: { uri: expect.stringContaining("root.css") } },
+            },
+          },
+        ],
+        failures: [{ project: 0, file: path.join(root, "entry.tsx") }],
+      });
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -175,7 +224,7 @@ test("CLI reports unsupported targets and invalid project settings", async () =>
     await writeFile(path.join(root, "source.txt"), "plain text");
     const unsupported = await run(root, ["lint"]);
     expect(unsupported.code).toBe(2);
-    expect(unsupported.stdout).toContain("incomplete analysis");
+    expect(unsupported.stderr).toContain("Incomplete analysis");
     await writeFile(
       path.join(root, "stillwind.config.ts"),
       'export default {projects:[{files:["*.tsx"]}]};',
@@ -237,6 +286,10 @@ test("CLI help, version, invalid options and structured failures keep their exit
   for (const args of [
     ["fmt", "--fix"],
     ["lint", "--check"],
+    ["lint", "--format", "files"],
+    ["fmt", "--quiet"],
+    ["lint", "--max-warnings", "-1"],
+    ["lint", "--max-warnings", "1.5"],
     ["lint", "--format", "xml"],
     ["lint", "--config"],
     ["lsp"],
@@ -250,11 +303,12 @@ test("CLI help, version, invalid options and structured failures keep their exit
   for (const command of ["fmt", "lint"]) {
     const result = await run(root, [command, "--config", "missing-config.ts", "--format", "json"]);
     expect(result.code).toBe(2);
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      command,
       exitCode: 2,
-      error: {
-        message: expect.any(String),
-      },
+      failures: [{ message: expect.any(String) }],
+      diagnostics: [],
+      changed: [],
     });
   }
 });
@@ -313,11 +367,9 @@ test("CLI rejects invalid display values before analysis or help and keeps JSON 
     const result = await run(root, ["lint", "--format", "json", `--${option}`, "invalid"]);
     expect(result.code).toBe(2);
     expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toMatchObject({
       exitCode: 2,
-      error: {
-        message: expect.stringContaining(`--${option}`),
-      },
+      failures: [{ message: expect.stringContaining(`--${option}`) }],
     });
   }
 });

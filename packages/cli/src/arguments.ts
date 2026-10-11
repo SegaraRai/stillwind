@@ -16,7 +16,7 @@ export const configArgs = {
 export const outputArgs = {
   format: {
     type: "enum",
-    options: ["text", "json", "github"] as OutputFormat[],
+    options: ["text", "json", "github", "files"] as OutputFormat[],
     default: process.env.GITHUB_ACTIONS === "true" ? "github" : "text",
     description: "Output format",
   },
@@ -43,6 +43,28 @@ export const targetArgs = {
     description: "Filter configured targets with one or more globs",
   },
 } as const;
+
+export const warningArgs = {
+  quiet: {
+    type: "boolean",
+    description: "Hide lint warnings while retaining their counts",
+  },
+  "max-warnings": {
+    type: "string",
+    description: "Fail when the warning count exceeds this non-negative integer",
+    valueHint: "count",
+  },
+} as const;
+
+export function warningLimit(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value))) {
+    throw new Error("Invalid value for --max-warnings: expected a non-negative integer");
+  }
+  return Number(value);
+}
 
 export const builtinArgs = {
   help: {
@@ -78,7 +100,13 @@ export const strictArguments = defineCittyPlugin({
   async setup({ args, cmd }) {
     const definitions: ArgsDef =
       (await (typeof cmd.args === "function" ? cmd.args() : cmd.args)) ?? {};
-    const names = new Set(["_", ...Object.keys(definitions)]);
+    const names = new Set([
+      "_",
+      ...Object.keys(definitions).flatMap((name) => [
+        name,
+        name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase()),
+      ]),
+    ]);
     for (const definition of Object.values(definitions)) {
       if ("alias" in definition) {
         for (const alias of [definition.alias ?? []].flat()) {

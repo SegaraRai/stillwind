@@ -19,6 +19,21 @@ export interface LintResult {
   exitCode: 0 | 1 | 2;
 }
 
+/** Collects distinct reports per project while preserving their analysis order. */
+export function lintReports(results: WorkspaceResult[]) {
+  const seen = new Set<string>();
+  return results.flatMap((entry) =>
+    entry.result.reports.flatMap((report) => {
+      const key = JSON.stringify([entry.project, report]);
+      if (seen.has(key)) {
+        return [];
+      }
+      seen.add(key);
+      return [{ project: entry.project, report }];
+    }),
+  );
+}
+
 /**
  * Analyzes configured target scopes in a child process and closes it before returning.
  *
@@ -71,29 +86,23 @@ export async function lint(
  */
 export function formatLint(result: LintResult): string {
   const lines: string[] = [];
-  const seen = new Set<string>();
-  for (const entry of result.results) {
-    for (const report of entry.result.reports) {
-      const location = report.primary.location;
-      const key = JSON.stringify([entry.project, report.code, location, report.message]);
-      if (seen.has(key)) {
-        continue;
-      }
-      seen.add(key);
-      const at =
-        report.primary.scope === "document"
-          ? location.uri
-          : `${location.uri}:${location.startLine + 1}:${location.startColumn + 1}`;
+  for (const { project, report } of lintReports(result.results)) {
+    const location = report.primary.location;
+    const at =
+      report.primary.scope === "document"
+        ? location.uri
+        : `${location.uri}:${location.startLine + 1}:${location.startColumn + 1}`;
+    lines.push(
+      `[project ${project + 1}] ${at}: ${report.severity} ${report.code}: ${report.message}`,
+    );
+    for (const related of report.related) {
       lines.push(
-        `[project ${entry.project + 1}] ${at}: ${report.severity} ${report.code}: ${report.message}`,
+        `  ${related.location.uri}:${related.location.startLine + 1}:${related.location.startColumn + 1}${related.message ? `: ${related.message}` : ""}`,
       );
-      for (const related of report.related) {
-        lines.push(
-          `  ${related.location.uri}:${related.location.startLine + 1}:${related.location.startColumn + 1}${related.message ? `: ${related.message}` : ""}`,
-        );
-      }
-      lines.push(...report.notes.map((note) => `  ${note}`));
     }
+    lines.push(...report.notes.map((note) => `  ${note}`));
+  }
+  for (const entry of result.results) {
     if (entry.result.status !== "complete") {
       lines.push(
         `[project ${entry.project + 1}] ${entry.result.entry}: incomplete analysis${entry.result.error ? `: ${entry.result.error}` : ""}`,

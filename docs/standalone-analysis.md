@@ -272,6 +272,9 @@ the stdio transport. The CLI delegates its LSP command to this entrypoint.
 `@stillwind/analysis/node` exports `format`, `lint`, and `formatLint` for callers that do not
 need a command-line parser. `SourceFormatter` sorts unsaved buffers without saving them and
 refreshes configuration for each request.
+`lintReports(results)` collects distinct reports per project without discarding report fields.
+The CLI uses a smaller JSON projection described in its [README](../packages/cli/README.md);
+the analysis APIs retain complete workspace results and graphs.
 
 For a Web Extension or a static editor site, start the browser entrypoint in a
 Worker. It also accepts a MessagePort. `BrowserAnalysisWorkspace` from
