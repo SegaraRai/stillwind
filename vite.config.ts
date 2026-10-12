@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => ({
           : [
               "apps/logo-editor/vite.config.ts",
               "apps/play/vite.config.ts",
+              "apps/website/vite.config.ts",
               "benchmarks/vite.config.ts",
               "e2e/harness/vite.config.ts",
               "packages/analysis/vite.config.ts",
@@ -176,6 +177,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/apps-fixtures-viewer#typecheck",
           "@stillwind-internal/apps-logo-editor#typecheck",
           "@stillwind-internal/apps-play#typecheck",
+          "@stillwind-internal/apps-website#typecheck",
           "@stillwind-internal/benchmarks#typecheck",
           "@stillwind-internal/e2e-harness#typecheck:fixtures",
           "@stillwind-internal/e2e-harness#typecheck",

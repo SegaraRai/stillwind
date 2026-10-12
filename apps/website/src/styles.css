@@ -1,0 +1,485 @@
+/* Stillwind utilities provide layout and typography for the static and sticky presentations. */
+
+@import "stillwind";
+
+@theme {
+  --font-sans: "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --color-paper: #f4f4f2;
+  --color-ink: #242624;
+  --color-muted: #6b6f69;
+  --color-rule: #d2d5ce;
+  --color-soft: #e7e9e3;
+  --color-soft-ink: #41463f;
+  --color-diagnostic: #a04b40;
+}
+
+@utility site-shell {
+  inline-size: min(100%, 1360px);
+  margin-inline: auto;
+  padding-inline: clamp(24px, 5.4vw, 80px);
+}
+
+@utility hero-title {
+  font-size: clamp(44px, 7.4vw, 104px);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.052em;
+}
+
+@utility hero-second-line {
+  display: block;
+  margin-block-start: 0.08em;
+  margin-inline-start: 27%;
+
+  @media (width < 640px) {
+    margin-inline-start: 0;
+  }
+}
+
+@utility skip-link {
+  position: absolute;
+  inset-block-start: 1rem;
+  inset-inline-start: 1.5rem;
+  z-index: 50;
+  padding-block: 1rem;
+  padding-inline: 1rem;
+  color: var(--color-paper);
+  background-color: var(--color-ink);
+  transform: translateY(calc(-100% - 2rem));
+
+  &:focus {
+    transform: none;
+  }
+}
+
+@utility nav-link {
+  text-underline-offset: 5px;
+  @apply hover:underline;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 6px;
+  }
+}
+
+@utility action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-block: 1rem;
+  padding-inline: 1.4rem;
+  font-size: 0.875rem;
+  transition: background-color 140ms ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 5px;
+  }
+}
+
+@utility morph-source {
+  position: relative;
+  block-size: var(--code-height, 1.8em);
+  font-size: clamp(24px, 2.55vw, 36px);
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+@utility readable-source {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  color: transparent;
+  white-space: pre-wrap;
+  user-select: text;
+
+  &::selection {
+    color: var(--color-paper);
+    background-color: var(--color-ink);
+  }
+}
+
+@utility scene {
+  padding-block-start: 2.5rem;
+  padding-block-end: 3rem;
+  border-block-end: 1px solid var(--color-rule);
+  scroll-margin-block-start: 2rem;
+}
+
+@utility scene-tab {
+  padding-block: 1.3rem;
+  border-block-start: 1px solid var(--color-rule);
+  transition: color 140ms ease;
+
+  @apply hover:text-ink;
+  @apply focus-visible:outline-2 focus-visible:outline-ink focus-visible:outline-offset-4;
+
+  &[aria-current="step"] {
+    color: var(--color-ink);
+    border-block-start-color: var(--color-ink);
+  }
+}
+
+@utility scroll-story {
+  position: relative;
+}
+
+/* Scroll-state selectors override the static utility layout for the sticky presentation. */
+[data-story][data-enhanced] {
+  block-size: calc(var(--stop-count) * 100svh);
+
+  [data-stage] {
+    position: sticky;
+    inset-block-start: 0;
+    block-size: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: 16px;
+
+    [data-step] {
+      padding-block: 16px;
+    }
+  }
+
+  [data-live-demo] {
+    margin-block-start: 16px;
+    --refine-progress: 0;
+    --sort-progress: 0;
+    --compile-progress: 0;
+    --input-y: 28px;
+    --output-x: 52px;
+    --output-y: calc(var(--input-y) + var(--source-height, 36px) + 60px);
+  }
+
+  [data-headings] {
+    display: grid;
+    min-block-size: 68px;
+  }
+
+  [data-code-canvas] {
+    position: relative;
+    block-size: 380px;
+    margin-block-start: 24px;
+  }
+
+  [data-primary-code] {
+    position: absolute;
+    inset: 0;
+    transform-origin: left top;
+    transform: translateY(calc(var(--refine-progress) * var(--input-y)));
+  }
+
+  [data-source-labels] {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    font-size: 11px;
+    color: var(--color-muted);
+    pointer-events: none;
+
+    span {
+      grid-area: 1 / 1;
+      opacity: var(--label-opacity, 0);
+    }
+  }
+
+  [data-compile-output] {
+    position: absolute;
+    inset-inline-start: var(--output-x);
+    inset-inline-end: 0;
+    inset-block-start: calc(var(--output-y) - 24px);
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: clamp(40px, 5vw, 72px);
+    align-items: start;
+  }
+
+  [data-compiled-props] {
+    code {
+      display: block;
+      font-size: clamp(24px, 2.55vw, 36px);
+      line-height: 1;
+      letter-spacing: -0.035em;
+      white-space: pre;
+    }
+  }
+
+  [data-compile-arrows] {
+    --arrow-x: calc(var(--output-x) - 36px);
+    --arrow-y: calc(var(--output-y) - 3px);
+    --arrow-size: 32px;
+    opacity: max(0, var(--compile-progress) * 2 - 1);
+  }
+
+  [data-details] {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  [data-heading],
+  [data-detail] {
+    grid-area: 1 / 1;
+    opacity: var(--detail-opacity, 0);
+    pointer-events: none;
+
+    &[data-active] {
+      pointer-events: auto;
+    }
+  }
+
+  [data-detail] {
+    position: absolute;
+    inset: 0;
+
+    &[data-active] {
+      pointer-events: none;
+
+      [data-lint-config],
+      [data-compiled-props],
+      [data-compiled-css] {
+        pointer-events: auto;
+      }
+    }
+  }
+
+  [data-lint-config],
+  [data-format-command] {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-end: 8px;
+  }
+
+  [data-lint-config] {
+    color: var(--color-muted);
+  }
+
+  [data-format-diagnostics] {
+    opacity: var(--diagnostic-opacity, 0);
+  }
+
+  [data-format-command] {
+    display: grid;
+
+    span {
+      grid-area: 1 / 1;
+    }
+  }
+
+  [data-normalize-command] {
+    opacity: max(0, 1 - var(--sort-progress) * 2);
+  }
+
+  [data-sort-command] {
+    opacity: max(0, var(--sort-progress) * 2 - 1);
+  }
+
+  [data-compiled-css] {
+    min-inline-size: 0;
+    inline-size: min(100%, 390px);
+
+    pre {
+      max-block-size: 200px;
+    }
+  }
+
+  /* Lines and labels use the canvas coordinates measured from complete utility wrappers. */
+  [data-diagnostic-lines] {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1px;
+  }
+
+  [data-diagnostic] {
+    position: absolute;
+    inset-inline-start: var(--diagnostic-x, 0px);
+    inset-block-start: var(--diagnostic-y, 100px);
+    inline-size: min(360px, 100%);
+  }
+
+  [data-diagnostics][data-multiple] {
+    [data-diagnostic] {
+      inline-size: min(320px, calc((100% - 48px) / 2));
+    }
+  }
+
+  [data-stop] {
+    position: absolute;
+    inset-block-start: calc(var(--stop-index) * (100% - 100svh) / (var(--stop-count) - 1));
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: clip;
+    padding: 0;
+    border: 0;
+    scroll-margin: 0;
+  }
+
+  [data-progress] {
+    transform-origin: left;
+    transform: scaleX(var(--scroll-progress, 0));
+  }
+}
+
+[data-measure] {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 0.5em;
+  visibility: hidden;
+  user-select: none;
+
+  > span {
+    display: inline-flex;
+    white-space: pre;
+  }
+}
+
+[data-code-actors] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-code-token],
+[data-code-underline] {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  white-space: pre;
+  transform: translate(
+    calc(var(--from-x) + (var(--to-x) - var(--from-x)) * var(--morph-progress)),
+    calc(
+      var(--from-y) + (var(--to-y) - var(--from-y)) * var(--morph-progress) + var(--travel-y, 0px) *
+        4 * var(--morph-progress) * (1 - var(--morph-progress))
+    )
+  );
+}
+
+[data-compile-arrows] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+
+  span {
+    position: absolute;
+    inset-inline-start: var(--arrow-x, 0px);
+    inset-block-start: var(--arrow-y, 26px);
+    font-size: var(--arrow-size, 20px);
+    color: var(--color-muted);
+    line-height: 1;
+  }
+}
+
+[data-code-token] {
+  color: color-mix(in srgb, var(--from-color), var(--to-color) calc(var(--morph-progress) * 100%));
+
+  &[data-entering] {
+    opacity: max(0, var(--morph-progress) * 2 - 1);
+  }
+
+  &[data-leaving] {
+    opacity: max(0, 1 - var(--morph-progress) * 2);
+  }
+}
+
+[data-code-underline] {
+  block-size: 1px;
+  inline-size: calc(
+    var(--from-width) + (var(--to-width) - var(--from-width)) * var(--morph-progress)
+  );
+  background-color: var(--color-diagnostic);
+  opacity: calc(
+    var(--from-opacity) + (var(--to-opacity) - var(--from-opacity)) * var(--morph-progress)
+  );
+}
+
+@utility code-scroll {
+  overflow: auto;
+  scrollbar-width: thin;
+  padding-block-end: 0.5rem;
+}
+
+/* Static findings reserve their own rows so their attached explanations cannot overlap. */
+[data-static-source] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-block: 2rem;
+  row-gap: 0.5rem;
+
+  &[data-compile-input] {
+    padding-block: 1rem 0.5rem;
+  }
+}
+
+[data-static-part] {
+  white-space: pre;
+}
+
+[data-static-finding] {
+  flex-basis: 100%;
+  padding-block: 0.5rem;
+
+  code {
+    position: relative;
+    display: inline-block;
+    padding-block-end: 4px;
+    border-block-end: 1px solid var(--color-diagnostic);
+    color: var(--color-diagnostic);
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset-inline-start: 50%;
+      inset-block-start: calc(100% + 4px);
+      inline-size: 1px;
+      block-size: 24px;
+      background-color: var(--color-diagnostic);
+    }
+  }
+}
+
+[data-static-diagnostic] {
+  margin-block-start: 36px;
+  white-space: normal;
+}
+
+[data-static-compile] {
+  position: relative;
+  display: grid;
+  gap: 2rem;
+  margin-block-start: 28px;
+
+  > div {
+    min-inline-size: 0;
+
+    &:first-child {
+      padding-inline-start: 28px;
+    }
+
+    &:nth-child(2) {
+      inline-size: min(100%, 390px);
+    }
+  }
+
+  @media (width >= 720px) {
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 3rem;
+    margin-inline-start: 16px;
+  }
+}

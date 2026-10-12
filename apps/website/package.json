@@ -1,0 +1,24 @@
+{
+  "name": "@stillwind-internal/apps-website",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Stillwind website",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "astro": "^7.3.8",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@emnapi/runtime": "^1.11.3",
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@stillwind/cli": "workspace:*",
+    "@stillwind/host": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@stillwind/native": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

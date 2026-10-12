@@ -47,3 +47,4 @@ peerDependencyRules:
 
 minimumReleaseAgeExclude:
   - "@nuxt/cli@4.0.0"
+  - astro@7.3.8
