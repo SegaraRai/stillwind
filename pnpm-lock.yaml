@@ -2017,22 +2017,31 @@ importers:
 
   packages/cli:
     dependencies:
+      '@babel/code-frame':
+        specifier: ^7.29.7
+        version: 7.29.7
       '@stillwind/analysis':
         specifier: workspace:*
         version: link:../analysis
       '@stillwind/language-server':
         specifier: workspace:*
         version: link:../language-server
+      '@stillwind/native':
+        specifier: workspace:*
+        version: link:../native
       citty:
         specifier: ^0.2.2
         version: 0.2.2
-      consola:
-        specifier: ^3.4.2
-        version: 3.4.2
+      string-width:
+        specifier: ^8.3.0
+        version: 8.3.0
     devDependencies:
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:../../tools/workspace
+      '@types/babel__code-frame':
+        specifier: ^7.27.0
+        version: 7.27.0
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4
@@ -6370,6 +6379,9 @@ packages:
 
   '@types/aria-query@5.0.4':
     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
+
+  '@types/babel__code-frame@7.27.0':
+    resolution: {integrity: sha512-Dwlo+LrxDx/0SpfmJ/BKveHf7QXWvLBLc+x03l5sbzykj3oB9nHygCpSECF1a+s+QIxbghe+KHqC90vGtxLRAA==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -15859,6 +15871,8 @@ snapshots:
       tslib: 2.8.1
 
   '@types/aria-query@5.0.4': {}
+
+  '@types/babel__code-frame@7.27.0': {}
 
   '@types/babel__core@7.20.5':
     dependencies:

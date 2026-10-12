@@ -15,7 +15,7 @@ import {
   StreamMessageWriter,
 } from "vscode-languageserver/node";
 
-import { createLanguageServer } from "./index.ts";
+import { createLanguageServer } from "./server.ts";
 
 test("standard LSP requests support lazy completion, hover, colors, and separate fix-all and sort actions", async () => {
   const input = new PassThrough();

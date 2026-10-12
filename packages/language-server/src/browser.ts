@@ -5,7 +5,7 @@ import {
   ProposedFeatures,
 } from "vscode-languageserver/browser";
 
-import { createLanguageServer, type LanguageServerOptions } from "./index.ts";
+import { createLanguageServer, type LanguageServerOptions } from "./server.ts";
 
 /**
  * Starts LSP message transport using analysis services supplied by the embedding application.

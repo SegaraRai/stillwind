@@ -107,6 +107,12 @@ export class AnalysisWorkspace {
    * @throws If filesystem enumeration fails.
    */
   async targets(project: WorkspaceProject, patterns?: string[]): Promise<string[]> {
+    const filters = patterns?.map((pattern) => {
+      if (path.isAbsolute(pattern)) {
+        return { file: path.normalize(pattern) };
+      }
+      return { pattern: pattern.replace(/^(\.\/)+/, "") };
+    });
     const files = await glob(project.config.files, {
       cwd: project.analysis.host.root,
       absolute: true,
@@ -117,13 +123,15 @@ export class AnalysisWorkspace {
     return files
       .filter(
         (file) =>
-          !patterns?.length ||
-          patterns.some((pattern) =>
-            minimatch(
-              path.relative(project.analysis.host.root, file).replaceAll("\\", "/"),
-              pattern,
-              { dot: true },
-            ),
+          !filters?.length ||
+          filters.some((filter) =>
+            filter.file !== undefined
+              ? path.normalize(file) === filter.file
+              : minimatch(
+                  path.relative(project.analysis.host.root, file).replaceAll("\\", "/"),
+                  filter.pattern!,
+                  { dot: true },
+                ),
           ),
       )
       .sort();

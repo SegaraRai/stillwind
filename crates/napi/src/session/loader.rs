@@ -1,6 +1,6 @@
 //! Drives CSS load requests and retains the completed design-system snapshot.
 
-use napi::Error;
+use napi::{Env, Error};
 use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, prepare_canonical_index};
@@ -14,6 +14,7 @@ use stillwind_source::{SourceRegistry, SourceUri};
 use crate::editor::NativeEditorQuery;
 
 use crate::options::{NativeCompilerOptions, compiler_options};
+use crate::output::report_error;
 
 use crate::stylesheet::{NativeCssLoadStep, NativeCssRequest, NativeCssResource};
 
@@ -61,19 +62,23 @@ impl NativeDesignSystemLoader {
     #[napi]
     pub fn provide(
         &mut self,
+        env: Env,
         id: u32,
         name: String,
         content: String,
         uri: Option<String>,
         source_map_source: Option<String>,
     ) -> napi::Result<NativeCssLoadStep> {
-        self.provide_many(vec![NativeCssFileInput {
-            id,
-            name,
-            uri,
-            source_map_source,
-            content,
-        }])
+        self.provide_many(
+            env,
+            vec![NativeCssFileInput {
+                id,
+                name,
+                uri,
+                source_map_source,
+                content,
+            }],
+        )
     }
 
     /// Answers any subset of the outstanding requests, in any order.
@@ -84,6 +89,7 @@ impl NativeDesignSystemLoader {
     #[napi(strict)]
     pub fn provide_many(
         &mut self,
+        env: Env,
         files: Vec<NativeCssFileInput>,
     ) -> napi::Result<NativeCssLoadStep> {
         let files = files
@@ -148,7 +154,7 @@ impl NativeDesignSystemLoader {
                 {
                     let compiled =
                         DesignSystemError::Load(error.clone()).into_compile_error(root.full_span());
-                    let text = Reporter::collect(
+                    let reports = Reporter::collect(
                         std::slice::from_ref(&compiled),
                         &[],
                         self.loader.sources(),
@@ -157,10 +163,9 @@ impl NativeDesignSystemLoader {
                     .map_err(|failure| Error::from_reason(failure.to_string()))?
                     .diagnostics
                     .into_iter()
-                    .map(|diagnostic| diagnostic.display_text())
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                    Err(Error::from_reason(text))
+                    .map(Into::into)
+                    .collect::<Vec<_>>();
+                    Err(report_error(env, error.to_string(), reports))
                 } else {
                     Err(Error::from_reason(error.to_string()))
                 }

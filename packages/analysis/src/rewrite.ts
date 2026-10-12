@@ -1,6 +1,17 @@
 import type { AnalysisWorkspace, EditorEdit, WorkspaceResult } from "@stillwind/host";
 import { fingerprint } from "@stillwind/native";
 
+/** Failed rewrite planning with the analysis results that prevented writing. */
+export class RewriteFailure extends Error {
+  constructor(
+    message: string,
+    readonly results: WorkspaceResult[],
+  ) {
+    super(message);
+    this.name = "RewriteFailure";
+  }
+}
+
 /** Original buffer and ranges excluded by a formatter adapter. Paths are absolute. */
 export interface RewriteInput {
   /** Absolute target path used for workspace membership and dependency resolution. */
@@ -111,14 +122,18 @@ export class SourceRewriter {
           ? []
           : [result.error ?? result.graph?.unverified[0]?.reason ?? result.status],
       );
-      throw new Error(`Incomplete analysis for ${input.file}: ${reasons.join("; ")}`);
+      throw new RewriteFailure(
+        `Incomplete analysis for ${input.file}: ${reasons.join("; ")}`,
+        results,
+      );
     }
     const syntaxErrors = results.flatMap(({ result }) =>
       result.reports.filter((report) => ["SW01012", "SW01013"].includes(report.code)),
     );
     if (syntaxErrors.length) {
-      throw new Error(
+      throw new RewriteFailure(
         `Cannot rewrite ${input.file}: ${syntaxErrors.map((report) => report.message).join("; ")}`,
+        results,
       );
     }
     const answers = await this.workspace.query(

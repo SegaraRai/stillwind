@@ -33,7 +33,7 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false, features 
 ] }
 oxc = { version = "0.152.0", features = ["ast_visit", "semantic"] }
 oxc_sourcemap = "9.0.0"
-napi = { version = "3.14.0", default-features = false, features = ["napi8"] }
+napi = { version = "3.14.0", default-features = false, features = ["napi8", "dyn-symbols"] }
 napi-build = "2.6.0"
 napi-derive = "3.6.10"
 serde = { version = "1.0.229", features = ["derive", "rc"] }

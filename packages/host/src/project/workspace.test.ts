@@ -5,6 +5,40 @@ import { expect, test } from "vite-plus/test";
 
 import { AnalysisWorkspace } from "./workspace.ts";
 
+test("target filters accept leading dots and absolute literal paths within configured scopes", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-"));
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    const config = path.join(root, "stillwind.config.json");
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [{ css: "root.css", files: ["*.tsx"], exclude: ["ignored.tsx"] }],
+      }),
+    );
+    for (const file of ["entry.tsx", "entry[1].tsx", "ignored.tsx", "outside.txt"]) {
+      await writeFile(path.join(root, file), "");
+    }
+    workspace = await AnalysisWorkspace.open(config);
+    const project = workspace.projects[0];
+    expect((await workspace.targets(project, ["./entry.tsx"])).map(path.normalize)).toEqual([
+      path.join(root, "entry.tsx"),
+    ]);
+    expect(
+      (await workspace.targets(project, [path.join(root, "entry[1].tsx")])).map(path.normalize),
+    ).toEqual([path.join(root, "entry[1].tsx")]);
+    expect(
+      await workspace.targets(project, [
+        path.join(root, "ignored.tsx"),
+        path.join(root, "outside.txt"),
+      ]),
+    ).toEqual([]);
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test.each([
   ["object", "settings"],
   ["function", "() => settings"],

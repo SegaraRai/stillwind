@@ -3,16 +3,19 @@
 The CLI discovers `stillwind.config.*` above the working directory. Supported extensions are
 `ts`, `mts`, `cts`, `js`, `mjs`, `cjs`, and `json`, in that order within each directory. `--config path` selects an
 explicit configuration. Optional globs filter each project's configured files relative to its
-root; globs cannot expand that scope. Imported dependencies can be analyzed without being rewritten.
+root; globs cannot expand that scope. A leading `./` is accepted, and absolute file paths select
+that file within its configured scope. Imported dependencies can be analyzed without being rewritten.
 
 ```sh
 stillwind fmt
 stillwind fmt --check
+stillwind fmt --check --format files
 stillwind lint
 stillwind lint --fix
 stillwind lint --format json
 stillwind fmt --check --format json
 stillwind lint --format github
+stillwind lint --quiet --max-warnings 0
 stillwind lint --color always --hyperlinks always
 stillwind lsp --stdio
 ```
@@ -41,7 +44,8 @@ files saved. When projects overlap, every owning project must produce the same f
 Exit codes:
 
 - `0`: formatting succeeded, formatting check found no changes, or lint found no remaining errors.
-- `1`: formatting check found changes, or lint found remaining errors. Warnings alone return `0`.
+- `1`: formatting check found changes, lint found remaining errors, or the warning count exceeded
+  `--max-warnings`. Warnings alone return `0` when no limit is supplied.
 - `2`: command-line options are invalid, configuration, analysis, planning, or I/O failed,
   or no targets matched.
 
@@ -53,6 +57,24 @@ Exit codes:
 Unknown options, missing option values, and unsupported format or display values return `2`.
 Text diagnostics include paths and one-based line and column positions. GitHub output uses
 workflow annotations that link findings and formatting failures to files in CI.
+Text and GitHub columns count UTF-16 code units; their line and column numbers start at one.
+Range diagnostics include source excerpts, related locations, notes, and suggestions. Excerpts
+use four spaces per tab and account for wide characters and emoji. Long ranges show their first
+four lines. Document diagnostics omit coordinates and excerpts. If a source cannot be read or its
+fingerprint differs from the diagnostic revision, the diagnostic is printed without an excerpt.
+Text paths are relative to the invocation's working directory. GitHub paths are relative to
+`GITHUB_WORKSPACE`, falling back to the working directory. Paths across filesystem volumes remain
+absolute. OSC 8 links use absolute file URLs.
+
+`--quiet` hides lint warnings while retaining their summary counts. `--max-warnings N` accepts a
+non-negative integer and counts distinct warnings per project before applying `--quiet`.
+Exceeding the limit still prints a failure reason when warnings are hidden.
+
+`fmt` prints a status for each changed file and a summary. `fmt --check` reports files that need
+formatting and succeeds with a summary when all selected files are formatted. `fmt --format files`
+prints only changed paths, one per line; execution failures use stderr. `lint` does not accept this
+format. Suggested edits appear as `help:` messages; their presence does not mean that every
+suggestion is an automatic fix.
 
 `--color auto|always|never` controls colors. Auto mode enables colors for terminals and supported
 CI logs, respects `NO_COLOR`, `FORCE_COLOR=0`, and `TERM=dumb`, and honors other `FORCE_COLOR`
@@ -61,11 +83,39 @@ controls OSC 8 links to local source files. Auto mode enables links in recognize
 including VS Code and Windows Terminal, and disables them in CI and redirected output.
 Terminals that do not handle OSC 8 can still detect the printed `path:line:column` locations.
 
-JSON and GitHub output never contain display escapes. JSON success results preserve the analysis
-API's `config`, `results`, `changed` when available, and `exitCode` fields. Execution failures
-produce `{ "exitCode": 2, "error": { "message": "..." } }` on stdout. Configuration logs remain
-on stderr. Text execution errors are written to stderr using Consola. JSON source ranges use
-zero-based UTF-16 line and column positions and exclusive ends; text and CI positions are one-based.
+JSON, GitHub, and files output never contain display escapes. CLI JSON uses the same envelope
+for successful commands, findings, empty selection, and execution failures:
+
+```json
+{
+  "command": "lint",
+  "config": "/project/stillwind.config.ts",
+  "diagnostics": [],
+  "failures": [],
+  "changed": [],
+  "summary": {
+    "files": 1,
+    "errors": 0,
+    "warnings": 0,
+    "failures": 0,
+    "changed": 0,
+    "suggestions": 0,
+    "warningLimitExceeded": false
+  },
+  "exitCode": 0
+}
+```
+
+Each diagnostic contains a zero-based `project` and the existing structured `report`, including
+related locations, notes, and revision-pinned actions. Failures contain a message, optional project
+and absolute file path, and relevant dependency details. Configuration is `null` when execution
+fails before analysis, and command is `null` when no analysis command was selected. Analysis graphs
+and generated code are omitted. JSON file paths remain absolute, and report locations retain their
+original URIs and zero-based UTF-16 positions with exclusive ends. The analysis API still returns
+its complete `results`; this CLI projection does not change that API.
+
+JSON and GitHub results use stdout. Text execution failures use stderr. Configuration logs remain
+on stderr in every mode.
 
 `fmt --check` and `lint` never save sources. `fmt` prints changed file paths. `lint --format json`
 returns structured findings; configuration logs are forwarded to stderr.

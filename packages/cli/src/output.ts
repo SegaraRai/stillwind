@@ -2,22 +2,21 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters, styleText } from "node:util";
 
-import type { FormatResult, LintResult } from "@stillwind/analysis/node";
-import { createConsola } from "consola";
+import type { CliDiagnostic, CliFailure, CliResult, ResultPolicy } from "./result.ts";
+import type { SourceFrames } from "./source-frame.ts";
 
-export type OutputFormat = "text" | "json" | "github";
-
+export type OutputFormat = "text" | "json" | "github" | "files";
 export type DisplayMode = "auto" | "always" | "never";
 
-export interface OutputOptions {
+export interface OutputOptions extends ResultPolicy {
   format: OutputFormat;
   color: DisplayMode;
   hyperlinks: DisplayMode;
+  cwd?: string;
 }
 
-type Report = LintResult["results"][number]["result"]["reports"][number];
-
-type Location = Report["primary"]["location"];
+type Label = CliDiagnostic["report"]["primary"];
+type Location = Label["location"];
 
 export function displayEnabled(
   mode: DisplayMode,
@@ -51,193 +50,194 @@ export function displayEnabled(
   );
 }
 
-export function renderLint(result: LintResult, options: OutputOptions): string {
+/** Renders one CLI result independently of the original analysis graph. */
+export function renderResult(
+  result: CliResult,
+  options: OutputOptions,
+  stderr = false,
+  frames?: SourceFrames,
+): string {
   if (options.format === "json") {
     return JSON.stringify(result);
   }
-
-  const lines: string[] = [];
-  const seen = new Set<string>();
+  const root =
+    options.format === "github"
+      ? (process.env.GITHUB_WORKSPACE ?? options.cwd ?? process.cwd())
+      : (options.cwd ?? process.cwd());
+  const file = (uri: string) => {
+    const displayed = displayPath(uri, root);
+    return options.format === "github" ? displayed.replaceAll("\\", "/") : displayed;
+  };
+  if (options.format === "files") {
+    return result.changed.map(file).join("\n");
+  }
+  const tty = !!(stderr ? process.stderr : process.stdout).isTTY;
   const color =
-    options.format === "text" &&
-    displayEnabled(options.color, "color", !!process.stdout.isTTY, process.env);
+    options.format === "text" && displayEnabled(options.color, "color", tty, process.env);
   const hyperlinks =
-    options.format === "text" &&
-    displayEnabled(options.hyperlinks, "hyperlinks", !!process.stdout.isTTY, process.env);
-  for (const entry of result.results) {
-    for (const report of entry.result.reports) {
-      const key = JSON.stringify([
-        entry.project,
-        report.code,
-        report.primary.location,
-        report.message,
-      ]);
-      if (seen.has(key)) {
-        continue;
-      }
-
-      seen.add(key);
-      const message = clean(report.message);
-      if (options.format === "github") {
-        const location = report.primary.location;
-        const properties: Record<string, string | number> = {
-          file: sourcePath(location.uri),
-          title: `project ${entry.project + 1}: ${clean(report.code)}`,
-        };
-        if (report.primary.scope === "range") {
-          properties.line = location.startLine + 1;
-          properties.col = location.startColumn + 1;
-          // GitHub annotation ends are inclusive; host ranges are exclusive.
-          if (location.endColumn > 0) {
-            properties.endLine = location.endLine + 1;
-            properties.endColumn = location.endColumn;
-          }
+    options.format === "text" && displayEnabled(options.hyperlinks, "hyperlinks", tty, process.env);
+  const at = (label: Label) =>
+    label.scope === "document"
+      ? file(label.location.uri)
+      : `${file(label.location.uri)}:${label.location.startLine + 1}:${label.location.startColumn + 1}`;
+  const linked = (label: Label) => link(at(label), label.location, hyperlinks);
+  const addFrame = (label: Label) => {
+    const frame = frames?.render(label);
+    if (frame) {
+      lines.push(...frame.split("\n").map((line) => `  ${line}`));
+    }
+  };
+  const lines: string[] = [];
+  for (const { project, report } of result.diagnostics) {
+    const message = clean(report.message);
+    const details = [
+      ...(report.primary.message ? [`note: ${clean(report.primary.message)}`] : []),
+      ...report.related.map(
+        (label) => `related: ${at(label)}${label.message ? `: ${clean(label.message)}` : ""}`,
+      ),
+      ...report.notes.map((note) => `note: ${clean(note)}`),
+      ...report.actions.map((action) => `help: ${clean(action.title)}`),
+    ];
+    if (options.format === "github") {
+      const location = report.primary.location;
+      const properties: Record<string, string | number> = {
+        file: file(location.uri),
+        title: `project ${project + 1}: ${clean(report.code)}`,
+      };
+      if (report.primary.scope === "range") {
+        properties.line = location.startLine + 1;
+        properties.col = location.startColumn + 1;
+        // GitHub annotation ends are inclusive; report ranges are exclusive.
+        if (
+          location.endColumn > 0 &&
+          (location.endLine > location.startLine || location.endColumn > location.startColumn)
+        ) {
+          properties.endLine = location.endLine + 1;
+          properties.endColumn = location.endColumn;
+        } else if (location.endLine > location.startLine) {
+          properties.endLine = location.endLine;
         }
-        const details = [
-          message,
-          ...report.related.map(
-            (label) => `${at(label.location)}${label.message ? `: ${clean(label.message)}` : ""}`,
-          ),
-          ...report.notes.map(clean),
-        ];
+      }
+      lines.push(
+        annotation(
+          report.severity === "error" ? "error" : "warning",
+          properties,
+          [message, ...details].join("\n"),
+        ),
+      );
+    } else {
+      const severity = paint(
+        report.severity,
+        report.severity === "error" ? "red" : "yellow",
+        color,
+      );
+      lines.push(
+        `${linked(report.primary)}: ${severity} ${clean(report.code)} [project ${project + 1}]: ${message}`,
+      );
+      addFrame(report.primary);
+      if (report.primary.message) {
+        lines.push(`  note: ${clean(report.primary.message)}`);
+      }
+      for (const related of report.related) {
+        lines.push(
+          `  related: ${linked(related)}${related.message ? `: ${clean(related.message)}` : ""}`,
+        );
+        addFrame(related);
+      }
+      lines.push(...report.notes.map((note) => `  note: ${clean(note)}`));
+      lines.push(...report.actions.map((action) => `  help: ${clean(action.title)}`));
+      lines.push("");
+    }
+  }
+  for (const failure of result.failures) {
+    lines.push(renderFailure(failure, options.format === "github", file, color));
+  }
+  if (result.command === "fmt") {
+    for (const changed of result.changed) {
+      if (options.format === "github" && options.check) {
         lines.push(
           annotation(
-            report.severity === "error" ? "error" : "warning",
-            properties,
-            details.join("\n"),
+            "error",
+            { file: file(changed), title: "Stillwind formatting" },
+            "Stillwind utilities need sorting. Run stillwind fmt.",
           ),
         );
       } else {
-        const location = report.primary.location;
-        const label = report.primary.scope === "document" ? sourcePath(location.uri) : at(location);
-        const severity = color
-          ? styleText(report.severity === "error" ? "red" : "yellow", report.severity, {
-              validateStream: false,
-            })
-          : report.severity;
+        const location = { uri: changed, startLine: 0, startColumn: 0 };
         lines.push(
-          `[project ${entry.project + 1}] ${link(label, location, hyperlinks)}: ${severity} ${clean(report.code)}: ${message}`,
+          `${link(file(changed), location, hyperlinks)}${options.format === "text" ? (options.check ? ": needs formatting" : ": formatted") : ""}`,
         );
-        for (const related of report.related) {
-          lines.push(
-            `  ${link(at(related.location), related.location, hyperlinks)}${related.message ? `: ${clean(related.message)}` : ""}`,
-          );
-        }
-        lines.push(...report.notes.map((note) => `  ${clean(note)}`));
       }
     }
-
-    if (entry.result.status !== "complete") {
-      const details = [`incomplete analysis${entry.result.error ? `: ${entry.result.error}` : ""}`];
-      for (const dependency of entry.result.graph?.dependencies ?? []) {
-        if (dependency.status === "unresolved" || dependency.status === "unsupported") {
-          details.push(`${dependency.status}: ${dependency.specifier} from ${dependency.importer}`);
-        }
-      }
-      for (const range of entry.result.graph?.unverified ?? []) {
-        details.push(
-          `unverified: ${range.moduleId}${range.start === undefined ? "" : `:${range.start}-${range.end}`}: ${range.reason}`,
-        );
-      }
+  }
+  if (result.summary.warningLimitExceeded) {
+    const message = `Warning count (${result.summary.warnings}) exceeds --max-warnings${options.maxWarnings === undefined ? "" : ` (${options.maxWarnings})`}.`;
+    lines.push(
+      options.format === "github"
+        ? annotation("error", { title: "Stillwind warnings" }, message)
+        : `error: ${message}`,
+    );
+  }
+  if (options.format === "text") {
+    if (lines.length && lines.at(-1) !== "") {
+      lines.push("");
+    }
+    const { summary } = result;
+    lines.push(
+      result.command === "fmt" && !summary.failures
+        ? options.check
+          ? summary.changed
+            ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
+            : `All selected files are formatted (${summary.files} checked).`
+          : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
+        : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
+    );
+    const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
+    if (result.command === "lint" && suggestions) {
       lines.push(
-        options.format === "github"
-          ? annotation(
-              "error",
-              { file: sourcePath(entry.result.entry), title: `project ${entry.project + 1}` },
-              details.map(clean).join("\n"),
-            )
-          : `[project ${entry.project + 1}] ${sourcePath(entry.result.entry)}: ${details.map(clean).join("\n  ")}`,
+        `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
       );
     }
   }
-
-  if (!result.results.length) {
-    const message = "No analysis targets matched the configured scopes";
-    lines.push(options.format === "github" ? annotation("error", {}, message) : message);
-  }
-
   return lines.join("\n");
 }
 
-export function renderFormat(result: FormatResult, options: OutputOptions, check: boolean): string {
-  if (options.format === "json") {
-    return JSON.stringify(result);
+/** Writes text execution failures to stderr and command results to stdout. */
+export async function writeResult(result: CliResult, options: OutputOptions): Promise<void> {
+  const stderr = options.format === "text" && result.failures.length > 0;
+  const frames =
+    options.format === "text" && result.diagnostics.length
+      ? new (await import("./source-frame.ts")).SourceFrames()
+      : undefined;
+  const output = renderResult(result, options, stderr, frames);
+  if (output) {
+    (stderr ? process.stderr : process.stdout).write(output + "\n");
   }
-
-  if (options.format === "github") {
-    return check
-      ? result.changed
-          .map((file) =>
-            annotation(
-              "error",
-              {
-                file,
-                title: "Stillwind formatting",
-              },
-              "Stillwind utilities need sorting. Run stillwind fmt.",
-            ),
-          )
-          .join("\n")
-      : result.changed.map(clean).join("\n");
-  }
-
-  const hyperlinks = displayEnabled(
-    options.hyperlinks,
-    "hyperlinks",
-    !!process.stdout.isTTY,
-    process.env,
-  );
-  return result.changed
-    .map((file) =>
-      link(
-        clean(file),
-        {
-          uri: file,
-          startLine: 0,
-          startColumn: 0,
-        },
-        hyperlinks,
-      ),
-    )
-    .join("\n");
 }
 
-export function writeFailure(error: unknown, options: OutputOptions): void {
-  const message = clean(error instanceof Error ? error.message : String(error));
-  if (options.format === "json") {
-    process.stdout.write(
-      JSON.stringify({
-        exitCode: 2,
-        error: { message },
-      }) + "\n",
-    );
-  } else if (options.format === "github") {
-    process.stdout.write(
-      annotation(
+function renderFailure(
+  failure: CliFailure,
+  github: boolean,
+  file: (uri: string) => string,
+  color: boolean,
+): string {
+  const details = failure.details.map((detail) => `${file(detail.file)}: ${clean(detail.message)}`);
+  const project = failure.project === undefined ? "" : ` [project ${failure.project + 1}]`;
+  return github
+    ? annotation(
         "error",
-        {
-          title: "Stillwind",
-        },
-        message,
-      ) + "\n",
-    );
-  } else {
-    createConsola({
-      fancy: false,
-      stdout: process.stderr,
-      stderr: process.stderr,
-      formatOptions: {
-        colors: displayEnabled(options.color, "color", !!process.stderr.isTTY, process.env),
-        date: false,
-      },
-    }).error(
-      displayEnabled(options.color, "color", !!process.stderr.isTTY, process.env)
-        ? styleText("red", message, {
-            validateStream: false,
-          })
-        : message,
-    );
-  }
+        { ...(failure.file ? { file: file(failure.file) } : {}), title: `Stillwind${project}` },
+        [clean(failure.message), ...details].join("\n"),
+      )
+    : `${failure.file ? `${file(failure.file)}: ` : ""}${paint("error", "red", color)}${project}: ${clean(failure.message)}${details.length ? `\n  ${details.join("\n  ")}` : ""}`;
+}
+
+function count(value: number, noun: string): string {
+  return `${value} ${noun}${value === 1 ? "" : "s"}`;
+}
+
+function paint(text: string, color: "red" | "yellow", enabled: boolean): string {
+  return enabled ? styleText(color, text, { validateStream: false }) : text;
 }
 
 function clean(text: string): string {
@@ -247,11 +247,16 @@ function clean(text: string): string {
 }
 
 function sourcePath(uri: string): string {
-  return clean(uri.startsWith("file:") ? fileURLToPath(uri) : uri);
+  try {
+    return uri.startsWith("file:") ? fileURLToPath(uri) : uri;
+  } catch {
+    return uri;
+  }
 }
 
-function at(location: Location): string {
-  return `${sourcePath(location.uri)}:${location.startLine + 1}:${location.startColumn + 1}`;
+export function displayPath(uri: string, cwd: string): string {
+  const file = sourcePath(uri);
+  return clean(path.isAbsolute(file) ? path.relative(cwd, file) || "." : file);
 }
 
 function link(
@@ -263,7 +268,6 @@ function link(
   if (!enabled || !path.isAbsolute(file)) {
     return label;
   }
-
   const url = pathToFileURL(file);
   url.hash = `L${location.startLine + 1}:${location.startColumn + 1}`;
   return `\u001b]8;;${url.href}\u001b\\${label}\u001b]8;;\u001b\\`;

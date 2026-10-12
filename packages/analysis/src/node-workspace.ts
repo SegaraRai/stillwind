@@ -3,13 +3,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { findConfiguration } from "@stillwind/config/node";
 
+import { AnalysisWorker } from "./worker-client.ts";
 import type {
   AnalysisWorkspaceContext,
   AnalysisWorkspaceService,
   OpenAnalysisWorkspaces,
   WorkspaceEditorResult,
-} from "./index.ts";
-import { AnalysisWorker } from "./worker-client.ts";
+} from "./workspace.ts";
 
 /**
  * Opens one isolated Node analysis process for each distinct configuration.

@@ -3,9 +3,10 @@ import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 
 import type { LintResult } from "@stillwind/analysis/node";
-import { expect, test } from "vite-plus/test";
+import { expect, test, vi } from "vite-plus/test";
 
-import { annotation, displayEnabled, renderFormat, renderLint } from "./output.ts";
+import { annotation, displayEnabled, renderResult } from "./output.ts";
+import { cliResult, failureResult } from "./result.ts";
 
 const file = path.resolve(import.meta.dirname, "a file,with%.tsx");
 
@@ -40,7 +41,7 @@ const report = {
   notes: ["Use an existing utility"],
   actions: [],
 };
-const result = {
+const analysis = {
   config: "config.ts",
   exitCode: 1,
   results: [
@@ -66,17 +67,20 @@ const result = {
     },
   ],
 } satisfies LintResult;
+const result = cliResult("lint", analysis);
 
 const options = {
   format: "text" as const,
   color: "never" as const,
   hyperlinks: "never" as const,
+  cwd: path.dirname(file),
 };
 
 test("text keeps source locations, related notes, and distinct project findings", () => {
-  const text = renderLint(result, options);
+  const text = renderResult(result, options);
   expect(text.split("Unknown utility")).toHaveLength(3);
-  expect(text).toContain(`${file}:3:4: error unknown-utility`);
+  expect(text).toContain(`${path.basename(file)}:3:4: error unknown-utility`);
+  expect(text).toContain("2 errors, 0 warnings in 1 file.");
   expect(text).toContain("Defined here");
   expect(text).toContain("Use an existing utility");
   expect(stripVTControlCharacters(text)).toBe(text);
@@ -88,24 +92,24 @@ test("explicit colors and source links do not alter JSON or GitHub formats", () 
     color: "always" as const,
     hyperlinks: "always" as const,
   };
-  const text = renderLint(result, display);
+  const text = renderResult(result, display);
   expect(text).toContain("\u001b[31merror");
   expect(text).toContain(`\u001b]8;;${pathToFileURL(file).href}#L3:4`);
   expect(
     JSON.parse(
-      renderLint(result, {
+      renderResult(result, {
         ...display,
         format: "json",
       }),
     ),
   ).toEqual(result);
-  const github = renderLint(result, {
+  const github = renderResult(result, {
     ...display,
     format: "github",
   });
   expect(github).toContain("line=3,col=4,endLine=3,endColumn=8");
   expect(github).toContain("%2Cwith%25.tsx");
-  expect(github).toContain("Defined here%0AUse an existing utility");
+  expect(github).toContain("Defined here%0Anote: Use an existing utility");
   expect(stripVTControlCharacters(github)).toBe(github);
 });
 
@@ -122,6 +126,56 @@ test("GitHub messages and metadata escape command delimiters", () => {
   ).toBe("::error file=a%2Cb%3Ac%25,title=title%0A%3A%3Awarning::bad%25%0D%0A::error");
 });
 
+test("GitHub paths use the workspace root and zero-length ranges remain point annotations", () => {
+  vi.stubEnv("GITHUB_WORKSPACE", path.dirname(path.dirname(file)));
+  try {
+    const github = renderResult(result, { ...options, format: "github" });
+    expect(github).toContain(
+      `file=src/${path
+        .basename(file)
+        .replace(/,/g, "%2C")
+        .replace(/%\.tsx$/, "%25.tsx")}`,
+    );
+    const point = cliResult("lint", {
+      ...analysis,
+      results: [
+        {
+          ...analysis.results[0],
+          result: {
+            ...analysis.results[0].result,
+            reports: [
+              {
+                ...report,
+                primary: {
+                  ...report.primary,
+                  location: { ...location, endColumn: location.startColumn },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    expect(renderResult(point, { ...options, format: "github" })).toContain("line=3,col=4::");
+    const document = cliResult("lint", {
+      ...analysis,
+      results: [
+        {
+          ...analysis.results[0],
+          result: {
+            ...analysis.results[0].result,
+            reports: [{ ...report, primary: { ...report.primary, scope: "document" as const } }],
+          },
+        },
+      ],
+    });
+    expect(renderResult(document, options)).toContain(`${path.basename(file)}: error`);
+    expect(renderResult(document, { ...options, format: "github" })).not.toContain(",line=");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
 test("display auto mode distinguishes pipes, CI, and capable terminals", () => {
   expect(displayEnabled("auto", "color", false, {})).toBe(false);
   expect(displayEnabled("auto", "color", false, { GITHUB_ACTIONS: "true" })).toBe(true);
@@ -133,32 +187,59 @@ test("display auto mode distinguishes pipes, CI, and capable terminals", () => {
 });
 
 test("format check exposes changed files through JSON and CI annotations", () => {
-  const formatted = {
-    config: "config.ts",
-    changed: [file],
-    results: [],
-    exitCode: 1 as const,
-  };
+  const formatted = cliResult(
+    "fmt",
+    {
+      config: "config.ts",
+      changed: [file],
+      results: analysis.results,
+    },
+    { check: true },
+  );
   expect(
     JSON.parse(
-      renderFormat(
-        formatted,
-        {
-          ...options,
-          format: "json",
-        },
-        true,
-      ),
+      renderResult(formatted, {
+        ...options,
+        format: "json",
+        check: true,
+      }),
     ),
   ).toEqual(formatted);
   expect(
-    renderFormat(
-      formatted,
-      {
-        ...options,
-        format: "github",
-      },
-      true,
-    ),
+    renderResult(formatted, {
+      ...options,
+      format: "github",
+      check: true,
+    }),
   ).toContain("Run stillwind fmt.");
+  expect(renderResult(formatted, { ...options, format: "files" })).toBe(path.basename(file));
+  expect(renderResult(formatted, { ...options, check: true })).toContain(
+    "1 file needs formatting.",
+  );
+});
+
+test("quiet counts warnings before hiding them and incomplete execution takes precedence", () => {
+  const warningAnalysis = {
+    ...analysis,
+    results: [
+      {
+        ...analysis.results[0],
+        result: { ...analysis.results[0].result, reports: [{ ...report, severity: "warning" }] },
+      },
+    ],
+  };
+  const quiet = cliResult("lint", warningAnalysis, { quiet: true, maxWarnings: 0 });
+  expect(quiet).toMatchObject({
+    diagnostics: [],
+    summary: { errors: 0, warnings: 1, warningLimitExceeded: true },
+    exitCode: 1,
+  });
+  expect(renderResult(quiet, options)).toContain("exceeds --max-warnings");
+  expect(cliResult("lint", warningAnalysis, { maxWarnings: 1 }).exitCode).toBe(0);
+  expect(cliResult("lint", { ...analysis, results: [] }).exitCode).toBe(2);
+  const failed = failureResult(
+    "fmt",
+    Object.assign(new Error("Rejected source"), { results: analysis.results }),
+  );
+  expect(failed).toMatchObject({ command: "fmt", diagnostics: result.diagnostics, exitCode: 2 });
 });

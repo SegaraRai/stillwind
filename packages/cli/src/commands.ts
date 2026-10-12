@@ -1,6 +1,6 @@
 import { stripVTControlCharacters, styleText } from "node:util";
 
-import { defineCommand, renderUsage, runCommand, type ArgsDef } from "citty";
+import { defineCommand, renderUsage, runCommand, type ArgsDef, type CommandDef } from "citty";
 
 import packageJson from "../package.json" with { type: "json" };
 import {
@@ -11,14 +11,11 @@ import {
   readOutputOptions,
   strictArguments,
   targetArgs,
+  warningArgs,
+  warningLimit,
 } from "./arguments.ts";
-import {
-  displayEnabled,
-  renderFormat,
-  renderLint,
-  writeFailure,
-  type OutputOptions,
-} from "./output.ts";
+import { displayEnabled, writeResult, type OutputOptions } from "./output.ts";
+import { cliResult, failureResult, type CliCommand } from "./result.ts";
 
 const fmtArgs = {
   ...targetArgs,
@@ -30,6 +27,11 @@ const fmtArgs = {
 
 const lintArgs = {
   ...targetArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
+  },
+  ...warningArgs,
   fix: {
     type: "boolean",
     description: "Apply converged automatic fixes",
@@ -53,14 +55,18 @@ const subCommands = {
     },
     args: fmtArgs,
     plugins: [strictArguments],
-    async run({ args }) {
+    async run({ args, data }) {
+      const options = data as OutputOptions;
+      options.check = args.check;
       const { format } = await import("@stillwind/analysis/node");
-      const result = await format({
+      const analysis = await format({
         config: args.config,
+        cwd: options.cwd,
         patterns: args._,
         check: args.check,
       });
-      write(renderFormat(result, args, !!args.check));
+      const result = cliResult("fmt", analysis, { check: args.check });
+      await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
   }),
@@ -71,14 +77,20 @@ const subCommands = {
     },
     args: lintArgs,
     plugins: [strictArguments],
-    async run({ args }) {
+    async run({ args, data }) {
+      const options = data as OutputOptions;
+      const maxWarnings = warningLimit(args["max-warnings"]);
+      options.quiet = args.quiet;
+      options.maxWarnings = maxWarnings;
       const { lint } = await import("@stillwind/analysis/node");
-      const result = await lint({
+      const analysis = await lint({
         config: args.config,
+        cwd: options.cwd,
         patterns: args._,
         fix: args.fix,
       });
-      write(renderLint(result, args));
+      const result = cliResult("lint", analysis, { quiet: args.quiet, maxWarnings });
+      await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
   }),
@@ -118,7 +130,9 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
     format: outputArgs.format.default,
     color: "auto",
     hyperlinks: "auto",
+    cwd: process.cwd(),
   };
+  let name: CliCommand = null;
 
   try {
     const invocation = parseInvocation(rawArgs, {
@@ -126,6 +140,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       ...lintArgs,
       ...lspArgs,
     });
+    name = invocation.name === "fmt" || invocation.name === "lint" ? invocation.name : null;
     if (invocation.name === "lsp") {
       options.format = "text";
     } else {
@@ -157,15 +172,20 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       if (invocation.version) {
         throw new Error("--version must be used without a command");
       }
-      const normalized = invocation.name
-        ? [invocation.name, ...invocation.rawArgs]
-        : invocation.rawArgs;
-      await runCommand(command, {
-        rawArgs: normalized,
+      if (!invocation.name) {
+        throw new Error("A command is required: fmt, lint, or lsp");
+      }
+      await runCommand(subCommands[invocation.name as keyof typeof subCommands] as CommandDef, {
+        rawArgs: invocation.rawArgs,
+        data: options,
       });
     }
   } catch (error) {
-    writeFailure(error, options);
+    const result = failureResult(name, error, options);
+    await writeResult(
+      result,
+      options.format === "files" ? { ...options, format: "text" } : options,
+    );
     process.exitCode = 2;
   }
 }

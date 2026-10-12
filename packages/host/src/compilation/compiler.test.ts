@@ -4,7 +4,8 @@ import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
 import type { TypeScriptFactsService } from "../semantics/type-facts.ts";
-import { compileModule, fileModuleDescriptor } from "./index.ts";
+import { compileModule } from "./compiler.ts";
+import { fileModuleDescriptor } from "./filesystem.ts";
 
 test("a rejected generator name is reported through the host warnings", async () => {
   // A rejected name comes from the host's generator rather than from the source, so it has no

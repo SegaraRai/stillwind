@@ -1880,9 +1880,28 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
   test("CSS load errors include the accepted document range", async () => {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();
-    expect(() => loader.provide(0, "broken.css", "@theme {", "untitled:broken.css")).toThrow(
-      /untitled:broken\.css:1:1-1:\d+: SW08026:/,
-    );
+    try {
+      loader.provide(0, "broken.css", "@theme {", "untitled:broken.css");
+      expect.fail("Invalid CSS must reject loading");
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: expect.stringContaining("unterminated CSS block"),
+        reports: [
+          {
+            code: "SW08026",
+            severity: "error",
+            primary: {
+              scope: "range",
+              location: {
+                uri: "untitled:broken.css",
+                startLine: 0,
+                startColumn: 0,
+              },
+            },
+          },
+        ],
+      });
+    }
   });
 
   test("CSS without a document URI remains an internal source", async () => {
