@@ -27,11 +27,11 @@ const fmtArgs = {
 
 const lintArgs = {
   ...targetArgs,
+  ...warningArgs,
   format: {
     ...outputArgs.format,
     options: ["text", "json", "github"] as ("text" | "json" | "github")[],
   },
-  ...warningArgs,
   fix: {
     type: "boolean",
     description: "Apply converged automatic fixes",
@@ -65,7 +65,9 @@ const subCommands = {
         patterns: args._,
         check: args.check,
       });
-      const result = cliResult("fmt", analysis, { check: args.check });
+      const result = cliResult("fmt", analysis, {
+        check: args.check,
+      });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
@@ -89,7 +91,10 @@ const subCommands = {
         patterns: args._,
         fix: args.fix,
       });
-      const result = cliResult("lint", analysis, { quiet: args.quiet, maxWarnings });
+      const result = cliResult("lint", analysis, {
+        quiet: args.quiet,
+        maxWarnings,
+      });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
     },

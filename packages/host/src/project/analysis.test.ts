@@ -13,7 +13,13 @@ test("failed CSS loading retains structured diagnostics in the analysis result",
   const entry = path.join(root, "entry.tsx");
   const css = path.join(root, "root.css");
   const project = new AnalysisProject(
-    createFileSystemAnalysisHost({ css: "root.css", files: ["*.tsx"] }, root),
+    createFileSystemAnalysisHost(
+      {
+        css: "root.css",
+        files: ["*.tsx"],
+      },
+      root,
+    ),
   );
   try {
     await writeFile(css, "@theme {");
@@ -23,7 +29,11 @@ test("failed CSS loading retains structured diagnostics in the analysis result",
       reports: [
         {
           code: "SW08026",
-          primary: { location: { uri: pathToFileURL(css).href } },
+          primary: {
+            location: {
+              uri: pathToFileURL(css).href,
+            },
+          },
         },
       ],
     });
@@ -97,7 +107,13 @@ test("queued analysis discards an obsolete snapshot and reloads CSS from the nex
 test("analysis awaits asynchronous semantic queries and closes its host when semantic cleanup fails", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-analysis-"));
   const entry = path.join(root, "entry.tsx");
-  const host = createFileSystemAnalysisHost({ css: "root.css", files: ["*.tsx"] }, root);
+  const host = createFileSystemAnalysisHost(
+    {
+      css: "root.css",
+      files: ["*.tsx"],
+    },
+    root,
+  );
   let hostClosed = false;
   let service: TypeScriptFactsService | undefined;
   const project = new AnalysisProject(

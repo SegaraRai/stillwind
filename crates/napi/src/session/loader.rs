@@ -8,17 +8,13 @@ use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_diagnostics::{LintSettings, Reporter};
-
 use stillwind_source::{SourceRegistry, SourceUri};
 
+use super::NativeSessionError;
 use crate::editor::NativeEditorQuery;
-
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::report_error;
-
 use crate::stylesheet::{NativeCssLoadStep, NativeCssRequest, NativeCssResource};
-
-use super::NativeSessionError;
 
 /// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`]
 /// call.

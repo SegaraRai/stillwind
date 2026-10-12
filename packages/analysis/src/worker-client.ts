@@ -79,7 +79,10 @@ export interface WorkerReply {
   /** Serialized operation result when error is absent. */
   value?: unknown;
   /** Exception message and any analysis results that prevented a rewrite. */
-  error?: { message: string; results?: WorkspaceResult[] };
+  error?: {
+    message: string;
+    results?: WorkspaceResult[];
+  };
 }
 
 /** Isolates configuration and plugin logs from CLI JSON and the LSP stdout transport. */

@@ -338,7 +338,10 @@ export class BrowserProject {
       });
       const resources = [
         ...this.#resources,
-        ...plan.resources.map((resource) => ({ ...resource, sourceName: resource.moduleId })),
+        ...plan.resources.map((resource) => ({
+          ...resource,
+          sourceName: resource.moduleId,
+        })),
       ];
       values.set(resolve(this.#options.root, id), {
         css: this.#replaceResources(plan.css, resources),

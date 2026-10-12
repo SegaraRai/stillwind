@@ -2,13 +2,17 @@ import { lintReports } from "@stillwind/analysis";
 import type { FormatResult, LintResult } from "@stillwind/analysis/node";
 
 export type CliCommand = "lint" | "fmt" | null;
+
 export type CliDiagnostic = ReturnType<typeof lintReports>[number];
 
 export interface CliFailure {
   project?: number;
   file?: string;
   message: string;
-  details: { file: string; message: string }[];
+  details: {
+    file: string;
+    message: string;
+  }[];
 }
 
 export interface CliResult {

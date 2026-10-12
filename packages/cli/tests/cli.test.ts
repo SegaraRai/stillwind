@@ -183,7 +183,11 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
     expect(quiet.code, quiet.stderr).toBe(1);
     expect(JSON.parse(quiet.stdout)).toMatchObject({
       diagnostics: [],
-      summary: { errors: 0, warnings: 1, warningLimitExceeded: true },
+      summary: {
+        errors: 0,
+        warnings: 1,
+        warningLimitExceeded: true,
+      },
     });
     const text = await run(root, ["lint", "--quiet", "--max-warnings=0"]);
     expect(text.stdout).toContain("exceeds --max-warnings");
@@ -202,11 +206,19 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
             report: {
               code: "SW08026",
               severity: "error",
-              primary: { location: { uri: expect.stringContaining("root.css") } },
+              primary: {
+                location: {
+                  uri: expect.stringContaining("root.css"),
+                },
+              },
             },
           },
         ],
-        failures: [{ project: 0 }],
+        failures: [
+          {
+            project: 0,
+          },
+        ],
       });
       expect(path.normalize(result.failures[0].file ?? "")).toBe(path.join(root, "entry.tsx"));
     }
@@ -311,7 +323,11 @@ test("CLI help, version, invalid options and structured failures keep their exit
     expect(JSON.parse(result.stdout)).toMatchObject({
       command,
       exitCode: 2,
-      failures: [{ message: expect.any(String) }],
+      failures: [
+        {
+          message: expect.any(String),
+        },
+      ],
       diagnostics: [],
       changed: [],
     });
@@ -374,7 +390,11 @@ test("CLI rejects invalid display values before analysis or help and keeps JSON 
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toMatchObject({
       exitCode: 2,
-      failures: [{ message: expect.stringContaining(`--${option}`) }],
+      failures: [
+        {
+          message: expect.stringContaining(`--${option}`),
+        },
+      ],
     });
   }
 });

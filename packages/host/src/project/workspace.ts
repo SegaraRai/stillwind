@@ -90,7 +90,10 @@ export class AnalysisWorkspace {
      * @param pattern - Include or exclude glob interpreted by minimatch.
      * @returns Whether the normalized path matches the pattern.
      */
-    const matches = (pattern: string) => minimatch(name, pattern, { dot: true });
+    const matches = (pattern: string) =>
+      minimatch(name, pattern, {
+        dot: true,
+      });
     return (
       project.config.files.some(matches) &&
       !["**/node_modules/**", "**/.git/**", ...(project.config.exclude ?? [])].some(matches)
@@ -109,9 +112,13 @@ export class AnalysisWorkspace {
   async targets(project: WorkspaceProject, patterns?: string[]): Promise<string[]> {
     const filters = patterns?.map((pattern) => {
       if (path.isAbsolute(pattern)) {
-        return { file: path.normalize(pattern) };
+        return {
+          file: path.normalize(pattern),
+        };
       }
-      return { pattern: pattern.replace(/^(\.\/)+/, "") };
+      return {
+        pattern: pattern.replace(/^(\.\/)+/, ""),
+      };
     });
     const files = await glob(project.config.files, {
       cwd: project.analysis.host.root,
@@ -130,7 +137,9 @@ export class AnalysisWorkspace {
               : minimatch(
                   path.relative(project.analysis.host.root, file).replaceAll("\\", "/"),
                   filter.pattern!,
-                  { dot: true },
+                  {
+                    dot: true,
+                  },
                 ),
           ),
       )

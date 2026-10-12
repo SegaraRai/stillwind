@@ -13,7 +13,13 @@ test("target filters accept leading dots and absolute literal paths within confi
     await writeFile(
       config,
       JSON.stringify({
-        projects: [{ css: "root.css", files: ["*.tsx"], exclude: ["ignored.tsx"] }],
+        projects: [
+          {
+            css: "root.css",
+            files: ["*.tsx"],
+            exclude: ["ignored.tsx"],
+          },
+        ],
       }),
     );
     for (const file of ["entry.tsx", "entry[1].tsx", "ignored.tsx", "outside.txt"]) {

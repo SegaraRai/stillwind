@@ -170,7 +170,10 @@ export function createLanguageServer(
             code: report.code,
             message: [report.message, ...report.notes].join("\n"),
             relatedInformation: report.related.map((label) => ({
-              location: { uri: label.location.uri, range: range(label.location) },
+              location: {
+                uri: label.location.uri,
+                range: range(label.location),
+              },
               message: label.message ?? report.message,
             })),
           });

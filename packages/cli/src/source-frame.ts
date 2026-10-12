@@ -12,7 +12,13 @@ type Label = CliDiagnostic["report"]["primary"];
 
 /** Reads each document once and only displays the revision named by a report. */
 export class SourceFrames {
-  readonly #sources = new Map<string, { text: string; revision: string } | null>();
+  readonly #sources = new Map<
+    string,
+    {
+      text: string;
+      revision: string;
+    } | null
+  >();
 
   render(label: Label): string | undefined {
     if (label.scope !== "range") {

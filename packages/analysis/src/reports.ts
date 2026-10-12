@@ -14,7 +14,12 @@ export function lintReports(results: readonly WorkspaceResult[]) {
         return [];
       }
       seen.add(key);
-      return [{ project: entry.project, report }];
+      return [
+        {
+          project: entry.project,
+          report,
+        },
+      ];
     }),
   );
 }

@@ -6,6 +6,7 @@ import type { CliDiagnostic, CliFailure, CliResult, ResultPolicy } from "./resul
 import type { SourceFrames } from "./source-frame.ts";
 
 export type OutputFormat = "text" | "json" | "github" | "files";
+
 export type DisplayMode = "auto" | "always" | "never";
 
 export interface OutputOptions extends ResultPolicy {
@@ -16,6 +17,7 @@ export interface OutputOptions extends ResultPolicy {
 }
 
 type Label = CliDiagnostic["report"]["primary"];
+
 type Location = Label["location"];
 
 export function displayEnabled(

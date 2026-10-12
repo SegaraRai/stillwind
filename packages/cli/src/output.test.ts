@@ -129,7 +129,10 @@ test("GitHub messages and metadata escape command delimiters", () => {
 test("GitHub paths use the workspace root and zero-length ranges remain point annotations", () => {
   vi.stubEnv("GITHUB_WORKSPACE", path.dirname(path.dirname(file)));
   try {
-    const github = renderResult(result, { ...options, format: "github" });
+    const github = renderResult(result, {
+      ...options,
+      format: "github",
+    });
     expect(github).toContain(
       `file=src/${path
         .basename(file)
@@ -148,7 +151,10 @@ test("GitHub paths use the workspace root and zero-length ranges remain point an
                 ...report,
                 primary: {
                   ...report.primary,
-                  location: { ...location, endColumn: location.startColumn },
+                  location: {
+                    ...location,
+                    endColumn: location.startColumn,
+                  },
                 },
               },
             ],
@@ -164,7 +170,15 @@ test("GitHub paths use the workspace root and zero-length ranges remain point an
           ...analysis.results[0],
           result: {
             ...analysis.results[0].result,
-            reports: [{ ...report, primary: { ...report.primary, scope: "document" as const } }],
+            reports: [
+              {
+                ...report,
+                primary: {
+                  ...report.primary,
+                  scope: "document" as const,
+                },
+              },
+            ],
           },
         },
       ],
@@ -224,11 +238,22 @@ test("quiet counts warnings before hiding them and incomplete execution takes pr
     results: [
       {
         ...analysis.results[0],
-        result: { ...analysis.results[0].result, reports: [{ ...report, severity: "warning" }] },
+        result: {
+          ...analysis.results[0].result,
+          reports: [
+            {
+              ...report,
+              severity: "warning",
+            },
+          ],
+        },
       },
     ],
   };
-  const quiet = cliResult("lint", warningAnalysis, { quiet: true, maxWarnings: 0 });
+  const quiet = cliResult("lint", warningAnalysis, {
+    quiet: true,
+    maxWarnings: 0,
+  });
   expect(quiet).toMatchObject({
     diagnostics: [],
     summary: { errors: 0, warnings: 1, warningLimitExceeded: true },
@@ -239,7 +264,13 @@ test("quiet counts warnings before hiding them and incomplete execution takes pr
   expect(cliResult("lint", { ...analysis, results: [] }).exitCode).toBe(2);
   const failed = failureResult(
     "fmt",
-    Object.assign(new Error("Rejected source"), { results: analysis.results }),
+    Object.assign(new Error("Rejected source"), {
+      results: analysis.results,
+    }),
   );
-  expect(failed).toMatchObject({ command: "fmt", diagnostics: result.diagnostics, exitCode: 2 });
+  expect(failed).toMatchObject({
+    command: "fmt",
+    diagnostics: result.diagnostics,
+    exitCode: 2,
+  });
 });
