@@ -26,8 +26,9 @@ use stillwind_semantic::{
 };
 use stillwind_source::Fingerprint;
 
+use crate::ParsedJavaScript;
+use crate::entry::parse_with_lint;
 use crate::projected_scan::parse_projected;
-use crate::{ParsedJavaScript, parse};
 
 /// Oxc-backed analyser. Holds no state, because Oxc arenas are request-local.
 ///
@@ -37,6 +38,13 @@ use crate::{ParsedJavaScript, parse};
 pub struct OxcSourceAnalyzer;
 
 impl OxcSourceAnalyzer {
+    /// Selects whether scanning and finalization collect advisory source findings.
+    /// Fatal diagnostics and the extracted IR do not depend on `lint`.
+    /// Use the returned analyzer for both scanning and finalization.
+    pub fn with_lint(lint: bool) -> impl SourceAnalyzer {
+        ConfiguredSourceAnalyzer { lint }
+    }
+
     /// The asset identities another module's accepted facts can reach.
     ///
     /// Finite candidates become stylesheet roots. Universe values contribute no
@@ -61,6 +69,22 @@ impl OxcSourceAnalyzer {
 }
 
 impl SourceAnalyzer for OxcSourceAnalyzer {
+    fn scan_input(&self, input: SourceInput) -> ModuleScan {
+        Self::with_lint(true).scan_input(input)
+    }
+
+    fn finalize(&self, scan: ModuleScan, facts: Option<&TypeFacts>) -> ModuleAnalysis {
+        Self::with_lint(true).finalize(scan, facts)
+    }
+}
+
+/// Frontend with a fixed policy for advisory source checks.
+struct ConfiguredSourceAnalyzer {
+    /// Whether scanning and fact-based extraction collect advisory findings.
+    lint: bool,
+}
+
+impl SourceAnalyzer for ConfiguredSourceAnalyzer {
     /// Parses the editable source and returns IR, diagnostics and a summary.
     ///
     /// A projected input is normalized and mapped back to original spans before
@@ -71,7 +95,13 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         let source = Arc::clone(input.document().file());
         let (mut parsed, provenance, checker_projection) =
             if let Some(projected) = input.projected() {
-                match parse_projected(&input.module_id, projected, &[], &BTreeMap::new()) {
+                match parse_projected(
+                    &input.module_id,
+                    projected,
+                    &[],
+                    &BTreeMap::new(),
+                    self.lint,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         return ModuleScan {
@@ -80,7 +110,11 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                             local_ir: ModuleIr::react(),
                             summary: ModuleSummary::new(input.module_id.clone()),
                             type_probes: Vec::new(),
-                            lint_directives: collect_lint_directives(source.text()),
+                            lint_directives: if self.lint {
+                                collect_lint_directives(source.text())
+                            } else {
+                                Vec::new()
+                            },
                             diagnostics: vec![error],
                             lint_findings: Vec::new(),
                             input,
@@ -92,19 +126,20 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                 }
             } else {
                 (
-                    parse(
+                    parse_with_lint(
                         &source,
                         &input.module_id,
                         &[],
                         &BTreeMap::new(),
                         input.syntax().language(),
                         input.syntax().module_kind(),
+                        self.lint,
                     ),
                     Vec::new(),
                     CheckerProjection::default(),
                 )
             };
-        select_framework(&mut parsed, &input);
+        select_framework(&mut parsed, &input, self.lint);
         let module_id = input.module_id.clone();
         ModuleScan {
             input,
@@ -124,7 +159,11 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                     recognition_only: true,
                 }))
                 .collect(),
-            lint_directives: collect_lint_directives(source.text()),
+            lint_directives: if self.lint {
+                collect_lint_directives(source.text())
+            } else {
+                Vec::new()
+            },
             source,
             local_ir: parsed.module,
             summary: parsed.summary,
@@ -169,7 +208,13 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
         let mut provenance = scan.provenance;
         let parsed = facts.map(|facts| {
             let mut parsed = if let Some(projected) = scan.input.projected() {
-                match parse_projected(&scan.module_id, projected, &facts.facts, &facts.assets) {
+                match parse_projected(
+                    &scan.module_id,
+                    projected,
+                    &facts.facts,
+                    &facts.assets,
+                    self.lint,
+                ) {
                     Ok((parsed, mapped, _)) => {
                         provenance = mapped;
                         parsed
@@ -184,21 +229,22 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
                             module: ModuleIr::react(),
                             summary: ModuleSummary::new(scan.module_id.clone()),
                         };
-                        select_framework(&mut parsed, &scan.input);
+                        select_framework(&mut parsed, &scan.input, self.lint);
                         return parsed;
                     }
                 }
             } else {
-                parse(
+                parse_with_lint(
                     &scan.source,
                     &scan.module_id,
                     &facts.facts,
                     &facts.assets,
                     scan.input.syntax().language(),
                     scan.input.syntax().module_kind(),
+                    self.lint,
                 )
             };
-            select_framework(&mut parsed, &scan.input);
+            select_framework(&mut parsed, &scan.input, self.lint);
             parsed
         });
         let (ir, summary, diagnostics, lint_findings) = parsed.map_or(
@@ -221,7 +267,7 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
             input: scan.input,
             provenance,
             asset_support: Vec::new(),
-            external_assets: Self::external_assets(facts),
+            external_assets: OxcSourceAnalyzer::external_assets(facts),
             module_id: scan.module_id,
             source: scan.source,
             source_revision: scan.source_revision,
@@ -242,10 +288,10 @@ impl SourceAnalyzer for OxcSourceAnalyzer {
 /// Format mismatches append advisory findings at import literals. An explicit adapter
 /// that contradicts the macro import appends `CompileDiagnostic::FrameworkConflict`; otherwise it overrides the
 /// default adapter. Component formats supply the default when no macro is imported.
-fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput) {
+fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bool) {
     let allowed = input.document().format().adapters();
     for import in &parsed.module.imports.macros {
-        if !allowed.is_empty() && !allowed.contains(&import.adapter) {
+        if lint && !allowed.is_empty() && !allowed.contains(&import.adapter) {
             parsed.lint_findings.push(LintFinding::new(
                 LintDiagnostic::FrameworkImportMismatch {
                     import: import.adapter.spec().macro_import.into(),
@@ -286,6 +332,46 @@ mod tests {
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
+
+    #[test]
+    fn disabling_source_lint_preserves_extraction_and_fatal_diagnostics() {
+        let source = Arc::new(SourceFile::new(FileId(1), None, None,
+            "import {style} from 'stillwind/react'; let state = 0; export const props = style({'--x': state++});"
+        ).unwrap());
+        for lint in [true, false] {
+            let analyzer = OxcSourceAnalyzer::with_lint(lint);
+            let scan = analyzer.scan(
+                source.clone(),
+                "entry.ts".into(),
+                ScriptLanguage::Ts,
+                ScriptModuleKind::Module,
+            );
+            assert_eq!(scan.local_ir.style_calls.len(), 1);
+            assert_eq!(scan.lint_findings.is_empty(), !lint);
+            let facts = TypeFacts {
+                schema: TypeFacts::SCHEMA,
+                module_id: scan.module_id.clone(),
+                source_revision: scan.source_revision.clone(),
+                semantic_revision: Fingerprint::of("facts"),
+                facts: Vec::new(),
+                assets: BTreeMap::new(),
+            };
+            let analysis = analyzer.finalize(scan, Some(&facts));
+            assert_eq!(analysis.ir.style_calls.len(), 1);
+            assert_eq!(analysis.lint_findings.is_empty(), !lint);
+        }
+        let invalid = Arc::new(SourceFile::new(FileId(2), None, None, "export const =;").unwrap());
+        let scan = OxcSourceAnalyzer::with_lint(false).scan(
+            invalid,
+            "invalid.ts".into(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        assert_eq!(
+            scan.diagnostics[0].diagnostic,
+            CompileDiagnostic::JavaScriptParse
+        );
+    }
 
     #[test]
     fn analysis_accepts_schema_four_and_rejects_schema_three_facts() {

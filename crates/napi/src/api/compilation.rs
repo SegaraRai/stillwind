@@ -118,7 +118,7 @@ pub fn compile_source_input(
         input.css.content.as_str(),
     )?;
     let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
+        &OxcSourceAnalyzer::with_lint(options.lint_settings().has_enabled_rules()),
         &source,
         &input.module_id,
         input.language,

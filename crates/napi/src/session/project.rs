@@ -101,6 +101,8 @@ pub struct NativeProjectSession {
     session: ProjectSession,
     /// Host name generators, which are callable only during a host call.
     naming: Option<Rc<NativeNaming>>,
+    /// Whether the frontend collects source lint findings for this session.
+    source_lint: bool,
 }
 
 #[napi]
@@ -146,6 +148,7 @@ impl NativeProjectSession {
         env: Env,
         sources: Vec<NativePreparedSource>,
     ) -> napi::Result<Vec<NativeDiagnosticBatch>> {
+        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
         let sources = sources
             .into_iter()
@@ -163,9 +166,7 @@ impl NativeProjectSession {
         let mut registry = self.session.sources().fork_empty();
         let scans = sources
             .iter()
-            .map(|source| {
-                Ok::<_, Error>(OxcSourceAnalyzer.scan_input(source.input(&mut registry)?))
-            })
+            .map(|source| Ok::<_, Error>(analyzer.scan_input(source.input(&mut registry)?)))
             .collect::<Result<Vec<_>, _>>()?;
         for source in &self.session.snapshot().sources().sources {
             if source.source.uri().is_some() {
@@ -179,8 +180,7 @@ impl NativeProjectSession {
         scans
             .iter()
             .map(|scan| {
-                let analysis =
-                    OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
+                let analysis = analyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id));
                 let result = compiler.diagnose(&analysis, self.session.identifiers());
                 let batch = Reporter::collect(
                     &result.diagnostics,
@@ -267,7 +267,10 @@ impl NativeProjectSession {
     /// `naming` supplies an optional name generator for each family. Returning
     /// `undefined` keeps the compiler's name. Each function must return the same name
     /// for the same request. Change `naming_revision` when changing these functions
-    /// so cached output from the old generators is not reused.
+    /// so cached output from the old generators is not reused. `source_lint` defaults
+    /// to true. False skips advisory frontend checks while preserving source extraction
+    /// and fatal diagnostics. The loader separately supplies the compiler's lint
+    /// settings.
     ///
     /// # Errors
     ///
@@ -280,6 +283,7 @@ impl NativeProjectSession {
         watch: bool,
         mode: Option<String>,
         naming: Option<NativeIdentifierNaming>,
+        source_lint: Option<bool>,
     ) -> napi::Result<Self> {
         let identifier_mode = match mode.as_deref() {
             Some("development") => IdentifierMode::Development,
@@ -304,7 +308,11 @@ impl NativeProjectSession {
             loader.options().clone(),
             identifiers,
         );
-        Ok(Self { session, naming })
+        Ok(Self {
+            session,
+            naming,
+            source_lint: source_lint.unwrap_or(true),
+        })
     }
 
     /// Creates a CSS loader that shares this session's source ID allocator.
@@ -577,20 +585,17 @@ impl NativeProjectSession {
             )));
         }
         let mut transaction = self.session.clone();
+        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
         let scans: Vec<_> = sources
             .iter()
             .map(|source| {
-                Ok::<_, Error>(
-                    OxcSourceAnalyzer.scan_input(source.input(transaction.sources_mut())?),
-                )
+                Ok::<_, Error>(analyzer.scan_input(source.input(transaction.sources_mut())?))
             })
             .collect::<Result<_, _>>()?;
         let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
         let analyses: Vec<_> = scans
             .iter()
-            .map(|scan| {
-                OxcSourceAnalyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id))
-            })
+            .map(|scan| analyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id)))
             .collect();
         let mut modules = Vec::new();
         let mut attempted = Vec::new();

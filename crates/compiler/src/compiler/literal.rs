@@ -143,13 +143,18 @@ impl LiteralContribution {
                     contribution.utilities.append(&mut resolved);
                 }
                 Ok(None) => {
-                    lint_findings.push(LintFinding::new(
-                        LintDiagnostic::UnresolvedUtility {
-                            utility: utility.value.raw.clone(),
-                            classification: unresolved_utility_kind(&utility.value.raw),
-                        },
-                        utility.span,
-                    ));
+                    if lint_settings.has_enabled_rules() {
+                        let classification = unresolved_utility_kind(&utility.value.raw);
+                        if lint_settings.enabled_for_detection(classification.lint_kind()) {
+                            lint_findings.push(LintFinding::new(
+                                LintDiagnostic::UnresolvedUtility {
+                                    utility: utility.value.raw.clone(),
+                                    classification,
+                                },
+                                utility.span,
+                            ));
+                        }
+                    }
                     contribution.external.push(utility.value.raw.clone());
                 }
                 Err(error) => diagnostics.push(CompileError::new(

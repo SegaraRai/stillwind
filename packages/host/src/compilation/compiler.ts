@@ -230,7 +230,7 @@ export async function analyzeModule(
  * Type facts are requested lazily for original-coordinate probes in JS/TS or SFC inputs.
  *
  * Collect mode retains compiler and checker reports, including known syntax and projection
- * failures. The default throw mode rejects compiler diagnostics and deny-level lint findings.
+ * failures. The default throw mode rejects compiler diagnostics. Lint findings only produce warnings.
  * Host I/O, checker process, and malformed native transport failures propagate in both modes.
  * Failed compilation can still update the session, register watches, and send warnings.
  *
@@ -490,8 +490,8 @@ function clearArtifacts(module: ProjectModuleOutput): void {
  * @param modules - Native outputs with identities registered in graph.
  * @param graph - Source graph used to verify each output's host identity.
  * @param host - Warning receiver, which may receive messages before a later failure.
- * @param options - Collect mode retains compiler and denied-lint reports instead of throwing.
- * @throws If an output identity is unknown or throw mode encounters compiler errors or denied lint.
+ * @param options - Collect mode retains compiler reports instead of throwing.
+ * @throws If an output identity is unknown or throw mode encounters compiler errors.
  */
 function reportOutputDiagnostics(
   modules: ProjectModuleOutput[],
@@ -511,15 +511,7 @@ function reportOutputDiagnostics(
           })),
       );
     }
-    const denied = reportLintWarnings(output, host);
-    if (denied && options.diagnostics !== "collect") {
-      throw new CompilationFailure([
-        {
-          module: output.moduleId,
-          reports: output.reports.filter((report) => report.severity === "error"),
-        },
-      ]);
-    }
+    reportLintWarnings(output, host);
     warnRejectedNames(output.rejectedNames ?? [], (message) => host.warn(message));
   }
 }
@@ -539,25 +531,18 @@ export function warnRejectedNames(
 }
 
 /**
- * Sends enabled warning-level findings through the host and records whether any finding is denied.
+ * Sends enabled lint findings through the host without changing their report severity.
  * @param output - Findings and per-rule lint levels. Missing settings default to off.
  * @param host - Receiver for warning text with original source positions.
- * @returns Whether at least one finding has deny level.
  */
-function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): boolean {
-  let denied = false;
+function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): void {
   for (const finding of output.lintFindings ?? []) {
     const level = output.lintSettings?.[finding.rule] ?? "off";
     if (level === "off") {
       continue;
     }
-    if (level === "deny") {
-      denied = true;
-    } else {
-      host.warn(`${finding.rule}: ${finding.message} (${finding.uri}:${finding.start})`);
-    }
+    host.warn(`${finding.rule}: ${finding.message} (${finding.uri}:${finding.start})`);
   }
-  return denied;
 }
 
 /**

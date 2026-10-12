@@ -193,14 +193,17 @@ export declare class NativeProjectSession {
    * `naming` supplies an optional name generator for each family. Returning
    * `undefined` keeps the compiler's name. Each function must return the same name
    * for the same request. Change `naming_revision` when changing these functions
-   * so cached output from the old generators is not reused.
+   * so cached output from the old generators is not reused. `source_lint` defaults
+   * to true. False skips advisory frontend checks while preserving source extraction
+   * and fatal diagnostics. The loader separately supplies the compiler's lint
+   * settings.
    *
    * # Errors
    *
    * Returns an error if the loader is incomplete or name generators cannot be
    * initialized.
    */
-  constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null, naming?: NativeIdentifierNaming | undefined | null)
+  constructor(loader: NativeDesignSystemLoader, watch: boolean, mode?: string | undefined | null, naming?: NativeIdentifierNaming | undefined | null, sourceLint?: boolean | undefined | null)
   /**
    * Creates a CSS loader that shares this session's source ID allocator.
    * Use it for reloads to avoid conflicts between CSS and script file IDs.

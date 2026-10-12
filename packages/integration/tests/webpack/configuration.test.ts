@@ -9,6 +9,27 @@ import { expect, onTestFinished, test } from "vite-plus/test";
 import webpack from "webpack";
 
 for (const backend of ["webpack", "rspack"] as const) {
+  test(`${backend} skips denied lint findings while rejecting compiler errors`, async () => {
+    const { root, build } = await compilerFixture(backend, "config");
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.js"],automatic:false,lint:{rules:{"unknown-utility":"deny"}}}]};',
+    );
+    await writeFile(
+      path.join(root, "main.js"),
+      "import css from 'stillwind/module-css';import {style} from 'stillwind/react';globalThis.css=css;globalThis.props=style('red bogus');",
+    );
+    await build();
+    const global: { css?: string } = {};
+    runInNewContext(await readFile(path.join(root, "dist/main.js"), "utf8"), {
+      globalThis: global,
+      self: {},
+    });
+    expect(global.css).toMatch(/color:\s*red/);
+    await writeFile(path.join(root, "root.css"), "@theme {");
+    await expect(build()).rejects.toThrow();
+  });
+
   test(`${backend} reads an async project configuration with StillwindPlugin`, async () => {
     const { root, build } = await compilerFixture(backend, "config");
     await writeFile(

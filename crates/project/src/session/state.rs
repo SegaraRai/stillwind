@@ -522,7 +522,16 @@ impl ProjectSession {
     /// Lint updates copy shared artifacts as needed to keep other session clones
     /// unchanged.
     fn refresh_style_lints(&mut self, modules: impl IntoIterator<Item = ModuleId>) {
-        let modules: BTreeSet<_> = modules.into_iter().collect();
+        let modules: BTreeSet<_> = modules
+            .into_iter()
+            .filter(|module| {
+                self.current_artifact(module)
+                    .is_some_and(|artifact| artifact.lint_settings.has_enabled_rules())
+            })
+            .collect();
+        if modules.is_empty() {
+            return;
+        }
         let mut required = modules.clone();
         let mut pending = modules.clone();
         while let Some(module) = pending.pop_first() {

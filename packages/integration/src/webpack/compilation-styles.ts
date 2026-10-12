@@ -4,7 +4,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   cleanModuleId,
-  compilerOptions,
   cssEntrypoint,
   cssWithSourceMap,
   loadCssGraph,
@@ -12,7 +11,7 @@ import {
   type CssUpstreamMap,
 } from "@stillwind/host";
 
-import { IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 import type { ProducerInput } from "./emission.ts";
 import type { CompilationHost } from "./host.ts";
 import { relativeRequest } from "./requests.ts";
@@ -47,7 +46,7 @@ export async function compilationStyles(
   const readDependency = io.dependencyReader(producers);
   const loaded = await loadCssGraph(
     path.resolve(root, cssEntrypoint(config)),
-    compilerOptions(config),
+    buildCompilerOptions(config),
     {
       read: io.read,
       resolve: io.resolveCss,

@@ -1,13 +1,30 @@
 import type { BuildConfig } from "@stillwind/config";
 import {
   compileModule,
+  compilerOptions,
   resolveTypeFactsEnvironment,
   TypeScriptFactsService,
   type CompilerHost,
   type ModuleCompileOptions,
   type TypeFactsEnvironment,
 } from "@stillwind/host";
-import { NativeProjectSession, type NativeDesignSystemLoader } from "@stillwind/native";
+import {
+  NativeProjectSession,
+  type NativeCompilerOptions,
+  type NativeDesignSystemLoader,
+} from "@stillwind/native";
+
+/**
+ * Selects native settings for build and development sessions with lint disabled.
+ * @param config - Shared project settings. Analysis hosts retain its lint configuration.
+ * @returns Compiler settings for generating JavaScript and CSS.
+ */
+export function buildCompilerOptions(config: BuildConfig): NativeCompilerOptions {
+  return compilerOptions({
+    ...config,
+    lint: false,
+  });
+}
 
 /**
  * Owns a compiler session and a reusable checker for one adapter environment. TypeScript settings
@@ -47,7 +64,7 @@ export class IntegrationSession {
   ) {
     this.root = root;
     this.#typeFactsEnvironment = resolveTypeFactsEnvironment(root, config.tsconfig);
-    this.native = new NativeProjectSession(loader, watch, mode, config.naming);
+    this.native = new NativeProjectSession(loader, watch, mode, config.naming, false);
   }
 
   /**

@@ -52,6 +52,10 @@ naming settings. Named loader functions disable module caching and SFC requests
 retain their configured loader option identity; serializable options remain embedded
 in requests for isolated workers. Turbopack's loader configuration must be serializable.
 
+Build, development, and watch sessions skip lint detection and reporting. Run
+`stillwind lint` separately to enforce the project's lint settings. Editor hosts
+also retain those settings. Compiler errors still fail builds.
+
 Each adapter exports `IntegrationConfig` for its inline settings. `StillwindConfig`
 from `stillwind/config` describes the configuration file and its project list.
 

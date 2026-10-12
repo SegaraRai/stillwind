@@ -165,21 +165,22 @@ test("host options configure framework import warn, off, and deny with next-line
             warn: (message) => warnings.push(message),
           },
         );
-      if (level === "deny" && !suppressed) {
-        await expect(compile()).rejects.toThrow(/framework-import-mismatch/);
-        expect(warnings).toStrictEqual([]);
-      } else {
-        const output = await compile();
-        expect(output?.code).toBeTruthy();
-        expect(output!.diagnostics).toStrictEqual([]);
-        expect(output!.lintSettings[rule]).toBe(level ?? "warn");
-        const active = !suppressed && level !== "off";
-        expect(output!.lintFindings.length).toBe(active ? 1 : 0);
-        expect(warnings.length).toBe(active ? 1 : 0);
-        if (active) {
-          expect(output!.lintFindings[0]!.rule).toBe(rule);
-          expect(warnings[0]!).toMatch(/framework-import-mismatch/);
-        }
+      const output = await compile();
+      expect(output?.code).toBeTruthy();
+      expect(output!.diagnostics).toStrictEqual([]);
+      expect(output!.lintSettings[rule]).toBe(level ?? "warn");
+      const active = !suppressed && level !== "off";
+      expect(output!.lintFindings.length).toBe(active ? 1 : 0);
+      expect(warnings.length).toBe(active ? 1 : 0);
+      if (active) {
+        expect(output!.lintFindings[0]!.rule).toBe(rule);
+        expect(warnings[0]!).toMatch(/framework-import-mismatch/);
+        expect(output!.reports).toContainEqual(
+          expect.objectContaining({
+            code: rule,
+            severity: level === "deny" ? "error" : "warning",
+          }),
+        );
       }
     }
   }

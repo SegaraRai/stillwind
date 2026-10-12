@@ -48,6 +48,7 @@ pub fn compile_project_input(
     css: &CompileCssInput,
     options: &CompilerOptions,
 ) -> Result<ProjectBindingOutput, BindingApiError> {
+    let analyzer = OxcSourceAnalyzer::with_lint(options.lint_settings().has_enabled_rules());
     options.validate()?;
     let mut registry = SourceRegistry::default();
     let scans = input
@@ -56,7 +57,7 @@ pub fn compile_project_input(
             let input = source
                 .input(&mut registry)
                 .map_err(|error| BindingApiError::Input(error.reason))?;
-            Ok::<_, BindingApiError>(OxcSourceAnalyzer.scan_input(input))
+            Ok::<_, BindingApiError>(analyzer.scan_input(input))
         })
         .collect::<Result<Vec<_>, _>>()?;
     let theme = registry.register(
@@ -87,32 +88,34 @@ pub fn compile_project_input(
                 assets: assets.clone(),
             };
             compiler.compile(
-                &OxcSourceAnalyzer.finalize(scan.clone(), Some(&facts)),
+                &analyzer.finalize(scan.clone(), Some(&facts)),
                 &Identifiers::default(),
             )
         })
         .collect::<Vec<_>>();
-    let mut resolver =
-        StyleResolver::new(results.iter().flat_map(|artifact| &artifact.style_effects));
-    let findings = results
-        .iter()
-        .zip(&scans)
-        .map(|(artifact, scan)| {
-            let mut findings = artifact
-                .style_effects
-                .iter()
-                .filter_map(|effects| resolver.resolve(effects.identity()))
-                .flat_map(|style| check_style(&style))
-                .collect::<Vec<_>>();
-            filter_lint_findings(&scan.source, &mut findings);
-            findings
-        })
-        .collect::<Vec<_>>();
-    for (artifact, findings) in results.iter_mut().zip(findings) {
-        artifact
-            .lint_findings
-            .retain(|finding| !is_style_analysis_lint(finding.kind()));
-        artifact.lint_findings.extend(findings);
+    if options.lint_settings().has_enabled_rules() {
+        let mut resolver =
+            StyleResolver::new(results.iter().flat_map(|artifact| &artifact.style_effects));
+        let findings = results
+            .iter()
+            .zip(&scans)
+            .map(|(artifact, scan)| {
+                let mut findings = artifact
+                    .style_effects
+                    .iter()
+                    .filter_map(|effects| resolver.resolve(effects.identity()))
+                    .flat_map(|style| check_style(&style))
+                    .collect::<Vec<_>>();
+                filter_lint_findings(&scan.source, &mut findings);
+                findings
+            })
+            .collect::<Vec<_>>();
+        for (artifact, findings) in results.iter_mut().zip(findings) {
+            artifact
+                .lint_findings
+                .retain(|finding| !is_style_analysis_lint(finding.kind()));
+            artifact.lint_findings.extend(findings);
+        }
     }
     let mut emitted_css_rules = BTreeSet::new();
     for result in &mut results {

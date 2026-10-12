@@ -149,6 +149,10 @@ pub fn finish_lint_findings(
     findings: &mut Vec<LintFinding>,
     complete: bool,
 ) {
+    if !settings.has_enabled_rules() {
+        findings.clear();
+        return;
+    }
     let directives = collect_lint_directives(source.text());
     let mut additional = Vec::new();
     if settings.enabled_for_detection(LintKind::ValidLintSuppressions) {

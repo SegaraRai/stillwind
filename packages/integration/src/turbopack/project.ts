@@ -8,7 +8,6 @@ import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   CompilationFailure,
-  compilerOptions,
   cssEntrypoint,
   fileModuleDescriptor,
   loadCssGraph,
@@ -20,7 +19,7 @@ import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import { IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 
 /** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
 type MutableSettings<T> = T extends readonly (infer Item)[]
@@ -171,7 +170,7 @@ export async function createProject(
   const resolveAsset = resolver({});
   const loaded = await loadCssGraph(
     path.resolve(options.root, cssEntrypoint(options.compiler)),
-    compilerOptions(options.compiler),
+    buildCompilerOptions(options.compiler),
     {
       read,
       documentUri: (id) => pathToFileURL(id).href,

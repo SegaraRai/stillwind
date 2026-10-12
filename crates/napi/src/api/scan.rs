@@ -61,7 +61,7 @@ pub(crate) fn scan_prepared(
     source: &HostPreparedSource,
     registry: &mut SourceRegistry,
 ) -> napi::Result<SourceScan> {
-    let mut scan = OxcSourceAnalyzer.scan_input(source.input(registry)?);
+    let mut scan = OxcSourceAnalyzer::with_lint(false).scan_input(source.input(registry)?);
     let fatal = |error: &CompileError| {
         error.diagnostic.is_projection_failure()
             || matches!(error.diagnostic, CompileDiagnostic::JavaScriptParse)

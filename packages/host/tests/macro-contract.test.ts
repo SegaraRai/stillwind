@@ -6,8 +6,8 @@ import { expect, test } from "vite-plus/test";
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
 import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
-test("contract defaults deny builds while warn and off remain configurable", async () => {
-  for (const level of [undefined, "warn", "off"] as const) {
+test("macro contract lint retains its severity without rejecting compilation", async () => {
+  for (const level of [undefined, "warn", "off", "deny"] as const) {
     const loader = new NativeDesignSystemLoader({
       lint: {
         macroArgumentMutation: level,
@@ -44,11 +44,16 @@ test("contract defaults deny builds while warn and off remain configurable", asy
       },
     );
     try {
-      if (level === undefined) {
-        await expect(promise).rejects.toThrow(/macro-argument-mutation/);
-      } else {
-        expect((await promise)?.code).toBeTruthy();
-        expect(warnings.length).toBe(level === "warn" ? 1 : 0);
+      const output = await promise;
+      expect(output?.code).toBeTruthy();
+      expect(warnings.length).toBe(level === "off" ? 0 : 1);
+      if (level !== "off") {
+        expect(output?.reports).toContainEqual(
+          expect.objectContaining({
+            code: "macro-argument-mutation",
+            severity: level === "warn" ? "warning" : "error",
+          }),
+        );
       }
     } finally {
       facts.close();

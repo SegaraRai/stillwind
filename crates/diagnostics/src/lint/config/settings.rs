@@ -36,6 +36,13 @@ impl LintSettings {
             .is_some_and(|config| config.severity() != LintSeverity::Off)
     }
 
+    /// Returns whether any configured rule enables detection.
+    pub fn has_enabled_rules(&self) -> bool {
+        self.entries
+            .values()
+            .any(|config| config.severity() != LintSeverity::Off)
+    }
+
     /// Returns the configured severity, or `Off` for an unconfigured rule.
     pub fn reporting_severity(&self, kind: LintKind) -> LintSeverity {
         self.get(kind)

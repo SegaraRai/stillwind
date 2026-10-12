@@ -72,6 +72,26 @@ pub fn parse(
     language: ScriptLanguage,
     module_kind: ScriptModuleKind,
 ) -> ParsedJavaScript {
+    parse_with_lint(
+        source,
+        module_id,
+        type_facts,
+        assets,
+        language,
+        module_kind,
+        true,
+    )
+}
+
+pub(crate) fn parse_with_lint(
+    source: &SourceFile,
+    module_id: &ModuleId,
+    type_facts: &[TypeFact],
+    assets: &BTreeMap<IdentityId, AssetMetadata>,
+    language: ScriptLanguage,
+    module_kind: ScriptModuleKind,
+    lint: bool,
+) -> ParsedJavaScript {
     parse_with_coordinates(
         source,
         module_id,
@@ -81,6 +101,7 @@ pub fn parse(
         module_kind,
         source,
         &Some,
+        lint,
     )
 }
 
@@ -95,6 +116,7 @@ pub(crate) fn parse_with_coordinates(
     module_kind: ScriptModuleKind,
     original: &SourceFile,
     coordinates: &dyn Fn(Span) -> Option<Span>,
+    lint: bool,
 ) -> ParsedJavaScript {
     let allocator = Allocator::default();
     let source_type = source_type(language, module_kind);
@@ -130,6 +152,7 @@ pub(crate) fn parse_with_coordinates(
         original,
         coordinates,
     );
+    extractor.lint = lint;
     extractor.seed_style_bindings(&result.program);
     extractor.visit_program(&result.program);
     let mut summary = extractor.module_summary();
@@ -159,7 +182,9 @@ pub(crate) fn parse_with_coordinates(
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
     };
-    lint_findings.extend(validate(&result.program, &module, source.id()));
+    if lint {
+        lint_findings.extend(validate(&result.program, &module, source.id()));
+    }
     let use_probes = extractor
         .use_probes
         .borrow()
@@ -266,6 +291,7 @@ mod tests {
             ScriptModuleKind::Unambiguous,
             &source,
             &|_| None,
+            true,
         );
         assert_eq!(located.diagnostics, [] as [CompileError; 0]);
         assert_eq!(located.module.style_calls.len(), 1);

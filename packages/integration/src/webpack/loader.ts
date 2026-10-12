@@ -5,7 +5,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
-  compilerOptions,
   composeModuleSourceMap,
   cssEntrypoint,
   finalizeModuleWithMap,
@@ -15,7 +14,7 @@ import {
   type UpstreamSourceMap,
 } from "@stillwind/host";
 
-import { IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 import { cssValueModule, type CssValueResource } from "./css-value.ts";
 import { recordProducer } from "./emission.ts";
 import { createLoaderHost, watchCompilerFiles } from "./host.ts";
@@ -121,7 +120,7 @@ export default function webpackLoader(
     watchCompilerFiles(watch);
     const root = path.resolve(this.rootContext, config.root ?? ".");
     const css = path.resolve(root, cssEntrypoint(config));
-    const loaded = await loadCssGraph(css, compilerOptions(config), {
+    const loaded = await loadCssGraph(css, buildCompilerOptions(config), {
       resolve: resolveCss,
       read,
       documentUri: (id) => pathToFileURL(id).href,

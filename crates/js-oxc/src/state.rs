@@ -76,6 +76,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) diagnostics: Vec<CompileError>,
     /// Advisory findings raised during extraction, in visit order.
     pub(crate) lint_findings: Vec<LintFinding>,
+    /// Whether extraction collects advisory findings. Fatal diagnostics and IR extraction remain enabled.
+    pub(crate) lint: bool,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
     /// Ranges of parsed scope-only calls, used when removing their macro imports.
@@ -137,6 +139,7 @@ impl<'a> MacroExtractor<'a> {
             in_cva: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
+            lint: true,
             imports: Vec::new(),
             consumed_macro_uses: Vec::new(),
             module_specifiers: Vec::new(),

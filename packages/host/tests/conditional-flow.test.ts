@@ -538,20 +538,22 @@ test("pure folding and empty-branch removal preserve materialized values", async
   }
 });
 
-test("macro mutations and execution boundaries fail builds by default", async () => {
+test("macro mutations and execution boundaries preserve output and denied lint reports", async () => {
   for (const [expression, code] of [
     ["value++", "macro-argument-mutation"],
     ["(import('module'), 1)", "macro-execution-boundary"],
   ]) {
-    await expect(
-      compile(
-        [
-          'import { style } from "stillwind/react"; ',
-          "const events = []; let value = 1;",
-          `const props = style({ "--x": ${expression} });`,
-        ].join("\n"),
-      ),
-    ).rejects.toThrow(new RegExp(code));
+    const warnings: string[] = [];
+    const output = await compile(
+      [
+        'import { style } from "stillwind/react"; ',
+        "const events = []; let value = 1;",
+        `const props = style({ "--x": ${expression} });`,
+      ].join("\n"),
+      warnings,
+    );
+    expect(output.reports).toContainEqual(expect.objectContaining({ code, severity: "error" }));
+    expect(warnings[0]).toContain(code);
   }
 });
 

@@ -6,7 +6,7 @@ import { stillwind } from "@stillwind/integration/vite";
 import { build, createServer } from "vite";
 import { expect, test } from "vite-plus/test";
 
-test("build and standalone analysis consume the same lint presets, CSS, and declaration naming settings", async () => {
+test("build shares CSS and naming with analysis while analysis enforces lint settings", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-shared-config-"));
   let workspace: AnalysisWorkspace | undefined;
   try {
@@ -20,7 +20,7 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
     );
     await writeFile(
       path.join(root, "entry.ts"),
-      'import {style} from "stillwind/react";import {frames} from "./Tokens";export const props=style(frames(""));',
+      'import {style} from "stillwind/react";import {frames} from "./Tokens";export const props=style("red bogus",frames(""));',
     );
     await writeFile(
       path.join(root, "Tokens.ts"),
@@ -29,25 +29,33 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
     workspace = await AnalysisWorkspace.open(path.join(root, "stillwind.config.mts"));
     const [analysis] = await workspace.lint();
     expect(analysis.result.status, JSON.stringify(analysis)).toBe("complete");
+    expect(analysis.result.reports).toContainEqual(
+      expect.objectContaining({
+        code: "unknown-utility",
+        severity: "error",
+      }),
+    );
     const compiled = analysis.result.graph!.modules.find(
       (module) => module.moduleId === "entry.ts",
     )!;
     expect(compiled.classes.length).toBeGreaterThan(0);
     expect(compiled.lintSettings["unknown-utility"]).toBe("deny");
-    const result = await build({
-      root,
-      configFile: false,
-      plugins: [stillwind()],
-      build: {
-        write: false,
-        minify: false,
-        cssMinify: false,
-        lib: {
-          entry: path.join(root, "entry.ts"),
-          formats: ["es"],
+    const compile = () =>
+      build({
+        root,
+        configFile: false,
+        plugins: [stillwind()],
+        build: {
+          write: false,
+          minify: false,
+          cssMinify: false,
+          lib: {
+            entry: path.join(root, "entry.ts"),
+            formats: ["es"],
+          },
         },
-      },
-    });
+      });
+    const result = await compile();
     const outputs = (Array.isArray(result) ? result : [result]).flatMap((result) => {
       if (!("output" in result)) {
         expect.fail("Expected build output");
@@ -67,6 +75,8 @@ test("build and standalone analysis consume the same lint presets, CSS, and decl
       expect(css).toContain(symbol.name);
     }
     expect(css).toMatch(/color:\s*red/);
+    await writeFile(path.join(root, "root.css"), "@theme {");
+    await expect(compile()).rejects.toThrow();
   } finally {
     await workspace?.close();
     await rm(root, { recursive: true, force: true, maxRetries: 5 });

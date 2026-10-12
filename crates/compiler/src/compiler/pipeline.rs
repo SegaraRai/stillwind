@@ -126,6 +126,9 @@ impl Compiler {
         let module_id = &parsed.module_id;
         let options = compiler_options;
         result.lint_settings = compiler_options.lint_settings();
+        if !result.lint_settings.has_enabled_rules() {
+            result.lint_findings.clear();
+        }
         if let Err(kind) = validate_lint_settings(&result.lint_settings) {
             result
                 .diagnostics
@@ -446,15 +449,15 @@ impl Compiler {
         result
             .source_lint_findings
             .clone_from(&result.lint_findings);
-        if result.diagnostics.is_empty() {
+        if !result.diagnostics.is_empty() {
+            result.style_effects.clear();
+        } else if result.lint_settings.has_enabled_rules() {
             let mut resolver = StyleResolver::new(&result.style_effects);
             for effects in &result.style_effects {
                 if let Some(style) = resolver.resolve(effects.identity()) {
                     result.lint_findings.extend(check_style(&style));
                 }
             }
-        } else {
-            result.style_effects.clear();
         }
         finish_lint_findings(
             source,

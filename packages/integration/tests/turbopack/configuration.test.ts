@@ -62,8 +62,26 @@ test.each(["next", "turbopack"])(
     try {
       expect(project.options.root).toBe(root);
       expect(project.options.compiler.naming?.utilityClass).toBeTypeOf("function");
-      expect(project.loaded.loader.editorQuery().lintSettings()["unknown-utility"]).toBe("deny");
+      expect(project.loaded.loader.editorQuery().lintSettings()["unknown-utility"]).toBe("off");
       expect(dependencies).toContain(configFile);
+      const output = await project.compiler.compile(
+        'import {style} from "stillwind/react"; export const props = style("red bogus");',
+        path.join(root, "entry.tsx"),
+        project.host,
+      );
+      expect(output?.code).toContain("configured-class");
+      expect(output?.lintFindings).toEqual([]);
+      const plan = project.compiler.native.planStylesheet({
+        modules: [output!.moduleId],
+        coverage: {
+          kind: "observed",
+        },
+        placement: "document",
+      });
+      expect(plan.parts.map((part) => part.css).join("\n")).toMatch(/color:\s*red/);
+      await expect(
+        project.compiler.compile("export const =;", path.join(root, "entry.tsx"), project.host),
+      ).rejects.toThrow();
     } finally {
       project.compiler.close();
     }

@@ -28,6 +28,7 @@ pub(crate) fn parse_projected(
     projected: &ProjectedSource,
     facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
+    lint: bool,
 ) -> Result<(ParsedJavaScript, Vec<SourceProvenance>, CheckerProjection), CompileError> {
     let projection = projected.projection();
     let original = projected.document().file();
@@ -63,6 +64,7 @@ pub(crate) fn parse_projected(
         syntax.module_kind(),
         original,
         &coordinates,
+        lint,
     );
     let failure = |error| context(normalized.failure(error, original));
     let (ir, mut provenance) = normalized.original_ir(&parsed.module).map_err(failure)?;

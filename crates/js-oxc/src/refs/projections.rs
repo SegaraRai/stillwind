@@ -202,18 +202,20 @@ impl<'a> MacroExtractor<'a> {
                             existing.module_id == definition.module_id
                                 && existing.binding == definition.binding
                         }) {
-                            self.lint_findings.push(LintFinding::new(
-                                LintDiagnostic::AnchorScopeList {
-                                    detail: "contains duplicate ref identities".into(),
-                                },
-                                self.source_span(element.span()),
-                            ));
+                            if self.lint {
+                                self.lint_findings.push(LintFinding::new(
+                                    LintDiagnostic::AnchorScopeList {
+                                        detail: "contains duplicate ref identities".into(),
+                                    },
+                                    self.source_span(element.span()),
+                                ));
+                            }
                         } else {
                             refs.push(definition);
                         }
                     }
                 }
-                if refs.is_empty() {
+                if self.lint && refs.is_empty() {
                     self.lint_findings.push(LintFinding::new(
                         LintDiagnostic::AnchorScopeList {
                             detail: "is empty; no scope declaration is emitted".into(),

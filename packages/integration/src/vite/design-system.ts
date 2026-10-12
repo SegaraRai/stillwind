@@ -4,10 +4,10 @@ import { readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { cleanModuleId, compilerOptions, cssEntrypoint, loadCssGraph } from "@stillwind/host";
+import { cleanModuleId, cssEntrypoint, loadCssGraph } from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
-import { IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 import { readableFile } from "./file-access.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolvedFile, type StylesheetResource } from "./resources.ts";
@@ -397,7 +397,7 @@ async function loadDesignSystem(
     watch(cleanModuleId(file));
     return file;
   };
-  const nativeOptions = compilerOptions(config);
+  const nativeOptions = buildCompilerOptions(config);
   const { loader, resources: resourceReferences } = await loadCssGraph(
     root,
     nativeOptions,
