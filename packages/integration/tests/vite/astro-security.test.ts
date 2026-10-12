@@ -51,6 +51,35 @@ test("Astro's public SSR CSS omits server source text", async () => {
   expect(publicCss).not.toContain("sourcesContent");
 });
 
+test("Astro SSR and its CSS watches survive repeated server restarts", async () => {
+  const fixture = await createAstroFixture();
+  expect(await (await fixture.requestWithAttackerHost()).text()).toMatch(/color:\s*red/);
+  for (const color of ["blue", "purple"]) {
+    await fixture.command("restart", "restarted");
+    const response = await fixture.requestWithAttackerHost();
+    expect(response.status, (await response.clone().text()) + fixture.serverErrors()).toBe(200);
+    await writeFile(fixture.cssFile, `@utility red{color:${color}} @stillwind-slot utilities;`);
+    await expect
+      .poll(async () => {
+        const response = await fixture.requestWithAttackerHost();
+        const html = await response.text();
+        expect(response.status, html + fixture.serverErrors()).toBe(200);
+        return html;
+      })
+      .toMatch(new RegExp(`color:\\s*${color}`));
+  }
+});
+
+test("closing Astro's client environment keeps its SSR bridge registered", async () => {
+  const fixture = await createAstroFixture();
+  await fixture.requestWithAttackerHost();
+  await fixture.command("close-client", "client-closed");
+  const response = await fixture.requestWithAttackerHost();
+  const html = await response.text();
+  expect(response.status, html + fixture.serverErrors()).toBe(200);
+  expect(html).toMatch(/color:\s*red/);
+});
+
 async function createAstroFixture() {
   const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
   const root = await mkdtemp(path.join(packageRoot, ".test-astro-security-"));
@@ -117,5 +146,17 @@ const secret = 'ASTRO_SERVER_SOURCE_SENTINEL';
       fetch(origin, { headers: { Host: `127.0.0.1:${attackerAddress.port}` } }),
     attackerRequests: () => attackerRequestCount,
     serverErrors: () => stderr,
+    command: (message: string, kind: string) =>
+      new Promise<void>((resolve, reject) => {
+        astroServer.once("message", (message) => {
+          try {
+            expect(message).toMatchObject({ kind });
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+        astroServer.send(message);
+      }),
   };
 }

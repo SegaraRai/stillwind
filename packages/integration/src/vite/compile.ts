@@ -152,7 +152,13 @@ export async function compileProducer(
     code,
     id,
     {
-      resolve: (specifier, importer) => context.resolve(specifier, importer, { skipSelf: true }),
+      // Dependency reads supply type and style facts. Vite validates the imports retained in the
+      // transformed application when it constructs the JavaScript graph.
+      resolve: (specifier, importer) =>
+        context.resolve(specifier, importer, {
+          skipSelf: true,
+          custom: { "react-router:dot-server": true },
+        }),
       read: (id) => readFile(cleanModuleId(id), "utf8"),
       describe: (resolvedId) => {
         const virtual = resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:");

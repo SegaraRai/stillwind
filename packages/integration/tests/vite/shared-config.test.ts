@@ -157,6 +157,9 @@ test("production watch reloads an imported configuration helper", async () => {
     await writeFile(helper, settings("blue.css"));
     await wait(2);
     expect(await output()).toMatch(/color:\s*blue/);
+    await writeFile(helper, settings("red.css"));
+    await wait(3);
+    expect(await output()).toMatch(/color:\s*red/);
   } finally {
     await watcher.close();
     await rm(root, { recursive: true, force: true });
@@ -210,21 +213,23 @@ test("development reloads the project when an imported configuration helper chan
       return (await fetch(`${origin}/__stillwind/style.css?environment=client`)).text();
     };
     expect(await css()).toMatch(/color:\s*red/);
-    await writeFile(helper, settings("blue.css"));
-    await expect
-      .poll(
-        async () => {
-          try {
-            return await css();
-          } catch {
-            return "";
-          }
-        },
-        {
-          timeout: 10_000,
-        },
-      )
-      .toMatch(/color:\s*blue/);
+    for (const color of ["blue", "red"]) {
+      await writeFile(helper, settings(`${color}.css`));
+      await expect
+        .poll(
+          async () => {
+            try {
+              return await css();
+            } catch {
+              return "";
+            }
+          },
+          {
+            timeout: 10_000,
+          },
+        )
+        .toMatch(new RegExp(`color:\\s*${color}`));
+    }
   } finally {
     await server.close();
     await rm(root, { recursive: true, force: true });

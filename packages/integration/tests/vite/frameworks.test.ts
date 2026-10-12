@@ -17,7 +17,6 @@ test("raw SFC transforms retain stable producer registrations and replace linked
   const plugins = stillwind({
     css,
   });
-  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
@@ -29,6 +28,8 @@ test("raw SFC transforms retain stable producer registrations and replace linked
     },
   });
   try {
+    const environment = server.environments.client;
+    const plugin = environment.plugins.find((plugin) => plugin.name === "stillwind:compiler")!;
     const transform =
         typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler,
       load = plugin.load,
@@ -45,6 +46,7 @@ test("raw SFC transforms retain stable producer registrations and replace linked
       );
     }
     const context = {
+      environment,
       resolve: (specifier: string, importer: string) =>
         server.pluginContainer.resolveId(specifier, importer),
       addWatchFile: () => {},

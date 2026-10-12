@@ -3,6 +3,8 @@
 Place `stillwind({ css: './root.css' })` before a framework's JSX transform.
 The CSS entry resolves normal package exports, for example `@import 'stillwind';`.
 The adapter owns separate design systems and semantic state for each Vite environment.
+Development restarts create a new project for the server. Closing one environment
+keeps the other environments available.
 
 ## CSS emission
 
@@ -90,7 +92,8 @@ CSS-only HMR, module addition/deletion and shared stylesheet instances.
 Framework-specific packages under `e2e/frameworks` are separate acceptance probes;
 passing the emission probe does not establish every framework's streaming or HMR behavior.
 
-The factory returns compiler, development, and build plugins that share one project.
+The factory returns compiler, development, and build plugins that share project state
+within each resolved Vite configuration.
 Keep `plugins: [stillwind(config)]` in the Vite configuration. Vite flattens the
 returned array. The compiler owns initialization and disposal for each environment;
 the development plugin serves CSS and handles HMR, and the build plugin emits CSS

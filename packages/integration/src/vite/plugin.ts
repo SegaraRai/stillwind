@@ -2,7 +2,12 @@ import type { Plugin } from "vite";
 
 import { buildHooks } from "./build.ts";
 import { developmentHooks } from "./development.ts";
-import { createViteProject, type IntegrationConfig, type ViteProject } from "./project.ts";
+import {
+  createViteProject,
+  type EnvironmentOwner,
+  type IntegrationConfig,
+  type ViteProject,
+} from "./project.ts";
 import { attachVueSourceMaps } from "./source-maps.ts";
 import { transformHooks } from "./transform.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
@@ -29,19 +34,84 @@ export function stillwind(config: IntegrationConfig = {}): Plugin[] {
  * only to their matching Vite command.
  */
 export function createVitePlugins(project: ViteProject): Plugin[] {
+  const servers = new Map<ViteProject, Set<EnvironmentOwner>>();
   return [
-    compilerPlugin(project),
+    {
+      name: "stillwind:compiler",
+      enforce: "pre",
+      /**
+       * Initializes the project owned by this configuration and composes Vue source maps.
+       * @param config - Resolved Vite configuration whose plugin chain includes Stillwind.
+       * @returns Completion of project configuration.
+       * @throws If configuration discovery or evaluation fails.
+       */
+      async configResolved(config) {
+        await project.forConfig(config).configure(config);
+        attachVueSourceMaps(config.plugins, project);
+      },
+      /**
+       * Defers watch registration until the server's plugin setup succeeds.
+       * @param server - Server whose configuration owns the project.
+       * @returns A post hook that attaches watches and records the server's environments.
+       */
+      configureServer(server) {
+        const generation = project.forConfig(server.config);
+        return () => {
+          generation.attachServer(server);
+          servers.set(generation, new Set(Object.values(server.environments)));
+          server.httpServer?.once("close", generation.closeTypeFacts);
+        };
+      },
+      /**
+       * Creates compiler hooks while Vite resolves plugins for an environment.
+       * @param environment - Descriptor supplied during plugin resolution. Runtime hooks receive
+       * their owning instance as this.environment.
+       * @returns Hooks that initialize and close the compiler state owned by this.environment.
+       */
+      applyToEnvironment(environment) {
+        const generation = project.forConfig(environment.getTopLevelConfig());
+        return compilerPlugin(generation, (owner) => {
+          servers.get(generation)?.delete(owner);
+        });
+      },
+      /** Releases projects after all environments owned by their server have closed. */
+      closeServer() {
+        for (const [generation, remaining] of servers) {
+          if (remaining.size === 0) {
+            generation.close();
+            servers.delete(generation);
+          }
+        }
+      },
+    },
     {
       name: "stillwind:development",
       enforce: "pre",
       apply: "serve",
-      ...developmentHooks(project),
+      configureServer(server) {
+        const hook = developmentHooks(project.forConfig(server.config)).configureServer;
+        if (typeof hook === "function") {
+          return hook.call(this, server);
+        }
+      },
+      applyToEnvironment(environment) {
+        const { hotUpdate } = developmentHooks(project.forConfig(environment.getTopLevelConfig()));
+        return {
+          name: "stillwind:development",
+          hotUpdate,
+        };
+      },
     },
     {
       name: "stillwind:build",
       enforce: "pre",
       apply: "build",
-      ...buildHooks(project),
+      applyToEnvironment(environment) {
+        return {
+          name: "stillwind:build",
+          ...buildHooks(project.forConfig(environment.getTopLevelConfig())),
+        };
+      },
     },
   ];
 }
@@ -51,10 +121,13 @@ export function createVitePlugins(project: ViteProject): Plugin[] {
  *
  * @param project - Project whose environments are initialized at build start and closed at bundle
  * close.
- * @returns A plugin with `enforce: "pre"` that installs virtual modules, source transforms, and
- * Vue source-map composition.
+ * @param closed - Records which Vite instance has released its state.
+ * @returns A plugin with `enforce: "pre"` that installs virtual modules and source transforms.
  */
-function compilerPlugin(project: ViteProject): Plugin {
+function compilerPlugin(
+  project: ViteProject,
+  closed: (environment: EnvironmentOwner) => void,
+): Plugin {
   const virtualModules = virtualModuleHooks(project);
 
   return {
@@ -87,24 +160,6 @@ function compilerPlugin(project: ViteProject): Plugin {
     },
     ...transformHooks(project, virtualModules),
     /**
-     * Initializes project settings and wraps Vue transforms for source-map composition.
-     * @param config - Final Vite configuration including the plugin chain and application root.
-     * @returns Completion of project configuration.
-     * @throws If configuration discovery or evaluation fails.
-     */
-    async configResolved(config) {
-      await project.configure(config);
-      attachVueSourceMaps(config.plugins, project);
-    },
-    /**
-     * Attaches the development server and closes checker resources when its HTTP server closes.
-     * @param server - Server retained by the project for resolution, access checks, and HMR.
-     */
-    configureServer(server) {
-      project.attachServer(server);
-      server.httpServer?.once("close", project.closeTypeFacts);
-    },
-    /**
      * Refreshes configuration, registers its watches, and starts the current compiler environment.
      * @returns Completion of configuration refresh and environment initialization.
      * @throws If refresh or environment startup fails.
@@ -114,11 +169,12 @@ function compilerPlugin(project: ViteProject): Plugin {
       for (const file of project.configurationFiles) {
         this.addWatchFile(file);
       }
-      await project.environment(this.environment?.name).start(this);
+      await project.environment(this.environment).start(this);
     },
-    /** Releases all project environments and checker resources when bundle ownership ends. */
+    /** Releases this environment's state when its plugin container closes. */
     closeBundle() {
-      project.close();
+      project.closeEnvironment(this.environment);
+      closed(this.environment);
     },
   };
 }

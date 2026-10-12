@@ -1,6 +1,6 @@
 import { fixtureProfiles } from "@stillwind-internal/e2e-harness";
 import { registerScenario } from "@stillwind-internal/e2e-harness/scenario";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, test } from "vite-plus/test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
 
 import fixture from "../fixture.ts";
 import { createApplication } from "./support/react-router-application.ts";
@@ -26,6 +26,15 @@ for (const profile of fixtureProfiles(fixture)) {
         test(`${temperature} production: SSR, hydration, navigation and source maps`, () =>
           contract.expectProduction(app, temperature));
       }
+      test("production rejects a server import retained by client code", async () => {
+        await app.stop();
+        await app.write("app/routes/home.jsx", app.home + '\nimport "../server.server";\n');
+        try {
+          await expect(app.compile()).rejects.toThrow("Server-only module referenced by client");
+        } finally {
+          await app.write("app/routes/home.jsx", app.home);
+        }
+      });
       afterEach(() => app.assertNoBrowserErrors());
       afterAll(() => app.dispose());
     },

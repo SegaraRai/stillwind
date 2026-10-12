@@ -1,5 +1,8 @@
 import { stillwind } from "@stillwind/integration/astro";
 import { dev } from "astro";
+import type { ViteDevServer } from "vite";
+
+let vite: ViteDevServer;
 
 const server = await dev({
   root: process.argv[2],
@@ -15,6 +18,14 @@ const server = await dev({
     }),
   ],
   vite: {
+    plugins: [
+      {
+        name: "capture-development-server",
+        configureServer(server) {
+          vite = server;
+        },
+      },
+    ],
     css: {
       devSourcemap: true,
     },
@@ -25,7 +36,17 @@ process.send?.({
   port: server.address.port,
 });
 
-process.once("message", async () => {
+process.on("message", async (message) => {
+  if (message === "restart") {
+    await vite.restart();
+    process.send?.({ kind: "restarted" });
+    return;
+  }
+  if (message === "close-client") {
+    await vite.environments.client.pluginContainer.close();
+    process.send?.({ kind: "client-closed" });
+    return;
+  }
   await server.stop();
   process.disconnect?.();
 });

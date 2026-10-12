@@ -339,7 +339,6 @@ async function createWatchedProject(
   }
   const project = createViteProject({ css: "root.css" });
   const plugins = createVitePlugins(project);
-  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
@@ -410,6 +409,9 @@ async function createWatchedProject(
      * @throws If the transform hook is unavailable or compilation fails.
      */
     async compileProducer(environment = "client", suffix = "") {
+      const plugin = server.environments[environment].plugins.find(
+        (plugin) => plugin.name === "stillwind:compiler",
+      )!;
       const transform = plugin.transform;
       if (!transform || typeof transform === "function" || !transform.handler) {
         expect.fail("Expected the compiler's transform handler");

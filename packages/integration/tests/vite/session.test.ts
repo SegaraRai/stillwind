@@ -17,7 +17,6 @@ test("query modules retain independent CSS and deletion removes all derivatives 
   const plugins = stillwind({
     css,
   });
-  const [plugin] = plugins;
   const server = await createServer({
     configFile: false,
     root,
@@ -35,13 +34,14 @@ test("query modules retain independent CSS and deletion removes all derivatives 
   });
   try {
     await server.listen();
+    const environment = server.environments.ssr;
+    const plugin = environment.plugins.find((plugin) => plugin.name === "stillwind:compiler")!;
     const transform =
       typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
     const remove = plugin.watchChange;
     if (typeof transform !== "function" || typeof remove !== "function") {
       expect.fail("expected transform and watchChange hooks");
     }
-    const environment = server.environments.ssr;
     await environment.pluginContainer.buildStart({});
     const context = {
       environment,
@@ -99,8 +99,6 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
   const plugins = stillwind({
     css,
   });
-  const [plugin] = plugins;
-  const development = plugins.find((plugin) => plugin.hotUpdate)!;
   const server = await createServer({
     configFile: false,
     root,
@@ -112,6 +110,9 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
     },
   });
   try {
+    const environment = server.environments.client;
+    const plugin = environment.plugins.find((plugin) => plugin.name === "stillwind:compiler")!;
+    const development = environment.plugins.find((plugin) => plugin.hotUpdate)!;
     // React Router's route-export scanner can transform before buildStart.
     const sourcePath = path.join(root, "button.tsx");
     const source =
@@ -124,6 +125,7 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
     }
     const transformed = await transform.call(
       {
+        environment,
         resolve: (specifier: string, importer: string) =>
           server.pluginContainer.resolveId(specifier, importer),
         addWatchFile: () => {},
@@ -298,7 +300,7 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
   const plugins = stillwind({
     css,
   });
-  await resolveConfig(
+  const configuration = await resolveConfig(
     {
       root,
       configFile: false,
@@ -307,7 +309,9 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
     },
     "build",
   );
-  const [plugin] = plugins;
+  const plugin = configuration.environments.client.plugins.find(
+    (plugin) => plugin.name === "stillwind:compiler",
+  )!;
   const buildStart = plugin.buildStart;
   if (typeof buildStart !== "function") {
     expect.fail("expected buildStart hook");
@@ -322,6 +326,7 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
       (async () =>
         buildStart.call(
           {
+            environment: { name: "client", getTopLevelConfig: () => configuration },
             addWatchFile: () => {},
             async resolve(specifier: string) {
               if (specifier === "failed") {
@@ -359,8 +364,6 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
   const plugins = stillwind({
     css: entry,
   });
-  const [plugin] = plugins;
-  const development = plugins.find((plugin) => plugin.hotUpdate)!;
   let heldResolution: Promise<string> | undefined;
   let onHeldResolution: (() => void) | undefined;
   const server = await createServer({
@@ -393,28 +396,14 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
   try {
     const client = server.environments.client;
     const ssr = server.environments.ssr;
+    const development = client.plugins.find((plugin) => plugin.hotUpdate)!;
     await Promise.all([client.pluginContainer.buildStart({}), ssr.pluginContainer.buildStart({})]);
-    const load = plugin.load;
     const hot = development.hotUpdate;
-    const transform =
-      typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
-    if (
-      !(typeof load === "function" && typeof hot === "function" && typeof transform === "function")
-    ) {
-      expect.fail(
-        'Unexpected value: typeof load === "function" && typeof hot === "function" && typeof transform === "function"',
-      );
+    if (typeof hot !== "function") {
+      expect.fail("Expected the HMR hook");
     }
     const readCss = async (environment: typeof client) => {
-      const css = await load!.call(
-        {
-          environment,
-          resolve: (specifier: string, importer: string) =>
-            environment.pluginContainer.resolveId(specifier, importer),
-          addWatchFile: () => {},
-        } as unknown as ThisParameterType<typeof load>,
-        "\0stillwind:snapshot.css",
-      );
+      const css = await environment.pluginContainer.load("\0stillwind:snapshot.css");
       if (!(css && typeof css === "object" && css.map)) {
         expect.fail('Unexpected value: css && typeof css === "object" && css.map');
       }
@@ -426,8 +415,14 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
     const source =
       'import { style } from "stillwind/react"; import { unrelated } from "./unrelated"; export const a = style("paint"); console.log(unrelated);';
     writeFileSync(sourcePath, source);
-    const compile = (environment: typeof client) =>
-      transform!.call(
+    const compile = (environment: typeof client) => {
+      const plugin = environment.plugins.find((plugin) => plugin.name === "stillwind:compiler")!;
+      const transform =
+        typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
+      if (typeof transform !== "function") {
+        expect.fail("Expected the transform hook");
+      }
+      return transform.call(
         {
           environment,
           resolve: (specifier: string, importer: string) => {
@@ -445,6 +440,7 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
         source,
         sourcePath,
       );
+    };
     const outputs = await Promise.all([compile(client), compile(ssr)]);
     if (!outputs.every((output) => output && typeof output === "object" && output.code)) {
       expect.fail(

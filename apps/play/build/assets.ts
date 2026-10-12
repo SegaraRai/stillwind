@@ -27,6 +27,7 @@ const files: [string, string][] = [];
 for (const [name, directory] of [
   ["stillwind", "../../packages/core"],
   ["@stillwind/config", "../../packages/config"],
+  ["valibot", "../../packages/config/node_modules/valibot"],
   ["@types/react", "node_modules/@types/react"],
   ["@types/react-dom", "node_modules/@types/react-dom"],
 ] as const) {

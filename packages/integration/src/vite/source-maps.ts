@@ -1,7 +1,7 @@
 import { cleanModuleId, composeFrameworkSourceMap } from "@stillwind/host";
 import type { Plugin } from "vite";
 
-import type { ViteProject } from "./project.ts";
+import type { EnvironmentOwner, ViteProject } from "./project.ts";
 
 /**
  * Callable form of a Vite load hook, used to wrap either hook representation without changing its
@@ -37,19 +37,20 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
    * Composes a Vue block's map through the recorded Stillwind transform for its source file.
    * @param result - Original load or transform result, left unchanged when a required map is absent.
    * @param id - Full Vue block identity, including its `vue` query.
-   * @param name - Vite environment name, or undefined for `client`.
+   * @param environment - Vite environment whose top-level configuration owns the recorded input.
    * @returns The original result or a copy containing a serialized composed map.
    * @throws If the input map cannot be parsed or the maps cannot be composed.
    */
   const compose = <T extends Awaited<ReturnType<Load>> | Awaited<ReturnType<Transform>>>(
     result: T,
     id: string,
-    name?: string,
+    environment?: EnvironmentOwner,
   ) => {
     if (!result || typeof result !== "object" || !/[?&]vue(?:[=&]|$)/.test(id) || !result.map) {
       return result;
     }
-    const input = project.inputs(name).get(cleanModuleId(id));
+    const generation = environment ? project.forConfig(environment.getTopLevelConfig()) : project;
+    const input = generation.inputs(environment?.name).get(cleanModuleId(id));
     if (!input?.sourceMap) {
       return result;
     }
@@ -85,7 +86,7 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
        * @throws If the original hook or map composition fails.
        */
       const wrapped: Load = async function (id, ...args) {
-        return compose(await handler.call(this, id, ...args), id, this.environment?.name);
+        return compose(await handler.call(this, id, ...args), id, this.environment);
       };
       plugin.load =
         typeof hook === "function"
@@ -107,7 +108,7 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
        * @throws If the original hook or map composition fails.
        */
       const wrapped: Transform = async function (code, id, ...args) {
-        return compose(await handler.call(this, code, id, ...args), id, this.environment?.name);
+        return compose(await handler.call(this, code, id, ...args), id, this.environment);
       };
       plugin.transform =
         typeof hook === "function"

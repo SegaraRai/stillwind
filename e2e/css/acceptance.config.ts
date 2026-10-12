@@ -11,7 +11,7 @@ export default mergeConfig(
           test: {
             name: "applications",
             include: ["tests/**/*.test.ts"],
-            exclude: ["tests/ref-scopes.test.ts"],
+            exclude: ["tests/ref-scopes.test.ts", "tests/cva.test.ts"],
           },
         },
         "./vite.browser.config.ts",

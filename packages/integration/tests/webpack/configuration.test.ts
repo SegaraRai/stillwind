@@ -9,6 +9,33 @@ import { expect, onTestFinished, test } from "vite-plus/test";
 import webpack from "webpack";
 
 for (const backend of ["webpack", "rspack"] as const) {
+  test(`${backend} watch reevaluates imported configuration after each rebuild`, async () => {
+    const { root, watch } = await compilerFixture(backend, "config");
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'import css from "./settings.ts"; export default {projects:[{css,files:["*.js"],automatic:false}]};',
+    );
+    await writeFile(
+      path.join(root, "blue.css"),
+      "@utility red{color:blue}@stillwind-slot utilities;",
+    );
+    const settings = path.join(root, "settings.ts");
+    await writeFile(settings, 'export default "root.css";');
+    const nextBuild = watch();
+    for (const [index, color] of ["red", "blue", "red"].entries()) {
+      if (index > 0) {
+        await writeFile(settings, `export default "${color === "blue" ? "blue" : "root"}.css";`);
+      }
+      await nextBuild();
+      const global: { css?: string } = {};
+      runInNewContext(await readFile(path.join(root, "dist/main.js"), "utf8"), {
+        globalThis: global,
+        self: {},
+      });
+      expect(global.css).toMatch(new RegExp(`color:\\s*${color}`));
+    }
+  });
+
   test(`${backend} skips denied lint findings while rejecting compiler errors`, async () => {
     const { root, build } = await compilerFixture(backend, "config");
     await writeFile(
@@ -174,6 +201,33 @@ async function compilerFixture(
   ]);
   return {
     root,
+    watch: () => {
+      type Result = { error: Error | null; stats?: webpack.Stats };
+      const results: Result[] = [];
+      let waiting: ((result: Result) => void) | undefined;
+      compiler.watch({ aggregateTimeout: 20 }, (error, stats) => {
+        const result = {
+          error,
+          stats,
+        };
+        if (waiting) {
+          const notify = waiting;
+          waiting = undefined;
+          notify(result);
+        } else {
+          results.push(result);
+        }
+      });
+      return async () => {
+        const result =
+          results.shift() ??
+          (await new Promise<Result>((resolve) => {
+            waiting = resolve;
+          }));
+        expect(result.error).toBeNull();
+        expect(result.stats?.hasErrors(), result.stats?.toString()).toBe(false);
+      };
+    },
     build: () =>
       new Promise<void>((resolve, reject) =>
         compiler.run((error, stats) => {

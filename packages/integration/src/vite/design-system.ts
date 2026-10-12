@@ -29,6 +29,8 @@ export interface CssContext {
     options: {
       /** Avoids re-entering the Stillwind plugin that initiated resolution. */
       skipSelf: boolean;
+      /** Metadata keyed by plugin name and forwarded to Vite's resolver hooks. */
+      custom?: Record<string, unknown>;
     },
   ) => Promise<{
     /** Full resolved identity, including any resource query. */

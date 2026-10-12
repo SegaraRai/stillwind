@@ -5,7 +5,7 @@ import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
 import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
-import type { InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
+import type { Environment, InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
@@ -14,6 +14,9 @@ import type { CompileContext, ProducerTransform } from "./compile.ts";
 import type { CssContext } from "./design-system.ts";
 import { ViteEnvironment, type CssSnapshot } from "./environment.ts";
 import type { StylesheetPlan } from "./stylesheet.ts";
+
+/** Vite environment instance whose identity and top-level configuration own compiler state. */
+export type EnvironmentOwner = Pick<Environment, "name" | "getTopLevelConfig">;
 
 /** File selection and compiler overrides for Vite, Astro, and Nuxt, with CSS emission placement. */
 export interface IntegrationConfig extends InlineConfig {
@@ -63,6 +66,12 @@ export interface ProjectSettings {
  */
 export interface ViteProject {
   /**
+   * Obtains the project owned by a resolved Vite configuration.
+   * @param config - Top-level configuration, obtained from a server or getTopLevelConfig().
+   * @returns This project for its first configuration, or an isolated project for another configuration.
+   */
+  forConfig: (config: ResolvedConfig) => ViteProject;
+  /**
    * Evaluated compiler settings shared by all environments. Empty before configure. reconfiguration
    * replaces the fields of this same object so plugin hooks retain the current settings.
    */
@@ -72,10 +81,15 @@ export interface ViteProject {
   /**
    * Obtains isolated compilation state for a Vite environment, creating it on first use.
    *
-   * @param name - Environment name. Omission selects `client`.
+   * @param name - Owning Vite instance, or a name selecting the current state. Omission selects `client`.
    * @returns The environment retained for this project lifetime.
    */
-  environment: (name?: string) => ViteEnvironment;
+  environment: (name?: string | EnvironmentOwner) => ViteEnvironment;
+  /**
+   * Closes the state owned by an environment without closing other environments.
+   * @param environment - The owning Vite instance. Development also removes its state from watch tracking.
+   */
+  closeEnvironment: (environment: EnvironmentOwner) => void;
   /**
    * Evaluates Stillwind settings and replaces all existing compiler environments.
    *
@@ -257,6 +271,8 @@ export function createViteProject(
     minifyCss: true,
   };
   const config: IntegrationConfig = {};
+  const generations = new WeakMap<ResolvedConfig, ViteProject>();
+  let claimed = false;
   const configurationFiles = new Set<string>();
   let resolvedViteConfig: ResolvedConfig | undefined;
   let configurationDirty = false;
@@ -264,14 +280,16 @@ export function createViteProject(
   let missingConfigurations: string[] = [];
 
   const environments = new Map<string, ViteEnvironment>();
+  let bindings = new WeakMap<EnvironmentOwner, ViteEnvironment>();
   /**
    * Gets or creates the compiler state owned by one Vite environment.
-   * @param name - Environment name. Omission selects `client`.
+   * @param owner - Owning Vite instance, or a name selecting the current state. Omission selects `client`.
    * @returns The retained environment state. Newly created non-client states invalidate their
    * affected modules in the corresponding development module graph.
    */
-  const environment = (name = "client") => {
-    let state = environments.get(name);
+  const environment = (owner: string | EnvironmentOwner = "client") => {
+    const name = typeof owner === "string" ? owner : owner.name;
+    let state = typeof owner === "string" ? environments.get(name) : bindings.get(owner);
     if (!state) {
       state = new ViteEnvironment(name, settings, config, (ids) => {
         if (name === "client") {
@@ -285,8 +303,22 @@ export function createViteProject(
         }
       });
       environments.set(name, state);
+      if (typeof owner !== "string") {
+        bindings.set(owner, state);
+      }
     }
     return state;
+  };
+
+  const closeEnvironment = (owner: EnvironmentOwner) => {
+    const state = bindings.get(owner);
+    if (!state) {
+      return;
+    }
+    state.close();
+    if (settings.watching && environments.get(owner.name) === state) {
+      environments.delete(owner.name);
+    }
   };
 
   /** Releases checker services in all currently retained compiler environments. */
@@ -313,6 +345,7 @@ export function createViteProject(
       state.close();
     }
     environments.clear();
+    bindings = new WeakMap();
     for (const key of Object.keys(config) as (keyof IntegrationConfig)[]) {
       delete config[key];
     }
@@ -420,7 +453,16 @@ export function createViteProject(
     });
   };
 
-  return {
+  const project: ViteProject = {
+    forConfig: (viteConfig) => {
+      let generation = generations.get(viteConfig);
+      if (!generation) {
+        generation = claimed ? createViteProject(supplied, applicationRoot) : project;
+        claimed = true;
+        generations.set(viteConfig, generation);
+      }
+      return generation;
+    },
     config,
     configurationFiles,
     configurationChanged: (id) => {
@@ -437,6 +479,7 @@ export function createViteProject(
     },
     settings,
     environment,
+    closeEnvironment,
     configure,
     attachServer,
     closeTypeFacts,
@@ -469,4 +512,5 @@ export function createViteProject(
       environment(name).buildOutput = output;
     },
   };
+  return project;
 }

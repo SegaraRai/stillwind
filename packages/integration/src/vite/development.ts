@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { cleanModuleId } from "@stillwind/host";
 import type { Plugin, ViteDevServer } from "vite";
 
+import type { CssContext } from "./design-system.ts";
 import { sendJson } from "./http.ts";
 import type { ViteProject } from "./project.ts";
 
@@ -36,9 +37,9 @@ export function developmentHooks(
       const name = this.environment.name;
       const state = project.environment(name);
       const id = cleanModuleId(context.file);
-      const host = {
-        resolve: (specifier: string, importer: string) =>
-          this.environment.pluginContainer.resolveId(specifier, importer),
+      const host: CssContext = {
+        resolve: (specifier, importer, options) =>
+          this.environment.pluginContainer.resolveId(specifier, importer, options),
         addWatchFile: (id: string) => {
           context.server.watcher.add(id);
         },
@@ -102,8 +103,8 @@ export function developmentHooks(
         void documentPlan(
           name,
           {
-            resolve: (specifier, importer) =>
-              environment.pluginContainer.resolveId(specifier, importer),
+            resolve: (specifier, importer, options) =>
+              environment.pluginContainer.resolveId(specifier, importer, options),
             addWatchFile: (id) => {
               server.watcher.add(id);
             },
@@ -133,8 +134,8 @@ export function developmentHooks(
         }
         void project
           .snapshot(name, {
-            resolve: (specifier, importer) =>
-              environment.pluginContainer.resolveId(specifier, importer),
+            resolve: (specifier, importer, options) =>
+              environment.pluginContainer.resolveId(specifier, importer, options),
             addWatchFile: (id) => {
               server.watcher.add(id);
             },

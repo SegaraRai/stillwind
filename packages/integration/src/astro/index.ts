@@ -3,12 +3,17 @@ import { fileURLToPath } from "node:url";
 
 import { moduleSourceMap } from "@stillwind/host";
 import type { AstroIntegration } from "astro";
+import type { ResolvedConfig } from "vite";
 
 import { createVitePlugins } from "../vite/plugin.ts";
-import { createViteProject, type IntegrationConfig } from "../vite/project.ts";
+import {
+  createViteProject,
+  type EnvironmentOwner,
+  type IntegrationConfig,
+} from "../vite/project.ts";
 import { registerDevelopmentCss } from "./development.ts";
 
-export type { IntegrationConfig } from "../vite/index.ts";
+export type { IntegrationConfig } from "../vite/project.ts";
 
 /** Virtual server module imported by Astro middleware to obtain document stylesheet markup. */
 const ID = "virtual:stillwind/astro-styles";
@@ -41,10 +46,16 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
 
   const project = createViteProject(config, () => applicationRoot);
   const plugins = createVitePlugins(project);
-  const bridgeId = randomUUID();
-
-  /** Removes the current server's bridge registrations after configuration installs them. */
-  let disposeBridge = () => {};
+  const bridgeIds = new WeakMap<ResolvedConfig, string>();
+  const bridges = new WeakMap<EnvironmentOwner, () => void>();
+  const bridgeId = (configuration: ResolvedConfig) => {
+    let id = bridgeIds.get(configuration);
+    if (!id) {
+      id = randomUUID();
+      bridgeIds.set(configuration, id);
+    }
+    return id;
+  };
 
   return {
     name: "@stillwind/integration",
@@ -74,39 +85,45 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                  * @throws If no SSR environment is available.
                  */
                 configureServer(server) {
-                  disposeBridge();
                   if (!server.environments.ssr) {
                     throw new Error("Stillwind Astro requires an SSR environment");
                   }
-                  const disposers = Object.entries(server.environments)
-                    .filter(([name]) => name !== "client")
-                    .map(([name, environment]) =>
-                      registerDevelopmentCss(`${bridgeId}:${name}`, async () => {
-                        const plan = await project.documentPlan(name, {
-                          resolve: (specifier, importer) =>
-                            environment.pluginContainer.resolveId(specifier, importer),
-                          addWatchFile: (id) => {
-                            server.watcher.add(id);
-                          },
-                          warn: (message) => {
-                            server.config.logger.warn(message);
-                          },
+                  const generation = project.forConfig(server.config);
+                  const id = bridgeId(server.config);
+                  return () => {
+                    const disposers = Object.entries(server.environments)
+                      .filter(([name]) => name !== "client")
+                      .map(([name, environment]) => {
+                        const dispose = registerDevelopmentCss(`${id}:${name}`, async () => {
+                          const plan = await generation.documentPlan(name, {
+                            resolve: (specifier, importer, options) =>
+                              environment.pluginContainer.resolveId(specifier, importer, options),
+                            addWatchFile: (id) => {
+                              server.watcher.add(id);
+                            },
+                            warn: (message) => {
+                              server.config.logger.warn(message);
+                            },
+                          });
+                          return plan.css;
                         });
-                        return plan.css;
-                      }),
-                    );
-                  /** Removes all bridge registrations owned by this server configuration. */
-                  const dispose = () => {
-                    for (const dispose of disposers) {
-                      dispose();
-                    }
+                        bridges.set(environment, dispose);
+                        return dispose;
+                      });
+                    /** Removes all bridge registrations owned by this server configuration. */
+                    const dispose = () => {
+                      for (const dispose of disposers) {
+                        dispose();
+                      }
+                    };
+                    server.httpServer?.once("close", dispose);
                   };
-                  disposeBridge = dispose;
-                  server.httpServer?.once("close", dispose);
                 },
-                /** Removes development bridge registrations when the plugin's bundle closes. */
+                /** Removes the development bridge owned by the closing environment. */
                 closeBundle() {
-                  disposeBridge();
+                  if (this.environment) {
+                    bridges.get(this.environment)?.();
+                  }
                 },
                 /**
                  * Resolves stylesheet virtual modules and keeps the development bridge external on the server.
@@ -138,9 +155,11 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                  * @returns Generated JavaScript, or undefined for unrelated modules. Production markup retains a manifest placeholder.
                  */
                 load(source) {
+                  const configuration = this.environment.getTopLevelConfig();
+                  const generation = project.forConfig(configuration);
                   if (source === "\0" + CLIENT_ID) {
                     const endpoint =
-                      project.settings.publicBase + "__stillwind/style.css?environment=ssr";
+                      generation.settings.publicBase + "__stillwind/style.css?environment=ssr";
                     return `// Stillwind SSR CSS (astro client)
 if (import.meta.hot) {
   let revision = 0;
@@ -163,13 +182,13 @@ if (import.meta.hot) {
                   if (source !== "\0" + ID) {
                     return;
                   }
-                  if (project.settings.watching) {
-                    const script = `<script type="module" src="${project.settings.publicBase}@id/__x00__${CLIENT_ID}"></script>`;
+                  if (generation.settings.watching) {
+                    const script = `<script type="module" src="${generation.settings.publicBase}@id/__x00__${CLIENT_ID}"></script>`;
                     return `// Stillwind SSR CSS (astro with hot reload)
 import { getDevelopmentCss } from ${JSON.stringify(BRIDGE_ID)};
 
 export async function getStyles() {
-  return "<style data-stillwind-ssr>" + escapeInlineCss(await getDevelopmentCss(${JSON.stringify(`${bridgeId}:${this.environment?.name ?? "ssr"}`)})) + "</style>" + ${JSON.stringify(script)};
+  return "<style data-stillwind-ssr>" + escapeInlineCss(await getDevelopmentCss(${JSON.stringify(`${bridgeId(configuration)}:${this.environment.name}`)})) + "</style>" + ${JSON.stringify(script)};
 }
 
 function escapeInlineCss(css) {
@@ -194,7 +213,8 @@ export async function getStyles() {
                     return;
                   }
 
-                  const build = project.buildOutput(this.environment?.name);
+                  const generation = project.forConfig(this.environment.getTopLevelConfig());
+                  const build = generation.buildOutput(this.environment.name);
                   const styles = (build?.manifest?.parts ?? [])
                     .map(
                       (part) =>
