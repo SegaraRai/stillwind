@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { resolve as resolvePath } from "$app/paths";
-import type { Handle } from "@sveltejs/kit";
+import type { sequence } from "@sveltejs/kit/hooks";
 
 /**
  * Supplies development SSR CSS through SvelteKit's page transformation hook.
@@ -13,7 +13,7 @@ import type { Handle } from "@sveltejs/kit";
  * their first closing head tag, and production chunks retain their original text.
  * @throws If request resolution or page transformation fails.
  */
-export const handle: Handle = ({ event, resolve }) =>
+export const handle: ReturnType<typeof sequence> = ({ event, resolve }) =>
   resolve(event, {
     transformPageChunk: ({ html }) =>
       import.meta.env.DEV

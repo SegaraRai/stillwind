@@ -6,13 +6,13 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "@emnapi/core": "2.0.0-alpha.5",
-    "@emnapi/runtime": "2.0.0-alpha.5",
-    "@napi-rs/cli": "^3.10.6",
+    "@emnapi/core": "2.0.0-beta.1",
+    "@emnapi/runtime": "2.0.0-beta.1",
+    "@napi-rs/cli": "^3.10.8",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/ui": "catalog:",
-    "emnapi": "2.0.0-alpha.5",
+    "emnapi": "2.0.0-beta.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
@@ -20,9 +20,9 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.9.0",
+      "version": "12.12.1",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@12.9.0"
+  "packageManager": "pnpm@12.12.1"
 }

@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import type { SerializableInlineConfig } from "@stillwind/config";
 
+import type { NodeLoaderOptions } from "./node-loader.ts";
 import type { TurbopackLoaderOptions } from "./project.ts";
 
 /**
@@ -36,7 +37,7 @@ export interface TurbopackRule {
     /** Absolute path to an installed Stillwind loader. */
     loader: string;
     /** Serializable settings forwarded to the isolated loader invocation. */
-    options: TurbopackLoaderOptions;
+    options: NodeLoaderOptions;
   }[];
   /** Forces the stylesheet carrier's output to be processed as CSS. */
   as?: string;
@@ -134,16 +135,22 @@ export function createRules(
       },
       loaders: [
         {
-          loader: loaderPath("loader.js"),
-          options,
+          loader: loaderPath("node-loader.js"),
+          options: {
+            ...options,
+            implementation: loaderPath("loader.js"),
+          },
         },
       ],
     },
     "stillwind-turbopack.css": {
       loaders: [
         {
-          loader: cssLoader,
-          options,
+          loader: loaderPath("node-loader.js"),
+          options: {
+            ...options,
+            implementation: cssLoader,
+          },
         },
       ],
       as: "*.css",

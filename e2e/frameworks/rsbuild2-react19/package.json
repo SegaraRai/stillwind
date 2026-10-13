@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@rsbuild/core": "2.2.4",
-    "@rsbuild/plugin-react": "2.1.0",
+    "@rsbuild/core": "2.2.12",
+    "@rsbuild/plugin-react": "2.1.1",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",

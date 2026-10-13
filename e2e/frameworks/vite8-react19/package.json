@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
@@ -14,8 +14,8 @@
     "@types/node": "catalog:",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.1.1",
-    "playwright": "1.63.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "playwright": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "next": "16.4.0-canary.25",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "server-only": "0.0.1",
     "stillwind": "workspace:*"
   },
@@ -15,7 +15,7 @@
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
-    "playwright": "1.63.0",
+    "playwright": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

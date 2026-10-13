@@ -21,7 +21,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@babel/code-frame": "^7.29.7",
+    "@babel/code-frame": "^8.0.6",
     "@stillwind/analysis": "workspace:*",
     "@stillwind/language-server": "workspace:*",
     "@stillwind/native": "workspace:*",

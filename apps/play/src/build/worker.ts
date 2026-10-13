@@ -178,15 +178,10 @@ self.onmessage = async ({
                   const refreshCode = Babel.transform(code, {
                     filename: args.path,
                     sourceType: "module",
-                    presets: [
-                      [
-                        "typescript",
-                        {
-                          allExtensions: true,
-                          isTSX: args.path.endsWith("x"),
-                        },
-                      ],
-                    ],
+                    presets: ["typescript"],
+                    parserOpts: {
+                      plugins: args.path.endsWith("x") ? ["jsx"] : [],
+                    },
                     plugins: [
                       [
                         "react-refresh",
@@ -196,7 +191,10 @@ self.onmessage = async ({
                         },
                       ],
                     ],
-                  }).code;
+                  })?.code;
+                  if (refreshCode == null) {
+                    throw new Error("React Refresh transformation did not generate code");
+                  }
                   code = `const $RefreshReg$ = (type, name) => window.$RefreshReg$(type, ${JSON.stringify(args.path + " ")} + name);\nconst $RefreshSig$ = window.$RefreshSig$;\n${refreshCode}`;
                 }
                 return {

@@ -91,8 +91,8 @@ placement policy. Emission does not change the cascade rules of external CSS.
 ## Web Components and explicit values
 
 ```ts
-import { css, parts } from "stillwind/module-css";
 import { styleSheets } from "stillwind/css";
+import { css, parts } from "stillwind/module-css";
 
 shadowRoot.adoptedStyleSheets = styleSheets(parts, shadowRoot.ownerDocument);
 // Alternatively pass `css` to an API that accepts stylesheet text.

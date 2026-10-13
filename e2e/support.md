@@ -8,8 +8,8 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | -------------------------------------- | ---------- | ------------- |
 | astro7-plain                           | default    | primary       |
 | astro7-plain                           | split      | primary       |
-| astro7-preact11-solid1                 | default    | primary       |
-| astro7-preact11-solid1                 | split      | primary       |
+| astro7-preact10-solid1                 | default    | primary       |
+| astro7-preact10-solid1                 | split      | primary       |
 | astro7-react19-svelte5-vue3            | default    | primary       |
 | astro7-react19-svelte5-vue3            | split      | primary       |
 | next16-react19                         | turbopack  | primary       |

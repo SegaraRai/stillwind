@@ -304,8 +304,9 @@ conditional values retain their short-circuiting. Evaluation is governed by the
 macro purity contract above.
 
 ```tsx
-import imageUrl from "./image.png?url";
 import { style } from "stillwind/react";
+
+import imageUrl from "./image.png?url";
 
 const props = style("bg-(image:--image) w-[calc(var(--progress)*100%)]", {
   "--image": `url("${imageUrl}")`,

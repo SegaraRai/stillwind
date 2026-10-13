@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "catalog:",
-    "playwright": "1.63.0"
+    "playwright": "catalog:"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
@@ -28,7 +28,7 @@
     "@stillwind/language-server": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@types/node": "catalog:",
-    "@vitest/browser-playwright": "5.0.1",
+    "@vitest/browser-playwright": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

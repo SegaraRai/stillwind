@@ -23,21 +23,23 @@ patchedDependencies:
 
 catalogs:
   default:
-    "@types/node": ^26.6.4
+    "@types/node": ^26.6.5
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
-    "@vitest/ui": 5.0.1
-    "@webref/css": 8.7.3
+    "@vitest/browser-playwright": 5.0.3
+    "@vitest/ui": 5.0.3
+    "@webref/css": 8.7.6
+    playwright: ^1.64.0
     tailwindcss: 4.3.3
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.0.0
-    vite-plus: 1.0.0
+    vite: npm:@voidzero-dev/vite-plus-core@1.1.0
+    vite-plus: 1.1.0
 
 overrides:
-  "@vitest/ui": 5.0.1
+  "@vitest/ui": 5.0.3
   vite@*: "catalog:"
-  vitest: 5.0.1
+  vitest: 5.0.3
 
 peerDependencyRules:
   allowAny:
@@ -46,5 +48,6 @@ peerDependencyRules:
     vite: "*"
 
 minimumReleaseAgeExclude:
-  - "@nuxt/cli@4.0.0"
-  - astro@7.3.8
+  - "@emnapi/core@2.0.0-beta.1"
+  - "@emnapi/runtime@2.0.0-beta.1"
+  - emnapi@2.0.0-beta.1

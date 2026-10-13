@@ -72,8 +72,8 @@ For Vite, use `stillwind()` without duplicating compiler settings:
 
 ```ts
 // vite.config.ts
-import { defineConfig } from "vite-plus";
 import { stillwind } from "@stillwind/integration/vite";
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   plugins: [stillwind()],

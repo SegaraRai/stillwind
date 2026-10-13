@@ -8,11 +8,11 @@
   },
   "devDependencies": {
     "@jridgewell/trace-mapping": "catalog:",
-    "@rsbuild/core": "2.2.4",
+    "@rsbuild/core": "2.2.12",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
-    "playwright": "1.63.0",
+    "playwright": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

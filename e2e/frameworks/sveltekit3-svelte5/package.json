@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@sveltejs/kit": "3.0.0",
+    "@sveltejs/kit": "3.0.1",
     "stillwind": "workspace:*",
-    "svelte": "5.57.1"
+    "svelte": "5.57.2"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",

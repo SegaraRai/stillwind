@@ -112,7 +112,7 @@ pub fn resolve_utility(
             let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
             resolution.arbitrary_uses.push(UtilityArbitraryUse {
                 base: true,
-                property: property.to_ascii_lowercase(),
+                property: property.as_str().to_ascii_lowercase(),
                 value: value.to_string(),
                 color: false,
             });
@@ -120,7 +120,7 @@ pub fn resolve_utility(
             if !tokens.is_empty() {
                 resolution.token_uses.push(UtilityTokenUse {
                     base: true,
-                    property: property.to_ascii_lowercase(),
+                    property: property.as_str().to_ascii_lowercase(),
                     tokens: tokens.into_iter().collect(),
                 });
             }

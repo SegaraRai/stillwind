@@ -17,6 +17,7 @@ export default defineConfig({
       "src/turbopack/css-loader.ts",
       "src/turbopack/index.ts",
       "src/turbopack/loader.ts",
+      "src/turbopack/node-loader.ts",
       "src/vite/index.ts",
       "src/vite/runtime-source-map.ts",
       "src/vite/runtime.ts",

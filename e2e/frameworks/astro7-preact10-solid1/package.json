@@ -1,16 +1,16 @@
 {
-  "name": "@stillwind-internal/e2e-astro7-preact11-solid1",
+  "name": "@stillwind-internal/e2e-astro7-preact10-solid1",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "astro": "7.3.5",
-    "preact": "11.0.0",
-    "solid-js": "1.9.15",
+    "astro": "7.3.8",
+    "preact": "10.29.8",
+    "solid-js": "1.9.17",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@astrojs/preact": "6.0.5",
+    "@astrojs/preact": "6.0.6",
     "@astrojs/solid-js": "7.0.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

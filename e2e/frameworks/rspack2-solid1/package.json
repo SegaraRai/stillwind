@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "solid-js": "1.9.15",
+    "solid-js": "1.9.17",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
@@ -14,10 +14,10 @@
     "@rspack/dev-server": "2.2.1",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.2",
+    "@swc/core": "1.16.18",
     "@types/node": "catalog:",
     "babel-loader": "10.1.1",
-    "babel-preset-solid": "1.9.15",
+    "babel-preset-solid": "1.9.16",
     "swc-loader": "0.2.7",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

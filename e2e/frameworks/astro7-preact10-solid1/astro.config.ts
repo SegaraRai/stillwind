@@ -8,8 +8,12 @@ export default defineConfig({
     stillwind({
       emission: process.env.STILLWIND_E2E_PROFILE === "split" ? "split" : "single",
     }),
-    preact({ include: ["**/preact/**"] }),
-    solid({ include: ["**/solid/**"] }),
+    preact({
+      include: ["**/preact/**"],
+    }),
+    solid({
+      include: ["**/solid/**"],
+    }),
   ],
   build: {
     inlineStylesheets: "never",

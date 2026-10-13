@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "preact": "11.0.0",
+    "preact": "11.0.1",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.2",
+    "@swc/core": "1.16.18",
     "@types/node": "catalog:",
     "html-webpack-plugin": "5.6.8",
     "swc-loader": "0.2.7",
