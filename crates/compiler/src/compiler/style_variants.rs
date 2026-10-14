@@ -6,8 +6,8 @@
 //! exactly like the same candidate written as one token. A ref wrapper cannot be
 //! spelled as a string: the selector depends on which element declares the ref and
 //! where it sits relative to the target, so the wrapper is lowered into
-//! [`VariantApplication`] alternatives that carry the generated markers and shared scope
-//! conditions.
+//! [`VariantApplication`] alternatives that carry the generated markers and shared
+//! scope conditions.
 //!
 //! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
 //! records the ref's generated identifiers and the authored prefix, independent of how
@@ -37,38 +37,41 @@ pub(super) struct StyleVariantPlan {
     pub(super) prefix: String,
     /// Identity-aware spelling for class hashing; independent of source syntax.
     pub(super) canonical: String,
-    /// Whether any wrapper uses ref identity and requires lowered selector applications.
+    /// Whether any wrapper uses ref identity and requires lowered selector
+    /// applications.
     pub(super) has_refs: bool,
     /// Parsed wrapper variants in traversal order, retained for utility ordering.
     variants: Vec<Variant>,
     /// Alternative application paths in expansion order; each inner vector preserves
     /// wrapper application order.
     paths: Vec<Vec<VariantApplication>>,
-    /// Number of parsed ordinary-prefix variants already passed to the candidate resolver.
+    /// Number of parsed ordinary-prefix variants already passed to the candidate
+    /// resolver.
     ordinary_count: usize,
 }
 
 impl StyleVariantPlan {
-    /// Compares resolved wrappers with the shared registry ordering and identity tie-break.
+    /// Compares resolved wrappers with the shared registry ordering and identity tie
+    /// break.
     pub fn compare_order(&self, other: &Self, theme: &ThemeIndex) -> std::cmp::Ordering {
         compare_variant_sequences(&self.variants, &other.variants, theme)
             .then_with(|| self.canonical.cmp(&other.canonical))
     }
 
-    /// Resolved alternatives, retaining every selector and condition for context validation.
+    /// Resolved alternatives, retaining every selector and condition for context
+    /// validation.
     pub fn applications(&self) -> &[Vec<VariantApplication>] {
         &self.paths
     }
 
-    /// Resolves the wrappers of one utility literal, reporting unusable prefixes.
+    /// Resolves the wrappers of one utility literal.
     ///
-    /// A ref wrapper with no known ref identity is an error rather than a fallthrough
-    /// to an unrelated selector, because that would silently target the wrong
-    /// element.
-    ///
-    /// Returns `None` after pushing a diagnostic; the caller must abandon the
-    /// contribution. A runtime condition inside a ref wrapper also rejects, since
-    /// computed-value conditions test the target rather than the referenced element.
+    /// Returns `None` when a wrapper condition is false or cannot be generated, and the
+    /// caller must lower the contribution as empty. A malformed or unknown prefix, a
+    /// ref condition with no ref declaration, and a prefix that cannot test the
+    /// referenced element add lint findings. A ref condition never falls back to an
+    /// unrelated selector, because that would apply the rules to the wrong element. A
+    /// failure to generate a ref marker name adds a fatal diagnostic.
     pub fn resolve(
         context: &IdentifierContext,
         wrappers: &[StyleVariant],
@@ -239,7 +242,7 @@ impl StyleVariantPlan {
     ) -> Option<()> {
         if refs.is_empty() {
             lint_findings.push(LintFinding::new(
-                LintDiagnostic::UnidentifiedRef,
+                LintDiagnostic::EmptyRefCondition,
                 query.span,
             ));
             return None;
@@ -434,9 +437,13 @@ struct ElementCondition {
 }
 
 /// Resolves all identity and prefix alternatives of one element condition. The caller
-/// supplies whether the selector will be inserted into `:has()`. Rejects target-only
-/// conditions, declaration effects, selectors that omit their subject, pseudo-elements
-/// and nested `:has()` selectors. Global media and support conditions remain guards.
+/// supplies whether the selector will be inserted into `:has()`. Global media and
+/// support conditions remain guards.
+///
+/// Returns `None` when the condition is false. An empty ref set adds
+/// `EmptyRefCondition`. Target-only conditions, declaration effects, selectors that
+/// omit their subject, pseudo-elements, and nested `:has()` selectors add
+/// `UnsupportedRefVariant`. A ref marker naming failure adds a fatal diagnostic.
 fn element_conditions(
     context: &IdentifierContext,
     theme: &ThemeIndex,
@@ -449,7 +456,7 @@ fn element_conditions(
         collect_variant_and_applications(theme, &condition.prefix, lint_findings)?;
     if condition.refs.is_empty() {
         lint_findings.push(LintFinding::new(
-            LintDiagnostic::UnidentifiedRef,
+            LintDiagnostic::EmptyRefCondition,
             condition.prefix.span,
         ));
         return None;
@@ -467,7 +474,7 @@ fn element_conditions(
         for path in &paths {
             let Some(predicate) = reference_path(&marker, path, inside_has) else {
                 lint_findings.push(LintFinding::new(
-                    LintDiagnostic::UnavailableVariantPrefix,
+                    LintDiagnostic::UnsupportedRefVariant,
                     condition.prefix.span,
                 ));
                 return None;
@@ -728,7 +735,10 @@ mod add_ref_tests {
         assert!(!plan.has_refs);
         assert_eq!(diagnostics, [] as [CompileError; 0]);
         assert_eq!(lint_findings.len(), 1);
-        assert_eq!(lint_findings[0].diagnostic, LintDiagnostic::UnidentifiedRef);
+        assert_eq!(
+            lint_findings[0].diagnostic,
+            LintDiagnostic::EmptyRefCondition
+        );
         assert_eq!(lint_findings[0].labels[0].span, prefix.span);
     }
 

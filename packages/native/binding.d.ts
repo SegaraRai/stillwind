@@ -1067,8 +1067,6 @@ export interface NativeLintOptions {
   macroArgumentMutation?: string
   /** Settings for `macro-execution-boundary`. */
   macroExecutionBoundary?: string
-  /** Settings for `invalid-motion-utility`. */
-  invalidMotionUtility?: string
   /** Settings for `invalid-variant-input`. */
   invalidVariantInput?: string
   /** Settings for `invalid-style-input`. */
@@ -1091,8 +1089,6 @@ export interface NativeLintOptions {
   invalidViewTransitionVariant?: string
   /** Settings for `invalid-ref-input`. */
   invalidRefInput?: string
-  /** Settings for `invalid-variant-prefix`. */
-  invalidVariantPrefix?: string
   /** Settings for `invalid-animation-option`. */
   invalidAnimationOption?: string
   /** Settings for `invalid-style-composition`. */

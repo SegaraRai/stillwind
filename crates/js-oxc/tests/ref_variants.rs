@@ -415,7 +415,8 @@ fn container_queries_and_projections_cannot_supply_ref_variant_receivers_or_scop
                 finding.diagnostic,
                 LintDiagnostic::InvalidRefVariantReceiver
                     | LintDiagnostic::InvalidRefScopeArguments
-                    | LintDiagnostic::UnidentifiedRefVariant
+                    | LintDiagnostic::NonRefVariantReceiver
+                    | LintDiagnostic::IncompleteRefCondition
             )),
             "{expression}: {:?}",
             parsed.diagnostics

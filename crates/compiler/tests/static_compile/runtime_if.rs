@@ -1,13 +1,35 @@
 //! Experimental computed-value conditions through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
-use stillwind_diagnostics::CompileError;
+use stillwind_diagnostics::{CompileError, LintDiagnostic, UtilityFailure};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
 use stillwind_test_support::css_source;
 
 use super::*;
+
+/// Asserts that a malformed runtime condition capture lowers `candidate` as an omitted
+/// invalid utility.
+fn assert_invalid_capture(result: &CompileResult, candidate: &str) {
+    assert_eq!(result.diagnostics, [] as [CompileError; 0], "{candidate}");
+    assert!(
+        result.lint_findings.iter().any(|finding| matches!(
+            &finding.diagnostic,
+            LintDiagnostic::UnresolvedUtility {
+                classification: UtilityFailure::Invalid,
+                ..
+            }
+        )),
+        "{candidate}: {:?}",
+        result.lint_findings
+    );
+    assert!(
+        result.module_css.is_empty(),
+        "{candidate}: {}",
+        result.module_css
+    );
+}
 
 fn compile(candidates: &str, native: bool) -> CompileResult {
     compile_arguments(&format!("{candidates:?}"), native)
@@ -168,9 +190,9 @@ fn runtime_if_variant_name_is_owned_by_css_registration() {
         compile_registered("if(--c):flex", registration).module_css,
         ""
     );
-    assert_ne!(
-        compile_registered("when(!!--c):flex", registration).diagnostics,
-        [] as [CompileError; 0]
+    assert_invalid_capture(
+        &compile_registered("when(!!--c):flex", registration),
+        "when(!!--c):flex",
     );
     for body in [
         "@stillwind-intrinsic unknown;",
@@ -242,8 +264,8 @@ fn runtime_if_nested_conditions_and_typed_overloads() {
 
 #[test]
 fn runtime_if_rejects_invalid_conditions_and_fallback_css_wide_true_values() {
+    assert_invalid_capture(&compile("if(enabled):flex", false), "if(enabled):flex");
     for candidate in [
-        "if(enabled):flex",
         "[display:--if(--a,flex)]",
         "[display:--if(--a,inherit,grid)]",
     ] {
@@ -273,11 +295,10 @@ fn runtime_if_negation_swaps_values_and_rejects_double_negation() {
             "{}",
             result.module_css
         );
-        for candidate in ["if(!!--c):flex", "[width:--if(!!--c,20px,10px)]"] {
-            let result = compile(candidate, native);
-            assert!(!result.diagnostics.is_empty(), "{candidate}");
-            assert!(result.css.is_empty() && result.transforms.is_empty());
-        }
+        assert_invalid_capture(&compile("if(!!--c):flex", native), "if(!!--c):flex");
+        let result = compile("[width:--if(!!--c,20px,10px)]", native);
+        assert_ne!(result.diagnostics, [] as [CompileError; 0]);
+        assert!(result.css.is_empty() && result.transforms.is_empty());
     }
 }
 
@@ -360,16 +381,13 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
         "{}",
         result.module_css
     );
-    for candidate in [
-        "if(--mode:):flex",
-        "if(!!--mode:compact):flex",
-        "[width:--if(--mode:,20px,10px)]",
-    ] {
-        assert!(
-            !compile(candidate, true).diagnostics.is_empty(),
-            "{candidate}"
-        );
+    for candidate in ["if(--mode:):flex", "if(!!--mode:compact):flex"] {
+        assert_invalid_capture(&compile(candidate, true), candidate);
     }
+    assert_ne!(
+        compile("[width:--if(--mode:,20px,10px)]", true).diagnostics,
+        [] as [CompileError; 0]
+    );
 }
 
 #[test]

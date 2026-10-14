@@ -43,6 +43,18 @@ Keep checker propagation separate from the delivery of actual asset definitions.
 Sources: [module graph](../packages/host/src/compilation/module-graph.ts),
 [semantic values](../crates/semantic/src/symbolic.rs).
 
+## Runtime conditions in arbitrary values
+
+A malformed capture in a runtime condition variant, such as `if(!!--c):flex`, lowers
+as an omitted invalid utility. A failed `--if()` function in an arbitrary value, such
+as `[width:--if(!!--c,20px,10px)]`, still produces `InvalidRuntimeConditional` because
+the compiler lowers these functions after it renders the CSS. Validate each candidate's
+functions before emission so that the candidate can be omitted with an input lint.
+Keep failures in authored CSS fatal.
+
+Sources: [runtime conditionals](../crates/compiler/src/compiler/conditionals.rs),
+[utility literals](../crates/compiler/src/compiler/literal.rs).
+
 ## View-transition keys
 
 The linter counts transition-name suppliers but does not detect repeated-render

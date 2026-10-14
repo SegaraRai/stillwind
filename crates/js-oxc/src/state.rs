@@ -75,10 +75,15 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) in_cva: bool,
     /// Diagnostics raised during extraction, in visit order.
     pub(crate) diagnostics: Vec<CompileError>,
-    /// Advisory findings raised during extraction, in visit order.
+    /// Lint findings raised during extraction, in visit order. Reporting settings never
+    /// change the IR or the omitted inputs.
     pub(crate) lint_findings: Vec<LintFinding>,
+    /// Source replacements that turn unsupported CVA entries into empty entries, in
+    /// visit order.
     pub(crate) cva_replacements: Vec<CvaReplacement>,
-    /// Whether extraction collects advisory findings. Fatal diagnostics and IR extraction remain enabled.
+    /// Whether extraction collects lint directives and findings that do not affect
+    /// output. Findings for omitted inputs, fatal diagnostics, and IR extraction stay
+    /// enabled.
     pub(crate) lint: bool,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
@@ -162,10 +167,14 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Records that the source expression at `span` is erased from generated code.
+    /// Nested macro reads inside it are erased with it.
     pub(crate) fn omit_input(&mut self, span: oxc::span::Span) {
         self.omitted_inputs.push(self.source_span(span));
     }
 
+    /// Returns whether `span` lies inside an expression recorded by
+    /// [`Self::omit_input`].
     pub(crate) fn input_is_omitted(&self, span: oxc::span::Span) -> bool {
         let span = self.source_span(span);
         self.omitted_inputs.iter().any(|omitted| {

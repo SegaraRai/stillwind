@@ -9,6 +9,7 @@ use stillwind_design_system::{
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
+    UtilityFailure,
 };
 use stillwind_source::{Span, Spanned};
 use stillwind_syntax::parse_candidate;
@@ -59,9 +60,10 @@ impl LiteralContribution {
     /// marks a Tailwind relationship. An unresolved candidate is omitted from class
     /// output and canonical input; enabled lint rules report it. A resolved candidate
     /// whose own variants would apply to the document is reported without changing its
-    /// output, because the host decides that policy's severity. A malformed
-    /// CSS-registered runtime condition appends a compile diagnostic and skips that
-    /// candidate; callers must discard the compilation if diagnostics are present.
+    /// output, because the host decides that policy's severity. A candidate with a
+    /// malformed capture of a CSS-registered runtime condition is omitted as an invalid
+    /// utility. A malformed utility requirement in the design system appends a fatal
+    /// diagnostic, and callers must discard the compilation if diagnostics are present.
     pub(super) fn resolve(
         value: &Spanned<String>,
         plan: &StyleVariantPlan,
@@ -90,12 +92,15 @@ impl LiteralContribution {
                         && is_condition_variant(&variant.raw, theme)
                 })
             }) {
-                diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidRuntimeConditional {
-                        detail: "invalid CSS-registered if-condition capture".to_owned(),
-                    },
-                    utility.span,
-                ));
+                if lint_settings.enabled_for_detection(LintKind::InvalidUtility) {
+                    lint_findings.push(LintFinding::new(
+                        LintDiagnostic::UnresolvedUtility {
+                            utility: utility.value.raw.clone(),
+                            classification: UtilityFailure::Invalid,
+                        },
+                        utility.span,
+                    ));
+                }
                 continue;
             }
             if lint_settings.enabled_for_detection(LintKind::PreferTypedRelationships)

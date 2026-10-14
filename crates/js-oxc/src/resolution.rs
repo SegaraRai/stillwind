@@ -2,23 +2,30 @@
 
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
+use oxc::syntax::operator::LogicalOperator;
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
+use stillwind_ir::{ClassExpression, ConditionalBranches};
 use stillwind_semantic::{AssetKind, CheckedValue, ExportedValue, IdentityId};
 
 use crate::state::MacroExtractor;
 
-/// A proven unsupported value or information still needed to identify candidates.
+/// The reason an expression cannot supply declaration identities.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ResolutionFailure {
-    /// The value is known and cannot supply the requested asset family.
+    /// The value is known and cannot supply the requested asset family. Every branch of
+    /// a conditional expression has this result.
     Unsupported,
-    /// The checker has not provided usable, finite candidates.
+    /// The checker has not provided usable, finite candidates for at least one value.
     MissingFacts,
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Reports an unsupported receiver when its value is known, or missing checker
-    /// facts when a nonlocal expression still needs identity resolution.
+    /// Reports a failed resolution of `expression`.
+    ///
+    /// `Unsupported` adds the `unsupported` lint, and the caller lowers the input as
+    /// empty or false. `MissingFacts` adds the fatal `missing` diagnostic because
+    /// lowering cannot choose a runtime form.
     pub(crate) fn report_resolution_failure(
         &mut self,
         expression: &Expression<'a>,
@@ -39,13 +46,132 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Adds `unsupported` at each conditional branch of `expression` that cannot supply
+    /// `kind`. Call this after the whole expression resolved successfully.
+    ///
+    /// Literal `null`, `undefined`, and `false` branches add no finding because they
+    /// select no value, as they do in other style inputs.
+    pub(crate) fn report_unsupported_branches(
+        &mut self,
+        expression: &Expression<'a>,
+        kind: AssetKind,
+        unsupported: &LintDiagnostic,
+    ) {
+        let branches = match expression.get_inner_expression() {
+            Expression::ConditionalExpression(conditional) => {
+                [&conditional.consequent, &conditional.alternate]
+            }
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
+                self.report_unsupported_branches(&logical.right, kind, unsupported);
+                return;
+            }
+            _ => return,
+        };
+        for branch in branches {
+            match self.asset_candidates(branch, kind) {
+                Ok(_) => self.report_unsupported_branches(branch, kind, unsupported),
+                Err(ResolutionFailure::Unsupported) if !selects_no_value(branch) => {
+                    self.lint_findings.push(LintFinding::new(
+                        unsupported.clone(),
+                        self.source_span(branch.span()),
+                    ));
+                }
+                Err(_) => {}
+            }
+        }
+    }
+
+    /// Returns whether a use on `receiver` must lower each conditional branch
+    /// separately.
+    ///
+    /// A runtime lookup reads the receiver value, so it is valid only when every branch
+    /// supplies `kind`. A `&&` receiver, a branch that selects no value, and an
+    /// unsupported branch require [`Self::lower_receiver_branches`]. A receiver that is
+    /// not `?:` or `&&` never requires it.
+    pub(crate) fn needs_branch_lowering(&self, receiver: &Expression<'a>, kind: AssetKind) -> bool {
+        match receiver.get_inner_expression() {
+            Expression::ConditionalExpression(conditional) => {
+                [&conditional.consequent, &conditional.alternate]
+                    .into_iter()
+                    .any(|branch| {
+                        self.needs_branch_lowering(branch, kind)
+                            || self.asset_candidates(branch, kind).is_err()
+                    })
+            }
+            Expression::LogicalExpression(logical) => logical.operator == LogicalOperator::And,
+            _ => false,
+        }
+    }
+
+    /// Lowers a use separately for each branch of a conditional `receiver`.
+    ///
+    /// A `?:` receiver becomes a ternary and a `&&` receiver becomes a logical AND, so
+    /// the runtime evaluates only the use of the selected branch. Conditional branches
+    /// expand in the same way. `lower` receives every other receiver and returns its
+    /// contribution, or `None` for an empty contribution. Literal `null`, `undefined`,
+    /// and `false` branches contribute nothing without calling `lower`.
+    ///
+    /// Returns `None` when every branch is empty.
+    pub(crate) fn lower_receiver_branches(
+        &mut self,
+        receiver: &Expression<'a>,
+        lower: &mut dyn FnMut(&mut Self, &Expression<'a>) -> Option<ClassExpression>,
+    ) -> Option<ClassExpression> {
+        let receiver = receiver.get_inner_expression();
+        let (test, branches) = match receiver {
+            Expression::ConditionalExpression(conditional) => (
+                conditional.test.span(),
+                ConditionalBranches::Ternary {
+                    consequent: self.lower_receiver_branch(&conditional.consequent, lower),
+                    alternate: self.lower_receiver_branch(&conditional.alternate, lower),
+                },
+            ),
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => (
+                logical.left.span(),
+                ConditionalBranches::And {
+                    consequent: self.lower_receiver_branch(&logical.right, lower),
+                },
+            ),
+            _ => return lower(self, receiver),
+        };
+        let empty = match &branches {
+            ConditionalBranches::And { consequent } => consequent.is_empty(),
+            ConditionalBranches::Ternary {
+                consequent,
+                alternate,
+            } => consequent.is_empty() && alternate.is_empty(),
+        };
+        (!empty).then(|| ClassExpression::Conditional {
+            test: self.source_span(test),
+            branches,
+        })
+    }
+
+    /// Lowers one branch for [`Self::lower_receiver_branches`].
+    fn lower_receiver_branch(
+        &mut self,
+        branch: &Expression<'a>,
+        lower: &mut dyn FnMut(&mut Self, &Expression<'a>) -> Option<ClassExpression>,
+    ) -> Vec<ClassExpression> {
+        if selects_no_value(branch) {
+            return Vec::new();
+        }
+        self.lower_receiver_branches(branch, lower)
+            .into_iter()
+            .collect()
+    }
+
     /// Resolves finite declaration identities for `kind`. Checker facts take precedence
-    /// over local values. Conditional branches must both supply the requested kind.
+    /// over local values.
+    ///
+    /// Conditional branches resolve independently. The result contains the candidates
+    /// of supported branches, so an unsupported branch selects no declaration. The
+    /// right operand supplies the candidates of `&&`.
     ///
     /// Returns `Unsupported` for syntax that cannot carry an asset, checked non-assets,
-    /// or a known different asset family.
-    /// Returns `MissingFacts` for absent facts or nonfinite candidates. A selection
-    /// containing supported and unsupported branches also needs more information.
+    /// a known different asset family, or a conditional whose branches are all
+    /// unsupported. Returns `MissingFacts` when any branch has absent facts or
+    /// nonfinite candidates.
     pub(crate) fn asset_candidates(
         &self,
         expression: &Expression<'a>,
@@ -60,21 +186,30 @@ impl<'a> MacroExtractor<'a> {
             };
         }
         if let Expression::ConditionalExpression(conditional) = expression {
-            return match (
+            // Resolve both branches before returning so that each branch records its probe.
+            let branches = [
                 self.asset_candidates(&conditional.consequent, kind),
                 self.asset_candidates(&conditional.alternate, kind),
-            ) {
-                (Ok(mut left), Ok(right)) => {
-                    left.extend(right);
-                    left.sort();
-                    left.dedup();
-                    Ok(left)
+            ];
+            let mut resolved = None::<Vec<IdentityId>>;
+            for branch in branches {
+                match branch {
+                    Ok(values) => resolved.get_or_insert_default().extend(values),
+                    Err(ResolutionFailure::Unsupported) => {}
+                    Err(ResolutionFailure::MissingFacts) => {
+                        return Err(ResolutionFailure::MissingFacts);
+                    }
                 }
-                (Err(ResolutionFailure::Unsupported), Err(ResolutionFailure::Unsupported)) => {
-                    Err(ResolutionFailure::Unsupported)
-                }
-                _ => Err(ResolutionFailure::MissingFacts),
-            };
+            }
+            let mut resolved = resolved.ok_or(ResolutionFailure::Unsupported)?;
+            resolved.sort();
+            resolved.dedup();
+            return Ok(resolved);
+        }
+        if let Expression::LogicalExpression(logical) = expression
+            && logical.operator == LogicalOperator::And
+        {
+            return self.asset_candidates(&logical.right, kind);
         }
         if let Expression::Identifier(identifier) = expression {
             let value = identifier
@@ -86,8 +221,20 @@ impl<'a> MacroExtractor<'a> {
                 candidates(value, kind)
             });
         }
-        match expression {
-            Expression::StringLiteral(_)
+        if cannot_carry_asset(expression) {
+            Err(ResolutionFailure::Unsupported)
+        } else {
+            Err(ResolutionFailure::MissingFacts)
+        }
+    }
+}
+
+/// Returns whether the syntax of `expression` proves that its value is not a Stillwind
+/// asset, so that it needs no checker fact.
+pub(crate) fn cannot_carry_asset(expression: &Expression<'_>) -> bool {
+    matches!(
+        expression.get_inner_expression(),
+        Expression::StringLiteral(_)
             | Expression::NumericLiteral(_)
             | Expression::BooleanLiteral(_)
             | Expression::NullLiteral(_)
@@ -100,16 +247,31 @@ impl<'a> MacroExtractor<'a> {
             | Expression::FunctionExpression(_)
             | Expression::UnaryExpression(_)
             | Expression::UpdateExpression(_)
-            | Expression::BinaryExpression(_) => Err(ResolutionFailure::Unsupported),
-            _ => Err(ResolutionFailure::MissingFacts),
-        }
+            | Expression::BinaryExpression(_)
+    )
+}
+
+/// Returns whether `expression` is a literal that selects no value in a branch.
+pub(crate) fn selects_no_value(expression: &Expression<'_>) -> bool {
+    match expression.get_inner_expression() {
+        Expression::NullLiteral(_) => true,
+        Expression::BooleanLiteral(value) => !value.value,
+        Expression::Identifier(identifier) => identifier.name == "undefined",
+        _ => false,
     }
 }
 
+/// Returns the finite candidates of `value` when it belongs to `expected`.
+///
+/// The asset family is compared first. A known different family is unsupported even
+/// when its candidates are not finite.
 fn candidates(
     value: &ExportedValue,
     expected: AssetKind,
 ) -> Result<Vec<IdentityId>, ResolutionFailure> {
+    if value.kind() != expected {
+        return Err(ResolutionFailure::Unsupported);
+    }
     let (ExportedValue::Styles(symbolic)
     | ExportedValue::Refs(symbolic)
     | ExportedValue::Keyframes(symbolic)
@@ -117,8 +279,5 @@ fn candidates(
     let values = symbolic
         .finite_candidates()
         .ok_or(ResolutionFailure::MissingFacts)?;
-    if value.kind() != expected {
-        return Err(ResolutionFailure::Unsupported);
-    }
     Ok(values.iter().cloned().collect())
 }

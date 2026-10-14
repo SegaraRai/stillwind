@@ -1,14 +1,18 @@
-//! Recoverable inputs, empty assets, and omission independent of lint reporting.
+//! Lowering of invalid input to empty or false meaning, empty assets, and omission
+//! independent of lint reporting.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintOverrides, LintSeverity};
+use stillwind_diagnostics::{
+    CompileDiagnostic, LintDiagnostic, LintKind, LintOverrides, LintSeverity,
+};
 use stillwind_ir::{
     ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
     composition_dependencies,
 };
-use stillwind_js_oxc::OxcSourceAnalyzer;
+use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
@@ -45,7 +49,6 @@ fn options(severity: LintSeverity) -> CompilerOptions {
         lint: LintOverrides {
             invalid_style_input: Some(severity),
             invalid_variant_input: Some(severity),
-            invalid_variant_prefix: Some(severity),
             invalid_ref_input: Some(severity),
             invalid_keyframes_definition: Some(severity),
             invalid_keyframes_use: Some(severity),
@@ -53,11 +56,12 @@ fn options(severity: LintSeverity) -> CompilerOptions {
             invalid_view_transition_definition: Some(severity),
             invalid_view_transition_use: Some(severity),
             invalid_view_transition_variant: Some(severity),
-            invalid_motion_utility: Some(severity),
             invalid_animation_option: Some(severity),
             invalid_cva_config: Some(severity),
             invalid_cva_input: Some(severity),
             invalid_style_composition: Some(severity),
+            invalid_utility: Some(severity),
+            unknown_utility: Some(severity),
             ..LintOverrides::default()
         },
         ..CompilerOptions::default()
@@ -108,10 +112,14 @@ fn unsupported_operands_preserve_supported_siblings_at_every_reporting_level() {
                 result.css
             );
             assert!(
-                result.lint_findings.iter().all(|finding| result
-                    .lint_settings
-                    .reporting_severity(finding.kind())
-                    == severity),
+                result
+                    .lint_findings
+                    .iter()
+                    .filter(|finding| finding.kind() != LintKind::RequireRefAttachment)
+                    .all(
+                        |finding| result.lint_settings.reporting_severity(finding.kind())
+                            == severity
+                    ),
                 "{input}: {result:#?}"
             );
         }
@@ -226,7 +234,7 @@ fn cva_removes_invalid_conditions_as_whole_compounds() {
         assert!(!code.contains("class:'b'"), "{code}");
         assert!(!code.contains("on:42"), "{code}");
         let checked = SourceFile::new(FileId(3), None, None, code).unwrap();
-        let parsed = stillwind_js_oxc::parse(
+        let parsed = parse(
             &checked,
             &ModuleId::from("output.tsx"),
             &[],
@@ -324,8 +332,8 @@ fn graph_cycles_remain_fatal_and_incompatible_framework_operands_are_omitted() {
         let mut second = analyzed("second.ts", framework);
         compose_external(&mut first, base_identity(&second));
         compose_external(&mut second, base_identity(&first));
-        let recovered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
-        for module in &recovered {
+        let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
+        for module in &lowered {
             if framework == "react" {
                 assert!(
                     module
@@ -381,5 +389,131 @@ fn known_unsupported_identities_are_omitted_but_missing_facts_remain_fatal() {
         );
         assert!(!result.diagnostics.is_empty(), "{input}");
         assert!(result.transforms.is_empty(), "{input}: {result:#?}");
+    }
+}
+
+#[test]
+fn composition_operands_with_mixed_bases_require_a_conditional_expression() {
+    let mut first = analyzed("first.ts", "react");
+    let second = analyzed("second.ts", "vue");
+    let candidates = vec![base_identity(&first), base_identity(&second)];
+    let call = &mut first.ir.style_calls[1];
+    call.inputs.insert(
+        0,
+        StyleInput::Composition {
+            value: call.span,
+            candidates,
+        },
+    );
+    let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
+    assert!(
+        lowered[0]
+            .diagnostics
+            .iter()
+            .any(|error| error.diagnostic == CompileDiagnostic::MixedStyleBaseCandidates),
+        "{:#?}",
+        lowered[0]
+    );
+    assert!(lowered[1].diagnostics.is_empty(), "{:#?}", lowered[1]);
+}
+
+#[test]
+fn receivers_with_unsupported_branches_lower_one_use_per_branch() {
+    for (input, lint) in [
+        (
+            "(enabled ? frames : 1)('1s')",
+            LintDiagnostic::InvalidKeyframesReceiver,
+        ),
+        (
+            "(enabled ? ref : 1).asAnchor()",
+            LintDiagnostic::InvalidRefProjection,
+        ),
+        (
+            "(enabled ? transition : 1).for('a')",
+            LintDiagnostic::InvalidViewTransitionReceiver,
+        ),
+    ] {
+        let (_, result) = compile(
+            &format!(
+                "declare const enabled: boolean; const frames=style.keyframes({{}}); const ref=style.ref(); const transition=style.viewTransition({{}}); const x=style('a',{input});"
+            ),
+            CSS,
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+        assert!(
+            result
+                .lint_findings
+                .iter()
+                .any(|finding| finding.diagnostic == lint),
+            "{input}: {result:#?}"
+        );
+        let replacement = result
+            .transforms
+            .iter()
+            .map(|transform| transform.replacement.as_str())
+            .collect::<String>();
+        assert!(
+            replacement.contains("enabled") && !replacement.contains(": 1"),
+            "{input}: the runtime must test the condition and must not read the unsupported receiver: {replacement}"
+        );
+    }
+    for input in [
+        "(enabled && frames)('1s')",
+        "(enabled ? ref : null).asAnchor()",
+        "{[(enabled ? ref : 1)('hover:')]: 'b'}",
+    ] {
+        let (_, result) = compile(
+            &format!(
+                "declare const enabled: boolean; const frames=style.keyframes({{}}); const ref=style.ref(); const x=style('a',{input});"
+            ),
+            CSS,
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+        assert!(result.css.contains("color:red"), "{input}: {}", result.css);
+    }
+}
+
+#[test]
+fn invalid_options_lower_as_omitted_arguments() {
+    for (input, expected) in [
+        ("ref.asContainer('bad')", "container-name"),
+        ("ref.asAnchor('bad')", "anchor-name"),
+        ("ref.positionAnchor(42)", "position-anchor"),
+    ] {
+        let (_, result) = compile(
+            &format!("const ref=style.ref(); const x=style('a',{input});"),
+            CSS,
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+        let input_lints = result
+            .lint_findings
+            .iter()
+            .filter(|finding| finding.kind() != LintKind::RequireRefAttachment)
+            .count();
+        assert_eq!(input_lints, 1, "{input}: {:#?}", result.lint_findings);
+        assert!(result.css.contains(expected), "{input}: {}", result.css);
+    }
+}
+
+#[test]
+fn unknown_variants_share_the_utility_rules_wherever_they_appear() {
+    for input in ["'unknown:a'", "{'unknown:': 'a'}"] {
+        let (_, result) = compile(
+            &format!("const x=style('b',{input});"),
+            CSS,
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+        assert!(
+            result
+                .lint_findings
+                .iter()
+                .any(|finding| finding.kind() == LintKind::UnknownUtility),
+            "{input}: {result:#?}"
+        );
+        assert!(!result.css.contains("color:red"), "{input}: {}", result.css);
     }
 }

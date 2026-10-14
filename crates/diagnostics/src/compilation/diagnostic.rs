@@ -20,9 +20,6 @@ pub enum CompileDiagnostic {
     /// Checker facts assign a symbolic value to an incompatible asset kind.
     #[error("invalid symbolic kinds in TypeScript facts")]
     InvalidSymbolicFacts,
-    /// A style input array contains an omitted element.
-    #[error("style() arrays cannot contain empty slots")]
-    StyleArrayHole,
     /// A ref cannot be resolved locally without host checker facts.
     #[error("non-local or conditional refs require TypeScript checker facts")]
     RefFactsRequired,
@@ -43,9 +40,15 @@ pub enum CompileDiagnostic {
     /// A ref projection cannot be resolved locally without host checker facts.
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
-    /// A container query variant has an invalid argument or interpolated query.
-    #[error("ref.at() accepts no arguments, one literal query, or a static template")]
-    InvalidContainerQuery,
+    /// A keyframes receiver cannot be resolved locally without host checker facts.
+    #[error("non-local keyframes receivers require TypeScript checker facts")]
+    KeyframesFactsRequired,
+    /// A view-transition receiver cannot be resolved locally without host checker facts.
+    #[error("non-local view transition receivers require TypeScript checker facts")]
+    ViewTransitionFactsRequired,
+    /// A style input value cannot be resolved locally without host checker facts.
+    #[error("non-local style() inputs require TypeScript checker facts")]
+    StyleInputFactsRequired,
     /// Style producers form a cycle within the composition graph.
     #[error("style composition dependency cycle")]
     CompositionCycle,
@@ -55,6 +58,14 @@ pub enum CompileDiagnostic {
     /// A composition dependency has no available producer artifact.
     #[error("style base producer is unavailable")]
     UnavailableStyleBase,
+    /// One composition operand may hold a supported or an unsupported base at runtime.
+    ///
+    /// The runtime passes the operand value through, so lowering cannot replace only
+    /// the unsupported bases with empty contributions.
+    #[error(
+        "a style base value mixes supported and unsupported bases; select them with a conditional expression"
+    )]
+    MixedStyleBaseCandidates,
     /// Two generated symbols would publish the same identifier.
     #[error("generated identifier collision: {name}")]
     GeneratedIdentifierCollision {

@@ -23,11 +23,31 @@ class values through `{ class: expression }`.
 
 ## Unsupported input
 
-The compiler reports and omits input that it can prove unsupported, and retains supported
-siblings. Invalid operands, object properties, spreads, utility templates, declaration
-entries, labels, and motion
-options produce lint findings. The corresponding `invalid-*` rules default to `deny`.
-Reporting settings and `swlint-*` suppression change reporting without changing output.
+Each macro call lowers one to one into a runtime form. Optimizations apply only to the
+generated form. Invalid input also has a defined runtime meaning:
+
+- An invalid contribution, such as a utility, attribute, option, or entry, is empty.
+- An invalid condition, such as a variant, a ref condition, or a media argument, is false.
+
+Omission is the result of this lowering. It is not recovery from an error, so lint
+severity and `swlint-*` suppression change reporting without changing output.
+
+The compiler classifies each problem by what it can still determine:
+
+| Problem                                                                                                                                                  | Result                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| The source cannot be read: parse, source-map, or projection failures                                                                                     | Compilation error          |
+| The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection | Compilation error          |
+| The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                      | Omission and an input lint |
+| Output is valid but violates project rules: constraints, canonical spelling, or `require-element-scope`                                                  | Policy lint only           |
+| A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots               | Compilation error          |
+| The environment or configuration is invalid                                                                                                              | Compilation error          |
+
+CSS ordering of composition bases is an explicit exception to one-to-one lowering,
+because a derived call must follow its bases in the stylesheet.
+
+Unknown and malformed utilities and variants use `unknown-utility` and `invalid-utility`,
+wherever they appear. Other input lints use `invalid-*` rules, which default to `deny`.
 
 An invalid CSS variant discards its complete conditioned subtree. Removing only the
 condition would apply its rules to elements that the author did not select. An empty
@@ -36,23 +56,42 @@ definition retains its binding and declaration identity. It emits no definition 
 and requires no definition slot; valid uses, including `transition.for(key)`, retain
 their normal meaning.
 
+An invalid argument of `asAnchor()`, `asContainer()`, `positionAnchor()`, a keyframes
+use, or `transition.for()` lowers as if the argument were omitted. An anchor scope entry
+that is not a ref contributes no identity.
+
 Invalid CVA values contribute nothing. Unsupported configuration properties and defaults
 are omitted independently. Invalid compound conditions discard the complete compound.
-An unsupported factory signature becomes an empty factory. Incompatible style composition
-operands are omitted before the remaining dependencies are ordered. Style dependency cycles
-produce `SW06002`; cycles in CSS module placement produce `SW06003`. Neither cycle can
-be suppressed because it prevents a valid output order.
+An unsupported factory signature becomes an empty factory.
 
-JavaScript and CSS parse failures, invalid source correspondence, missing or invalid
-checker facts, unavailable producer artifacts, inconsistent framework selection, generated
-identifier failures, malformed authored CSS, and missing required output slots remain
-compilation errors. Macro uses that remain outside supported input positions also remain
-compilation errors.
+### Conditional receivers
 
-Checker facts carry finite asset candidates or `null` for a confirmed non-asset.
-An absent fact or a nonfinite candidate set does not confirm that a value is unsupported.
-Required identities must be established before the compiler can produce output. A receiver
-selection that mixes supported and unsupported branches remains a compilation error.
+Conditional expressions lower each branch separately. An unsupported branch contributes
+nothing or is false, and supported branches keep their meaning. Literal `null`,
+`undefined`, and `false` branches select no value without a lint.
+
+A ref condition, a `.in()` scope operand, and a `ref.at()` receiver test every ref that
+their branches can supply. A branch that is not a ref contributes no candidate.
+
+A keyframes use, `transition.for()`, and a ref projection read their receiver at runtime.
+When a `?:` receiver has an unsupported branch, or the receiver is a `&&` expression,
+the use lowers into one use per branch. When every branch is supported, one use selects
+its declaration from the receiver value.
+
+A composition operand passes its value to the runtime. An operand whose bases are all
+incompatible is omitted before the remaining dependencies are ordered. An operand that
+can hold a compatible or an incompatible base produces `SW06008`, because its runtime
+value cannot be split into branches. Select such bases with a conditional expression.
+Style dependency cycles produce `SW06002`; cycles in CSS module placement produce
+`SW06003`. Neither cycle can be suppressed because it prevents a valid output order.
+
+### Checker facts
+
+Checker facts carry finite asset candidates or `null` for a confirmed non-asset. Only a
+value whose type is primitive is a confirmed non-asset. A value of an object type may be
+an asset whose type was widened, so it needs facts. An absent fact or a nonfinite
+candidate set does not confirm that a value is unsupported. Required identities must be
+established before the compiler can produce output.
 
 ## Materialization and consumption sites
 

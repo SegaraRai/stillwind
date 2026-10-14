@@ -138,7 +138,7 @@ export const valid=style('[display:block]');`,
     };
     const reports = session.diagnose([source])[0].reports;
     expect(reports.map((report: { code: string }) => report.code)).toEqual(
-      expect.arrayContaining(["SW03001", "unknown-utility"]),
+      expect.arrayContaining(["SW01016", "unknown-utility"]),
     );
     expect(reports.map((report: { code: string }) => report.code)).toContain(
       "valid-lint-suppressions",

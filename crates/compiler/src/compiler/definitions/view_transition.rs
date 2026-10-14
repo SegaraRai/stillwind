@@ -9,7 +9,9 @@ use super::super::CssContribution;
 use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_options};
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
-use super::super::utilities::{combine_declarations_for_theme, resolve_utility};
+use super::super::utilities::{
+    combine_declarations_for_theme, resolve_utility, unresolved_utility_kind,
+};
 use super::super::variants::{condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
 
@@ -94,8 +96,9 @@ pub(crate) fn emit_view_transition_utilities(
             Ok(Some(resolved)) => resolved,
             Ok(None) => {
                 lint_findings.push(LintFinding::new(
-                    LintDiagnostic::UnavailableUtility {
+                    LintDiagnostic::UnresolvedUtility {
                         utility: utility.value.raw.clone(),
+                        classification: unresolved_utility_kind(&utility.value.raw),
                     },
                     utility.span,
                 ));

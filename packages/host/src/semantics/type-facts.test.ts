@@ -167,6 +167,9 @@ const scoped = a('hover:').in(b);
 const container = a.at('width > 40rem');
 const projection = a.asAnchor();
 declare const widened: StyleRef;
+declare const record: object;
+declare const options: { readonly size: number };
+declare const label: string | undefined;
 `;
   let code = declarations;
   const probes = expressions.map((expression) => {
@@ -246,6 +249,24 @@ test("recognition facts identify declarations beside ref uses and widened types"
 
 test("required ref facts reject a widened declaration identity", () => {
   expect(() => collect(["widened"])).toThrow(TypeFactsError);
+});
+
+test("types that may hold a widened asset are not confirmed non-assets", () => {
+  const { facts, probes } = collect(["label", "options"]);
+  expect(facts).toStrictEqual(
+    probes.map((probe) => ({
+      ...probe,
+      value: null,
+    })),
+  );
+  expect(() => collect(["record"])).toThrow(TypeFactsError);
+  const recognition = collect(["record"], true);
+  expect(recognition.facts).toStrictEqual([
+    {
+      ...recognition.probes[0],
+      value: null,
+    },
+  ]);
 });
 
 test("imported ref and scope aliases preserve independent finite candidates through a barrel", () => {

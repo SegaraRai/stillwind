@@ -51,8 +51,6 @@ pub struct NativeLintOptions {
     pub macro_argument_mutation: Option<String>,
     /// Settings for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<String>,
-    /// Settings for `invalid-motion-utility`.
-    pub invalid_motion_utility: Option<String>,
     /// Settings for `invalid-variant-input`.
     pub invalid_variant_input: Option<String>,
     /// Settings for `invalid-style-input`.
@@ -75,8 +73,6 @@ pub struct NativeLintOptions {
     pub invalid_view_transition_variant: Option<String>,
     /// Settings for `invalid-ref-input`.
     pub invalid_ref_input: Option<String>,
-    /// Settings for `invalid-variant-prefix`.
-    pub invalid_variant_prefix: Option<String>,
     /// Settings for `invalid-animation-option`.
     pub invalid_animation_option: Option<String>,
     /// Settings for `invalid-style-composition`.
@@ -186,10 +182,6 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .macro_execution_boundary
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_motion_utility: input
-                .invalid_motion_utility
-                .map(|value| lint_severity(&value))
-                .transpose()?,
             invalid_variant_input: input
                 .invalid_variant_input
                 .map(|value| lint_severity(&value))
@@ -232,10 +224,6 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_ref_input: input
                 .invalid_ref_input
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            invalid_variant_prefix: input
-                .invalid_variant_prefix
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_animation_option: input

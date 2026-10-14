@@ -16,10 +16,11 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, SourceFailureContext,
 };
 use stillwind_ir::{
-    AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    AssetReference, RuleExpression, StyleInput, ViewTransitionDefinition, ViewTransitionKey,
+    ViewTransitionName,
 };
 use stillwind_semantic::AssetKind;
-use stillwind_source::Spanned;
+use stillwind_source::{Span, Spanned};
 
 use crate::local_span::LocalSpan;
 use crate::resolution::ResolutionFailure;
@@ -50,78 +51,110 @@ impl<'a> MacroExtractor<'a> {
     /// never evaluated. A use that the checker already described through a type fact
     /// becomes dynamic even when only one candidate remains. An empty finite candidate
     /// set produces no use node.
+    ///
+    /// A `.for(key)` use whose receiver
+    /// [`needs_branch_lowering`](Self::needs_branch_lowering) lowers one use per branch
+    /// and returns them as a class expression. A branch that is not a transition adds a
+    /// lint and contributes nothing.
     pub(crate) fn view_transition_use(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
-        let expression_has_type_fact = self.type_fact(expression.span()).is_some();
-        let (value, transitions, name) = if let Expression::CallExpression(call) = expression {
-            let Expression::StaticMemberExpression(member) = &call.callee else {
-                return None;
-            };
-            if member.property.name.as_str() != "for" {
+        let Expression::CallExpression(call) = expression else {
+            let transitions = self.view_transition_references(expression).ok()?;
+            let value = self.source_span(expression.span());
+            let dynamic = self.type_fact(expression.span()).is_some();
+            return transition_use(value, transitions, ViewTransitionName::None, dynamic);
+        };
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return None;
+        };
+        if member.property.name.as_str() != "for" {
+            return None;
+        }
+        self.consumed_use_spans.insert(LocalSpan::from(call.span));
+        if let Err(failure) = self.view_transition_references(&member.object) {
+            self.report_resolution_failure(
+                &member.object,
+                failure,
+                LintDiagnostic::InvalidViewTransitionReceiver,
+                CompileDiagnostic::ViewTransitionFactsRequired,
+            );
+            return None;
+        }
+        let key = self.view_transition_key(call)?;
+        if !self.needs_branch_lowering(&member.object, AssetKind::ViewTransition) {
+            return self.view_transition_receiver_use(&member.object, &key);
+        }
+        self.lower_receiver_branches(&member.object, &mut |this, receiver| match this
+            .view_transition_receiver_use(receiver, &key)?
+        {
+            StyleInput::ViewTransitionUse { transition, name } => {
+                Some(RuleExpression::ViewTransitionUse { transition, name }.into())
+            }
+            StyleInput::DynamicViewTransitionUse {
+                value,
+                transitions,
+                name,
+            } => Some(
+                RuleExpression::DynamicViewTransitionUse {
+                    value,
+                    transitions,
+                    name,
+                }
+                .into(),
+            ),
+            _ => None,
+        })
+        .map(StyleInput::Class)
+    }
+
+    /// Lowers a `.for(key)` use for `receiver`. A receiver with several candidates
+    /// selects its transition at runtime.
+    fn view_transition_receiver_use(
+        &mut self,
+        receiver: &Expression<'a>,
+        key: &ViewTransitionKey,
+    ) -> Option<StyleInput> {
+        let transitions = match self.view_transition_references(receiver) {
+            Ok(transitions) => transitions,
+            Err(failure) => {
+                self.report_resolution_failure(
+                    receiver,
+                    failure,
+                    LintDiagnostic::InvalidViewTransitionReceiver,
+                    CompileDiagnostic::ViewTransitionFactsRequired,
+                );
                 return None;
             }
-            let transitions = match self.view_transition_references(&member.object) {
-                Ok(value) => value,
-                Err(failure) => {
-                    self.consumed_use_spans.insert(LocalSpan::from(call.span));
-                    self.report_resolution_failure(
-                        &member.object,
-                        failure,
-                        LintDiagnostic::InvalidViewTransitionReceiver,
-                        CompileDiagnostic::RefFactsRequired,
-                    );
-                    return None;
-                }
-            };
-            self.consumed_use_spans.insert(LocalSpan::from(call.span));
-            let key = self.view_transition_key(call)?;
-            (
-                self.source_span(member.object.span()),
-                transitions,
-                ViewTransitionName::Key(key),
-            )
-        } else {
-            let transitions = self.view_transition_references(expression).ok()?;
-            let name = ViewTransitionName::None;
-            (self.source_span(expression.span()), transitions, name)
         };
-        if expression_has_type_fact && matches!(name, ViewTransitionName::None) {
-            return (!transitions.is_empty()).then_some(StyleInput::DynamicViewTransitionUse {
-                value,
-                transitions,
-                name,
-            });
-        }
-        match transitions.as_slice() {
-            [transition] => Some(StyleInput::ViewTransitionUse {
-                transition: transition.clone(),
-                name,
-            }),
-            [] => None,
-            _ => Some(StyleInput::DynamicViewTransitionUse {
-                value,
-                transitions,
-                name,
-            }),
-        }
+        let value = self.source_span(receiver.span());
+        transition_use(
+            value,
+            transitions,
+            ViewTransitionName::Key(key.clone()),
+            false,
+        )
     }
 
     /// Reads a use-site key. A literal key folds at compile time and any other
-    /// expression is read by the runtime. More than one argument is reported and
-    /// contributes nothing.
+    /// expression is read by the runtime. More than one argument or a spread argument
+    /// adds a lint and lowers as the empty key of `.for()`.
+    ///
+    /// Returns `None` after adding a fatal diagnostic when the source cannot be read.
     fn view_transition_key(&mut self, call: &CallExpression<'a>) -> Option<ViewTransitionKey> {
-        let argument = match call.arguments.len() {
-            0 => return Some(ViewTransitionKey::Literal(String::new())),
-            1 => call.arguments[0].as_expression()?,
-            _ => {
+        let argument = match call.arguments.as_slice() {
+            [argument] => argument.as_expression(),
+            _ => None,
+        };
+        let Some(argument) = argument else {
+            if !call.arguments.is_empty() {
                 self.lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidViewTransitionKeyExpression,
                     self.source_span(call.span),
                 ));
-                return None;
             }
+            return Some(ViewTransitionKey::Literal(String::new()));
         };
         match argument {
             Expression::StringLiteral(value) => {
@@ -241,5 +274,36 @@ impl<'a> MacroExtractor<'a> {
             new,
             image_pair,
         }
+    }
+}
+
+/// Builds a use for the resolved `transitions` at `value`.
+///
+/// `dynamic` keeps a single candidate dynamic when the checker described a use without
+/// a key. Returns `None` for an empty finite candidate set.
+fn transition_use(
+    value: Span,
+    transitions: Vec<AssetReference>,
+    name: ViewTransitionName,
+    dynamic: bool,
+) -> Option<StyleInput> {
+    if dynamic && matches!(name, ViewTransitionName::None) {
+        return (!transitions.is_empty()).then_some(StyleInput::DynamicViewTransitionUse {
+            value,
+            transitions,
+            name,
+        });
+    }
+    match transitions.as_slice() {
+        [transition] => Some(StyleInput::ViewTransitionUse {
+            transition: transition.clone(),
+            name,
+        }),
+        [] => None,
+        _ => Some(StyleInput::DynamicViewTransitionUse {
+            value,
+            transitions,
+            name,
+        }),
     }
 }

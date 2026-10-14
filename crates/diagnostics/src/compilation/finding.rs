@@ -71,22 +71,22 @@ mod tests {
 
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
-        let invalid = CompileDiagnostic::FrameworkConflict;
-        let unavailable = CompileDiagnostic::MixedFrameworks;
-        let unidentified = CompileDiagnostic::JavaScriptParse;
-        assert_ne!(invalid, unavailable);
-        assert_eq!(invalid.code(), CompileErrorCode::FrameworkConflict);
-        assert_ne!(unavailable.code(), invalid.code());
-        assert_ne!(unidentified.code(), invalid.code());
+        let conflict = CompileDiagnostic::FrameworkConflict;
+        let mixed = CompileDiagnostic::MixedFrameworks;
+        let parse = CompileDiagnostic::JavaScriptParse;
+        assert_ne!(conflict, mixed);
+        assert_eq!(conflict.code(), CompileErrorCode::FrameworkConflict);
+        assert_ne!(mixed.code(), conflict.code());
+        assert_ne!(parse.code(), conflict.code());
         assert_eq!(
-            invalid.to_string(),
+            conflict.to_string(),
             "explicit framework conflicts with the imported style macro"
         );
         assert_eq!(
-            unavailable.to_string(),
+            mixed.to_string(),
             "a module cannot mix framework style macros"
         );
-        assert_eq!(unidentified.to_string(), "JavaScript parse error");
+        assert_eq!(parse.to_string(), "JavaScript parse error");
     }
 
     #[test]

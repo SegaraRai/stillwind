@@ -17,7 +17,7 @@ use stillwind_semantic::{
 use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span};
 
 use crate::{
-    ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, recover_composition,
+    ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, lower_composition_operands,
     validate_composition,
 };
 
@@ -170,7 +170,8 @@ pub struct ModuleAnalysis {
     pub lint_directives: Vec<LintDirective>,
     /// Final errors. Compilation must not produce an artifact when this is non-empty.
     pub diagnostics: Vec<CompileError>,
-    /// Lint findings. They never change generated names or output.
+    /// Lint findings. Their presence, severity, and suppression never change generated
+    /// names or output.
     pub lint_findings: Vec<LintFinding>,
     /// Fingerprint of the facts used, or `None` when analysis ran without them.
     pub semantic_revision: Option<Fingerprint>,
@@ -182,25 +183,28 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Omits incompatible composition inputs and adds CSS for referenced declarations.
+    /// Lowers incompatible composition operands and adds CSS for referenced
+    /// declarations.
     ///
     /// `inputs` must contain the complete producer graph with each module identity
     /// once. Returns cloned analyses in input order, or an empty vector for empty
-    /// input. The clones keep their source coordinates and receive omission findings
-    /// at each affected operand. Missing producers add fatal errors at each module's
-    /// full source span. Referenced keyframes and view transitions supply support CSS.
-    /// Style calls from support modules do not become producers.
+    /// input. The clones keep their source coordinates. An operand whose bases are all
+    /// incompatible is removed and adds a lint finding. An operand that mixes
+    /// compatible and incompatible bases adds a fatal error at the operand. Missing
+    /// producers add fatal errors at each module's full source span. Referenced
+    /// keyframes and view transitions supply support CSS. Style calls from support
+    /// modules do not become producers.
     ///
     /// This method checks the graph once for the whole batch instead of once per
     /// module. It leaves `inputs` unchanged.
     pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
-        let mut recovered = inputs.to_vec();
-        recover_composition(&mut recovered);
-        let modules: Vec<_> = recovered.iter().collect();
+        let mut lowered = inputs.to_vec();
+        lower_composition_operands(&mut lowered);
+        let modules: Vec<_> = lowered.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
             validate_composition(&modules, input.source.full_span(), true)
         });
-        recovered
+        lowered
             .iter()
             .map(|input| {
                 let mut analysis = input.clone();
@@ -219,21 +223,22 @@ impl ModuleAnalysis {
     /// Adds CSS for referenced declarations without adding their modules as producers.
     ///
     /// `inputs` supplies analyses for checking composition and finding declarations.
-    /// Entries with this module's identity are ignored. This method omits incompatible
-    /// composition operands, adds findings and missing-producer errors, and replaces
-    /// asset support in this analysis. It leaves `inputs` unchanged.
+    /// Entries with this module's identity are ignored. This method lowers incompatible
+    /// composition operands as described for [`Self::attach_asset_support_batch`], adds
+    /// missing-producer errors, and replaces asset support in this analysis. It leaves
+    /// `inputs` unchanged.
     pub fn attach_asset_support(&mut self, inputs: &[Self]) {
-        let mut recovered = vec![self.clone()];
-        recovered.extend(
+        let mut lowered = vec![self.clone()];
+        lowered.extend(
             inputs
                 .iter()
                 .filter(|input| input.module_id != self.module_id)
                 .cloned(),
         );
-        recover_composition(&mut recovered);
-        let modules: Vec<_> = recovered.iter().collect();
+        lower_composition_operands(&mut lowered);
+        let modules: Vec<_> = lowered.iter().collect();
         let diagnostics = validate_composition(&modules, self.source.full_span(), true);
-        *self = recovered.remove(0);
+        *self = lowered.remove(0);
         self.diagnostics.extend(diagnostics);
         self.attach_declarations(inputs);
     }

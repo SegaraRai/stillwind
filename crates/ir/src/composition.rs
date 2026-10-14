@@ -1,4 +1,4 @@
-//! Recovery and ordering of dependencies between composed style calls.
+//! Lowering and ordering of dependencies between composed style calls.
 //!
 //! A style call may derive from another call's payload (`style(base)`). The derived
 //! call receives the base unit first, and the base must exist, must not carry
@@ -10,7 +10,7 @@
 //! identity.
 //!
 //! `composition_dependencies` collects declaration edges for host planning.
-//! `recover_composition` removes incompatible operands with lint findings.
+//! `lower_composition_operands` removes operands whose bases are all incompatible.
 //! `validate_composition` checks cycles and producer availability.
 //! `ordered_style_calls` puts local bases before their consumers during lowering.
 //! The compiler resolves declaration supplies for lint checks, while the project layer
@@ -67,8 +67,10 @@ fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
 
 /// Reports cycles between calls or modules. Also reports missing producers when
 /// `modules` contains the complete composition graph.
+///
 /// Local compilation passes `require_complete: false` because imported producers may
-/// arrive later. Recoverable composition inputs are removed by [`recover_composition`].
+/// arrive later. Recoverable composition inputs are removed by
+/// [`lower_composition_operands`].
 pub fn validate_composition(
     modules: &[&ModuleAnalysis],
     at: Span,
@@ -110,10 +112,15 @@ pub fn validate_composition(
     Vec::new()
 }
 
-/// Omits incompatible composition operands while keeping their producers.
-/// Each omitted operand adds a lint at its source expression. Reporting settings do
-/// not affect omission. Missing producers are left for [`validate_composition`].
-pub fn recover_composition(modules: &mut [ModuleAnalysis]) {
+/// Lowers composition operands whose bases cannot supply class output.
+///
+/// An operand whose candidate bases are all incompatible contributes nothing and adds
+/// a lint at its source expression. Reporting settings do not affect this omission.
+/// An operand that mixes compatible and incompatible bases adds
+/// [`CompileDiagnostic::MixedStyleBaseCandidates`] to its module because the runtime
+/// passes the operand value through and cannot omit only the incompatible bases.
+/// Missing producers are left for [`validate_composition`].
+pub fn lower_composition_operands(modules: &mut [ModuleAnalysis]) {
     let graph = CompositionGraph::new(&modules.iter().collect::<Vec<_>>());
     let mut rejected = BTreeMap::new();
     for (derived, bases) in &graph.edges {
@@ -141,33 +148,39 @@ pub fn recover_composition(modules: &mut [ModuleAnalysis]) {
         }
     }
     for module in modules.iter_mut() {
-        let module_id = module.module_id.clone();
-        for call in &mut module.ir.style_calls {
-            let derived = IdentityId::new(
-                AssetKind::Style,
-                module_id.clone(),
-                call.span.start.0,
-                call.span.end.0,
-                "",
-            );
-            omit_composition(
-                &mut call.inputs,
-                &derived,
-                &rejected,
-                &mut module.lint_findings,
-            );
+        let derived = module
+            .ir
+            .style_calls
+            .iter()
+            .map(|call| identity(module, call))
+            .collect::<Vec<_>>();
+        for (call, derived) in module.ir.style_calls.iter_mut().zip(derived) {
+            let mut lowering = CompositionLowering {
+                derived: &derived,
+                rejected: &rejected,
+                findings: &mut module.lint_findings,
+                diagnostics: &mut module.diagnostics,
+            };
+            lowering.lower(&mut call.inputs);
         }
     }
 }
 
+/// Composition edges and base properties collected from a set of modules.
 struct CompositionGraph {
+    /// Bases consumed by each derived call. Calls without bases have an empty set.
     edges: BTreeMap<IdentityId, BTreeSet<IdentityId>>,
+    /// Calls whose payload carries attributes or inline style.
     props: BTreeSet<IdentityId>,
+    /// Framework class property, such as `className`, of each call.
     frameworks: BTreeMap<IdentityId, &'static str>,
+    /// Modules that each module depends on through cross-module composition edges.
     modules: BTreeMap<ModuleId, BTreeSet<ModuleId>>,
 }
 
 impl CompositionGraph {
+    /// Collects every style call in `modules`. Bases outside `modules` remain edges
+    /// without props or framework entries.
     fn new(modules: &[&ModuleAnalysis]) -> Self {
         let mut graph = Self {
             edges: BTreeMap::new(),
@@ -202,48 +215,71 @@ impl CompositionGraph {
     }
 }
 
-fn omit_composition(
-    values: &mut Vec<StyleInput>,
-    derived: &IdentityId,
-    rejected: &BTreeMap<StyleDependency, LintDiagnostic>,
-    findings: &mut Vec<LintFinding>,
-) {
-    values.retain_mut(|input| {
-        match input {
-            StyleInput::Array(values) => omit_composition(values, derived, rejected, findings),
-            StyleInput::Conditional { branches, .. } => match branches {
-                ConditionalBranches::And { consequent } => {
-                    omit_composition(consequent, derived, rejected, findings);
+/// Removes or rejects composition operands of one derived call.
+struct CompositionLowering<'a> {
+    /// Identity of the call whose inputs are lowered.
+    derived: &'a IdentityId,
+    /// Incompatible edges and the lint that reports each one.
+    rejected: &'a BTreeMap<StyleDependency, LintDiagnostic>,
+    /// Lint findings of the derived call's module.
+    findings: &'a mut Vec<LintFinding>,
+    /// Fatal diagnostics of the derived call's module.
+    diagnostics: &'a mut Vec<CompileError>,
+}
+
+impl CompositionLowering<'_> {
+    /// Removes operands whose bases are all incompatible, including operands inside
+    /// arrays and conditional branches. The other inputs keep their order.
+    fn lower(&mut self, values: &mut Vec<StyleInput>) {
+        values.retain_mut(|input| {
+            match input {
+                StyleInput::Array(values) => self.lower(values),
+                StyleInput::Conditional { branches, .. } => match branches {
+                    ConditionalBranches::And { consequent } => self.lower(consequent),
+                    ConditionalBranches::Ternary {
+                        consequent,
+                        alternate,
+                    } => {
+                        self.lower(consequent);
+                        self.lower(alternate);
+                    }
+                },
+                StyleInput::Composition { candidates, value } => {
+                    let reasons = candidates
+                        .iter()
+                        .filter_map(|base| {
+                            self.rejected.get(&StyleDependency {
+                                derived: self.derived.clone(),
+                                base: base.clone(),
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    if let Some(reason) = reasons.first() {
+                        if reasons.len() == candidates.len() {
+                            self.findings
+                                .push(LintFinding::new((*reason).clone(), *value));
+                            return false;
+                        }
+                        let error =
+                            CompileError::new(CompileDiagnostic::MixedStyleBaseCandidates, *value);
+                        // Linked analyses are lowered again when one module is compiled.
+                        if !self.diagnostics.contains(&error) {
+                            self.diagnostics.push(error);
+                        }
+                    }
                 }
-                ConditionalBranches::Ternary {
-                    consequent,
-                    alternate,
-                } => {
-                    omit_composition(consequent, derived, rejected, findings);
-                    omit_composition(alternate, derived, rejected, findings);
-                }
-            },
-            StyleInput::Composition { candidates, value } => {
-                if let Some(reason) = candidates.iter().find_map(|base| {
-                    rejected.get(&StyleDependency {
-                        derived: derived.clone(),
-                        base: base.clone(),
-                    })
-                }) {
-                    findings.push(LintFinding::new(reason.clone(), *value));
-                    return false;
-                }
+                _ => {}
             }
-            _ => {}
-        }
-        true
-    });
+            true
+        });
+    }
 }
 
 /// Deterministic topological order within one producer, seeded by source order.
 ///
-/// Callers must run [`recover_composition`] and [`validate_composition`] first.
-/// If a cycle remains, this function retains source order for deterministic diagnostics.
+/// Callers must run [`lower_composition_operands`] and [`validate_composition`] first.
+/// If a cycle remains, this function retains source order for deterministic
+/// diagnostics.
 pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
     let edges = module
         .ir

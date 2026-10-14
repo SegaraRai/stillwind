@@ -9,6 +9,7 @@ use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleInput, StyleVariant};
+use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
 use crate::local_span::LocalSpan;
@@ -58,8 +59,11 @@ impl<'a> MacroExtractor<'a> {
 
     /// Consumes a direct variant expression inside `style()`. Parses static ref calls
     /// and tags, optional outer scope calls, or a raw ref's container query. Records
-    /// identities and checker probes. Invalid syntax returns `None` after adding a
-    /// diagnostic and consuming its nested macro uses.
+    /// identities and checker probes, and consumes nested macro uses.
+    ///
+    /// Returns `None` when the condition is false: invalid syntax and a receiver that
+    /// is not a ref add a lint. Returns `None` with a fatal diagnostic when a receiver
+    /// needs checker facts. The caller must omit the conditioned input.
     pub(crate) fn ref_variant(&mut self, expression: &Expression<'a>) -> Option<StyleVariant> {
         self.consume_ref_expression(expression);
         let mut receiver = expression.get_inner_expression();
@@ -105,8 +109,12 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Resolves a raw ref receiver into a named container query variant.
-    /// `query` contains static text and its content span. Returns `None` with a
-    /// diagnostic when the receiver cannot resolve to finite ref identities.
+    /// `query` contains static text and its content span.
+    ///
+    /// The container condition tests every ref candidate. A conditional branch that is
+    /// not a ref adds a lint and contributes no candidate. Returns `None` with a lint
+    /// when no branch is a ref, or with a fatal diagnostic when the receiver needs
+    /// checker facts.
     fn ref_container_variant(
         &mut self,
         receiver: &Expression<'a>,
@@ -128,6 +136,11 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
+        self.report_unsupported_branches(
+            receiver,
+            AssetKind::Ref,
+            &LintDiagnostic::InvalidRefVariantReceiver,
+        );
         Some(StyleVariant::Container { refs, query })
     }
 
@@ -209,7 +222,12 @@ impl<'a> MacroExtractor<'a> {
 
     /// Resolves an unscoped element condition. Bare refs are accepted only for scope
     /// operands and the presence shorthand before an outer `in()` call. Container
-    /// queries and nested scope operands are rejected before identity resolution.
+    /// queries and nested scope operands add lints before identity resolution.
+    ///
+    /// The condition tests every ref candidate. A conditional branch that is not a ref
+    /// adds a lint and contributes no candidate. Returns `None` with a lint when the
+    /// condition is false, or with a fatal diagnostic when a receiver needs checker
+    /// facts.
     fn ref_condition(
         &mut self,
         expression: &Expression<'a>,
@@ -236,7 +254,7 @@ impl<'a> MacroExtractor<'a> {
                 Spanned::new(String::new(), self.source_span(expression.span())),
             ),
             RefVariantText::Bare(_) => {
-                self.ref_input_error(LintDiagnostic::UnidentifiedRefVariant, expression.span());
+                self.ref_input_error(LintDiagnostic::IncompleteRefCondition, expression.span());
                 return None;
             }
         };
@@ -265,12 +283,17 @@ impl<'a> MacroExtractor<'a> {
                 self.report_resolution_failure(
                     reference,
                     failure,
-                    LintDiagnostic::UnidentifiedRefVariant,
+                    LintDiagnostic::NonRefVariantReceiver,
                     CompileDiagnostic::RefFactsRequired,
                 );
                 return None;
             }
         };
+        self.report_unsupported_branches(
+            reference,
+            AssetKind::Ref,
+            &LintDiagnostic::NonRefVariantReceiver,
+        );
         if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
             prefix.value.push(':');
         }

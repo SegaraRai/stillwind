@@ -34,7 +34,7 @@ fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
         ),
         (
             Some(ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Keyframes)).into()),
-            true,
+            false,
         ),
     ] {
         let source = SourceFile::new(FileId(1), None, None,
@@ -70,6 +70,7 @@ fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
                     error.diagnostic,
                     CompileDiagnostic::RefFactsRequired
                         | CompileDiagnostic::RefProjectionFactsRequired
+                        | CompileDiagnostic::StyleInputFactsRequired
                 )),
                 "{parsed:#?}"
             );
@@ -81,14 +82,11 @@ fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
 }
 
 #[test]
-fn ref_variant_factories_require_finite_candidates_and_mixed_branches_remain_fatal() {
-    for (receiver, expected) in [
-        ("factory()", None),
-        (
-            "enabled ? ref : candidate",
-            Some(CompileDiagnostic::RefFactsRequired),
-        ),
-        ("enabled ? candidate : candidate", None),
+fn ref_variant_receivers_lower_each_conditional_branch() {
+    for (receiver, inputs) in [
+        ("factory()", 1),
+        ("enabled ? ref : candidate", 1),
+        ("enabled ? candidate : candidate", 0),
     ] {
         let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; const ref=style.ref(); const x=style({{[({receiver})('hover:')]: 'flex'}});")).unwrap();
         let local = parse(
@@ -133,25 +131,19 @@ fn ref_variant_factories_require_finite_candidates_and_mixed_branches_remain_fat
             ScriptLanguage::Ts,
             ScriptModuleKind::Module,
         );
-        if let Some(diagnostic) = expected {
-            assert!(
-                parsed
-                    .diagnostics
-                    .iter()
-                    .any(|error| error.diagnostic == diagnostic),
-                "{parsed:#?}"
-            );
+        assert!(parsed.diagnostics.is_empty(), "{parsed:#?}");
+        assert_eq!(
+            parsed.module.style_calls[0].inputs.len(),
+            inputs,
+            "{receiver}: {parsed:#?}"
+        );
+        if receiver == "factory()" {
+            assert!(parsed.lint_findings.is_empty(), "{parsed:#?}");
         } else {
-            assert!(parsed.diagnostics.is_empty(), "{parsed:#?}");
-            if receiver == "factory()" {
-                assert!(parsed.lint_findings.is_empty(), "{parsed:#?}");
-                assert_eq!(parsed.module.style_calls[0].inputs.len(), 1);
-            } else {
-                assert_eq!(
-                    parsed.lint_findings[0].diagnostic,
-                    LintDiagnostic::UnidentifiedRefVariant
-                );
-            }
+            assert_eq!(
+                parsed.lint_findings[0].diagnostic,
+                LintDiagnostic::NonRefVariantReceiver
+            );
         }
     }
 }

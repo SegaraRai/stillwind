@@ -58,23 +58,25 @@ macro_rules! define_compile_codes {
 define_compile_codes! {
     // 01: JavaScript and style inputs
     FrameworkConflict => "SW01001",
-    StyleArrayHole => "SW01003",
     MixedFrameworks => "SW01009",
     UnconsumedMacroUse { .. } => "SW01011",
     JavaScriptParse => "SW01012",
     ComponentSyntax { .. } => "SW01013",
+    StyleInputFactsRequired => "SW01016",
     // 02: utilities and variants
     // 03: refs and providers
     RefFactsRequired => "SW03001",
     RefProjectionFactsRequired => "SW03010",
-    InvalidContainerQuery => "SW03011",
     // 04: keyframes and animation
     KeyframesUseNotAClassInput => "SW04002",
+    KeyframesFactsRequired => "SW04014",
     // 05: view transitions
+    ViewTransitionFactsRequired => "SW05010",
     // 06: composition
     CompositionCycle => "SW06002",
     CompositionModuleCycle => "SW06003",
     UnavailableStyleBase => "SW06004",
+    MixedStyleBaseCandidates => "SW06008",
     // 07: generated identifiers and configuration
     GeneratedIdentifierCollision { .. } => "SW07001",
     IdentifierGenerationFailed(..) => "SW07002",

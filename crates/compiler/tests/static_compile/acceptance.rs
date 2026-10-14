@@ -179,7 +179,7 @@ export const props = style(selected);"#,
     );
     assert_eq!(
         result.diagnostics[0].diagnostic,
-        CompileDiagnostic::RefFactsRequired
+        CompileDiagnostic::StyleInputFactsRequired
     );
 }
 

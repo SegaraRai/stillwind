@@ -12,9 +12,10 @@
 //! transactionally, and the frontend keeps ownership of correspondence validation and
 //! of its own provenance records.
 //!
-//! [`recover_composition`] omits incompatible composition inputs.
-//! [`validate_composition`] checks dependency cycles and producer availability, and [`ordered_style_calls`]
-//! orders the retained dependencies. These operations do not emit CSS.
+//! [`lower_composition_operands`] removes composition operands whose bases are all
+//! incompatible. [`validate_composition`] checks dependency cycles and producer
+//! availability, and [`ordered_style_calls`] orders the retained dependencies. These
+//! operations do not emit CSS.
 //!
 //! `input` validates editable documents and prepared parser buffers. `analysis` defines
 //! the scan and finalization interfaces. `model` stores the extracted IR, and `spans`
@@ -46,7 +47,7 @@ pub use analysis::{
     SourceAnalyzer, TypeProbe, TypeScriptFactsProvider,
 };
 pub use composition::{
-    StyleDependency, composition_dependencies, ordered_style_calls, recover_composition,
+    StyleDependency, composition_dependencies, lower_composition_operands, ordered_style_calls,
     validate_composition,
 };
 pub use framework::{

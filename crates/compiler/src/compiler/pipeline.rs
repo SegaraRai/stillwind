@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, finish_lint_findings};
 use stillwind_ir::{
-    ModuleAnalysis, composition_dependencies, ordered_style_calls, recover_composition,
+    ModuleAnalysis, composition_dependencies, lower_composition_operands, ordered_style_calls,
     validate_composition,
 };
 use stillwind_semantic::AssetKind;
@@ -111,9 +111,9 @@ impl Compiler {
         identifiers: &IdentifierContext,
         emit_source: bool,
     ) -> CompileResult {
-        let mut recovered = parsed.clone();
-        recover_composition(std::slice::from_mut(&mut recovered));
-        let parsed = &recovered;
+        let mut lowered = parsed.clone();
+        lower_composition_operands(std::slice::from_mut(&mut lowered));
+        let parsed = &lowered;
         let mut runtime_assets = parsed.summary.export_reachable_identities();
         let mut required_definitions = runtime_assets
             .iter()

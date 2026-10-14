@@ -115,11 +115,6 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "invalid-motion-utility": {
-    nativeName: "invalidMotionUtility",
-    defaults: null,
-    options: null,
-  },
   "invalid-variant-input": {
     nativeName: "invalidVariantInput",
     defaults: null,
@@ -172,11 +167,6 @@ export const lintRules = {
   },
   "invalid-ref-input": {
     nativeName: "invalidRefInput",
-    defaults: null,
-    options: null,
-  },
-  "invalid-variant-prefix": {
-    nativeName: "invalidVariantPrefix",
     defaults: null,
     options: null,
   },

@@ -9,11 +9,14 @@ use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{
-    AnchorScope, ContainerType, RefDefinition, RefProjection, RuleExpression, StyleInput,
+    AnchorScope, ClassExpression, ContainerType, RefDefinition, RefProjection, RuleExpression,
+    StyleInput,
 };
+use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
 use crate::local_span::LocalSpan;
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -25,16 +28,23 @@ impl<'a> MacroExtractor<'a> {
     /// validating its arguments. Successful scope-only calls also record the ranges
     /// needed to remove their macro imports.
     ///
-    /// Returns `None` for unrelated syntax or invalid uses. An invalid use adds a
-    /// diagnostic. The extractor may have changed even when the result is `None`.
+    /// An invalid argument adds a lint and lowers as an omitted argument. A receiver
+    /// that [`needs_branch_lowering`](Self::needs_branch_lowering) lowers one
+    /// projection per branch, and a branch that is not a ref adds a lint and
+    /// contributes nothing.
+    ///
+    /// Returns `None` for unrelated syntax, for missing checker facts, and for a use
+    /// that contributes nothing. The extractor may have changed even when the result is
+    /// `None`.
     pub(crate) fn collect_ref_projection(
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<StyleInput> {
         let span = self.source_span(expression.span());
-        if let Expression::CallExpression(call) = expression
-            && self.is_style_member(&call.callee, "anchorScope")
-        {
+        let Expression::CallExpression(call) = expression else {
+            return None;
+        };
+        if self.is_style_member(&call.callee, "anchorScope") {
             self.consumed_use_spans
                 .insert(LocalSpan::from(expression.span()));
             self.consumed_macro_uses.push(span);
@@ -48,51 +58,67 @@ impl<'a> MacroExtractor<'a> {
                 RuleExpression::AnchorScope { scope, span }.into(),
             ));
         }
-        let (receiver, projection) = match expression {
-            Expression::CallExpression(call) => {
-                let Expression::StaticMemberExpression(member) = &call.callee else {
-                    return None;
+        let Expression::StaticMemberExpression(member) = &call.callee else {
+            return None;
+        };
+        self.record_type_probe(&member.object);
+        let projection = match member.property.name.as_str() {
+            "asAnchor" => {
+                self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                let scope = match call.arguments.as_slice() {
+                    [] => None,
+                    [argument] => self.collect_anchor_scope(argument.as_expression(), span),
+                    _ => {
+                        self.lint_findings
+                            .push(LintFinding::new(LintDiagnostic::InvalidAnchorScope, span));
+                        None
+                    }
                 };
-                self.record_type_probe(&member.object);
-                let projection = match member.property.name.as_str() {
-                    "asAnchor" => {
-                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
-                        let scope = match call.arguments.as_slice() {
-                            [] => None,
-                            [argument] => {
-                                Some(self.collect_anchor_scope(argument.as_expression(), span)?)
-                            }
-                            _ => {
-                                self.lint_findings.push(LintFinding::new(
-                                    LintDiagnostic::InvalidAnchorScope,
-                                    span,
-                                ));
-                                return None;
-                            }
-                        };
-                        RefProjection::AsAnchor(scope)
-                    }
-                    "asContainer" => {
-                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
-                        self.collect_container_type(call)?
-                    }
-                    "positionAnchor" => {
-                        self.consumed_use_spans.insert(LocalSpan::from(call.span));
-                        if !call.arguments.is_empty() {
-                            self.lint_findings.push(LintFinding::new(
-                                LintDiagnostic::InvalidPositionAnchorArguments,
-                                span,
-                            ));
-                            return None;
-                        }
-                        RefProjection::PositionAnchor
-                    }
-                    _ => return None,
-                };
-                (&member.object, projection)
+                RefProjection::AsAnchor(scope)
+            }
+            "asContainer" => {
+                self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                self.collect_container_type(call)
+            }
+            "positionAnchor" => {
+                self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                if !call.arguments.is_empty() {
+                    self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::InvalidPositionAnchorArguments,
+                        span,
+                    ));
+                }
+                RefProjection::PositionAnchor
             }
             _ => return None,
         };
+        let receiver = &member.object;
+        if let Err(failure) = self.ref_references(receiver) {
+            self.report_resolution_failure(
+                receiver,
+                failure,
+                LintDiagnostic::InvalidRefProjection,
+                CompileDiagnostic::RefProjectionFactsRequired,
+            );
+            return None;
+        }
+        let class = if self.needs_branch_lowering(receiver, AssetKind::Ref) {
+            self.lower_receiver_branches(receiver, &mut |this, receiver| {
+                this.ref_projection(receiver, projection.clone())
+            })
+        } else {
+            self.ref_projection(receiver, projection)
+        };
+        class.map(StyleInput::Class)
+    }
+
+    /// Lowers `projection` for `receiver`. A receiver with several candidates selects
+    /// its ref at runtime. A receiver that is not a ref adds a lint and returns `None`.
+    fn ref_projection(
+        &mut self,
+        receiver: &Expression<'a>,
+        projection: RefProjection,
+    ) -> Option<ClassExpression> {
         let refs = match self.ref_references(receiver) {
             Ok(refs) => refs,
             Err(failure) => {
@@ -106,7 +132,7 @@ impl<'a> MacroExtractor<'a> {
             }
         };
         let value = self.source_span(receiver.span());
-        Some(StyleInput::Class(
+        Some(
             if let [definition] = refs.as_slice() {
                 RuleExpression::RefProjection {
                     definition: definition.clone(),
@@ -121,38 +147,38 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
             .into(),
-        ))
+        )
     }
 
     /// Parses the optional argument of an `asContainer` call.
-    /// With no argument, the result is `Some(AsContainer(None))`. A single string literal
-    /// is trimmed and normalized while keeping its source span.
+    /// With no argument, the result is `AsContainer(None)`. A single string literal is
+    /// trimmed and normalized while keeping its source span.
     ///
-    /// Returns `None` and adds an invalid-container-type diagnostic for too many arguments,
-    /// a spread, a nonliteral argument, or unsupported text.
-    fn collect_container_type(&mut self, call: &CallExpression<'a>) -> Option<RefProjection> {
+    /// Too many arguments, a spread, a nonliteral argument, or unsupported text adds an
+    /// invalid-container-type lint and returns `AsContainer(None)`.
+    fn collect_container_type(&mut self, call: &CallExpression<'a>) -> RefProjection {
         match call.arguments.as_slice() {
-            [] => Some(RefProjection::AsContainer(None)),
+            [] => RefProjection::AsContainer(None),
             [argument] => {
                 if let Some(Expression::StringLiteral(value)) = argument.as_expression() {
                     let kind = self.string_literal(value);
                     if let Some(normalized) = ContainerType::parse(kind.value.trim()) {
                         let kind = Spanned::new(normalized, kind.span);
-                        return Some(RefProjection::AsContainer(Some(kind)));
+                        return RefProjection::AsContainer(Some(kind));
                     }
                 }
                 self.lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidContainerType,
                     self.source_span(argument.span()),
                 ));
-                None
+                RefProjection::AsContainer(None)
             }
             _ => {
                 self.lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidContainerType,
                     self.source_span(call.span),
                 ));
-                None
+                RefProjection::AsContainer(None)
             }
         }
     }
@@ -163,9 +189,12 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// The result contains each declaration identity once, in first-seen order. Empty
     /// arrays and duplicate identities add lint findings. An empty array produces an
-    /// empty scope. The receiver is included only if the array lists it.
+    /// empty scope. The receiver is included only if the array lists it. An entry that
+    /// is not a ref adds a lint and contributes no identity.
     ///
-    /// Missing or invalid syntax adds a diagnostic and returns `None`.
+    /// Returns `None` when the argument is not a keyword or an array, after adding a
+    /// lint. Also returns `None` after adding a fatal diagnostic when an entry needs
+    /// checker facts.
     fn collect_anchor_scope(
         &mut self,
         expression: Option<&Expression<'a>>,
@@ -186,17 +215,28 @@ impl<'a> MacroExtractor<'a> {
                     .map(|element| {
                         (
                             element,
-                            element.as_expression().map_or(
-                                Err(crate::resolution::ResolutionFailure::Unsupported),
-                                |value| self.ref_references(value),
-                            ),
+                            element
+                                .as_expression()
+                                .map_or(Err(ResolutionFailure::Unsupported), |value| {
+                                    self.ref_references(value)
+                                }),
                         )
                     })
                     .collect::<Vec<_>>();
                 for (element, candidates) in candidates {
                     let candidates = match candidates {
-                        Ok(candidates) => candidates,
+                        Ok(candidates) => {
+                            if let Some(expression) = element.as_expression() {
+                                self.report_unsupported_branches(
+                                    expression,
+                                    AssetKind::Ref,
+                                    &LintDiagnostic::InvalidAnchorScope,
+                                );
+                            }
+                            candidates
+                        }
                         Err(failure) => {
+                            let missing = failure == ResolutionFailure::MissingFacts;
                             if let Some(expression) = element.as_expression() {
                                 self.report_resolution_failure(
                                     expression,
@@ -210,7 +250,10 @@ impl<'a> MacroExtractor<'a> {
                                     self.source_span(element.span()),
                                 ));
                             }
-                            return None;
+                            if missing {
+                                return None;
+                            }
+                            continue;
                         }
                     };
                     for definition in candidates {

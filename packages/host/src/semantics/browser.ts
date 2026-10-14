@@ -356,6 +356,7 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
     const facts = new Map<string, NativeTypeFact[]>();
     const unverified: UnverifiedRange[] = [];
     const brands = new Map<string, NativeIdentity["kind"]>();
+    const producers: ts.Type[] = [];
     for (const mapping of mappings) {
       const file = program.getSourceFile(mapping.id);
       if (!file) {
@@ -363,7 +364,11 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
       }
       visit(file, (node) => {
         const kind = mapping.producers.get(`${node.getStart(file)}:${node.end}`);
-        if (!kind || kind === "style") {
+        if (!kind) {
+          return;
+        }
+        producers.push(checker.getTypeAtLocation(node));
+        if (kind === "style") {
           return;
         }
         const prefix = {
@@ -438,8 +443,12 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
         }
         matched.add(key);
         const type = checker.getTypeAtLocation(node);
-        const decoded = decode(checker, type, node, identities, brands);
-        if (decoded.kind !== "unverified") {
+        const decoded = decode(checker, type, node, identities, brands, producers);
+        if (
+          decoded.kind === "asset" ||
+          decoded.kind === "nonAsset" ||
+          (decoded.kind === "unbranded" && probe.recognitionOnly)
+        ) {
           const value = decoded.kind === "asset" ? decoded.value : null;
           const existing = values.find(
             (item) => item.start === probe.start && item.end === probe.end,
@@ -512,14 +521,58 @@ function visit(node: ts.Node, callback: (node: ts.Node) => void): void {
 }
 
 /**
+ * Result of decoding a checker type.
+ *
+ * `nonAsset` covers types whose values cannot be Stillwind assets: primitive types, macro use types,
+ * and object types to which no producer type of the snapshot is assignable. `unbranded` covers object types without
+ * asset branding to which a producer type is assignable. Such a value is not a macro receiver, but
+ * it may hold an asset whose type was widened, so lowering cannot treat it as a confirmed
+ * non-asset. Without producer types, every object type without branding is `unbranded`.
+ */
+type DecodedType =
+  | {
+      kind: "asset";
+      value: NativeExportedValue;
+    }
+  | {
+      kind: "nonAsset" | "unbranded" | "unverified";
+    };
+
+/**
+ * Tests whether a type alias is declared in one of `files`.
+ * @param type - Checker type to inspect.
+ * @param files - Declaration file names of the macro module.
+ * @returns Whether the first declaration of the alias symbol belongs to `files`.
+ */
+function declaredBy(type: ts.Type, files: ReadonlySet<string>): boolean {
+  const file = type.aliasSymbol?.declarations?.[0]?.getSourceFile().fileName;
+  return file !== undefined && files.has(file);
+}
+
+/** Types whose values cannot be Stillwind assets. */
+const primitiveTypeFlags =
+  ts.TypeFlags.StringLike |
+  ts.TypeFlags.NumberLike |
+  ts.TypeFlags.BigIntLike |
+  ts.TypeFlags.BooleanLike |
+  ts.TypeFlags.EnumLike |
+  ts.TypeFlags.ESSymbolLike |
+  ts.TypeFlags.Null |
+  ts.TypeFlags.Undefined |
+  ts.TypeFlags.Void |
+  ts.TypeFlags.Never;
+
+/**
  * Decodes a checker type into finite declarations from one registered asset family.
  * @param checker - Checker that owns type and location.
  * @param type - Probed type, including unions of declaration candidates.
  * @param location - AST node used to obtain property types.
  * @param identities - Serialized keys mapped to declarations inserted into this snapshot.
  * @param brands - Checker symbol names registered from asset producers and mapped to their families.
- * @returns Finite candidates, a confirmed non-asset, or an unverified value whose declarations
- * cannot be determined.
+ * @param producers - Producer call types of this snapshot, used to detect object types that may hold
+ * a widened asset.
+ * @returns Finite candidates, a confirmed non-asset, an object type that may hold a widened
+ * asset, or an unverified value whose declarations cannot be determined.
  */
 function decode(
   checker: ts.TypeChecker,
@@ -527,10 +580,14 @@ function decode(
   location: ts.Node,
   identities: ReadonlyMap<string, NativeIdentity>,
   brands: ReadonlyMap<string, NativeIdentity["kind"]>,
-): { kind: "asset"; value: NativeExportedValue } | { kind: "nonAsset" | "unverified" } {
+  producers: readonly ts.Type[],
+): DecodedType {
   if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
-    return { kind: "unverified" };
+    return {
+      kind: "unverified",
+    };
   }
+
   let family: NativeIdentity["kind"] | undefined;
   let recognized = false;
   let valid = true;
@@ -600,7 +657,28 @@ function decode(
   }
 
   if (!valid || !family || !values.length) {
-    return { kind: recognized ? "unverified" : "nonAsset" };
+    if (recognized) {
+      return {
+        kind: "unverified",
+      };
+    }
+    const members = type.isUnion() ? type.types : [type];
+    const macroFiles = new Set(
+      producers.flatMap((producer) => {
+        const file = producer.aliasSymbol?.declarations?.[0]?.getSourceFile().fileName;
+        return file === undefined ? [] : [file];
+      }),
+    );
+    const widened = members.some(
+      (member) =>
+        !(member.flags & primitiveTypeFlags) &&
+        !declaredBy(member, macroFiles) &&
+        (producers.length === 0 ||
+          producers.some((producer) => checker.isTypeAssignableTo(producer, member))),
+    );
+    return {
+      kind: widened ? "unbranded" : "nonAsset",
+    };
   }
 
   const kinds = {
@@ -613,12 +691,27 @@ function decode(
     kind: "asset",
     value: {
       kind: kinds[family],
-      value: { kind: family, candidates: { kind: "finite", values } },
+      value: {
+        kind: family,
+        candidates: {
+          kind: "finite",
+          values,
+        },
+      },
     },
   };
 }
 
-/** Macro argument type errors are reported by lowering; their operands still require valid facts. */
+/**
+ * Tests whether a TypeScript argument error belongs to a style producer call.
+ * Lowering reports unsupported macro arguments as lints, so these errors do not invalidate the
+ * facts of the call. The operands still require valid facts.
+ * @param diagnostic - Checker diagnostic for `sourceFile`.
+ * @param sourceFile - Checker source file that contains the diagnostic.
+ * @param mapping - Producer call ranges of the same source.
+ * @returns Whether the diagnostic is an argument error (TS2345 or TS2769) whose innermost
+ * enclosing call is a recorded producer call.
+ */
 function producerArgumentDiagnostic(
   diagnostic: ts.Diagnostic,
   sourceFile: ts.SourceFile,

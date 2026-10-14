@@ -259,7 +259,7 @@ fn unsupported_forms_are_omitted_only_when_resolution_is_complete() {
                 result
                     .diagnostics
                     .iter()
-                    .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
+                    .any(|error| error.diagnostic == CompileDiagnostic::StyleInputFactsRequired),
                 "{result:#?}"
             );
             assert_eq!(result.transforms, [] as [SourceTransform; 0]);

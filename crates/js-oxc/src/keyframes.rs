@@ -2,8 +2,9 @@
 //!
 //! A declaration is one object with an optional literal `label` beside static keyframe
 //! utility strings keyed by `from`, `to`, or percentage steps. A use is a call on the
-//! declared binding with exactly one literal options string. Both are validated here so
-//! the declaration-site identity and its frames are known before the compiler runs.
+//! declared binding with one literal options string, and invalid options lower as empty
+//! options. Both are validated here so the declaration-site identity and its frames are
+//! known before the compiler runs.
 
 use oxc::ast::ast::{
     CallExpression, Expression, ObjectExpression, ObjectPropertyKind, PropertyKind,
@@ -86,60 +87,97 @@ impl<'a> MacroExtractor<'a> {
             })
     }
 
-    /// Recognizes `<keyframes>(options)` and validates the options argument.
+    /// Recognizes `<keyframes>(options)` and lowers it into a class expression.
     ///
-    /// A use with zero candidates resolves to `None` rather than to an empty dynamic
-    /// use; a wrong arity or a non-literal options value is reported and treated as
-    /// unusable. A recognized call is claimed here, so the unclaimed-use check reports
-    /// only calls this lowering never consumed.
-    pub(crate) fn keyframes_use(
-        &mut self,
-        expression: &Expression<'a>,
-    ) -> Option<ParsedKeyframesUse> {
+    /// The call is a keyframes use when at least one receiver branch resolves to
+    /// keyframes. A wrong arity or a nonliteral options value adds a lint and lowers
+    /// the use with empty options. A conditional receiver that
+    /// [`needs_branch_lowering`](Self::needs_branch_lowering) lowers one use per
+    /// branch, and a branch that is not keyframes adds a lint and contributes nothing.
+    /// A recognized call is claimed here, so the unclaimed-use check reports only calls
+    /// this lowering never consumed.
+    ///
+    /// Returns `None` for unrelated calls, for missing checker facts, and for a use
+    /// that contributes nothing.
+    pub(crate) fn keyframes_use(&mut self, expression: &Expression<'a>) -> Option<ClassExpression> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
-        let keyframes = match self.keyframes_references(&call.callee) {
-            Ok(value) => value,
+        match self.keyframes_references(&call.callee) {
+            Ok(_) => {}
             Err(ResolutionFailure::Unsupported) => return None,
             Err(ResolutionFailure::MissingFacts) => {
                 self.consumed_use_spans.insert(LocalSpan::from(call.span));
                 self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::RefFactsRequired,
+                    CompileDiagnostic::KeyframesFactsRequired,
                     self.source_span(call.callee.span()),
                 ));
                 return None;
             }
-        };
+        }
         // Claim the call before validating it, so a rejected use is reported once.
         self.consumed_use_spans.insert(LocalSpan::from(call.span));
-        if call.arguments.len() != 1 {
-            self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidKeyframesOptions,
-                self.source_span(call.span),
-            ));
-            return None;
+        let options = self.keyframes_options(call);
+        if !self.needs_branch_lowering(&call.callee, AssetKind::Keyframes) {
+            return self.keyframes_receiver_use(&call.callee, &options);
         }
-        let Some(Expression::StringLiteral(options)) = call.arguments[0].as_expression() else {
-            self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidKeyframesOptions,
-                self.source_span(call.arguments[0].span()),
-            ));
-            return None;
+        self.lower_receiver_branches(&call.callee, &mut |this, receiver| {
+            this.keyframes_receiver_use(receiver, &options)
+        })
+    }
+
+    /// Reads the options argument of a keyframes use. A wrong arity or a nonliteral
+    /// value adds a lint and returns empty options at the call span.
+    fn keyframes_options(&mut self, call: &CallExpression<'a>) -> Spanned<String> {
+        if let [argument] = call.arguments.as_slice()
+            && let Some(Expression::StringLiteral(options)) = argument.as_expression()
+        {
+            return self.string_literal(options);
+        }
+        let span = match call.arguments.as_slice() {
+            [argument] => argument.span(),
+            _ => call.span,
         };
-        let options = self.string_literal(options);
-        match keyframes.as_slice() {
-            [keyframes] => Some(ParsedKeyframesUse::Static {
+        self.lint_findings.push(LintFinding::new(
+            LintDiagnostic::InvalidKeyframesOptions,
+            self.source_span(span),
+        ));
+        Spanned::new(String::new(), self.source_span(span))
+    }
+
+    /// Lowers a keyframes use for `receiver`. A receiver with several candidates
+    /// selects its keyframes at runtime.
+    fn keyframes_receiver_use(
+        &mut self,
+        receiver: &Expression<'a>,
+        options: &Spanned<String>,
+    ) -> Option<ClassExpression> {
+        let keyframes = match self.keyframes_references(receiver) {
+            Ok(keyframes) => keyframes,
+            Err(failure) => {
+                self.report_resolution_failure(
+                    receiver,
+                    failure,
+                    LintDiagnostic::InvalidKeyframesReceiver,
+                    CompileDiagnostic::KeyframesFactsRequired,
+                );
+                return None;
+            }
+        };
+        let options = options.clone();
+        let parsed = match keyframes.as_slice() {
+            [keyframes] => ParsedKeyframesUse::Static {
                 keyframes: keyframes.clone(),
                 options,
-            }),
-            [] => None,
-            _ => Some(ParsedKeyframesUse::Dynamic {
-                value: self.source_span(call.callee.span()),
+            },
+            [] => return None,
+            _ => ParsedKeyframesUse::Dynamic {
+                value: self.source_span(receiver.span()),
                 keyframes,
                 options,
-            }),
-        }
+            },
+        };
+        Some(parsed.into_class_expression())
     }
 
     /// Validates and records one `style.keyframes({...})` declaration.

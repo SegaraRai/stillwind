@@ -43,7 +43,7 @@ export const derived = style(base, 'p-4');
         update
             .diagnostics
             .iter()
-            .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
+            .any(|error| error.diagnostic == CompileDiagnostic::StyleInputFactsRequired),
         "expected a facts requirement, got {:?}",
         update.diagnostics
     );

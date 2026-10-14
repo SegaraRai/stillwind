@@ -118,7 +118,7 @@ impl<'a> MacroExtractor<'a> {
                     expression,
                     failure,
                     LintDiagnostic::InvalidStyleInput,
-                    CompileDiagnostic::RefFactsRequired,
+                    CompileDiagnostic::StyleInputFactsRequired,
                 );
                 None
             }
@@ -127,7 +127,7 @@ impl<'a> MacroExtractor<'a> {
                     return Some(class);
                 }
                 if let Some(keyframes) = self.keyframes_use(expression) {
-                    return Some(keyframes.into_class_expression());
+                    return Some(keyframes);
                 }
                 if let Some(transition) = self.view_transition_use(expression) {
                     return match transition {
@@ -176,7 +176,7 @@ impl<'a> MacroExtractor<'a> {
                     expression,
                     failure,
                     LintDiagnostic::InvalidStyleInput,
-                    CompileDiagnostic::RefFactsRequired,
+                    CompileDiagnostic::StyleInputFactsRequired,
                 );
                 None
             }

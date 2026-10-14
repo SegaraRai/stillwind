@@ -38,6 +38,37 @@ import {
 import { CheckerSource, checkerId } from "./checker-source.ts";
 
 /**
+ * Result of decoding a checker type.
+ *
+ * `nonAsset` covers types whose values cannot be Stillwind assets: primitive types, macro use types,
+ * and object types to which no producer type of the snapshot is assignable. `unbranded` covers object types without
+ * asset branding to which a producer type is assignable. Such a value is not a macro receiver, but
+ * it may hold an asset whose type was widened, so lowering cannot treat it as a confirmed
+ * non-asset. Without producer types, every object type without branding is `unbranded`.
+ */
+type DecodedType =
+  | {
+      kind: "asset";
+      value: NativeExportedValue;
+    }
+  | {
+      kind: "nonAsset" | "unbranded" | "unverified";
+    };
+
+/** Types whose values cannot be Stillwind assets. */
+const primitiveTypeFlags =
+  TypeFlags.StringLike |
+  TypeFlags.NumberLike |
+  TypeFlags.BigIntLike |
+  TypeFlags.BooleanLike |
+  TypeFlags.EnumLike |
+  TypeFlags.ESSymbolLike |
+  TypeFlags.Null |
+  TypeFlags.Undefined |
+  TypeFlags.Void |
+  TypeFlags.Never;
+
+/**
  * Native declaration identity containing its asset kind, declaring module, original byte range, and
  * binding name.
  */
@@ -147,6 +178,8 @@ class AssetTypeDecoder {
   readonly #modules = new Set<number>();
   /** Internal names of discovered unique-symbol brand properties mapped to their asset families. */
   readonly #brands = new Map<string, IdentityId["kind"]>();
+  /** Registered producer call types, used to detect object types that may hold a widened asset. */
+  readonly #producers: Type[] = [];
 
   /**
    * Creates a decoder for one checker snapshot and declaration table.
@@ -162,11 +195,12 @@ class AssetTypeDecoder {
   /**
    * Discovers ref, keyframe, and view-transition brands in a producer type's declaring module.
    *
-   * @param type - Producer call type from this decoder's checker snapshot. Missing alias modules
-   * and already inspected modules are skipped. The discovered property names are retained for later
-   * decoding.
+   * @param type - Producer call type from this decoder's checker snapshot. The type is retained for
+   * later decoding. Missing alias modules and already inspected modules are skipped. The discovered
+   * property names are retained for later decoding.
    */
   register(type: Type): void {
+    this.#producers.push(type);
     const module = type.getAliasSymbol()?.getParent();
     if (!module || this.#modules.has(module.id)) {
       return;
@@ -192,15 +226,25 @@ class AssetTypeDecoder {
   }
 
   /**
+   * Tests whether a type alias is declared by a registered macro module. Such a type describes a
+   * macro use or declaration, not an author's widened asset.
+   *
+   * @param type - Type from this decoder's checker snapshot.
+   * @returns Whether the alias symbol's module was inspected by {@link register}.
+   */
+  #declaredByMacro(type: Type): boolean {
+    const module = type.getAliasSymbol()?.getParent();
+    return !!module && this.#modules.has(module.id);
+  }
+
+  /**
    * Resolves a checker type to finite candidates from a single asset family.
    *
    * @param type - Type of a probed expression from the current checker snapshot.
-   * @returns Finite candidates, a confirmed non-asset, or an unverified value whose declarations
-   * cannot be determined.
+   * @returns Finite candidates, a confirmed non-asset, an object type that may hold a widened
+   * asset, or an unverified value whose declarations cannot be determined.
    */
-  decode(
-    type: Type,
-  ): { kind: "asset"; value: NativeExportedValue } | { kind: "nonAsset" | "unverified" } {
+  decode(type: Type): DecodedType {
     if (type.flags & (TypeFlags.Any | TypeFlags.Unknown)) {
       return { kind: "unverified" };
     }
@@ -259,7 +303,23 @@ class AssetTypeDecoder {
       }
     }
     if (!valid || !family || values.length === 0) {
-      return { kind: recognized ? "unverified" : "nonAsset" };
+      if (recognized) {
+        return {
+          kind: "unverified",
+        };
+      }
+      const widened = constituents.some(
+        (constituent) =>
+          !(constituent.flags & primitiveTypeFlags) &&
+          !this.#declaredByMacro(constituent) &&
+          (this.#producers.length === 0 ||
+            this.#producers.some((producer) =>
+              this.#checker.isTypeAssignableTo(producer, constituent),
+            )),
+      );
+      return {
+        kind: widened ? "unbranded" : "nonAsset",
+      };
     }
     const kinds = {
       style: "styles",
@@ -1024,7 +1084,16 @@ function diagnosticText(diagnostic: Diagnostic): string {
   return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(diagnosticText)].join("\n");
 }
 
-/** Macro argument type errors are reported by lowering; their operands still require valid facts. */
+/**
+ * Tests whether a TypeScript argument error belongs to a style producer call.
+ * Lowering reports unsupported macro arguments as lints, so these errors do not invalidate the
+ * facts of the call. The operands still require valid facts.
+ * @param diagnostic - Checker diagnostic for `sourceFile`.
+ * @param sourceFile - Checker source file that contains the diagnostic.
+ * @param mapping - Producer call ranges of the same source.
+ * @returns Whether the diagnostic is an argument error (TS2345 or TS2769) whose innermost
+ * enclosing call is a recorded producer call.
+ */
 function producerArgumentDiagnostic(
   diagnostic: Diagnostic,
   sourceFile: SourceFile,
@@ -1109,7 +1178,10 @@ function factsForSource(
     const type = types[index];
     const decoded = type ? decoder.decode(type) : { kind: "unverified" as const };
     if (decoded.kind !== "asset") {
-      if (decoded.kind === "unverified") {
+      if (
+        decoded.kind === "unverified" ||
+        (decoded.kind === "unbranded" && !probe.recognitionOnly)
+      ) {
         if (probe.recognitionOnly && !unverified) {
           continue;
         }

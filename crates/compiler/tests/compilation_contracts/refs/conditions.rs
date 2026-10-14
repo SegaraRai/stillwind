@@ -503,7 +503,7 @@ fn registry_resolved_has_and_pseudo_element_conditions_reject_invalid_ref_placem
             result
                 .lint_findings
                 .iter()
-                .any(|error| error.diagnostic == LintDiagnostic::UnavailableVariantPrefix),
+                .any(|error| error.diagnostic == LintDiagnostic::UnsupportedRefVariant),
             "{expression}: {result:#?}"
         );
         assert!(result.diagnostics.is_empty(), "{expression}: {result:#?}");

@@ -127,12 +127,7 @@ if (flag) {
 const props = style(selected, "blue");
 `,
     }),
-  ).resolves.toMatchObject({
-    diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
-  });
+  ).rejects.toThrow(/SW06008/);
 });
 
 test("rejects cyclic module placement when style dependencies are acyclic", async () => {
@@ -172,12 +167,7 @@ function select() {
 }
 const props = style(select(), "blue");`,
     }),
-  ).resolves.toMatchObject({
-    diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
-  });
+  ).rejects.toThrow(/SW06008/);
   await expect(
     compile({
       "entry.ts": `
@@ -199,12 +189,7 @@ if (flag) {
 }
 `,
     }),
-  ).resolves.toMatchObject({
-    diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
-  });
+  ).rejects.toThrow(/SW06008/);
 });
 
 test("parameterized factories preserve all base origins", async () => {
@@ -223,12 +208,7 @@ function select(flag) {
 const props = style(select(flag), "blue");
 `,
     }),
-  ).resolves.toMatchObject({
-    diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
-  });
+  ).rejects.toThrow(/SW06008/);
   const output = await compile({
     "entry.ts": `
 import { style } from "stillwind/react";
@@ -256,12 +236,7 @@ if (flag) {
 const props = style(choice.value, "blue");
 `,
     }),
-  ).resolves.toMatchObject({
-    diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
-  });
+  ).rejects.toThrow(/SW06008/);
 });
 
 test("unrelated JavaScript cycles do not become CSS ordering errors", async () => {

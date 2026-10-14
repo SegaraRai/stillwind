@@ -54,8 +54,6 @@ pub struct LintOverrides {
     pub macro_argument_mutation: Option<LintSeverity>,
     /// Reporting level for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<LintSeverity>,
-    /// Reporting level for `invalid-motion-utility`.
-    pub invalid_motion_utility: Option<LintSeverity>,
     /// Reporting level for omitted rule groups with incompatible inputs.
     pub invalid_variant_input: Option<LintSeverity>,
     /// Reporting level for `invalid-style-input`.
@@ -78,8 +76,6 @@ pub struct LintOverrides {
     pub invalid_view_transition_variant: Option<LintSeverity>,
     /// Reporting level for `invalid-ref-input`.
     pub invalid_ref_input: Option<LintSeverity>,
-    /// Reporting level for `invalid-variant-prefix`.
-    pub invalid_variant_prefix: Option<LintSeverity>,
     /// Reporting level for `invalid-animation-option`.
     pub invalid_animation_option: Option<LintSeverity>,
     /// Reporting level for `invalid-style-composition`.
@@ -259,7 +255,6 @@ impl LintOverrides {
     fn resolve_input_reporting_levels(&self, settings: &mut LintSettings) {
         for (kind, severity) in [
             (LintKind::InvalidVariantInput, self.invalid_variant_input),
-            (LintKind::InvalidMotionUtility, self.invalid_motion_utility),
             (LintKind::InvalidStyleInput, self.invalid_style_input),
             (LintKind::InvalidCvaConfig, self.invalid_cva_config),
             (LintKind::InvalidCvaInput, self.invalid_cva_input),
@@ -285,7 +280,6 @@ impl LintOverrides {
                 self.invalid_view_transition_variant,
             ),
             (LintKind::InvalidRefInput, self.invalid_ref_input),
-            (LintKind::InvalidVariantPrefix, self.invalid_variant_prefix),
             (
                 LintKind::InvalidAnimationOption,
                 self.invalid_animation_option,

@@ -9,7 +9,7 @@ use stillwind_ir::{ClassExpression, ConditionalBranches, StyleInput};
 use stillwind_semantic::{AssetKind, IdentityId};
 
 use crate::local_span::LocalSpan;
-use crate::resolution::ResolutionFailure;
+use crate::resolution::{ResolutionFailure, cannot_carry_asset};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -45,8 +45,9 @@ impl<'a> MacroExtractor<'a> {
     /// only asks whether this is a macro receiver, so a missing fact is allowed.
     /// Otherwise, the probe is subject to the required-query policy for lowering.
     ///
-    /// Literals are skipped. Control-flow expressions handled by lowering their branches
-    /// are also skipped.
+    /// Expressions whose syntax proves a non-asset value are skipped, because a fact for
+    /// them could only repeat that result. Control-flow expressions handled by lowering
+    /// their branches are also skipped.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
         // Control-flow expressions are lowered through their branches. A whole-expression
         // fact would bypass branch-specific macro lowering and erase empty alternatives.
@@ -59,13 +60,7 @@ impl<'a> MacroExtractor<'a> {
         ) {
             return;
         }
-        if matches!(
-            expression,
-            Expression::StringLiteral(_)
-                | Expression::NumericLiteral(_)
-                | Expression::BooleanLiteral(_)
-                | Expression::NullLiteral(_)
-        ) {
+        if cannot_carry_asset(expression) {
             return;
         }
         let span = expression.span();
