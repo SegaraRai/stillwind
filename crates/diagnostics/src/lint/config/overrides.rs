@@ -54,6 +54,8 @@ pub struct LintOverrides {
     pub macro_argument_mutation: Option<LintSeverity>,
     /// Reporting level for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<LintSeverity>,
+    /// Reporting level for omitted rule groups with incompatible inputs.
+    pub invalid_variant_input: Option<LintSeverity>,
     /// Reporting level for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<LintSeverity>,
     /// Reporting level for `require-ref-attachment`.
@@ -168,6 +170,7 @@ impl LintOverrides {
                 self.macro_execution_boundary,
             ),
             (LintKind::ValidAnchorScope, self.valid_anchor_scope),
+            (LintKind::InvalidVariantInput, self.invalid_variant_input),
             (LintKind::RequireRefAttachment, self.require_ref_attachment),
             (
                 LintKind::ConflictingProviderProperties,

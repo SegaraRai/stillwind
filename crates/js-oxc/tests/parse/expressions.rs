@@ -1,5 +1,7 @@
 //! Checks class, object, array, and variant expression lowering.
 
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
+
 use super::*;
 
 fn rule(expression: &ClassExpression) -> &RuleExpression {
@@ -140,14 +142,18 @@ const props = style(["px-4", loading && "opacity-60"], { "hover:": "bg-accent" }
     assert_eq!(value.value, "bg-accent");
 }
 
-/// Raw selector keys and non-scopable wrapper values are rejected.
 #[test]
-fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
-    for argument in [
-        r#"{ "&:hover": "flex" }"#,
-        r#"{ ":": "flex" }"#,
-        r#"{ "hover:": { "aria-busy": true } }"#,
-        r#"{ "hover:": { class: "external" } }"#,
+fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
+    for (argument, reason) in [
+        (r#"{ "&:hover": "flex" }"#, None),
+        (
+            r#"{ "hover:": { "aria-busy": true } }"#,
+            Some(VariantInputErrorKind::Attribute),
+        ),
+        (
+            r#"{ "hover:": { class: "external" } }"#,
+            Some(VariantInputErrorKind::ExternalClass),
+        ),
     ] {
         let source = SourceFile::new(
             FileId(1),
@@ -166,7 +172,21 @@ fn rejects_raw_selector_keys_and_non_variant_wrapper_contents() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous,
         );
-        assert!(!parsed.diagnostics.is_empty(), "{argument}");
+        if let Some(reason) = reason {
+            assert!(parsed.diagnostics.is_empty(), "{argument}");
+            assert_eq!(parsed.lint_findings.len(), 1);
+            assert_eq!(
+                parsed.lint_findings[0].diagnostic,
+                LintDiagnostic::InvalidVariantInput { reason }
+            );
+            assert_eq!(parsed.module.style_calls[0].inputs, []);
+        } else {
+            assert_eq!(parsed.diagnostics.len(), 1);
+            assert_eq!(
+                parsed.diagnostics[0].diagnostic,
+                CompileDiagnostic::InvalidAttributeKey
+            );
+        }
     }
 }
 

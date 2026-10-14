@@ -1067,6 +1067,8 @@ export interface NativeLintOptions {
   macroArgumentMutation?: string
   /** Settings for `macro-execution-boundary`. */
   macroExecutionBoundary?: string
+  /** Settings for `invalid-variant-input`. */
+  invalidVariantInput?: string
   /** Settings for `valid-anchor-scope`. */
   validAnchorScope?: string
   /** Settings for `require-ref-attachment`. */

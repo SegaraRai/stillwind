@@ -73,7 +73,6 @@ define_compile_codes! {
     InvalidCvaConfig { .. } => "SW01014",
     InvalidCvaInput => "SW01015",
     // 02: utilities and variants
-    InvalidVariantInput { .. } => "SW02001",
     InvalidUtilityTemplate => "SW02002",
     UnavailableUtility { .. } => "SW02003",
     // 03: refs and providers

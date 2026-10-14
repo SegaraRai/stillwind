@@ -100,40 +100,48 @@ export const item = style("block", { "hover:": enabled && motion.for(id) });"#,
 
 #[test]
 fn conditional_transition_dynamic_name_uses_inline_style() {
-    let component = SourceFile::new(
-        FileId(1),
-        None,
-        None,
-        r#"import { style } from "stillwind/react";
+    for expression in [
+        "enabled && motion.for(id)",
+        "{ '': enabled && motion.for(id) }",
+        "{ ':': enabled && motion.for(id) }",
+    ] {
+        let component = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!(
+                r#"import {{ style }} from "stillwind/react";
 declare const enabled: boolean;
 declare const id: string;
-const motion = style.viewTransition({ old: "opacity-0" });
-export const item = style("block", enabled && motion.for(id));"#,
-    )
-    .unwrap();
-    let theme = css_source(FileId(2), "@theme {}").unwrap();
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("(enabled) &&"), "{transformed}");
-    assert!(
-        transformed.contains("[stillwindStyleKey]:{\"view-transition-name\":"),
-        "{transformed}"
-    );
-    assert!(
-        !result.css.contains("view-transition-name:var("),
-        "{}",
-        result.css
-    );
+const motion = style.viewTransition({{ old: "opacity-0" }});
+export const item = style("block", {expression});"#
+            ),
+        )
+        .unwrap();
+        let theme = css_source(FileId(2), "@theme {}").unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &component,
+            &ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            &CssSourceName::from("stillwind.css"),
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+        let transformed = result.apply_to_source(&component).unwrap();
+        assert!(transformed.contains("(enabled) &&"), "{transformed}");
+        assert!(
+            transformed.contains("[stillwindStyleKey]:{\"view-transition-name\":"),
+            "{transformed}"
+        );
+        assert!(
+            !result.css.contains("view-transition-name:var("),
+            "{}",
+            result.css
+        );
+    }
 }
 
 #[test]

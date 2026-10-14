@@ -382,7 +382,7 @@ export class SourceIndex {
           name,
         };
       }
-      return name.endsWith(":") || name === "class"
+      return name === "" || name.endsWith(":") || name === "class"
         ? {
             kind: "utilities",
           }
@@ -630,7 +630,7 @@ export class SourceIndex {
    *
    * @param source - Prepared source whose checker AST contains `node`.
    * @param node - Input expression to inspect. Object properties ending in `:` contribute
-   * their values under the accumulated group variants.
+   * their values under the accumulated group variants. The keys `""` and `":"` add no variants.
    * @param prefix - Decoded enclosing variants, including trailing colons. Nested group
    * names are appended before their literals are recorded.
    */
@@ -680,10 +680,10 @@ export class SourceIndex {
         const name = ts.isStringLiteralLike(property.name)
           ? property.name.text
           : property.name.getText();
-        if (!name.endsWith(":")) {
+        if (name !== "" && !name.endsWith(":")) {
           continue;
         }
-        this.#input(source, property.initializer, prefix + name);
+        this.#input(source, property.initializer, name === ":" ? prefix : prefix + name);
       }
     }
   }

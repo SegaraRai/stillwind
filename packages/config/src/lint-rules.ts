@@ -115,6 +115,11 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-variant-input": {
+    nativeName: "invalidVariantInput",
+    defaults: null,
+    options: null,
+  },
   "valid-anchor-scope": {
     nativeName: "validAnchorScope",
     defaults: null,

@@ -1,29 +1,32 @@
 import {  type VariantProps } from "stillwind/react";
 import { stillwindCva } from "stillwind/runtime/react";
 
-export const button = stillwindCva("sw_li79w rounded", {
-  variants: {
-    size: {
-      small: "sw_7q2q7",
-      large: "sw_jwlf4",
+export const button = stillwindCva(
+  "sw_5z9t1 rounded",
+  {
+    variants: {
+      size: {
+        small: "sw_jy94h",
+        large: "sw_riolb",
+      },
+      disabled: {
+        false: "",
+        true: "sw_1agbk",
+      },
     },
-    disabled: {
-      false: "",
-      true: "sw_cnh4g",
-    },
-  },
-  defaultVariants: {
-    size: "small",
-    disabled: false,
-  },
-  compoundVariants: [
-    {
-      size: ["small", "large"],
+    defaultVariants: {
+      size: "small",
       disabled: false,
-      className: "sw_dndui",
     },
-  ],
-});
+    compoundVariants: [
+      {
+        size: ["small", "large"],
+        disabled: false,
+        className: "sw_9fmy7",
+      },
+    ],
+  },
+);
 
 export function Button(props: VariantProps<typeof button>) {
   return <button {...button(props)}>Continue</button>;

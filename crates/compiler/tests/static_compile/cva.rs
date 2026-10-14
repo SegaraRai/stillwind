@@ -1,7 +1,7 @@
 //! CVA extraction, style lowering, and runtime imports through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -30,14 +30,14 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
     let (source, result) = compile(
         r"
         import { style as sw } from 'stillwind/react';
-        export const choose = sw.cva('rounded', {
+        export const choose = sw.cva({ '': 'rounded' }, {
             variants: {
-                size: { small: 'p-4 px-2', large: 'p-8 py-2' },
+                size: { small: { ':': 'p-4 px-2' }, large: 'p-8 py-2' },
                 enabled: { false: null, true: 'block' },
                 count: { 0: 'm-0', 1: 'm-1' },
             },
             defaultVariants: { size: 'small', enabled: false, count: 0 },
-            compoundVariants: [{ size: ['small', 'large'], class: 'hover:shadow-md' }],
+            compoundVariants: [{ size: ['small', 'large'], class: { 'hover:': { '': 'shadow-md' } } }],
         });
         export const props = choose({ size: value });
     ",
@@ -109,7 +109,6 @@ fn cva_rejects_opaque_configuration_and_unsupported_style_inputs_transactionally
         "style.cva({ class: classes })",
         "style.cva(style('block'))",
         "style.cva(`p-${size}`)",
-        "style.cva({ 'hover:': { '--tone': 'red' } })",
         "style.cva([...styles])",
         "style?.cva('block')",
     ] {
@@ -126,6 +125,35 @@ fn cva_rejects_opaque_configuration_and_unsupported_style_inputs_transactionally
         );
         assert!(result.module_css.is_empty(), "{body}");
         assert!(result.transforms.is_empty(), "{body}");
+    }
+}
+
+#[test]
+fn cva_omits_invalid_rule_groups_and_keeps_other_entries() {
+    for key in ["hover:", "", ":"] {
+        let (_, result) = compile(&format!(
+            "import {{ style }} from 'stillwind/react'; \
+             const choose = style.cva({{'{key}': ['p-2', {{'--tone': tone}}], \
+             'focus:': 'block', '--kept': 'blue'}});"
+        ));
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.lint_findings.iter().any(|finding| finding.diagnostic
+            == LintDiagnostic::InvalidVariantInput {
+                reason: VariantInputErrorKind::CustomProperty,
+            }));
+        assert!(
+            result.module_css.contains("display:block"),
+            "{}",
+            result.module_css
+        );
+        assert!(
+            !result.module_css.contains("padding:"),
+            "{}",
+            result.module_css
+        );
+        let output = &result.transforms[0].replacement;
+        assert!(output.contains("blue"), "{output}");
+        assert!(!output.contains("--tone"), "{output}");
     }
 }
 

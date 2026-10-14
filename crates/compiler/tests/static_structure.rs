@@ -1,12 +1,22 @@
 //! Literal structure normalization through the public compiler.
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, SourceTransform};
-use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{
+    CompileDiagnostic, LintDiagnostic, LintKind, LintOverrides, LintSeverity, VariantInputErrorKind,
+};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
 
 fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
+    compile_with_options(code, css, &CompilerOptions::default())
+}
+
+fn compile_with_options(
+    code: &str,
+    css: &str,
+    options: &CompilerOptions,
+) -> (SourceFile, CompileResult) {
     let source = SourceFile::new(
         FileId(1),
         None,
@@ -36,9 +46,31 @@ fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
         ScriptModuleKind::Unambiguous,
         &theme,
         &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
+        options,
     );
     (source, result)
+}
+
+#[test]
+fn empty_rule_group_keys_retain_enclosing_variants_and_entry_order() {
+    let css = "@utility a { color:red; } @utility b { margin:2px; } \
+               @variant hover { &:hover { @slot; } }";
+    for (plain, grouped) in [
+        ("'a'", "{'': 'a'}"),
+        ("'a'", "{':': 'a'}"),
+        ("'hover:a'", "{'hover:': {'': 'a'}}"),
+        ("'hover:a'", "{'hover:': {':': 'a'}}"),
+        ("'hover:a'", "{'': {'hover:': 'a'}}"),
+        ("'a b'", "{'': 'a', ':': 'b'}"),
+        ("'b a'", "{':': 'b', '': 'a'}"),
+        ("'b'", "{...{'': 'a'}, '': 'b'}"),
+    ] {
+        let (_, expected) = compile(&format!("const x = style({plain});"), css);
+        let (_, result) = compile(&format!("const x = style({grouped});"), css);
+        assert!(result.diagnostics.is_empty(), "{grouped}: {result:#?}");
+        assert!(result.lint_findings.is_empty(), "{grouped}: {result:#?}");
+        assert_eq!(result.css, expected.css, "{grouped}");
+    }
 }
 
 #[test]
@@ -71,20 +103,30 @@ fn literal_spreads_and_fixed_keys_preserve_object_overwrites() {
 
 #[test]
 fn inline_custom_properties_combine_with_variant_utilities() {
-    let css = "@variant hover { &:hover { @slot; } }";
+    let css = "@utility a { color:red; } @utility b { color:blue; } \
+               @variant hover { &:hover { @slot; } } \
+               @variant focus { &:focus { @slot; } }";
     for value in ["'red'", "0", "dynamicValue"] {
         let (_, result) = compile(
-            &format!("const x = style({{'hover:': {{'--x': {value}}}}});"),
+            &format!(
+                "const x = style({{'hover:': ['a', {{'--x': {value}}}], \
+                     'focus:': 'b', 'data-kept': 1}});"
+            ),
             css,
         );
         assert!(
-            result.diagnostics.iter().any(|error| error.diagnostic
-                == CompileDiagnostic::InvalidVariantInput {
+            result.lint_findings.iter().any(|finding| finding.diagnostic
+                == LintDiagnostic::InvalidVariantInput {
                     reason: VariantInputErrorKind::CustomProperty,
                 }),
             "{result:#?}"
         );
-        assert_eq!(result.transforms, [] as [SourceTransform; 0]);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.css.contains(":focus{color:blue;}"), "{}", result.css);
+        assert!(!result.css.contains("color:red;"), "{}", result.css);
+        let output = &result.transforms[0].replacement;
+        assert!(output.contains("data-kept"), "{output}");
+        assert!(!output.contains("--x"), "{output}");
     }
     let (_, result) = compile(
         "const x = style('hover:[--x:var(--y)]', {'--y': dynamicValue});",
@@ -129,11 +171,62 @@ fn nested_variant_failure_labels_the_first_incompatible_leaf() {
     ] {
         let (source, result) = compile(input, "@variant hover { &:hover { @slot; } }");
         let failure = result
-            .diagnostics
+            .lint_findings
             .iter()
-            .find(|error| error.diagnostic == CompileDiagnostic::InvalidVariantInput { reason })
+            .find(|finding| finding.diagnostic == LintDiagnostic::InvalidVariantInput { reason })
             .unwrap();
         assert_eq!(source.slice(failure.labels[0].span).unwrap(), label);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert_ne!(result.transforms, [] as [SourceTransform; 0]);
+    }
+}
+
+#[test]
+fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
+    let css = "@utility a { color:red; } @utility b { color:blue; } \
+               @variant hover { &:hover { @slot; } }";
+    for key in ["hover:", "", ":"] {
+        let code = format!(
+            "const x = style({{'{key}': ['a', {{'data-dropped': value}}], \
+                           'data-kept': 1}}, 'b');"
+        );
+        for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
+            let options = CompilerOptions {
+                lint: LintOverrides {
+                    invalid_variant_input: Some(severity),
+                    ..LintOverrides::default()
+                },
+                ..CompilerOptions::default()
+            };
+            let (_, result) = compile_with_options(&code, css, &options);
+            assert!(result.diagnostics.is_empty(), "{result:#?}");
+            assert_eq!(result.lint_findings.len(), 1);
+            assert_eq!(
+                result
+                    .lint_settings
+                    .reporting_severity(LintKind::InvalidVariantInput),
+                severity
+            );
+            assert!(result.css.contains("color:blue;"), "{}", result.css);
+            assert!(!result.css.contains("color:red;"), "{}", result.css);
+            let output = &result.transforms[0].replacement;
+            assert!(output.contains("data-kept"), "{output}");
+            assert!(
+                !output.contains("data-dropped") && !output.contains("value"),
+                "{output}"
+            );
+        }
+        let (_, suppressed) = compile(
+            &format!("\n// swlint-disable-next-line invalid-variant-input\n{code}"),
+            css,
+        );
+        assert!(suppressed.diagnostics.is_empty(), "{suppressed:#?}");
+        assert!(suppressed.lint_findings.is_empty(), "{suppressed:#?}");
+        assert!(
+            !suppressed.transforms[0]
+                .replacement
+                .contains("data-dropped")
+        );
     }
 }
 

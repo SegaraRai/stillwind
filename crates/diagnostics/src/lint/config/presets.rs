@@ -11,6 +11,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::FrameworkImportMismatch, LintSeverity::Warn),
     (LintKind::MacroArgumentMutation, LintSeverity::Deny),
     (LintKind::MacroExecutionBoundary, LintSeverity::Deny),
+    (LintKind::InvalidVariantInput, LintSeverity::Deny),
     (LintKind::ValidAnchorScope, LintSeverity::Warn),
     (LintKind::RequireRefAttachment, LintSeverity::Warn),
     (LintKind::ConflictingProviderProperties, LintSeverity::Warn),

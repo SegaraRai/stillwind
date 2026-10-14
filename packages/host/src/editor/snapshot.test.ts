@@ -441,6 +441,49 @@ test("sort targets are independent and base inputs retain their original order",
   }
 });
 
+test("empty rule keys retain completion prefixes, hover selectors, and utility grouping", async () => {
+  for (const key of ["", ":"]) {
+    const name = JSON.stringify(key);
+    const incomplete = `import {style} from "stillwind/react"; const card=style({"hover:":{${name}:"bg-br`;
+    const current = project(incomplete);
+    try {
+      const items = (await current.query("/workspace/entry.tsx", {
+        kind: "completion",
+        offset: incomplete.length,
+      }))!.completions!;
+      expect(items.find((item) => item.label === "bg-brand")).toMatchObject({
+        candidate: "hover:bg-brand",
+        start: incomplete.indexOf("bg-br"),
+        end: incomplete.length,
+        newText: "bg-brand",
+      });
+    } finally {
+      await current.close();
+    }
+    const source = `import {style} from "stillwind/react"; const card=style({"data-z":1,${name}:"flex block","hover:":{${name}:"bg-brand"}});`;
+    const complete = project(source, { sort: { stringLiterals: true, arrays: true } });
+    try {
+      expect(
+        (await complete.query("/workspace/entry.tsx", {
+          kind: "hover",
+          offset: source.indexOf("bg-brand"),
+        }))!.hover?.css,
+      ).toContain("&:hover");
+      const sorted = applyEdits(
+        source,
+        (await complete.query("/workspace/entry.tsx", {
+          kind: "sort",
+        }))!.edits!,
+      );
+      expect(sorted).toContain(
+        `style({${name}:"block flex","hover:":{${name}:"bg-brand"},"data-z":1})`,
+      );
+    } finally {
+      await complete.close();
+    }
+  }
+});
+
 test("array sorting retains comments attached after an expression", async () => {
   const source =
     'import {style} from "stillwind/react"; const value=style(["flex" /* attached */, "block", "p-4"]);';

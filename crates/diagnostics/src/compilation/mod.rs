@@ -10,6 +10,6 @@ mod finding;
 mod source_failure;
 
 pub use code::CompileErrorCode;
-pub use diagnostic::{CompileDiagnostic, VariantInputErrorKind};
+pub use diagnostic::CompileDiagnostic;
 pub use finding::CompileError;
 pub use source_failure::SourceFailureContext;

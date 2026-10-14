@@ -151,6 +151,16 @@ and style composition cannot occur in variant values. They can occur in other
 a CSS variant is stored in a conditional inline custom property; the variant's
 rule emits `view-transition-name: var(...)`.
 
+The object keys `""` and `":"` group the same rule inputs without adding variants.
+Nested groups retain their enclosing variants. These keys also work in CVA values,
+which retain the CVA input restrictions. Attributes, custom properties, and external
+classes can be supplied beside the rule groups in a `style()` object.
+
+An incompatible input in a rule group produces `invalid-variant-input`, which
+defaults to `deny`. The compiler omits the whole property and retains other object
+entries. Suppression and severity settings affect reporting; the property is omitted
+even when the rule is disabled.
+
 When an identity is known at compile time, reading the receiver at runtime may
 be unnecessary. The extra `StillwindDeclarationIdentity` argument in the type
 definitions is internal checker information. Users must not use it to execute effects.

@@ -6,30 +6,6 @@ use stillwind_source::{BytePos, CssSourceName, FileId, Position, Span, Utf16Offs
 
 use super::SourceFailureContext;
 
-/// The reason a style input cannot be transformed by a CSS variant.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
-#[serde(rename_all = "camelCase")]
-pub enum VariantInputErrorKind {
-    /// Element attribute supplied by an object entry.
-    #[error("element attribute")]
-    Attribute,
-    /// Inline custom property supplied by an object entry.
-    #[error("inline custom property")]
-    CustomProperty,
-    /// Runtime class value without a CSS rule.
-    #[error("external class value")]
-    ExternalClass,
-    /// A composed style value.
-    #[error("style composition")]
-    Composition,
-    /// A ref attachment.
-    #[error("ref attachment")]
-    RefAttachment,
-    /// A dynamic ref attachment.
-    #[error("dynamic ref attachment")]
-    DynamicRefAttachment,
-}
-
 /// Typed causes and display templates for fatal compilation errors.
 ///
 /// Each variant has a unique reporting code. The diagnostic owns cause data and its
@@ -83,15 +59,9 @@ pub enum CompileDiagnostic {
     InvalidComputedAttribute,
     /// An object key is neither an attribute, a class entry, nor a variant prefix.
     #[error(
-        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, or variant prefixes ending in `:`"
+        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
     )]
     InvalidAttributeKey,
-    /// A variant wrapper contains an unsupported input expression.
-    #[error("CSS variant cannot transform {reason}")]
-    InvalidVariantInput {
-        /// First incompatible input in source order.
-        reason: VariantInputErrorKind,
-    },
     /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
     #[error("utility templates require direct ref variants in complete `variant:utility` segments")]
     InvalidUtilityTemplate,

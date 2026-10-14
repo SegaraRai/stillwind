@@ -1,8 +1,8 @@
-//! Validates the rule-only subtree accepted beneath a CSS variant.
+//! Validates and groups the rule inputs supplied by object keys.
 
 use oxc::ast::ast::Expression;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding, VariantInputErrorKind};
 use stillwind_ir::{
     GroupEntry, RuleExpression, RuleExpressionError, RuleExpressionErrorKind, StyleInput,
     StyleVariant,
@@ -33,12 +33,13 @@ impl From<RuleExpressionError> for VariantInputError {
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Returns one variant-wrapped rule entry when every contributing descendant can
-    /// produce CSS. Returns `None` for an empty value or after recording the first
-    /// incompatible descendant.
-    pub(super) fn variant_entry(
+    /// Returns a rule entry when every descendant supports CSS variants. `variant`
+    /// wraps the rules when present; `None` retains only the enclosing variants.
+    /// Returns `None` for an empty value or after recording a lint for the first
+    /// incompatible descendant, omitting the whole object property.
+    pub(super) fn rule_entry(
         &mut self,
-        variant: StyleVariant,
+        variant: Option<StyleVariant>,
         value: &Expression<'a>,
     ) -> Option<GroupEntry> {
         let mut inputs = Vec::new();
@@ -53,8 +54,8 @@ impl<'a> MacroExtractor<'a> {
         {
             Ok(inputs) => inputs,
             Err(failure) => {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidVariantInput {
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidVariantInput {
                         reason: failure.reason,
                     },
                     failure.span,
@@ -62,9 +63,11 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
         };
-        Some(GroupEntry::Class(Box::new(
-            RuleExpression::Variant { variant, inputs }.into(),
-        )))
+        let rule = match variant {
+            Some(variant) => RuleExpression::Variant { variant, inputs },
+            None => RuleExpression::Array(inputs),
+        };
+        Some(GroupEntry::Class(Box::new(rule.into())))
     }
 }
 

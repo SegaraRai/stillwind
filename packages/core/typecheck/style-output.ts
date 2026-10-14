@@ -30,6 +30,11 @@ function attributeOutputs(active: boolean, count: number, value: { id: number })
   const conditionalUndefined = react({ "data-value": 1 }, active && { "data-value": undefined });
   const classInput = react({ class: { "external-class": active } });
   const attributeVariants = react({ "aria-busy:": "block", "data-active:": "flex" });
+  const objectRules = react({
+    "": ["block", active && "flex"],
+    ":": { "hover:": "hidden" },
+    "data-count": count,
+  });
   type Contracts = [
     Assert<Same<Props<typeof plain>, { className?: string }>>,
     Assert<Same<Props<typeof empty>, { className?: string }>>,
@@ -71,6 +76,7 @@ function attributeOutputs(active: boolean, count: number, value: { id: number })
     Assert<Required<typeof conditionalUndefined, "data-value">>,
     Assert<Same<Props<typeof classInput>, { className?: string }>>,
     Assert<Same<Props<typeof attributeVariants>, { className?: string }>>,
+    Assert<Same<Props<typeof objectRules>, { className?: string; "data-count": number }>>,
   ];
   return null as unknown as Contracts;
 }
@@ -88,6 +94,10 @@ function inlineStyleOutputs(active: boolean, key: string) {
   const computed = react({ [ref()]: transition.for(key) });
   const computedRules = react({ [ref()]: "block" });
   const external = react({ class: { "--class": active, style: active } });
+  const groupedRules = react({ "": [ref.asAnchor(), frames("duration-200")], ":": false });
+  const groupedNamed = react({ "": transition.for(key) });
+  const variantNamed = react({ "hover:": transition.for(key) });
+  const variantDeclaration = react({ "hover:": transition });
   type Contracts = [
     Assert<Same<Props<typeof rules>, { className?: string }>>,
     Assert<Same<Props<typeof custom>, { className?: string; style?: Record<string, string> }>>,
@@ -97,6 +107,14 @@ function inlineStyleOutputs(active: boolean, key: string) {
     Assert<Same<Props<typeof computed>, { className?: string; style?: Record<string, string> }>>,
     Assert<Same<Props<typeof computedRules>, { className?: string }>>,
     Assert<Same<Props<typeof external>, { className?: string }>>,
+    Assert<Same<Props<typeof groupedRules>, { className?: string }>>,
+    Assert<
+      Same<Props<typeof groupedNamed>, { className?: string; style?: Record<string, string> }>
+    >,
+    Assert<
+      Same<Props<typeof variantNamed>, { className?: string; style?: Record<string, string> }>
+    >,
+    Assert<Same<Props<typeof variantDeclaration>, { className?: string }>>,
   ];
   return null as unknown as Contracts;
 }
@@ -223,6 +241,8 @@ function variableInputs(
 void variableInputs;
 
 function invalidInputs() {
+  const ref = react.ref();
+  const base = react("block");
   // @ts-expect-error Only data and ARIA attributes are accepted as ordinary props.
   react({ title: "card" });
   // @ts-expect-error Authored inline style is not a macro input.
@@ -231,5 +251,11 @@ function invalidInputs() {
   react({ "hover:": [{ "--size": 4 }] });
   // @ts-expect-error Attributes cannot occur in a nested variant wrapper.
   react({ "hover:": { "focus:": { "data-state": "active" } } });
+  // @ts-expect-error Empty rule groups accept the same inputs as variant wrappers.
+  react({ "": { "--size": 4 } });
+  // @ts-expect-error Ref attachments require positions outside rule groups.
+  react({ ":": ref });
+  // @ts-expect-error Composed style props require positions outside rule groups.
+  react({ "": base });
 }
 void invalidInputs;

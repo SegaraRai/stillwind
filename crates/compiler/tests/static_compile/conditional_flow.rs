@@ -5,8 +5,8 @@
 //! (attribute values included), that base rules precede conditional rules in the
 //! stylesheet, and that unsupported forms report their diagnostics.
 
-use stillwind_compiler::{CompileResult, CompilerOptions};
-use stillwind_diagnostics::{CompileDiagnostic, VariantInputErrorKind};
+use stillwind_compiler::{CompileResult, CompilerOptions, SourceTransform};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -15,7 +15,7 @@ use stillwind_test_support::css_source;
 use super::*;
 
 #[test]
-fn variant_rejects_ref_attachment_and_composition() {
+fn variant_omits_ref_attachment_and_composition_with_lint_findings() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -40,22 +40,19 @@ export const two = style({ "hover:": base });"#,
     );
     assert_eq!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .filter(|error| matches!(
-                error.diagnostic,
-                CompileDiagnostic::InvalidVariantInput { .. }
-            ))
+            .filter(|error| matches!(error.diagnostic, LintDiagnostic::InvalidVariantInput { .. }))
             .count(),
         2,
         "{:#?}",
         result.diagnostics
     );
     let failures = result
-        .diagnostics
+        .lint_findings
         .iter()
         .filter_map(|error| match error.diagnostic {
-            CompileDiagnostic::InvalidVariantInput { reason } => Some((
+            LintDiagnostic::InvalidVariantInput { reason } => Some((
                 reason,
                 component.slice(error.labels[0].span).unwrap().to_owned(),
             )),
@@ -69,6 +66,8 @@ export const two = style({ "hover:": base });"#,
             (VariantInputErrorKind::Composition, "base".to_owned()),
         ]
     );
+    assert!(result.diagnostics.is_empty(), "{result:#?}");
+    assert_ne!(result.transforms, [] as [SourceTransform; 0]);
 }
 
 fn compile(body: &str) -> CompileResult {
@@ -229,12 +228,6 @@ fn unsupported_forms_report_their_diagnostics() {
         (
             "const props = style(`${a ? \"hover\" : \"focus\"}:p-2`);",
             CompileDiagnostic::InvalidUtilityTemplate,
-        ),
-        (
-            "const props = style(\"p-4\", { \"hover:\": { \"aria-busy\": true } });",
-            CompileDiagnostic::InvalidVariantInput {
-                reason: VariantInputErrorKind::Attribute,
-            },
         ),
     ] {
         let component = SourceFile::new(

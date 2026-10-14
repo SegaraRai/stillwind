@@ -51,6 +51,8 @@ pub struct NativeLintOptions {
     pub macro_argument_mutation: Option<String>,
     /// Settings for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<String>,
+    /// Settings for `invalid-variant-input`.
+    pub invalid_variant_input: Option<String>,
     /// Settings for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<String>,
     /// Settings for `require-ref-attachment`.
@@ -154,6 +156,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             macro_execution_boundary: input
                 .macro_execution_boundary
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_variant_input: input
+                .invalid_variant_input
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             valid_anchor_scope: input

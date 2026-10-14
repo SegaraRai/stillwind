@@ -5,15 +5,18 @@ import { style as solid } from "stillwind/solid";
 import { style as svelte } from "stillwind/svelte";
 import { style as vue } from "stillwind/vue";
 
-const button = react.cva("rounded", {
-  variants: {
-    size: { small: "p-2", large: "p-4" },
-    disabled: { false: null, true: "opacity-50" },
-    count: { 0: "p-0", 1: "p-1" },
+const button = react.cva(
+  { "": "rounded", ":": { "hover:": "shadow-md" } },
+  {
+    variants: {
+      size: { small: { ":": "p-2" }, large: "p-4" },
+      disabled: { false: null, true: "opacity-50" },
+      count: { 0: "p-0", 1: "p-1" },
+    },
+    defaultVariants: { size: "small", disabled: false, count: 0 },
+    compoundVariants: [{ size: ["small", "large"], disabled: false, className: "hover:shadow-md" }],
   },
-  defaultVariants: { size: "small", disabled: false, count: 0 },
-  compoundVariants: [{ size: ["small", "large"], disabled: false, className: "hover:shadow-md" }],
-});
+);
 
 const selection: VariantProps<typeof button> = { size: null, disabled: true, count: 1 };
 button(selection);
@@ -44,6 +47,8 @@ react.cva(null, { variants: { className: { small: "p-2" } } });
 react.cva({ "data-state": "ready" });
 // @ts-expect-error Custom properties cannot occur under CSS variants.
 react.cva({ "hover:": { "--tone": "red" } });
+// @ts-expect-error Empty rule groups also exclude custom properties.
+react.cva({ "": { "--tone": "red" } });
 
 react.cva([true, false, null, undefined, { "hover:": "shadow-md", "--tone": "red" }]);
 react.cva();

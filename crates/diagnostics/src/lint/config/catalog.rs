@@ -218,6 +218,7 @@ define_lint_rules! {
     FrameworkImportMismatch => "framework-import-mismatch",
     MacroArgumentMutation => "macro-argument-mutation",
     MacroExecutionBoundary => "macro-execution-boundary",
+    InvalidVariantInput => "invalid-variant-input",
     ValidAnchorScope => "valid-anchor-scope",
     RequireRefAttachment => "require-ref-attachment",
     ConflictingProviderProperties => "conflicting-provider-properties",

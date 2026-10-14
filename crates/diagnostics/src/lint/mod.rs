@@ -23,7 +23,7 @@ pub use config::{
     RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
     RestrictedUtilityRule, RootFontSize,
 };
-pub use diagnostic::{LintDiagnostic, UtilityFailure};
+pub use diagnostic::{LintDiagnostic, UtilityFailure, VariantInputErrorKind};
 pub use finding::LintFinding;
 pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, collect_lint_directives,

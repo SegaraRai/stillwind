@@ -548,8 +548,11 @@ export type StyleVariantValue =
  *
  * The wrapper itself is input syntax and cannot be stored for later consumption.
  * Each key applies its conditions to every nested rule, from outermost to innermost.
+ * The keys `""` and `":"` retain the enclosing conditions without adding variants.
  */
 export interface StyleVariantObject {
+  /** Rule inputs that retain the enclosing variants. */
+  readonly ""?: StyleVariantValue;
   /**
    * Static variant prefixes with a final `:` wrap the associated rule inputs.
    */
@@ -683,7 +686,7 @@ type HasInlineStyle<Input> = StyleArgument extends Input
               ? false
               : Input extends object
                 ? Extract<keyof Input, `--${string}`> extends never
-                  ? HasInlineStyle<Input[Extract<keyof Input, StyleVariant | StyleVariantKey>]>
+                  ? HasInlineStyle<Input[Extract<keyof Input, "" | StyleVariant | StyleVariantKey>]>
                   : true
                 : false;
 
@@ -714,13 +717,21 @@ type CheckedVariantInput<Input> = StyleVariantValue extends Input
   ? StyleVariantValue
   : Input extends readonly unknown[]
     ? { [Key in keyof Input]: CheckedVariantInput<Input[Key]> }
-    : Input extends string | false | null | undefined | StyleRefProjection | StyleKeyframesUse
+    : Input extends
+          | string
+          | false
+          | null
+          | undefined
+          | StyleRefProjection
+          | StyleKeyframesUse
+          | StyleViewTransition
+          | StyleViewTransitionUse
       ? StyleVariantValue
       : Input extends object
         ? {
             [Key in keyof Input]: string extends Key
               ? StyleVariantValue
-              : Key extends StyleVariant | StyleVariantKey
+              : Key extends "" | StyleVariant | StyleVariantKey
                 ? CheckedVariantInput<Input[Key]>
                 : never;
           }
@@ -748,7 +759,7 @@ type CheckedStyleInput<Input> = StyleArgument extends Input
           ? {
               [Key in keyof Input]: string extends Key
                 ? StyleVariantValue
-                : Key extends StyleVariant | StyleVariantKey
+                : Key extends "" | StyleVariant | StyleVariantKey
                   ? CheckedVariantInput<Input[Key]>
                   : Key extends StyleAttributeName
                     ? unknown

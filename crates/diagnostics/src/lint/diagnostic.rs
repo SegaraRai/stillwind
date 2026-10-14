@@ -10,6 +10,30 @@ use stillwind_source::ModuleId;
 
 use super::LintKind;
 
+/// The reason a style input cannot be placed in a rule group.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[serde(rename_all = "camelCase")]
+pub enum VariantInputErrorKind {
+    /// Element attribute supplied by an object entry.
+    #[error("element attribute")]
+    Attribute,
+    /// Inline custom property supplied by an object entry.
+    #[error("inline custom property")]
+    CustomProperty,
+    /// Runtime class value without a CSS rule.
+    #[error("external class value")]
+    ExternalClass,
+    /// A composed style value.
+    #[error("style composition")]
+    Composition,
+    /// A ref attachment.
+    #[error("ref attachment")]
+    RefAttachment,
+    /// A dynamic ref attachment.
+    #[error("dynamic ref attachment")]
+    DynamicRefAttachment,
+}
+
 /// Concrete values and message templates for a detected lint.
 ///
 /// Distinct diagnostic variants may select the same rule. Utility classification can
@@ -18,6 +42,12 @@ use super::LintKind;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
+    /// A rule group is omitted because it contains an unsupported input.
+    #[error("style() rule groups cannot contain {reason}")]
+    InvalidVariantInput {
+        /// First incompatible input in source order.
+        reason: VariantInputErrorKind,
+    },
     /// An explicitly supplied value contains a literal color.
     #[error(
         "arbitrary color `{value}` is forbidden for `{property}`; use a theme token or custom property"
@@ -260,6 +290,7 @@ impl LintDiagnostic {
     /// Returns the rule selected by the diagnostic and its utility classification.
     pub const fn kind(&self) -> LintKind {
         match self {
+            Self::InvalidVariantInput { .. } => LintKind::InvalidVariantInput,
             Self::ArbitraryColor { .. } => LintKind::NoArbitraryColors,
             Self::ArbitrarySpacing { .. } => LintKind::NoArbitrarySpacing,
             Self::ClassProperty => LintKind::NoClassProperty,

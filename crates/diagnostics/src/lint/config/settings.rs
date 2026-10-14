@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 32);
+        assert_eq!(names.len(), 33);
         for name in [
             "custom",
             "",
@@ -117,6 +117,7 @@ mod tests {
                 "framework-import-mismatch": "warn",
                 "macro-argument-mutation": "deny",
                 "macro-execution-boundary": "deny",
+                "invalid-variant-input": "deny",
                 "require-element-scope": "deny",
                 "require-view-transition-name": "warn",
                 "single-view-transition-name": "warn",

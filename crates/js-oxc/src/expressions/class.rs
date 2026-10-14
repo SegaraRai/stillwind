@@ -159,9 +159,10 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Keys are interpreted by shape: `class` passes a user value through, quoted
     /// `aria-*`/`data-*` keys become attributes, `--*` keys become inline custom
-    /// properties, and a key ending in `:` becomes a variant
-    /// wrapper. Computed keys resolve to literal names or ref variants. Literal
-    /// object spreads are expanded with the last value of each known key.
+    /// properties, and a key ending in `:` becomes a variant wrapper. The keys `""` and
+    /// `":"` group rule inputs without adding variants. Computed keys resolve to
+    /// literal names or ref variants. Literal object spreads are expanded with the last
+    /// value of each known key.
     fn object_class_expression(
         &mut self,
         object: &ObjectExpression<'a>,
@@ -190,7 +191,7 @@ impl<'a> MacroExtractor<'a> {
                     ));
                     continue;
                 };
-                if let Some(entry) = self.variant_entry(variant, &property.value) {
+                if let Some(entry) = self.rule_entry(Some(variant), &property.value) {
                     entries.push(entry);
                 }
                 continue;
@@ -228,14 +229,21 @@ impl<'a> MacroExtractor<'a> {
                 }));
                 continue;
             }
-            if !name.value.ends_with(':') || name.value == ":" {
+            if name.value.is_empty() || name.value == ":" {
+                if let Some(entry) = self.rule_entry(None, &property.value) {
+                    entries.push(entry);
+                }
+                continue;
+            }
+            if !name.value.ends_with(':') {
                 self.diagnostics.push(CompileError::new(
                     CompileDiagnostic::InvalidAttributeKey,
                     name.span,
                 ));
                 continue;
             }
-            if let Some(entry) = self.variant_entry(StyleVariant::Prefix(name), &property.value) {
+            if let Some(entry) = self.rule_entry(Some(StyleVariant::Prefix(name)), &property.value)
+            {
                 entries.push(entry);
             }
         }

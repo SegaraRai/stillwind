@@ -266,7 +266,7 @@ impl<'a> MacroExtractor<'a> {
     }
 
     fn cva_value(&mut self, expression: &Expression<'a>, values: &mut Vec<StyleCall>) {
-        if !self.valid_cva_value(expression, false) {
+        if !self.valid_cva_value(expression) {
             self.diagnostics.push(CompileError::new(
                 CompileDiagnostic::InvalidCvaInput,
                 self.source_span(expression.span()),
@@ -283,7 +283,7 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    fn valid_cva_value(&self, expression: &Expression<'a>, rules_only: bool) -> bool {
+    fn valid_cva_value(&self, expression: &Expression<'a>) -> bool {
         match expression.get_inner_expression() {
             Expression::StringLiteral(_)
             | Expression::BooleanLiteral(_)
@@ -293,14 +293,14 @@ impl<'a> MacroExtractor<'a> {
             Expression::ArrayExpression(array) => array.elements.iter().all(|element| {
                 element
                     .as_expression()
-                    .is_some_and(|value| self.valid_cva_value(value, rules_only))
+                    .is_some_and(|value| self.valid_cva_value(value))
             }),
             Expression::ConditionalExpression(conditional) => {
-                self.valid_cva_value(&conditional.consequent, rules_only)
-                    && self.valid_cva_value(&conditional.alternate, rules_only)
+                self.valid_cva_value(&conditional.consequent)
+                    && self.valid_cva_value(&conditional.alternate)
             }
             Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                self.valid_cva_value(&logical.right, rules_only)
+                self.valid_cva_value(&logical.right)
             }
             Expression::ObjectExpression(object) => object.properties.iter().all(|entry| {
                 let ObjectPropertyKind::ObjectProperty(property) = entry else {
@@ -312,10 +312,9 @@ impl<'a> MacroExtractor<'a> {
                 let Some(name) = self.static_property_name(&property.key) else {
                     return false;
                 };
-                (!rules_only && name.value.starts_with("--"))
-                    || (name.value.ends_with(':')
-                        && name.value != ":"
-                        && self.valid_cva_value(&property.value, true))
+                name.value.starts_with("--")
+                    || ((name.value.is_empty() || name.value.ends_with(':'))
+                        && self.valid_cva_value(&property.value))
             }),
             _ => false,
         }

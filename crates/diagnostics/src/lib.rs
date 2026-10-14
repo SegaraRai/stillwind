@@ -29,9 +29,7 @@ mod label;
 mod lint;
 mod report;
 
-pub use compilation::{
-    CompileDiagnostic, CompileError, CompileErrorCode, SourceFailureContext, VariantInputErrorKind,
-};
+pub use compilation::{CompileDiagnostic, CompileError, CompileErrorCode, SourceFailureContext};
 pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit, SourceRange};
 pub use lint::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
@@ -41,8 +39,8 @@ pub use lint::{
     LintPreset, LintSettings, LintSeverity, RestrictedDeclarationRule,
     RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
     RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
-    RestrictedUtilityRule, RootFontSize, UtilityFailure, collect_lint_directives,
-    filter_lint_findings, finish_lint_findings,
+    RestrictedUtilityRule, RootFontSize, UtilityFailure, VariantInputErrorKind,
+    collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

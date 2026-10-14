@@ -1,13 +1,16 @@
 import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
 
-/** Rule inputs accepted by CSS variant wrappers in a CVA definition. */
+/** Rule inputs accepted by variant keys and the keys `""` and `":"` in a CVA definition. */
 export type CvaRuleInput =
   | string
   | boolean
   | null
   | undefined
   | readonly CvaRuleInput[]
-  | { readonly [variant: StyleVariant]: CvaRuleInput };
+  | {
+      readonly ""?: CvaRuleInput;
+      readonly [variant: StyleVariant]: CvaRuleInput;
+    };
 
 /**
  * Statically written utilities, arrays, branches, CSS variants, and custom properties.
@@ -21,6 +24,7 @@ export type CvaInput =
   | undefined
   | readonly CvaInput[]
   | {
+      readonly ""?: CvaRuleInput;
       readonly [variant: StyleVariant]: CvaRuleInput;
       readonly [property: `--${string}`]: StyleCustomPropertyValue;
     };
