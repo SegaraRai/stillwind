@@ -1,8 +1,8 @@
 ---
 import { style } from "stillwind/astro";
 
-import { shared } from "../shared-style";
 import { probeComposed, probeDiamond } from "../semantics-main";
+import { shared } from "../shared-style";
 
 const phase = 0;
 ---
@@ -16,22 +16,21 @@ const phase = 0;
     <div data-testid="styled" {...style(shared, "text-probe p-[12px]")}>
       Styled
     </div>
-    <div data-testid="main-composed" {...style(probeComposed)}>Composition</div>
-    <div data-testid="main-diamond" {...style(probeDiamond)}>Diamond</div>
+    <div data-testid="main-composed" {...style(probeComposed)}>
+      Composition
+    </div>
+    <div data-testid="main-diamond" {...style(probeDiamond)}>
+      Diamond
+    </div>
     <div
       data-testid="main-conditional"
-      {...style(
-        "m-[40px]",
-        phase > 0 && (phase > 1 ? "m-[16px]" : "m-[24px]"),
-        { "aria-busy": phase > 0 ? "true" : "false" },
-      )}
+      {...style("m-[40px]", phase > 0 && (phase > 1 ? "m-[16px]" : "m-[24px]"), {
+        "aria-busy": phase > 0 ? "true" : "false",
+      })}
     >
       Conditional
     </div>
-    <div
-      data-testid="main-conditional-active"
-      {...style("m-[40px]", phase >= 0 && "m-[16px]")}
-    >
+    <div data-testid="main-conditional-active" {...style("m-[40px]", phase >= 0 && "m-[16px]")}>
       Active
     </div>
   </body>

@@ -42,10 +42,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
       <SiteHeader docs={docs} repository={repository} />
 
       <main id="main">
-        <section
-          aria-labelledby="tagline"
-          {...style("py-16 md:py-28")}
-        >
+        <section aria-labelledby="tagline" {...style("py-16 md:py-28")}>
           <h1 id="tagline" {...style("hero-title")}>
             Familiar utilities.
             <span {...style("hero-second-line")}>Enforced rules.</span>
@@ -61,14 +58,11 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                   "max-inline-117.5 text-base/[1.55] text-muted sm:text-lg/[1.55] md:text-xl/[1.55]",
                 )}
               >
-                A compiler for component styles. Write familiar utilities,
-                enforce your design system, and ship static CSS.
+                A compiler for component styles. Write familiar utilities, enforce your design
+                system, and ship static CSS.
               </p>
               <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
-                <a
-                  href={docs}
-                  {...style("text-paper bg-ink action-link hover:bg-soft-ink")}
-                >
+                <a href={docs} {...style("text-paper bg-ink action-link hover:bg-soft-ink")}>
                   Get started <span aria-hidden="true">↗</span>
                 </a>
                 <a href="#examples" {...style("text-sm nav-link")}>
@@ -79,11 +73,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                 </a>
               </div>
             </div>
-            <p
-              {...style(
-                "max-inline-57.5 font-mono text-[11px] text-muted leading-[1.7]",
-              )}
-            >
+            <p {...style("max-inline-57.5 font-mono text-[11px] text-muted leading-[1.7]")}>
               For people who write code.
               <br />
               And agents that write a lot of it.
@@ -95,44 +85,24 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
         <Showcase />
         <Features />
 
-        <section
-          aria-labelledby="start"
-          {...style("py-16 border-rule border-bs md:py-32")}
-        >
-          <div
-            {...style(
-              "flex flex-col justify-between gap-8 md:flex-row md:items-end",
-            )}
-          >
+        <section aria-labelledby="start" {...style("py-16 border-rule border-bs md:py-32")}>
+          <div {...style("flex flex-col justify-between gap-8 md:flex-row md:items-end")}>
             <div>
-              <h2
-                id="start"
-                {...style(
-                  "mbe-5 text-[34px] tracking-[-0.04em] md:text-[48px]",
-                )}
-              >
+              <h2 id="start" {...style("mbe-5 text-[34px] tracking-[-0.04em] md:text-[48px]")}>
                 Start with your framework.
               </h2>
               <p {...style("max-inline-122.5 text-muted text-sm/relaxed")}>
-                Keep the component model you know. Add Stillwind to your build
-                and import the style API for your framework. Currently in
-                pre-alpha.
+                Keep the component model you know. Add Stillwind to your build and import the style
+                API for your framework. Currently in pre-alpha.
               </p>
             </div>
-            <a
-              href={docs}
-              {...style(
-                "shrink-0 text-paper bg-ink action-link hover:bg-soft-ink",
-              )}
-            >
+            <a href={docs} {...style("shrink-0 text-paper bg-ink action-link hover:bg-soft-ink")}>
               Read the setup guide <span aria-hidden="true">↗</span>
             </a>
           </div>
           <nav
             aria-label="Framework integration guides"
-            {...style(
-              "grid my-10 grid-cols-2 gap-x-7 gap-y-6 sm:grid-cols-3 lg:grid-cols-6",
-            )}
+            {...style("grid my-10 grid-cols-2 gap-x-7 gap-y-6 sm:grid-cols-3 lg:grid-cols-6")}
           >
             {frameworks.map((framework) => (
               <a
@@ -145,9 +115,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                     ↗
                   </span>
                 </span>
-                <span
-                  {...style("block mbs-2 font-mono text-muted text-[10px]")}
-                >
+                <span {...style("block mbs-2 font-mono text-muted text-[10px]")}>
                   stillwind/{framework.toLowerCase()}
                 </span>
               </a>
@@ -157,8 +125,8 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
             <div>
               <h3 {...style("mbe-2 text-sm")}>Tailwind CSS compatibility</h3>
               <p {...style("text-muted text-xs/relaxed")}>
-                Use Tailwind CSS v4 utilities, theme variables, and CSS
-                directives. JavaScript plugins are not supported.
+                Use Tailwind CSS v4 utilities, theme variables, and CSS directives. JavaScript
+                plugins are not supported.
               </p>
             </div>
             <div>
@@ -178,8 +146,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                 <a href={cssEmission} {...style("nav-link")}>
                   explicit CSS exports ↗
                 </a>{" "}
-                to place compiled styles in a Shadow DOM or another scope you
-                control.
+                to place compiled styles in a Shadow DOM or another scope you control.
               </p>
             </div>
           </div>

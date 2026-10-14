@@ -15,7 +15,8 @@
     "emnapi": "2.0.0-alpha.6",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "devEngines": {
     "packageManager": {

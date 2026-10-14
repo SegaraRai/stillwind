@@ -15,9 +15,7 @@ const { topic, frames } = Astro.props;
 
 const tokenize = (source: string, frame: number) => {
   const counts = new Map<string, number>();
-  return [
-    ...source.matchAll(/"(?:[^"\\]|\\.)*"|[a-zA-Z_$][\w$]*|\d+|\s+|./g),
-  ].map((match) => {
+  return [...source.matchAll(/"(?:[^"\\]|\\.)*"|[a-zA-Z_$][\w$]*|\d+|\s+|./g)].map((match) => {
     const text = match[0];
     const punctuation = !text.startsWith('"') && !/^[\w$\s]/.test(text);
     const count = counts.get(text) ?? 0;
@@ -26,9 +24,7 @@ const tokenize = (source: string, frame: number) => {
       text,
       punctuation,
       key:
-        (text.startsWith('"') || /^[\w$]/.test(text)
-          ? "value-"
-          : "syntax-" + frame + "-") +
+        (text.startsWith('"') || /^[\w$]/.test(text) ? "value-" : "syntax-" + frame + "-") +
         text +
         "-" +
         count,
@@ -50,9 +46,7 @@ const specimens = frames.map((frame, index) => {
   }[] = [];
   for (const part of parts) {
     const focused =
-      part.start >= start &&
-      part.start < start + frame.focus.length &&
-      !part.text.includes("\n");
+      part.start >= start && part.start < start + frame.focus.length && !part.text.includes("\n");
     const previous = runs.at(-1);
     if (previous?.focused === focused) {
       previous.parts.push(part);
@@ -66,18 +60,17 @@ const specimens = frames.map((frame, index) => {
 
 <div data-code-actors aria-hidden="true"></div>
 <div data-feature-highlights aria-hidden="true"></div>
-{
-  specimens.map((runs, index) => (
-    <div data-feature-example={index} data-current={index === 0 || undefined}>
-      <div data-feature-example-heading>
-        <p data-example-label>{frames[index].label}</p>
-        <p data-example-description>{frames[index].description}</p>
-      </div>
-      <pre
-        data-measure
-        data-feature-frame={index}
-        data-current={index === 0 || undefined}
-      ><code>{runs.map((run) =>
+{specimens.map((runs, index) => (
+  <div data-feature-example={index} data-current={index === 0 || undefined}>
+    <div data-feature-example-heading>
+      <p data-example-label>{frames[index].label}</p>
+      <p data-example-description>{frames[index].description}</p>
+    </div>
+    <pre
+      data-measure
+      data-feature-frame={index}
+      data-current={index === 0 || undefined}
+    ><code>{runs.map((run) =>
         run.focused ? (
           <mark data-feature-origin>{run.parts.map((part) => (
             <span
@@ -94,7 +87,6 @@ const specimens = frames.map((frame, index) => {
           ))
         ),
       )}</code></pre>
-      <FeaturePreview topic={topic} frame={index} />
-    </div>
-  ))
-}
+    <FeaturePreview topic={topic} frame={index} />
+  </div>
+))}

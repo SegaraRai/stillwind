@@ -27,22 +27,66 @@ catalogs:
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
-    "@vitest/browser-playwright": 5.0.3
-    "@vitest/ui": 5.0.3
+    "@vitest/browser-playwright": 5.0.4
+    "@vitest/ui": 5.0.4
     "@webref/css": 8.7.6
     playwright: ^1.64.0
     tailwindcss: 4.3.3
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.1.0
-    vite-plus: 1.1.0
+    vite: npm:@voidzero-dev/vite-plus-core@1.2.0
+    vite-plus: 1.2.0
+    vitest: 5.0.4
 
 overrides:
-  "@vitest/ui": 5.0.3
+  "@vitest/ui": 5.0.4
   vite@*: "catalog:"
-  vitest: 5.0.3
+  vitest@*: "catalog:"
 
 peerDependencyRules:
   allowAny:
     - vite
+    - vitest
   allowedVersions:
     vite: "*"
+    vitest: "*"
+
+minimumReleaseAgeExclude:
+  - "@oxfmt/binding-android-arm64@0.73.0"
+  - "@oxfmt/binding-darwin-arm64@0.73.0"
+  - "@oxfmt/binding-darwin-x64@0.73.0"
+  - "@oxfmt/binding-freebsd-x64@0.73.0"
+  - "@oxfmt/binding-linux-arm-gnueabihf@0.73.0"
+  - "@oxfmt/binding-linux-arm64-musl@0.73.0"
+  - "@oxfmt/binding-linux-x64-gnu@0.73.0"
+  - "@oxfmt/binding-linux-x64-musl@0.73.0"
+  - "@oxfmt/binding-openharmony-arm64@0.73.0"
+  - "@oxfmt/binding-win32-ia32-msvc@0.73.0"
+  - "@oxfmt/binding-win32-x64-msvc@0.73.0"
+  - "@oxlint/binding-android-arm-eabi@1.88.0"
+  - "@oxlint/binding-darwin-x64@1.88.0"
+  - "@oxlint/binding-freebsd-x64@1.88.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.88.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.88.0"
+  - "@oxlint/binding-linux-arm64-musl@1.88.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.88.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.88.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.88.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.88.0"
+  - "@oxlint/binding-linux-x64-gnu@1.88.0"
+  - "@oxlint/binding-linux-x64-musl@1.88.0"
+  - "@oxlint/binding-openharmony-arm64@1.88.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.88.0"
+  - "@oxlint/binding-win32-x64-msvc@1.88.0"
+  - "@oxlint/plugins@1.88.0"
+  - "@voidzero-dev/vite-plus-core@1.2.0"
+  - "@voidzero-dev/vite-plus-darwin-arm64@1.2.0"
+  - "@voidzero-dev/vite-plus-darwin-x64@1.2.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.2.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.2.0"
+  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.2.0"
+  - "@voidzero-dev/vite-plus-linux-x64-musl@1.2.0"
+  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.2.0"
+  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.2.0"
+  - oxfmt@0.73.0
+  - oxlint@1.88.0
+  - vite-plus@1.2.0

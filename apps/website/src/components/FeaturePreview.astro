@@ -23,17 +23,11 @@ const syntaxProps = [
     "aria-pressed:": ["bg-ink text-paper", "font-medium"],
   }),
   style(["rounded-md px-4 py-2", emphasized && "shadow-sm"], {
-    "aria-pressed:": [
-      "bg-ink text-paper font-medium",
-      { "hover:": "bg-soft-ink" },
-    ],
+    "aria-pressed:": ["bg-ink text-paper font-medium", { "hover:": "bg-soft-ink" }],
   }),
   style(["rounded-md px-4 py-2", emphasized && "shadow-sm"], {
     "--accent": accent,
-    "aria-pressed:": [
-      "bg-(--accent) text-paper font-medium",
-      { "hover:": "brightness-110" },
-    ],
+    "aria-pressed:": ["bg-(--accent) text-paper font-medium", { "hover:": "brightness-110" }],
   }),
 ];
 const box = style.ref();
@@ -43,7 +37,9 @@ const saveButton = style.ref();
 const enter = style.keyframes({
   from: "opacity-0 [translate:0_2rem]",
   to: "opacity-100 [translate:0_0]",
-  "motion-reduce:": { to: "opacity-100 [translate:0_0]" },
+  "motion-reduce:": {
+    to: "opacity-100 [translate:0_0]",
+  },
 });
 const article = style.viewTransition({
   group: "duration-300 ease-out",
@@ -56,140 +52,206 @@ const articleExcerpt = "Labels that make forms easier to complete.";
 ---
 
 <div data-feature-preview>
-  {topic === 0 && syntaxProps.slice(frame, frame + 1).map((props) => (
-    <div data-feature-preview-frame={frame} data-current>
-      <button
-        type="button"
-        data-syntax-button
-        data-feature-target
-        disabled
-        aria-pressed={frame >= 3 ? "true" : undefined}
-        {...props}
-      >Save</button>
-      <div data-feature-preview-values>
-        {frame > 0 && <p>emphasized = true</p>}
-        {frame >= 3 && <p data-syntax-state>aria-pressed="true"</p>}
-        {frame === 6 && <p>accent = var(--color-soft-ink)</p>}
+  {topic === 0 &&
+    syntaxProps.slice(frame, frame + 1).map((props) => (
+      <div data-feature-preview-frame={frame} data-current>
+        <button
+          type="button"
+          data-syntax-button
+          data-feature-target
+          disabled
+          aria-pressed={frame >= 3 ? "true" : undefined}
+          {...props}
+        >
+          Save
+        </button>
+        <div data-feature-preview-values>
+          {frame > 0 && <p>emphasized = true</p>}
+          {frame >= 3 && <p data-syntax-state>aria-pressed="true"</p>}
+          {frame === 6 && <p>accent = var(--color-soft-ink)</p>}
+        </div>
+        {frame >= 3 && (
+          <p data-feature-preview-hint>
+            Toggle the button state.{frame >= 5 && <span data-hover-hint> Hover to preview.</span>}
+          </p>
+        )}
       </div>
-      {frame >= 3 && <p data-feature-preview-hint>Toggle the button state.{frame >= 5 && <span data-hover-hint> Hover to preview.</span>}</p>}
-    </div>
-  ))}
+    ))}
 
   {topic === 1 && (
     <>
-      {frame === 0 && <div data-feature-preview-frame="0" data-current>
-        <div data-container-measure aria-label="Container width">
-          <span data-container-size>300px</span>
-        </div>
-        <div data-responsive-container data-feature-target {...style(box, box.asContainer("inline-size"))}>
-          <div data-responsive-surface>
-            <div
-              data-responsive-card
-              {...style("grid gap-4 justify-items-center text-center", {
-                [box.at("width >= 13rem")]: [
-                  "grid-cols-[3rem_1fr]",
-                  "justify-items-start text-left",
-                ],
-              })}
-            >
-              <span data-article-thumbnail-slot><ArticleThumbnail /></span>
-              <div>
-                <p data-article-title>{articles[0]}</p>
-                <p data-article-meta>{articleMeta}</p>
+      {frame === 0 && (
+        <div data-feature-preview-frame="0" data-current>
+          <div data-container-measure aria-label="Container width">
+            <span data-container-size>300px</span>
+          </div>
+          <div
+            data-responsive-container
+            data-feature-target
+            {...style(box, box.asContainer("inline-size"))}
+          >
+            <div data-responsive-surface>
+              <div
+                data-responsive-card
+                {...style("grid gap-4 justify-items-center text-center", {
+                  [box.at("width >= 13rem")]: [
+                    "grid-cols-[3rem_1fr]",
+                    "justify-items-start text-left",
+                  ],
+                })}
+              >
+                <span data-article-thumbnail-slot>
+                  <ArticleThumbnail />
+                </span>
+                <div>
+                  <p data-article-title>{articles[0]}</p>
+                  <p data-article-meta>{articleMeta}</p>
+                </div>
               </div>
             </div>
           </div>
+          <button type="button" data-resize-demo hidden {...style("demo-action")}>
+            Resize container
+          </button>
         </div>
-        <button type="button" data-resize-demo hidden {...style("demo-action")}>Resize container</button>
-      </div>}
+      )}
 
-      {frame === 1 && <div data-feature-preview-frame="1" data-current>
-        <div data-scoped-cards data-feature-target>
-          {articles.map((title, cardIndex) => (
-            <div {...style(card, "scoped-example")}>
-              <p data-scoped-article-kind>ARTICLE</p>
-              <p data-scoped-article-title>{title}</p>
-              <button
-                type="button"
-                data-scope-button
-                disabled
-                aria-label={"Save " + title}
-                aria-pressed={cardIndex === 0 ? "true" : "false"}
-                {...style(button, "feature-button", { "aria-pressed:": "bg-ink text-paper" })}
-              >Save</button>
-              <span aria-hidden="true" {...style("opacity-0 transition-opacity", {
-                [button("aria-pressed").in(card)]: "opacity-100",
-              })}>✓ Saved</span>
-            </div>
-          ))}
+      {frame === 1 && (
+        <div data-feature-preview-frame="1" data-current>
+          <div data-scoped-cards data-feature-target>
+            {articles.map((title, cardIndex) => (
+              <div {...style(card, "scoped-example")}>
+                <p data-scoped-article-kind>ARTICLE</p>
+                <p data-scoped-article-title>{title}</p>
+                <button
+                  type="button"
+                  data-scope-button
+                  disabled
+                  aria-label={"Save " + title}
+                  aria-pressed={cardIndex === 0 ? "true" : "false"}
+                  {...style(button, "feature-button", { "aria-pressed:": "bg-ink text-paper" })}
+                >
+                  Save
+                </button>
+                <span
+                  aria-hidden="true"
+                  {...style("opacity-0 transition-opacity", {
+                    [button("aria-pressed").in(card)]: "opacity-100",
+                  })}
+                >
+                  ✓ Saved
+                </span>
+              </div>
+            ))}
+          </div>
+          <p data-feature-preview-hint>Click Save on either article.</p>
         </div>
-        <p data-feature-preview-hint>Click Save on either article.</p>
-      </div>}
+      )}
 
-      {frame === 2 && <div data-feature-preview-frame="2" data-current>
-        <div data-anchor-demo data-feature-target {...style(style.anchorScope([saveButton]))}>
-          <button
-            type="button"
-            data-anchor-button
-            disabled
-            {...style(saveButton, saveButton.asAnchor(), "feature-button")}
-          >Save</button>
-          <span
-            data-attached-label
-            {...style(
-              saveButton.positionAnchor(),
-              "absolute [position-area:bottom]",
-              "[position-try-fallbacks:flip-block]",
-              "attached-label",
-            )}
-          >Save to reading list</span>
+      {frame === 2 && (
+        <div data-feature-preview-frame="2" data-current>
+          <div data-anchor-demo data-feature-target {...style(style.anchorScope([saveButton]))}>
+            <button
+              type="button"
+              data-anchor-button
+              disabled
+              {...style(saveButton, saveButton.asAnchor(), "feature-button")}
+            >
+              Save
+            </button>
+            <span
+              data-attached-label
+              {...style(
+                saveButton.positionAnchor(),
+                "absolute [position-area:bottom]",
+                "[position-try-fallbacks:flip-block]",
+                "attached-label",
+              )}
+            >
+              Save to reading list
+            </span>
+          </div>
+          <button type="button" data-move-anchor hidden {...style("demo-action")}>
+            Move button
+          </button>
         </div>
-        <button type="button" data-move-anchor hidden {...style("demo-action")}>Move button</button>
-      </div>}
+      )}
     </>
   )}
 
   {topic === 2 && (
     <>
-      {frame === 0 && <div data-feature-preview-frame="0" data-current>
-        <div data-motion-demo>
-          <div data-motion-stage>
-            <div data-enter-preview data-feature-target {...style(enter("duration-420 ease-out both"), "entrance-preview")}>
-              <span data-saved-icon aria-hidden="true">✓</span>
-              <span>Saved to your list</span>
+      {frame === 0 && (
+        <div data-feature-preview-frame="0" data-current>
+          <div data-motion-demo>
+            <div data-motion-stage>
+              <div
+                data-enter-preview
+                data-feature-target
+                {...style(enter("duration-420 ease-out both"), "entrance-preview")}
+              >
+                <span data-saved-icon aria-hidden="true">
+                  ✓
+                </span>
+                <span>Saved to your list</span>
+              </div>
+            </div>
+            <div data-animation-time aria-hidden="true">
+              <span>0ms</span>
+              <span data-animation-track>
+                <span></span>
+              </span>
+              <span>420ms</span>
+            </div>
+            <button type="button" data-replay hidden {...style("demo-action")}>
+              Replay entrance
+            </button>
+          </div>
+        </div>
+      )}
+      {frame === 1 && (
+        <div data-feature-preview-frame="1" data-current>
+          <div data-transition-stage>
+            {["list", "article"].map((layout) => (
+              <div data-transition-layout={layout} aria-hidden="true">
+                <div data-transition-slot="thumbnail">
+                  <ArticleThumbnail />
+                </div>
+                <h3 data-transition-slot="title">{articles[0]}</h3>
+                <p data-transition-slot="meta">{articleMeta}</p>
+                <p data-transition-slot="detail">{articleExcerpt}</p>
+              </div>
+            ))}
+            <div data-transition-elements>
+              <div data-transition-element="surface" data-feature-target aria-hidden="true"></div>
+              <div
+                data-transition-element="thumbnail"
+                {...style(article.for("thumbnail"))}
+                aria-hidden="true"
+              >
+                <ArticleThumbnail />
+              </div>
+              <h3 data-transition-element="title" {...style(article.for("title"))}>
+                {articles[0]}
+              </h3>
+              <p data-transition-element="meta" {...style(article.for("meta"))}>
+                {articleMeta}
+              </p>
+              <p data-transition-element="detail">{articleExcerpt}</p>
             </div>
           </div>
           <div data-animation-time aria-hidden="true">
-            <span>0ms</span><span data-animation-track><span></span></span><span>420ms</span>
+            <span>Card · 0ms</span>
+            <span data-animation-track>
+              <span></span>
+            </span>
+            <span>Article · 300ms</span>
           </div>
-          <button type="button" data-replay hidden {...style("demo-action")}>Replay entrance</button>
+          <button type="button" data-replay-transition hidden {...style("demo-action")}>
+            Replay card → article
+          </button>
         </div>
-      </div>}
-      {frame === 1 && <div data-feature-preview-frame="1" data-current>
-        <div data-transition-stage>
-          {["list", "article"].map((layout) => (
-            <div data-transition-layout={layout} aria-hidden="true">
-              <div data-transition-slot="thumbnail"><ArticleThumbnail /></div>
-              <h3 data-transition-slot="title">{articles[0]}</h3>
-              <p data-transition-slot="meta">{articleMeta}</p>
-              <p data-transition-slot="detail">{articleExcerpt}</p>
-            </div>
-          ))}
-          <div data-transition-elements>
-            <div data-transition-element="surface" data-feature-target aria-hidden="true"></div>
-            <div data-transition-element="thumbnail" {...style(article.for("thumbnail"))} aria-hidden="true">
-              <ArticleThumbnail />
-            </div>
-            <h3 data-transition-element="title" {...style(article.for("title"))}>{articles[0]}</h3>
-            <p data-transition-element="meta" {...style(article.for("meta"))}>{articleMeta}</p>
-            <p data-transition-element="detail">{articleExcerpt}</p>
-          </div>
-        </div>
-        <div data-animation-time aria-hidden="true">
-          <span>Card · 0ms</span><span data-animation-track><span></span></span><span>Article · 300ms</span>
-        </div>
-        <button type="button" data-replay-transition hidden {...style("demo-action")}>Replay card → article</button>
-      </div>}
+      )}
     </>
   )}
 </div>

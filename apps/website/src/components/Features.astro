@@ -6,13 +6,20 @@ import { featureScrollLength } from "../lib/features/scenes";
 import FeatureSource from "./FeatureSource.astro";
 
 const contracts = "https://github.com/SegaraRai/stillwind/blob/main/docs/macro-contract.md";
-const stops = featureTopics.flatMap((topic) => topic.frames.map((frame) => ({
-  topic: topic.name,
-  label: frame.label,
-})));
+const stops = featureTopics.flatMap((topic) =>
+  topic.frames.map((frame) => ({
+    topic: topic.name,
+    label: frame.label,
+  })),
+);
 ---
 
-<section id="features" data-features style={"--feature-length: " + featureScrollLength} aria-labelledby="features-title">
+<section
+  id="features"
+  data-features
+  style={"--feature-length: " + featureScrollLength}
+  aria-labelledby="features-title"
+>
   <div data-feature-stage>
     <nav data-feature-nav aria-label="More ways to use Stillwind">
       <ol>
@@ -37,14 +44,17 @@ const stops = featureTopics.flatMap((topic) => topic.frames.map((frame) => ({
           <p data-feature-description>{topic.frames[0].description}</p>
           <div data-feature-source-heading>
             <p data-feature-caption>{topic.frames[0].label}</p>
-            <span data-feature-counter>{"01 / " + String(topic.frames.length).padStart(2, "0")}</span>
+            <span data-feature-counter>
+              {"01 / " + String(topic.frames.length).padStart(2, "0")}
+            </span>
           </div>
           <div data-feature-canvas data-code-canvas>
-            <svg data-feature-lines aria-hidden="true"><path data-feature-line /></svg>
+            <svg data-feature-lines aria-hidden="true">
+              <path data-feature-line />
+            </svg>
             <div data-feature-source data-feature-morph={index === 0 || undefined}>
               <FeatureSource topic={index} frames={topic.frames} />
             </div>
-
           </div>
         </article>
       ))}
@@ -52,8 +62,12 @@ const stops = featureTopics.flatMap((topic) => topic.frames.map((frame) => ({
 
     <div data-feature-footer>
       <div data-feature-paging aria-label="Examples">
-        <button type="button" data-feature-direction="-1" aria-label="Previous example" disabled>←</button>
-        <button type="button" data-feature-direction="1" aria-label="Next example">→</button>
+        <button type="button" data-feature-direction="-1" aria-label="Previous example" disabled>
+          ←
+        </button>
+        <button type="button" data-feature-direction="1" aria-label="Next example">
+          →
+        </button>
       </div>
       <div data-feature-cues aria-label="Examples">
         {stops.map((stop, index) => (
@@ -63,13 +77,19 @@ const stops = featureTopics.flatMap((topic) => topic.frames.map((frame) => ({
             aria-label={stop.topic + ": " + stop.label}
             title={stop.label}
             aria-pressed={index === 0 ? "true" : "false"}
-          ><span></span></button>
+          >
+            <span></span>
+          </button>
         ))}
       </div>
-      <a href={contracts} {...style("nav-link text-[11px] text-muted")}>Explore the API ↗</a>
+      <a href={contracts} {...style("nav-link text-[11px] text-muted")}>
+        Explore the API ↗
+      </a>
     </div>
     <div data-feature-progress-area>
-      <div data-feature-progress aria-hidden="true"><span></span></div>
+      <div data-feature-progress aria-hidden="true">
+        <span></span>
+      </div>
       <p data-feature-scroll-hint {...style("mbs-4 text-end font-mono text-[10px] text-muted")}>
         Scroll to explore ↓
       </p>

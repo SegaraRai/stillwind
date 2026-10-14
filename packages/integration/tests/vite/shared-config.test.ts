@@ -130,8 +130,8 @@ test("production watch reloads an imported configuration helper", async () => {
       error = event.error;
     }
   });
-  const wait = (count: number) =>
-    expect
+  const wait = async (count: number) =>
+    await expect
       .poll(
         () => {
           if (error) {

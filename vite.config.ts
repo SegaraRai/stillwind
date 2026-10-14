@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => ({
     ignorePatterns: ["packages/native/binding.d.ts"],
     sortImports: true,
     sortPackageJson: true,
+    astro: true,
     svelte: true,
   },
   lint: {
