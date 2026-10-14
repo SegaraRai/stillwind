@@ -4,6 +4,7 @@ import { scrollProgress, trackScroll } from "./scroll";
 
 function browserRange() {
   const events = new EventTarget();
+  const fonts = new EventTarget();
   const mediaEvents = new EventTarget();
   const media = Object.assign(mediaEvents, { matches: true });
   const properties = new Map<string, { value: string; priority: string }>();
@@ -31,7 +32,10 @@ function browserRange() {
     },
   };
   const element = {
-    ownerDocument: { defaultView: view },
+    ownerDocument: {
+      defaultView: view,
+      fonts,
+    },
     getBoundingClientRect: vi.fn(() => rect),
     style: {
       getPropertyValue: (name: string) => properties.get(name)?.value ?? "",
@@ -48,6 +52,7 @@ function browserRange() {
     element,
     view,
     events,
+    fonts,
     media,
     frames,
     disconnect,
@@ -87,6 +92,10 @@ describe("scroll progress", () => {
     expect(range.element.getBoundingClientRect).toHaveBeenCalledTimes(1);
     expect(range.element.style.getPropertyValue("--scroll-progress")).toBe("0.50000");
     expect(onProgress).toHaveBeenLastCalledWith(0.5);
+    range.fonts.dispatchEvent(new Event("loadingdone"));
+    expect(range.frames.size).toBe(1);
+    range.flush();
+    expect(range.element.getBoundingClientRect).toHaveBeenCalledTimes(2);
     controller.dispose();
   });
 
@@ -128,6 +137,7 @@ describe("scroll progress", () => {
     range.move(-2000);
     range.events.dispatchEvent(new Event("resize"));
     range.media.dispatchEvent(new Event("change"));
+    range.fonts.dispatchEvent(new Event("loadingdone"));
     expect(range.frames.size).toBe(0);
   });
 

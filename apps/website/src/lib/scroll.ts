@@ -92,6 +92,7 @@ export function trackScroll(element: HTMLElement, options: ScrollOptions = {}): 
 
   view.addEventListener("scroll", schedule, { passive: true });
   view.addEventListener("resize", schedule, { passive: true });
+  element.ownerDocument.fonts.addEventListener("loadingdone", schedule);
   media?.addEventListener("change", change);
   const observer = new view.ResizeObserver(schedule);
   observer.observe(element);
@@ -114,6 +115,7 @@ export function trackScroll(element: HTMLElement, options: ScrollOptions = {}): 
       disposed = true;
       view.removeEventListener("scroll", schedule);
       view.removeEventListener("resize", schedule);
+      element.ownerDocument.fonts.removeEventListener("loadingdone", schedule);
       media?.removeEventListener("change", change);
       observer.disconnect();
       if (frame !== undefined) {

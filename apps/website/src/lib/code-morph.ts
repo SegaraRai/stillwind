@@ -99,6 +99,7 @@ interface MeasuredFrame {
  * whose data-diagnostic keys match those wrappers, with a matching SVG path for each label.
  * The host contains data-code-actors. Call render with finite progress while visible.
  * Changed tokens fade as complete segments; unchanged tokens move without splitting.
+ * A data-code-punctuation span keeps its identity only when its text and measured position match.
  * A data-sort-source frame gives its utilities separate vertical paths during reordering.
  * Dispose releases resize work.
  */
@@ -140,10 +141,18 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
     measured = layouts.map((layout) => ({
       height: layout.getBoundingClientRect().height,
       parts: new Map(
-        [...layout.querySelectorAll<HTMLElement>("[data-part]")].map((part) => [
-          part.dataset.part!,
-          { ...box(part), text: part.textContent! },
-        ]),
+        [...layout.querySelectorAll<HTMLElement>("[data-part]")].map((part) => {
+          const measured = { ...box(part), text: part.textContent! };
+          const key = part.hasAttribute("data-code-punctuation")
+            ? "syntax-position-" +
+              measured.text +
+              "-" +
+              pixels(measured.x) +
+              "-" +
+              pixels(measured.y)
+            : part.dataset.part!;
+          return [key, measured] as const;
+        }),
       ),
       utilities: new Map(
         [...layout.querySelectorAll<HTMLElement>("[data-utility]")].map((utility) => [
@@ -160,9 +169,10 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
   const prepare = (index: number) => {
     const before = measured![index]!.parts;
     const after = measured![index + 1]!.parts;
-    const utilities = layouts[index]!.hasAttribute("data-sort-source")
-      ? [...measured![index]!.utilities.keys()]
-      : [];
+    const utilities =
+      view.innerWidth >= 640 && layouts[index]!.hasAttribute("data-sort-source")
+        ? [...measured![index]!.utilities.keys()]
+        : [];
     const fragment = host.ownerDocument.createDocumentFragment();
     for (const key of new Set([...before.keys(), ...after.keys()])) {
       const from = before.get(key);
@@ -267,18 +277,23 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
           ];
         })
         .sort((left, right) => left.x - right.x);
+      const stacked = bounds.width < 600;
       let right = bounds.width;
       for (const label of labels.toReversed()) {
-        label.left = Math.min(label.left, right - label.width);
+        label.left = stacked ? 0 : Math.min(label.left, right - label.width);
         right = label.left - 48;
       }
+      let nextTop = origin.top - bounds.top + sourceHeight + (stacked ? 36 : 56);
       labels.forEach((label, index) => {
-        const top = origin.top - bounds.top + sourceHeight + 56 + index * 24;
+        const top = stacked ? nextTop : origin.top - bounds.top + sourceHeight + 56 + index * 24;
+        nextTop = top + label.element.offsetHeight + 24;
         label.element.style.setProperty("--diagnostic-x", pixels(label.left));
         label.element.style.setProperty("--diagnostic-y", pixels(top));
         label.line.setAttribute(
           "d",
-          `M ${label.x} ${label.y} V ${label.y + 18} L ${label.left} ${top - 10}`,
+          stacked
+            ? `M ${label.x} ${label.y} H ${bounds.width - 4 - index * 4} V ${top - 10} H ${label.left}`
+            : `M ${label.x} ${label.y} V ${label.y + 18} L ${label.left} ${top - 10}`,
         );
       });
     }
@@ -297,12 +312,14 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
   const observer = new view.ResizeObserver(invalidate);
   observer.observe(host);
   view.addEventListener("resize", invalidate, { passive: true });
+  host.ownerDocument.fonts.addEventListener("loadingdone", invalidate);
   return {
     render,
     dispose() {
       disposed = true;
       observer.disconnect();
       view.removeEventListener("resize", invalidate);
+      host.ownerDocument.fonts.removeEventListener("loadingdone", invalidate);
       if (frame !== undefined) {
         view.cancelAnimationFrame(frame);
       }

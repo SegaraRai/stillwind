@@ -77,7 +77,7 @@ export async function createExamples() {
         return { ...report, utilityIndex };
       });
   };
-  const unchecked = "py-2 text-paper px-4 bg-accnet rounded-md";
+  const unchecked = "py-2 text-paper px-4 bg-inlk rounded-md";
   const restricted = "py-2 text-paper min-[713px]:px-6 bg-[#d9e2f0] rounded-md";
   const unordered = "py-2 text-paper px-[16px] bg-ink rounded-md";
   const canonicalized = unordered

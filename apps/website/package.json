@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@fontsource/instrument-sans": "^5.3.0",
     "astro": "^7.3.8",
     "stillwind": "workspace:*"
   },

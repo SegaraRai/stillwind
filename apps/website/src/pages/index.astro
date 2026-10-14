@@ -1,11 +1,21 @@
 ---
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import instrumentSans from "@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2?url";
 import { style } from "stillwind/astro";
 
+import "../assets/fonts/jetbrains-mono.css";
+import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
+import Features from "../components/Features.astro";
 import Showcase from "../components/Showcase.astro";
+import SiteHeader from "../components/SiteHeader.astro";
 
 const repository = "https://github.com/SegaraRai/stillwind";
 const docs = `${repository}#configure-an-application`;
 const integrations = `${repository}/blob/main/packages/integration/README.md`;
+const contracts = `${repository}/blob/main/docs/macro-contract.md`;
+const cssEmission = `${repository}/blob/main/docs/css-emission.md`;
+const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
 ---
 
 <!doctype html>
@@ -21,36 +31,20 @@ const integrations = `${repository}/blob/main/packages/integration/README.md`;
     <meta name="theme-color" content="#f4f4f2" />
     <title>Stillwind — Familiar utilities. Enforced rules.</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />
   </head>
   <body {...style("font-sans text-ink antialiased bg-paper")}>
-    <a href="#main" {...style("skip-link")}>Skip to content</a>
+    <a href="#main" {...style("skip-link")}>
+      Skip to content
+    </a>
     <div {...style("site-shell")}>
-      <header
-        {...style(
-          "flex py-7 items-center justify-between gap-3 border-rule border-be sm:gap-6",
-        )}
-      >
-        <a
-          href="/"
-          aria-label="Stillwind home"
-          {...style("text-[29px] tracking-tighter nav-link")}>Stillwind</a
-        >
-        <nav
-          aria-label="Main navigation"
-          {...style("flex gap-3 text-xs sm:gap-9 sm:text-sm")}
-        >
-          <a href={docs} {...style("nav-link")}>Docs</a>
-          <a href="#examples" {...style("nav-link")}>Examples</a>
-          <a href={repository} {...style("nav-link")}
-            >GitHub <span aria-hidden="true">↗</span></a
-          >
-        </nav>
-      </header>
+      <SiteHeader docs={docs} repository={repository} />
 
       <main id="main">
         <section
           aria-labelledby="tagline"
-          {...style("pbs-16 pbe-16 md:pbs-20 md:pbe-20")}
+          {...style("py-16 md:py-28")}
         >
           <h1 id="tagline" {...style("hero-title")}>
             Familiar utilities.
@@ -64,24 +58,25 @@ const integrations = `${repository}/blob/main/packages/integration/README.md`;
             <div>
               <p
                 {...style(
-                  "max-inline-117.5 text-lg/[1.55] text-muted md:text-xl/[1.55]",
+                  "max-inline-117.5 text-base/[1.55] text-muted sm:text-lg/[1.55] md:text-xl/[1.55]",
                 )}
               >
-                Write compact utilities. Catch mistakes, enforce your design
-                system, and compile to static CSS.
+                A compiler for component styles. Write familiar utilities,
+                enforce your design system, and ship static CSS.
               </p>
               <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
                 <a
                   href={docs}
                   {...style("text-paper bg-ink action-link hover:bg-soft-ink")}
-                  >Get started <span aria-hidden="true">↗</span></a
                 >
-                <a href="#examples" {...style("text-sm nav-link")}
-                  >See it in practice <span
-                    aria-hidden="true"
-                    {...style("ms-3")}>↓</span
-                  ></a
-                >
+                  Get started <span aria-hidden="true">↗</span>
+                </a>
+                <a href="#examples" {...style("text-sm nav-link")}>
+                  See it in practice{" "}
+                  <span aria-hidden="true" {...style("ms-3")}>
+                    ↓
+                  </span>
+                </a>
               </div>
             </div>
             <p
@@ -89,7 +84,8 @@ const integrations = `${repository}/blob/main/packages/integration/README.md`;
                 "max-inline-57.5 font-mono text-[11px] text-muted leading-[1.7]",
               )}
             >
-              For people who write code.<br />
+              For people who write code.
+              <br />
               And agents that write a lot of it.
               <!-- このキャッチコピーは良い -->
             </p>
@@ -97,103 +93,96 @@ const integrations = `${repository}/blob/main/packages/integration/README.md`;
         </section>
 
         <Showcase />
-
-        <section
-          aria-labelledby="principles"
-          {...style("pbs-14 pbe-16 border-rule border-bs md:pbs-20 md:pbe-24")}
-        >
-          <div
-            {...style("flex mbe-12 flex-col justify-between gap-6 md:flex-row")}
-          >
-            <p {...style("font-mono text-[11px] text-muted")}>
-              THE WAY WE WRITE CSS
-              <!-- ここはなんか別のに置き換える。テキストでなくベクタ背景画像でもいいかも。 -->
-            </p>
-            <h2
-              id="principles"
-              {...style(
-                "max-inline-162.5 text-[32px] leading-[1.1] tracking-[-0.04em] md:text-[45px]",
-              )}
-            >
-              More code shouldn’t mean<br /> less confidence.
-              <!-- このキャッチコピーも良い -->
-            </h2>
-          </div>
-          <div {...style("grid gap-9 md:grid-cols-3 md:gap-14")}>
-            <div {...style("pbs-5 border-rule border-bs")}>
-              <p {...style("mbe-7 font-mono text-[10px] text-muted")}>
-                01 — FAMILIAR
-              </p>
-              <h3 {...style("mbe-3 text-lg tracking-tight")}>
-                Short syntax. Clear intent.
-              </h3>
-              <p {...style("max-inline-85 text-muted text-sm/relaxed")}>
-                Use the utility vocabulary you already know. Keep styling close
-                to the component, without expanding every declaration into
-                another line of code.
-              </p>
-            </div>
-            <div {...style("pbs-5 border-rule border-bs")}>
-              <p {...style("mbe-7 font-mono text-[10px] text-muted")}>
-                02 — ENFORCED
-              </p>
-              <h3 {...style("mbe-3 text-lg tracking-tight")}>
-                Standards that actually run.
-              </h3>
-              <p {...style("max-inline-85 text-muted text-sm/relaxed")}>
-                Turn conventions into lint rules. Check utilities, restrict
-                arbitrary values, and share the same policy across editors,
-                agents, and CI.
-              </p>
-            </div>
-            <div {...style("pbs-5 border-rule border-bs")}>
-              <p {...style("mbe-7 font-mono text-[10px] text-muted")}>
-                03 — INSPECTABLE
-              </p>
-              <h3 {...style("mbe-3 text-lg tracking-tight")}>
-                A build you can look into.
-              </h3>
-              <p {...style("max-inline-85 text-muted text-sm/relaxed")}>
-                Static utilities become CSS and framework props. Conditions and
-                dynamic values keep the runtime operations they need.
-              </p>
-            </div>
-          </div>
-        </section>
+        <Features />
 
         <section
           aria-labelledby="start"
-          {...style(
-            "flex py-12 flex-col justify-between gap-10 border-rule border-bs md:py-16 md:flex-row md:items-end",
-          )}
+          {...style("py-16 border-rule border-bs md:py-32")}
         >
-          <div>
-            <p {...style("mbe-5 font-mono text-[11px] text-muted")}>
-              EARLY, AND OPEN
-            </p>
-            <h2
-              id="start"
-              {...style("mbe-5 text-[34px] tracking-[-0.04em] md:text-[48px]")}
-            >
-              Bring your own framework.
-            </h2>
-            <p {...style("max-inline-122.5 text-muted text-sm/relaxed")}>
-              Stillwind is in pre-alpha. Explore the source, try an integration,
-              and help shape what comes next.
-            </p>
-            <a
-              href={integrations}
-              {...style(
-                "inline-block mbs-6 font-mono text-[11px] text-muted nav-link",
-              )}
-              >Astro · React · Vue · Svelte · Solid · Preact <span
-                aria-hidden="true">↗</span
-              ></a
-            >
-          </div>
-          <a href={repository} {...style("border border-ink action-link")}
-            >Explore on GitHub <span aria-hidden="true">↗</span></a
+          <div
+            {...style(
+              "flex flex-col justify-between gap-8 md:flex-row md:items-end",
+            )}
           >
+            <div>
+              <h2
+                id="start"
+                {...style(
+                  "mbe-5 text-[34px] tracking-[-0.04em] md:text-[48px]",
+                )}
+              >
+                Start with your framework.
+              </h2>
+              <p {...style("max-inline-122.5 text-muted text-sm/relaxed")}>
+                Keep the component model you know. Add Stillwind to your build
+                and import the style API for your framework. Currently in
+                pre-alpha.
+              </p>
+            </div>
+            <a
+              href={docs}
+              {...style(
+                "shrink-0 text-paper bg-ink action-link hover:bg-soft-ink",
+              )}
+            >
+              Read the setup guide <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <nav
+            aria-label="Framework integration guides"
+            {...style(
+              "grid my-10 grid-cols-2 gap-x-7 gap-y-6 sm:grid-cols-3 lg:grid-cols-6",
+            )}
+          >
+            {frameworks.map((framework) => (
+              <a
+                href={`${integrations}#${framework === "Astro" ? "astro" : "vite"}`}
+                {...style("block pbs-4 border-rule border-bs nav-link")}
+              >
+                <span {...style("flex items-center justify-between text-sm")}>
+                  {framework}
+                  <span aria-hidden="true" {...style("text-muted")}>
+                    ↗
+                  </span>
+                </span>
+                <span
+                  {...style("block mbs-2 font-mono text-muted text-[10px]")}
+                >
+                  stillwind/{framework.toLowerCase()}
+                </span>
+              </a>
+            ))}
+          </nav>
+          <div {...style("grid gap-7 md:grid-cols-3 md:gap-12")}>
+            <div>
+              <h3 {...style("mbe-2 text-sm")}>Tailwind CSS compatibility</h3>
+              <p {...style("text-muted text-xs/relaxed")}>
+                Use Tailwind CSS v4 utilities, theme variables, and CSS
+                directives. JavaScript plugins are not supported.
+              </p>
+            </div>
+            <div>
+              <h3 {...style("mbe-2 text-sm")}>Room for existing patterns</h3>
+              <p {...style("text-muted text-xs/relaxed")}>
+                Utility strings, arrays, and conditions fit existing components.{" "}
+                <a href={`${contracts}#cva`} {...style("nav-link")}>
+                  CVA-compatible factories ↗
+                </a>{" "}
+                are available when you need them.
+              </p>
+            </div>
+            <div>
+              <h3 {...style("mbe-2 text-sm")}>CSS for Web Components</h3>
+              <p {...style("text-muted text-xs/relaxed")}>
+                Use{" "}
+                <a href={cssEmission} {...style("nav-link")}>
+                  explicit CSS exports ↗
+                </a>{" "}
+                to place compiled styles in a Shadow DOM or another scope you
+                control.
+              </p>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -203,6 +192,9 @@ const integrations = `${repository}/blob/main/packages/integration/README.md`;
         )}
       >
         <span>Stillwind · Open source · MIT</span>
+        <a href={repository} {...style("nav-link")}>
+          Explore the source ↗
+        </a>
       </footer>
     </div>
   </body>

@@ -3,7 +3,7 @@ import { style } from "stillwind/astro";
 
 import { styleParts } from "../lib/code-morph";
 import { createExamples } from "../lib/examples";
-import { showcaseScenes } from "../lib/showcase";
+import { showcaseScenes, showcaseScrollLength } from "../lib/showcase";
 
 const examples = await createExamples();
 const keys = ["block", "text", "inline", "color", "shape"];
@@ -11,7 +11,6 @@ const frames = [
   {
     id: "check",
     name: "Check",
-    title: "Catch mistakes at the source.",
     description:
       "A familiar utility can still contain a typo. Stillwind resolves each utility and reports what needs your attention.",
     utilities: examples.unchecked,
@@ -20,7 +19,6 @@ const frames = [
   {
     id: "constrain",
     name: "Constrain",
-    title: "Make your rules part of the code.",
     description:
       "Define lint rules for colors and breakpoints. Stillwind applies those rules in editors, agents, and CI.",
     utilities: examples.restricted,
@@ -29,7 +27,6 @@ const frames = [
   {
     id: "format",
     name: "Normalize & Format",
-    title: "Give equivalent code a common form.",
     description:
       "Stillwind normalizes equivalent utilities and sorts them into a consistent order. Make code easier to read, review, and change.",
     utilities: examples.unordered,
@@ -38,7 +35,6 @@ const frames = [
   {
     id: "compile",
     name: "Compile",
-    title: "Compact input. Inspectable output.",
     description:
       "Stillwind compiles static utilities to framework props and CSS you can inspect.",
     utilities: examples.compiled,
@@ -103,172 +99,158 @@ const results = [
 <section
   id="examples"
   data-story
-  aria-label="Stillwind in practice"
-  {...style("scroll-story", { "--stop-count": showcaseScenes.length })}
+  aria-labelledby="style-title"
+  {...style("scroll-story", {
+    "--stop-count": showcaseScenes.length,
+    "--showcase-length": showcaseScrollLength,
+  })}
 >
   <div data-stage>
     <nav
       aria-label="Examples"
       {...style("grid grid-cols-2 gap-x-6 sm:grid-cols-4 sm:gap-3 md:gap-6")}
     >
-      {
-        frames.map((frame, index) => (
-          <a
-            href={"#" + frame.id}
-            data-step={index}
-            {...style(
-              "flex items-center justify-between text-muted text-xs scene-tab md:text-sm",
-            )}
-          >
-            <span>
-              <span {...style("me-2 font-mono text-[10px] md:me-3 md:text-xs")}>
-                0{index + 1}
-              </span>
-              {frame.name}
+      {frames.map((frame, index) => (
+        <a
+          href={"#" + frame.id}
+          data-step={index}
+          {...style(
+            "flex items-center justify-between text-muted text-xs scene-tab md:text-sm",
+          )}
+        >
+          <span>
+            <span {...style("me-2 font-mono text-[10px] md:me-3 md:text-xs")}>
+              0{index + 1}
             </span>
-            <span aria-hidden="true" {...style("hidden font-mono md:inline")}>
-              ↘
-            </span>
-          </a>
-        ))
-      }
+            {frame.name}
+          </span>
+          <span aria-hidden="true" {...style("hidden font-mono md:inline")}>
+            ↘
+          </span>
+        </a>
+      ))}
     </nav>
 
-    <div data-live-demo hidden>
-      <div data-headings>
-        {
-          frames.map((frame, index) => (
-            <div
-              data-heading={index}
-              {...style(
-                "flex flex-col justify-between gap-5 md:flex-row md:gap-10",
-              )}
-            >
-              <h2 {...style("text-[23px] tracking-[-0.035em]")}>
-                {frame.title}
-              </h2>
+    <div data-showcase-intro>
+      <h2 id="style-title" {...style("section-title")}>
+        Write with confidence.
+      </h2>
+      <div data-live-description hidden>
+        <div data-headings>
+          {frames.map((frame, index) => (
+            <div data-heading={index}>
               <p {...style("max-inline-105 text-muted text-sm/relaxed")}>
                 {frame.description}
               </p>
             </div>
-          ))
-        }
+          ))}
+        </div>
       </div>
+    </div>
 
+    <div data-live-demo hidden>
       <div data-code-canvas {...style("font-mono")}>
         <div data-primary-code>
           <div data-code-host {...style("morph-source")}>
-            <code data-readable-source {...style("readable-source")}
-              >{'style("' + frames[0]!.utilities + '")'}</code
-            >
+            <code data-readable-source {...style("readable-source")}>
+              {'style("' + frames[0]!.utilities + '")'}
+            </code>
             <div data-code-actors aria-hidden="true"></div>
             <div aria-hidden="true" inert>
-              {
-                sources.map((source, index) => (
-                  <div
-                    data-measure
-                    data-source={'style("' + source.utilities + '")'}
-                    data-sort-source={index === 3 || undefined}
-                  >
-                    {groupParts(source).map((parts) => (
-                      <span
-                        data-utility={parts[0]!.utility}
-                        data-finding={parts[0]!.finding || undefined}
-                      >
-                        {parts.map((part) => (
-                          <span data-part={part.key}>{part.text}</span>
-                        ))}
-                      </span>
-                    ))}
-                  </div>
-                ))
-              }
+              {sources.map((source, index) => (
+                <div
+                  data-measure
+                  data-source={'style("' + source.utilities + '")'}
+                  data-sort-source={index === 3 || undefined}
+                >
+                  {groupParts(source).map((parts) => (
+                    <span
+                      data-utility={parts[0]!.utility}
+                      data-finding={parts[0]!.finding || undefined}
+                    >
+                      {parts.map((part) => (
+                        <span data-part={part.key}>{part.text}</span>
+                      ))}
+                    </span>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         <div data-source-labels aria-hidden="true">
-          {
-            sourceLabels.map((label, index) => (
-              <span data-source-label={index}>{label}</span>
-            ))
-          }
+          {sourceLabels.map((label, index) => (
+            <span data-source-label={index}>{label}</span>
+          ))}
         </div>
 
         <div data-details>
-          {
-            frames.map((frame, index) => (
-              <div data-detail={index}>
-                {index < 3 ? (
-                  <div>
-                    <div
-                      data-diagnostics={frame.id}
-                      data-format-diagnostics={
-                        frame.id === "format" || undefined
-                      }
-                      data-multiple={frame.reports.length > 1 || undefined}
-                      {...style("text-diagnostic")}
-                    >
-                      <svg data-diagnostic-lines aria-hidden="true">
-                        {frame.reports.map((report) => (
-                          <path
-                            data-diagnostic-line={keys[report.utilityIndex]}
-                          />
-                        ))}
-                      </svg>
+          {frames.map((frame, index) => (
+            <div data-detail={index}>
+              {index < 3 ? (
+                <div>
+                  <div
+                    data-diagnostics={frame.id}
+                    data-format-diagnostics={frame.id === "format" || undefined}
+                    data-multiple={frame.reports.length > 1 || undefined}
+                    {...style("text-diagnostic")}
+                  >
+                    <svg data-diagnostic-lines aria-hidden="true">
                       {frame.reports.map((report) => (
-                        <div data-diagnostic={keys[report.utilityIndex]}>
-                          <p {...style("mbe-2 font-sans text-sm")}>
-                            {report.code}
-                          </p>
-                          <p {...style("text-[11px] leading-[1.7]")}>
-                            {report.message}
-                          </p>
-                        </div>
+                        <path
+                          data-diagnostic-line={keys[report.utilityIndex]}
+                        />
                       ))}
-                    </div>
-                    {frame.id === "constrain" && (
-                      <div data-lint-config>
-                        <p {...style("mbe-3 text-muted text-[11px]")}>
-                          stillwind.config.ts · lint.rules
+                    </svg>
+                    {frame.reports.map((report) => (
+                      <div data-diagnostic={keys[report.utilityIndex]}>
+                        <p {...style("mbe-2 font-sans text-sm")}>
+                          {report.code}
                         </p>
-                        <pre {...style("text-[11px]/[1.8] code-scroll")}>
-                          <code>{policy}</code>
-                        </pre>
+                        <p {...style("text-[11px] leading-[1.7]")}>
+                          {report.message}
+                        </p>
                       </div>
-                    )}
-                    {frame.id === "format" && (
-                      <p data-format-command {...style("text-muted text-xs")}>
-                        <span data-normalize-command>
-                          $ stillwind lint --fix
-                        </span>
-                        <span data-sort-command>$ stillwind fmt</span>
-                      </p>
-                    )}
+                    ))}
                   </div>
-                ) : (
-                  <div data-compile-output>
-                    <div data-compiled-props>
-                      <p {...style("mbe-3 text-muted text-[11px]/[1]")}>
-                        Output (React)
+                  {frame.id === "constrain" && (
+                    <div data-lint-config>
+                      <p {...style("mbe-3 text-muted text-[11px]")}>
+                        stillwind.config.ts · lint.rules
                       </p>
-                      <code>{props}</code>
+                      <pre {...style("text-[11px]/[1.8] code-scroll")}><code>{policy}</code></pre>
                     </div>
-                    <div data-compiled-css>
-                      <p {...style("mbe-3 text-muted text-[11px]/[1]")}>
-                        Compiled CSS
-                      </p>
-                      <pre {...style("text-[12px]/[1.7] code-scroll")}>
-                        <code>{examples.css}</code>
-                      </pre>
-                    </div>
+                  )}
+                  {frame.id === "format" && (
+                    <p data-format-command {...style("text-muted text-xs")}>
+                      <span data-normalize-command>$ stillwind lint --fix</span>
+                      <span data-sort-command>$ stillwind fmt</span>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div data-compile-output>
+                  <div data-compiled-props>
+                    <p {...style("mbe-3 text-muted text-[11px]/[1]")}>
+                      Output (React)
+                    </p>
+                    <code>{props}</code>
                   </div>
-                )}
-              </div>
-            ))
-          }
+                  <div data-compiled-css>
+                    <p {...style("mbe-3 text-muted text-[11px]/[1]")}>
+                      Compiled CSS
+                    </p>
+                    <pre {...style("text-[12px]/[1.7] code-scroll")}><code>{examples.css}</code></pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-        <div data-compile-arrows aria-hidden="true"><span>↳</span></div>
+        <div data-compile-arrows aria-hidden="true">
+          <span>↳</span>
+        </div>
       </div>
 
       <div
@@ -288,100 +270,90 @@ const results = [
   </div>
 
   <div data-fallback>
-    {
-      frames.map((frame, index) => (
-        <article
-          id={frame.id}
-          data-stop
-          {...style("scene", {
-            "--stop-index": showcaseScenes.findIndex(
-              (scene) => scene === index,
-            ),
-          })}
-        >
-          <h2 {...style("text-[23px] tracking-[-0.035em]")}>{frame.title}</h2>
-          <p {...style("mbs-5 max-inline-105 text-muted text-sm/relaxed")}>
-            {frame.description}
+    {frames.map((frame, index) => (
+      <article
+        id={frame.id}
+        data-stop
+        {...style("scene", {
+          "--stop-index": showcaseScenes.findIndex((scene) => scene === index),
+        })}
+      >
+        <h3 {...style("mbe-4 text-lg tracking-tight")}>{frame.name}</h3>
+        <p {...style("mbs-5 max-inline-105 text-muted text-sm/relaxed")}>
+          {frame.description}
+        </p>
+        {frame.id === "format" && (
+          <p {...style("mbs-7 font-mono text-muted text-xs")}>
+            {sourceLabels[0]}
           </p>
-          {frame.id === "format" && (
-            <p {...style("mbs-7 font-mono text-muted text-xs")}>
-              {sourceLabels[0]}
-            </p>
-          )}
-          {frame.id === "compile" && (
-            <p {...style("mbs-7 font-mono text-muted text-xs")}>Input</p>
-          )}
-          <div
-            data-static-source
-            data-compile-input={frame.id === "compile" || undefined}
-            {...style("font-mono text-[17px]")}
-          >
-            {partGroups[index]!.map((parts) => (
-              <div
-                data-static-part
-                data-static-finding={parts[0]!.finding || undefined}
-              >
-                <code>{parts.map((part) => part.text).join("")}</code>
-                {frame.reports
-                  .filter(
-                    (report) => keys[report.utilityIndex] === parts[0]!.utility,
-                  )
-                  .map((report) => (
-                    <div data-static-diagnostic {...style("text-diagnostic")}>
-                      <p {...style("mbe-2 font-sans text-sm")}>{report.code}</p>
-                      <p {...style("max-inline-90 text-[11px] leading-[1.7]")}>
-                        {report.message}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            ))}
-          </div>
-          {frame.id === "constrain" && (
-            <pre {...style("mbs-7 font-mono text-xs/[1.9] code-scroll")}>
-              <code>{policy}</code>
-            </pre>
-          )}
-          {frame.id === "format" &&
-            results.map((result) => (
-              <div {...style("mbs-7")}>
-                <p {...style("mbe-3 font-mono text-muted text-xs")}>
-                  {result.label}
-                </p>
-                <div {...style("code-scroll")}>
-                  <code {...style("font-mono text-[17px]")}>
-                    {result.source}
-                  </code>
-                </div>
-                <p {...style("mbs-5 font-mono text-muted text-xs")}>
-                  {result.command}
-                </p>
-              </div>
-            ))}
-          {frame.id === "compile" && (
-            <div data-static-compile>
-              <div>
-                <p {...style("mbe-3 font-mono text-muted text-xs")}>
-                  Output (React)
-                </p>
-                <code {...style("block font-mono text-sm")}>{props}</code>
-              </div>
-              <div>
-                <p {...style("mbe-3 font-mono text-muted text-xs")}>
-                  Compiled CSS
-                </p>
-                <pre {...style("font-mono text-xs/[1.9] code-scroll")}>
-                  <code>{examples.css}</code>
-                </pre>
-              </div>
-              <div data-compile-arrows aria-hidden="true">
-                <span>↳</span>
-              </div>
+        )}
+        {frame.id === "compile" && (
+          <p {...style("mbs-7 font-mono text-muted text-xs")}>Input</p>
+        )}
+        <div
+          data-static-source
+          data-compile-input={frame.id === "compile" || undefined}
+          {...style("font-mono text-[17px]")}
+        >
+          {partGroups[index]!.map((parts) => (
+            <div
+              data-static-part
+              data-static-finding={parts[0]!.finding || undefined}
+            >
+              <code>{parts.map((part) => part.text).join("")}</code>
+              {frame.reports
+                .filter(
+                  (report) => keys[report.utilityIndex] === parts[0]!.utility,
+                )
+                .map((report) => (
+                  <div data-static-diagnostic {...style("text-diagnostic")}>
+                    <p {...style("mbe-2 font-sans text-sm")}>{report.code}</p>
+                    <p {...style("max-inline-90 text-[11px] leading-[1.7]")}>
+                      {report.message}
+                    </p>
+                  </div>
+                ))}
             </div>
-          )}
-        </article>
-      ))
-    }
+          ))}
+        </div>
+        {frame.id === "constrain" && (
+          <pre {...style("mbs-7 font-mono text-xs/[1.9] code-scroll")}><code>{policy}</code></pre>
+        )}
+        {frame.id === "format" &&
+          results.map((result) => (
+            <div {...style("mbs-7")}>
+              <p {...style("mbe-3 font-mono text-muted text-xs")}>
+                {result.label}
+              </p>
+              <div {...style("code-scroll")}>
+                <code {...style("font-mono text-[17px]")}>{result.source}</code>
+              </div>
+              <p {...style("mbs-5 font-mono text-muted text-xs")}>
+                {result.command}
+              </p>
+            </div>
+          ))}
+        {frame.id === "compile" && (
+          <div data-static-compile>
+            <div>
+              <p {...style("mbe-3 font-mono text-muted text-xs")}>
+                Output (React)
+              </p>
+              <code {...style("block font-mono text-sm")}>{props}</code>
+            </div>
+            <div>
+              <p {...style("mbe-3 font-mono text-muted text-xs")}>
+                Compiled CSS
+              </p>
+              <pre {...style("font-mono text-xs/[1.9] code-scroll")}><code>{examples.css}</code></pre>
+            </div>
+            <div data-compile-arrows aria-hidden="true">
+              <span>↳</span>
+            </div>
+          </div>
+        )}
+      </article>
+    ))}
   </div>
 </section>
 

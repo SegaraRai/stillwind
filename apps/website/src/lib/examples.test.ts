@@ -13,7 +13,7 @@ it("builds the displayed findings, canonical utilities, and CSS with the compile
     "no-arbitrary-colors",
   ]);
   expect(examples.restrictions.every((report) => report.severity === "error")).toBe(true);
-  expect(examples.unchecked.split(" ")[examples.unknown.utilityIndex]).toBe("bg-accnet");
+  expect(examples.unchecked.split(" ")[examples.unknown.utilityIndex]).toBe("bg-inlk");
   expect(
     examples.restrictions
       .map((report) => examples.restricted.split(" ")[report.utilityIndex])

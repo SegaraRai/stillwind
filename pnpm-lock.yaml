@@ -447,6 +447,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@fontsource/instrument-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
       astro:
         specifier: ^7.3.8
         version: 7.3.8(@azure/identity@4.13.3(supports-color@10.2.2))(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(db0@0.4.1)(esbuild@0.28.2)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
@@ -3635,6 +3638,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/instrument-sans@5.3.0':
+    resolution: {integrity: sha512-QwXc4hb/px3XvSPS2CPAOgey8nyrQFxgxrmXQQ+pN+P51hKdAcchxpg8rSbjANFfPu6VKXhDqkVDucXMZ9CM5g==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -13160,6 +13166,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fontsource/instrument-sans@5.3.0': {}
 
   '@img/colour@1.1.0':
     optional: true

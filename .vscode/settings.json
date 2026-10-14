@@ -2,6 +2,15 @@
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
+  "[markdown]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[astro]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[svelte]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
   "[javascript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
