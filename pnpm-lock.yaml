@@ -211,14 +211,14 @@ importers:
   .:
     devDependencies:
       '@emnapi/core':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
       '@emnapi/runtime':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
       '@napi-rs/cli':
         specifier: ^3.10.8
-        version: 3.10.8(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)(@types/node@26.6.5)(emnapi@2.0.0-beta.1)(supports-color@8.1.1)
+        version: 3.10.8(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)(@types/node@26.6.5)(emnapi@2.0.0-alpha.6)(supports-color@8.1.1)
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:tools/workspace
@@ -229,8 +229,8 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(vitest@5.0.3)
       emnapi:
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -2424,14 +2424,14 @@ importers:
   packages/native/npm/wasm32-wasi:
     dependencies:
       '@emnapi/core':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
       '@emnapi/runtime':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-alpha.6
+        version: 2.0.0-alpha.6
       '@napi-rs/wasm-runtime':
         specifier: ~1.2.5
-        version: 1.2.5(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)
+        version: 1.2.5(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)
 
   packages/native/npm/win32-arm64-msvc: {}
 
@@ -2454,7 +2454,7 @@ importers:
         version: 3.9.10
       prettier-plugin-astro:
         specifier: ^1.1.1
-        version: 1.1.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)(prettier@3.9.10)
+        version: 1.1.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)(prettier@3.9.10)
       prettier-plugin-svelte:
         specifier: ^4.1.1
         version: 4.1.1(prettier@3.9.10)(svelte@5.57.2)
@@ -3453,8 +3453,8 @@ packages:
   '@emnapi/core@1.9.2':
     resolution: {integrity: sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==}
 
-  '@emnapi/core@2.0.0-beta.1':
-    resolution: {integrity: sha512-5E4gwO8qdhoubPxgbs8QvihDap+vjrx8oZUHimGulO2+O3smgEQGBY554Pr3MkoGy2PuvZgrzTzLatekbWWCLQ==}
+  '@emnapi/core@2.0.0-alpha.6':
+    resolution: {integrity: sha512-MNVvMV7WtEJMgqaWJMvCyupK7Oi8sZctUIgPRZTsiS3cVvefk8DXPflOU3MSBddtj/rrYHygpYgpHDgwXnI3+w==}
 
   '@emnapi/runtime@1.11.1':
     resolution: {integrity: sha512-vgj7R3y3Wgx24IQaGPA/R6YFXLHVMOZ0uVEyIQPaWs+rd1AzfEMXlAC22FYwO1XkKR6NPsq7mUandH8oIRdZFw==}
@@ -3468,8 +3468,8 @@ packages:
   '@emnapi/runtime@1.9.2':
     resolution: {integrity: sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==}
 
-  '@emnapi/runtime@2.0.0-beta.1':
-    resolution: {integrity: sha512-u//q85BwNEBaNK0K4PH/RL9UYgYnAoSAUpD/YtxHkAfcfRLvcpfasTUf+p9xnoQ6EKP74+Am3/zi2Kb00AzGYw==}
+  '@emnapi/runtime@2.0.0-alpha.6':
+    resolution: {integrity: sha512-5ZR49ZsZ3cLvu5lkrVj6CMpHRgZjYz7XSlqK23GYYpyEqp749RVuIH0bEUKaGNghMh2pXRhIC3cnVrH28Y1j1Q==}
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
@@ -8386,8 +8386,8 @@ packages:
   emmet@2.4.11:
     resolution: {integrity: sha512-23QPJB3moh/U9sT4rQzGgeyyGIrcM+GH5uVYg2C6wZIxAIJq7Ng3QLT79tl8FUwDXhyq9SusfknOrofAKqvgyQ==}
 
-  emnapi@2.0.0-beta.1:
-    resolution: {integrity: sha512-8dyO4NxiqeCGy8DhqRjp675bsmOWs0Mz2LircSLB6sTfAza84u03/VX2S+imD9J1X6k2QJNpYrToi8gApHhafg==}
+  emnapi@2.0.0-alpha.6:
+    resolution: {integrity: sha512-+A54DE5YkbMVOa/0GDs3jhRmu2KnAFvOjEgAYuaPWdmF7A822PtB2znC23QbQ4l/qcC1ZFOrmvXVIuo9xWX2bg==}
     peerDependencies:
       node-addon-api: '>= 6.1.0'
     peerDependenciesMeta:
@@ -11784,9 +11784,9 @@ snapshots:
       - '@emnapi/runtime'
     optional: true
 
-  '@astrojs/compiler-binding-wasm32-wasi@0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)':
+  '@astrojs/compiler-binding-wasm32-wasi@0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.2.5(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)
+      '@napi-rs/wasm-runtime': 1.2.5(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -11828,7 +11828,7 @@ snapshots:
       - '@emnapi/runtime'
     optional: true
 
-  '@astrojs/compiler-binding@0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)':
+  '@astrojs/compiler-binding@0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)':
     optionalDependencies:
       '@astrojs/compiler-binding-android-arm64': 0.4.1
       '@astrojs/compiler-binding-darwin-arm64': 0.4.1
@@ -11837,7 +11837,7 @@ snapshots:
       '@astrojs/compiler-binding-linux-arm64-musl': 0.4.1
       '@astrojs/compiler-binding-linux-x64-gnu': 0.4.1
       '@astrojs/compiler-binding-linux-x64-musl': 0.4.1
-      '@astrojs/compiler-binding-wasm32-wasi': 0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)
+      '@astrojs/compiler-binding-wasm32-wasi': 0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)
       '@astrojs/compiler-binding-win32-arm64-msvc': 0.4.1
       '@astrojs/compiler-binding-win32-x64-msvc': 0.4.1
     transitivePeerDependencies:
@@ -11865,9 +11865,9 @@ snapshots:
       - '@emnapi/runtime'
     optional: true
 
-  '@astrojs/compiler-rs@0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)':
+  '@astrojs/compiler-rs@0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)':
     dependencies:
-      '@astrojs/compiler-binding': 0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)
+      '@astrojs/compiler-binding': 0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -13043,7 +13043,7 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/core@2.0.0-beta.1':
+  '@emnapi/core@2.0.0-alpha.6':
     dependencies:
       '@emnapi/wasi-threads': 2.2.0
       tslib: 2.8.1
@@ -13067,7 +13067,7 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/runtime@2.0.0-beta.1':
+  '@emnapi/runtime@2.0.0-alpha.6':
     dependencies:
       tslib: 2.8.1
 
@@ -13614,7 +13614,7 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.4': {}
 
-  '@napi-rs/cli@3.10.8(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)(@types/node@26.6.5)(emnapi@2.0.0-beta.1)(supports-color@8.1.1)':
+  '@napi-rs/cli@3.10.8(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)(@types/node@26.6.5)(emnapi@2.0.0-alpha.6)(supports-color@8.1.1)':
     dependencies:
       '@inquirer/prompts': 8.7.3(@types/node@26.6.5)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@8.1.1)
@@ -13629,9 +13629,9 @@ snapshots:
       typanion: 3.14.0
       typescript: 6.0.3
     optionalDependencies:
-      '@emnapi/core': 2.0.0-beta.1
-      '@emnapi/runtime': 2.0.0-beta.1
-      emnapi: 2.0.0-beta.1
+      '@emnapi/core': 2.0.0-alpha.6
+      '@emnapi/runtime': 2.0.0-alpha.6
+      emnapi: 2.0.0-alpha.6
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -13899,10 +13899,10 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@napi-rs/wasm-runtime@1.2.5(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)':
+  '@napi-rs/wasm-runtime@1.2.5(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)':
     dependencies:
-      '@emnapi/core': 2.0.0-beta.1
-      '@emnapi/runtime': 2.0.0-beta.1
+      '@emnapi/core': 2.0.0-alpha.6
+      '@emnapi/runtime': 2.0.0-alpha.6
       '@tybys/wasm-util': 0.10.4
 
   '@napi-rs/wasm-tools-android-arm-eabi@1.1.0':
@@ -18876,7 +18876,7 @@ snapshots:
       '@emmetio/abbreviation': 2.3.3
       '@emmetio/css-abbreviation': 2.1.8
 
-  emnapi@2.0.0-beta.1: {}
+  emnapi@2.0.0-alpha.6: {}
 
   emoji-regex@10.6.0: {}
 
@@ -21192,9 +21192,9 @@ snapshots:
       - '@emnapi/runtime'
     optional: true
 
-  prettier-plugin-astro@1.1.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)(prettier@3.9.10):
+  prettier-plugin-astro@1.1.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)(prettier@3.9.10):
     dependencies:
-      '@astrojs/compiler-rs': 0.4.1(@emnapi/core@2.0.0-beta.1)(@emnapi/runtime@2.0.0-beta.1)
+      '@astrojs/compiler-rs': 0.4.1(@emnapi/core@2.0.0-alpha.6)(@emnapi/runtime@2.0.0-alpha.6)
       '@prettier/parse-srcset': 3.1.0
       prettier: 3.9.10
       sass-formatter: 0.8.0
