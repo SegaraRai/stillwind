@@ -273,6 +273,7 @@ impl CallEmitter<'_> {
                     &plan,
                     self.theme,
                     &self.lint_settings,
+                    self.use_css_if,
                     self.diagnostics,
                     self.lint_findings,
                 );

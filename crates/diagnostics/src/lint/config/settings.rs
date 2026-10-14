@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 45);
+        assert_eq!(names.len(), 46);
         for name in [
             "custom",
             "",
@@ -127,6 +127,7 @@ mod tests {
                 "invalid-keyframes-variant": "deny",
                 "invalid-ref-input": "deny",
                 "invalid-style-composition": "deny",
+                "runtime-condition-requires-native": "deny",
                 "invalid-style-input": "deny",
                 "invalid-view-transition-definition": "deny",
                 "invalid-view-transition-use": "deny",

@@ -29,7 +29,7 @@ use super::substitution::{
     substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
 };
 use crate::evaluation::EvaluationContext;
-use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, is_runtime_condition};
+use crate::{BuiltinVariantValueType, CustomVariant, RuntimeCondition, ThemeIndex};
 
 /// A variant's selector, at-rule, declaration, or computed-value effect.
 /// Resolution retains runtime conditions as data; rendering chooses their CSS strategy.
@@ -37,7 +37,8 @@ use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, is_runtime_condi
 pub enum VariantApplication {
     /// Tests custom-property presence or equality at computed-value time.
     Conditional(
-        /// Validated presence test or `--name:value` comparison, optionally prefixed by one `!`.
+        /// Canonical [`RuntimeCondition`] text: a presence test or `--name:value`
+        /// comparison, optionally prefixed by one `!`.
         /// Refers to the styled element or pseudo-element, never a ref ancestor.
         String,
     ),
@@ -374,8 +375,9 @@ pub(in crate::evaluation) fn resolve_registered_variant_candidate(
 /// by CSS itself before substitution. A modifier is serialized through the declared
 /// modifier type, so a modifier that is not a valid class identifier fails instead of
 /// producing a broken selector. `[if-condition]` captures bypass modifier splitting
-/// and preserve their CSS text, including slashes in comparison values. They require
-/// an exact `builtin-if-variant` intrinsic body and no modifier declaration.
+/// and become their canonical condition text, which keeps slashes in comparison values.
+/// They require an exact `builtin-if-variant` intrinsic body and no modifier
+/// declaration.
 fn resolve_typed_variant(
     custom: &CustomVariant,
     value_type: BuiltinVariantValueType,
@@ -383,10 +385,11 @@ fn resolve_typed_variant(
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
     if value_type == BuiltinVariantValueType::IfCondition {
-        return (custom.modifier_type.is_none()
-            && is_conditional_intrinsic(custom)
-            && is_runtime_condition(capture))
-        .then(|| VariantApplication::Conditional(capture.trim().to_owned()));
+        if custom.modifier_type.is_some() || !is_conditional_intrinsic(custom) {
+            return None;
+        }
+        return RuntimeCondition::parse(capture)
+            .map(|condition| VariantApplication::Conditional(condition.to_string()));
     }
     let (capture, modifier) = split_variant_modifier(capture);
     let body = substitute_typed_modifier(&custom.body, custom.modifier_type, modifier)?;

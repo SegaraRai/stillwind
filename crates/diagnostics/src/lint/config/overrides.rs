@@ -80,6 +80,8 @@ pub struct LintOverrides {
     pub invalid_animation_option: Option<LintSeverity>,
     /// Reporting level for `invalid-style-composition`.
     pub invalid_style_composition: Option<LintSeverity>,
+    /// Reporting level for `runtime-condition-requires-native`.
+    pub runtime_condition_requires_native: Option<LintSeverity>,
     /// Reporting level for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<LintSeverity>,
     /// Reporting level for `require-ref-attachment`.
@@ -287,6 +289,10 @@ impl LintOverrides {
             (
                 LintKind::InvalidStyleComposition,
                 self.invalid_style_composition,
+            ),
+            (
+                LintKind::RuntimeConditionRequiresNative,
+                self.runtime_condition_requires_native,
             ),
         ] {
             if let Some(severity) = severity {

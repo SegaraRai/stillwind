@@ -49,7 +49,10 @@ pub(in crate::compiler) struct CallEmitter<'a> {
     pub(super) identifiers: &'a IdentifierContext,
     /// Resolved theme and utility registry for this compilation.
     pub(super) theme: &'a ThemeIndex,
+    /// Effective lint settings of this compilation.
     pub(super) lint_settings: LintSettings,
+    /// Whether runtime conditions lower to native CSS `if()` instead of fallback helpers.
+    pub(super) use_css_if: bool,
     /// Analyzed style call being lowered.
     pub(super) call: &'a StyleCall,
     /// Compilation errors appended while lowering the call.
@@ -104,6 +107,7 @@ impl<'a> CallEmitter<'a> {
             identifiers: inputs.identifiers,
             theme: inputs.theme,
             lint_settings: inputs.options.lint_settings(),
+            use_css_if: inputs.options.use_css_if,
             call: inputs.call,
             diagnostics: inputs.diagnostics,
             lint_findings: inputs.lint_findings,

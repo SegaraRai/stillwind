@@ -14,7 +14,7 @@ use std::ops::Range;
 use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::find_css_functions;
-use stillwind_design_system::{runtime_condition_value, runtime_if_arguments};
+use stillwind_design_system::{RuntimeCondition, runtime_if_arguments};
 use stillwind_diagnostics::CompileDiagnostic;
 
 use crate::identifiers::{ConditionContext, ConditionRole, IdentifierContext};
@@ -36,16 +36,17 @@ fn helper(
         .property())
 }
 
-/// Lowers `--if(C,Y,N)` in declaration bodies; one leading `!` swaps the branches.
-/// `use_css_if` selects native CSS `if()`; false emits local fallback helpers under the
-/// generated custom-property names. Selectors, priorities, strings, and URLs are preserved.
+/// Lowers `--if(C,Y,N)` in declaration bodies; an odd number of leading `!` swaps the
+/// branches. `use_css_if` selects native CSS `if()`; false emits local fallback helpers
+/// under the generated custom-property names. Selectors, priorities, strings, and URLs
+/// are preserved.
 ///
 /// # Errors
 ///
 /// Returns `InvalidRuntimeConditional` for malformed expressions, more than 128
-/// invocations per declaration, or a CSS-wide branch stored in a fallback helper.
-/// That branch is Y for a positive condition and N for a negated one. No partial
-/// output is returned. Negated variants and `--name:value` comparisons require native mode.
+/// invocations per declaration, or a CSS-wide branch stored in a fallback helper. That
+/// branch is Y for a positive condition and N for a negated one. No partial output is
+/// returned. Negated variants and `--name:value` comparisons require native mode.
 /// Returns the host generator's failure for a helper's name.
 pub(crate) fn lower(
     css: &str,
@@ -85,23 +86,24 @@ pub(crate) fn lower(
                     "expected --if(--condition, true-value, false-value)",
                 ));
             };
-            if !use_css_if && runtime_condition_value(condition).is_some() {
+            if !use_css_if && condition.value.is_some() {
                 return Err(invalid(
                     "custom-property value comparisons require useCssIf: true",
                 ));
             }
-            let (condition, yes, no) = condition
-                .strip_prefix('!')
-                .map_or((condition, yes, no), |condition| {
-                    (condition.trim(), no, yes)
-                });
+            let (yes, no) = if condition.negated {
+                (no, yes)
+            } else {
+                (yes, no)
+            };
+            let condition = RuntimeCondition {
+                negated: false,
+                ..condition
+            };
             let replacement = if use_css_if {
                 format!("if(style({condition}):{yes};else:{no})")
             } else {
-                if matches!(
-                    yes.to_ascii_lowercase().as_str(),
-                    "initial" | "inherit" | "unset" | "revert" | "revert-layer" | "revert-rule"
-                ) {
+                if is_css_wide(yes) {
                     return Err(invalid(
                         "CSS-wide branches stored in fallback helpers (including negated variants) require useCssIf: true",
                     ));
@@ -121,6 +123,87 @@ pub(crate) fn lower(
         }
         Ok(format!("{helpers}{property}:{value}"))
     })
+}
+
+/// A runtime condition in a utility candidate that cannot be lowered.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum UnsupportedCondition {
+    /// An `--if()` function is unclosed or does not have three valid arguments.
+    Syntax,
+    /// The fallback strategy cannot represent the condition. The text explains why.
+    RequiresNative(&'static str),
+}
+
+/// Checks the runtime conditions that one utility candidate writes.
+///
+/// `values` contains the candidate's arbitrary values and properties, with underscores
+/// decoded as spaces. `conditions` contains the canonical conditions of its
+/// conditional variants. Authored CSS is not checked here; [`lower`] reports its
+/// failures.
+///
+/// # Errors
+///
+/// Returns the first problem in source order. With `use_css_if` false, value
+/// comparisons, negated variant conditions, and CSS-wide branches stored in fallback
+/// helpers require native lowering.
+pub(super) fn check_candidate<'a>(
+    values: impl IntoIterator<Item = &'a str>,
+    conditions: impl IntoIterator<Item = &'a str>,
+    use_css_if: bool,
+) -> Result<(), UnsupportedCondition> {
+    for value in values {
+        for function in find_css_functions(value, &["--if"], 0) {
+            let Some(end) = function.end else {
+                return Err(UnsupportedCondition::Syntax);
+            };
+            let Some((condition, yes, no)) =
+                runtime_if_arguments(&value[function.arguments.start..end - 1])
+            else {
+                return Err(UnsupportedCondition::Syntax);
+            };
+            if use_css_if {
+                continue;
+            }
+            if condition.value.is_some() {
+                return Err(UnsupportedCondition::RequiresNative(
+                    "custom-property value comparisons require useCssIf: true",
+                ));
+            }
+            let stored = if condition.negated { no } else { yes };
+            if is_css_wide(stored) {
+                return Err(UnsupportedCondition::RequiresNative(
+                    "CSS-wide branches stored in fallback helpers require useCssIf: true",
+                ));
+            }
+        }
+    }
+    if use_css_if {
+        return Ok(());
+    }
+    for condition in conditions {
+        let Some(condition) = RuntimeCondition::parse(condition) else {
+            return Err(UnsupportedCondition::Syntax);
+        };
+        if condition.value.is_some() {
+            return Err(UnsupportedCondition::RequiresNative(
+                "custom-property value comparisons require useCssIf: true",
+            ));
+        }
+        if condition.negated {
+            return Err(UnsupportedCondition::RequiresNative(
+                "negated variant conditions require useCssIf: true",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Returns whether `value` is a CSS-wide keyword that a fallback helper cannot store.
+fn is_css_wide(value: &str) -> bool {
+    matches!(
+        value.to_ascii_lowercase().as_str(),
+        "initial" | "inherit" | "unset" | "revert" | "revert-layer" | "revert-rule"
+    )
 }
 
 /// Copies a lowering failure's explanation into the compilation diagnostic kind.
@@ -190,6 +273,7 @@ pub(super) fn guard(
             .and_then(|v| v.strip_suffix(')'))
             && let Some((inner, yes, "revert-rule")) = runtime_if_arguments(arguments)
         {
+            let inner = inner.to_string();
             // A gate joins two conditions, and the join has to identify exactly one
             // pair: a condition value may itself contain `/`, so the separator is a
             // NUL, which no condition text carries.
@@ -199,7 +283,7 @@ pub(super) fn guard(
                 &format!("{condition}\0{inner}"),
             )?;
             let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
-            let right = gate_condition(inner, &mut gate, identifiers, &mut gates)?;
+            let right = gate_condition(&inner, &mut gate, identifiers, &mut gates)?;
             // Writing through `fmt::Write` into a `String` cannot fail.
             let _ = write!(gate, "{name}:var({left}) var({right});");
             gates.push(name.clone());
@@ -229,16 +313,20 @@ fn gate_condition(
     gates: &mut Vec<String>,
 ) -> Result<String, CompileDiagnostic> {
     let condition = condition.trim();
-    if runtime_condition_value(condition).is_some() {
+    let Some(parsed) = RuntimeCondition::parse(condition) else {
+        return Ok(condition.to_owned());
+    };
+    if parsed.value.is_some() {
         let name = helper(identifiers, ConditionRole::GateValue, condition)?;
         // Writing through `fmt::Write` into a `String` cannot fail.
         let _ = write!(declarations, "{name}:--if({condition},{{}},initial);");
         gates.push(name.clone());
         return Ok(name);
     }
-    let Some(property) = condition.strip_prefix('!') else {
+    if !parsed.negated {
         return Ok(condition.to_owned());
-    };
+    }
+    let property = parsed.name;
     let name = helper(identifiers, ConditionRole::GateNot, condition)?;
     // Writing through `fmt::Write` into a `String` cannot fail.
     let _ = write!(
@@ -426,7 +514,7 @@ mod tests {
         assert!(!fallback.contains("--if("));
         assert_eq!(
             lower_builtin("x:--if(--a/*,*/,1,2);", true).unwrap(),
-            "x:if(style(--a/*,*/):1;else:2);"
+            "x:if(style(--a):1;else:2);"
         );
     }
 

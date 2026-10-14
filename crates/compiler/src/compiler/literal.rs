@@ -4,7 +4,7 @@
 //! findings while applying semantic wrappers to resolved utilities.
 
 use stillwind_design_system::{
-    ThemeIndex, compatibility_marker_class, is_condition_variant,
+    ThemeIndex, VariantApplication, compatibility_marker_class, is_condition_variant,
     is_tailwind_relationship_candidate, resolve_variant,
 };
 use stillwind_diagnostics::{
@@ -12,8 +12,9 @@ use stillwind_diagnostics::{
     UtilityFailure,
 };
 use stillwind_source::{Span, Spanned};
-use stillwind_syntax::parse_candidate;
+use stillwind_syntax::{Utility, parse_candidate};
 
+use super::conditionals::{UnsupportedCondition, check_candidate};
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
 use super::utilities::{CompiledUtility, resolve_utility_targets, unresolved_utility_kind};
@@ -61,14 +62,18 @@ impl LiteralContribution {
     /// output and canonical input; enabled lint rules report it. A resolved candidate
     /// whose own variants would apply to the document is reported without changing its
     /// output, because the host decides that policy's severity. A candidate with a
-    /// malformed capture of a CSS-registered runtime condition is omitted as an invalid
-    /// utility. A malformed utility requirement in the design system appends a fatal
-    /// diagnostic, and callers must discard the compilation if diagnostics are present.
+    /// malformed capture of a CSS-registered runtime condition or a malformed `--if()`
+    /// function is omitted as an invalid utility. With `use_css_if` false, a runtime
+    /// condition that the fallback strategy cannot represent omits its candidate and
+    /// reports `runtime-condition-requires-native`. A malformed utility requirement in
+    /// the design system appends a fatal diagnostic, and callers must discard the
+    /// compilation if diagnostics are present.
     pub(super) fn resolve(
         value: &Spanned<String>,
         plan: &StyleVariantPlan,
         theme: &ThemeIndex,
         lint_settings: &LintSettings,
+        use_css_if: bool,
         diagnostics: &mut Vec<CompileError>,
         lint_findings: &mut Vec<LintFinding>,
     ) -> LiteralContribution {
@@ -86,20 +91,11 @@ impl LiteralContribution {
             );
             let mut raw = utility.value.raw.clone();
             raw.insert_str(0, &plan.prefix);
-            if parse_candidate(&raw).is_some_and(|candidate| {
-                candidate.variants.iter().any(|variant| {
-                    resolve_variant(variant, theme).is_none()
-                        && is_condition_variant(&variant.raw, theme)
-                })
-            }) {
-                if lint_settings.enabled_for_detection(LintKind::InvalidUtility) {
-                    lint_findings.push(LintFinding::new(
-                        LintDiagnostic::UnresolvedUtility {
-                            utility: utility.value.raw.clone(),
-                            classification: UtilityFailure::Invalid,
-                        },
-                        utility.span,
-                    ));
+            if let Some(diagnostic) =
+                runtime_condition_lint(&raw, &utility.value.raw, theme, use_css_if)
+            {
+                if lint_settings.enabled_for_detection(diagnostic.kind()) {
+                    lint_findings.push(LintFinding::new(diagnostic, utility.span));
                 }
                 continue;
             }
@@ -202,4 +198,58 @@ fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {
             span
         })
         .collect()
+}
+
+/// Returns the lint for a runtime condition that omits the candidate `raw`.
+///
+/// `utility` is the authored spelling reported by the lint. A conditional variant whose
+/// capture is malformed and an invalid `--if()` function select `invalid-utility`. With
+/// `use_css_if` false, a condition that the fallback strategy cannot represent selects
+/// `runtime-condition-requires-native`. Returns `None` when the candidate can be
+/// lowered or does not parse.
+fn runtime_condition_lint(
+    raw: &str,
+    utility: &str,
+    theme: &ThemeIndex,
+    use_css_if: bool,
+) -> Option<LintDiagnostic> {
+    let candidate = parse_candidate(raw)?;
+    let invalid = || LintDiagnostic::UnresolvedUtility {
+        utility: utility.to_owned(),
+        classification: UtilityFailure::Invalid,
+    };
+    if candidate.variants.iter().any(|variant| {
+        resolve_variant(variant, theme).is_none() && is_condition_variant(&variant.raw, theme)
+    }) {
+        return Some(invalid());
+    }
+    let value = match &candidate.utility {
+        Utility::Named { name, .. } => name
+            .find('[')
+            .and_then(|start| name[start + 1..].strip_suffix(']'))
+            .map(|value| value.replace('_', " ")),
+        Utility::ArbitraryProperty { value, .. } => Some(value.to_string()),
+    };
+    let conditions = candidate
+        .variants
+        .iter()
+        .filter_map(|variant| match resolve_variant(variant, theme) {
+            Some(VariantApplication::Conditional(condition)) => Some(condition),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    match check_candidate(
+        value.as_deref(),
+        conditions.iter().map(String::as_str),
+        use_css_if,
+    ) {
+        Ok(()) => None,
+        Err(UnsupportedCondition::Syntax) => Some(invalid()),
+        Err(UnsupportedCondition::RequiresNative(detail)) => {
+            Some(LintDiagnostic::RuntimeConditionRequiresNative {
+                utility: utility.to_owned(),
+                detail: detail.to_owned(),
+            })
+        }
+    }
 }

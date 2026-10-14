@@ -77,6 +77,8 @@ pub struct NativeLintOptions {
     pub invalid_animation_option: Option<String>,
     /// Settings for `invalid-style-composition`.
     pub invalid_style_composition: Option<String>,
+    /// Settings for `runtime-condition-requires-native`.
+    pub runtime_condition_requires_native: Option<String>,
     /// Settings for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<String>,
     /// Settings for `require-ref-attachment`.
@@ -232,6 +234,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_style_composition: input
                 .invalid_style_composition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            runtime_condition_requires_native: input
+                .runtime_condition_requires_native
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             valid_anchor_scope: input

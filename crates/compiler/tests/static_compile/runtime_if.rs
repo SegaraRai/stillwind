@@ -31,6 +31,25 @@ fn assert_invalid_capture(result: &CompileResult, candidate: &str) {
     );
 }
 
+/// Asserts that the fallback strategy cannot lower `candidate`, which is omitted with a
+/// `runtime-condition-requires-native` lint.
+fn assert_requires_native(result: &CompileResult, candidate: &str) {
+    assert_eq!(result.diagnostics, [] as [CompileError; 0], "{candidate}");
+    assert!(
+        result.lint_findings.iter().any(|finding| matches!(
+            finding.diagnostic,
+            LintDiagnostic::RuntimeConditionRequiresNative { .. }
+        )),
+        "{candidate}: {:?}",
+        result.lint_findings
+    );
+    assert!(
+        result.module_css.is_empty(),
+        "{candidate}: {}",
+        result.module_css
+    );
+}
+
 fn compile(candidates: &str, native: bool) -> CompileResult {
     compile_arguments(&format!("{candidates:?}"), native)
 }
@@ -190,9 +209,14 @@ fn runtime_if_variant_name_is_owned_by_css_registration() {
         compile_registered("if(--c):flex", registration).module_css,
         ""
     );
-    assert_invalid_capture(
-        &compile_registered("when(!!--c):flex", registration),
-        "when(!!--c):flex",
+    let doubled = compile_registered("when(!!--c):flex", registration);
+    assert!(doubled.diagnostics.is_empty(), "{:?}", doubled.diagnostics);
+    assert!(
+        doubled
+            .module_css
+            .contains("if(style(--c):flex;else:revert-rule)"),
+        "{}",
+        doubled.module_css
     );
     for body in [
         "@stillwind-intrinsic unknown;",
@@ -263,42 +287,55 @@ fn runtime_if_nested_conditions_and_typed_overloads() {
 }
 
 #[test]
-fn runtime_if_rejects_invalid_conditions_and_fallback_css_wide_true_values() {
-    assert_invalid_capture(&compile("if(enabled):flex", false), "if(enabled):flex");
-    for candidate in [
-        "[display:--if(--a,flex)]",
-        "[display:--if(--a,inherit,grid)]",
-    ] {
-        let result = compile(candidate, false);
-        assert!(
-            !result.diagnostics.is_empty(),
-            "{candidate}: {}",
-            result.css
-        );
-        assert!(result.css.is_empty() && result.transforms.is_empty());
+fn runtime_if_omits_invalid_conditions_and_fallback_css_wide_true_values() {
+    for candidate in ["if(enabled):flex", "[display:--if(--a,flex)]"] {
+        for native in [false, true] {
+            assert_invalid_capture(&compile(candidate, native), candidate);
+        }
     }
+    assert_requires_native(
+        &compile("[display:--if(--a,inherit,grid)]", false),
+        "[display:--if(--a,inherit,grid)]",
+    );
     let result = compile("[display:--if(--a,inherit,grid)]", true);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
 }
 
 #[test]
-fn runtime_if_negation_swaps_values_and_rejects_double_negation() {
+fn runtime_if_negation_parity_swaps_values() {
     for native in [false, true] {
-        let result = compile("w-[--if(!--c,20px,10px)]", native);
+        for (candidate, negated) in [
+            ("w-[--if(!--c,20px,10px)]", true),
+            ("w-[--if(!!--c,20px,10px)]", false),
+            ("w-[--if(!!!--c,20px,10px)]", true),
+        ] {
+            let result = compile(candidate, native);
+            assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+            let expected = match (native, negated) {
+                (true, true) => "if(style(--c):10px;else:20px)",
+                (true, false) => "if(style(--c):20px;else:10px)",
+                (false, true) => ":var(--c) 10px;",
+                (false, false) => ":var(--c) 20px;",
+            };
+            assert!(
+                result.module_css.contains(expected),
+                "{candidate}: {}",
+                result.module_css
+            );
+        }
+        let result = compile("if(!!--c):flex", native);
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         assert!(
             if native {
-                result.module_css.contains("if(style(--c):10px;else:20px)")
+                result
+                    .module_css
+                    .contains("if(style(--c):flex;else:revert-rule)")
             } else {
-                result.module_css.contains(":var(--c) 10px;")
+                result.module_css.contains(":var(--c) flex;")
             },
             "{}",
             result.module_css
         );
-        assert_invalid_capture(&compile("if(!!--c):flex", native), "if(!!--c):flex");
-        let result = compile("[width:--if(!!--c,20px,10px)]", native);
-        assert_ne!(result.diagnostics, [] as [CompileError; 0]);
-        assert!(result.css.is_empty() && result.transforms.is_empty());
     }
 }
 
@@ -321,16 +358,7 @@ fn runtime_if_negated_variants_require_native_lowering() {
             "{}",
             result.module_css
         );
-        let fallback = compile(candidate, false);
-        assert!(
-            fallback
-                .diagnostics
-                .iter()
-                .any(|error| error.diagnostic.to_string().contains("useCssIf: true")),
-            "{candidate}: {:?}",
-            fallback.diagnostics
-        );
-        assert!(fallback.css.is_empty() && fallback.transforms.is_empty());
+        assert_requires_native(&compile(candidate, false), candidate);
     }
 }
 
@@ -362,16 +390,7 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
             result.module_css
         );
         assert!(!result.module_css.contains("--if("));
-        let fallback = compile(candidate, false);
-        assert!(
-            fallback.diagnostics.iter().any(|error| error
-                .diagnostic
-                .to_string()
-                .contains("value comparisons require useCssIf: true")),
-            "{candidate}: {:?}",
-            fallback.diagnostics
-        );
-        assert!(fallback.css.is_empty() && fallback.transforms.is_empty());
+        assert_requires_native(&compile(candidate, false), candidate);
     }
     let result = compile("w-[--if(--mode:compact,20px,10px)]", true);
     assert!(
@@ -381,12 +400,34 @@ fn runtime_if_value_comparisons_require_native_and_preserve_type_hints() {
         "{}",
         result.module_css
     );
-    for candidate in ["if(--mode:):flex", "if(!!--mode:compact):flex"] {
-        assert_invalid_capture(&compile(candidate, true), candidate);
+    for (candidate, expected) in [
+        (
+            "if(--mode:):flex",
+            "if(style(--mode):flex;else:revert-rule)",
+        ),
+        (
+            "if(!!--mode:compact):flex",
+            "if(style(--mode:compact):flex;else:revert-rule)",
+        ),
+        (
+            "[width:--if(--mode:,20px,10px)]",
+            "if(style(--mode):20px;else:10px)",
+        ),
+    ] {
+        let result = compile(candidate, true);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(
+            result.module_css.contains(expected),
+            "{candidate}: {}",
+            result.module_css
+        );
     }
-    assert_ne!(
-        compile("[width:--if(--mode:,20px,10px)]", true).diagnostics,
-        [] as [CompileError; 0]
+    let empty = compile("if(--mode:):flex", false);
+    assert!(empty.diagnostics.is_empty(), "{:?}", empty.diagnostics);
+    assert!(
+        empty.module_css.contains(":var(--mode) flex;"),
+        "{}",
+        empty.module_css
     );
 }
 

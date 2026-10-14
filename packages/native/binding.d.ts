@@ -1093,6 +1093,8 @@ export interface NativeLintOptions {
   invalidAnimationOption?: string
   /** Settings for `invalid-style-composition`. */
   invalidStyleComposition?: string
+  /** Settings for `runtime-condition-requires-native`. */
+  runtimeConditionRequiresNative?: string
   /** Settings for `valid-anchor-scope`. */
   validAnchorScope?: string
   /** Settings for `require-ref-attachment`. */

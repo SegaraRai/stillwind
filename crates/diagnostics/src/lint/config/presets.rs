@@ -27,6 +27,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidRefInput, LintSeverity::Deny),
     (LintKind::InvalidAnimationOption, LintSeverity::Deny),
     (LintKind::InvalidStyleComposition, LintSeverity::Deny),
+    (LintKind::RuntimeConditionRequiresNative, LintSeverity::Deny),
     (LintKind::ValidAnchorScope, LintSeverity::Warn),
     (LintKind::RequireRefAttachment, LintSeverity::Warn),
     (LintKind::ConflictingProviderProperties, LintSeverity::Warn),

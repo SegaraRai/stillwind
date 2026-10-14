@@ -185,6 +185,15 @@ pub enum LintDiagnostic {
     /// arguments are ignored.
     #[error("ref.positionAnchor() does not accept arguments")]
     InvalidPositionAnchorArguments,
+    /// A runtime condition in a utility cannot be lowered without native CSS `if()`.
+    /// The utility is omitted.
+    #[error("`{utility}` cannot be lowered: {detail}")]
+    RuntimeConditionRequiresNative {
+        /// Utility text as authored, including variants.
+        utility: String,
+        /// The construct that the fallback strategy cannot represent.
+        detail: String,
+    },
     /// A composition base carries props that cannot be merged as class output.
     #[error("style bases with additional props are not supported")]
     StyleBaseWithProps,
@@ -513,6 +522,7 @@ impl LintDiagnostic {
             Self::InvalidVariantPrefix => LintKind::InvalidUtility,
             Self::UnavailableVariantPrefix => LintKind::UnknownUtility,
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
+            Self::RuntimeConditionRequiresNative { .. } => LintKind::RuntimeConditionRequiresNative,
             Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
                 LintKind::InvalidStyleComposition
             }

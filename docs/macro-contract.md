@@ -485,16 +485,19 @@ such as `"true"`, numeric flags and media queries are not boolean
 conditions. Native value comparisons use the separate `--name:value` form below. `@property` registration changes the initial-value contract and must
 not be used for these flags.
 
-One leading `!` negates a condition: `--if(!--enabled,20px,10px)` and
-`if(!--enabled):flex`. Two or more leading exclamation marks are rejected.
-Negated value conditions swap the branches in both strategies. **Negated variants
-require `useCssIf: true`**: swapping their branches would store `revert-rule` in
-a fallback helper, which cannot preserve that keyword's meaning.
+A leading `!` negates a condition: `--if(!--enabled,20px,10px)` and
+`if(!--enabled):flex`. Any number of `!` is accepted, and an odd count negates the
+condition. The canonical spelling has at most one `!`, and `canonical-utilities`
+suggests it. Negated value conditions swap the branches in both strategies.
+**Negated variants require `useCssIf: true`**: swapping their branches would store
+`revert-rule` in a fallback helper, which cannot preserve that keyword's meaning.
 
 Native mode also supports value comparisons: `if(--mode:compact):flex` and
 `--if(--mode:compact,20px,10px)` lower to `style(--mode:compact)` tests. Set
-`useCssIf: true`; fallback mode reports a compilation error. Comparison values
-must be nonempty, and commas must be inside a CSS function or quoted string.
+`useCssIf: true`. Commas in comparison values must be inside a CSS function or
+quoted string. An empty comparison such as `--mode:` is the presence test `--mode`,
+because boolean conditions hold only a space or `initial`; `canonical-utilities`
+suggests the presence test.
 Matching follows native CSS style-query semantics, including any `@property`
 registration. `if(!--mode:compact):flex` negates the comparison; comparisons can
 also be combined with boolean conditions using repeated variants.
@@ -504,6 +507,12 @@ with them, for example `hover:if(--enabled):flex`. The condition is evaluated on
 the styled element (or pseudo-element), not a referenced ancestor. A condition
 inside a `ref` wrapper is rejected; put `if(...)` outside that wrapper to test
 the target instead.
+
+A candidate with an invalid runtime condition is omitted. Malformed conditions and
+`--if()` functions without three arguments report `invalid-utility`. With
+`useCssIf: false`, value comparisons, negated variants, and CSS-wide keywords stored
+in fallback helpers report `runtime-condition-requires-native`, which defaults to
+`deny`. Malformed conditions in authored CSS remain compilation errors.
 
 Value conditionals can nest and appear inside expressions:
 
@@ -549,8 +558,9 @@ Fallback mode requires the branch used when the underlying property is true
 (the false branch for `!--condition`) to resolve to a valid custom
 property token value. An invalid `var()` in that branch can select the false
 branch instead. CSS-wide values in that branch (`initial`, `inherit`, `unset`, `revert`,
-`revert-layer`, `revert-rule`) require native mode and literal occurrences are
-reported as compilation errors. Indirect values that become CSS-wide keywords
+`revert-layer`, `revert-rule`) require native mode. A literal occurrence in a
+utility omits that utility and reports `runtime-condition-requires-native`; in authored
+CSS, it is a compilation error. Indirect values that become CSS-wide keywords
 have the same limitation. Fallback substitution is not a general replacement
 for native `if()`'s branch evaluation semantics.
 

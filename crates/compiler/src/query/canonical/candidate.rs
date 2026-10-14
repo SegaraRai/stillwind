@@ -7,6 +7,7 @@ use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_syntax::{Utility, parse_candidate};
 
+use super::conditions::canonical_conditions;
 use super::index;
 use super::preview::{CanonicalPreview, SpacingUnit, dimension, spacing_properties};
 use crate::compiler::candidate_allowed;
@@ -25,6 +26,10 @@ impl DesignSystemQuery {
     ///
     /// Returns malformed requirements in the design system.
     pub fn canonical_candidate(&self, raw: &str) -> Result<Option<String>, UtilityResolutionError> {
+        // Runtime conditions have one canonical spelling, independent of other rules.
+        if let Some(canonical) = canonical_conditions(raw, self.context.design_system.theme()) {
+            return Ok(Some(canonical));
+        }
         // Only arbitrary values, properties, and variants have replacement rules.
         // Arbitrary modifiers alone remain unchanged.
         if !raw.contains('[') {
@@ -402,6 +407,36 @@ mod tests {
         )
         .unwrap();
         DesignSystemQuery::new(snapshot, options)
+    }
+
+    #[test]
+    fn runtime_conditions_keep_negation_parity_and_drop_empty_comparisons() {
+        let query = make_query("@import 'stillwind';", CompilerOptions::default());
+        for (raw, expected) in [
+            ("if(!!--c):flex", Some("if(--c):flex")),
+            ("if(!!!--c):flex", Some("if(!--c):flex")),
+            ("if(--c:):flex", Some("if(--c):flex")),
+            ("if(!--c):flex", None),
+            (
+                "[width:--if(!!--c,20px,10px)]",
+                Some("[width:--if(--c,20px,10px)]"),
+            ),
+            (
+                "w-[--if(!!!--c,20px,10px)]",
+                Some("w-[--if(!--c,20px,10px)]"),
+            ),
+            (
+                "[width:--if(--mode:,1px,2px)]",
+                Some("[width:--if(--mode,1px,2px)]"),
+            ),
+            ("[width:--if(--c,20px,10px)]", None),
+        ] {
+            assert_eq!(
+                query.canonical_candidate(raw).unwrap().as_deref(),
+                expected,
+                "{raw}"
+            );
+        }
     }
 
     #[test]
