@@ -45,9 +45,9 @@ impl<'a> MacroExtractor<'a> {
     /// only asks whether this is a macro receiver, so a missing fact is allowed.
     /// Otherwise, the probe is subject to the required-query policy for lowering.
     ///
-    /// Expressions whose syntax proves a non-asset value are skipped, because a fact for
-    /// them could only repeat that result. Control-flow expressions handled by lowering
-    /// their branches are also skipped.
+    /// Expressions whose syntax proves a non-asset value are skipped, because a fact
+    /// for them could only repeat that result. Control-flow expressions handled by
+    /// lowering their branches are also skipped.
     pub(crate) fn record_type_probe(&self, expression: &Expression<'a>) {
         // Control-flow expressions are lowered through their branches. A whole-expression
         // fact would bypass branch-specific macro lowering and erase empty alternatives.
