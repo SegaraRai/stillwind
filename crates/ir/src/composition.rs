@@ -10,8 +10,8 @@
 //! identity.
 //!
 //! `composition_dependencies` collects declaration edges for host planning.
-//! `lower_composition_operands` removes operands whose bases are all incompatible.
-//! `validate_composition` checks cycles and producer availability.
+//! `IncompatibleComposition` finds incompatible edges and lowers the operands that use
+//! them. `validate_composition` checks cycles and producer availability.
 //! `ordered_style_calls` puts local bases before their consumers during lowering.
 //! The compiler resolves declaration supplies for lint checks, while the project layer
 //! chooses CSS ownership and requires selected base producers to be available.
@@ -112,56 +112,83 @@ pub fn validate_composition(
     Vec::new()
 }
 
-/// Lowers composition operands whose bases cannot supply class output.
+/// Composition edges whose base cannot supply class output to the derived call.
 ///
-/// An operand whose candidate bases are all incompatible contributes nothing and adds
-/// a lint at its source expression. Reporting settings do not affect this omission.
-/// An operand that mixes compatible and incompatible bases adds
-/// [`CompileDiagnostic::MixedStyleBaseCandidates`] to its module because the runtime
-/// passes the operand value through and cannot omit only the incompatible bases.
-/// Missing producers are left for [`validate_composition`].
-pub fn lower_composition_operands(modules: &mut [ModuleAnalysis]) {
-    let graph = CompositionGraph::new(&modules.iter().collect::<Vec<_>>());
-    let mut rejected = BTreeMap::new();
-    for (derived, bases) in &graph.edges {
-        for base in bases {
-            let reason = if graph.props.contains(base) {
-                Some(LintDiagnostic::StyleBaseWithProps)
-            } else if graph
-                .frameworks
-                .get(base)
-                .is_some_and(|property| *property != graph.frameworks[derived])
-            {
-                Some(LintDiagnostic::StyleBaseFrameworkMismatch)
-            } else {
-                None
-            };
-            if let Some(reason) = reason {
-                rejected.insert(
-                    StyleDependency {
-                        derived: derived.clone(),
-                        base: base.clone(),
-                    },
-                    reason,
-                );
+/// [`Self::find`] only reads the modules, so callers can skip copying analyses when
+/// [`Self::is_empty`] returns true.
+#[derive(Clone, Debug, Default)]
+pub struct IncompatibleComposition {
+    /// Each incompatible edge and the lint that reports it.
+    edges: BTreeMap<StyleDependency, LintDiagnostic>,
+}
+
+impl IncompatibleComposition {
+    /// Finds edges whose base carries props or uses a different framework class property.
+    /// Bases outside `modules` are not checked; [`validate_composition`] reports missing
+    /// producers.
+    pub fn find(modules: &[&ModuleAnalysis]) -> Self {
+        let graph = CompositionGraph::new(modules);
+        let mut edges = BTreeMap::new();
+        for (derived, bases) in &graph.edges {
+            for base in bases {
+                let reason = if graph.props.contains(base) {
+                    Some(LintDiagnostic::StyleBaseWithProps)
+                } else if graph
+                    .frameworks
+                    .get(base)
+                    .is_some_and(|property| *property != graph.frameworks[derived])
+                {
+                    Some(LintDiagnostic::StyleBaseFrameworkMismatch)
+                } else {
+                    None
+                };
+                if let Some(reason) = reason {
+                    edges.insert(
+                        StyleDependency {
+                            derived: derived.clone(),
+                            base: base.clone(),
+                        },
+                        reason,
+                    );
+                }
             }
         }
+        Self { edges }
     }
-    for module in modules.iter_mut() {
-        let derived = module
-            .ir
-            .style_calls
-            .iter()
-            .map(|call| identity(module, call))
-            .collect::<Vec<_>>();
-        for (call, derived) in module.ir.style_calls.iter_mut().zip(derived) {
-            let mut lowering = CompositionLowering {
-                derived: &derived,
-                rejected: &rejected,
-                findings: &mut module.lint_findings,
-                diagnostics: &mut module.diagnostics,
-            };
-            lowering.lower(&mut call.inputs);
+
+    /// Returns whether no composition operand needs lowering.
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
+
+    /// Lowers composition operands of `modules` that use these edges.
+    ///
+    /// An operand whose candidate bases are all incompatible contributes nothing and
+    /// adds a lint at its source expression. Reporting settings do not affect this
+    /// omission. An operand that mixes compatible and incompatible bases adds
+    /// [`CompileDiagnostic::MixedStyleBaseCandidates`] to its module once, because the
+    /// runtime passes the operand value through and cannot omit only the incompatible
+    /// bases.
+    pub fn lower(&self, modules: &mut [ModuleAnalysis]) {
+        if self.is_empty() {
+            return;
+        }
+        for module in modules.iter_mut() {
+            let derived = module
+                .ir
+                .style_calls
+                .iter()
+                .map(|call| identity(module, call))
+                .collect::<Vec<_>>();
+            for (call, derived) in module.ir.style_calls.iter_mut().zip(derived) {
+                let mut lowering = CompositionLowering {
+                    derived: &derived,
+                    rejected: &self.edges,
+                    findings: &mut module.lint_findings,
+                    diagnostics: &mut module.diagnostics,
+                };
+                lowering.lower(&mut call.inputs);
+            }
         }
     }
 }
@@ -277,7 +304,7 @@ impl CompositionLowering<'_> {
 
 /// Deterministic topological order within one producer, seeded by source order.
 ///
-/// Callers must run [`lower_composition_operands`] and [`validate_composition`] first.
+/// Callers must run [`IncompatibleComposition::lower`] and [`validate_composition`] first.
 /// If a cycle remains, this function retains source order for deterministic
 /// diagnostics.
 pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {

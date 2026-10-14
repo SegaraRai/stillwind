@@ -17,7 +17,7 @@ use stillwind_semantic::{
 use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span};
 
 use crate::{
-    ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, lower_composition_operands,
+    IncompatibleComposition, ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput,
     validate_composition,
 };
 
@@ -150,8 +150,8 @@ pub struct ModuleAnalysis {
     pub provenance: Vec<SourceProvenance>,
     /// Supplies declarations needed to render this producer's CSS on its own.
     ///
-    /// [`ModuleAnalysis::attach_asset_support`] adds these inputs. They do not register
-    /// producers or serve as entries for dependency invalidation.
+    /// [`ModuleAnalysis::attach_asset_support_batch`] adds these inputs. They do not
+    /// register producers or serve as entries for dependency invalidation.
     pub asset_support: Vec<ModuleAnalysis>,
     /// Assets this module consumes from elsewhere. A module may only use assets it
     /// declares itself or that appear here.
@@ -199,48 +199,21 @@ impl ModuleAnalysis {
     /// module. It leaves `inputs` unchanged.
     pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
         let mut lowered = inputs.to_vec();
-        lower_composition_operands(&mut lowered);
+        IncompatibleComposition::find(&inputs.iter().collect::<Vec<_>>()).lower(&mut lowered);
         let modules: Vec<_> = lowered.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
             validate_composition(&modules, input.source.full_span(), true)
         });
+        for analysis in &mut lowered {
+            for error in &diagnostics {
+                analysis.diagnostics.push(CompileError::new(
+                    error.diagnostic.clone(),
+                    analysis.source.full_span(),
+                ));
+            }
+            analysis.attach_declarations(inputs);
+        }
         lowered
-            .iter()
-            .map(|input| {
-                let mut analysis = input.clone();
-                for error in &diagnostics {
-                    analysis.diagnostics.push(CompileError::new(
-                        error.diagnostic.clone(),
-                        input.source.full_span(),
-                    ));
-                }
-                analysis.attach_declarations(inputs);
-                analysis
-            })
-            .collect()
-    }
-
-    /// Adds CSS for referenced declarations without adding their modules as producers.
-    ///
-    /// `inputs` supplies analyses for checking composition and finding declarations.
-    /// Entries with this module's identity are ignored. This method lowers incompatible
-    /// composition operands as described for [`Self::attach_asset_support_batch`], adds
-    /// missing-producer errors, and replaces asset support in this analysis. It leaves
-    /// `inputs` unchanged.
-    pub fn attach_asset_support(&mut self, inputs: &[Self]) {
-        let mut lowered = vec![self.clone()];
-        lowered.extend(
-            inputs
-                .iter()
-                .filter(|input| input.module_id != self.module_id)
-                .cloned(),
-        );
-        lower_composition_operands(&mut lowered);
-        let modules: Vec<_> = lowered.iter().collect();
-        let diagnostics = validate_composition(&modules, self.source.full_span(), true);
-        *self = lowered.remove(0);
-        self.diagnostics.extend(diagnostics);
-        self.attach_declarations(inputs);
     }
 
     /// Replaces asset support with copies of referenced declarations from `inputs`.

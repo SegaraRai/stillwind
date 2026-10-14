@@ -391,17 +391,6 @@ mod tests {
         );
         assert_eq!(diagnostic.actions.len(), 2);
         assert_eq!(diagnostic.actions[0].edits.len(), 2);
-        let current = diagnostic.primary.location.revision.clone();
-        assert!(
-            diagnostic.actions[1]
-                .verify_current(|_| Some(current.clone()))
-                .is_ok()
-        );
-        assert!(
-            diagnostic.actions[1]
-                .verify_current(|_| Some("old".into()))
-                .is_err()
-        );
     }
 
     #[test]

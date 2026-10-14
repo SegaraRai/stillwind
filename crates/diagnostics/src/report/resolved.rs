@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Position, SourceUri};
 
-use super::ReportError;
 use crate::LabelScope;
 
 /// Severity after lint policy is applied.
@@ -72,26 +71,6 @@ pub struct ResolvedAction {
     pub title: String,
     /// Edits applied as one action.
     pub edits: Vec<ResolvedEdit>,
-}
-
-impl ResolvedAction {
-    /// Rejects application when any target document has changed since reporting.
-    ///
-    /// # Errors
-    ///
-    /// Returns a stale-edit error when the current revision differs or is unavailable.
-    pub fn verify_current(
-        &self,
-        mut current_revision: impl FnMut(&SourceUri) -> Option<String>,
-    ) -> Result<(), ReportError> {
-        for edit in &self.edits {
-            let location = &edit.location;
-            if current_revision(&location.uri).as_deref() != Some(&location.revision) {
-                return Err(ReportError::StaleEdit(location.uri.as_str().to_owned()));
-            }
-        }
-        Ok(())
-    }
 }
 
 /// One complete public diagnostic with its source locations and optional fixes.

@@ -257,39 +257,6 @@ impl<'a> ProjectionIndex<'a> {
         })
     }
 
-    /// Tests whether the converter collapsed a generated prefix onto the retained
-    /// expression. Actual user-written receivers have distinct original positions.
-    pub fn is_collapsed_prefix(&self, whole: Span, retained: Span) -> bool {
-        if whole.file != self.generated.id()
-            || retained.file != whole.file
-            || whole.start.0 >= retained.start.0
-            || whole.end != retained.end
-        {
-            return false;
-        }
-        let Ok(provenance) = self.verify_exact(retained) else {
-            return false;
-        };
-        if self.verify_exact(whole).is_ok() {
-            return false;
-        }
-        if self.ranges.iter().any(|range| {
-            range.generated.start.0 < retained.start.0 && range.generated.end.0 > whole.start.0
-        }) {
-            return false;
-        }
-        self.points
-            .range(whole.start.0..retained.start.0)
-            .all(|(_, mapped)| mapped.is_some_and(|mapped| mapped == provenance.original.start.0))
-    }
-
-    /// Checks that all mapped pieces of a wrapper originate within the retained source
-    /// range. This also supports duplicated identifiers in expanded shorthand
-    /// properties without treating authored `key: value` as shorthand.
-    pub fn is_collapsed_wrapper(&self, whole: Span, retained: Span) -> bool {
-        self.verify_wrapper(whole, &[retained]).is_ok() && self.verify_exact(whole).is_err()
-    }
-
     /// Validates that a wrapper's mapped syntax belongs to the retained fragments.
     /// Duplicate mappings within the original range are allowed; foreign or conflicting
     /// points and ranges extending outside it are rejected.

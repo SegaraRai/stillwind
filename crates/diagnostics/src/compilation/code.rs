@@ -39,11 +39,6 @@ macro_rules! define_compile_codes {
             pub const fn as_str(self) -> &'static str {
                 match self { $(Self::$variant => $code,)+ }
             }
-
-            /// Parses an exact code, returning `None` for an unknown code.
-            pub fn from_code(code: &str) -> Option<Self> {
-                match code { $($code => Some(Self::$variant),)+ _ => None }
-            }
         }
 
         impl CompileDiagnostic {
@@ -109,7 +104,6 @@ define_compile_codes! {
     InvalidCssOutputBlock { .. } => "SW08022",
     CssOffsetTooLarge { .. } => "SW08023",
     CssParse { .. } => "SW08024",
-    UnterminatedTheme { .. } => "SW08025",
     UnterminatedCssBlock { .. } => "SW08026",
     CssNestingTooDeep { .. } => "SW08027",
     UnsupportedImportModifier { .. } => "SW08028",
@@ -181,13 +175,11 @@ mod tests {
             assert_eq!(text.len(), 7);
             assert!(text.starts_with("SW"));
             assert!(text[2..].bytes().all(|byte| byte.is_ascii_digit()));
-            assert_eq!(CompileErrorCode::from_code(text), Some(code));
             assert_eq!(serde_json::to_value(code).unwrap(), text);
             assert_eq!(
                 serde_json::from_value::<CompileErrorCode>(serde_json::json!(text)).unwrap(),
                 code
             );
         }
-        assert_eq!(CompileErrorCode::from_code("SHCSS001"), None);
     }
 }

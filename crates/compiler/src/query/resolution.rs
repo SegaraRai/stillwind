@@ -99,22 +99,6 @@ impl DesignSystemQuery {
             revision: result.revision,
         }))
     }
-
-    /// Returns the resolution and generated-CSS findings from
-    /// [`Self::resolve_candidate`].
-    ///
-    /// The finding carries a synthetic span over the candidate text, because a query
-    /// has no source buffer to point into. A successful preview returns an empty list.
-    ///
-    /// # Errors
-    ///
-    /// Returns a malformed requirement from a matching utility definition.
-    pub fn diagnose_candidate(
-        &self,
-        candidate: &str,
-    ) -> Result<Vec<LintFinding>, UtilityResolutionError> {
-        Ok(self.resolve_candidate(candidate)?.diagnostics)
-    }
 }
 
 impl QueryContext {
@@ -384,18 +368,17 @@ mod tests {
         );
         assert!(query.hover_candidate("missing:brand").unwrap().is_none());
         assert_ne!(
-            query.diagnose_candidate("this-does-not-exist").unwrap(),
+            query
+                .resolve_candidate("this-does-not-exist")
+                .unwrap()
+                .diagnostics,
             [] as [LintFinding; 0]
         );
         for (candidate, classification) in [
             ("hover:[", UtilityFailure::Invalid),
             ("不存在", UtilityFailure::Unknown),
         ] {
-            let findings = query.diagnose_candidate(candidate).unwrap();
-            assert_eq!(
-                findings,
-                query.resolve_candidate(candidate).unwrap().diagnostics
-            );
+            let findings = query.resolve_candidate(candidate).unwrap().diagnostics;
             assert_eq!(
                 findings[0].diagnostic,
                 LintDiagnostic::UnresolvedCandidate {

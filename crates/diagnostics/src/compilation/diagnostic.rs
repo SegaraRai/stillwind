@@ -475,9 +475,6 @@ pub enum CompileDiagnostic {
         /// Display text from the authored stylesheet parser.
         detail: String,
     },
-    /// A theme block has no closing delimiter.
-    #[error("unterminated @theme block")]
-    UnterminatedTheme {},
     /// A CSS block has no closing delimiter.
     #[error("unterminated CSS block at byte {offset}")]
     UnterminatedCssBlock {
