@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
-use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
     AssetKind, CheckedValue, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact,
@@ -79,6 +79,40 @@ fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
             assert_eq!(parsed.module.style_calls[0].inputs.len(), 1, "{parsed:#?}");
         }
     }
+}
+
+#[test]
+fn style_results_with_unknown_declarations_become_unordered_bases() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "import {style} from 'stillwind/react'; import {base} from './base'; const x=style(base,'flex');",
+    )
+    .unwrap();
+    let start = source.text().rfind("base").unwrap();
+    let facts = [TypeFact {
+        start: u32::try_from(start).unwrap(),
+        end: u32::try_from(start + 4).unwrap(),
+        value: ExportedValue::Styles(SymbolicValue::universe(AssetKind::Style)).into(),
+    }];
+    let parsed = parse(
+        &source,
+        &ModuleId::from("consumer.ts"),
+        &facts,
+        &BTreeMap::new(),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Module,
+    );
+    assert!(parsed.diagnostics.is_empty(), "{parsed:#?}");
+    assert_eq!(
+        parsed.lint_findings[0].diagnostic,
+        LintDiagnostic::UnverifiedStyleBase
+    );
+    assert!(matches!(
+        &parsed.module.style_calls[0].inputs[0],
+        StyleInput::Composition { candidates, .. } if candidates.is_empty()
+    ));
 }
 
 #[test]

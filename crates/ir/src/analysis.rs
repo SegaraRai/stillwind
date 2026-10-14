@@ -183,14 +183,13 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Lowers incompatible composition operands and adds CSS for referenced
-    /// declarations.
+    /// Reports incompatible composition bases and adds CSS for referenced declarations.
     ///
     /// `inputs` must contain the complete producer graph with each module identity
     /// once. Returns cloned analyses in input order, or an empty vector for empty
-    /// input. The clones keep their source coordinates. An operand whose bases are all
-    /// incompatible is removed and adds a lint finding. An operand that mixes
-    /// compatible and incompatible bases adds a fatal error at the operand. Missing
+    /// input. The clones keep their source coordinates. A composition operand that can
+    /// supply an incompatible base adds a lint finding. Bases from another framework
+    /// leave the operand's candidates because they contribute no class. Missing
     /// producers add fatal errors at each module's full source span. Referenced
     /// keyframes and view transitions supply support CSS. Style calls from support
     /// modules do not become producers.
@@ -198,22 +197,30 @@ impl ModuleAnalysis {
     /// This method checks the graph once for the whole batch instead of once per
     /// module. It leaves `inputs` unchanged.
     pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
+        let incompatible = IncompatibleComposition::find(&inputs.iter().collect::<Vec<_>>());
         let mut lowered = inputs.to_vec();
-        IncompatibleComposition::find(&inputs.iter().collect::<Vec<_>>()).lower(&mut lowered);
+        for analysis in &mut lowered {
+            let findings = incompatible.findings(analysis);
+            analysis.lint_findings.extend(findings);
+            incompatible.remove_foreign_bases(analysis);
+        }
         let modules: Vec<_> = lowered.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
             validate_composition(&modules, input.source.full_span(), true)
         });
-        for analysis in &mut lowered {
-            for error in &diagnostics {
-                analysis.diagnostics.push(CompileError::new(
-                    error.diagnostic.clone(),
-                    analysis.source.full_span(),
-                ));
-            }
-            analysis.attach_declarations(inputs);
-        }
         lowered
+            .into_iter()
+            .map(|mut analysis| {
+                for error in &diagnostics {
+                    analysis.diagnostics.push(CompileError::new(
+                        error.diagnostic.clone(),
+                        analysis.source.full_span(),
+                    ));
+                }
+                analysis.attach_declarations(inputs);
+                analysis
+            })
+            .collect()
     }
 
     /// Replaces asset support with copies of referenced declarations from `inputs`.

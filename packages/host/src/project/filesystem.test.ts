@@ -215,7 +215,10 @@ test("unavailable declaration bodies and checker failures keep local diagnostics
       const result = await project.analyze(entry);
       expect(result.status, JSON.stringify(result)).toBe("incomplete");
       expect(result.error).toBeUndefined();
-      expect(result.reports.map((report) => report.code)).toEqual(["unknown-utility"]);
+      // Only checker facts identify `props` as a style result with an unknown declaration.
+      expect(result.reports.map((report) => report.code).sort()).toEqual(
+        project === normal ? ["unknown-utility", "unverified-style-base"] : ["unknown-utility"],
+      );
       expect(result.graph?.unverified.length).toBeGreaterThan(0);
       expect(result.graph?.generation).toBe("blocked");
       expect(result.graph?.modules[0].code).toBeNull();

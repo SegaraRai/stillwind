@@ -106,7 +106,7 @@ export function mergeFragmentsChecked(
 }
 
 /**
- * Validates materialized props before converting them to fragment channels.
+ * Validates a composition base before converting it to a class-only fragment.
  *
  * @param options - The receiving framework's conventions and distinct fragment keys.
  * @param value - A non-null props object or a fragment belonging to this runtime.

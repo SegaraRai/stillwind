@@ -6,7 +6,7 @@ use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{ClassExpression, ConditionalBranches, StyleInput};
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, CheckedValue, ExportedValue, IdentityId};
 
 use crate::local_span::LocalSpan;
 use crate::resolution::{ResolutionFailure, cannot_carry_asset};
@@ -126,6 +126,22 @@ impl<'a> MacroExtractor<'a> {
                 return;
             }
             _ => {}
+        }
+        // A style result with an unknown declaration has a known runtime form, so it is
+        // merged as a base. Its CSS has no ordering dependency on this call.
+        if let Some(CheckedValue::Asset(ExportedValue::Styles(symbolic))) =
+            self.type_fact(expression.span())
+            && symbolic.finite_candidates().is_none()
+        {
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::UnverifiedStyleBase,
+                self.source_span(expression.span()),
+            ));
+            inputs.push(StyleInput::Composition {
+                value: self.source_span(expression.span()),
+                candidates: Vec::new(),
+            });
+            return;
         }
         if let Ok(candidates) = self.style_candidates(expression) {
             inputs.push(StyleInput::Composition {

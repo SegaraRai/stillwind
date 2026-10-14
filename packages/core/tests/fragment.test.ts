@@ -101,7 +101,7 @@ test("string-style frameworks serialize the payload and pass strings through", (
   });
 });
 
-test("toFragment converts materialized bases and is idempotent", () => {
+test("toFragment keeps only the class of a composition base", () => {
   const fragment = react.stillwindToFragment({
     className: "_base",
     style: {
@@ -109,23 +109,32 @@ test("toFragment converts materialized bases and is idempotent", () => {
     },
     "data-a": "1",
   });
-  expect(fragment[react.stillwindClassKey]).toBe("_base");
-  expect(fragment[react.stillwindStyleKey]).toStrictEqual({ "--x": "1" });
-  expect(fragment["data-a"]).toBe("1");
-  expect(react.stillwindToFragment(fragment)).toBe(fragment);
-  expect(react.stillwindMerge(fragment, { [react.stillwindClassKey]: "_own" })).toStrictEqual({
+  expect(fragment).toStrictEqual({
+    [react.stillwindClassKey]: "_base",
+  });
+  expect(react.stillwindToFragment(fragment)).toStrictEqual(fragment);
+  expect(
+    react.stillwindMerge(fragment, {
+      [react.stillwindClassKey]: "_own",
+    }),
+  ).toStrictEqual({
     className: "_base _own",
-    "data-a": "1",
-    style: {
-      "--x": "1",
-    },
   });
-  const svelteFragment = svelte.stillwindToFragment({
-    class: "_base",
-    style: "--x:1",
+  expect(
+    svelte.stillwindToFragment({
+      class: "_base",
+      style: "--x:1",
+    }),
+  ).toStrictEqual({
+    [svelte.stillwindClassKey]: "_base",
   });
-  expect(svelteFragment[svelte.stillwindClassKey]).toBe("_base");
-  expect(svelteFragment[svelte.stillwindStyleKey]).toBe("--x:1");
+  expect(
+    react.stillwindMerge(
+      react.stillwindToFragment({
+        class: "_vue",
+      }),
+    ),
+  ).toStrictEqual({});
 });
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
@@ -200,12 +209,15 @@ test("custom properties merge independently and coexist with generated styles", 
         : "view-transition-name:card;--progress:0.5;--image:url(image.png)",
     );
     expect(Object.getOwnPropertySymbols(result)).toStrictEqual([]);
-    const fragment = {
-      [key]: {
-        "--x": "1",
-      },
-    };
-    expect(runtime.stillwindToFragment(fragment)).toBe(fragment);
+    expect(
+      runtime.stillwindMerge(
+        runtime.stillwindToFragment({
+          [key]: {
+            "--x": "1",
+          },
+        }),
+      ),
+    ).toStrictEqual({});
   }
 });
 

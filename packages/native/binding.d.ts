@@ -1095,6 +1095,8 @@ export interface NativeLintOptions {
   invalidStyleComposition?: string
   /** Settings for `runtime-condition-requires-native`. */
   runtimeConditionRequiresNative?: string
+  /** Settings for `unverified-style-base`. */
+  unverifiedStyleBase?: string
   /** Settings for `valid-anchor-scope`. */
   validAnchorScope?: string
   /** Settings for `require-ref-attachment`. */

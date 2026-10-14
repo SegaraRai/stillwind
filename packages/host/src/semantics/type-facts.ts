@@ -114,30 +114,33 @@ function visit(node: Node, callback: (node: Node) => void) {
  * unavailable.
  * @param identities - Serialized keys mapped to known native declaration identities.
  * @param kind - Asset family that every candidate must belong to.
- * @returns Candidates in type-member order, or null if the type is absent, nonliteral, unknown to
- * the table, or contains a different asset family.
+ * @returns Candidates in type-member order. Returns `"unknown"` if the type is absent,
+ * nonliteral, or unknown to the table, and `"mismatch"` if a candidate belongs to a
+ * different asset family.
  */
 function knownIdentities(
   type: Type | undefined,
   identities: ReadonlyMap<string, IdentityId>,
   kind: IdentityId["kind"],
-): IdentityId[] | null {
+): "unknown" | "mismatch" | IdentityId[] {
   if (!type) {
-    return null;
+    return "unknown";
   }
   const types = type.isUnionType() ? type.getTypes() : [type];
   const result: IdentityId[] = [];
+  let unknown = false;
   for (const candidate of types) {
-    if (!candidate.isStringLiteralType()) {
-      return null;
+    const identity = candidate.isStringLiteralType() ? identities.get(candidate.value) : undefined;
+    if (!identity) {
+      unknown = true;
+      continue;
     }
-    const identity = identities.get(candidate.value);
-    if (identity?.kind !== kind) {
-      return null;
+    if (identity.kind !== kind) {
+      return "mismatch";
     }
     result.push(identity);
   }
-  return result;
+  return unknown ? "unknown" : result;
 }
 
 /**
@@ -253,6 +256,7 @@ class AssetTypeDecoder {
     let family: IdentityId["kind"] | undefined;
     let recognized = false;
     let valid = true;
+    let finite = true;
     for (const constituent of constituents) {
       let kind: IdentityId["kind"] | undefined;
       let identityType: Type | undefined;
@@ -294,13 +298,35 @@ class AssetTypeDecoder {
         valid = false;
         continue;
       }
-      const candidates = knownIdentities(identityType, this.#identities, kind);
-      if (!candidates || (family && family !== kind)) {
+      if (family && family !== kind) {
         valid = false;
+        continue;
+      }
+      family = kind;
+      const candidates = knownIdentities(identityType, this.#identities, kind);
+      if (candidates === "mismatch") {
+        valid = false;
+      } else if (candidates === "unknown") {
+        finite = false;
       } else {
-        family = kind;
         values.push(...candidates);
       }
+    }
+    if (valid && family === "style" && !finite) {
+      // A style result with an unknown declaration still has a known runtime form. The
+      // compiler merges it as a base without a CSS ordering dependency.
+      return {
+        kind: "asset",
+        value: {
+          kind: "styles",
+          value: {
+            kind: "style",
+            candidates: {
+              kind: "universe",
+            },
+          },
+        },
+      };
     }
     if (!valid || !family || values.length === 0) {
       if (recognized) {

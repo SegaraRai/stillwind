@@ -12,8 +12,8 @@
 //! transactionally, and the frontend keeps ownership of correspondence validation and
 //! of its own provenance records.
 //!
-//! [`IncompatibleComposition`] removes composition operands whose bases are all
-//! incompatible. [`validate_composition`] checks dependency cycles and producer
+//! [`IncompatibleComposition`] reports composition bases that supply only part of their
+//! value. [`validate_composition`] checks dependency cycles and producer
 //! availability, and [`ordered_style_calls`] orders the retained dependencies. These
 //! operations do not emit CSS.
 //!

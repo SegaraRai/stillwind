@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
 use stillwind_diagnostics::{
-    CompileDiagnostic, LintDiagnostic, LintKind, LintOverrides, LintSeverity,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintKind, LintOverrides, LintSeverity,
 };
 use stillwind_ir::{
     ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
@@ -247,7 +247,7 @@ fn cva_removes_invalid_conditions_as_whole_compounds() {
 }
 
 #[test]
-fn incompatible_composition_keeps_independent_rules() {
+fn props_bearing_bases_keep_their_class_and_report_ignored_props() {
     let (_, result) = compile(
         "const base=style({'data-value':1}); const x=style(base,'a');",
         CSS,
@@ -262,7 +262,7 @@ fn incompatible_composition_keeps_independent_rules() {
         "{result:#?}"
     );
     assert!(result.css.contains("color:red"), "{}", result.css);
-    assert!(result.composition.is_empty(), "{result:#?}");
+    assert_eq!(result.composition.len(), 1, "{result:#?}");
 }
 
 #[test]
@@ -326,7 +326,7 @@ fn compose_external(module: &mut ModuleAnalysis, base: IdentityId) {
 }
 
 #[test]
-fn graph_cycles_remain_fatal_and_incompatible_framework_operands_are_omitted() {
+fn graph_cycles_remain_fatal_and_foreign_bases_leave_the_graph() {
     for framework in ["react", "vue"] {
         let mut first = analyzed("first.ts", "react");
         let mut second = analyzed("second.ts", framework);
@@ -393,7 +393,7 @@ fn known_unsupported_identities_are_omitted_but_missing_facts_remain_fatal() {
 }
 
 #[test]
-fn composition_operands_with_mixed_bases_require_a_conditional_expression() {
+fn foreign_bases_report_a_lint_and_leave_css_ordering() {
     let mut first = analyzed("first.ts", "react");
     let second = analyzed("second.ts", "vue");
     let candidates = vec![base_identity(&first), base_identity(&second)];
@@ -406,17 +406,20 @@ fn composition_operands_with_mixed_bases_require_a_conditional_expression() {
         },
     );
     let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
+    assert_eq!(lowered[0].diagnostics, [] as [CompileError; 0]);
     assert!(
         lowered[0]
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|error| error.diagnostic == CompileDiagnostic::MixedStyleBaseCandidates),
+            .any(|finding| finding.diagnostic == LintDiagnostic::StyleBaseFrameworkMismatch),
         "{:#?}",
         lowered[0]
     );
-    assert!(lowered[1].diagnostics.is_empty(), "{:#?}", lowered[1]);
+    let StyleInput::Composition { candidates, .. } = &lowered[0].ir.style_calls[1].inputs[0] else {
+        panic!("the operand remains");
+    };
+    assert_eq!(candidates, &[base_identity(&lowered[0])]);
 }
-
 #[test]
 fn receivers_with_unsupported_branches_lower_one_use_per_branch() {
     for (input, lint) in [

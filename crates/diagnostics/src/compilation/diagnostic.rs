@@ -58,14 +58,6 @@ pub enum CompileDiagnostic {
     /// A composition dependency has no available producer artifact.
     #[error("style base producer is unavailable")]
     UnavailableStyleBase,
-    /// One composition operand may hold a supported or an unsupported base at runtime.
-    ///
-    /// The runtime passes the operand value through, so lowering cannot replace only
-    /// the unsupported bases with empty contributions.
-    #[error(
-        "a style base value mixes supported and unsupported bases; select them with a conditional expression"
-    )]
-    MixedStyleBaseCandidates,
     /// Two generated symbols would publish the same identifier.
     #[error("generated identifier collision: {name}")]
     GeneratedIdentifierCollision {

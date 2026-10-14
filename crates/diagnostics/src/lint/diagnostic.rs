@@ -194,11 +194,17 @@ pub enum LintDiagnostic {
         /// The construct that the fallback strategy cannot represent.
         detail: String,
     },
-    /// A composition base carries props that cannot be merged as class output.
-    #[error("style bases with additional props are not supported")]
+    /// A composition base is a style result whose declaration is unknown. Its class is
+    /// merged at runtime, but its CSS has no ordering dependency on the derived call.
+    #[error("the style base cannot be identified, so its CSS may follow this call's CSS")]
+    UnverifiedStyleBase,
+    /// A composition base carries attributes or inline style. The base contributes only
+    /// its class.
+    #[error("a style base contributes only its class; its attributes and inline style are ignored")]
     StyleBaseWithProps,
-    /// A composition base uses a different framework class property.
-    #[error("style bases must use the same framework class property")]
+    /// A composition base uses another framework's class property and contributes no
+    /// class.
+    #[error("a style base from another framework contributes no class")]
     StyleBaseFrameworkMismatch,
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]
@@ -523,6 +529,7 @@ impl LintDiagnostic {
             Self::UnavailableVariantPrefix => LintKind::UnknownUtility,
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
             Self::RuntimeConditionRequiresNative { .. } => LintKind::RuntimeConditionRequiresNative,
+            Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,
             Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
                 LintKind::InvalidStyleComposition
             }

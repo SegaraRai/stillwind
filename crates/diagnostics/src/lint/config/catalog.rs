@@ -232,6 +232,7 @@ define_lint_rules! {
     InvalidAnimationOption => "invalid-animation-option",
     InvalidStyleComposition => "invalid-style-composition",
     RuntimeConditionRequiresNative => "runtime-condition-requires-native",
+    UnverifiedStyleBase => "unverified-style-base",
     ValidAnchorScope => "valid-anchor-scope",
     RequireRefAttachment => "require-ref-attachment",
     ConflictingProviderProperties => "conflicting-provider-properties",

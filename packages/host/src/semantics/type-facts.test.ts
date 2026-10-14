@@ -423,11 +423,19 @@ test("anonymous branded styles and transitions retain finite identities", () => 
   ]);
 });
 
-for (const expression of ["widened", "unregistered", "mixed", "crossKind"]) {
+for (const expression of ["mixed", "crossKind"]) {
   test(`branded ${expression} reports an unresolved declaration identity`, () => {
     expect(() => collectBrands([expression])).toThrow(/finite set of declaration identities/);
   });
 }
+
+test("style results with unknown declarations report every style as a candidate", () => {
+  const { facts } = collectBrands(["widened", "unregistered"]);
+  expect(facts.map((fact) => fact.value)).toStrictEqual([
+    { kind: "styles", value: { kind: "style", candidates: { kind: "universe" } } },
+    { kind: "styles", value: { kind: "style", candidates: { kind: "universe" } } },
+  ]);
+});
 
 test("unique-symbol brands distinguish declarations from ref, animation, and transition uses", () => {
   const { facts } = collectBrands([

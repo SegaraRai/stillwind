@@ -111,18 +111,6 @@ impl Compiler {
         identifiers: &IdentifierContext,
         emit_source: bool,
     ) -> CompileResult {
-        // Most modules have no incompatible operand, so the analysis is copied only when
-        // lowering changes it.
-        let incompatible = IncompatibleComposition::find(&[parsed]);
-        let lowered;
-        let parsed = if incompatible.is_empty() {
-            parsed
-        } else {
-            let mut analysis = parsed.clone();
-            incompatible.lower(std::slice::from_mut(&mut analysis));
-            lowered = analysis;
-            &lowered
-        };
         let mut runtime_assets = parsed.summary.export_reachable_identities();
         let mut required_definitions = runtime_assets
             .iter()
@@ -135,6 +123,12 @@ impl Compiler {
             lint_findings: parsed.lint_findings.clone(),
             ..CompileResult::default()
         };
+        // A linked analysis already reports bases from other modules.
+        for finding in IncompatibleComposition::find(&[parsed]).findings(parsed) {
+            if !result.lint_findings.contains(&finding) {
+                result.lint_findings.push(finding);
+            }
+        }
         let theme = snapshot.theme();
         let module_id = &parsed.module_id;
         let options = compiler_options;

@@ -134,37 +134,26 @@ export function mergeFragments(
 }
 
 /**
- * Converts materialized props to private fragment channels without mutating them.
+ * Converts a composition base to a fragment that contributes only its class.
+ *
+ * A base contributes the receiving framework's class prop, or the class channel of a
+ * fragment from this runtime. Attributes, style payloads, custom properties, and the
+ * class prop of another framework are ignored, so a base never changes props other than
+ * the class.
  *
  * @param options - The receiving framework's prop conventions and fragment keys.
- * @param value - A non-null object containing materialized props or this runtime's fragment channels.
- * @returns The input when it already owns a fragment key; otherwise a new object whose class and style
- * props use fragment keys and whose other enumerable string props are copied.
+ * @param value - A non-null object containing materialized props or this runtime's
+ * fragment channels.
+ * @returns A new fragment whose class channel holds the base's class value.
  */
 export function toFragment(
   options: FragmentRuntimeOptions,
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {
-  const [classProperty, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] =
-    options;
-  if (
-    Object.hasOwn(value, stillwindClassKey) ||
-    Object.hasOwn(value, stillwindStyleKey) ||
-    Object.hasOwn(value, stillwindCustomPropertiesKey)
-  ) {
-    return value;
-  }
-  const fragment: Record<PropertyKey, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === classProperty) {
-      fragment[stillwindClassKey] = entry;
-      continue;
-    }
-    if (key === "style") {
-      fragment[stillwindStyleKey] = entry;
-      continue;
-    }
-    fragment[key] = entry;
-  }
-  return fragment;
+  const [classProperty, , stillwindClassKey] = options;
+  return {
+    [stillwindClassKey]: Object.hasOwn(value, stillwindClassKey)
+      ? value[stillwindClassKey]
+      : value[classProperty],
+  };
 }

@@ -71,7 +71,6 @@ define_compile_codes! {
     CompositionCycle => "SW06002",
     CompositionModuleCycle => "SW06003",
     UnavailableStyleBase => "SW06004",
-    MixedStyleBaseCandidates => "SW06008",
     // 07: generated identifiers and configuration
     GeneratedIdentifierCollision { .. } => "SW07001",
     IdentifierGenerationFailed(..) => "SW07002",

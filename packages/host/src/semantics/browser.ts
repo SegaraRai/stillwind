@@ -591,6 +591,7 @@ function decode(
   let family: NativeIdentity["kind"] | undefined;
   let recognized = false;
   let valid = true;
+  let finite = true;
 
   const values: NativeIdentity[] = [];
   for (const member of type.isUnion() ? type.types : [type]) {
@@ -635,25 +636,45 @@ function decode(
     const name = (member.aliasSymbol ?? member.getSymbol())?.name;
     recognized ||=
       !!kind || (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name));
-    if (!kind || !identityType || (family && kind !== family)) {
+    if (!kind || (family && kind !== family)) {
       valid = false;
+      continue;
+    }
+    family = kind;
+    if (!identityType) {
+      finite = false;
       continue;
     }
 
     for (const candidate of identityType.isUnion() ? identityType.types : [identityType]) {
-      if (!candidate.isStringLiteral()) {
-        valid = false;
+      const identity = candidate.isStringLiteral() ? identities.get(candidate.value) : undefined;
+      if (!identity) {
+        finite = false;
         continue;
       }
-      const identity = identities.get(candidate.value);
-      if (!identity || identity.kind !== kind) {
+      if (identity.kind !== kind) {
         valid = false;
         continue;
       }
       values.push(identity);
     }
+  }
 
-    family = kind;
+  if (valid && family === "style" && !finite) {
+    // A style result with an unknown declaration still has a known runtime form. The
+    // compiler merges it as a base without a CSS ordering dependency.
+    return {
+      kind: "asset",
+      value: {
+        kind: "styles",
+        value: {
+          kind: "style",
+          candidates: {
+            kind: "universe",
+          },
+        },
+      },
+    };
   }
 
   if (!valid || !family || !values.length) {

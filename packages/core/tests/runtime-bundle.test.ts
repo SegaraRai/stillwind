@@ -133,8 +133,7 @@ test("minified framework runtimes materialize fragments without configuration pr
         title: "ready",
       };
       expect(runtime.merge(runtime.convert(props))).toEqual({
-        ...props,
-        style: ["svelte", "astro"].includes(framework) ? "color:red" : props.style,
+        [classProperty]: "card",
       });
       if (development) {
         expect(() => runtime.convert(null)).toThrow(/materialized props object/);

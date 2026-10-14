@@ -185,6 +185,11 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "unverified-style-base": {
+    nativeName: "unverifiedStyleBase",
+    defaults: null,
+    options: null,
+  },
   "valid-anchor-scope": {
     nativeName: "validAnchorScope",
     defaults: null,

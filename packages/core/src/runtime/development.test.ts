@@ -34,7 +34,7 @@ test("production and development runtimes share keys and valid materialization",
     className: "a",
     style: { color: "red" },
   });
-  expect(reactDevelopment.stillwindToFragmentChecked(fragment)).toBe(fragment);
+  expect(reactDevelopment.stillwindToFragmentChecked(fragment)).toEqual(fragment);
   expect(reactDevelopment.stillwindMergeChecked(fragment)).toEqual(react.stillwindMerge(fragment));
   expect(() => reactDevelopment.stillwindToFragmentChecked(null)).toThrow(
     /materialized props object/,

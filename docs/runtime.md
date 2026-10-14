@@ -122,8 +122,11 @@ Fragments carry three framework-owned symbol channels:
 
 Other keys are ordinary props. `stillwindMerge` recursively visits arrays and
 fragments, joins class text without deduplication, and materializes framework props.
-Custom properties overlay the whole style payload. `stillwindToFragment` converts
-materialized composition bases back to these channels and rejects nonobjects.
+Custom properties overlay the whole style payload. `stillwindToFragment` converts a
+materialized composition base to a fragment that holds only the base's class. A base
+contributes the receiving framework's class prop; its attributes, style, custom
+properties, and another framework's class prop are ignored. The development variant
+rejects nonobjects.
 An existing string style payload is passed through without parsing.
 
 The completed macro always returns framework props. Symbolic fragments remain

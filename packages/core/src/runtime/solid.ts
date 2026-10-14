@@ -24,7 +24,7 @@ export function stillwindMerge(...values: readonly unknown[]): Record<string, un
   return mergeFragments(options, values);
 }
 
-/** Converts an object containing solid props to fragment channels. */
+/** Converts a composition base to a fragment with only its solid class. */
 export function stillwindToFragment(
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {

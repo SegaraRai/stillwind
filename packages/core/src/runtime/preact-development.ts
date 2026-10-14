@@ -13,7 +13,7 @@ export function stillwindMergeChecked(...values: readonly unknown[]): Record<str
   return mergeFragmentsChecked(options, values);
 }
 
-/** Rejects nonobjects before converting materialized preact props to fragment channels. */
+/** Rejects nonobjects before converting a composition base to a preact class fragment. */
 export function stillwindToFragmentChecked(value: unknown): Record<PropertyKey, unknown> {
   return toFragmentChecked(options, value);
 }

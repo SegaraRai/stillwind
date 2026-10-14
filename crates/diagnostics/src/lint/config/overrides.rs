@@ -82,6 +82,8 @@ pub struct LintOverrides {
     pub invalid_style_composition: Option<LintSeverity>,
     /// Reporting level for `runtime-condition-requires-native`.
     pub runtime_condition_requires_native: Option<LintSeverity>,
+    /// Reporting level for `unverified-style-base`.
+    pub unverified_style_base: Option<LintSeverity>,
     /// Reporting level for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<LintSeverity>,
     /// Reporting level for `require-ref-attachment`.
@@ -294,6 +296,7 @@ impl LintOverrides {
                 LintKind::RuntimeConditionRequiresNative,
                 self.runtime_condition_requires_native,
             ),
+            (LintKind::UnverifiedStyleBase, self.unverified_style_base),
         ] {
             if let Some(severity) = severity {
                 settings.insert(LintConfig::new(kind, severity));

@@ -78,10 +78,11 @@ When a `?:` receiver has an unsupported branch, or the receiver is a `&&` expres
 the use lowers into one use per branch. When every branch is supported, one use selects
 its declaration from the receiver value.
 
-A composition operand passes its value to the runtime. An operand whose bases are all
-incompatible is omitted before the remaining dependencies are ordered. An operand that
-can hold a compatible or an incompatible base produces `SW06008`, because its runtime
-value cannot be split into branches. Select such bases with a conditional expression.
+A composition operand passes its value to the runtime, which merges only the base's class
+in the receiving framework's class prop. A base with attributes or inline style keeps its
+class and loses the rest. A base from another framework contributes no class and has no
+CSS ordering dependency. Both cases report `invalid-style-composition` at the operand,
+including when only one candidate base is incompatible.
 Style dependency cycles produce `SW06002`; cycles in CSS module placement produce
 `SW06003`. Neither cycle can be suppressed because it prevents a valid output order.
 
@@ -461,8 +462,8 @@ the variant's utility reference it.
 React, Preact, Solid, and Vue receive an object in the returned `style` prop.
 Svelte and Astro receive a serialized style string. Custom properties overlay
 the generated style payload, preserving an unrelated view transition name.
-The existing restriction on composing props-bearing style results also applies
-to results containing custom properties.
+A composition base containing custom properties contributes only its class, as for
+other props-bearing bases.
 
 ## Runtime CSS conditions
 
