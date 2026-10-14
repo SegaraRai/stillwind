@@ -1,5 +1,7 @@
 //! Checks competing contributions, duplicates, and suppression usage.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]

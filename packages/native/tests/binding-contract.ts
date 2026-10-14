@@ -1,6 +1,9 @@
 import { pathToFileURL } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
+
+import { stillwindCva } from "../../core/src/runtime/react.ts";
 
 /**
  * Registers the output and validation contracts for a public binding entry.
@@ -641,24 +644,109 @@ export const valid=style('[display:block]');`,
 
   test("lint settings preserve rule names and reporting levels across the native boundary", async () => {
     const { compileSource } = await import(bindingSpecifier);
-    const source = "import {style} from 'stillwind/react'; export const props=style('missing');";
+    const source =
+      "import {style} from 'stillwind/react'; export const props=style('missing bad-[');";
     for (const severity of ["warn", "deny", "off"]) {
       const output = compileSource(oneShotInput(source, "lint.tsx", "@stillwind-slot utilities;"), {
         lint: {
           unknownUtility: severity,
+          invalidUtility: severity,
         },
       });
       expect(output.diagnostics).toStrictEqual([]);
       expect(output.lintSettings["unknown-utility"]).toBe(severity);
+      expect(output.lintSettings["invalid-utility"]).toBe(severity);
       expect(output.lintSettings["macro-argument-mutation"]).toBe("deny");
       expect(Object.hasOwn(output.lintSettings, "typo")).toBe(false);
-      expect(output.lintFindings.length).toBe(severity === "off" ? 0 : 1);
+      expect(output.lintFindings.length).toBe(severity === "off" ? 0 : 2);
       if (severity !== "off") {
         expect(output.lintFindings[0].rule).toBe("unknown-utility");
         expect(output.reports[0].severity).toBe(severity === "deny" ? "error" : "warning");
       }
       expect(output.code).toBeTruthy();
+      expect(output.code).not.toContain("missing");
+      expect(output.code).not.toContain("bad-[");
     }
+  });
+
+  test("CVA recovery preserves selection and omits complete invalid compounds", async () => {
+    const { compileSource } = await import(bindingSpecifier);
+    const css =
+      "@utility a {color:red;} @utility b {color:blue;} @utility c {color:green;} @utility d {color:yellow;} @stillwind-slot utilities;";
+    const evaluate = (code: string): ReturnType<typeof stillwindCva> =>
+      runInNewContext(`${code.replace(/^import[^;]+;/gm, "")}\nchoose;`, {
+        stillwindCva,
+      });
+    const selectedColors = (
+      code: string,
+      css: string,
+      selection: Readonly<Record<string, unknown>>,
+    ) => {
+      const colors = new Map(
+        [...css.matchAll(/\.([\w-]+)\{color:([^;]+);\}/g)].map((match) => [match[1], match[2]]),
+      );
+      const props = evaluate(code)(selection);
+      if (typeof props.className !== "string") {
+        expect.fail("Expected classes from supported CVA values");
+      }
+      return props.className.split(" ").map((name) => colors.get(name));
+    };
+    const source = `import {style} from 'stillwind/react';
+      const fail=()=>{throw new Error('omitted input was evaluated');};
+      const choose=style.cva('a', {
+        [fail()]: style('c'), ...fail(),
+        variants: {tone: {on: style('c'), off: 'b'}},
+        defaultVariants: {tone: 'off', missing: fail()},
+        compoundVariants: [,
+          {missing: 'on', class: 'c'},
+          {...fail(), class: 'c'},
+          {tone: 'absent', class: 'c'},
+          {tone: 'on', class: 'd'}
+        ]
+      });`;
+    let baselineCss: string | undefined;
+    for (const severity of ["deny", "warn", "off"]) {
+      const output = compileSource(oneShotInput(source, "cva-recovery.ts", css), {
+        lint: { invalidCvaInput: severity, invalidCvaConfig: severity },
+      });
+      expect(output.diagnostics).toStrictEqual([]);
+      baselineCss ??= output.css;
+      expect(output.css).toBe(baselineCss);
+      expect(output.css).not.toContain("color:green");
+      for (const [selection, colors] of [
+        [{}, ["red", "blue"]],
+        [{ tone: "on" }, ["red", "yellow"]],
+        [{ tone: "off" }, ["red", "blue"]],
+        [{ tone: null }, ["red"]],
+      ] as const) {
+        expect(selectedColors(output.code, output.css, selection)).toStrictEqual(colors);
+      }
+      expect(
+        output.reports.every(
+          (report: { severity: string }) =>
+            report.severity === (severity === "deny" ? "error" : "warning"),
+        ),
+      ).toBe(true);
+      if (severity === "off") {
+        expect(output.reports).toStrictEqual([]);
+      } else {
+        expect(
+          new Set(output.reports.map((report: { code: string }) => report.code)),
+        ).toStrictEqual(new Set(["invalid-cva-config", "invalid-cva-input"]));
+      }
+    }
+    const suppressed = compileSource(
+      oneShotInput(
+        `// swlint-disable invalid-cva-config, invalid-cva-input\n${source}`,
+        "cva-recovery.ts",
+        css,
+      ),
+    );
+    expect(suppressed.reports).toStrictEqual([]);
+    expect(selectedColors(suppressed.code, suppressed.css, { tone: "on" })).toStrictEqual([
+      "red",
+      "yellow",
+    ]);
   });
 
   test("source restrictions and suppression usage agree across bindings and project APIs", async () => {
@@ -1944,9 +2032,14 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     const before = session.css().css;
     expect(before.length).toBeGreaterThan(0);
     const invalid = session.newLoader();
-    invalid.provide(0, "theme", "", sourceUri("theme"));
+    invalid.provide(
+      0,
+      "theme",
+      "@utility brand {@stillwind-require-properties invalid; color:red;} @stillwind-slot utilities; @stillwind-slot keyframes;",
+      sourceUri("theme"),
+    );
     expect(() => session.reload(invalid)).toThrow(
-      /CSS reload compilation failed.*motion\.tsx.*SW02003.*unknown or unavailable utility `brand`/s,
+      /CSS reload compilation failed.*motion\.tsx.*SW08006.*invalid property requirement/s,
     );
     expect(session.diagnosticBatches()[0].reports[0].primary.location.uri).toBe(
       sourceUri("motion.tsx"),
@@ -1962,6 +2055,59 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(session.reload(recovered).cssChanged).toBe(true);
     expect(session.diagnosticBatches()[0].reports).toStrictEqual([]);
     expect(session.css().css).not.toBe(before);
+  });
+
+  test("checked non-assets are omitted while absent or nonfinite facts remain fatal", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const code =
+      "import {style} from 'stillwind/react'; import {candidate} from './values'; const x=style('flex',candidate.asAnchor());";
+    const start = code.lastIndexOf("candidate");
+    const source = {
+      kind: "direct",
+      moduleId: "consumer.ts",
+      document: { uri: sourceUri("consumer.ts"), code, format: "script" },
+      syntax: { language: "ts", moduleKind: "module" },
+    };
+    for (const severity of ["deny", "warn", "off"]) {
+      const loader = new NativeDesignSystemLoader({ lint: { invalidRefInput: severity } });
+      loader.provide(
+        0,
+        "theme",
+        "@utility flex {display:flex;} @stillwind-slot utilities;",
+        sourceUri("theme"),
+      );
+      const session = new NativeProjectSession(loader, false);
+      const facts = { start, end: start + "candidate".length, value: null };
+      const recovered = session.compile([{ ...source, typeFacts: [facts] }]).modules[0];
+      expect(recovered.diagnostics).toStrictEqual([]);
+      expect(recovered.code).not.toContain("asAnchor");
+      expect(session.css().css).toContain("display:flex");
+      expect(
+        recovered.lintFindings.map(
+          (finding: import("../binding.js").BindingLintFinding) => finding.rule,
+        ),
+      ).toStrictEqual(severity === "off" ? [] : ["invalid-ref-input"]);
+      for (const typeFacts of [
+        [],
+        [
+          {
+            ...facts,
+            value: { kind: "refs", value: { kind: "ref", candidates: { kind: "universe" } } },
+          },
+        ],
+      ]) {
+        const rejected = session.compile([{ ...source, typeFacts }]).modules[0];
+        expect(
+          rejected.diagnostics.map(
+            (finding: import("../binding.js").BindingDiagnostic) => finding.code,
+          ),
+        ).toContain("SW03010");
+        expect(rejected.code).toBeNull();
+      }
+      expect(() =>
+        session.compile([{ ...source, typeFacts: [{ start, end: facts.end }] }]),
+      ).toThrow();
+    }
   });
 
   test("native sessions join supplied type facts with another module's asset metadata", async () => {

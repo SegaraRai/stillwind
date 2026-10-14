@@ -24,9 +24,8 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintFinding, LintOverrides, LintSeverity, SourceFailureContext,
 };
 use stillwind_ir::{
-    ClassExpression, ConditionalBranches, DirectSource, PreparedSource, ProjectedSource,
-    RefCondition, RefDefinition, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
-    SourceDocument, SourceInput, StyleInput, StyleVariant,
+    ClassExpression, DirectSource, PreparedSource, ProjectedSource, RuleExpression, ScriptLanguage,
+    ScriptModuleKind, SourceAnalyzer, SourceDocument, SourceInput, StyleInput,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::TypeFacts;

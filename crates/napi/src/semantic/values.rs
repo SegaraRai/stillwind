@@ -2,11 +2,16 @@
 //!
 //! Conversions validate that exported tags, value kinds, and candidate kinds agree.
 
-use napi::Error;
+use napi::{
+    Error,
+    bindgen_prelude::{Either, Null},
+};
 use napi_derive::napi;
 use serde::Serialize;
 
-use stillwind_semantic::{AssetKind, Candidates, ExportedValue, SymbolicValue, TypeFact};
+use stillwind_semantic::{
+    AssetKind, Candidates, CheckedValue, ExportedValue, SymbolicValue, TypeFact,
+};
 
 use super::identity::{NativeAssetKind, NativeIdentity};
 
@@ -150,8 +155,8 @@ pub struct NativeTypeFact {
     pub start: u32,
     /// Byte end of the expression in the original source.
     pub end: u32,
-    /// The resolved value.
-    pub value: NativeExportedValue,
+    /// Checked asset value, or `null` for a confirmed non-asset.
+    pub value: Either<NativeExportedValue, Null>,
 }
 
 impl TryFrom<NativeTypeFact> for TypeFact {
@@ -161,7 +166,10 @@ impl TryFrom<NativeTypeFact> for TypeFact {
         Ok(Self {
             start: value.start,
             end: value.end,
-            value: value.value.try_into()?,
+            value: match value.value {
+                Either::A(value) => CheckedValue::Asset(value.try_into()?),
+                Either::B(_) => CheckedValue::NonAsset,
+            },
         })
     }
 }

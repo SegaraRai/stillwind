@@ -9,7 +9,6 @@
 use std::collections::BTreeMap;
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, GeneratedSymbolKind};
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};

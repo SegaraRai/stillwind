@@ -1,6 +1,6 @@
 //! Utility literal resolution into canonical class inputs and CSS contributions.
 //!
-//! [`LiteralContribution::resolve`] retains unresolved external names and reports lint
+//! [`LiteralContribution::resolve`] omits unresolved candidates and reports lint
 //! findings while applying semantic wrappers to resolved utilities.
 
 use stillwind_design_system::{
@@ -21,9 +21,9 @@ use super::variants::document_scoped_selector;
 /// Rules and class names collected before they are assigned to a class unit.
 ///
 /// [`Self::canonical`] contributes to the class hash assembled by `ClassUnits`.
-/// Separate lists for rules and names allow unresolved candidates to appear as
-/// class names without adding CSS. Transition uses keep their CSS context until
-/// the owning unit chooses whether to write tokens directly or through slots.
+/// Separate lists keep compatibility and asset markers apart from rules. Transition
+/// uses keep their CSS context until the owning unit chooses whether to write tokens
+/// directly or through slots.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Hash fragment for rule-bearing candidates and their wrappers, in source order.
@@ -32,8 +32,6 @@ pub(super) struct LiteralContribution {
     pub(super) utilities: Vec<CompiledUtility>,
     /// Compatibility markers, emitted instead of a rule.
     pub(super) markers: Vec<String>,
-    /// Class names Stillwind does not own, passed through unchanged.
-    pub(super) external: Vec<String>,
     /// Names with no rule of their own, such as asset markers.
     pub(super) plain: Vec<String>,
     /// Transition uses with their tokens, CSS contexts, and names, in encounter order.
@@ -44,8 +42,8 @@ impl LiteralContribution {
     /// Appends the canonical input, utilities, and transition uses from `other` when
     /// it contains rules. Their order is preserved.
     ///
-    /// Marker, external, and plain class names are discarded. The caller must extract
-    /// any names it needs before passing `other` to this function.
+    /// Marker and plain class names are discarded. The caller must extract any names it
+    /// needs before passing `other` to this function.
     pub(super) fn append_rules(&mut self, other: Self) {
         if !other.utilities.is_empty() || !other.view_transitions.is_empty() {
             self.canonical.push_str(&other.canonical);
@@ -58,13 +56,12 @@ impl LiteralContribution {
     /// classes.
     ///
     /// A compatibility marker is emitted instead of utilities when the candidate only
-    /// marks a Tailwind relationship, and an unresolved candidate becomes an external
-    /// class name plus a lint finding, which keeps the user's class in the output
-    /// rather than dropping it. A resolved candidate whose own variants would apply to
-    /// the document is reported without changing its output, because the host decides
-    /// that policy's severity. A malformed CSS-registered runtime condition appends a
-    /// compile diagnostic and skips that candidate; callers must discard the
-    /// compilation if diagnostics are present.
+    /// marks a Tailwind relationship. An unresolved candidate is omitted from class
+    /// output and canonical input; enabled lint rules report it. A resolved candidate
+    /// whose own variants would apply to the document is reported without changing its
+    /// output, because the host decides that policy's severity. A malformed
+    /// CSS-registered runtime condition appends a compile diagnostic and skips that
+    /// candidate; callers must discard the compilation if diagnostics are present.
     pub(super) fn resolve(
         value: &Spanned<String>,
         plan: &StyleVariantPlan,
@@ -85,7 +82,6 @@ impl LiteralContribution {
                 value.span.start.0 + u32::try_from(start).unwrap_or_default(),
                 value.span.start.0 + u32::try_from(decoded_offset).unwrap_or_default(),
             );
-            let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
             let mut raw = utility.value.raw.clone();
             raw.insert_str(0, &plan.prefix);
             if parse_candidate(&raw).is_some_and(|candidate| {
@@ -118,10 +114,11 @@ impl LiteralContribution {
                 contribution.markers.push(marker);
                 continue;
             }
-            contribution.canonical.push_str(&canonical_candidate);
-            contribution.canonical.push('\0');
             match resolve_utility_targets(&raw, theme) {
                 Ok(Some(mut resolved)) => {
+                    let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
+                    contribution.canonical.push_str(&canonical_candidate);
+                    contribution.canonical.push('\0');
                     if lint_settings.enabled_for_detection(LintKind::RequireElementScope)
                         && let Some(candidate) = parse_candidate(&utility.value.raw)
                         && let Some(selector) = candidate
@@ -155,7 +152,6 @@ impl LiteralContribution {
                             ));
                         }
                     }
-                    contribution.external.push(utility.value.raw.clone());
                 }
                 Err(error) => diagnostics.push(CompileError::new(
                     CompileDiagnostic::MalformedUtilityRequirement {

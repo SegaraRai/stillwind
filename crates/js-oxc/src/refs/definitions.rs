@@ -4,10 +4,10 @@
 //! prefix separate from the independent shared scope conditions supplied by `in()`.
 //! Container queries remain conditions on the final styled target.
 
-use oxc::ast::ast::{CallExpression, Expression};
+use oxc::ast::ast::{CallExpression, ChainElement, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleInput, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
@@ -25,33 +25,35 @@ enum RefVariantText<'e, 'a> {
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Extracts a declaration with no arguments or one literal label. Reports invalid
-    /// arguments and returns `None` without registering a declaration.
+    /// Extracts a declaration with no arguments or one literal label. Unsupported
+    /// arguments produce a lint and an unlabeled declaration with the same identity.
     pub(crate) fn collect_ref_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<RefDefinition> {
+    ) -> RefDefinition {
+        self.omit_input(call.span);
         let label = match call.arguments.as_slice() {
             [] => None,
             [argument] => {
-                let Some(Expression::StringLiteral(label)) = argument.as_expression() else {
-                    self.ref_syntax_error(CompileDiagnostic::InvalidRefArgument, argument.span());
-                    return None;
-                };
-                Some(self.string_literal(label))
+                if let Some(Expression::StringLiteral(label)) = argument.as_expression() {
+                    Some(self.string_literal(label))
+                } else {
+                    self.ref_input_error(LintDiagnostic::InvalidRefArgument, argument.span());
+                    None
+                }
             }
             _ => {
-                self.ref_syntax_error(CompileDiagnostic::InvalidRefArguments, call.span);
-                return None;
+                self.ref_input_error(LintDiagnostic::InvalidRefArguments, call.span);
+                None
             }
         };
-        Some(RefDefinition {
+        RefDefinition {
             module_id: self.module_id.clone(),
             binding,
             label,
             call_span: self.source_span(call.span),
-        })
+        }
     }
 
     /// Consumes a direct variant expression inside `style()`. Parses static ref calls
@@ -70,11 +72,11 @@ impl<'a> MacroExtractor<'a> {
                 break;
             }
             if call.optional || optional || call.arguments.len() != 1 {
-                self.ref_syntax_error(CompileDiagnostic::InvalidRefScopeArguments, call.span);
+                self.ref_input_error(LintDiagnostic::InvalidRefScopeArguments, call.span);
                 return None;
             }
             let Some(scope) = call.arguments[0].as_expression() else {
-                self.ref_syntax_error(CompileDiagnostic::InvalidRefScopeArguments, call.span);
+                self.ref_input_error(LintDiagnostic::InvalidRefScopeArguments, call.span);
                 return None;
             };
             scopes.push(self.ref_condition(scope, true));
@@ -89,10 +91,7 @@ impl<'a> MacroExtractor<'a> {
             && name == "at"
         {
             if !scopes.is_empty() || optional {
-                self.ref_syntax_error(
-                    CompileDiagnostic::InvalidRefVariantReceiver,
-                    expression.span(),
-                );
+                self.ref_input_error(LintDiagnostic::InvalidRefVariantReceiver, expression.span());
                 return None;
             }
             return self.ref_container_variant(object, query);
@@ -113,14 +112,47 @@ impl<'a> MacroExtractor<'a> {
         receiver: &Expression<'a>,
         query: Spanned<String>,
     ) -> Option<StyleVariant> {
-        let Some(refs) = self.ref_references(receiver) else {
-            self.ref_syntax_error(
-                CompileDiagnostic::InvalidRefVariantReceiver,
-                receiver.span(),
-            );
+        if self.completed_ref_variant(receiver) {
+            self.ref_input_error(LintDiagnostic::InvalidRefVariantReceiver, receiver.span());
             return None;
+        }
+        let refs = match self.ref_references(receiver) {
+            Ok(refs) => refs,
+            Err(failure) => {
+                self.report_resolution_failure(
+                    receiver,
+                    failure,
+                    LintDiagnostic::InvalidRefVariantReceiver,
+                    CompileDiagnostic::RefFactsRequired,
+                );
+                return None;
+            }
         };
         Some(StyleVariant::Container { refs, query })
+    }
+
+    fn completed_ref_variant(&self, expression: &Expression<'a>) -> bool {
+        let receiver = match expression.get_inner_expression() {
+            Expression::CallExpression(call) => &call.callee,
+            Expression::TaggedTemplateExpression(tagged) => &tagged.tag,
+            Expression::ChainExpression(chain) => {
+                let ChainElement::CallExpression(call) = &chain.expression else {
+                    return false;
+                };
+                &call.callee
+            }
+            _ => return false,
+        };
+        if self.ref_references(receiver).is_ok() {
+            return true;
+        }
+        literal_member(receiver).is_some_and(|(object, name, _)| match name {
+            "at" | "asAnchor" | "asContainer" | "positionAnchor" => {
+                self.ref_references(object).is_ok()
+            }
+            "in" => self.ref_references(object).is_ok() || self.completed_ref_variant(object),
+            _ => false,
+        })
     }
 
     /// Reads a static call or tag without resolving its receiver. Identifies bare
@@ -133,10 +165,7 @@ impl<'a> MacroExtractor<'a> {
         match expression.get_inner_expression() {
             Expression::TaggedTemplateExpression(tagged) => {
                 if !tagged.quasi.expressions.is_empty() || tagged.quasi.quasis.len() != 1 {
-                    self.ref_syntax_error(
-                        CompileDiagnostic::NonStaticRefVariant,
-                        tagged.quasi.span,
-                    );
+                    self.ref_input_error(LintDiagnostic::NonStaticRefVariant, tagged.quasi.span);
                     return None;
                 }
                 let cooked = tagged.quasi.quasis[0].value.cooked.as_ref()?;
@@ -155,16 +184,13 @@ impl<'a> MacroExtractor<'a> {
                     [argument] => {
                         let Some(Expression::StringLiteral(value)) = argument.as_expression()
                         else {
-                            self.ref_syntax_error(
-                                CompileDiagnostic::NonStaticRefVariant,
-                                call.span,
-                            );
+                            self.ref_input_error(LintDiagnostic::NonStaticRefVariant, call.span);
                             return None;
                         };
                         self.string_literal(value)
                     }
                     _ => {
-                        self.ref_syntax_error(CompileDiagnostic::NonStaticRefVariant, call.span);
+                        self.ref_input_error(LintDiagnostic::NonStaticRefVariant, call.span);
                         return None;
                     }
                 };
@@ -174,7 +200,7 @@ impl<'a> MacroExtractor<'a> {
                 })
             }
             Expression::CallExpression(call) => {
-                self.ref_syntax_error(CompileDiagnostic::NonStaticRefVariant, call.span);
+                self.ref_input_error(LintDiagnostic::NonStaticRefVariant, call.span);
                 None
             }
             _ => Some(RefVariantText::Bare(expression)),
@@ -195,44 +221,55 @@ impl<'a> MacroExtractor<'a> {
             && let Some((_, name, _)) = literal_member(&call.callee)
             && name == "in"
         {
-            self.ref_syntax_error(CompileDiagnostic::NestedRefScope, expression.span());
+            self.ref_input_error(LintDiagnostic::NestedRefScope, expression.span());
             return None;
         }
-        let (reference, mut prefix) = match self.ref_variant_text(expression)? {
+        let text = if allow_presence && self.ref_references(expression).is_ok() {
+            RefVariantText::Bare(expression)
+        } else {
+            self.ref_variant_text(expression)?
+        };
+        let (reference, mut prefix) = match text {
             RefVariantText::Prefix { reference, prefix } => (reference, prefix),
             RefVariantText::Bare(expression) if allow_presence => (
                 expression,
                 Spanned::new(String::new(), self.source_span(expression.span())),
             ),
             RefVariantText::Bare(_) => {
-                self.ref_syntax_error(CompileDiagnostic::UnidentifiedRefVariant, expression.span());
+                self.ref_input_error(LintDiagnostic::UnidentifiedRefVariant, expression.span());
                 return None;
             }
         };
-        if let Some((_, name, _)) = literal_member(reference)
-            && matches!(name, "in" | "at")
+        if let Some((object, name, _)) = literal_member(reference)
+            && matches!(
+                name,
+                "in" | "at" | "asAnchor" | "asContainer" | "positionAnchor"
+            )
+            && (self.ref_references(object).is_ok() || self.completed_ref_variant(object))
         {
             let diagnostic = if name == "in" {
-                CompileDiagnostic::NestedRefScope
+                LintDiagnostic::NestedRefScope
             } else {
-                CompileDiagnostic::InvalidRefVariantReceiver
+                LintDiagnostic::InvalidRefVariantReceiver
             };
-            self.ref_syntax_error(diagnostic, expression.span());
+            self.ref_input_error(diagnostic, expression.span());
             return None;
         }
-        if matches!(
-            reference.get_inner_expression(),
-            Expression::CallExpression(_) | Expression::TaggedTemplateExpression(_)
-        ) {
-            self.ref_syntax_error(
-                CompileDiagnostic::InvalidRefVariantReceiver,
-                reference.span(),
-            );
+        if self.completed_ref_variant(reference) {
+            self.ref_input_error(LintDiagnostic::InvalidRefVariantReceiver, reference.span());
             return None;
         }
-        let Some(refs) = self.ref_references(reference) else {
-            self.ref_syntax_error(CompileDiagnostic::UnidentifiedRefVariant, reference.span());
-            return None;
+        let refs = match self.ref_references(reference) {
+            Ok(refs) => refs,
+            Err(failure) => {
+                self.report_resolution_failure(
+                    reference,
+                    failure,
+                    LintDiagnostic::UnidentifiedRefVariant,
+                    CompileDiagnostic::RefFactsRequired,
+                );
+                return None;
+            }
         };
         if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
             prefix.value.push(':');
@@ -268,10 +305,9 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Adds a fatal ref syntax diagnostic at a span in the current analysis buffer.
-    fn ref_syntax_error(&mut self, diagnostic: CompileDiagnostic, span: oxc::span::Span) {
-        self.diagnostics
-            .push(CompileError::new(diagnostic, self.source_span(span)));
+    fn ref_input_error(&mut self, diagnostic: LintDiagnostic, span: oxc::span::Span) {
+        self.lint_findings
+            .push(LintFinding::new(diagnostic, self.source_span(span)));
     }
 
     /// Recognizes a ref used as a `style()` argument.
@@ -287,7 +323,7 @@ impl<'a> MacroExtractor<'a> {
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) -> bool {
-        if let Some(refs) = self.ref_references(expression) {
+        if let Ok(refs) = self.ref_references(expression) {
             if refs.len() == 1 {
                 inputs.push(StyleInput::RefAttachment {
                     definition: refs[0].clone(),
@@ -309,7 +345,7 @@ impl<'a> MacroExtractor<'a> {
 mod tests {
     use std::collections::BTreeMap;
 
-    use stillwind_diagnostics::CompileErrorCode;
+    use stillwind_diagnostics::{CompileDiagnostic, LintKind};
     use stillwind_ir::{
         ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
         StyleVariant,
@@ -343,7 +379,7 @@ mod tests {
             .map(|(start, name)| TypeFact {
                 start: u32::try_from(start).unwrap(),
                 end: u32::try_from(start + name.len()).unwrap(),
-                value: ExportedValue::Refs(SymbolicValue::exact(target.clone())),
+                value: ExportedValue::Refs(SymbolicValue::exact(target.clone())).into(),
             })
             .collect::<Vec<_>>();
         let parsed = parse(
@@ -465,40 +501,22 @@ mod tests {
         for (expression, expected) in [
             (
                 "target['in'](inner[`in`](outer))",
-                CompileErrorCode::NestedRefScope,
+                LintKind::InvalidRefInput,
             ),
-            (
-                "target[`in`](inner['at']())",
-                CompileErrorCode::InvalidRefVariantReceiver,
-            ),
-            (
-                "target['at']()[`in`](inner)",
-                CompileErrorCode::InvalidRefVariantReceiver,
-            ),
-            (
-                "target()['at']()",
-                CompileErrorCode::InvalidRefVariantReceiver,
-            ),
-            (
-                "target[`in`](inner)['at']()",
-                CompileErrorCode::InvalidRefVariantReceiver,
-            ),
-            (
-                "target[`in`](inner)('hover')",
-                CompileErrorCode::InvalidRefVariantReceiver,
-            ),
-            ("target['in']()", CompileErrorCode::InvalidRefScopeArguments),
-            (
-                "target[`in`](...inner)",
-                CompileErrorCode::InvalidRefScopeArguments,
-            ),
+            ("target[`in`](inner['at']())", LintKind::InvalidRefInput),
+            ("target['at']()[`in`](inner)", LintKind::InvalidRefInput),
+            ("target()['at']()", LintKind::InvalidRefInput),
+            ("target[`in`](inner)['at']()", LintKind::InvalidRefInput),
+            ("target[`in`](inner)('hover')", LintKind::InvalidRefInput),
+            ("target['in']()", LintKind::InvalidRefInput),
+            ("target[`in`](...inner)", LintKind::InvalidRefInput),
         ] {
             let (_, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
             assert!(
                 parsed
-                    .diagnostics
+                    .lint_findings
                     .iter()
-                    .any(|error| error.code() == expected),
+                    .any(|error| error.kind() == expected),
                 "{expression}: {:?}",
                 parsed.diagnostics
             );
@@ -506,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn computed_members_reject_optional_and_dynamic_syntax() {
+    fn computed_members_reject_optional_syntax_and_require_facts_for_dynamic_receivers() {
         for expression in [
             "target?.['in'](inner)",
             "target['in']?.(inner)",
@@ -515,15 +533,22 @@ mod tests {
             "target()['in'](inner?.())",
             "target['in'](inner?.['in'](outer))",
             "target[`i${'n'}`](inner)",
-            "target[`a${'t'}`]()",
             "target[choose ? 'in' : 'at'](inner)",
         ] {
             let (_, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
             assert!(
-                !parsed.diagnostics.is_empty(),
+                !parsed.lint_findings.is_empty(),
                 "{expression}: accepted unsupported syntax"
             );
         }
+        let (_, parsed) = parse_variant_input("{[target[`a${'t'}`]()]: 'flex'}");
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
+            "{parsed:#?}"
+        );
     }
 
     #[test]

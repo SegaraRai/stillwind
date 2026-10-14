@@ -266,6 +266,7 @@ impl CallEmitter<'_> {
                     wrappers,
                     self.theme,
                     self.diagnostics,
+                    self.lint_findings,
                 )?;
                 let mut contribution = LiteralContribution::resolve(
                     value,
@@ -347,6 +348,18 @@ impl CallEmitter<'_> {
             RuleExpression::Variant { variant, inputs } => {
                 self.report_wrapper_lints(variant);
                 wrappers.push(variant.clone());
+                if StyleVariantPlan::resolve(
+                    self.identifiers,
+                    wrappers,
+                    self.theme,
+                    self.diagnostics,
+                    self.lint_findings,
+                )
+                .is_none()
+                {
+                    wrappers.pop();
+                    return None;
+                }
                 let items = inputs
                     .iter()
                     .map(|input| self.emit_rule_expression(input, guard, wrappers, fold))
@@ -539,7 +552,6 @@ impl CallEmitter<'_> {
         if let Some(region) = &mut self.pending_region {
             let mut names = Vec::new();
             names.append(&mut contribution.markers);
-            names.append(&mut contribution.external);
             names.append(&mut contribution.plain);
             region.rules.append_rules(contribution);
             return (!names.is_empty()).then_some(Emitted::Leaf { names });
@@ -558,8 +570,8 @@ impl CallEmitter<'_> {
     }
 
     /// Allocates a class for the collected rules under the conditions in `guard`.
-    /// The caller must reserve `order` first and extract any marker or external class
-    /// names from `contribution` before calling this function.
+    /// The caller must reserve `order` first and extract any marker class names from
+    /// `contribution` before calling this function.
     ///
     /// Returns a generated leaf. Returns `None` if the region has no rules or allocation
     /// or emission fails. Failures add diagnostics.

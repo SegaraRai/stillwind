@@ -71,7 +71,8 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
         end: start + 8,
         value: ExportedValue::Keyframes(
             SymbolicValue::finite(AssetKind::Keyframes, candidates).unwrap(),
-        ),
+        )
+        .into(),
     }];
     let theme = SourceFile::new(
         FileId(2),

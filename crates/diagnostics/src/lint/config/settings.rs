@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 33);
+        assert_eq!(names.len(), 47);
         for name in [
             "custom",
             "",
@@ -113,11 +113,26 @@ mod tests {
         let mut settings = LintSettings::with_defaults();
         assert_eq!(
             serde_json::to_value(&settings).unwrap(),
-            serde_json::json!({
+            serde_json::from_str::<serde_json::Value>(
+                r#"{
                 "framework-import-mismatch": "warn",
                 "macro-argument-mutation": "deny",
                 "macro-execution-boundary": "deny",
                 "invalid-variant-input": "deny",
+                "invalid-animation-option": "deny",
+                "invalid-cva-config": "deny",
+                "invalid-cva-input": "deny",
+                "invalid-keyframes-definition": "deny",
+                "invalid-keyframes-use": "deny",
+                "invalid-keyframes-variant": "deny",
+                "invalid-motion-utility": "deny",
+                "invalid-ref-input": "deny",
+                "invalid-style-composition": "deny",
+                "invalid-style-input": "deny",
+                "invalid-variant-prefix": "deny",
+                "invalid-view-transition-definition": "deny",
+                "invalid-view-transition-use": "deny",
+                "invalid-view-transition-variant": "deny",
                 "require-element-scope": "deny",
                 "require-view-transition-name": "warn",
                 "single-view-transition-name": "warn",
@@ -146,8 +161,10 @@ mod tests {
                 "no-restricted-theme-tokens": "off",
                 "no-arbitrary-breakpoints": "off",
                 "prefer-typed-relationships": "off",
-                "sort-utilities": "off",
-            })
+                "sort-utilities": "off"
+            }"#
+            )
+            .unwrap()
         );
         assert!(!settings.enabled_for_detection(LintKind::PreferTypedRelationships));
         assert_eq!(

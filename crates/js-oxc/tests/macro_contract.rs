@@ -176,9 +176,9 @@ fn container_projection_rejects_extra_arguments() {
             ScriptLanguage::Tsx,
             ScriptModuleKind::Unambiguous
         )
-        .diagnostics
+        .lint_findings
         .iter()
-        .any(|error| error.diagnostic == CompileDiagnostic::InvalidContainerType)
+        .any(|error| error.diagnostic == LintDiagnostic::InvalidContainerType)
     );
 }
 
@@ -337,24 +337,28 @@ ordinaryMethod.positionAnchor();
 
 #[test]
 fn position_anchor_requires_a_call_without_arguments() {
-    for (expression, expected) in [
+    for (expression, fatal, lint) in [
         (
             "r.positionAnchor",
-            CompileDiagnostic::UnconsumedMacroUse {
+            Some(CompileDiagnostic::UnconsumedMacroUse {
                 syntax: "positionAnchor".into(),
-            },
+            }),
+            None,
         ),
         (
             "r.positionAnchor('unused')",
-            CompileDiagnostic::InvalidPositionAnchorArguments,
+            None,
+            Some(LintDiagnostic::InvalidPositionAnchorArguments),
         ),
         (
             "r.positionAnchor(undefined)",
-            CompileDiagnostic::InvalidPositionAnchorArguments,
+            None,
+            Some(LintDiagnostic::InvalidPositionAnchorArguments),
         ),
         (
             "r.positionAnchor(...[])",
-            CompileDiagnostic::InvalidPositionAnchorArguments,
+            None,
+            Some(LintDiagnostic::InvalidPositionAnchorArguments),
         ),
     ] {
         let source = SourceFile::new(
@@ -370,10 +374,17 @@ fn position_anchor_requires_a_call_without_arguments() {
             ScriptModuleKind::Unambiguous,
         );
         assert!(
-            parsed
-                .diagnostics
-                .iter()
-                .any(|error| error.diagnostic == expected),
+            match (fatal, lint) {
+                (Some(expected), _) => parsed
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.diagnostic == expected),
+                (_, Some(expected)) => parsed
+                    .lint_findings
+                    .iter()
+                    .any(|finding| finding.diagnostic == expected),
+                _ => false,
+            },
             "{expression}: {:?}",
             parsed.diagnostics
         );

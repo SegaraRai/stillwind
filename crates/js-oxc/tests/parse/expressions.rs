@@ -1,6 +1,6 @@
 //! Checks class, object, array, and variant expression lowering.
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, VariantInputErrorKind};
 
 use super::*;
 
@@ -181,10 +181,10 @@ fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
             );
             assert_eq!(parsed.module.style_calls[0].inputs, []);
         } else {
-            assert_eq!(parsed.diagnostics.len(), 1);
+            assert_eq!(parsed.lint_findings.len(), 1);
             assert_eq!(
-                parsed.diagnostics[0].diagnostic,
-                CompileDiagnostic::InvalidAttributeKey
+                parsed.lint_findings[0].diagnostic,
+                LintDiagnostic::InvalidAttributeKey
             );
         }
     }

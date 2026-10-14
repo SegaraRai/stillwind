@@ -78,7 +78,7 @@ export function registerEditorContract(specifier: string): void {
     ).toBe(true);
   });
 
-  test("module previews keep source boundaries, unused definitions, rejected attempts, and captured revisions", async () => {
+  test("module previews keep source boundaries, unused definitions, recovered calls, and captured revisions", async () => {
     const { NativeDesignSystemLoader, NativeProjectSession } = await import(specifier);
     const loader = new NativeDesignSystemLoader();
     loader.provide(
@@ -128,13 +128,18 @@ export function registerEditorContract(specifier: string): void {
     session.compile([prepare(source)]);
     expect(session.editorModules(["entry.tsx"])[0].revision()).toBe(revision);
     session.compile([prepare(source.replace('style("block")', 'style({"missing:":"block"})'))]);
-    const rejected = session.editorModules(["entry.tsx"])[0];
+    const recovered = session.editorModules(["entry.tsx"])[0];
     expect(
-      rejected
+      recovered
         .sites()
         .find((site: import("../binding.js").NativeEditorSite) => site.kind === "style").valid,
-    ).toBe(false);
-    expect(rejected.revision()).not.toBe(revision);
+    ).toBe(true);
+    expect(recovered.revision()).not.toBe(revision);
+    expect(
+      recovered
+        .sites()
+        .find((site: import("../binding.js").NativeEditorSite) => site.kind === "style").css,
+    ).toBe("");
     expect(captured.previewInput(input.start, "flex")).toBe(css);
     expect(captured.previewInput(input.start, "hover:flex")).toBeNull();
   });

@@ -1,5 +1,7 @@
 //! Checks ref conditions, scope combinations, and selector targets.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 fn compile_registry(code: &str, css: &str) -> (SourceFile, CompileResult) {
@@ -429,7 +431,8 @@ fn finite_ref_candidates_keep_one_identity_across_all_scope_conditions() {
                 }),
             )
             .unwrap(),
-        ),
+        )
+        .into(),
     }];
     let theme = SourceFile::new(
         FileId(2),
@@ -498,12 +501,17 @@ fn registry_resolved_has_and_pseudo_element_conditions_reject_invalid_ref_placem
         );
         assert!(
             result
-                .diagnostics
+                .lint_findings
                 .iter()
-                .any(|error| error.diagnostic == CompileDiagnostic::UnavailableVariantPrefix),
+                .any(|error| error.diagnostic == LintDiagnostic::UnavailableVariantPrefix),
             "{expression}: {result:#?}"
         );
-        assert!(result.transforms.is_empty(), "{expression}: {result:#?}");
+        assert!(result.diagnostics.is_empty(), "{expression}: {result:#?}");
+        assert!(
+            !result.css.contains("color:red"),
+            "{expression}: {}",
+            result.css
+        );
     }
     for expression in ["item('has-hover')", "item().in(parent('has-hover'))"] {
         let (_, valid) = compile_registry(
@@ -512,7 +520,7 @@ fn registry_resolved_has_and_pseudo_element_conditions_reject_invalid_ref_placem
             ),
             "@utility a { color:red; }",
         );
-        assert!(valid.diagnostics.is_empty(), "{expression}: {valid:#?}");
+        assert!(valid.lint_findings.is_empty(), "{expression}: {valid:#?}");
         assert!(valid.css.contains(":has(:hover)"), "{}", valid.css);
     }
 }

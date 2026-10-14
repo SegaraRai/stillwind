@@ -6,7 +6,7 @@
 //! theme duration is usable as an option even though it is not a utility.
 
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
 
@@ -55,31 +55,32 @@ pub(crate) fn resolve_options(
     variants: OptionVariants,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) -> ResolvedOptions {
     let mut resolved = ResolvedOptions::default();
     for option in lex_utilities(options, diagnostics) {
         let raw = option.value.raw.clone();
         let unknown = || {
-            CompileError::new(
-                CompileDiagnostic::UnknownAnimationOption {
+            LintFinding::new(
+                LintDiagnostic::UnknownAnimationOption {
                     option: raw.clone(),
                 },
                 option.span,
             )
         };
         let Some(candidate) = parse_candidate(&raw) else {
-            diagnostics.push(unknown());
+            lint_findings.push(unknown());
             continue;
         };
         if candidate.important || candidate.negative {
-            diagnostics.push(unknown());
+            lint_findings.push(unknown());
             continue;
         }
         let declaration =
             match resolve_animation_option(strip_variants(&raw, &candidate.variants), theme) {
                 Ok(Some(declaration)) => declaration,
                 Ok(None) => {
-                    diagnostics.push(unknown());
+                    lint_findings.push(unknown());
                     continue;
                 }
                 Err(error) => {
@@ -98,12 +99,12 @@ pub(crate) fn resolve_options(
             continue;
         }
         if variants == OptionVariants::Rejected {
-            diagnostics.push(unknown());
+            lint_findings.push(unknown());
             continue;
         }
         let Some(paths) = condition_paths(&candidate.variants, theme) else {
-            diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidViewTransitionVariant,
+            lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidViewTransitionVariant,
                 option.span,
             ));
             continue;
@@ -145,10 +146,17 @@ mod tests {
             Span::new(FileId(2), 0, 20),
         );
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
 
         assert_eq!(
-            resolve_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics)
-                .declaration,
+            resolve_options(
+                &options,
+                OptionVariants::Rejected,
+                &theme,
+                &mut diagnostics,
+                &mut lint_findings
+            )
+            .declaration,
             "animation-duration:var(--duration-normal);animation-fill-mode:both;"
         );
         assert_eq!(diagnostics, [] as [CompileError; 0]);
@@ -163,12 +171,14 @@ mod tests {
             Span::new(FileId(2), 0, 34),
         );
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
 
         let resolved = resolve_options(
             &options,
             OptionVariants::Conditions,
             &theme,
             &mut diagnostics,
+            &mut lint_findings,
         );
 
         assert_eq!(resolved.declaration, "animation-duration:calc(180 * 1ms);");
@@ -196,17 +206,23 @@ mod tests {
             Span::new(FileId(2), 0, 24),
         );
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
 
-        let resolved =
-            resolve_options(&options, OptionVariants::Rejected, &theme, &mut diagnostics);
+        let resolved = resolve_options(
+            &options,
+            OptionVariants::Rejected,
+            &theme,
+            &mut diagnostics,
+            &mut lint_findings,
+        );
 
         assert!(resolved.declaration.is_empty() && resolved.conditioned.is_empty());
         assert_eq!(
-            diagnostics
+            lint_findings
                 .iter()
                 .map(|error| error.diagnostic.clone())
                 .collect::<Vec<_>>(),
-            vec![CompileDiagnostic::UnknownAnimationOption {
+            vec![LintDiagnostic::UnknownAnimationOption {
                 option: "motion-reduce:duration-0".to_owned(),
             }]
         );
@@ -246,11 +262,11 @@ mod tests {
             &CompilerOptions::default(),
         );
         let errors = result
-            .diagnostics
+            .lint_findings
             .iter()
             .filter(|error| {
                 error.diagnostic
-                    == CompileDiagnostic::UnknownAnimationOption {
+                    == LintDiagnostic::UnknownAnimationOption {
                         option: "motion-reduce:nope-0".to_owned(),
                     }
             })

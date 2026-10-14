@@ -1,7 +1,7 @@
 //! CVA extraction, style lowering, and runtime imports through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, VariantInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -98,7 +98,7 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
 }
 
 #[test]
-fn cva_rejects_opaque_configuration_and_unsupported_style_inputs_transactionally() {
+fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
     for body in [
         "style.cva(null, config)",
         "style.cva(null, { variants: { size: { small: 'p-2' } }, defaultVariants: { size: 'large' } })",
@@ -112,19 +112,30 @@ fn cva_rejects_opaque_configuration_and_unsupported_style_inputs_transactionally
         "style.cva([...styles])",
         "style?.cva('block')",
     ] {
-        let (_, result) = compile(&format!(
+        let (source, result) = compile(&format!(
             "import {{ style }} from 'stillwind/react'; const choose = {body};"
         ));
         assert!(
-            result.diagnostics.iter().any(|diagnostic| matches!(
+            result.lint_findings.iter().any(|diagnostic| matches!(
                 diagnostic.diagnostic,
-                CompileDiagnostic::InvalidCvaConfig { .. } | CompileDiagnostic::InvalidCvaInput
+                LintDiagnostic::InvalidCvaConfig { .. } | LintDiagnostic::InvalidCvaInput
             )),
             "{body}: {:?}",
             result.diagnostics
         );
-        assert!(result.module_css.is_empty(), "{body}");
-        assert!(result.transforms.is_empty(), "{body}");
+        assert!(result.diagnostics.is_empty(), "{body}: {result:#?}");
+        let output = render_transforms(&source, &result.transforms).unwrap().code;
+        assert!(output.contains("stillwindCva"), "{body}: {output}");
+        assert!(!output.contains("style.cva"), "{body}: {output}");
+        if body.contains("small:") {
+            assert!(
+                result.module_css.contains("padding:"),
+                "{body}: {}",
+                result.module_css
+            );
+        } else {
+            assert!(result.module_css.is_empty(), "{body}");
+        }
     }
 }
 

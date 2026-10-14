@@ -42,6 +42,171 @@ pub enum VariantInputErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
+    /// A projection receiver is not an identity created by a ref declaration.
+    #[error("ref projections must use an identity returned by style.ref()")]
+    InvalidRefProjection,
+
+    /// A ref wrapper has no known identity and cannot safely emit a selector.
+    #[error("ref variant has no known ref identity")]
+    UnidentifiedRef,
+    /// A variant receiver lacks the ref identity needed for selector generation.
+    #[error("ref variants require a statically identified style.ref()")]
+    UnidentifiedRefVariant,
+    /// A utility in a motion definition cannot be resolved and is omitted.
+    #[error("unknown or unavailable utility `{utility}`")]
+    UnavailableUtility {
+        /// Utility text as authored, including variants.
+        utility: String,
+    },
+
+    /// A composition base is an inline macro call instead of a bound style value.
+    #[error("nested style() calls are not supported; bind the base to a variable")]
+    NestedStyleCall,
+    /// A style input array contains a spread that cannot be statically expanded.
+    #[error("style() array spreads require a literal array")]
+    StyleArraySpread,
+    /// An expression is outside the supported static style-input forms.
+    #[error(
+        "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
+    )]
+    InvalidStyleInput,
+    /// A CVA configuration cannot be enumerated statically or contains invalid choices.
+    #[error("invalid style.cva() configuration: {reason}")]
+    InvalidCvaConfig {
+        /// Concrete static syntax or selection requirement that failed.
+        reason: String,
+    },
+    /// A CVA value is outside the supported utility and custom-property forms.
+    #[error(
+        "style.cva() values require static utilities, arrays, branches, CSS variants, or custom properties"
+    )]
+    InvalidCvaInput,
+    /// An attribute object contains a spread whose properties cannot be resolved.
+    #[error("style() object spreads require a literal object")]
+    AttributeSpread,
+    /// An attribute entry is not a plain key-value property.
+    #[error("style() attributes must be plain key-value properties")]
+    InvalidAttributeProperty,
+    /// A computed attribute key cannot be resolved as a literal name or ref variant.
+    #[error("computed style() keys must be literal strings or ref variants")]
+    InvalidComputedAttribute,
+    /// An object key is neither an attribute, a class entry, nor a variant prefix.
+    #[error(
+        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
+    )]
+    InvalidAttributeKey,
+    /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
+    #[error("utility templates require direct ref variants in complete `variant:utility` segments")]
+    InvalidUtilityTemplate,
+    /// A style call contains a spread argument whose elements cannot be resolved.
+    #[error("style() argument spreads require a literal array")]
+    StyleArgumentSpread,
+    /// A keyframes use does not supply one literal options string.
+    #[error("a keyframes use requires one literal options string")]
+    InvalidKeyframesOptions,
+    /// A keyframes declaration does not supply one static frame object.
+    #[error("style.keyframes() requires one object of static keyframe utility strings")]
+    InvalidKeyframesDefinition,
+    /// A keyframes frame object contains a spread property.
+    #[error("animation keyframes cannot use object spreads")]
+    KeyframesSpread,
+    /// A keyframes frame entry is not a plain static property.
+    #[error("animation keyframes must be plain static properties")]
+    InvalidKeyframesProperty,
+    /// A frame key cannot be interpreted as a keyframe selector.
+    #[error("keyframe selectors must be `from`, `to`, or percentage keys")]
+    InvalidKeyframesFrameKey,
+    /// A static frame selector contains an invalid percentage or selector list.
+    #[error("keyframe selectors must be `from`, `to`, or comma-separated percentages")]
+    InvalidKeyframesFrameSelector,
+    /// A frame body is not a literal utility string.
+    #[error("keyframe values must be literal utility strings")]
+    InvalidKeyframesFrameValue,
+    /// A keyframes label is not the declaration's own literal string.
+    #[error("a keyframes label must be a literal string on the declaration itself")]
+    InvalidKeyframesLabel,
+    /// A keyed transition use supplies more than one key expression.
+    #[error("viewTransition.for() accepts at most one key expression")]
+    InvalidViewTransitionKeyExpression,
+    /// A keyed transition use has a receiver that is known to be a different value.
+    #[error("view transition uses require an identity returned by style.viewTransition()")]
+    InvalidViewTransitionReceiver,
+    /// A transition declaration does not supply one static definition object.
+    #[error("style.viewTransition() requires one object of static utility strings")]
+    InvalidViewTransitionDefinition,
+    /// A transition definition contains a spread property.
+    #[error("view transition definitions cannot use object spreads")]
+    ViewTransitionSpread,
+    /// A transition entry is not a plain static property.
+    #[error("view transition definitions must be plain static properties")]
+    InvalidViewTransitionProperty,
+    /// A transition entry names an unsupported pseudo-element phase.
+    #[error("view transition keys must be `group`, `old`, `new`, or `imagePair`")]
+    InvalidViewTransitionKey,
+    /// A transition body is not a literal utility string.
+    #[error("view transition values must be literal utility strings")]
+    InvalidViewTransitionValue,
+    /// A view-transition label is not a literal string.
+    #[error("a view transition label must be a literal string")]
+    InvalidViewTransitionLabel,
+    /// A ref label is not a literal string.
+    #[error("style.ref() accepts only an optional literal label")]
+    InvalidRefArgument,
+    /// A ref declaration uses an unsupported argument count.
+    #[error("style.ref() accepts () or (label)")]
+    InvalidRefArguments,
+    /// A ref variant's selector cannot be determined from literal text.
+    #[error("ref variants require a static variant string")]
+    NonStaticRefVariant,
+    /// A shared scope call has an unsupported argument count or optional call.
+    #[error("ref.in() requires exactly one ref or unscoped ref condition")]
+    InvalidRefScopeArguments,
+    /// A scope operand itself contains a shared scope call.
+    #[error("an in() argument cannot contain in(); chain in() calls outside the argument")]
+    NestedRefScope,
+    /// A ref variant or container query is used as an unsupported receiver or operand.
+    #[error(
+        "variant receivers must be ref declarations; scope operands must be refs or unscoped ref variants"
+    )]
+    InvalidRefVariantReceiver,
+    /// A container projection does not supply a literal container type.
+    #[error("ref.asContainer() requires a valid literal CSS container type")]
+    InvalidContainerType,
+    /// Scope arguments must be keywords or statically enumerable ref arrays.
+    #[error("anchor scope requires all, none, or an array of finite ref candidates")]
+    InvalidAnchorScope,
+    /// A position-anchor use supplies arguments to a method that accepts none.
+    #[error("ref.positionAnchor() does not accept arguments")]
+    InvalidPositionAnchorArguments,
+    /// A composition base carries props that cannot be merged as class output.
+    #[error("style bases with additional props are not supported")]
+    StyleBaseWithProps,
+    /// A composition base uses a different framework class property.
+    #[error("style bases must use the same framework class property")]
+    StyleBaseFrameworkMismatch,
+    /// A keyframe utility contains a variant forbidden in animation frames.
+    #[error("animation keyframes cannot contain variants")]
+    KeyframesFrameVariants,
+    /// A definition-level variant cannot wrap a keyframes rule in valid CSS.
+    #[error(
+        "keyframes definition variants must be media or supports conditions; container queries do not condition global keyframes"
+    )]
+    InvalidKeyframesVariant,
+    /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
+    #[error("view transition utilities accept only media and supports condition variants")]
+    InvalidViewTransitionVariant,
+    /// A variant prefix is syntactically malformed.
+    #[error("invalid variant prefix")]
+    InvalidVariantPrefix,
+    /// A syntactically parsed variant prefix cannot be resolved in the theme.
+    #[error("unknown or unavailable variant prefix")]
+    UnavailableVariantPrefix,
+    /// An animation option token is not recognized by the option resolver.
+    #[error("unknown animation option `{option}`")]
+    UnknownAnimationOption {
+        /// Name of the invalid configuration option.
+        option: String,
+    },
     /// A rule group is omitted because it contains an unsupported input.
     #[error("style() rule groups cannot contain {reason}")]
     InvalidVariantInput {
@@ -290,6 +455,58 @@ impl LintDiagnostic {
     /// Returns the rule selected by the diagnostic and its utility classification.
     pub const fn kind(&self) -> LintKind {
         match self {
+            Self::UnidentifiedRef
+            | Self::UnidentifiedRefVariant
+            | Self::InvalidRefProjection
+            | Self::InvalidRefArgument
+            | Self::InvalidRefArguments
+            | Self::NonStaticRefVariant
+            | Self::InvalidRefScopeArguments
+            | Self::NestedRefScope
+            | Self::InvalidRefVariantReceiver
+            | Self::InvalidContainerType
+            | Self::InvalidAnchorScope
+            | Self::InvalidPositionAnchorArguments => LintKind::InvalidRefInput,
+            Self::UnavailableUtility { .. } => LintKind::InvalidMotionUtility,
+            Self::NestedStyleCall
+            | Self::StyleArraySpread
+            | Self::InvalidStyleInput
+            | Self::AttributeSpread
+            | Self::InvalidAttributeProperty
+            | Self::InvalidComputedAttribute
+            | Self::InvalidAttributeKey
+            | Self::InvalidUtilityTemplate
+            | Self::StyleArgumentSpread => LintKind::InvalidStyleInput,
+            Self::InvalidCvaConfig { .. } => LintKind::InvalidCvaConfig,
+            Self::InvalidCvaInput => LintKind::InvalidCvaInput,
+            Self::InvalidKeyframesOptions => LintKind::InvalidKeyframesUse,
+            Self::InvalidKeyframesDefinition
+            | Self::KeyframesSpread
+            | Self::InvalidKeyframesProperty
+            | Self::InvalidKeyframesFrameKey
+            | Self::InvalidKeyframesFrameSelector
+            | Self::InvalidKeyframesFrameValue
+            | Self::InvalidKeyframesLabel => LintKind::InvalidKeyframesDefinition,
+            Self::KeyframesFrameVariants | Self::InvalidKeyframesVariant => {
+                LintKind::InvalidKeyframesVariant
+            }
+            Self::InvalidViewTransitionKeyExpression | Self::InvalidViewTransitionReceiver => {
+                LintKind::InvalidViewTransitionUse
+            }
+            Self::InvalidViewTransitionDefinition
+            | Self::ViewTransitionSpread
+            | Self::InvalidViewTransitionProperty
+            | Self::InvalidViewTransitionKey
+            | Self::InvalidViewTransitionValue
+            | Self::InvalidViewTransitionLabel => LintKind::InvalidViewTransitionDefinition,
+            Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
+            Self::InvalidVariantPrefix | Self::UnavailableVariantPrefix => {
+                LintKind::InvalidVariantPrefix
+            }
+            Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
+            Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
+                LintKind::InvalidStyleComposition
+            }
             Self::InvalidVariantInput { .. } => LintKind::InvalidVariantInput,
             Self::ArbitraryColor { .. } => LintKind::NoArbitraryColors,
             Self::ArbitrarySpacing { .. } => LintKind::NoArbitrarySpacing,

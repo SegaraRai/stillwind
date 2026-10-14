@@ -383,7 +383,7 @@ mod tests {
 
         let mut result = CompileResult::default();
         result.diagnostics.push(CompileError::new(
-            CompileDiagnostic::InvalidStyleInput,
+            CompileDiagnostic::FrameworkConflict,
             Span::new(FileId(3), 0, 1),
         ));
         assert!(matches!(

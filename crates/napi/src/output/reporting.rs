@@ -183,7 +183,7 @@ pub struct BindingDiagnostic {
     /// Whether the producer identified a range or only the document.
     #[napi(ts_type = "'range' | 'document'")]
     pub scope: String,
-    /// Stable diagnostic code, such as `SW02003`.
+    /// Stable diagnostic code, such as `SW01012`.
     pub code: String,
     /// Rendered message.
     pub message: String,

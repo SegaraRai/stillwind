@@ -117,7 +117,7 @@ export const props = style({
     expect(valid.lintFindings).toStrictEqual([]);
   });
 
-  test("invalid scope operands and stored variants produce compilation diagnostics", async () => {
+  test("invalid scope operands produce lints while stored variants remain fatal", async () => {
     for (const body of [
       "export const props = style({[trigger().in()]: 'accent'});",
       "export const props = style({[trigger().in(menu, outer)]: 'accent'});",
@@ -125,10 +125,20 @@ export const props = style({
       "export const props = style({[trigger().in(menu.at())]: 'accent'});",
       "export const props = style({[trigger().in(menu.at`width > 1px`)]: 'accent'});",
       "export const props = style({[trigger('hover').in(menu).at('width > 1px')]: 'accent'});",
-      "const variant = trigger('hover').in(menu); export const props = style({[variant]: 'accent'});",
     ]) {
       const output = await compile(body);
-      expect(output.diagnostics.length, body).toBeGreaterThan(0);
+      expect(output.diagnostics, body).toStrictEqual([]);
+      expect(
+        output.lintFindings.some(
+          (finding: { rule: string }) => finding.rule === "invalid-ref-input",
+        ),
+        body,
+      ).toBe(true);
+      expect(output.css, body).not.toContain("color:");
     }
+    const stored = await compile(
+      "const variant = trigger('hover').in(menu); export const props = style({[variant]: 'accent'});",
+    );
+    expect(stored.diagnostics.length).toBeGreaterThan(0);
   });
 }

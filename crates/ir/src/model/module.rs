@@ -72,6 +72,22 @@ pub struct CvaCall {
     pub callee_span: Span,
     /// Base and option expressions compiled independently in source order.
     pub values: Vec<StyleCall>,
+    /// Replaces invalid whole calls with an empty factory.
+    #[serde(default)]
+    pub empty: bool,
+    /// Replacements for unsupported configuration entries in original source coordinates.
+    #[serde(default)]
+    pub replacements: Vec<CvaReplacement>,
+}
+
+/// One configuration expression or entry replaced during CVA validation.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CvaReplacement {
+    /// Original expression or entry without its surrounding separator.
+    pub span: Span,
+    /// Static JavaScript that preserves the enclosing object or array syntax.
+    pub replacement: String,
 }
 
 /// Binding-aware import information. All spans belong to the editable source.

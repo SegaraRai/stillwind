@@ -1,5 +1,7 @@
 //! Checks projection metadata, source revisions, and preparation contracts.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]

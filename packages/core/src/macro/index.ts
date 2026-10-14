@@ -37,7 +37,8 @@ declare const viewTransitionIdentity: unique symbol;
  * Materialized framework props returned by a completed `style()` call.
  *
  * Store, export, pass, or return this value, spread it onto an element, or pass it to
- * another `style()` call to compose styles. Directly nesting `style()` calls is
+ * another `style()` call to compose class-only results. Results with attributes or
+ * inline style cannot be used as composition bases. Directly nesting `style()` calls is
  * rejected. Store the completed result before composing it. `Props` describes the
  * framework's attributes and `Id` tracks compiler identity.
  */
@@ -694,10 +695,12 @@ type StyleInputOutput<Props, Input> = StyleArgument extends Input
   ? OutputFields<Props>
   : Input extends readonly unknown[]
     ? StyleInputsOutput<Props, Input>
-    : Input extends object
-      ? OutputFields<Pick<Input, AttributeOutputKeys<Input>>> &
-          (true extends HasInlineStyle<Input> ? InlineStyleOutput<Props> : object)
-      : object;
+    : Input extends StyleResult
+      ? object
+      : Input extends object
+        ? OutputFields<Pick<Input, AttributeOutputKeys<Input>>> &
+            (true extends HasInlineStyle<Input> ? InlineStyleOutput<Props> : object)
+        : object;
 
 type StyleInputsOutput<
   Props,
@@ -737,12 +740,21 @@ type CheckedVariantInput<Input> = StyleVariantValue extends Input
           }
         : StyleVariantValue;
 
+type StyleBaseProperties<Input> = Input extends StyleResult
+  ? Exclude<keyof Input, "data-__stillwindStyleIdentity" | "class" | "className">
+  : never;
+
 type CheckedStyleInput<Input> = StyleArgument extends Input
   ? StyleArgument
-  : Input extends readonly unknown[]
-    ? { [Key in keyof Input]: CheckedStyleInput<Input[Key]> }
+  : [StyleBaseProperties<Input>] extends [never]
+    ? CheckedClassInput<Input>
+    : never;
+
+type CheckedClassInput<Input> = Input extends readonly unknown[]
+  ? { [Key in keyof Input]: CheckedStyleInput<Input[Key]> }
+  : Input extends StyleResult
+    ? StyleArgument
     : Input extends
-          | StyleResult
           | StyleRef
           | StyleRefProjection
           | StyleKeyframesUse

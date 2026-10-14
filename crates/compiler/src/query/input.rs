@@ -52,7 +52,8 @@ impl DesignSystemQuery {
     /// Definition prefixes may include trailing colons and return empty enclosing at-rules.
     /// Other roles apply the configured conditional mode and restore authored resource URLs.
     /// The result omits enclosing source conditions and document support declarations.
-    /// Invalid input or failed conditional lowering returns `None` without partial CSS.
+    /// Unsupported operands contribute no declarations. Empty output or failed
+    /// conditional lowering returns `None`.
     ///
     /// # Errors
     ///
@@ -91,10 +92,16 @@ impl DesignSystemQuery {
             ),
         );
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let css = match context {
             CandidateContext::KeyframesFrame => {
-                let (declaration, _) = resolve_frame(&input, theme, &mut diagnostics);
-                format!("&{{{declaration}}}")
+                let (declaration, _) =
+                    resolve_frame(&input, theme, &mut diagnostics, &mut lint_findings);
+                if declaration.is_empty() {
+                    String::new()
+                } else {
+                    format!("&{{{declaration}}}")
+                }
             }
             CandidateContext::AnimationOptions | CandidateContext::ViewTransitionOptions => {
                 let variants = if context == CandidateContext::AnimationOptions {
@@ -102,7 +109,13 @@ impl DesignSystemQuery {
                 } else {
                     OptionVariants::Conditions
                 };
-                let resolved = resolve_options(&input, variants, theme, &mut diagnostics);
+                let resolved = resolve_options(
+                    &input,
+                    variants,
+                    theme,
+                    &mut diagnostics,
+                    &mut lint_findings,
+                );
                 let mut css = String::new();
                 if !resolved.declaration.is_empty() {
                     css.push_str("&{");
@@ -128,6 +141,7 @@ impl DesignSystemQuery {
                     theme,
                     &mut diagnostics,
                     &mut Vec::new(),
+                    &mut lint_findings,
                 );
                 css
             }

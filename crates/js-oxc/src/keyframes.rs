@@ -10,15 +10,16 @@ use oxc::ast::ast::{
 };
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{
     AssetReference, ClassExpression, KeyframesBody, KeyframesBranch, KeyframesDefinition,
     KeyframesFrame, RuleExpression, StyleVariant,
 };
-use stillwind_semantic::{AssetKind, ExportedValue};
+use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
 use crate::local_span::LocalSpan;
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
 
 /// A resolved keyframes use, split by whether the keyframes is already known.
@@ -69,50 +70,20 @@ impl ParsedKeyframesUse {
 impl<'a> MacroExtractor<'a> {
     /// Resolves an expression to the keyframes it may denote.
     ///
-    /// Checker facts win; otherwise the expression must be a local binding of a
-    /// declared keyframes. `None` means it is not an keyframes value, so callers should
-    /// fall through to the other expression forms.
+    /// Checker facts win over local declaration values. Failure distinguishes a
+    /// confirmed unsupported value from missing information about identities.
     pub(crate) fn keyframes_references(
         &self,
         expression: &Expression<'a>,
-    ) -> Option<Vec<AssetReference>> {
-        let expression = expression.get_inner_expression();
-        if let Expression::ConditionalExpression(conditional) = expression {
-            let consequent = self.keyframes_references(&conditional.consequent);
-            let alternate = self.keyframes_references(&conditional.alternate);
-            let mut refs = consequent?;
-            for reference in alternate? {
-                if !refs
+    ) -> Result<Vec<AssetReference>, ResolutionFailure> {
+        let span = expression.get_inner_expression().span();
+        self.asset_candidates(expression, AssetKind::Keyframes)
+            .map(|identities| {
+                identities
                     .iter()
-                    .any(|existing| existing.identity == reference.identity)
-                {
-                    refs.push(reference);
-                }
-            }
-            return Some(refs);
-        }
-        let span = expression.span();
-        self.record_type_probe(expression);
-        if let Some(ExportedValue::Keyframes(value)) = self.type_fact(span) {
-            return value
-                .finite_candidates()?
-                .iter()
-                .map(|identity| Some(self.asset_reference(identity, span)))
-                .collect();
-        }
-        let Expression::Identifier(identifier) = expression else {
-            return None;
-        };
-        let reference_id = identifier.reference_id.get()?;
-        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        let keyframes = self.keyframes_symbols.get(&symbol_id)?;
-        let span = self.source_span(span);
-        let identity = self.identity(AssetKind::Keyframes, keyframes);
-        Some(vec![AssetReference {
-            label: self.declaration_label(&identity, span),
-            identity,
-            span,
-        }])
+                    .map(|identity| self.asset_reference(identity, span))
+                    .collect()
+            })
     }
 
     /// Recognizes `<keyframes>(options)` and validates the options argument.
@@ -128,19 +99,30 @@ impl<'a> MacroExtractor<'a> {
         let Expression::CallExpression(call) = expression else {
             return None;
         };
-        let keyframes = self.keyframes_references(&call.callee)?;
+        let keyframes = match self.keyframes_references(&call.callee) {
+            Ok(value) => value,
+            Err(ResolutionFailure::Unsupported) => return None,
+            Err(ResolutionFailure::MissingFacts) => {
+                self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                self.diagnostics.push(CompileError::new(
+                    CompileDiagnostic::RefFactsRequired,
+                    self.source_span(call.callee.span()),
+                ));
+                return None;
+            }
+        };
         // Claim the call before validating it, so a rejected use is reported once.
         self.consumed_use_spans.insert(LocalSpan::from(call.span));
         if call.arguments.len() != 1 {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidKeyframesOptions,
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidKeyframesOptions,
                 self.source_span(call.span),
             ));
             return None;
         }
         let Some(Expression::StringLiteral(options)) = call.arguments[0].as_expression() else {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidKeyframesOptions,
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidKeyframesOptions,
                 self.source_span(call.arguments[0].span()),
             ));
             return None;
@@ -164,35 +146,44 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Every frame must be a plain property with a static key and a literal utility
     /// string, and the declaration may state one literal `label` beside them; invalid
-    /// entries are reported and skipped, and a declaration with no valid frame is
-    /// rejected so no identity is created for it.
+    /// entries are reported and skipped. An empty definition retains its binding
+    /// and identity.
     pub(crate) fn collect_keyframes_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<KeyframesDefinition> {
-        if call.arguments.len() != 1 {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidKeyframesDefinition,
+    ) -> KeyframesDefinition {
+        self.omit_input(call.span);
+        let object = if call.arguments.len() == 1 {
+            call.arguments[0]
+                .as_expression()
+                .and_then(|expression| match expression {
+                    Expression::ObjectExpression(object) => Some(object),
+                    _ => None,
+                })
+        } else {
+            None
+        };
+        if object.is_none() {
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidKeyframesDefinition,
                 self.source_span(call.span),
             ));
-            return None;
         }
-        let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidKeyframesDefinition,
-                self.source_span(call.arguments[0].span()),
-            ));
-            return None;
-        };
         let mut label = None;
-        let body = self.keyframes_body(object, Some(&mut label))?;
-        Some(KeyframesDefinition {
+        let body = object.map_or(
+            KeyframesBody {
+                frames: Vec::new(),
+                branches: Vec::new(),
+            },
+            |object| self.keyframes_body(object, Some(&mut label)),
+        );
+        KeyframesDefinition {
             binding,
             call_span: self.source_span(call.span),
             label,
             body,
-        })
+        }
     }
 
     /// Reads one frames object.
@@ -204,20 +195,20 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         object: &ObjectExpression<'a>,
         mut label: Option<&mut Option<Spanned<String>>>,
-    ) -> Option<KeyframesBody> {
+    ) -> KeyframesBody {
         let mut branches = Vec::new();
         let mut frames = Vec::new();
         for property in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::KeyframesSpread,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::KeyframesSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidKeyframesProperty,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidKeyframesProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -236,20 +227,19 @@ impl<'a> MacroExtractor<'a> {
             if let Some(variant) = variant {
                 if let Expression::ObjectExpression(nested) = property.value.get_inner_expression()
                 {
-                    if let Some(body) = self.keyframes_body(nested, None) {
-                        branches.push(KeyframesBranch { variant, body });
-                    }
+                    let body = self.keyframes_body(nested, None);
+                    branches.push(KeyframesBranch { variant, body });
                 } else {
-                    self.diagnostics.push(CompileError::new(
-                        CompileDiagnostic::InvalidKeyframesDefinition,
+                    self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::InvalidKeyframesDefinition,
                         self.source_span(property.value.span()),
                     ));
                 }
                 continue;
             }
             let Some(selector) = key else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidKeyframesFrameKey,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidKeyframesFrameKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -260,28 +250,28 @@ impl<'a> MacroExtractor<'a> {
                         Expression::StringLiteral(value) => {
                             *label = Some(self.string_literal(value));
                         }
-                        _ => self.diagnostics.push(CompileError::new(
-                            CompileDiagnostic::InvalidKeyframesLabel,
+                        _ => self.lint_findings.push(LintFinding::new(
+                            LintDiagnostic::InvalidKeyframesLabel,
                             self.source_span(property.value.span()),
                         )),
                     },
-                    None => self.diagnostics.push(CompileError::new(
-                        CompileDiagnostic::InvalidKeyframesLabel,
+                    None => self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::InvalidKeyframesLabel,
                         self.source_span(property.key.span()),
                     )),
                 }
                 continue;
             }
             if !is_keyframes_frame(&selector.value) {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidKeyframesFrameSelector,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidKeyframesFrameSelector,
                     selector.span,
                 ));
                 continue;
             }
             let Expression::StringLiteral(utilities) = &property.value else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidKeyframesFrameValue,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidKeyframesFrameValue,
                     self.source_span(property.value.span()),
                 ));
                 continue;
@@ -291,14 +281,7 @@ impl<'a> MacroExtractor<'a> {
                 utilities: self.string_literal(utilities),
             });
         }
-        if frames.is_empty() && branches.is_empty() {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::EmptyKeyframes,
-                self.source_span(object.span),
-            ));
-            return None;
-        }
-        Some(KeyframesBody { frames, branches })
+        KeyframesBody { frames, branches }
     }
 }
 

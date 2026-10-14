@@ -82,7 +82,7 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
         facts: vec![TypeFact {
             start: probe.start.0,
             end: probe.end.0,
-            value: ExportedValue::Styles(SymbolicValue::exact(identity.clone())),
+            value: ExportedValue::Styles(SymbolicValue::exact(identity.clone())).into(),
         }],
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
@@ -157,7 +157,7 @@ fn projected_forward_ref_scopes_match_later_attachments_in_original_coordinates(
                 Some(TypeFact {
                     start: probe.span.start.0,
                     end: probe.span.end.0,
-                    value: ExportedValue::Refs(SymbolicValue::exact(asset.identity.clone())),
+                    value: ExportedValue::Refs(SymbolicValue::exact(asset.identity.clone())).into(),
                 })
             })
             .collect(),

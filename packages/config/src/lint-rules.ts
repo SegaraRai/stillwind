@@ -115,8 +115,78 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-motion-utility": {
+    nativeName: "invalidMotionUtility",
+    defaults: null,
+    options: null,
+  },
   "invalid-variant-input": {
     nativeName: "invalidVariantInput",
+    defaults: null,
+    options: null,
+  },
+  "invalid-style-input": {
+    nativeName: "invalidStyleInput",
+    defaults: null,
+    options: null,
+  },
+  "invalid-cva-config": {
+    nativeName: "invalidCvaConfig",
+    defaults: null,
+    options: null,
+  },
+  "invalid-cva-input": {
+    nativeName: "invalidCvaInput",
+    defaults: null,
+    options: null,
+  },
+  "invalid-keyframes-use": {
+    nativeName: "invalidKeyframesUse",
+    defaults: null,
+    options: null,
+  },
+  "invalid-keyframes-definition": {
+    nativeName: "invalidKeyframesDefinition",
+    defaults: null,
+    options: null,
+  },
+  "invalid-keyframes-variant": {
+    nativeName: "invalidKeyframesVariant",
+    defaults: null,
+    options: null,
+  },
+  "invalid-view-transition-use": {
+    nativeName: "invalidViewTransitionUse",
+    defaults: null,
+    options: null,
+  },
+  "invalid-view-transition-definition": {
+    nativeName: "invalidViewTransitionDefinition",
+    defaults: null,
+    options: null,
+  },
+  "invalid-view-transition-variant": {
+    nativeName: "invalidViewTransitionVariant",
+    defaults: null,
+    options: null,
+  },
+  "invalid-ref-input": {
+    nativeName: "invalidRefInput",
+    defaults: null,
+    options: null,
+  },
+  "invalid-variant-prefix": {
+    nativeName: "invalidVariantPrefix",
+    defaults: null,
+    options: null,
+  },
+  "invalid-animation-option": {
+    nativeName: "invalidAnimationOption",
+    defaults: null,
+    options: null,
+  },
+  "invalid-style-composition": {
+    nativeName: "invalidStyleComposition",
     defaults: null,
     options: null,
   },

@@ -51,8 +51,36 @@ pub struct NativeLintOptions {
     pub macro_argument_mutation: Option<String>,
     /// Settings for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<String>,
+    /// Settings for `invalid-motion-utility`.
+    pub invalid_motion_utility: Option<String>,
     /// Settings for `invalid-variant-input`.
     pub invalid_variant_input: Option<String>,
+    /// Settings for `invalid-style-input`.
+    pub invalid_style_input: Option<String>,
+    /// Settings for `invalid-cva-config`.
+    pub invalid_cva_config: Option<String>,
+    /// Settings for `invalid-cva-input`.
+    pub invalid_cva_input: Option<String>,
+    /// Settings for `invalid-keyframes-use`.
+    pub invalid_keyframes_use: Option<String>,
+    /// Settings for `invalid-keyframes-definition`.
+    pub invalid_keyframes_definition: Option<String>,
+    /// Settings for `invalid-keyframes-variant`.
+    pub invalid_keyframes_variant: Option<String>,
+    /// Settings for `invalid-view-transition-use`.
+    pub invalid_view_transition_use: Option<String>,
+    /// Settings for `invalid-view-transition-definition`.
+    pub invalid_view_transition_definition: Option<String>,
+    /// Settings for `invalid-view-transition-variant`.
+    pub invalid_view_transition_variant: Option<String>,
+    /// Settings for `invalid-ref-input`.
+    pub invalid_ref_input: Option<String>,
+    /// Settings for `invalid-variant-prefix`.
+    pub invalid_variant_prefix: Option<String>,
+    /// Settings for `invalid-animation-option`.
+    pub invalid_animation_option: Option<String>,
+    /// Settings for `invalid-style-composition`.
+    pub invalid_style_composition: Option<String>,
     /// Settings for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<String>,
     /// Settings for `require-ref-attachment`.
@@ -158,8 +186,64 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .macro_execution_boundary
                 .map(|value| lint_severity(&value))
                 .transpose()?,
+            invalid_motion_utility: input
+                .invalid_motion_utility
+                .map(|value| lint_severity(&value))
+                .transpose()?,
             invalid_variant_input: input
                 .invalid_variant_input
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_style_input: input
+                .invalid_style_input
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_cva_config: input
+                .invalid_cva_config
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_cva_input: input
+                .invalid_cva_input
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_keyframes_use: input
+                .invalid_keyframes_use
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_keyframes_definition: input
+                .invalid_keyframes_definition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_keyframes_variant: input
+                .invalid_keyframes_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_view_transition_use: input
+                .invalid_view_transition_use
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_view_transition_definition: input
+                .invalid_view_transition_definition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_view_transition_variant: input
+                .invalid_view_transition_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_ref_input: input
+                .invalid_ref_input
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_variant_prefix: input
+                .invalid_variant_prefix
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_animation_option: input
+                .invalid_animation_option
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_style_composition: input
+                .invalid_style_composition
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             valid_anchor_scope: input

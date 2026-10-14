@@ -109,7 +109,7 @@ selected;`;
       overlayFiles,
       ambientDeclarations,
     });
-    expect(first.get(moduleId)?.[0].value.value.candidates).toEqual({
+    expect(first.get(moduleId)?.[0].value?.value.candidates).toEqual({
       kind: "finite",
       values: [assets[0].identity],
     });
@@ -240,6 +240,7 @@ test("recognition facts identify declarations beside ref uses and widened types"
         value: { kind: "ref", candidates: { kind: "finite", values: [assets[0].identity] } },
       },
     },
+    ...probes.slice(1, 5).map((probe) => ({ ...probe, value: null })),
   ]);
 });
 
@@ -385,13 +386,13 @@ const refUse=target.asAnchor(),variant=target('hover:'),animationUse=frames(''),
 
 test("anonymous branded styles and transitions retain finite identities", () => {
   const { facts, assets } = collectBrands(["anonymous", "selected", "mappedTransition"]);
-  expect(facts.map((fact) => fact.value.kind)).toStrictEqual([
+  expect(facts.map((fact) => fact.value?.kind)).toStrictEqual([
     "styles",
     "styles",
     "viewTransitions",
   ]);
   const styles = assets.filter((asset) => asset.identity.kind === "style");
-  expect(facts.map((fact) => fact.value.value.candidates)).toStrictEqual([
+  expect(facts.map((fact) => fact.value?.value.candidates)).toStrictEqual([
     { kind: "finite", values: [styles[0].identity] },
     { kind: "finite", values: styles.map((asset) => asset.identity) },
     {
@@ -417,9 +418,14 @@ test("unique-symbol brands distinguish declarations from ref, animation, and tra
     "animationUse",
     "transitionUse",
   ]);
-  expect(facts.map((fact) => fact.value.kind)).toStrictEqual([
+  expect(facts.map((fact) => fact.value?.kind)).toStrictEqual([
     "refs",
     "keyframes",
     "viewTransitions",
+    undefined,
+    undefined,
+    undefined,
+    undefined,
   ]);
+  expect(facts.slice(3).map((fact) => fact.value)).toStrictEqual([null, null, null, null]);
 });

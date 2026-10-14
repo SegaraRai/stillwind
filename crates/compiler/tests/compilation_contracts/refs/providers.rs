@@ -1,5 +1,7 @@
 //! Checks attachment requirements and conflicting provider properties.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]

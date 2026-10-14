@@ -1,5 +1,7 @@
 //! Checks static and runtime projections and explicit CSS roles.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]
@@ -19,7 +21,7 @@ fn static_ref_projection_resolves_alias_without_runtime_marker() {
     let facts = [TypeFact {
         start: receiver,
         end: receiver + 1,
-        value: ExportedValue::Refs(SymbolicValue::exact(reference)),
+        value: ExportedValue::Refs(SymbolicValue::exact(reference)).into(),
     }];
     let theme = SourceFile::new(
         FileId(2),
@@ -73,7 +75,7 @@ fn static_ref_projection_resolves_member_without_runtime_marker() {
     let facts = [TypeFact {
         start: receiver,
         end: receiver + u32::try_from("holder.trigger".len()).unwrap(),
-        value: ExportedValue::Refs(SymbolicValue::exact(reference)),
+        value: ExportedValue::Refs(SymbolicValue::exact(reference)).into(),
     }];
     let theme = SourceFile::new(
         FileId(2),
@@ -126,7 +128,7 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
     let facts = [TypeFact {
         start: receiver,
         end: receiver + u32::try_from("choice".len()).unwrap(),
-        value: ExportedValue::Refs(refs),
+        value: ExportedValue::Refs(refs).into(),
     }];
     let theme = SourceFile::new(
         FileId(2),
@@ -232,7 +234,7 @@ fn container_type_accepts_css_keyword_combinations_and_rejects_invalid_values() 
             "",
         );
         assert!(
-            result.diagnostics.is_empty(),
+            result.lint_findings.is_empty(),
             "{value}: {:?}",
             result.diagnostics
         );
@@ -250,9 +252,9 @@ fn container_type_accepts_css_keyword_combinations_and_rejects_invalid_values() 
         );
         assert!(
             result
-                .diagnostics
+                .lint_findings
                 .iter()
-                .any(|error| error.diagnostic == CompileDiagnostic::InvalidContainerType),
+                .any(|error| error.diagnostic == LintDiagnostic::InvalidContainerType),
             "{value}"
         );
     }

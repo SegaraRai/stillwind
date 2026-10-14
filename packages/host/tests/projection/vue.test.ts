@@ -399,7 +399,7 @@ for (const { version, core, exposure } of versions) {
         ),
       );
       const { module, typeFacts } = compile(prepared);
-      const kinds = new Set(typeFacts.map(({ value }) => value.kind));
+      const kinds = new Set(typeFacts.flatMap(({ value }) => (value ? [value.kind] : [])));
       expect(kinds).toStrictEqual(new Set(["refs", "keyframes", "viewTransitions"]));
       expect(
         module.symbols

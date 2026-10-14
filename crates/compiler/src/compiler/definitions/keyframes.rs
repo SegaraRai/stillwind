@@ -1,7 +1,7 @@
 //! Complete conditional keyframe definitions and their registration requirements.
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
 use stillwind_source::{ModuleId, Span, Spanned};
 
@@ -22,6 +22,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
     keyframes: &KeyframesDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) {
     let mut definitions = Vec::new();
     collect_definitions(
@@ -31,6 +32,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
         theme,
         diagnostics,
         &mut definitions,
+        lint_findings,
     );
     definitions.sort_by(|(left, _, _), (right, _, _)| left.compare_order(right, theme));
     let name = match identifiers.keyframes_name(&named_declaration(
@@ -44,10 +46,20 @@ pub(in crate::compiler) fn emit_keyframes_definition(
             return;
         }
     };
-    contribution.keyframes = true;
+
     for (_, paths, frames) in definitions {
         let mut frame_contribution = CssContribution::default();
-        emit_frames(&mut frame_contribution, frames, theme, diagnostics);
+        emit_frames(
+            &mut frame_contribution,
+            frames,
+            theme,
+            diagnostics,
+            lint_findings,
+        );
+        if frame_contribution.css.is_empty() {
+            continue;
+        }
+        contribution.keyframes = true;
         let rule = format!(
             "@keyframes {}{{{}}}",
             name.custom_ident(),
@@ -77,8 +89,14 @@ fn collect_definitions<'a>(
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     definitions: &mut Vec<Definition<'a>>,
+    lint_findings: &mut Vec<LintFinding>,
 ) {
-    if let Some(plan) = StyleVariantPlan::resolve(identifiers, wrappers, theme, diagnostics) {
+    let Some(plan) =
+        StyleVariantPlan::resolve(identifiers, wrappers, theme, diagnostics, lint_findings)
+    else {
+        return;
+    };
+    {
         let Some(paths) = plan
             .applications()
             .iter()
@@ -86,8 +104,8 @@ fn collect_definitions<'a>(
             .collect::<Option<Vec<_>>>()
         else {
             if let Some(variant) = wrappers.last() {
-                diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidKeyframesVariant,
+                lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidKeyframesVariant,
                     variant_span(variant),
                 ));
             }
@@ -107,6 +125,7 @@ fn collect_definitions<'a>(
             theme,
             diagnostics,
             definitions,
+            lint_findings,
         );
         wrappers.pop();
     }
@@ -125,10 +144,15 @@ fn emit_frames(
     frames: &[KeyframesFrame],
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) {
     let output = &mut contribution.css;
     for frame in frames {
-        let (declaration, properties) = resolve_frame(&frame.utilities, theme, diagnostics);
+        let (declaration, properties) =
+            resolve_frame(&frame.utilities, theme, diagnostics, lint_findings);
+        if declaration.is_empty() {
+            continue;
+        }
         contribution.required_properties.extend(properties);
         output.push_str(&frame.selector.value);
         output.push('{');
@@ -146,17 +170,18 @@ pub(crate) fn resolve_frame(
     input: &Spanned<String>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) -> (String, Vec<String>) {
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
         match resolve_utility(&utility.value.raw, theme) {
             Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
-            Ok(Some(_)) => diagnostics.push(CompileError::new(
-                CompileDiagnostic::KeyframesFrameVariants,
+            Ok(Some(_)) => lint_findings.push(LintFinding::new(
+                LintDiagnostic::KeyframesFrameVariants,
                 utility.span,
             )),
-            Ok(None) => diagnostics.push(CompileError::new(
-                CompileDiagnostic::UnavailableUtility {
+            Ok(None) => lint_findings.push(LintFinding::new(
+                LintDiagnostic::UnavailableUtility {
                     utility: utility.value.raw.clone(),
                 },
                 utility.span,
@@ -207,9 +232,9 @@ mod tests {
             &CompilerOptions::default(),
         );
         let errors = result
-            .diagnostics
+            .lint_findings
             .iter()
-            .filter(|error| error.diagnostic == CompileDiagnostic::KeyframesFrameVariants)
+            .filter(|error| error.diagnostic == LintDiagnostic::KeyframesFrameVariants)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{:?}", result.diagnostics);
         assert_eq!(

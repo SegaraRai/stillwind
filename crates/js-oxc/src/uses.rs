@@ -103,13 +103,13 @@ impl<'a> MacroExtractor<'a> {
     fn use_receiver_is(&self, expression: &Expression<'a>, kind: AssetKind) -> bool {
         let expression = expression.get_inner_expression();
         if let Some(fact) = self.type_fact(expression.span()) {
-            return fact.kind() == kind;
+            return matches!(fact, stillwind_semantic::CheckedValue::Asset(value) if value.kind() == kind);
         }
         self.probing_use.set(true);
         let resolved = match kind {
-            AssetKind::Ref => self.ref_references(expression).is_some(),
-            AssetKind::Keyframes => self.keyframes_references(expression).is_some(),
-            AssetKind::ViewTransition => self.view_transition_references(expression).is_some(),
+            AssetKind::Ref => self.ref_references(expression).is_ok(),
+            AssetKind::Keyframes => self.keyframes_references(expression).is_ok(),
+            AssetKind::ViewTransition => self.view_transition_references(expression).is_ok(),
             AssetKind::Style => false,
         };
         self.probing_use.set(false);

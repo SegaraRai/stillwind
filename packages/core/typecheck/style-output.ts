@@ -121,50 +121,30 @@ function inlineStyleOutputs(active: boolean, key: string) {
 void inlineStyleOutputs;
 
 function composedOutputs(active: boolean) {
-  const base = react({ "data-mode": "card", "aria-hidden": false });
-  const styled = react({ "--size": 4, "data-size": 4 });
-  const composed = react(base, { "data-mode": "panel" });
+  const base = react("block");
+  const styled = react("flex");
+  const composed = react(base, "grid");
   const conditional = react(active && base);
   const selected = react(active ? base : styled);
   const chain = react(composed, styled);
   const identity = react(base, { __stillwindDeclarationIdentity: "derived" });
+  const attributes = react({ "data-mode": "card", "aria-hidden": false });
+  const inline = react({ "--size": 4 });
+  // @ts-expect-error Attribute-bearing results cannot be composition bases.
+  react(attributes);
+  // @ts-expect-error A conditional base can still carry attributes.
+  react(active && attributes);
+  const mixed = react(active ? base : attributes);
+  // @ts-expect-error Arrays retain the restrictions on each composition base.
+  react([base, attributes]);
+  // @ts-expect-error Results with inline style cannot be composition bases.
+  react(inline);
   type Contracts = [
-    Assert<
-      Same<
-        Props<typeof composed>,
-        { className?: string; "data-mode": "panel"; "aria-hidden": false }
-      >
-    >,
-    Assert<
-      Same<
-        Props<typeof conditional>,
-        { className?: string; "data-mode"?: "card"; "aria-hidden"?: false }
-      >
-    >,
-    Assert<
-      Same<
-        Props<typeof selected>,
-        {
-          className?: string;
-          "data-mode"?: "card";
-          "aria-hidden"?: false;
-          "data-size"?: 4;
-          style?: Record<string, string>;
-        }
-      >
-    >,
-    Assert<
-      Same<
-        Props<typeof chain>,
-        {
-          className?: string;
-          "data-mode": "panel";
-          "aria-hidden": false;
-          "data-size": 4;
-          style?: Record<string, string>;
-        }
-      >
-    >,
+    Assert<Same<Props<typeof composed>, { className?: string }>>,
+    Assert<Same<Props<typeof conditional>, { className?: string }>>,
+    Assert<Same<Props<typeof selected>, { className?: string }>>,
+    Assert<Same<Props<typeof mixed>, { className?: string }>>,
+    Assert<Same<Props<typeof chain>, { className?: string }>>,
     Assert<Same<(typeof identity)["data-__stillwindStyleIdentity"], "derived">>,
     Assert<Same<Props<typeof identity>, Props<typeof base>>>,
     Assert<typeof identity extends StyleResult<"derived"> ? true : false>,
@@ -212,10 +192,10 @@ function broadInputs(inputs: readonly StyleArgument[]) {
 void broadInputs;
 
 function variableInputs(
-  inputs: readonly StyleResult<string, { "data-value": number }>[],
+  inputs: readonly StyleResult<string, { className?: string }>[],
   attributes: { "data-count"?: number; "aria-busy": boolean },
   rules: StyleVariantValue,
-  tuple: readonly [StyleResult<string, { "data-value": number }>?],
+  tuple: readonly [StyleResult<string, { className?: string }>?],
 ) {
   const array = react(...inputs);
   const arrayAfterBase = react({ "data-value": "base" }, ...inputs);
@@ -223,10 +203,8 @@ function variableInputs(
   const wrapper = react({ "hover:": rules });
   const optionalTuple = react(...tuple);
   type Contracts = [
-    Assert<Same<Props<typeof array>, { className?: string; "data-value"?: number }>>,
-    Assert<
-      Same<Props<typeof arrayAfterBase>, { className?: string; "data-value": "base" | number }>
-    >,
+    Assert<Same<Props<typeof array>, { className?: string }>>,
+    Assert<Same<Props<typeof arrayAfterBase>, { className?: string; "data-value": "base" }>>,
     Assert<
       Same<
         Props<typeof optional>,
@@ -234,7 +212,7 @@ function variableInputs(
       >
     >,
     Assert<Same<Props<typeof wrapper>, { className?: string; style?: Record<string, string> }>>,
-    Assert<Same<Props<typeof optionalTuple>, { className?: string; "data-value"?: number }>>,
+    Assert<Same<Props<typeof optionalTuple>, { className?: string }>>,
   ];
   return null as unknown as Contracts;
 }

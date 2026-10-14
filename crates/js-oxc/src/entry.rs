@@ -173,6 +173,21 @@ pub(crate) fn parse_with_coordinates(
 
     let mut imports = collect_imports(&result.program, semantic.scoping(), source.id());
     imports.consumed_uses = extractor.consumed_macro_uses;
+    imports.consumed_uses.extend(
+        imports
+            .macros
+            .iter()
+            .flat_map(|import| &import.specifiers)
+            .flat_map(|specifier| &specifier.references)
+            .filter(|reference| {
+                extractor.omitted_inputs.iter().any(|span| {
+                    span.file == reference.file
+                        && span.start <= reference.start
+                        && reference.end <= span.end
+                })
+            })
+            .copied(),
+    );
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
         imports,

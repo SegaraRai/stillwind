@@ -42,4 +42,4 @@ pub use identity::{AssetKind, IdentityId};
 pub use module::{IntegrationDiagnostic, TypeFacts, TypeFactsUpdate};
 pub use module_summary::{ImportBinding, ModuleSpecifier, ModuleSummary, ReExport};
 pub use symbolic::{Candidates, ExportedValue, SymbolicError, SymbolicValue};
-pub use type_facts::TypeFact;
+pub use type_facts::{CheckedValue, TypeFact};

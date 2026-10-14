@@ -1,7 +1,7 @@
 //! Complete keyframes branch replacement and detached CSS conditions.
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::LintDiagnostic;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -58,7 +58,7 @@ fn sibling_branch_order_uses_the_shared_variant_order() {
 }
 
 #[test]
-fn invalid_keyframe_contexts_fail_without_partial_output() {
+fn invalid_keyframe_contexts_omit_the_conditioned_branch() {
     for key in [
         "hover:",
         "[&:hover]:",
@@ -69,18 +69,20 @@ fn invalid_keyframe_contexts_fail_without_partial_output() {
         let result = compile(&format!("from:'a', '{key}': {{to:'b'}}"));
         assert!(
             result
-                .diagnostics
+                .lint_findings
                 .iter()
-                .any(|error| error.diagnostic == CompileDiagnostic::InvalidKeyframesVariant),
+                .any(|error| error.diagnostic == LintDiagnostic::InvalidKeyframesVariant),
             "{key}: {result:#?}"
         );
-        assert_eq!(result.css, "");
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.css.contains("from{opacity:0;}"), "{}", result.css);
+        assert!(!result.css.contains("to{opacity:1;}"), "{}", result.css);
     }
     let result = compile("from:'motion-reduce:a'");
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|error| error.diagnostic == CompileDiagnostic::KeyframesFrameVariants)
+            .any(|error| error.diagnostic == LintDiagnostic::KeyframesFrameVariants)
     );
 }

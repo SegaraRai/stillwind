@@ -146,7 +146,7 @@ pub(super) struct BaseUnit {
     pub(super) utilities: Vec<CompiledUtility>,
     /// Transition uses kept until the base unit's CSS is generated.
     transitions: Vec<TransitionContribution>,
-    /// Marker and external names retained alongside the generated base class.
+    /// Marker names retained alongside the generated base class.
     pub(super) names: Vec<String>,
 }
 
@@ -232,7 +232,6 @@ impl<'a> ClassUnits<'a> {
         self.base.utilities.extend(contribution.utilities);
         self.base.transitions.extend(contribution.view_transitions);
         self.base.names.extend(contribution.markers);
-        self.base.names.extend(contribution.external);
         self.base.names.extend(contribution.plain);
     }
 
@@ -240,7 +239,7 @@ impl<'a> ClassUnits<'a> {
     /// `guard`. It reserves the next traversal order, so identical rules at different
     /// positions receive distinct unit identities.
     ///
-    /// Returns a leaf containing generated and retained class names. Class metadata is
+    /// Returns a leaf containing generated class names and markers. Class metadata is
     /// recorded and CSS is queued for `finish` to publish.
     ///
     /// # Errors
@@ -267,7 +266,7 @@ impl<'a> ClassUnits<'a> {
     /// Allocates a class unit for `contribution` under the JavaScript conditions in
     /// `guard`. The caller must pass a unique `order` obtained from `reserve_branch`.
     ///
-    /// Returns a leaf containing the generated class and any marker or external names.
+    /// Returns a leaf containing the generated class and any marker names.
     /// Class metadata is recorded and CSS is queued for `finish` to publish.
     ///
     /// # Errors
@@ -304,7 +303,6 @@ impl<'a> ClassUnits<'a> {
             self.publish_unit(order, rules);
         }
         names.extend(contribution.markers);
-        names.extend(contribution.external);
         names.extend(contribution.plain);
         Ok(Emitted::Leaf { names })
     }
@@ -315,9 +313,8 @@ impl<'a> ClassUnits<'a> {
     ///
     /// Returns unconditional class names, generated class metadata, and the base
     /// transition class list including its slot references. An empty list writes no
-    /// transition-class declaration. The base name comes before marker and external
-    /// names. The base metadata comes before leaf metadata, which follows traversal
-    /// order.
+    /// transition-class declaration. The base name comes before marker names. The base
+    /// metadata comes before leaf metadata, which follows traversal order.
     ///
     /// # Errors
     ///

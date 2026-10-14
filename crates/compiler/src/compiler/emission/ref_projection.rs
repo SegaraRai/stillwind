@@ -32,8 +32,13 @@ impl CallEmitter<'_> {
         projection: &RefProjection,
         wrappers: &[StyleVariant],
     ) -> Option<LiteralContribution> {
-        let plan =
-            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let plan = StyleVariantPlan::resolve(
+            self.identifiers,
+            wrappers,
+            self.theme,
+            self.diagnostics,
+            self.lint_findings,
+        )?;
         let (declaration, symbol) =
             match render_ref_projection(self.identifiers, definition, projection, self.module_id) {
                 Ok(value) => value,
@@ -159,8 +164,13 @@ impl CallEmitter<'_> {
         wrappers: &[StyleVariant],
         fold: bool,
     ) -> Option<Emitted> {
-        let plan =
-            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let plan = StyleVariantPlan::resolve(
+            self.identifiers,
+            wrappers,
+            self.theme,
+            self.diagnostics,
+            self.lint_findings,
+        )?;
         let declaration = match render_anchor_scope(self.identifiers, scope) {
             Ok(value) => value,
             Err(failure) => {

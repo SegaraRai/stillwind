@@ -1,7 +1,7 @@
 //! View-transition definitions: the group rule and the three pseudo-element phases.
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::ViewTransitionDefinition;
 use stillwind_source::{ModuleId, Spanned};
 
@@ -25,6 +25,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) {
     let output = &mut contribution.css;
     let class = match identifiers.view_transition_class(&named_declaration(
@@ -41,7 +42,13 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     let class = class.selector();
     if let Some(group) = &transition.group {
         let selector = format!("::view-transition-group({class})");
-        let resolved = resolve_options(group, OptionVariants::Conditions, theme, diagnostics);
+        let resolved = resolve_options(
+            group,
+            OptionVariants::Conditions,
+            theme,
+            diagnostics,
+            lint_findings,
+        );
         emit_option_rules(output, &selector, &resolved);
     }
     for (pseudo, utilities) in [
@@ -59,6 +66,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
             theme,
             diagnostics,
             &mut contribution.required_properties,
+            lint_findings,
         );
     }
 }
@@ -77,6 +85,7 @@ pub(crate) fn emit_view_transition_utilities(
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     required_properties: &mut Vec<String>,
+    lint_findings: &mut Vec<LintFinding>,
 ) {
     let mut plain = Vec::new();
     let mut conditional = String::new();
@@ -84,8 +93,8 @@ pub(crate) fn emit_view_transition_utilities(
         let resolved = match resolve_utility(&utility.value.raw, theme) {
             Ok(Some(resolved)) => resolved,
             Ok(None) => {
-                diagnostics.push(CompileError::new(
-                    CompileDiagnostic::UnavailableUtility {
+                lint_findings.push(LintFinding::new(
+                    LintDiagnostic::UnavailableUtility {
                         utility: utility.value.raw.clone(),
                     },
                     utility.span,
@@ -108,8 +117,8 @@ pub(crate) fn emit_view_transition_utilities(
             continue;
         }
         let Some(paths) = condition_paths(&resolved.variants, theme) else {
-            diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidViewTransitionVariant,
+            lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidViewTransitionVariant,
                 utility.span,
             ));
             continue;
@@ -205,9 +214,9 @@ mod tests {
                 &CompilerOptions::default(),
             );
             let errors = result
-                .diagnostics
+                .lint_findings
                 .iter()
-                .filter(|error| error.diagnostic == CompileDiagnostic::InvalidViewTransitionVariant)
+                .filter(|error| error.diagnostic == LintDiagnostic::InvalidViewTransitionVariant)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{definition}: {:?}", result.diagnostics);
             assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), expected);

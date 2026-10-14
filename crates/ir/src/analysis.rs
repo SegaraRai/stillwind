@@ -16,7 +16,10 @@ use stillwind_semantic::{
 };
 use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span};
 
-use crate::{ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, validate_composition};
+use crate::{
+    ModuleIr, ScriptLanguage, ScriptModuleKind, SourceInput, recover_composition,
+    validate_composition,
+};
 
 /// An expression whose TypeScript type the host queries for lowering or macro
 /// recognition.
@@ -179,22 +182,25 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Checks composition across the graph and adds CSS for referenced declarations.
+    /// Omits incompatible composition inputs and adds CSS for referenced declarations.
     ///
     /// `inputs` must contain the complete producer graph with each module identity
     /// once. Returns cloned analyses in input order, or an empty vector for empty
-    /// input. The clones keep their source coordinates. Each clone receives graph
-    /// errors at its full source span and support for referenced keyframes and view
-    /// transitions. Style calls from support modules do not become producers.
+    /// input. The clones keep their source coordinates and receive omission findings
+    /// at each affected operand. Missing producers add fatal errors at each module's
+    /// full source span. Referenced keyframes and view transitions supply support CSS.
+    /// Style calls from support modules do not become producers.
     ///
     /// This method checks the graph once for the whole batch instead of once per
     /// module. It leaves `inputs` unchanged.
     pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
-        let modules: Vec<_> = inputs.iter().collect();
+        let mut recovered = inputs.to_vec();
+        recover_composition(&mut recovered);
+        let modules: Vec<_> = recovered.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {
             validate_composition(&modules, input.source.full_span(), true)
         });
-        inputs
+        recovered
             .iter()
             .map(|input| {
                 let mut analysis = input.clone();
@@ -213,16 +219,21 @@ impl ModuleAnalysis {
     /// Adds CSS for referenced declarations without adding their modules as producers.
     ///
     /// `inputs` supplies analyses for checking composition and finding declarations.
-    /// Entries with this module's identity are ignored. This method adds graph errors
-    /// to this analysis and replaces its asset support. It leaves `inputs` unchanged.
+    /// Entries with this module's identity are ignored. This method omits incompatible
+    /// composition operands, adds findings and missing-producer errors, and replaces
+    /// asset support in this analysis. It leaves `inputs` unchanged.
     pub fn attach_asset_support(&mut self, inputs: &[Self]) {
-        let mut modules = vec![&*self];
-        modules.extend(
+        let mut recovered = vec![self.clone()];
+        recovered.extend(
             inputs
                 .iter()
-                .filter(|input| input.module_id != self.module_id),
+                .filter(|input| input.module_id != self.module_id)
+                .cloned(),
         );
+        recover_composition(&mut recovered);
+        let modules: Vec<_> = recovered.iter().collect();
         let diagnostics = validate_composition(&modules, self.source.full_span(), true);
+        *self = recovered.remove(0);
         self.diagnostics.extend(diagnostics);
         self.attach_declarations(inputs);
     }

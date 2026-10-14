@@ -442,7 +442,7 @@ const frames=s.keyframes({from:"opacity-0"}); const value=s({"hover:":frames("du
   }
 });
 
-test("resolve rejects changed dependencies and themes, and invalid sites have no partial preview", async () => {
+test("resolve rejects changed dependencies and themes while previews retain supported rules", async () => {
   const source = `import {style} from "stillwind/react"; import {frames} from "./assets";
 const value=style(frames("duration-normal"));`;
   const dependency =
@@ -475,8 +475,10 @@ const bad=style.keyframes({from:"opacity-0 hover:opacity-100"}); const unused=st
 const value=style("block",bad("duration-normal")); const wrong=style.viewTransition({group:"block"});`;
   const rejected = await project(invalid);
   try {
-    expect(await hover(rejected, invalid, "style.keyframes")).toBeUndefined();
-    expect(await hover(rejected, invalid, 'style("block"')).toBeUndefined();
+    const frames = await hover(rejected, invalid, "style.keyframes");
+    expect(frames).toContain("opacity: 0");
+    expect(frames).not.toContain("opacity: 1");
+    expect(await hover(rejected, invalid, 'style("block"')).toContain("display: block");
     expect(await hover(rejected, invalid, "style.viewTransition")).toBeUndefined();
     expect(await hover(rejected, invalid, "style.keyframes", 1)).toContain("to {");
     expect(await hover(rejected, invalid, "hover:opacity-100")).toBeUndefined();

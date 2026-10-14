@@ -12,12 +12,9 @@ import type {
 import type { Node, SourceFile } from "typescript-7/unstable/ast";
 import {
   isCallExpression,
-  isElementAccessExpression,
   isExportDeclaration,
   isExpression,
-  isIdentifier,
   isImportDeclaration,
-  isPropertyAccessExpression,
   isSourceFile,
   isStringLiteral,
 } from "typescript-7/unstable/ast/is";
@@ -198,15 +195,15 @@ class AssetTypeDecoder {
    * Resolves a checker type to finite candidates from a single asset family.
    *
    * @param type - Type of a probed expression from the current checker snapshot.
-   * @returns A native value when every union member carries known declarations from the same
-   * family.
+   * @returns Finite candidates, a confirmed non-asset, or an unverified value whose declarations
+   * cannot be determined.
    */
-  decode(type: Type): {
-    /** Finite declarations, or null when a member lacks a valid identity or the families differ. */
-    value: NativeExportedValue | null;
-    /** Whether branding or a known asset type name was detected, even when decoding failed. */
-    recognized: boolean;
-  } {
+  decode(
+    type: Type,
+  ): { kind: "asset"; value: NativeExportedValue } | { kind: "nonAsset" | "unverified" } {
+    if (type.flags & (TypeFlags.Any | TypeFlags.Unknown)) {
+      return { kind: "unverified" };
+    }
     const constituents = type.isUnionType() ? type.getTypes() : [type];
     const values: IdentityId[] = [];
     let family: IdentityId["kind"] | undefined;
@@ -262,7 +259,7 @@ class AssetTypeDecoder {
       }
     }
     if (!valid || !family || values.length === 0) {
-      return { value: null, recognized };
+      return { kind: recognized ? "unverified" : "nonAsset" };
     }
     const kinds = {
       style: "styles",
@@ -271,11 +268,11 @@ class AssetTypeDecoder {
       viewTransition: "viewTransitions",
     } as const;
     return {
+      kind: "asset",
       value: {
         kind: kinds[family],
         value: symbolic(family, values),
       },
-      recognized,
     };
   }
 }
@@ -933,10 +930,12 @@ export class TypeScriptFactsService implements TypeFactsBackend {
         ...project.program.getSyntacticDiagnostics(mapping.id),
         ...project.program.getSemanticDiagnostics(mapping.id),
       ];
-      const diagnostic = diagnostics.find((d) =>
-        /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
-          diagnosticText(d),
-        ),
+      const diagnostic = diagnostics.find(
+        (d) =>
+          !producerArgumentDiagnostic(d, sourceFile, mapping) &&
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+            diagnosticText(d),
+          ),
       );
       if (diagnostic) {
         const start = mapping.originalOffset(diagnostic.pos) ?? undefined;
@@ -1025,6 +1024,29 @@ function diagnosticText(diagnostic: Diagnostic): string {
   return [diagnostic.text, ...(diagnostic.messageChain ?? []).map(diagnosticText)].join("\n");
 }
 
+/** Macro argument type errors are reported by lowering; their operands still require valid facts. */
+function producerArgumentDiagnostic(
+  diagnostic: Diagnostic,
+  sourceFile: SourceFile,
+  mapping: CheckerSource,
+): boolean {
+  if (diagnostic.code !== 2345 && diagnostic.code !== 2769) {
+    return false;
+  }
+  let owner: Node | undefined;
+  visit(sourceFile, (node) => {
+    if (
+      isCallExpression(node) &&
+      node.getStart(sourceFile) <= diagnostic.pos &&
+      node.end >= diagnostic.end &&
+      (!owner || node.end - node.getStart(sourceFile) < owner.end - owner.getStart(sourceFile))
+    ) {
+      owner = node;
+    }
+  });
+  return !!owner && mapping.producers.has(`${owner.getStart(sourceFile)}:${owner.end}`);
+}
+
 /**
  * Decodes the types of checker expressions matched to original semantic probes.
  *
@@ -1035,7 +1057,7 @@ function diagnosticText(diagnostic: Diagnostic): string {
  * @param unverified - Optional array to append unavailable original ranges to. Supplying it keeps
  * other facts usable when a probe lacks an expression or a finite declaration type.
  * @returns Facts in AST traversal order with original byte ranges. Known types that do not
- * represent Stillwind assets produce no fact. Strict queries skip unresolved recognition-only
+ * represent Stillwind assets produce explicit null values. Strict queries skip unresolved recognition-only
  * probes. Partial queries record their unavailable ranges instead.
  * @throws Without unverified, if a probe has no expression node or a required query has a missing,
  * unresolved, or recognized-but-nonfinite declaration type. Checker query failures can also propagate.
@@ -1085,21 +1107,12 @@ function factsForSource(
   for (const [index, expression] of expressions.entries()) {
     const probe = mapping.probes.get(`${expression.getStart(sourceFile)}:${expression.end}`)!;
     const type = types[index];
-    const decoded = type && decoder.decode(type);
-    const value = decoded?.value;
-    if (!value) {
-      if (probe.recognitionOnly && !unverified) {
-        continue;
-      }
-      if (
-        !type ||
-        (type.flags & (TypeFlags.Any | TypeFlags.Unknown) &&
-          (isIdentifier(expression) ||
-            isCallExpression(expression) ||
-            isPropertyAccessExpression(expression) ||
-            isElementAccessExpression(expression))) ||
-        decoded?.recognized
-      ) {
+    const decoded = type ? decoder.decode(type) : { kind: "unverified" as const };
+    if (decoded.kind !== "asset") {
+      if (decoded.kind === "unverified") {
+        if (probe.recognitionOnly && !unverified) {
+          continue;
+        }
         const error = new TypeFactsError(
           mapping.source.moduleId,
           probe.start,
@@ -1116,12 +1129,14 @@ function factsForSource(
           end: error.end,
           reason: error.message,
         });
+      } else {
+        facts.push({ ...probe, value: null });
       }
       continue;
     }
     facts.push({
       ...probe,
-      value,
+      value: decoded.value,
     });
   }
 

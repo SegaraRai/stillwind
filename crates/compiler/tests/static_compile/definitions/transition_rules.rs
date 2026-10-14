@@ -1,5 +1,7 @@
 //! Checks transition phases, conditions, asset uses, and composition.
 
+use stillwind_diagnostics::{LintDiagnostic, LintKind};
+
 use super::*;
 
 #[test]
@@ -288,9 +290,9 @@ export const props = style(named, "flex");"#,
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|error| matches!(error.diagnostic, CompileDiagnostic::StyleBaseWithProps)),
+            .any(|error| matches!(error.diagnostic, LintDiagnostic::StyleBaseWithProps)),
         "{:#?}",
         result.diagnostics
     );

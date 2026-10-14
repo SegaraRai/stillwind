@@ -242,44 +242,8 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
         ),
         None,
     );
-    let span = source.full_span();
     let invalid = Span::new(FileId(1), u32::MAX, u32::MAX);
-    let definition = RefDefinition {
-        module_id: "x.tsx".into(),
-        binding: Spanned::new("r".into(), span),
-        label: None,
-        call_span: span,
-    };
-    let ref_variant = |prefix: &str| StyleVariant::Ref {
-        condition: RefCondition {
-            refs: vec![definition.clone()],
-            prefix: Spanned::new(prefix.into(), span),
-        },
-        scopes: vec![],
-    };
     for (input, expected) in [
-        StyleInput::Class(
-            RuleExpression::Variant {
-                variant: ref_variant(":hover"),
-                inputs: vec![RuleExpression::Utilities(Spanned::new("flex".into(), span))],
-            }
-            .into(),
-        ),
-        StyleInput::Class(
-            RuleExpression::Variant {
-                variant: ref_variant("hover::"),
-                inputs: vec![RuleExpression::Conditional {
-                    test: span,
-                    branches: ConditionalBranches::And {
-                        consequent: vec![RuleExpression::Utilities(Spanned::new(
-                            "flex".into(),
-                            span,
-                        ))],
-                    },
-                }],
-            }
-            .into(),
-        ),
         StyleInput::Class(RuleExpression::Utilities(Spanned::new("x".into(), invalid)).into()),
         StyleInput::Class(ClassExpression::ClassValue {
             span: invalid,
@@ -288,8 +252,6 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     ]
     .into_iter()
     .zip([
-        CompileDiagnostic::InvalidVariantPrefix,
-        CompileDiagnostic::InvalidVariantPrefix,
         CompileDiagnostic::SourceInvalidSpan {
             span: invalid,
             context: SourceFailureContext::Utility,
@@ -310,8 +272,8 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
                 .iter()
                 .any(|error| error.diagnostic == expected)
         );
-        assert_eq!(compiled.css.rules, [] as [GeneratedRule; 0]);
         assert_eq!(compiled.code_transforms, [] as [SourceTransform; 0]);
+        assert_eq!(compiled.css.rules, [] as [GeneratedRule; 0]);
     }
 }
 

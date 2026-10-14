@@ -10,7 +10,7 @@
 
 use stillwind_compiler::{CompilerOptions, SourceTransform};
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintKind, LintSeverity};
+use stillwind_diagnostics::{CompileDiagnostic, LintSeverity};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};

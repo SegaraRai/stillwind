@@ -1,9 +1,72 @@
 //! Utility emission, precedence, registration dependencies, and diagnostics.
 
+use stillwind_compiler::CompilerOptions;
 use stillwind_css::MAX_VALUE_NESTING;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintDiagnostic, LintOverrides, LintSeverity, UtilityFailure,
+};
 
 use super::compile;
+use super::support::CompilationFixture;
+
+#[test]
+fn unresolved_utilities_are_omitted_independently_of_reporting_and_class_identity() {
+    let css = "@utility a { color:red; } @variant hover { &:hover { @slot; } }";
+    for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
+        let options = CompilerOptions {
+            lint: LintOverrides {
+                unknown_utility: Some(severity),
+                invalid_utility: Some(severity),
+                ..LintOverrides::default()
+            },
+            ..CompilerOptions::default()
+        };
+        let fixture = CompilationFixture::new(css, &options);
+        for (valid, input) in [
+            ("'a'", "'a missing bad-['"),
+            ("'a'", "['missing', 'a', 'bad-[']"),
+            ("'hover:a'", "'hover:missing hover:a bad-['"),
+            ("{'hover:': 'a'}", "{'hover:': 'missing a bad-['}"),
+            ("active && 'a'", "active && 'missing a bad-['"),
+            ("active ? 'a' : false", "active ? 'missing a bad-[' : false"),
+            ("''", "'missing bad-['"),
+            (
+                "{class: 'external-widget'}, 'a'",
+                "{class: 'external-widget'}, 'missing a bad-['",
+            ),
+        ] {
+            let (_, expected) = fixture.compile(&format!("export const x = style({valid});"));
+            let (_, result) = fixture.compile(&format!("export const x = style({input});"));
+            assert!(result.diagnostics.is_empty(), "{input}: {result:#?}");
+            assert_eq!(
+                result
+                    .lint_findings
+                    .iter()
+                    .filter(|finding| matches!(
+                        finding.diagnostic,
+                        LintDiagnostic::UnresolvedUtility { .. }
+                    ))
+                    .count(),
+                if severity == LintSeverity::Off { 0 } else { 2 },
+                "{input}: {result:#?}"
+            );
+            assert_eq!(result.css, expected.css, "{input}");
+            assert_eq!(
+                result
+                    .transforms
+                    .iter()
+                    .map(|transform| &transform.replacement)
+                    .collect::<Vec<_>>(),
+                expected
+                    .transforms
+                    .iter()
+                    .map(|transform| &transform.replacement)
+                    .collect::<Vec<_>>(),
+                "{input}"
+            );
+        }
+    }
+}
 
 #[test]
 fn deeply_nested_utility_values_fail_with_a_nesting_diagnostic() {

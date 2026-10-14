@@ -198,7 +198,7 @@ const props = style("bg-accnet");"#,
         "bg-accnet"
     );
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("bg-accnet"));
+    assert!(!transformed.contains("bg-accnet"), "{transformed}");
     assert_ne!(result.css, "");
 }
 
@@ -232,7 +232,7 @@ const props = style("bg-[color:red");"#,
         }
     ));
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("bg-[color:red"));
+    assert!(!transformed.contains("bg-[color:red"), "{transformed}");
 }
 
 #[test]
@@ -272,10 +272,8 @@ const fourth = style("m-accnet");"#,
         }
     ));
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("bg-accnet"));
-    assert!(transformed.contains("text-accnet"));
-    assert!(transformed.contains("p-accnet"));
-    assert!(transformed.contains("m-accnet"));
+    assert_eq!(result.classes, [] as [GeneratedClass; 0]);
+    assert!(!transformed.contains("className"), "{transformed}");
 }
 
 #[test]
@@ -510,9 +508,9 @@ const props = style({ "legacy-loading": loading });"#,
 
     assert!(
         result
-            .diagnostics
+            .lint_findings
             .iter()
-            .any(|item| item.diagnostic == CompileDiagnostic::InvalidAttributeKey),
+            .any(|item| item.diagnostic == LintDiagnostic::InvalidAttributeKey),
         "{:#?}",
         result.diagnostics
     );

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_design_system::DesignSystemLoadError;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
@@ -42,7 +42,7 @@ fn reload_module() -> ModuleAnalysis {
 }
 
 #[test]
-fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
+fn watch_reload_publishes_recovered_motion_and_keeps_other_modules() {
     let mut session = ProjectSession::new(
         snapshot("@utility brand { color:red; }"),
         &SourceRegistry::default(),
@@ -86,18 +86,15 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
         .reload(Ok(snapshot("")), session.options().clone())
         .unwrap();
     assert!(
-        update.diagnostics[&ModuleId::from("motion.tsx")]
+        session.artifacts()[&ModuleId::from("motion.tsx")]
+            .lint_findings
             .iter()
-            .any(|error| matches!(
-                error.diagnostic,
-                CompileDiagnostic::UnavailableUtility { .. }
-            ))
+            .any(|error| matches!(error.diagnostic, LintDiagnostic::UnavailableUtility { .. }))
     );
-    assert!(!update.css_changed);
-    assert!(update.transformed_modules.is_empty());
-    assert_eq!(session.snapshot().revision(), revision);
-    assert_eq!(session.css().unwrap().stylesheet.css, before_css);
-    assert_eq!(
+    assert!(update.css_changed);
+    assert_ne!(session.snapshot().revision(), revision);
+    assert_ne!(session.css().unwrap().stylesheet.css, before_css);
+    assert_ne!(
         session.artifacts()[&ModuleId::from("motion.tsx")]
             .css
             .to_css(),
@@ -110,7 +107,7 @@ fn watch_reload_rejects_the_entire_revision_when_recompilation_fails() {
             .to_css(),
         other_artifact
     );
-    assert!(session.dependencies().utilities.contains_key("brand"));
+    assert!(!session.dependencies().utilities.contains_key("brand"));
     assert!(
         session
             .reload(

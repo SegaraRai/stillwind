@@ -15,18 +15,23 @@ use oxc::ast::ast::{
     ImportDeclarationSpecifier, ModuleExportName, VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
+use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{StyleCall, from_macro_import};
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, SymbolicValue,
 };
 use stillwind_source::Spanned;
 
+use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
 
 impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_expression(&mut self, expression: &Expression<'a>) {
+        if self.input_is_omitted(expression.span()) {
+            return;
+        }
         self.report_unconsumed_expression(expression);
         walk::walk_expression(self, expression);
     }
@@ -183,7 +188,8 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     ///
     /// Only calls whose callee resolves to the imported macro are collected. A call
     /// nested inside an already-collected one produces
-    /// [`CompileDiagnostic::NestedStyleCall`], and spread arguments are errors.
+    /// [`LintDiagnostic::NestedStyleCall`] and is omitted. Unsupported spread arguments
+    /// are also omitted with lint findings.
     /// Every other call is checked for
     /// a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
@@ -208,8 +214,13 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 .iter()
                 .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {
-            self.diagnostics
-                .push(CompileError::new(CompileDiagnostic::NestedStyleCall, span));
+            if !self
+                .consumed_use_spans
+                .contains(&LocalSpan::from(call.span))
+            {
+                self.lint_findings
+                    .push(LintFinding::new(LintDiagnostic::NestedStyleCall, span));
+            }
             return;
         }
 
@@ -246,16 +257,15 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            if let Some(definition) = self.collect_ref_definition(name, call) {
-                self.ref_symbols.insert(symbol_id, definition.clone());
-                self.local_values.insert(
-                    symbol_id,
-                    ExportedValue::Refs(SymbolicValue::exact(
-                        self.identity(AssetKind::Ref, &definition.binding),
-                    )),
-                );
-                self.ref_definitions.push(definition);
-            }
+            let definition = self.collect_ref_definition(name, call);
+            self.ref_symbols.insert(symbol_id, definition.clone());
+            self.local_values.insert(
+                symbol_id,
+                ExportedValue::Refs(SymbolicValue::exact(
+                    self.identity(AssetKind::Ref, &definition.binding),
+                )),
+            );
+            self.ref_definitions.push(definition);
         }
         if let (
             BindingPattern::BindingIdentifier(identifier),
@@ -268,16 +278,15 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            if let Some(definition) = self.collect_keyframes_definition(name.clone(), call) {
-                self.keyframes_symbols.insert(symbol_id, name);
-                self.local_values.insert(
-                    symbol_id,
-                    ExportedValue::Keyframes(SymbolicValue::exact(
-                        self.identity(AssetKind::Keyframes, &definition.binding),
-                    )),
-                );
-                self.keyframes_declarations.push(definition);
-            }
+            let definition = self.collect_keyframes_definition(name.clone(), call);
+            self.keyframes_symbols.insert(symbol_id, name);
+            self.local_values.insert(
+                symbol_id,
+                ExportedValue::Keyframes(SymbolicValue::exact(
+                    self.identity(AssetKind::Keyframes, &definition.binding),
+                )),
+            );
+            self.keyframes_declarations.push(definition);
         }
         if let (
             BindingPattern::BindingIdentifier(identifier),
@@ -290,16 +299,15 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 identifier.name.to_string(),
                 self.source_span(identifier.span),
             );
-            if let Some(definition) = self.collect_view_transition_definition(name.clone(), call) {
-                self.view_transition_symbols.insert(symbol_id, name);
-                self.local_values.insert(
-                    symbol_id,
-                    ExportedValue::ViewTransitions(SymbolicValue::exact(
-                        self.identity(AssetKind::ViewTransition, &definition.binding),
-                    )),
-                );
-                self.view_transition_declarations.push(definition);
-            }
+            let definition = self.collect_view_transition_definition(name.clone(), call);
+            self.view_transition_symbols.insert(symbol_id, name);
+            self.local_values.insert(
+                symbol_id,
+                ExportedValue::ViewTransitions(SymbolicValue::exact(
+                    self.identity(AssetKind::ViewTransition, &definition.binding),
+                )),
+            );
+            self.view_transition_declarations.push(definition);
         }
         walk::walk_variable_declarator(self, declarator);
     }

@@ -449,14 +449,7 @@ function verifiedReports(reports: BindingReport[], ranges: UnverifiedRange[]): B
   });
 }
 
-const identityDiagnosticCodes = new Set([
-  "SW01004",
-  "SW03001",
-  "SW03007",
-  "SW03010",
-  "SW03016",
-  "SW03019",
-]);
+const identityDiagnosticCodes = new Set(["SW03001", "SW03010"]);
 
 /**
  * Tests whether a diagnostic or probe overlaps an unavailable semantic range.

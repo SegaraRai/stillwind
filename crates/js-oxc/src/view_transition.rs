@@ -12,67 +12,36 @@
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, SourceFailureContext,
+};
 use stillwind_ir::{
     AssetReference, StyleInput, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };
-use stillwind_semantic::{AssetKind, ExportedValue};
+use stillwind_semantic::AssetKind;
 use stillwind_source::Spanned;
 
 use crate::local_span::LocalSpan;
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
     /// Resolves an expression to its finite view-transition declaration candidates.
     ///
-    /// Facts win over local bindings, exactly as for keyframes; `None` means the
-    /// expression is not a view-transition value.
+    /// Facts win over local declaration values. Failure distinguishes a confirmed
+    /// unsupported value from missing information about identities.
     pub(crate) fn view_transition_references(
         &self,
         expression: &Expression<'a>,
-    ) -> Option<Vec<AssetReference>> {
-        let expression = expression.get_inner_expression();
-        if let Expression::ConditionalExpression(conditional) = expression {
-            let consequent = self.view_transition_references(&conditional.consequent);
-            let alternate = self.view_transition_references(&conditional.alternate);
-            let mut refs = consequent?;
-            let alternate = alternate?;
-            for reference in alternate {
-                if !refs
+    ) -> Result<Vec<AssetReference>, ResolutionFailure> {
+        let span = expression.get_inner_expression().span();
+        self.asset_candidates(expression, AssetKind::ViewTransition)
+            .map(|identities| {
+                identities
                     .iter()
-                    .any(|existing| existing.identity == reference.identity)
-                {
-                    refs.push(reference);
-                }
-            }
-            return Some(refs);
-        }
-        let span = expression.span();
-        self.record_type_probe(expression);
-        if let Some(fact) = self.type_fact(span) {
-            let ExportedValue::ViewTransitions(value) = fact else {
-                return None;
-            };
-            let references = value
-                .finite_candidates()?
-                .iter()
-                .map(|identity| Some(self.asset_reference(identity, span)))
-                .collect::<Option<Vec<AssetReference>>>()?;
-            return Some(references);
-        }
-        let Expression::Identifier(identifier) = expression else {
-            return None;
-        };
-        let reference_id = identifier.reference_id.get()?;
-        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        let transition = self.view_transition_symbols.get(&symbol_id)?;
-        let span = self.source_span(span);
-        let identity = self.identity(AssetKind::ViewTransition, transition);
-        Some(vec![AssetReference {
-            label: self.declaration_label(&identity, span),
-            identity,
-            span,
-        }])
+                    .map(|identity| self.asset_reference(identity, span))
+                    .collect()
+            })
     }
 
     /// Recognizes `<transition>` and `<transition>.for(key)` uses.
@@ -93,7 +62,19 @@ impl<'a> MacroExtractor<'a> {
             if member.property.name.as_str() != "for" {
                 return None;
             }
-            let transitions = self.view_transition_references(&member.object)?;
+            let transitions = match self.view_transition_references(&member.object) {
+                Ok(value) => value,
+                Err(failure) => {
+                    self.consumed_use_spans.insert(LocalSpan::from(call.span));
+                    self.report_resolution_failure(
+                        &member.object,
+                        failure,
+                        LintDiagnostic::InvalidViewTransitionReceiver,
+                        CompileDiagnostic::RefFactsRequired,
+                    );
+                    return None;
+                }
+            };
             self.consumed_use_spans.insert(LocalSpan::from(call.span));
             let key = self.view_transition_key(call)?;
             (
@@ -102,7 +83,7 @@ impl<'a> MacroExtractor<'a> {
                 ViewTransitionName::Key(key),
             )
         } else {
-            let transitions = self.view_transition_references(expression)?;
+            let transitions = self.view_transition_references(expression).ok()?;
             let name = ViewTransitionName::None;
             (self.source_span(expression.span()), transitions, name)
         };
@@ -135,8 +116,8 @@ impl<'a> MacroExtractor<'a> {
             0 => return Some(ViewTransitionKey::Literal(String::new())),
             1 => call.arguments[0].as_expression()?,
             _ => {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidViewTransitionKeyExpression,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidViewTransitionKeyExpression,
                     self.source_span(call.span),
                 ));
                 return None;
@@ -175,61 +156,64 @@ impl<'a> MacroExtractor<'a> {
     /// Validates and records one `style.viewTransition({...})` declaration.
     ///
     /// Only `label`, `group`, `old`, `new` and `imagePair` are accepted, each with a
-    /// literal string. Unknown or non-literal keys are reported and skipped; the result
-    /// needs at least one of the four phases to be usable.
+    /// literal string. Unsupported properties are reported and skipped. An empty
+    /// definition retains its binding and identity.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
         binding: Spanned<String>,
         call: &CallExpression<'a>,
-    ) -> Option<ViewTransitionDefinition> {
-        if call.arguments.len() != 1 {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidViewTransitionDefinition,
+    ) -> ViewTransitionDefinition {
+        self.omit_input(call.span);
+        let object = if call.arguments.len() == 1 {
+            call.arguments[0]
+                .as_expression()
+                .and_then(|expression| match expression {
+                    Expression::ObjectExpression(object) => Some(object),
+                    _ => None,
+                })
+        } else {
+            None
+        };
+        if object.is_none() {
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::InvalidViewTransitionDefinition,
                 self.source_span(call.span),
             ));
-            return None;
         }
-        let Some(Expression::ObjectExpression(object)) = call.arguments[0].as_expression() else {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::InvalidViewTransitionDefinition,
-                self.source_span(call.arguments[0].span()),
-            ));
-            return None;
-        };
         let mut label = None;
         let mut group = None;
         let mut old = None;
         let mut new = None;
         let mut image_pair = None;
-        for property in &object.properties {
+        for property in object.into_iter().flat_map(|object| &object.properties) {
             let ObjectPropertyKind::ObjectProperty(property) = property else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::ViewTransitionSpread,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::ViewTransitionSpread,
                     self.source_span(property.span()),
                 ));
                 continue;
             };
             if property.computed || property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidViewTransitionProperty,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidViewTransitionProperty,
                     self.source_span(property.span),
                 ));
                 continue;
             }
             let Some(property_name) = self.property_name(&property.key) else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidViewTransitionKey,
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidViewTransitionKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
             };
             let Expression::StringLiteral(value) = &property.value else {
                 let kind = if property_name.value == "label" {
-                    CompileDiagnostic::InvalidViewTransitionLabel
+                    LintDiagnostic::InvalidViewTransitionLabel
                 } else {
-                    CompileDiagnostic::InvalidViewTransitionValue
+                    LintDiagnostic::InvalidViewTransitionValue
                 };
-                self.diagnostics.push(CompileError::new(
+                self.lint_findings.push(LintFinding::new(
                     kind,
                     self.source_span(property.value.span()),
                 ));
@@ -242,20 +226,13 @@ impl<'a> MacroExtractor<'a> {
                 "old" => old = Some(value),
                 "new" => new = Some(value),
                 "imagePair" => image_pair = Some(value),
-                _ => self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidViewTransitionKey,
+                _ => self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidViewTransitionKey,
                     property_name.span,
                 )),
             }
         }
-        if group.is_none() && old.is_none() && new.is_none() && image_pair.is_none() {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::EmptyViewTransition,
-                self.source_span(call.span),
-            ));
-            return None;
-        }
-        Some(ViewTransitionDefinition {
+        ViewTransitionDefinition {
             binding,
             call_span: self.source_span(call.span),
             label,
@@ -263,6 +240,6 @@ impl<'a> MacroExtractor<'a> {
             old,
             new,
             image_pair,
-        })
+        }
     }
 }

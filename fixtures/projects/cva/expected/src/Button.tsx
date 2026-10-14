@@ -2,7 +2,7 @@ import {  type VariantProps } from "stillwind/react";
 import { stillwindCva } from "stillwind/runtime/react";
 
 export const button = stillwindCva(
-  "sw_5z9t1 rounded",
+  "sw_1chda",
   {
     variants: {
       size: {

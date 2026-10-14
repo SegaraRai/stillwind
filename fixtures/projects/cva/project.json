@@ -5,5 +5,5 @@
   "description": "CVA variants, defaults, compound conditions, guarded utilities, and custom properties across framework runtimes.",
   "tags": ["cva", "conditional", "property"],
   "theme": "stillwind.css",
-  "sources": ["src/Button.tsx", "src/Tone.ts"]
+  "sources": ["src/Button.tsx", "src/Tone.ts", "src/Recovery.ts"]
 }

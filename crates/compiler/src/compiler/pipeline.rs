@@ -18,7 +18,8 @@ use std::collections::BTreeSet;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, finish_lint_findings};
 use stillwind_ir::{
-    ModuleAnalysis, composition_dependencies, ordered_style_calls, validate_composition,
+    ModuleAnalysis, composition_dependencies, ordered_style_calls, recover_composition,
+    validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -110,6 +111,9 @@ impl Compiler {
         identifiers: &IdentifierContext,
         emit_source: bool,
     ) -> CompileResult {
+        let mut recovered = parsed.clone();
+        recover_composition(std::slice::from_mut(&mut recovered));
+        let parsed = &recovered;
         let mut runtime_assets = parsed.summary.export_reachable_identities();
         let mut required_definitions = runtime_assets
             .iter()
@@ -269,10 +273,21 @@ impl Compiler {
         for cva in &module.cva_calls {
             let helper = runtime.require(RuntimeHelper::Cva, cva.callee_span);
             result.transforms.push(SourceTransform {
-                call_span: cva.callee_span,
-                replacement: helper,
+                call_span: if cva.empty { cva.span } else { cva.callee_span },
+                replacement: if cva.empty {
+                    format!("{helper}()")
+                } else {
+                    helper
+                },
                 expressions: Vec::new(),
             });
+            result
+                .transforms
+                .extend(cva.replacements.iter().map(|replacement| SourceTransform {
+                    call_span: replacement.span,
+                    replacement: replacement.replacement.clone(),
+                    expressions: Vec::new(),
+                }));
         }
         let mut definition_css = Vec::new();
         for animation in &module.keyframes_declarations {
@@ -284,6 +299,7 @@ impl Compiler {
                 animation,
                 theme,
                 &mut diagnostics,
+                &mut result.lint_findings,
             );
             if required_definitions.contains(&named_identity(
                 module_id,
@@ -302,6 +318,7 @@ impl Compiler {
                 transition,
                 theme,
                 &mut diagnostics,
+                &mut result.lint_findings,
             );
             if required_definitions.contains(&named_identity(
                 module_id,

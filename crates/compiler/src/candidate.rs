@@ -16,9 +16,6 @@ pub(crate) struct CandidateResolver;
 impl CandidateResolver {
     /// Resolves a raw candidate, variant prefix included, against `theme`.
     ///
-    /// The result borrows nothing from `raw`, so an unresolved candidate can be kept
-    /// as an external class name without holding the source text alive.
-    ///
     /// # Errors
     ///
     /// Returns an invalid requirement from a matching utility definition.

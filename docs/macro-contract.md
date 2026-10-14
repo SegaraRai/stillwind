@@ -15,6 +15,45 @@ React, Preact, Solid, and Vue.
 `stillwind/macro` (`packages/core/src/macro/`) owns shared argument types and
 declaration identities. `packages/core/src/runtime/` combines compiled props.
 
+Utility literals contribute only candidates resolved by the CSS snapshot. Unresolved
+candidates are omitted from generated classes, CSS, and canonical class inputs.
+The `unknown-utility` and `invalid-utility` rules report these candidates. Severity
+settings and suppression affect reporting without changing omission. Supply external
+class values through `{ class: expression }`.
+
+## Unsupported input
+
+The compiler reports and omits input that it can prove unsupported, and retains supported
+siblings. Invalid operands, object properties, spreads, utility templates, declaration
+entries, labels, and motion
+options produce lint findings. The corresponding `invalid-*` rules default to `deny`.
+Reporting settings and `swlint-*` suppression change reporting without changing output.
+
+An invalid CSS variant discards its complete conditioned subtree. Removing only the
+condition would apply its rules to elements that the author did not select. An empty
+style or CVA value contributes no styles. An empty keyframes or view-transition
+definition retains its binding and declaration identity. It emits no definition CSS
+and requires no definition slot; valid uses, including `transition.for(key)`, retain
+their normal meaning.
+
+Invalid CVA values contribute nothing. Unsupported configuration properties and defaults
+are omitted independently. Invalid compound conditions discard the complete compound.
+An unsupported factory signature becomes an empty factory. Incompatible style composition
+operands are omitted before the remaining dependencies are ordered. Style dependency cycles
+produce `SW06002`; cycles in CSS module placement produce `SW06003`. Neither cycle can
+be suppressed because it prevents a valid output order.
+
+JavaScript and CSS parse failures, invalid source correspondence, missing or invalid
+checker facts, unavailable producer artifacts, inconsistent framework selection, generated
+identifier failures, malformed authored CSS, and missing required output slots remain
+compilation errors. Macro uses that remain outside supported input positions also remain
+compilation errors.
+
+Checker facts carry finite asset candidates or `null` for a confirmed non-asset.
+An absent fact or a nonfinite candidate set does not confirm that a value is unsupported.
+Required identities must be established before the compiler can produce output. A receiver
+selection that mixes supported and unsupported branches remains a compilation error.
+
 ## Materialization and consumption sites
 
 Completed `style(...inputs)` results and declarations from `style.ref(...)`,
@@ -203,8 +242,7 @@ and the derived list replaces the base list. Build hosts fail when findings with
 an effective `deny` policy remain.
 
 Suppression does not guarantee preservation of the order or count of effects that
-violate this contract. Inputs whose structure cannot be extracted or transformed
-produce compilation errors that cannot be suppressed. The compiler does not prove
+violate this contract. The compiler does not prove
 the behavior of arbitrary function bodies or implementations inside input objects.
 An absence of diagnostics does not prove purity; users must satisfy the contract.
 
@@ -226,6 +264,7 @@ style.keyframes({
 Each branch replaces the complete definition; it does not inherit `from` from
 the ordinary definition. Nested branches accumulate conditions. When several
 conditions match, the later definition in the shared variant order takes effect.
+A branch with no retained frame declarations contributes no replacement.
 Frame utilities cannot contain variants. Definition conditions accept media and
 supports variants that do not require an element selector. Container queries are
 rejected because `@container` does not restrict the validity of nested `@keyframes`.
@@ -272,7 +311,10 @@ const selected = style(flag ? base : compact, "hover:m-30");
 
 Composing completed styles places base CSS before derived CSS. Ordinary
 specificity and importance still apply. Bases with additional props or runtime
-style payloads are rejected, as are cyclic dependencies. See
+style payloads are omitted from the composition. Each omitted operand produces
+`invalid-style-composition`, which defaults to `deny`. The public types reject bases
+whose output contains known attributes or inline style. Dependency cycles remain
+compilation errors because the compiler cannot order their CSS. See
 [CSS emission](css-emission.md) and [CSS ordering](css-ordering.md) for transport
 and output order.
 

@@ -16,7 +16,7 @@ use stillwind_test_support::{CssAssertions as _, css_source};
 use super::*;
 
 #[test]
-fn unresolved_variant_utility_keeps_only_its_authored_class() {
+fn unresolved_variant_utility_is_omitted() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -39,13 +39,10 @@ export const item = style({ "hover:": "unknown-widget-class" });"#,
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(
-        transformed.contains("unknown-widget-class"),
+        !transformed.contains("unknown-widget-class"),
         "{transformed}"
     );
-    assert!(
-        !transformed.contains("hover:unknown-widget-class"),
-        "{transformed}"
-    );
+    assert!(!transformed.contains("className"), "{transformed}");
 }
 
 #[test]

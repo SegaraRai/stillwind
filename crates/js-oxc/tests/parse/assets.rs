@@ -1,5 +1,7 @@
 //! Checks asset declarations, uses, and exported identities.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]
@@ -121,31 +123,31 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
     for (body, kind) in [
         (
             "const x=style.ref(...args);",
-            CompileDiagnostic::InvalidRefArgument,
+            LintDiagnostic::InvalidRefArgument,
         ),
         (
             "const x=style.keyframes(...args);",
-            CompileDiagnostic::InvalidKeyframesDefinition,
+            LintDiagnostic::InvalidKeyframesDefinition,
         ),
         (
             "const a=style.keyframes({from:'flex'}); const x=style(a(...args));",
-            CompileDiagnostic::InvalidKeyframesOptions,
+            LintDiagnostic::InvalidKeyframesOptions,
         ),
         (
             "const x=style.viewTransition(...args);",
-            CompileDiagnostic::InvalidViewTransitionDefinition,
+            LintDiagnostic::InvalidViewTransitionDefinition,
         ),
         (
             "const r=style.ref(); const x=style(r.asContainer(...args));",
-            CompileDiagnostic::InvalidContainerType,
+            LintDiagnostic::InvalidContainerType,
         ),
         (
             "const r=style.ref(); const x=style({[r.at(...args)]: 'flex'});",
-            CompileDiagnostic::NonStaticRefVariant,
+            LintDiagnostic::NonStaticRefVariant,
         ),
         (
             "const r=style.ref(); const x=style({[r.at('width > 1px',...args)]: 'flex'});",
-            CompileDiagnostic::NonStaticRefVariant,
+            LintDiagnostic::NonStaticRefVariant,
         ),
     ] {
         let source = SourceFile::new(
@@ -164,7 +166,7 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
             ScriptModuleKind::Unambiguous,
         );
         let diagnostic = parsed
-            .diagnostics
+            .lint_findings
             .iter()
             .find(|diagnostic| diagnostic.diagnostic == kind)
             .unwrap_or_else(|| panic!("missing {kind:?} for {body}: {:?}", parsed.diagnostics));
@@ -181,10 +183,10 @@ fn spread_arguments_in_asset_macros_report_diagnostics() {
 #[test]
 fn ref_declarations_require_literal_labels_and_supported_arity() {
     for (arguments, expected) in [
-        ("label", CompileDiagnostic::InvalidRefArgument),
-        ("42", CompileDiagnostic::InvalidRefArgument),
-        ("`item`", CompileDiagnostic::InvalidRefArgument),
-        ("'one', 'two'", CompileDiagnostic::InvalidRefArguments),
+        ("label", LintDiagnostic::InvalidRefArgument),
+        ("42", LintDiagnostic::InvalidRefArgument),
+        ("`item`", LintDiagnostic::InvalidRefArgument),
+        ("'one', 'two'", LintDiagnostic::InvalidRefArguments),
     ] {
         let source = SourceFile::new(
             FileId(1),
@@ -203,13 +205,18 @@ fn ref_declarations_require_literal_labels_and_supported_arity() {
         );
         assert!(
             parsed
-                .diagnostics
+                .lint_findings
                 .iter()
                 .any(|error| error.diagnostic == expected),
             "{arguments}: {:?}",
             parsed.diagnostics
         );
-        assert!(parsed.module.ref_definitions.is_empty(), "{arguments}");
+        assert!(parsed.diagnostics.is_empty(), "{arguments}: {parsed:#?}");
+        assert_eq!(parsed.module.ref_definitions.len(), 1, "{arguments}");
+        assert!(
+            parsed.module.ref_definitions[0].label.is_none(),
+            "{arguments}"
+        );
     }
 }
 

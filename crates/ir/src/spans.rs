@@ -63,6 +63,9 @@ impl ModuleIr {
         for cva in &mut result.cva_calls {
             cva.span = map(cva.span)?;
             cva.callee_span = map(cva.callee_span)?;
+            for replacement in &mut cva.replacements {
+                replacement.span = map(replacement.span)?;
+            }
             for value in &mut cva.values {
                 value.span = map(value.span)?;
                 for input in &mut value.inputs {

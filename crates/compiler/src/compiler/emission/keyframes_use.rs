@@ -1,7 +1,7 @@
 //! Animation uses, static and dynamic, and the declarations they contribute.
 
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
-use stillwind_diagnostics::CompileError;
+use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
@@ -33,14 +33,20 @@ impl CallEmitter<'_> {
         fold: bool,
     ) -> Option<Emitted> {
         self.required_definitions.insert(keyframes.identity.clone());
-        let plan =
-            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let plan = StyleVariantPlan::resolve(
+            self.identifiers,
+            wrappers,
+            self.theme,
+            self.diagnostics,
+            self.lint_findings,
+        )?;
         let mut utility = resolve_keyframes_use(
             self.identifiers,
             keyframes,
             options,
             self.theme,
             self.diagnostics,
+            self.lint_findings,
         );
         plan.apply_rule(&mut utility);
         let canonical = format!(
@@ -53,7 +59,6 @@ impl CallEmitter<'_> {
             canonical,
             utilities: vec![utility],
             markers: Vec::new(),
-            external: Vec::new(),
             plain: Vec::new(),
             view_transitions: Vec::new(),
         };
@@ -76,8 +81,13 @@ impl CallEmitter<'_> {
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
-        let plan =
-            StyleVariantPlan::resolve(self.identifiers, wrappers, self.theme, self.diagnostics)?;
+        let plan = StyleVariantPlan::resolve(
+            self.identifiers,
+            wrappers,
+            self.theme,
+            self.diagnostics,
+            self.lint_findings,
+        )?;
         let mut candidates = Vec::new();
         for keyframes in keyframes {
             self.runtime_assets.insert(keyframes.identity.clone());
@@ -95,6 +105,7 @@ impl CallEmitter<'_> {
                 options,
                 self.theme,
                 self.diagnostics,
+                self.lint_findings,
             );
             plan.apply_rule(&mut utility);
             let canonical = format!(
@@ -105,7 +116,6 @@ impl CallEmitter<'_> {
                 canonical,
                 utilities: vec![utility],
                 markers: Vec::new(),
-                external: Vec::new(),
                 plain: Vec::new(),
                 view_transitions: Vec::new(),
             };
@@ -126,6 +136,7 @@ fn resolve_keyframes_use(
     options: &Spanned<String>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) -> CompiledUtility {
     let mut declaration = format!(
         "animation-name:{};",
@@ -138,7 +149,14 @@ fn resolve_keyframes_use(
         }
     );
     declaration.push_str(
-        &resolve_options(options, OptionVariants::Rejected, theme, diagnostics).declaration,
+        &resolve_options(
+            options,
+            OptionVariants::Rejected,
+            theme,
+            diagnostics,
+            lint_findings,
+        )
+        .declaration,
     );
     CompiledUtility {
         source: UtilitySource::default(),

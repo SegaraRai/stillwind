@@ -126,18 +126,20 @@ fn plain_parser_dialects_supply_defaults_without_reading_module_names() {
 
 #[test]
 fn explicit_adapter_conflicts_and_mixed_macros_remain_fatal() {
-    let mut source = input(
-        "import { style } from 'stillwind/vue';",
-        ScriptLanguage::Tsx,
-        SourceFormat::Jsx,
-    );
-    source.framework = Some(AdapterKind::React);
-    let scan = OxcSourceAnalyzer.scan_input(source);
-    assert_eq!(
-        scan.diagnostics[0].diagnostic,
-        CompileDiagnostic::FrameworkConflict
-    );
-    assert_eq!(scan.lint_findings, []);
+    for adapter in [AdapterKind::React, AdapterKind::Solid] {
+        let mut source = input(
+            "import { style } from 'stillwind/vue';",
+            ScriptLanguage::Tsx,
+            SourceFormat::Jsx,
+        );
+        source.framework = Some(adapter);
+        let scan = OxcSourceAnalyzer.scan_input(source);
+        assert_eq!(
+            scan.diagnostics[0].diagnostic,
+            CompileDiagnostic::FrameworkConflict
+        );
+        assert_eq!(scan.lint_findings, []);
+    }
 
     let scan = OxcSourceAnalyzer.scan_input(input(
         "import { style as a } from 'stillwind/react'; import { style as b } from 'stillwind/vue';",

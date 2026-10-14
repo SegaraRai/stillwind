@@ -230,8 +230,13 @@ fn invalid_ref_variants_report_diagnostics_without_unscoped_output() {
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
-        assert!(!result.diagnostics.is_empty(), "{args}");
-        assert!(result.transforms.is_empty(), "{args}");
+        assert!(result.diagnostics.is_empty(), "{args}: {result:#?}");
+        assert!(!result.lint_findings.is_empty(), "{args}");
+        assert!(
+            !result.module_css.contains("color:"),
+            "{args}: {}",
+            result.module_css
+        );
     }
 }
 

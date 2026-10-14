@@ -4,11 +4,12 @@ use oxc::ast::ast::{ArrayExpression, ArrayExpressionElement, CallExpression, Exp
 use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{ClassExpression, ConditionalBranches, StyleInput};
-use stillwind_semantic::{ExportedValue, IdentityId};
+use stillwind_semantic::{AssetKind, IdentityId};
 
 use crate::local_span::LocalSpan;
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -29,38 +30,13 @@ impl<'a> MacroExtractor<'a> {
     /// Checker facts win over local knowledge; otherwise an identifier is resolved
     /// through local binding values and a conditional is the union of its branches. The
     /// result is a deduplicated set, so callers must not read the order as source
-    /// order. `None` means the value is not a resolvable style candidate at all.
-    pub(crate) fn style_candidates(&self, expression: &Expression<'a>) -> Option<Vec<IdentityId>> {
-        self.record_type_probe(expression);
-        let span = expression.span();
-        if let Some(ExportedValue::Styles(value)) = self.type_fact(span) {
-            return Some(value.finite_candidates()?.iter().cloned().collect());
-        }
-        match expression {
-            Expression::Identifier(identifier) => {
-                let symbol = self
-                    .scoping
-                    .get_reference(identifier.reference_id.get()?)
-                    .symbol_id()?;
-                let ExportedValue::Styles(value) = self.local_values.get(&symbol)? else {
-                    return None;
-                };
-                Some(value.finite_candidates()?.iter().cloned().collect())
-            }
-            Expression::ConditionalExpression(conditional) => {
-                let consequent = self.style_candidates(&conditional.consequent);
-                let alternate = self.style_candidates(&conditional.alternate);
-                let mut candidates = consequent?;
-                candidates.extend(alternate?);
-                candidates.sort();
-                candidates.dedup();
-                Some(candidates)
-            }
-            Expression::ParenthesizedExpression(parenthesized) => {
-                self.style_candidates(&parenthesized.expression)
-            }
-            _ => None,
-        }
+    /// order. Failure distinguishes a confirmed unsupported value from missing
+    /// information about declaration identities.
+    pub(crate) fn style_candidates(
+        &self,
+        expression: &Expression<'a>,
+    ) -> Result<Vec<IdentityId>, ResolutionFailure> {
+        self.asset_candidates(expression, AssetKind::Style)
     }
 
     /// Records the expression's range in the AST buffer for a host checker query.
@@ -116,8 +92,12 @@ impl<'a> MacroExtractor<'a> {
         if let Expression::CallExpression(call) = expression
             && self.is_style_call(call)
         {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::NestedStyleCall,
+            self.omit_input(call.span);
+            self.consumed_use_spans.insert(LocalSpan::from(call.span));
+            self.consumed_macro_uses
+                .push(self.source_span(call.callee.span()));
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::NestedStyleCall,
                 self.source_span(call.span),
             ));
             return;
@@ -152,7 +132,7 @@ impl<'a> MacroExtractor<'a> {
             }
             _ => {}
         }
-        if let Some(candidates) = self.style_candidates(expression) {
+        if let Ok(candidates) = self.style_candidates(expression) {
             inputs.push(StyleInput::Composition {
                 value: self.source_span(expression.span()),
                 candidates,
@@ -172,10 +152,17 @@ impl<'a> MacroExtractor<'a> {
         }
         // A utility template keeps one class expression per utility segment, so it
         // matches a whitespace-separated utility list.
-        if let Expression::TemplateLiteral(template) = expression
-            && let Some(expressions) = self.utility_template_expressions(template)
+        if let Expression::TemplateLiteral(template) = expression {
+            if let Some(expressions) = self.utility_template_expressions(template) {
+                inputs.extend(expressions.into_iter().map(StyleInput::Class));
+            }
+            return;
+        }
+        if self
+            .consumed_use_spans
+            .contains(&LocalSpan::from(expression.span()))
         {
-            inputs.extend(expressions.into_iter().map(StyleInput::Class));
+            self.omit_input(expression.span());
             return;
         }
         if let Some(class) = self.class_expression(expression) {
@@ -197,8 +184,9 @@ impl<'a> MacroExtractor<'a> {
                     ) {
                         self.collect_style_expression(&spread.argument, &mut elements);
                     } else {
-                        self.diagnostics.push(CompileError::new(
-                            CompileDiagnostic::StyleArraySpread,
+                        self.omit_input(spread.span);
+                        self.lint_findings.push(LintFinding::new(
+                            LintDiagnostic::StyleArraySpread,
                             self.source_span(spread.span),
                         ));
                     }
@@ -231,8 +219,9 @@ impl<'a> MacroExtractor<'a> {
         inputs: &mut Vec<StyleInput>,
     ) {
         let Expression::ArrayExpression(array) = expression.get_inner_expression() else {
-            self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::StyleArgumentSpread,
+            self.omit_input(expression.span());
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::StyleArgumentSpread,
                 self.source_span(expression.span()),
             ));
             return;

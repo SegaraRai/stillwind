@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileError, LintDiagnostic};
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleIr, RefCondition, RuleExpression, ScriptLanguage,
     ScriptModuleKind, StyleInput, StyleVariant,
@@ -194,7 +194,7 @@ fn utility_templates_require_direct_ref_variant_segments() {
                 ScriptLanguage::Tsx,
                 ScriptModuleKind::Unambiguous
             )
-            .diagnostics
+            .lint_findings
             .is_empty(),
             "{expression}"
         );
@@ -349,21 +349,18 @@ fn stateful_scope_conditions_keep_prefixes_spans_and_chain_order() {
 #[test]
 fn ref_scopes_reject_invalid_arguments_and_nested_scope_operands() {
     for (expression, expected) in [
-        (
-            "trigger().in()",
-            CompileDiagnostic::InvalidRefScopeArguments,
-        ),
+        ("trigger().in()", LintDiagnostic::InvalidRefScopeArguments),
         (
             "trigger().in(parent, outer)",
-            CompileDiagnostic::InvalidRefScopeArguments,
+            LintDiagnostic::InvalidRefScopeArguments,
         ),
         (
             "trigger().in(...parents)",
-            CompileDiagnostic::InvalidRefScopeArguments,
+            LintDiagnostic::InvalidRefScopeArguments,
         ),
         (
             "trigger().in(parent().in(outer))",
-            CompileDiagnostic::NestedRefScope,
+            LintDiagnostic::NestedRefScope,
         ),
     ] {
         let source = SourceFile::new(FileId(1), None, None, format!(
@@ -379,7 +376,7 @@ fn ref_scopes_reject_invalid_arguments_and_nested_scope_operands() {
         );
         assert!(
             parsed
-                .diagnostics
+                .lint_findings
                 .iter()
                 .any(|error| error.diagnostic == expected),
             "{expression}: {:?}",
@@ -414,11 +411,11 @@ fn container_queries_and_projections_cannot_supply_ref_variant_receivers_or_scop
             ScriptModuleKind::Unambiguous,
         );
         assert!(
-            parsed.diagnostics.iter().any(|error| matches!(
-                error.diagnostic,
-                CompileDiagnostic::InvalidRefVariantReceiver
-                    | CompileDiagnostic::InvalidRefScopeArguments
-                    | CompileDiagnostic::UnidentifiedRefVariant
+            parsed.lint_findings.iter().any(|finding| matches!(
+                finding.diagnostic,
+                LintDiagnostic::InvalidRefVariantReceiver
+                    | LintDiagnostic::InvalidRefScopeArguments
+                    | LintDiagnostic::UnidentifiedRefVariant
             )),
             "{expression}: {:?}",
             parsed.diagnostics

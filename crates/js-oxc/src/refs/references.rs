@@ -1,20 +1,20 @@
 //! Resolving an expression back to the refs it may denote.
 //!
-//! Resolution order is fixed: checker facts for the exact expression span, then a local
-//! declaration, then a local symbolic value. Imported assets are reconstructed from
+//! Checker facts for the exact expression span take precedence over local symbolic
+//! values. Imported assets are reconstructed from
 //! their identities plus host metadata, so a ref declared in another module behaves
 //! like a local one without this module seeing that file.
 //!
-//! A value that resolves to several candidates stays plural. Callers that need exactly
-//! one candidate use the singular helpers, which return `None` instead of picking one.
+//! A value that resolves to several candidates stays plural. Failure distinguishes
+//! confirmed unsupported values from missing information about identities.
 
 use oxc::ast::ast::Expression;
-use oxc::span::GetSpan;
 
 use stillwind_ir::RefDefinition;
-use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
+use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{Span, Spanned};
 
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
@@ -22,57 +22,17 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Records a type probe for non-literal expressions, so the host checker can answer
     /// on a later pass when local analysis cannot.
-    pub(crate) fn ref_references(&self, expression: &Expression<'a>) -> Option<Vec<RefDefinition>> {
-        let expression = expression.get_inner_expression();
-        if let Expression::ConditionalExpression(conditional) = expression {
-            let consequent = self.ref_references(&conditional.consequent);
-            let alternate = self.ref_references(&conditional.alternate);
-            let mut refs = consequent?;
-            for definition in alternate? {
-                if !refs
+    pub(crate) fn ref_references(
+        &self,
+        expression: &Expression<'a>,
+    ) -> Result<Vec<RefDefinition>, ResolutionFailure> {
+        self.asset_candidates(expression, AssetKind::Ref)
+            .map(|identities| {
+                identities
                     .iter()
-                    .any(|candidate| self.ref_identity(candidate) == self.ref_identity(&definition))
-                {
-                    refs.push(definition);
-                }
-            }
-            return Some(refs);
-        }
-        let span = expression.span();
-        self.record_type_probe(expression);
-        if let Some(ExportedValue::Refs(value)) = self.type_fact(span) {
-            return self.refs_from_value(value);
-        }
-        let Expression::Identifier(identifier) = expression else {
-            return None;
-        };
-        let reference_id = identifier.reference_id.get()?;
-        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
-        if let Some(definition) = self.ref_symbols.get(&symbol_id) {
-            return Some(vec![definition.clone()]);
-        }
-        let ExportedValue::Refs(value) = self.local_values.get(&symbol_id)? else {
-            return None;
-        };
-        self.refs_from_value(value)
-    }
-
-    /// Resolves finite ref candidates to their declaration definitions.
-    ///
-    /// Returns `None` for a universe value or a non-ref kind. An empty finite set
-    /// returns an empty vector. Candidate order follows [`IdentityId`] ordering, and
-    /// local declaration metadata is reused when available.
-    pub(crate) fn refs_from_value(&self, value: &SymbolicValue) -> Option<Vec<RefDefinition>> {
-        if value.kind() != AssetKind::Ref {
-            return None;
-        }
-        Some(
-            value
-                .finite_candidates()?
-                .iter()
-                .map(|identity| self.imported_ref(identity))
-                .collect(),
-        )
+                    .map(|identity| self.imported_ref(identity))
+                    .collect()
+            })
     }
 
     /// Resolves a ref identity to a local definition or reconstructs its metadata.
@@ -130,7 +90,7 @@ mod tests {
 
     use oxc::semantic::Scoping;
 
-    use stillwind_semantic::AssetMetadata;
+    use stillwind_semantic::{AssetMetadata, SymbolicValue};
     use stillwind_source::{FileId, ModuleId, SourceFile};
 
     use super::*;
@@ -214,39 +174,16 @@ mod tests {
         let local_id = extractor.identity(AssetKind::Ref, &local.binding);
         extractor.ref_definitions.push(local.clone());
         let value = SymbolicValue::finite(AssetKind::Ref, [imported.clone(), local_id]).unwrap();
-        let refs = extractor.refs_from_value(&value).unwrap();
+        let refs = value
+            .finite_candidates()
+            .unwrap()
+            .iter()
+            .map(|identity| extractor.imported_ref(identity))
+            .collect::<Vec<_>>();
         assert_eq!(refs[0], local);
         assert_eq!(refs[1].module_id, *imported.module_id());
         assert_eq!(refs[1].binding.value, *imported.binding_name());
         assert_eq!(refs[1].label.as_ref().unwrap().value, "label");
         assert_eq!(refs[1].call_span, Span::new(source.id(), 2, 10));
-    }
-
-    #[test]
-    fn ref_resolution_distinguishes_empty_universe_and_invalid_candidates() {
-        let source = SourceFile::new(FileId(1), None, None, "").unwrap();
-        let module_id = ModuleId::from("local.ts");
-        let scoping = Scoping::default();
-        let metadata = BTreeMap::new();
-        let extractor = MacroExtractor::new(
-            &source,
-            &module_id,
-            &scoping,
-            &[],
-            &metadata,
-            &source,
-            &Some,
-        );
-        let empty = SymbolicValue::finite(AssetKind::Ref, []).unwrap();
-        assert_eq!(extractor.refs_from_value(&empty), Some(Vec::new()));
-        assert_eq!(
-            extractor.refs_from_value(&SymbolicValue::universe(AssetKind::Ref)),
-            None
-        );
-        let wrong = IdentityId::new(AssetKind::Keyframes, "other.ts".into(), 0, 1, "frames");
-        assert_eq!(
-            extractor.refs_from_value(&SymbolicValue::exact(wrong.clone())),
-            None
-        );
     }
 }

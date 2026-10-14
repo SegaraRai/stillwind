@@ -19,9 +19,10 @@ const selected = condition ? first : second;
 selected;
 export const selectedStyle = style('block');
 selectedStyle;`;
+  const code = `${sourceCode}\nconst ordinary={value:42};\nordinary;\nordinary.value;\nconst factory=()=>42;\nfactory();\nconst attributes=style({'data-ready':true});\nconst composed=style(attributes,'block');\nattributes;`;
   const file = path.join(root, ".test-browser-facts.ts");
   const virtual = "/workspace/.test-browser-facts.ts";
-  const assets = summarizeSource(sourceCode, "entry.ts", "ts", "module").assets;
+  const assets = summarizeSource(code, "entry.ts", "ts", "module").assets;
   /**
    * Creates equivalent original-coordinate input for the Node or browser checker.
    * @param id - Checker and resolver path in the chosen environment.
@@ -43,7 +44,7 @@ selectedStyle;`;
     projectionFileName: id,
     document: {
       uri: "file:///workspace/entry.ts",
-      code: sourceCode,
+      code,
       format: "script",
     },
     syntax: {
@@ -59,6 +60,10 @@ selectedStyle;`;
         start: sourceCode.lastIndexOf("selectedStyle;"),
         end: sourceCode.lastIndexOf("selectedStyle;") + "selectedStyle".length,
       },
+      ...["ordinary", "ordinary.value", "factory()", "attributes"].map((expression) => ({
+        start: code.lastIndexOf(`${expression};`),
+        end: code.lastIndexOf(`${expression};`) + expression.length,
+      })),
     ],
   });
   const files = new Map<string, string>();
@@ -82,7 +87,7 @@ selectedStyle;`;
   try {
     const declarations = new Map([["entry.ts", assets]]);
     const actual = browser.collect([source(virtual)], declarations);
-    const candidates = actual.get("entry.ts")?.[0].value.value.candidates;
+    const candidates = actual.get("entry.ts")?.[0].value?.value.candidates;
     expect(candidates?.kind).toBe("finite");
     if (candidates?.kind !== "finite") {
       expect.fail("expected a finite candidate set");
@@ -94,9 +99,16 @@ selectedStyle;`;
       expect.fail("expected finite style candidates");
     }
     expect(styles.value.candidates.values).toHaveLength(1);
+    expect(
+      actual
+        .get("entry.ts")!
+        .slice(2, 5)
+        .map(({ value }) => value),
+    ).toStrictEqual([null, null, null]);
+    expect(actual.get("entry.ts")![5].value?.kind).toBe("styles");
     expect(actual).toEqual(
       node.collect([source(file)], declarations, {
-        overlayFiles: new Map([[file, sourceCode]]),
+        overlayFiles: new Map([[file, code]]),
       }),
     );
     const widened = sourceCode.replace(

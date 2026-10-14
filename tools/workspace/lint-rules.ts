@@ -88,7 +88,7 @@ function presetEntries(name: string) {
       ...presetSource
         .split(`const ${name}:`)[1]
         .split("];")[0]
-        .matchAll(/\(\s*LintKind::(\w+),\s*LintSeverity::(\w+)\s*\)/g),
+        .matchAll(/\(\s*LintKind::(\w+),\s*LintSeverity::(\w+)\s*,?\s*\)/g),
     ].map(([, variant, severity]) => {
       const rule = rules.find((rule) => rule.variant === variant);
       if (!rule) {

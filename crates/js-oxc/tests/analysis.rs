@@ -7,13 +7,206 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
-    AssetKind, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact, TypeFacts,
+    AssetKind, CheckedValue, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact,
+    TypeFacts,
 };
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile};
+
+#[test]
+fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
+    for (value, fatal) in [
+        (Some(CheckedValue::NonAsset), false),
+        (
+            Some(
+                ExportedValue::Keyframes(SymbolicValue::finite(AssetKind::Keyframes, []).unwrap())
+                    .into(),
+            ),
+            false,
+        ),
+        (None, true),
+        (
+            Some(ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref)).into()),
+            true,
+        ),
+        (
+            Some(ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Keyframes)).into()),
+            true,
+        ),
+    ] {
+        let source = SourceFile::new(FileId(1), None, None,
+            "import {style} from 'stillwind/react'; import {candidate} from './values'; const x=style('flex',candidate,candidate.asAnchor(),{[candidate('hover:')]: 'grid'});").unwrap();
+        let facts = source
+            .text()
+            .match_indices("candidate")
+            .skip(1)
+            .filter_map(|(start, _)| {
+                value.clone().map(|value| TypeFact {
+                    start: u32::try_from(start).unwrap(),
+                    end: u32::try_from(start + 9).unwrap(),
+                    value,
+                })
+            })
+            .collect::<Vec<_>>();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("consumer.ts"),
+            &facts,
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        assert_eq!(
+            !parsed.diagnostics.is_empty(),
+            fatal,
+            "{value:?}: {parsed:#?}"
+        );
+        if fatal {
+            assert!(
+                parsed.diagnostics.iter().all(|error| matches!(
+                    error.diagnostic,
+                    CompileDiagnostic::RefFactsRequired
+                        | CompileDiagnostic::RefProjectionFactsRequired
+                )),
+                "{parsed:#?}"
+            );
+        } else {
+            assert_eq!(parsed.lint_findings.len(), 3, "{parsed:#?}");
+            assert_eq!(parsed.module.style_calls[0].inputs.len(), 1, "{parsed:#?}");
+        }
+    }
+}
+
+#[test]
+fn ref_variant_factories_require_finite_candidates_and_mixed_branches_remain_fatal() {
+    for (receiver, expected) in [
+        ("factory()", None),
+        (
+            "enabled ? ref : candidate",
+            Some(CompileDiagnostic::RefFactsRequired),
+        ),
+        ("enabled ? candidate : candidate", None),
+    ] {
+        let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; const ref=style.ref(); const x=style({{[({receiver})('hover:')]: 'flex'}});")).unwrap();
+        let local = parse(
+            &source,
+            &ModuleId::from("consumer.ts"),
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        let definition = &local.module.ref_definitions[0];
+        let identity = stillwind_semantic::IdentityId::new(
+            AssetKind::Ref,
+            definition.module_id.clone(),
+            definition.binding.span.start.0,
+            definition.binding.span.end.0,
+            definition.binding.value.clone(),
+        );
+        let value = ExportedValue::Refs(SymbolicValue::exact(identity));
+        let facts = source
+            .text()
+            .match_indices(if receiver == "factory()" {
+                "factory()"
+            } else {
+                "candidate"
+            })
+            .map(|(start, text)| TypeFact {
+                start: u32::try_from(start).unwrap(),
+                end: u32::try_from(start + text.len()).unwrap(),
+                value: if receiver == "factory()" {
+                    value.clone().into()
+                } else {
+                    CheckedValue::NonAsset
+                },
+            })
+            .collect::<Vec<_>>();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("consumer.ts"),
+            &facts,
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        if let Some(diagnostic) = expected {
+            assert!(
+                parsed
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.diagnostic == diagnostic),
+                "{parsed:#?}"
+            );
+        } else {
+            assert!(parsed.diagnostics.is_empty(), "{parsed:#?}");
+            if receiver == "factory()" {
+                assert!(parsed.lint_findings.is_empty(), "{parsed:#?}");
+                assert_eq!(parsed.module.style_calls[0].inputs.len(), 1);
+            } else {
+                assert_eq!(
+                    parsed.lint_findings[0].diagnostic,
+                    LintDiagnostic::UnidentifiedRefVariant
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn raw_ref_factories_work_as_scopes_when_the_checker_proves_their_identities() {
+    for expression in ["factory()", "factory``"] {
+        let source = SourceFile::new(FileId(1), None, None, format!(
+            "import {{style}} from 'stillwind/react'; const ref=style.ref(); const x=style({{[ref('hover:').in({expression})]: 'flex'}}, ({expression}).asAnchor());"
+        )).unwrap();
+        let local = parse(
+            &source,
+            &ModuleId::from("consumer.ts"),
+            &[],
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        assert!(
+            local.diagnostics.iter().any(|error| matches!(
+                error.diagnostic,
+                CompileDiagnostic::RefFactsRequired | CompileDiagnostic::RefProjectionFactsRequired
+            )),
+            "{local:#?}"
+        );
+        let definition = &local.module.ref_definitions[0];
+        let identity = stillwind_semantic::IdentityId::new(
+            AssetKind::Ref,
+            definition.module_id.clone(),
+            definition.binding.span.start.0,
+            definition.binding.span.end.0,
+            definition.binding.value.clone(),
+        );
+        let facts = source
+            .text()
+            .match_indices(expression)
+            .map(|(start, text)| TypeFact {
+                start: u32::try_from(start).unwrap(),
+                end: u32::try_from(start + text.len()).unwrap(),
+                value: ExportedValue::Refs(SymbolicValue::exact(identity.clone())).into(),
+            })
+            .collect::<Vec<_>>();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("consumer.ts"),
+            &facts,
+            &BTreeMap::new(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Module,
+        );
+        assert!(parsed.diagnostics.is_empty(), "{parsed:#?}");
+        assert!(parsed.lint_findings.is_empty(), "{parsed:#?}");
+        assert_eq!(parsed.module.style_calls[0].inputs.len(), 2);
+    }
+}
 
 #[test]
 fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
@@ -32,7 +225,7 @@ fn fresh_facts_with_invalid_symbolic_kinds_are_rejected_at_both_entries() {
         facts: vec![TypeFact {
             start: 10,
             end: 11,
-            value: ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Ref)),
+            value: ExportedValue::Keyframes(SymbolicValue::universe(AssetKind::Ref)).into(),
         }],
         assets: BTreeMap::new(),
     };

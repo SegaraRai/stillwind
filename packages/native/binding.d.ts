@@ -293,7 +293,7 @@ export interface BindingAction {
 export interface BindingDiagnostic {
   /** Whether the producer identified a range or only the document. */
   scope: 'range' | 'document'
-  /** Stable diagnostic code, such as `SW02003`. */
+  /** Stable diagnostic code, such as `SW01012`. */
   code: string
   /** Rendered message. */
   message: string
@@ -1067,8 +1067,36 @@ export interface NativeLintOptions {
   macroArgumentMutation?: string
   /** Settings for `macro-execution-boundary`. */
   macroExecutionBoundary?: string
+  /** Settings for `invalid-motion-utility`. */
+  invalidMotionUtility?: string
   /** Settings for `invalid-variant-input`. */
   invalidVariantInput?: string
+  /** Settings for `invalid-style-input`. */
+  invalidStyleInput?: string
+  /** Settings for `invalid-cva-config`. */
+  invalidCvaConfig?: string
+  /** Settings for `invalid-cva-input`. */
+  invalidCvaInput?: string
+  /** Settings for `invalid-keyframes-use`. */
+  invalidKeyframesUse?: string
+  /** Settings for `invalid-keyframes-definition`. */
+  invalidKeyframesDefinition?: string
+  /** Settings for `invalid-keyframes-variant`. */
+  invalidKeyframesVariant?: string
+  /** Settings for `invalid-view-transition-use`. */
+  invalidViewTransitionUse?: string
+  /** Settings for `invalid-view-transition-definition`. */
+  invalidViewTransitionDefinition?: string
+  /** Settings for `invalid-view-transition-variant`. */
+  invalidViewTransitionVariant?: string
+  /** Settings for `invalid-ref-input`. */
+  invalidRefInput?: string
+  /** Settings for `invalid-variant-prefix`. */
+  invalidVariantPrefix?: string
+  /** Settings for `invalid-animation-option`. */
+  invalidAnimationOption?: string
+  /** Settings for `invalid-style-composition`. */
+  invalidStyleComposition?: string
   /** Settings for `valid-anchor-scope`. */
   validAnchorScope?: string
   /** Settings for `require-ref-attachment`. */
@@ -1506,8 +1534,8 @@ export interface NativeTypeFact {
   start: number
   /** Byte end of the expression in the original source. */
   end: number
-  /** The resolved value. */
-  value: NativeExportedValue
+  /** Checked asset value, or `null` for a confirmed non-asset. */
+  value: NativeExportedValue | null
 }
 
 /** Expression range queried for lowering or optional macro recognition. */

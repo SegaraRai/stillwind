@@ -1,5 +1,7 @@
 //! Checks composition ordering and provider contributions.
 
+use stillwind_diagnostics::LintDiagnostic;
+
 use super::*;
 
 #[test]
@@ -47,15 +49,11 @@ fn composition_rejects_props_and_nested_calls() {
     for (code, expected) in [
         (
             "const a=style({'data-x':1});const b=style(a,'flex');",
-            CompileDiagnostic::StyleBaseWithProps,
+            LintDiagnostic::StyleBaseWithProps,
         ),
         (
             "const a=style(style('flex'),'block');",
-            CompileDiagnostic::NestedStyleCall,
-        ),
-        (
-            "const a=style(b,'flex');const b=style(a,'block');",
-            CompileDiagnostic::CompositionCycle,
+            LintDiagnostic::NestedStyleCall,
         ),
     ] {
         let source = SourceFile::new(
@@ -77,7 +75,7 @@ fn composition_rejects_props_and_nested_calls() {
         );
         assert!(
             output
-                .diagnostics
+                .lint_findings
                 .iter()
                 .any(|error| error.diagnostic == expected),
             "{:?}",

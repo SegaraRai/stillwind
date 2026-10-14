@@ -127,10 +127,15 @@ if (flag) {
 const props = style(selected, "blue");
 `,
     }),
-  ).rejects.toThrow(/SW06005/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
 });
 
-test("rejects a CSS module cycle even when the style graph is acyclic", async () => {
+test("rejects cyclic module placement when style dependencies are acyclic", async () => {
   await expect(
     compile({
       "entry.ts": `
@@ -167,7 +172,12 @@ function select() {
 }
 const props = style(select(), "blue");`,
     }),
-  ).rejects.toThrow(/SW06005/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
   await expect(
     compile({
       "entry.ts": `
@@ -189,7 +199,12 @@ if (flag) {
 }
 `,
     }),
-  ).rejects.toThrow(/SW06005/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
 });
 
 test("parameterized factories preserve all base origins", async () => {
@@ -208,7 +223,12 @@ function select(flag) {
 const props = style(select(flag), "blue");
 `,
     }),
-  ).rejects.toThrow(/SW06005/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
   const output = await compile({
     "entry.ts": `
 import { style } from "stillwind/react";
@@ -236,7 +256,12 @@ if (flag) {
 const props = style(choice.value, "blue");
 `,
     }),
-  ).rejects.toThrow(/SW06005/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
 });
 
 test("unrelated JavaScript cycles do not become CSS ordering errors", async () => {
@@ -260,6 +285,25 @@ export function other() {
 export const base = style("red");`,
   });
   expect(output.code!).toMatch(/stillwindMerge/);
+});
+
+test("logical values require checked candidates or a confirmed non-asset", async () => {
+  for (const expression of ["enabled || 'red'", "enabled ?? 'red'"]) {
+    const output = await compile({
+      "entry.ts": `import {style} from 'stillwind/react'; declare const enabled:boolean; const props=style(${expression},'blue');`,
+    });
+    expect(output.diagnostics).toStrictEqual([]);
+    expect(output.lintFindings.map(({ rule }) => rule)).toContain("invalid-style-input");
+    expect(output.composition).toStrictEqual([]);
+  }
+  const output = await compile({
+    "entry.ts":
+      "import {style} from 'stillwind/react'; const base=style('red'); declare const maybe:typeof base|undefined; const props=style(maybe??base,'blue');",
+  });
+  expect(output.diagnostics).toStrictEqual([]);
+  expect(output.lintFindings).toStrictEqual([]);
+  expect(output.composition).toHaveLength(1);
+  expect(output.code).toContain("maybe??base");
 });
 
 test("conditional utilities keep their branches alongside a runtime-selected base", async () => {
@@ -288,14 +332,20 @@ globalThis.result = { a, b, props };
   }
 });
 
-test("rejects unknown, props-bearing, nested, and incompatible-framework bases", async () => {
+test("omits unsupported bases and retains fatal macro uses outside supported inputs", async () => {
+  await expect(
+    compile({
+      "entry.ts":
+        'import { style } from "stillwind/react"; const base = { className: "user" }; const props = style(base, "blue");',
+    }),
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-input" }),
+    ]),
+  });
   for (const [body, error] of [
-    ['const base = { className: "user" };\nconst props = style(base, "blue");', /SW12004/],
-    [
-      'const a = style("red");\nconst b = style("green", { "data-x": 1 });\nconst merged = style(a, b);\nconst props = style(merged, "blue");',
-      /SW06005/,
-    ],
-    ['const props = style({ "data-x": style("red") });', /SW06001/],
+    ['const props = style({ "data-x": style("red") });', /SW11010/],
   ] as const) {
     await expect(
       compile({
@@ -309,7 +359,12 @@ test("rejects unknown, props-bearing, nested, and incompatible-framework bases",
         'import { style } from "stillwind/react";\nimport { base } from "./base";\nconst props = style(base, \n"blue");\n',
       "base.ts": 'import { style } from "stillwind/solid";\nexport const base = style("red");\n',
     }),
-  ).rejects.toThrow(/SW06006/);
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-composition" }),
+    ]),
+  });
 });
 
 test("composition follows imported and re-exported style producers", async () => {
@@ -361,7 +416,12 @@ test("composition follows imported and re-exported style producers", async () =>
       "base.ts",
       'import { style } from "stillwind/react";\nexport const a = style("red", { "data-x": 1 });\nexport const b = style("green");\n',
     );
-    await expect(compile()).rejects.toThrow(/SW06005/);
+    await expect(compile()).resolves.toMatchObject({
+      diagnostics: [],
+      lintFindings: expect.arrayContaining([
+        expect.objectContaining({ rule: "invalid-style-composition" }),
+      ]),
+    });
   } finally {
     facts.close();
   }

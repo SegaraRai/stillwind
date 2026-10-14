@@ -9,9 +9,9 @@
 use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
-    LengthUnitRule, LengthUnitsOverride, LintDiagnostic, LintFinding, LintKind, LintOverrides,
-    LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
-    RestrictedThemeTokensOverride, RestrictedUtilitiesOverride, RestrictedUtilityRule,
+    LengthUnitRule, LengthUnitsOverride, LintFinding, LintKind, LintOverrides, LintSeverity,
+    RestrictedDeclarationRule, RestrictedDeclarationsOverride, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
 use stillwind_test_support::with_defaults;
 

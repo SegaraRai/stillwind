@@ -13,7 +13,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LabelScope, LintDiagnostic};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LabelScope};
 use stillwind_ir::{
     AdapterKind, CheckerRole, ClassExpression, ConverterIdentity, DirectSource, GroupEntry,
     ImportRealm, PreparedSource, ProjectedSource, RefDefinition, RuleExpression, ScriptLanguage,

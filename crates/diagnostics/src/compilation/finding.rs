@@ -71,22 +71,22 @@ mod tests {
 
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
-        let invalid = CompileDiagnostic::InvalidVariantPrefix;
-        let unavailable = CompileDiagnostic::UnavailableVariantPrefix;
-        let unidentified = CompileDiagnostic::UnidentifiedRef;
+        let invalid = CompileDiagnostic::FrameworkConflict;
+        let unavailable = CompileDiagnostic::MixedFrameworks;
+        let unidentified = CompileDiagnostic::JavaScriptParse;
         assert_ne!(invalid, unavailable);
-        assert_eq!(invalid.code(), CompileErrorCode::InvalidVariantPrefix);
+        assert_eq!(invalid.code(), CompileErrorCode::FrameworkConflict);
         assert_ne!(unavailable.code(), invalid.code());
         assert_ne!(unidentified.code(), invalid.code());
-        assert_eq!(invalid.to_string(), "invalid variant prefix");
+        assert_eq!(
+            invalid.to_string(),
+            "explicit framework conflicts with the imported style macro"
+        );
         assert_eq!(
             unavailable.to_string(),
-            "unknown or unavailable variant prefix"
+            "a module cannot mix framework style macros"
         );
-        assert_eq!(
-            unidentified.to_string(),
-            "ref variant has no known ref identity"
-        );
+        assert_eq!(unidentified.to_string(), "JavaScript parse error");
     }
 
     #[test]

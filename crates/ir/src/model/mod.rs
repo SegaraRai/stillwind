@@ -29,7 +29,9 @@ pub use expression::{
     AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
     RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
 };
-pub use module::{CvaCall, MacroImport, MacroImportSpecifier, ModuleImports, ModuleIr};
+pub use module::{
+    CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, ModuleImports, ModuleIr,
+};
 pub use style::{
     AnchorScope, ContainerType, RefCondition, RefProjection, StyleCall, StyleInput, StyleVariant,
 };

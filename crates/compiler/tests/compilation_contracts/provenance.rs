@@ -37,7 +37,7 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
     let facts = [TypeFact {
         start,
         end: start + 6,
-        value: ExportedValue::Keyframes(SymbolicValue::exact(identity.clone())),
+        value: ExportedValue::Keyframes(SymbolicValue::exact(identity.clone())).into(),
     }];
     let parsed = parse(
         &source,

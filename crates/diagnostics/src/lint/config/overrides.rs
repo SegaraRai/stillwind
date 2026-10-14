@@ -54,8 +54,36 @@ pub struct LintOverrides {
     pub macro_argument_mutation: Option<LintSeverity>,
     /// Reporting level for `macro-execution-boundary`.
     pub macro_execution_boundary: Option<LintSeverity>,
+    /// Reporting level for `invalid-motion-utility`.
+    pub invalid_motion_utility: Option<LintSeverity>,
     /// Reporting level for omitted rule groups with incompatible inputs.
     pub invalid_variant_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-style-input`.
+    pub invalid_style_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-cva-config`.
+    pub invalid_cva_config: Option<LintSeverity>,
+    /// Reporting level for `invalid-cva-input`.
+    pub invalid_cva_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-keyframes-use`.
+    pub invalid_keyframes_use: Option<LintSeverity>,
+    /// Reporting level for `invalid-keyframes-definition`.
+    pub invalid_keyframes_definition: Option<LintSeverity>,
+    /// Reporting level for `invalid-keyframes-variant`.
+    pub invalid_keyframes_variant: Option<LintSeverity>,
+    /// Reporting level for `invalid-view-transition-use`.
+    pub invalid_view_transition_use: Option<LintSeverity>,
+    /// Reporting level for `invalid-view-transition-definition`.
+    pub invalid_view_transition_definition: Option<LintSeverity>,
+    /// Reporting level for `invalid-view-transition-variant`.
+    pub invalid_view_transition_variant: Option<LintSeverity>,
+    /// Reporting level for `invalid-ref-input`.
+    pub invalid_ref_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-variant-prefix`.
+    pub invalid_variant_prefix: Option<LintSeverity>,
+    /// Reporting level for `invalid-animation-option`.
+    pub invalid_animation_option: Option<LintSeverity>,
+    /// Reporting level for `invalid-style-composition`.
+    pub invalid_style_composition: Option<LintSeverity>,
     /// Reporting level for `valid-anchor-scope`.
     pub valid_anchor_scope: Option<LintSeverity>,
     /// Reporting level for `require-ref-attachment`.
@@ -156,6 +184,7 @@ impl LintOverrides {
     }
 
     fn resolve_reporting_levels(&self, settings: &mut LintSettings) {
+        self.resolve_input_reporting_levels(settings);
         for (kind, severity) in [
             (
                 LintKind::FrameworkImportMismatch,
@@ -170,7 +199,6 @@ impl LintOverrides {
                 self.macro_execution_boundary,
             ),
             (LintKind::ValidAnchorScope, self.valid_anchor_scope),
-            (LintKind::InvalidVariantInput, self.invalid_variant_input),
             (LintKind::RequireRefAttachment, self.require_ref_attachment),
             (
                 LintKind::ConflictingProviderProperties,
@@ -220,6 +248,51 @@ impl LintOverrides {
             (
                 LintKind::PreferLogicalProperties,
                 self.prefer_logical_properties,
+            ),
+        ] {
+            if let Some(severity) = severity {
+                settings.insert(LintConfig::new(kind, severity));
+            }
+        }
+    }
+
+    fn resolve_input_reporting_levels(&self, settings: &mut LintSettings) {
+        for (kind, severity) in [
+            (LintKind::InvalidVariantInput, self.invalid_variant_input),
+            (LintKind::InvalidMotionUtility, self.invalid_motion_utility),
+            (LintKind::InvalidStyleInput, self.invalid_style_input),
+            (LintKind::InvalidCvaConfig, self.invalid_cva_config),
+            (LintKind::InvalidCvaInput, self.invalid_cva_input),
+            (LintKind::InvalidKeyframesUse, self.invalid_keyframes_use),
+            (
+                LintKind::InvalidKeyframesDefinition,
+                self.invalid_keyframes_definition,
+            ),
+            (
+                LintKind::InvalidKeyframesVariant,
+                self.invalid_keyframes_variant,
+            ),
+            (
+                LintKind::InvalidViewTransitionUse,
+                self.invalid_view_transition_use,
+            ),
+            (
+                LintKind::InvalidViewTransitionDefinition,
+                self.invalid_view_transition_definition,
+            ),
+            (
+                LintKind::InvalidViewTransitionVariant,
+                self.invalid_view_transition_variant,
+            ),
+            (LintKind::InvalidRefInput, self.invalid_ref_input),
+            (LintKind::InvalidVariantPrefix, self.invalid_variant_prefix),
+            (
+                LintKind::InvalidAnimationOption,
+                self.invalid_animation_option,
+            ),
+            (
+                LintKind::InvalidStyleComposition,
+                self.invalid_style_composition,
             ),
         ] {
             if let Some(severity) = severity {

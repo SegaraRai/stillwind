@@ -20,60 +20,15 @@ pub enum CompileDiagnostic {
     /// Checker facts assign a symbolic value to an incompatible asset kind.
     #[error("invalid symbolic kinds in TypeScript facts")]
     InvalidSymbolicFacts,
-    /// A composition base is an inline macro call instead of a bound style value.
-    #[error("nested style() calls are not supported; bind the base to a variable")]
-    NestedStyleCall,
-    /// A style input array contains a spread that cannot be statically expanded.
-    #[error("style() array spreads require a literal array")]
-    StyleArraySpread,
     /// A style input array contains an omitted element.
     #[error("style() arrays cannot contain empty slots")]
     StyleArrayHole,
     /// A ref cannot be resolved locally without host checker facts.
     #[error("non-local or conditional refs require TypeScript checker facts")]
     RefFactsRequired,
-    /// An expression is outside the supported static style-input forms.
-    #[error(
-        "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
-    )]
-    InvalidStyleInput,
-    /// A CVA configuration cannot be enumerated statically or contains invalid choices.
-    #[error("invalid style.cva() configuration: {reason}")]
-    InvalidCvaConfig {
-        /// Concrete static syntax or selection requirement that failed.
-        reason: String,
-    },
-    /// A CVA value is outside the supported utility and custom-property forms.
-    #[error(
-        "style.cva() values require static utilities, arrays, branches, CSS variants, or custom properties"
-    )]
-    InvalidCvaInput,
-    /// An attribute object contains a spread whose properties cannot be resolved.
-    #[error("style() object spreads require a literal object")]
-    AttributeSpread,
-    /// An attribute entry is not a plain key-value property.
-    #[error("style() attributes must be plain key-value properties")]
-    InvalidAttributeProperty,
-    /// A computed attribute key cannot be resolved as a literal name or ref variant.
-    #[error("computed style() keys must be literal strings or ref variants")]
-    InvalidComputedAttribute,
-    /// An object key is neither an attribute, a class entry, nor a variant prefix.
-    #[error(
-        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
-    )]
-    InvalidAttributeKey,
-    /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
-    #[error("utility templates require direct ref variants in complete `variant:utility` segments")]
-    InvalidUtilityTemplate,
     /// One module imports style macros for more than one framework.
     #[error("a module cannot mix framework style macros")]
     MixedFrameworks,
-    /// A style call contains a spread argument whose elements cannot be resolved.
-    #[error("style() argument spreads require a literal array")]
-    StyleArgumentSpread,
-    /// A keyframes use does not supply one literal options string.
-    #[error("a keyframes use requires one literal options string")]
-    InvalidKeyframesOptions,
     /// A keyframes use appears where the call cannot become a class input.
     #[error("a keyframes use must be a class input of style()")]
     KeyframesUseNotAClassInput,
@@ -85,95 +40,12 @@ pub enum CompileDiagnostic {
         /// Display spelling of the rejected projection or variant.
         syntax: String,
     },
-    /// A keyframes declaration does not supply one static frame object.
-    #[error("style.keyframes() requires one object of static keyframe utility strings")]
-    InvalidKeyframesDefinition,
-    /// A keyframes frame object contains a spread property.
-    #[error("animation keyframes cannot use object spreads")]
-    KeyframesSpread,
-    /// A keyframes frame entry is not a plain static property.
-    #[error("animation keyframes must be plain static properties")]
-    InvalidKeyframesProperty,
-    /// A frame key cannot be interpreted as a keyframe selector.
-    #[error("keyframe selectors must be `from`, `to`, or percentage keys")]
-    InvalidKeyframesFrameKey,
-    /// A static frame selector contains an invalid percentage or selector list.
-    #[error("keyframe selectors must be `from`, `to`, or comma-separated percentages")]
-    InvalidKeyframesFrameSelector,
-    /// A frame body is not a literal utility string.
-    #[error("keyframe values must be literal utility strings")]
-    InvalidKeyframesFrameValue,
-    /// No valid frame remains after validating a keyframes declaration.
-    #[error("style.keyframes() requires at least one valid keyframe")]
-    EmptyKeyframes,
-    /// A keyframes label is not the declaration's own literal string.
-    #[error("a keyframes label must be a literal string on the declaration itself")]
-    InvalidKeyframesLabel,
-    /// A keyed transition use supplies more than one key expression.
-    #[error("viewTransition.for() accepts at most one key expression")]
-    InvalidViewTransitionKeyExpression,
-    /// A transition declaration does not supply one static definition object.
-    #[error("style.viewTransition() requires one object of static utility strings")]
-    InvalidViewTransitionDefinition,
-    /// A transition definition contains a spread property.
-    #[error("view transition definitions cannot use object spreads")]
-    ViewTransitionSpread,
-    /// A transition entry is not a plain static property.
-    #[error("view transition definitions must be plain static properties")]
-    InvalidViewTransitionProperty,
-    /// A transition entry names an unsupported pseudo-element phase.
-    #[error("view transition keys must be `group`, `old`, `new`, or `imagePair`")]
-    InvalidViewTransitionKey,
-    /// A transition body is not a literal utility string.
-    #[error("view transition values must be literal utility strings")]
-    InvalidViewTransitionValue,
-    /// No valid phase remains after validating a transition declaration.
-    #[error("style.viewTransition() requires at least one of group, old, new, or imagePair")]
-    EmptyViewTransition,
-    /// A view-transition label is not a literal string.
-    #[error("a view transition label must be a literal string")]
-    InvalidViewTransitionLabel,
-    /// A ref label is not a literal string.
-    #[error("style.ref() accepts only an optional literal label")]
-    InvalidRefArgument,
-    /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts () or (label)")]
-    InvalidRefArguments,
-    /// A ref variant's selector cannot be determined from literal text.
-    #[error("ref variants require a static variant string")]
-    NonStaticRefVariant,
-    /// A variant receiver lacks the ref identity needed for selector generation.
-    #[error("ref variants require a statically identified style.ref()")]
-    UnidentifiedRefVariant,
-    /// A shared scope call has an unsupported argument count or optional call.
-    #[error("ref.in() requires exactly one ref or unscoped ref condition")]
-    InvalidRefScopeArguments,
-    /// A scope operand itself contains a shared scope call.
-    #[error("an in() argument cannot contain in(); chain in() calls outside the argument")]
-    NestedRefScope,
-    /// A ref variant or container query is used as an unsupported receiver or operand.
-    #[error(
-        "variant receivers must be ref declarations; scope operands must be refs or unscoped ref variants"
-    )]
-    InvalidRefVariantReceiver,
-    /// A container projection does not supply a literal container type.
-    #[error("ref.asContainer() requires a valid literal CSS container type")]
-    InvalidContainerType,
-    /// Scope arguments must be keywords or statically enumerable ref arrays.
-    #[error("anchor scope requires all, none, or an array of finite ref candidates")]
-    InvalidAnchorScope,
     /// A ref projection cannot be resolved locally without host checker facts.
     #[error("non-local or conditional ref projections require TypeScript checker facts")]
     RefProjectionFactsRequired,
     /// A container query variant has an invalid argument or interpolated query.
     #[error("ref.at() accepts no arguments, one literal query, or a static template")]
     InvalidContainerQuery,
-    /// A position-anchor use supplies arguments to a method that accepts none.
-    #[error("ref.positionAnchor() does not accept arguments")]
-    InvalidPositionAnchorArguments,
-    /// A projection receiver is not an identity created by a ref declaration.
-    #[error("ref projections must use an identity returned by style.ref()")]
-    InvalidRefProjection,
     /// Style producers form a cycle within the composition graph.
     #[error("style composition dependency cycle")]
     CompositionCycle,
@@ -183,32 +55,6 @@ pub enum CompileDiagnostic {
     /// A composition dependency has no available producer artifact.
     #[error("style base producer is unavailable")]
     UnavailableStyleBase,
-    /// A composition base carries props that cannot be merged as class output.
-    #[error("style bases with additional props are not supported")]
-    StyleBaseWithProps,
-    /// A composition base uses a different framework class property.
-    #[error("style bases must use the same framework class property")]
-    StyleBaseFrameworkMismatch,
-    /// A keyframe utility contains a variant forbidden in animation frames.
-    #[error("animation keyframes cannot contain variants")]
-    KeyframesFrameVariants,
-    /// A definition-level variant cannot wrap a keyframes rule in valid CSS.
-    #[error(
-        "keyframes definition variants must be media or supports conditions; container queries do not condition global keyframes"
-    )]
-    InvalidKeyframesVariant,
-    /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
-    #[error("view transition utilities accept only media and supports condition variants")]
-    InvalidViewTransitionVariant,
-    /// A variant prefix is syntactically malformed.
-    #[error("invalid variant prefix")]
-    InvalidVariantPrefix,
-    /// A syntactically parsed variant prefix cannot be resolved in the theme.
-    #[error("unknown or unavailable variant prefix")]
-    UnavailableVariantPrefix,
-    /// A ref wrapper has no known identity and cannot safely emit a selector.
-    #[error("ref variant has no known ref identity")]
-    UnidentifiedRef,
     /// Two generated symbols would publish the same identifier.
     #[error("generated identifier collision: {name}")]
     GeneratedIdentifierCollision {
@@ -223,18 +69,6 @@ pub enum CompileDiagnostic {
         /// Generator-supplied failure description, not interpreted by the compiler.
         Box<str>,
     ),
-    /// A utility required by fatal compilation cannot be resolved.
-    #[error("unknown or unavailable utility `{utility}`")]
-    UnavailableUtility {
-        /// Utility text as authored, including variants.
-        utility: String,
-    },
-    /// An animation option token is not recognized by the option resolver.
-    #[error("unknown animation option `{option}`")]
-    UnknownAnimationOption {
-        /// Name of the invalid configuration option.
-        option: String,
-    },
     /// The JavaScript parser rejected the input; external details belong in wrapper notes.
     #[error("JavaScript parse error")]
     JavaScriptParse,

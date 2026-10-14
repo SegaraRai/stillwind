@@ -8,14 +8,17 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
     RuleExpression, StyleInput, StyleVariant,
 };
 use stillwind_source::Span;
 
+use crate::local_span::LocalSpan;
+use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
+use stillwind_semantic::AssetKind;
 
 impl<'a> MacroExtractor<'a> {
     /// Lowers one class-valued expression while mirroring the source structure.
@@ -78,8 +81,9 @@ impl<'a> MacroExtractor<'a> {
                             ) {
                                 elements.extend(self.class_expression_sequence(&spread.argument));
                             } else {
-                                self.diagnostics.push(CompileError::new(
-                                    CompileDiagnostic::StyleArraySpread,
+                                self.omit_input(spread.span);
+                                self.lint_findings.push(LintFinding::new(
+                                    LintDiagnostic::StyleArraySpread,
                                     self.source_span(spread.span),
                                 ));
                             }
@@ -105,10 +109,17 @@ impl<'a> MacroExtractor<'a> {
             Expression::BooleanLiteral(value) if !value.value || self.in_cva => None,
             Expression::Identifier(value) if value.name == "undefined" => None,
             Expression::Identifier(_) => {
-                self.diagnostics.push(CompileError::new(
+                let failure = self
+                    .asset_candidates(expression, AssetKind::Style)
+                    .err()
+                    .unwrap_or(ResolutionFailure::Unsupported);
+                self.omit_input(expression.span());
+                self.report_resolution_failure(
+                    expression,
+                    failure,
+                    LintDiagnostic::InvalidStyleInput,
                     CompileDiagnostic::RefFactsRequired,
-                    self.source_span(expression.span()),
-                ));
+                );
                 None
             }
             _ => {
@@ -138,10 +149,35 @@ impl<'a> MacroExtractor<'a> {
                         _ => None,
                     };
                 }
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidStyleInput,
-                    self.source_span(expression.span()),
-                ));
+                if self
+                    .consumed_use_spans
+                    .contains(&LocalSpan::from(expression.span()))
+                {
+                    self.omit_input(expression.span());
+                    return None;
+                }
+                let previous_errors = self.diagnostics.len();
+                self.report_unconsumed_expression(expression);
+                if let Expression::CallExpression(call) = expression
+                    && self.asset_candidates(&call.callee, AssetKind::Style)
+                        != Err(ResolutionFailure::MissingFacts)
+                {
+                    self.report_unconsumed_call(call);
+                }
+                self.omit_input(expression.span());
+                if self.diagnostics.len() != previous_errors {
+                    return None;
+                }
+                let failure = self
+                    .asset_candidates(expression, AssetKind::Style)
+                    .err()
+                    .unwrap_or(ResolutionFailure::Unsupported);
+                self.report_resolution_failure(
+                    expression,
+                    failure,
+                    LintDiagnostic::InvalidStyleInput,
+                    CompileDiagnostic::RefFactsRequired,
+                );
                 None
             }
         }
@@ -172,26 +208,16 @@ impl<'a> MacroExtractor<'a> {
         self.collect_object_properties(object, &mut properties);
         for property in properties {
             if property.method || property.kind != PropertyKind::Init {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidAttributeProperty,
+                self.omit_input(property.span);
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidAttributeProperty,
                     self.source_span(property.span),
                 ));
                 continue;
             }
             let name = self.static_property_name(&property.key);
             if property.computed && name.is_none() {
-                let Some(variant) = property
-                    .key
-                    .as_expression()
-                    .and_then(|key| self.ref_variant(key))
-                else {
-                    self.diagnostics.push(CompileError::new(
-                        CompileDiagnostic::InvalidComputedAttribute,
-                        self.source_span(property.key.span()),
-                    ));
-                    continue;
-                };
-                if let Some(entry) = self.rule_entry(Some(variant), &property.value) {
+                if let Some(entry) = self.computed_variant_entry(property) {
                     entries.push(entry);
                 }
                 continue;
@@ -206,8 +232,9 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let Some(name) = name else {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidAttributeKey,
+                self.omit_input(property.span);
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidAttributeKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -236,8 +263,9 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             if !name.value.ends_with(':') {
-                self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::InvalidAttributeKey,
+                self.omit_input(property.span);
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidAttributeKey,
                     name.span,
                 ));
                 continue;
@@ -257,6 +285,35 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    /// Resolves a computed variant key and omits its property when the key is unusable.
+    fn computed_variant_entry(&mut self, property: &ObjectProperty<'a>) -> Option<GroupEntry> {
+        let previous_lints = self.lint_findings.len();
+        let previous_errors = self.diagnostics.len();
+        let Some(variant) = property
+            .key
+            .as_expression()
+            .filter(|key| {
+                matches!(
+                    key.get_inner_expression(),
+                    Expression::CallExpression(_) | Expression::TaggedTemplateExpression(_)
+                )
+            })
+            .and_then(|key| self.ref_variant(key))
+        else {
+            self.omit_input(property.span);
+            if self.lint_findings.len() == previous_lints
+                && self.diagnostics.len() == previous_errors
+            {
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidComputedAttribute,
+                    self.source_span(property.key.span()),
+                ));
+            }
+            return None;
+        };
+        self.rule_entry(Some(variant), &property.value)
+    }
+
     /// Keeps the first key position and last value when literal objects overwrite keys.
     fn collect_object_properties<'b>(
         &mut self,
@@ -271,8 +328,9 @@ impl<'a> MacroExtractor<'a> {
                     {
                         self.collect_object_properties(object, properties);
                     } else {
-                        self.diagnostics.push(CompileError::new(
-                            CompileDiagnostic::AttributeSpread,
+                        self.omit_input(spread.span);
+                        self.lint_findings.push(LintFinding::new(
+                            LintDiagnostic::AttributeSpread,
                             self.source_span(spread.span),
                         ));
                     }

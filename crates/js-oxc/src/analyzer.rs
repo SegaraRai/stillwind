@@ -55,7 +55,10 @@ impl OxcSourceAnalyzer {
         };
         let mut assets = BTreeSet::new();
         for fact in &facts.facts {
-            match &fact.value {
+            let stillwind_semantic::CheckedValue::Asset(value) = &fact.value else {
+                continue;
+            };
+            match value {
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
@@ -374,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn analysis_accepts_schema_four_and_rejects_schema_three_facts() {
+    fn analysis_accepts_current_schema_and_rejects_older_facts() {
         let source = Arc::new(SourceFile::new(FileId(1), None, None, "export {};").unwrap());
         let scan = OxcSourceAnalyzer.scan(
             source,
@@ -383,7 +386,7 @@ mod tests {
             ScriptModuleKind::Module,
         );
         assert_eq!(scan.summary.schema, 4);
-        for (schema, accepted) in [(3, false), (4, true)] {
+        for (schema, accepted) in [(3, false), (4, false), (TypeFacts::SCHEMA, true)] {
             let facts = TypeFacts {
                 schema,
                 module_id: scan.module_id.clone(),
@@ -423,12 +426,12 @@ mod tests {
                 TypeFact {
                     start: 0,
                     end: 0,
-                    value: ExportedValue::Refs(SymbolicValue::exact(reference.clone())),
+                    value: ExportedValue::Refs(SymbolicValue::exact(reference.clone())).into(),
                 },
                 TypeFact {
                     start: 0,
                     end: 0,
-                    value: ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref)),
+                    value: ExportedValue::Refs(SymbolicValue::universe(AssetKind::Ref)).into(),
                 },
             ],
             assets: BTreeMap::new(),

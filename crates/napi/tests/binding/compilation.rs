@@ -148,7 +148,7 @@ export const child = style({ [menu`hover:`]: "text-white" });"#,
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["modules"].as_array().unwrap().len(), 2);
-    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SW03007");
+    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SW03001");
 }
 
 #[test]

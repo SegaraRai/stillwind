@@ -226,7 +226,7 @@
   }
 }
 @layer utilities {
-  .sw_5z9t1 {
+  .sw_1chda {
     display: inline-flex;
   }
   .sw_jy94h {
@@ -261,6 +261,22 @@
   .sw_jqgrh {
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
+  }
+  .sw_ctxaq {
+    display: block;
+  }
+  .sw_n5qi8 {
+    padding: calc(var(--spacing) * 4);
+  }
+  @media (hover: hover) {
+    .sw_4oh6j:hover {
+      --tw-shadow:
+        0 4px 6px -1px var(--tw-shadow-color, #0000001a),
+        0 2px 4px -2px var(--tw-shadow-color, #0000001a);
+      box-shadow:
+        var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+        var(--tw-ring-shadow), var(--tw-shadow);
+    }
   }
 }
 @layer properties {

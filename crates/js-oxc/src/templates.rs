@@ -3,17 +3,18 @@
 //! A utility template is a whitespace-separated list in which a ref may occupy a
 //! complete variant segment, as in `` `md:${trigger`hover:`}:active:p-4` ``. The
 //! scanner rebuilds those segments into nested variant wrappers, so each utility
-//! keeps its own source span and the substitution stays a ref variant rather
-//! than becoming text.
+//! keeps its own source span and the substitution stays a ref variant rather than
+//! becoming text.
 //!
-//! The accepted grammar is narrow on purpose. A substitution must be a direct
-//! ref call or tag, the text after it must begin with `:`, and any text before it
-//! must already be a complete `variant:` prefix; anything else fails with
-//! `CompileDiagnostic::InvalidUtilityTemplate` instead of guessing how the author meant to splice a string.
+//! The accepted grammar is narrow on purpose. A substitution must be a direct ref call
+//! or tag, the text after it must begin with `:`, and any text before it must already
+//! be a complete `variant:` prefix; anything else fails with
+//! [`LintDiagnostic::InvalidUtilityTemplate`] instead of guessing how the author meant
+//! to splice a string.
 
 use oxc::ast::ast::TemplateLiteral;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{ClassExpression, RuleExpression, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
@@ -33,8 +34,9 @@ impl<'a> MacroExtractor<'a> {
         let mut collected = Vec::new();
         for (index, quasi) in template.quasis.iter().enumerate() {
             let Some(text) = quasi.value.cooked.as_ref() else {
-                self.diagnostics
+                self.lint_findings
                     .push(template_error(self.source_span(quasi.span)));
+                self.omit_input(template.span);
                 return None;
             };
             let span = self.source_span(quasi.span);
@@ -47,29 +49,34 @@ impl<'a> MacroExtractor<'a> {
                     .text(&text[start..offset], subspan(span, start, offset))
                     .and_then(|()| token.finish(&mut collected, span))
                 {
-                    self.diagnostics.push(error);
+                    self.lint_findings.push(error);
+                    self.omit_input(template.span);
                     return None;
                 }
                 start = offset + character.len_utf8();
             }
             if let Err(error) = token.text(&text[start..], subspan(span, start, text.len())) {
-                self.diagnostics.push(error);
+                self.lint_findings.push(error);
+                self.omit_input(template.span);
                 return None;
             }
             if let Some(expression) = template.expressions.get(index) {
                 let Some(variant) = self.ref_variant(expression) else {
-                    self.diagnostics
+                    self.lint_findings
                         .push(template_error(self.source_span(template.span)));
+                    self.omit_input(template.span);
                     return None;
                 };
                 if let Err(error) = token.reference(variant, span) {
-                    self.diagnostics.push(error);
+                    self.lint_findings.push(error);
+                    self.omit_input(template.span);
                     return None;
                 }
             }
         }
         if let Err(error) = token.finish(&mut collected, self.source_span(template.span)) {
-            self.diagnostics.push(error);
+            self.lint_findings.push(error);
+            self.omit_input(template.span);
             return None;
         }
         Some(collected)
@@ -97,7 +104,7 @@ impl TemplateToken {
     /// Text arrives already split on whitespace. When a separator is required, exactly
     /// one leading `:` is consumed and the span is advanced so it still points at the
     /// text the value came from.
-    fn text(&mut self, text: &str, mut span: Span) -> Result<(), CompileError> {
+    fn text(&mut self, text: &str, mut span: Span) -> Result<(), LintFinding> {
         if text.is_empty() {
             return Ok(());
         }
@@ -121,7 +128,7 @@ impl TemplateToken {
     ///
     /// The text before a substitution is a variant prefix only when it ends with `:`,
     /// so `` `${trigger`hover:`}x` `` is rejected rather than read as a prefix.
-    fn reference(&mut self, variant: StyleVariant, span: Span) -> Result<(), CompileError> {
+    fn reference(&mut self, variant: StyleVariant, span: Span) -> Result<(), LintFinding> {
         if self.needs_separator {
             return Err(template_error(span));
         }
@@ -145,7 +152,7 @@ impl TemplateToken {
         &mut self,
         expressions: &mut Vec<ClassExpression>,
         span: Span,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), LintFinding> {
         if self.needs_separator || (!self.variants.is_empty() && self.tail.is_none()) {
             return Err(template_error(span));
         }
@@ -185,6 +192,6 @@ fn subspan(span: Span, start: usize, end: usize) -> Span {
 }
 
 /// The single diagnostic for every rejection path in this module.
-fn template_error(span: Span) -> CompileError {
-    CompileError::new(CompileDiagnostic::InvalidUtilityTemplate, span)
+fn template_error(span: Span) -> LintFinding {
+    LintFinding::new(LintDiagnostic::InvalidUtilityTemplate, span)
 }

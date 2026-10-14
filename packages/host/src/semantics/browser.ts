@@ -403,10 +403,12 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
       const diagnostic = [
         ...program.getSyntacticDiagnostics(file),
         ...program.getSemanticDiagnostics(file),
-      ].find((item) =>
-        /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
-          ts.flattenDiagnosticMessageText(item.messageText, "\n"),
-        ),
+      ].find(
+        (item) =>
+          !producerArgumentDiagnostic(item, file, mapping) &&
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+            ts.flattenDiagnosticMessageText(item.messageText, "\n"),
+          ),
       );
       if (diagnostic) {
         const start = mapping.originalOffset(diagnostic.start ?? 0) ?? undefined;
@@ -437,11 +439,12 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
         matched.add(key);
         const type = checker.getTypeAtLocation(node);
         const decoded = decode(checker, type, node, identities, brands);
-        if (decoded.value) {
+        if (decoded.kind !== "unverified") {
+          const value = decoded.kind === "asset" ? decoded.value : null;
           const existing = values.find(
             (item) => item.start === probe.start && item.end === probe.end,
           );
-          if (existing && JSON.stringify(existing.value) !== JSON.stringify(decoded.value)) {
+          if (existing && JSON.stringify(existing.value) !== JSON.stringify(value)) {
             throw new TypeFactsError(
               mapping.source.moduleId,
               probe.start,
@@ -451,12 +454,9 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
             );
           }
           if (!existing) {
-            values.push({ ...probe, value: decoded.value });
+            values.push({ ...probe, value });
           }
-        } else if (
-          !(probe.recognitionOnly && !available) &&
-          (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || decoded.recognized)
-        ) {
+        } else if (!(probe.recognitionOnly && !available)) {
           unavailable(
             new TypeFactsError(
               mapping.source.moduleId,
@@ -518,7 +518,8 @@ function visit(node: ts.Node, callback: (node: ts.Node) => void): void {
  * @param location - AST node used to obtain property types.
  * @param identities - Serialized keys mapped to declarations inserted into this snapshot.
  * @param brands - Checker symbol names registered from asset producers and mapped to their families.
- * @returns A native value only when every union member identifies known declarations from one family.
+ * @returns Finite candidates, a confirmed non-asset, or an unverified value whose declarations
+ * cannot be determined.
  */
 function decode(
   checker: ts.TypeChecker,
@@ -526,12 +527,10 @@ function decode(
   location: ts.Node,
   identities: ReadonlyMap<string, NativeIdentity>,
   brands: ReadonlyMap<string, NativeIdentity["kind"]>,
-): {
-  /** Finite declarations, or null when any member lacks a valid identity or belongs to another family. */
-  value: NativeExportedValue | null;
-  /** Whether branding or a known asset type name was detected, even when identity decoding failed. */
-  recognized: boolean;
-} {
+): { kind: "asset"; value: NativeExportedValue } | { kind: "nonAsset" | "unverified" } {
+  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
+    return { kind: "unverified" };
+  }
   let family: NativeIdentity["kind"] | undefined;
   let recognized = false;
   let valid = true;
@@ -601,10 +600,7 @@ function decode(
   }
 
   if (!valid || !family || !values.length) {
-    return {
-      value: null,
-      recognized,
-    };
+    return { kind: recognized ? "unverified" : "nonAsset" };
   }
 
   const kinds = {
@@ -614,10 +610,35 @@ function decode(
     viewTransition: "viewTransitions",
   } as const;
   return {
+    kind: "asset",
     value: {
       kind: kinds[family],
       value: { kind: family, candidates: { kind: "finite", values } },
     },
-    recognized,
   };
+}
+
+/** Macro argument type errors are reported by lowering; their operands still require valid facts. */
+function producerArgumentDiagnostic(
+  diagnostic: ts.Diagnostic,
+  sourceFile: ts.SourceFile,
+  mapping: CheckerSource,
+): boolean {
+  if ((diagnostic.code !== 2345 && diagnostic.code !== 2769) || diagnostic.start === undefined) {
+    return false;
+  }
+  const start = diagnostic.start;
+  const end = start + (diagnostic.length ?? 0);
+  let owner: ts.Node | undefined;
+  visit(sourceFile, (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      node.getStart(sourceFile) <= start &&
+      node.end >= end &&
+      (!owner || node.end - node.getStart(sourceFile) < owner.end - owner.getStart(sourceFile))
+    ) {
+      owner = node;
+    }
+  });
+  return !!owner && mapping.producers.has(`${owner.getStart(sourceFile)}:${owner.end}`);
 }

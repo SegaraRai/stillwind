@@ -233,20 +233,21 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
 #[test]
 fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
     for (input, expected) in [
-        ("[...values]", CompileDiagnostic::StyleArraySpread),
-        ("...values", CompileDiagnostic::StyleArgumentSpread),
-        ("{...values}", CompileDiagnostic::AttributeSpread),
-        ("{[key]: 'a'}", CompileDiagnostic::InvalidComputedAttribute),
+        ("[...values]", LintDiagnostic::StyleArraySpread),
+        ("...values", LintDiagnostic::StyleArgumentSpread),
+        ("{...values}", LintDiagnostic::AttributeSpread),
+        ("{[key]: 'a'}", LintDiagnostic::InvalidComputedAttribute),
     ] {
         let (_, result) = compile(&format!("const x = style({input});"), "");
         assert!(
             result
-                .diagnostics
+                .lint_findings
                 .iter()
                 .any(|error| error.diagnostic == expected),
             "{result:#?}"
         );
-        assert_eq!(result.transforms, [] as [SourceTransform; 0]);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert_eq!(result.transforms[0].replacement, "{}");
     }
 }
 

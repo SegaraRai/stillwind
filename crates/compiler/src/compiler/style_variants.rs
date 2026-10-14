@@ -21,7 +21,7 @@ use stillwind_css::{instantiate_selector, selector_is_element_condition, selecto
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
 use stillwind_syntax::{Variant, parse_candidate};
@@ -74,6 +74,7 @@ impl StyleVariantPlan {
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
         diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
     ) -> Option<Self> {
         let mut plan = Self {
             prefix: String::new(),
@@ -88,7 +89,7 @@ impl StyleVariantPlan {
             .filter(|wrapper| matches!(wrapper, StyleVariant::Prefix(_)))
         {
             if let StyleVariant::Prefix(prefix) = wrapper {
-                plan.add_prefix(theme, prefix, diagnostics)?;
+                plan.add_prefix(theme, prefix, lint_findings)?;
             }
         }
         let mut independent = wrappers
@@ -99,13 +100,20 @@ impl StyleVariantPlan {
         for wrapper in independent {
             match wrapper {
                 StyleVariant::Prefix(prefix) => {
-                    plan.add_prefix(theme, prefix, diagnostics)?;
+                    plan.add_prefix(theme, prefix, lint_findings)?;
                 }
                 StyleVariant::Ref { condition, scopes } => {
-                    plan.add_ref(context, theme, condition, scopes, diagnostics)?;
+                    plan.add_ref(
+                        context,
+                        theme,
+                        condition,
+                        scopes,
+                        diagnostics,
+                        lint_findings,
+                    )?;
                 }
                 StyleVariant::Container { refs, query } => {
-                    plan.add_container(context, refs, query, diagnostics)?;
+                    plan.add_container(context, refs, query, diagnostics, lint_findings)?;
                 }
             }
         }
@@ -118,10 +126,10 @@ impl StyleVariantPlan {
         &mut self,
         theme: &ThemeIndex,
         prefix: &Spanned<String>,
-        diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
     ) -> Option<()> {
         let (variants, applications) =
-            collect_variant_and_applications(theme, prefix, diagnostics)?;
+            collect_variant_and_applications(theme, prefix, lint_findings)?;
         self.prefix.push_str(&prefix.value);
         self.canonical.push_str(&prefix.value);
         self.ordinary_count += variants.len();
@@ -143,15 +151,24 @@ impl StyleVariantPlan {
         condition: &RefCondition,
         scopes: &[RefCondition],
         diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
     ) -> Option<()> {
-        let references =
-            element_conditions(context, theme, condition, !scopes.is_empty(), diagnostics)?;
+        let references = element_conditions(
+            context,
+            theme,
+            condition,
+            !scopes.is_empty(),
+            diagnostics,
+            lint_findings,
+        )?;
         let mut ordered_scopes = scopes.iter().collect::<Vec<_>>();
         ordered_scopes.sort_by_cached_key(|scope| condition_key(scope));
         ordered_scopes.dedup_by(|a, b| condition_key(a) == condition_key(b));
         let scope_conditions = ordered_scopes
             .iter()
-            .map(|scope| element_conditions(context, theme, scope, false, diagnostics))
+            .map(|scope| {
+                element_conditions(context, theme, scope, false, diagnostics, lint_findings)
+            })
             .collect::<Option<Vec<_>>>()?;
         let mut alternatives = Vec::new();
         for reference in references {
@@ -218,10 +235,11 @@ impl StyleVariantPlan {
         refs: &[RefDefinition],
         query: &Spanned<String>,
         diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
     ) -> Option<()> {
         if refs.is_empty() {
-            diagnostics.push(CompileError::new(
-                CompileDiagnostic::UnidentifiedRef,
+            lint_findings.push(LintFinding::new(
+                LintDiagnostic::UnidentifiedRef,
                 query.span,
             ));
             return None;
@@ -365,11 +383,11 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<String> {
 fn collect_variant_and_applications(
     theme: &ThemeIndex,
     prefix: &Spanned<String>,
-    diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) -> Option<(Vec<Variant>, Vec<VariantApplication>)> {
     let Some(variants) = parse_prefix(prefix) else {
-        diagnostics.push(CompileError::new(
-            CompileDiagnostic::InvalidVariantPrefix,
+        lint_findings.push(LintFinding::new(
+            LintDiagnostic::InvalidVariantPrefix,
             prefix.span,
         ));
         return None;
@@ -379,8 +397,8 @@ fn collect_variant_and_applications(
         .map(|variant| resolve_variant(variant, theme))
         .collect::<Option<Vec<_>>>()
     else {
-        diagnostics.push(CompileError::new(
-            CompileDiagnostic::UnavailableVariantPrefix,
+        lint_findings.push(LintFinding::new(
+            LintDiagnostic::UnavailableVariantPrefix,
             prefix.span,
         ));
         return None;
@@ -425,12 +443,13 @@ fn element_conditions(
     condition: &RefCondition,
     inside_has: bool,
     diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
 ) -> Option<Vec<ElementCondition>> {
     let (_, applications) =
-        collect_variant_and_applications(theme, &condition.prefix, diagnostics)?;
+        collect_variant_and_applications(theme, &condition.prefix, lint_findings)?;
     if condition.refs.is_empty() {
-        diagnostics.push(CompileError::new(
-            CompileDiagnostic::UnidentifiedRef,
+        lint_findings.push(LintFinding::new(
+            LintDiagnostic::UnidentifiedRef,
             condition.prefix.span,
         ));
         return None;
@@ -447,8 +466,8 @@ fn element_conditions(
         };
         for path in &paths {
             let Some(predicate) = reference_path(&marker, path, inside_has) else {
-                diagnostics.push(CompileError::new(
-                    CompileDiagnostic::UnavailableVariantPrefix,
+                lint_findings.push(LintFinding::new(
+                    LintDiagnostic::UnavailableVariantPrefix,
                     condition.prefix.span,
                 ));
                 return None;
@@ -581,6 +600,7 @@ mod reference_path_tests {
 #[cfg(test)]
 mod add_ref_tests {
     use std::rc::Rc;
+    use stillwind_diagnostics::CompileDiagnostic;
 
     use stillwind_source::{FileId, Span};
 
@@ -646,6 +666,7 @@ mod add_ref_tests {
         let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let mut plan = plan();
         let first = definition("src/a.tsx", "menu", 10);
         let second = definition("src/b.tsx", "panel", 20);
@@ -658,6 +679,7 @@ mod add_ref_tests {
             },
             &[],
             &mut diagnostics,
+            &mut lint_findings,
         );
         assert!(added.is_some(), "{diagnostics:?}");
         assert_eq!(diagnostics, [] as [CompileError; 0]);
@@ -686,6 +708,7 @@ mod add_ref_tests {
         let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let mut plan = plan();
         let prefix = prefix("");
         assert!(
@@ -697,17 +720,16 @@ mod add_ref_tests {
                     prefix: prefix.clone()
                 },
                 &[],
-                &mut diagnostics
+                &mut diagnostics,
+                &mut lint_findings
             )
             .is_none()
         );
         assert!(!plan.has_refs);
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(
-            diagnostics[0].diagnostic,
-            CompileDiagnostic::UnidentifiedRef
-        );
-        assert_eq!(diagnostics[0].labels[0].span, prefix.span);
+        assert_eq!(diagnostics, [] as [CompileError; 0]);
+        assert_eq!(lint_findings.len(), 1);
+        assert_eq!(lint_findings[0].diagnostic, LintDiagnostic::UnidentifiedRef);
+        assert_eq!(lint_findings[0].labels[0].span, prefix.span);
     }
 
     /// A prefix that is not a complete name list is rejected before any ref work.
@@ -716,6 +738,7 @@ mod add_ref_tests {
         let context = identifiers();
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let mut plan = plan();
         assert!(
             plan.add_ref(
@@ -727,13 +750,14 @@ mod add_ref_tests {
                 },
                 &[],
                 &mut diagnostics,
+                &mut lint_findings
             )
             .is_none()
         );
-        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(lint_findings.len(), 1);
         assert_eq!(
-            diagnostics[0].diagnostic,
-            CompileDiagnostic::InvalidVariantPrefix
+            lint_findings[0].diagnostic,
+            LintDiagnostic::InvalidVariantPrefix
         );
         assert!(!plan.has_refs);
     }
@@ -748,6 +772,7 @@ mod add_ref_tests {
         );
         let theme = ThemeIndex::default();
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let mut plan = plan();
         let definition = definition("src/a.tsx", "menu", 10);
         let call_span = definition.call_span;
@@ -760,7 +785,8 @@ mod add_ref_tests {
                     prefix: prefix("")
                 },
                 &[],
-                &mut diagnostics
+                &mut diagnostics,
+                &mut lint_findings
             )
             .is_none()
         );

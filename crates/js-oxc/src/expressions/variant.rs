@@ -1,6 +1,7 @@
 //! Validates and groups the rule inputs supplied by object keys.
 
 use oxc::ast::ast::Expression;
+use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, VariantInputErrorKind};
 use stillwind_ir::{
@@ -54,6 +55,7 @@ impl<'a> MacroExtractor<'a> {
         {
             Ok(inputs) => inputs,
             Err(failure) => {
+                self.omit_input(value.span());
                 self.lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidVariantInput {
                         reason: failure.reason,

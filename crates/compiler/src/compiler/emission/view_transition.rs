@@ -185,6 +185,7 @@ impl CallEmitter<'_> {
                 wrappers,
                 self.theme,
                 self.diagnostics,
+                self.lint_findings,
             )?)
         };
         let canonical = format!(

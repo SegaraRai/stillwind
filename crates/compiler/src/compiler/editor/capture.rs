@@ -423,6 +423,7 @@ impl ModuleEditor {
             .context(self.options.hash_length)
             .with_preview_names(Rc::clone(names));
         let mut diagnostics = Vec::new();
+        let mut lint_findings = Vec::new();
         let mut contributions = Vec::new();
         let mut dependencies = BTreeSet::new();
         match plan {
@@ -435,6 +436,7 @@ impl ModuleEditor {
                     definition,
                     self.snapshot.theme(),
                     &mut diagnostics,
+                    &mut lint_findings,
                 );
                 contributions.push(contribution);
             }
@@ -447,6 +449,7 @@ impl ModuleEditor {
                     definition,
                     self.snapshot.theme(),
                     &mut diagnostics,
+                    &mut lint_findings,
                 );
                 contributions.push(contribution);
             }

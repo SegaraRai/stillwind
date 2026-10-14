@@ -17,10 +17,11 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, CvaCall, KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition,
+    AdapterKind, CvaCall, CvaReplacement, KeyframesDefinition, RefDefinition, StyleCall,
+    ViewTransitionDefinition,
 };
 use stillwind_semantic::{
-    AssetKind, AssetMetadata, AssetRecord, ExportedValue, IdentityId, ImportBinding,
+    AssetKind, AssetMetadata, AssetRecord, CheckedValue, ExportedValue, IdentityId, ImportBinding,
     ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
 };
 use stillwind_source::{ModuleId, SourceFile, Span, Spanned};
@@ -76,6 +77,7 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) diagnostics: Vec<CompileError>,
     /// Advisory findings raised during extraction, in visit order.
     pub(crate) lint_findings: Vec<LintFinding>,
+    pub(crate) cva_replacements: Vec<CvaReplacement>,
     /// Whether extraction collects advisory findings. Fatal diagnostics and IR extraction remain enabled.
     pub(crate) lint: bool,
     /// Import bindings of this module, in source order.
@@ -83,6 +85,8 @@ pub(crate) struct MacroExtractor<'a> {
     /// Ranges of parsed scope-only calls, used when removing their macro imports.
     /// They refer to the AST buffer until mapped back to the original source.
     pub(crate) consumed_macro_uses: Vec<Span>,
+    /// Inputs whose source expressions are erased, including their nested macro reads.
+    pub(crate) omitted_inputs: Vec<Span>,
     /// Module specifier literals of this module, in source order.
     pub(crate) module_specifiers: Vec<ModuleSpecifier>,
     /// Re-export edges of this module, in source order.
@@ -90,7 +94,7 @@ pub(crate) struct MacroExtractor<'a> {
     /// Exported bindings as symbol plus exported name, in visit order.
     pub(crate) export_symbols: Vec<(SymbolId, String)>,
     /// Checker facts keyed by original UTF-8 expression range.
-    pub(crate) type_facts: HashMap<LocalSpan, ExportedValue>,
+    pub(crate) type_facts: HashMap<LocalSpan, CheckedValue>,
     /// AST-buffer ranges the checker should resolve, accumulated during the visit.
     pub(crate) type_probes: RefCell<BTreeSet<LocalSpan>>,
     /// AST-buffer receiver ranges used to identify Stillwind assets; missing facts
@@ -139,9 +143,11 @@ impl<'a> MacroExtractor<'a> {
             in_cva: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
+            cva_replacements: Vec::new(),
             lint: true,
             imports: Vec::new(),
             consumed_macro_uses: Vec::new(),
+            omitted_inputs: Vec::new(),
             module_specifiers: Vec::new(),
             re_exports: Vec::new(),
             export_symbols: Vec::new(),
@@ -156,8 +162,19 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
+    pub(crate) fn omit_input(&mut self, span: oxc::span::Span) {
+        self.omitted_inputs.push(self.source_span(span));
+    }
+
+    pub(crate) fn input_is_omitted(&self, span: oxc::span::Span) -> bool {
+        let span = self.source_span(span);
+        self.omitted_inputs.iter().any(|omitted| {
+            omitted.file == span.file && omitted.start <= span.start && span.end <= omitted.end
+        })
+    }
+
     /// Looks up a fact by its original UTF-8 expression range.
-    pub(crate) fn type_fact(&self, span: oxc::span::Span) -> Option<&ExportedValue> {
+    pub(crate) fn type_fact(&self, span: oxc::span::Span) -> Option<&CheckedValue> {
         let span = (self.coordinates)(self.source_span(span))?;
         self.type_facts
             .get(&LocalSpan::new(span.start.0, span.end.0))

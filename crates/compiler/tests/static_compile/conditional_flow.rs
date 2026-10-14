@@ -215,19 +215,13 @@ fn nested_conditionals_keep_source_order_after_the_base_unit() {
 }
 
 #[test]
-fn unsupported_forms_report_their_diagnostics() {
+fn unsupported_forms_are_omitted_only_when_resolution_is_complete() {
     for (body, kind) in [
-        (
-            "const props = style(a || \"p-2\");",
-            CompileDiagnostic::InvalidStyleInput,
-        ),
-        (
-            "const props = style(a ?? \"p-2\");",
-            CompileDiagnostic::InvalidStyleInput,
-        ),
+        ("const props = style(a || \"p-2\");", None),
+        ("const props = style(a ?? \"p-2\");", None),
         (
             "const props = style(`${a ? \"hover\" : \"focus\"}:p-2`);",
-            CompileDiagnostic::InvalidUtilityTemplate,
+            Some(LintDiagnostic::InvalidUtilityTemplate),
         ),
     ] {
         let component = SourceFile::new(
@@ -250,14 +244,26 @@ fn unsupported_forms_report_their_diagnostics() {
             &CssSourceName::from("stillwind.css"),
             &CompilerOptions::default(),
         );
-        assert!(
-            result
-                .diagnostics
-                .iter()
-                .any(|error| error.diagnostic == kind),
-            "{body}: {:#?}",
-            result.diagnostics
-        );
+        if let Some(kind) = kind {
+            assert!(result.diagnostics.is_empty(), "{result:#?}");
+            assert!(
+                result
+                    .lint_findings
+                    .iter()
+                    .any(|error| error.diagnostic == kind),
+                "{body}: {:#?}",
+                result.diagnostics
+            );
+        } else {
+            assert!(
+                result
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
+                "{result:#?}"
+            );
+            assert_eq!(result.transforms, [] as [SourceTransform; 0]);
+        }
     }
 }
 
