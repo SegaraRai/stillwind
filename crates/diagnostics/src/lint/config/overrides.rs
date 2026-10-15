@@ -95,6 +95,8 @@ pub struct LintOverrides {
     pub prefer_typed_relationships: Option<LintSeverity>,
     /// Reporting level for `document-scoped-selector`.
     pub document_scoped_selector: Option<LintSeverity>,
+    /// Reporting level for `repeated-nesting-selector`.
+    pub repeated_nesting_selector: Option<LintSeverity>,
     /// Reporting level for `missing-view-transition-name`.
     pub missing_view_transition_name: Option<LintSeverity>,
     /// Reporting level for `duplicate-view-transition-name`.
@@ -212,6 +214,10 @@ impl LintOverrides {
             (
                 LintKind::DocumentScopedSelector,
                 self.document_scoped_selector,
+            ),
+            (
+                LintKind::RepeatedNestingSelector,
+                self.repeated_nesting_selector,
             ),
             (
                 LintKind::MissingViewTransitionName,

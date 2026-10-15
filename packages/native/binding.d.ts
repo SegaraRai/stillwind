@@ -1079,6 +1079,8 @@ export interface NativeLintOptions {
   missingRefAttachment?: string
   /** Settings for `document-scoped-selector`. */
   documentScopedSelector?: string
+  /** Settings for `repeated-nesting-selector`. */
+  repeatedNestingSelector?: string
   /** Settings for `missing-view-transition-name`. */
   missingViewTransitionName?: string
   /** Settings for `duplicate-view-transition-name`. */

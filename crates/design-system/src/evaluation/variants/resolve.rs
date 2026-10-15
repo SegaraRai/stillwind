@@ -17,7 +17,7 @@ use std::sync::Arc;
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::selector_uses_subject;
+use stillwind_css::{selector_repeats_subject, selector_uses_subject};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -133,6 +133,57 @@ pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str
         }
         VariantApplication::Conditional(_)
         | VariantApplication::SelectorCondition(_)
+        | VariantApplication::SelectorSuffix(_)
+        | VariantApplication::Media(_)
+        | VariantApplication::Container(_)
+        | VariantApplication::Supports(_)
+        | VariantApplication::StartingStyle => None,
+    }
+}
+
+/// Returns a selector of `variant` that uses `&` more than once in one selector.
+///
+/// `&` stands for the generated utility class. A selector that repeats it, such as
+/// `& + &`, matches elements by the identity of generated classes, which depends on the
+/// compiler's class naming rather than on an element relationship. The check covers the
+/// selectors of the resolved application and, for a `[variant]` definition such as
+/// `group-*` or `not-*`, the selectors of its inner variant. The inner variant is
+/// checked first because `not-*` replaces its `&` with `*`. Returns `None` for an
+/// unresolved variant.
+#[must_use]
+pub fn repeated_subject_selector(variant: &Variant, theme: &ThemeIndex) -> Option<LeanString> {
+    let (application, inner) = match &variant.kind {
+        VariantKind::Arbitrary(_) => (resolve_variant(variant, theme)?, None),
+        VariantKind::Named(value) => {
+            resolve_named_variant_with(value, theme, |custom, capture, concrete| {
+                let application =
+                    resolve_registered_variant_candidate(custom, capture, concrete, theme)?;
+                let inner = capture
+                    .filter(|_| custom.value_type == Some(BuiltinVariantValueType::Variant))
+                    .map(|capture| parse_nested_variant(split_typed_capture(custom, capture).0));
+                Some((application, inner))
+            })?
+        }
+    };
+    inner
+        .and_then(|inner| repeated_subject_selector(&inner, theme))
+        .or_else(|| repeated_application_selector(&application).map(LeanString::from))
+}
+
+/// Returns the first selector of `application` that repeats `&` in one selector.
+fn repeated_application_selector(application: &VariantApplication) -> Option<&str> {
+    match application {
+        VariantApplication::Compound(children) | VariantApplication::Sequence(children) => {
+            children.iter().find_map(repeated_application_selector)
+        }
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::SelectorCondition(selector)
+        | VariantApplication::SelectorRule { selector, .. }
+        | VariantApplication::SelectorMedia { selector, .. }
+        | VariantApplication::SelectorMediaRule { selector, .. } => {
+            selector_repeats_subject(selector).then_some(selector.as_str())
+        }
+        VariantApplication::Conditional(_)
         | VariantApplication::SelectorSuffix(_)
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)

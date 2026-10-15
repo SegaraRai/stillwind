@@ -208,3 +208,39 @@ fn negates_resolved_variants_and_passes_modifiers_to_inner_variants() {
         assert_eq!(resolve(candidate), None, "{candidate}");
     }
 }
+
+#[test]
+fn reports_selectors_that_repeat_the_styled_element() {
+    let theme = theme();
+    let repeated = |candidate: &str| {
+        repeated_subject_selector(&parse_candidate(candidate).unwrap().variants[0], &theme)
+    };
+
+    for (candidate, expected) in [
+        ("[&+&]:flex", "&+&"),
+        ("[&_&]:flex", "& &"),
+        ("[&:has(+&)]:flex", "&:has(+&)"),
+        ("group-[&+&]:flex", "&+&"),
+        ("peer-[&~&]:flex", "&~&"),
+        ("not-[&+&]:flex", "&+&"),
+        ("not-group-[&+&]:flex", "&+&"),
+    ] {
+        assert_eq!(
+            repeated(candidate).as_deref(),
+            Some(expected),
+            "{candidate}"
+        );
+    }
+    for candidate in [
+        "hover:flex",
+        "group-hover:flex",
+        "not-group-hover/menu:flex",
+        "[&:where(.a,.b)]:flex",
+        "[.a_&]:flex",
+        "ltr:flex",
+        "sm:flex",
+        "missing-[&+&]:flex",
+    ] {
+        assert_eq!(repeated(candidate), None, "{candidate}");
+    }
+}

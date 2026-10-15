@@ -125,6 +125,46 @@ pub fn selector_uses_subject(selector: &str) -> bool {
     !positions.is_empty()
 }
 
+/// Whether one complex selector contains more than one nesting token.
+///
+/// Each comma-separated alternative counts separately, including alternatives inside
+/// functional pseudo-classes, so `:where(&:hover, &:focus)` uses `&` once and
+/// `& + &` or `&:has(+ &)` uses it twice. Strings, comments, escaped identifiers and
+/// attribute values do not count.
+pub fn selector_repeats_subject(selector: &str) -> bool {
+    subject_uses(&mut Parser::new(selector)) > 1
+}
+
+/// Returns the largest number of nesting tokens in one alternative of the list that
+/// `parser` reads.
+fn subject_uses(parser: &mut Parser<'_>) -> usize {
+    let mut largest = 0;
+    let mut current = 0;
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        match token {
+            Token::Delim('&') => current += 1,
+            Token::Comma => {
+                largest = largest.max(current);
+                current = 0;
+            }
+            Token::Function(_) | Token::ParenthesisBlock => {
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    current += subject_uses(inner);
+                    Ok(())
+                });
+            }
+            Token::SquareBracketBlock | Token::CurlyBracketBlock => {
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    Ok(())
+                });
+            }
+            _ => {}
+        }
+    }
+    largest.max(current)
+}
+
 /// Emits a selector template with CSS nesting tokens bound to `parent`.
 /// Strings, comments, escaped identifiers and attribute values remain literal.
 pub fn instantiate_selector(template: &str, parent: &str) -> LeanString {
@@ -406,6 +446,23 @@ mod tests {
             (r#":is(&)[data-x="&"] .\&"#, r#":is(*)[data-x="&"] .\&"#),
         ] {
             assert_eq!(subject_as_universal(template), expected, "{template}");
+        }
+    }
+
+    #[test]
+    fn repeated_subjects_are_counted_per_complex_selector() {
+        for (selector, expected) in [
+            ("&:hover", false),
+            ("&:hover, &:focus", false),
+            (":where(&:hover, &:focus)", false),
+            (r#"&[data-x="&"] .\&"#, false),
+            ("& + &", true),
+            ("& &", true),
+            ("&:hover, & ~ &", true),
+            ("&:has(+ &)", true),
+            (":is(:where(.group) + & *)&", true),
+        ] {
+            assert_eq!(selector_repeats_subject(selector), expected, "{selector}");
         }
     }
 

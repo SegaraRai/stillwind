@@ -413,6 +413,16 @@ pub enum LintDiagnostic {
         /// Resolved selector that references neither the element nor a declaration identity.
         selector: LeanStr,
     },
+    /// A variant selector uses `&` more than once in one complex selector. Each `&`
+    /// stands for a generated class, so the selector compares class identities instead
+    /// of describing an element relationship.
+    #[error(
+        "`{selector}` uses `&` more than once, so it matches by generated class identity; relate elements with style.ref()"
+    )]
+    RepeatedNestingSelector {
+        /// Resolved selector that contains the repeated `&`.
+        selector: LeanStr,
+    },
     /// A style call marks participants with a transition class but names none.
     #[error(
         "a view transition class without a name does not participate; add .for(key) or declare view-transition-name"
@@ -544,6 +554,7 @@ impl LintDiagnostic {
             Self::ProviderConflict { .. } => LintKind::ConflictingProviderProperties,
             Self::TailwindRelationshipUtility { .. } => LintKind::PreferTypedRelationships,
             Self::DocumentScopedSelector { .. } => LintKind::DocumentScopedSelector,
+            Self::RepeatedNestingSelector { .. } => LintKind::RepeatedNestingSelector,
             Self::MissingViewTransitionName => LintKind::MissingViewTransitionName,
             Self::DuplicateViewTransitionName { .. } => LintKind::DuplicateViewTransitionName,
             Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,

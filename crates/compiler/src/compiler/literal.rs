@@ -7,7 +7,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compatibility_marker_class, is_condition_variant,
-    is_tailwind_relationship_candidate, resolve_variant,
+    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -126,20 +126,12 @@ impl LiteralContribution {
                         format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
                     contribution.canonical.push_str(&canonical_candidate);
                     contribution.canonical.push('\0');
-                    if lint_settings.enabled_for_detection(LintKind::DocumentScopedSelector)
-                        && let Some(candidate) = parse_candidate(&utility.value.raw)
-                        && let Some(selector) = candidate
-                            .variants
-                            .iter()
-                            .find_map(|variant| document_scoped_selector(variant, theme))
-                    {
-                        lint_findings.push(LintFinding::new(
-                            LintDiagnostic::DocumentScopedSelector {
-                                selector: (selector).into(),
-                            },
-                            utility.span,
-                        ));
-                    }
+                    lint_findings.extend(variant_selector_lints(
+                        &utility.value.raw,
+                        theme,
+                        lint_settings,
+                        utility.span,
+                    ));
                     for resolved_utility in &mut resolved {
                         resolved_utility.source.span = Some(source_span);
                         resolved_utility.source.variant_spans =
@@ -189,6 +181,50 @@ pub(super) struct TransitionContribution {
     pub(super) dynamic_name_property: Option<LeanStr>,
     /// CSS application context; absence permits a base token to be emitted literally.
     pub(super) plan: Option<StyleVariantPlan>,
+}
+
+/// Returns the enabled findings for variant selectors of the candidate `raw`.
+///
+/// Each rule reports at most one finding at `span`: a selector that does not depend on
+/// the styled element, and a selector that uses `&` more than once in one complex
+/// selector. An unparsable candidate returns no findings.
+fn variant_selector_lints(
+    raw: &str,
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+    span: Span,
+) -> Vec<LintFinding> {
+    let Some(candidate) = parse_candidate(raw) else {
+        return Vec::new();
+    };
+    let mut findings = Vec::new();
+    if lint_settings.enabled_for_detection(LintKind::DocumentScopedSelector)
+        && let Some(selector) = candidate
+            .variants
+            .iter()
+            .find_map(|variant| document_scoped_selector(variant, theme))
+    {
+        findings.push(LintFinding::new(
+            LintDiagnostic::DocumentScopedSelector {
+                selector: selector.into(),
+            },
+            span,
+        ));
+    }
+    if lint_settings.enabled_for_detection(LintKind::RepeatedNestingSelector)
+        && let Some(selector) = candidate
+            .variants
+            .iter()
+            .find_map(|variant| repeated_subject_selector(variant, theme))
+    {
+        findings.push(LintFinding::new(
+            LintDiagnostic::RepeatedNestingSelector {
+                selector: selector.into(),
+            },
+            span,
+        ));
+    }
+    findings
 }
 
 fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {

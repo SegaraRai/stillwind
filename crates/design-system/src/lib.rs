@@ -59,8 +59,8 @@ pub use evaluation::{
     builtin_definitions, builtin_omit_token_prefixes, builtin_property_definitions,
     builtin_theme_order, builtin_utility_token_prefixes, compare_variant_sequences,
     compatibility_marker_class, document_scoped_selector, is_condition_variant,
-    is_tailwind_relationship_candidate, resolve_animation_option, resolve_utility, resolve_variant,
-    resolve_variant_with_usage,
+    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_animation_option,
+    resolve_utility, resolve_variant, resolve_variant_with_usage,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,

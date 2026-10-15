@@ -177,6 +177,55 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
 }
 
 #[test]
+fn reports_variant_selectors_that_repeat_the_styled_element() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const adjacent = style("[&+&]:block", "group-[&+&]:flex", "not-[&+&]:grid", "pair:hidden");
+export const nested = style({ "[&_&]:": "flex" });
+export const single = style("[&:where(.a,.b)]:block", "group-hover:flex", "not-[.a_&]:grid");"#,
+    )
+    .unwrap();
+    let theme = css_source(
+        FileId(2),
+        "@import \"stillwind\"; @custom-variant pair (& ~ &);",
+    )
+    .unwrap();
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let mut selectors = result
+        .lint_findings
+        .iter()
+        .filter_map(|finding| match &finding.diagnostic {
+            LintDiagnostic::RepeatedNestingSelector { selector } => Some(selector.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    selectors.sort_unstable();
+    assert_eq!(selectors, vec!["& &", "& ~ &", "&+&", "&+&", "&+&"]);
+    assert_eq!(
+        result
+            .lint_settings
+            .reporting_severity(LintKind::RepeatedNestingSelector),
+        LintSeverity::Warn
+    );
+    assert!(result.css.contains(":not(*+*)"), "{}", result.css);
+}
+
+#[test]
 fn host_settings_can_disable_the_element_scope_rule() {
     let component = SourceFile::new(
         FileId(1),

@@ -173,6 +173,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "repeated-nesting-selector": {
+    category: "hazard",
+    nativeName: "repeatedNestingSelector",
+    defaults: null,
+    options: null,
+  },
   "missing-view-transition-name": {
     category: "hazard",
     nativeName: "missingViewTransitionName",

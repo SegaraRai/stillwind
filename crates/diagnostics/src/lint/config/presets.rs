@@ -33,6 +33,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::MissingRefAttachment, LintSeverity::Warn),
     (LintKind::ConflictingProviderProperties, LintSeverity::Warn),
     (LintKind::DocumentScopedSelector, LintSeverity::Deny),
+    (LintKind::RepeatedNestingSelector, LintSeverity::Warn),
     (LintKind::MissingViewTransitionName, LintSeverity::Warn),
     (LintKind::DuplicateViewTransitionName, LintSeverity::Warn),
     (LintKind::SplitViewTransitionClass, LintSeverity::Warn),

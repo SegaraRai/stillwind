@@ -32,7 +32,8 @@ pub use variants::{
     ResolvedVariant, VariantApplication, VariantDeclaration, VariantMediaValue,
     VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
     compatibility_marker_class, document_scoped_selector, is_condition_variant,
-    is_tailwind_relationship_candidate, resolve_variant, resolve_variant_with_usage,
+    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
+    resolve_variant_with_usage,
 };
 
 pub(crate) use programs::UtilityPrograms;

@@ -271,6 +271,16 @@ These rules default to `deny` (error). CSS `@stillwind` settings can select `war
 or `off`, and `swlint-disable*` directives can suppress individual findings.
 Transform output is retained even when lint findings exist.
 
+A variant selector that uses `&` more than once in one complex selector produces
+`RepeatedNestingSelector` (`repeated-nesting-selector`) findings. Examples are `[&+&]:`,
+`[&_&]:`, a custom variant `(& ~ &)`, and the inner variant of `group-[&+&]:`,
+`peer-[&~&]:`, or `not-[&+&]:`. Each `&` stands for a generated utility class, so
+the selector matches by the identity of generated classes. The compiler derives that
+identity from the module, the call site, and the contribution branch, so it does not
+describe a relationship between elements. Comma-separated alternatives count
+separately, including alternatives inside `:is()` and `:where()`. The CSS is still
+emitted. Use `style.ref()` to relate elements. This rule defaults to `warn`.
+
 A view transition uses a class for identity and a name for its pairing key.
 A call without a name supplier produces `MissingViewTransitionName`
 (`missing-view-transition-name`); a call with two or more produces

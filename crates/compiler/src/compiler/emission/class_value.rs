@@ -8,6 +8,7 @@
 
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_design_system::repeated_subject_selector;
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
@@ -58,6 +59,18 @@ impl CallEmitter<'_> {
                         &self.lint_settings,
                         span,
                     ));
+                    if self
+                        .lint_settings
+                        .enabled_for_detection(LintKind::RepeatedNestingSelector)
+                        && let Some(selector) = repeated_subject_selector(&variant, self.theme)
+                    {
+                        self.lint_findings.push(LintFinding::new(
+                            LintDiagnostic::RepeatedNestingSelector {
+                                selector: selector.into(),
+                            },
+                            span,
+                        ));
+                    }
                     offset = end + 1;
                 }
             }

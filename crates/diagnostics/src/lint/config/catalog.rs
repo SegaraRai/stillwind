@@ -268,6 +268,7 @@ define_lint_rules! {
         InterferingImportedStyleBase => "interfering-imported-style-base",
         MissingRefAttachment => "missing-ref-attachment",
         DocumentScopedSelector => "document-scoped-selector",
+        RepeatedNestingSelector => "repeated-nesting-selector",
         MissingViewTransitionName => "missing-view-transition-name",
         DuplicateViewTransitionName => "duplicate-view-transition-name",
         SplitViewTransitionClass => "split-view-transition-class",
