@@ -1,11 +1,13 @@
-//! Lowering of build-time `--theme()` references inside token values.
+//! Lowering of build-time `--theme()` and `theme()` references.
 //!
 //! Tailwind resolves these while generating CSS rather than in the browser, so the
-//! result depends on which tokens are active. Three outcomes exist and must stay
-//! distinguishable: a defined token becomes a `var()` reference, an undefined token
-//! with a fallback uses that fallback, and an undefined token whose fallback is
-//! `initial` (or that has no fallback) drops the containing declaration entirely,
-//! which [`None`] reports to the caller.
+//! result depends on which tokens are active. In token values, `--theme()` has three
+//! outcomes that must stay distinguishable: a defined token becomes a `var()`
+//! reference, an undefined token with a fallback uses that fallback, and an undefined
+//! token whose fallback is `initial` (or that has no fallback) drops the containing
+//! declaration entirely, which [`None`] reports to the caller.
+//!
+//! In arbitrary values, `theme()` is replaced with the token's authored value.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
@@ -104,9 +106,68 @@ pub(crate) fn resolve_theme_references(
     Ok((!omitted).then_some(output))
 }
 
+/// Replaces every `theme(--name)` and `theme(--name, fallback)` call in an arbitrary
+/// value with the authored value that `token_value` returns for `--name`, or with the
+/// fallback when `token_value` returns [`None`].
+///
+/// A reference inside a string is left alone. Returns [`None`] when a call is
+/// unterminated, does not name a custom property, or names an unavailable token
+/// without a fallback, because the browser cannot evaluate `theme()`.
+pub(crate) fn inline_theme_functions<'a>(
+    value: &str,
+    mut token_value: impl FnMut(&str) -> Option<&'a str>,
+) -> Option<LeanString> {
+    let mut output = LeanString::with_capacity(value.len());
+    let mut cursor = 0;
+    for found in find_css_functions(value, &["theme"], 0) {
+        if found.start < cursor {
+            continue;
+        }
+        output.push_str(&value[cursor..found.start]);
+        let (reference, fallback) = split_css_function_arguments(&value[found.arguments]);
+        let reference = reference.trim();
+        if !reference.starts_with("--") {
+            return None;
+        }
+        let replacement = token_value(reference).or_else(|| {
+            fallback
+                .map(str::trim)
+                .filter(|fallback| !fallback.is_empty())
+        })?;
+        output.push_str(replacement);
+        cursor = found.end?;
+    }
+    output.push_str(&value[cursor..]);
+    Some(output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn theme_functions_inline_token_values_or_fallbacks() {
+        let token = |name: &str| (name == "--color-red").then_some("oklch(60% 0.2 25)");
+        for (value, expected) in [
+            ("theme(--color-red)", Some("oklch(60% 0.2 25)")),
+            (
+                "0 0 2px theme(--color-red)",
+                Some("0 0 2px oklch(60% 0.2 25)"),
+            ),
+            ("theme(--color-blue, blue)", Some("blue")),
+            ("--theme(--color-red)", Some("--theme(--color-red)")),
+            ("'theme(--color-red)'", Some("'theme(--color-red)'")),
+            ("theme(--color-blue)", None),
+            ("theme(colors.red.500)", None),
+            ("theme(--color-red", None),
+        ] {
+            assert_eq!(
+                inline_theme_functions(value, token).as_deref(),
+                expected,
+                "{value}"
+            );
+        }
+    }
 
     #[test]
     fn defined_missing_and_initial_fallbacks_are_distinct() {

@@ -101,6 +101,10 @@ fn resolve_builtin_css_utility(
 /// additional targets. A property already claimed by a more-specific branch is not
 /// overwritten by a broader one. The most specific branch that carries a `tw_sort`
 /// override supplies the retained one.
+///
+/// Without an exact definition, an unhinted arbitrary value keeps only the branches
+/// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand
+/// for any type, so only the earliest registered branch that accepts it is kept.
 pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
@@ -108,14 +112,16 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let mut branches = Vec::new();
-    for utility in utilities {
+    // Registries list matching definitions newest first, so a project definition
+    // without a built-in position registers earlier the later it appears here.
+    for (index, utility) in utilities.enumerate() {
         if let Some(resolution) = resolve_css_utility_body(utility, name, modifier, theme)? {
             branches.push((
                 utility_branch_specificity(utility, name),
                 utility.name == name,
                 utility_value_types(utility),
                 resolution,
-                utility.builtin_order,
+                utility.builtin_order.unwrap_or(usize::MAX - index),
             ));
         }
     }
@@ -131,15 +137,29 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             .iter()
             .flat_map(|(_, _, domains, _, _)| domains.iter().copied())
             .collect::<Vec<_>>();
-        let selected = infer_arbitrary_value_type(&arbitrary, &available).or_else(|| {
-            // Emission order can give every overload of a name the same position.
-            // Type fallback needs the individual registrations to distinguish them.
-            branches
+        if stands_for_any_type(&arbitrary) {
+            // A `var()` reference or CSS-wide keyword selects one definition instead
+            // of setting every property that accepts it: `border-(--x)` must not set
+            // both border-width and border-color. Emission order can give every
+            // overload of a name the same position, so the individual registrations
+            // decide.
+            let first = branches
                 .iter()
-                .min_by_key(|(_, _, _, _, registration)| *registration)
-                .and_then(|(_, _, domains, _, _)| domains.first().copied())
-        });
-        if let Some(selected) = selected {
+                .enumerate()
+                .min_by_key(|(_, (_, _, _, _, registration))| *registration)
+                .map(|(index, _)| index);
+            branches = first
+                .map(|index| branches.swap_remove(index))
+                .into_iter()
+                .collect();
+        } else if let Some(selected) =
+            infer_arbitrary_value_type(&arbitrary, &available).or_else(|| {
+                branches
+                    .iter()
+                    .min_by_key(|(_, _, _, _, registration)| *registration)
+                    .and_then(|(_, _, domains, _, _)| domains.first().copied())
+            })
+        {
             branches.retain(|(_, _, domains, _, _)| domains.contains(&selected));
         }
     }
@@ -240,19 +260,24 @@ fn unhinted_arbitrary_value(name: &str) -> Option<LeanString> {
         .then(|| format_args!("var({variable})").to_lean_string())
 }
 
-/// Chooses the value type an unhinted arbitrary value most likely means.
-///
-/// Only types the branch actually accepts are considered, the image and color families
-/// are tried before geometry, and CSS-wide keywords and `var()` references are never
-/// inferred because they can stand for any type.
-fn infer_arbitrary_value_type(value: &str, available: &[ValueType]) -> Option<ValueType> {
-    if value.contains("var(")
+/// True for CSS-wide keywords and values that contain a `var()` reference, whose
+/// type cannot be inferred from their text.
+fn stands_for_any_type(value: &str) -> bool {
+    value.contains("var(")
         || value.starts_with("--")
         || matches!(
             value.trim(),
             "initial" | "inherit" | "unset" | "revert" | "revert-layer"
         )
-    {
+}
+
+/// Chooses the value type an unhinted arbitrary value most likely means.
+///
+/// Only types the branch actually accepts are considered, the image and color families
+/// are tried before geometry, and values for which [`stands_for_any_type`] holds are
+/// never inferred.
+fn infer_arbitrary_value_type(value: &str, available: &[ValueType]) -> Option<ValueType> {
+    if stands_for_any_type(value) {
         return None;
     }
     [

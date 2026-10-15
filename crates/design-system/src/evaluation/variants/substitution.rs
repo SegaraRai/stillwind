@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::find_css_function;
 use stillwind_source::ReplaceText;
 
 use super::super::values::expand_placeholder;
@@ -332,17 +333,21 @@ pub(super) fn resolve_variant_value_with_source(
                     })
             });
         }
-        resolve_value_domains(domain, capture, theme).map(|value| {
-            let source = if domain == "--spacing()"
-                && let Some(token) =
-                    capture.and_then(|name| theme.token_in(ThemeNamespace::Spacing, name))
-            {
-                VariantValueSource::ThemeToken(token.name.value.clone())
-            } else {
-                VariantValueSource::Explicit
-            };
-            (value, source)
-        })
+        let value = resolve_value_domains(domain, capture, theme)?;
+        // Media queries, container queries, and selectors cannot contain `var()`, so
+        // `min-(--x)` would emit a rule that never matches.
+        if find_css_function(&value, "var", 0).is_some() {
+            return None;
+        }
+        let source = if domain == "--spacing()"
+            && let Some(token) =
+                capture.and_then(|name| theme.token_in(ThemeNamespace::Spacing, name))
+        {
+            VariantValueSource::ThemeToken(token.name.value.clone())
+        } else {
+            VariantValueSource::Explicit
+        };
+        Some((value, source))
     })
 }
 
@@ -372,6 +377,26 @@ mod tests {
                 &theme
             )
             .is_none()
+        );
+    }
+
+    #[test]
+    fn explicit_variant_values_reject_custom_property_references() {
+        let source =
+            SourceFile::new(FileId(1), None, None, "@theme { --breakpoint-sm: 40rem; }").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+        let theme = EvaluationContext::untracked(&theme);
+        let body = "@media (width >= --value([length])) { @slot; }";
+        for value in ["min-(--x)", "min-[var(--x)]", "min-[calc(var(--x)*2)]"] {
+            assert_eq!(
+                resolve_variant_css_placeholders(body, "min-*", value, &theme),
+                None,
+                "{value}"
+            );
+        }
+        assert_eq!(
+            resolve_variant_css_placeholders(body, "min-*", "min-[40rem]", &theme),
+            Some("@media (width >= 40rem) { @slot; }".into())
         );
     }
 

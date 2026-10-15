@@ -159,3 +159,92 @@ fn shadow_color_alpha_emits_hex_fallback_and_upgrade() {
                 )
         }));
 }
+
+#[test]
+fn untyped_variables_select_the_earliest_registered_overload() {
+    let theme = theme();
+    for (candidate, expected) in [
+        ("border-(--x)", "border-color:var(--x);"),
+        ("border-[var(--x)]", "border-color:var(--x);"),
+        ("border-[initial]", "border-color:initial;"),
+        ("text-(--x)", "color:var(--x);"),
+        ("text-[var(--x)]", "color:var(--x);"),
+        ("stroke-(--x)", "stroke:var(--x);"),
+        (
+            "font-(--x)",
+            "--tw-font-weight:var(--x);font-weight:var(--x);",
+        ),
+        ("font-[Inter]", "font-family:Inter;"),
+        ("font-[500]", "--tw-font-weight:500;font-weight:500;"),
+    ] {
+        assert_css_eq!(
+            resolve_utility(candidate, &theme).unwrap().declaration,
+            expected
+        );
+    }
+    let from = resolve_utility("from-(--x)", &theme).unwrap().declaration;
+    assert!(from.contains_css("--tw-gradient-from:var(--x);"), "{from}");
+    assert!(!from.contains("--tw-gradient-from-position:"), "{from}");
+    for (candidate, shadow) in [
+        ("shadow-(--x)", "--tw-shadow:var(--x);"),
+        ("shadow-[var(--x)]", "--tw-shadow:var(--x);"),
+        (
+            "drop-shadow-(--x)",
+            "--tw-drop-shadow-size:drop-shadow(var(--x));",
+        ),
+        ("inset-shadow-(--x)", "--tw-inset-shadow:inset var(--x);"),
+        (
+            "inset-shadow-[0_1px_red]",
+            "--tw-inset-shadow:inset 0 1px var(--tw-inset-shadow-color, red);",
+        ),
+    ] {
+        let declaration = resolve_utility(candidate, &theme).unwrap().declaration;
+        assert!(
+            declaration.contains_css(shadow),
+            "{candidate}: {declaration}"
+        );
+        assert!(
+            !declaration.contains("-color:var(--x)"),
+            "{candidate}: {declaration}"
+        );
+    }
+    assert!(
+        resolve_utility("transition-(--x)", &theme)
+            .unwrap()
+            .declaration
+            .contains_css(
+                "transition-duration:var(--tw-duration, var(--default-transition-duration));"
+            )
+    );
+
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r"@utility tab-* { tab-size: --value([integer]); }
+@utility tab-* { outline-color: --value([color]); }",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+    assert_css_eq!(
+        resolve_utility("tab-(--x)", &theme).unwrap().declaration,
+        "tab-size:var(--x);"
+    );
+}
+
+#[test]
+fn theme_functions_in_arbitrary_values_inline_token_values() {
+    let theme = theme();
+    for (candidate, expected) in [
+        ("[--x:theme(--color-brand)]", "--x:red;"),
+        ("[--x:theme(--color-missing,_blue)]", "--x:blue;"),
+        ("bg-[theme(--color-brand)]", "background-color:red;"),
+        ("w-[calc(theme(--breakpoint-sm)*2)]", "width:calc(40rem*2);"),
+    ] {
+        assert_css_eq!(
+            resolve_utility(candidate, &theme).unwrap().declaration,
+            expected
+        );
+    }
+    assert!(resolve_utility("[--x:theme(--color-missing)]", &theme).is_none());
+}

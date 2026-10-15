@@ -104,7 +104,7 @@ fn typed_theme_arbitrary(
 ) -> Option<LeanStr> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
-    let value = decode_arbitrary(value);
+    let value = theme.inline_theme_functions(&decode_arbitrary(value))?;
     let types = theme_arbitrary_types(namespace, theme);
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()

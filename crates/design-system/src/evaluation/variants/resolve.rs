@@ -493,7 +493,10 @@ fn resolve_typed_variant(
             resolve_variant_body(&body.replace_text(":--value()", &value))
         }
         BuiltinVariantValueType::Nth | BuiltinVariantValueType::SupportsCondition => {
-            let value = decode_variant_capture(capture);
+            let mut value = decode_variant_capture(capture);
+            if value_type == BuiltinVariantValueType::SupportsCondition {
+                value = supports_feature_test(value);
+            }
             if !value_type.accepts_css(&value) {
                 return None;
             }
@@ -556,6 +559,24 @@ fn decode_variant_capture(value: &str) -> LeanString {
         .map_or_else(|| value.replace_char('_', " "), decode_arbitrary)
 }
 
+/// Turns a bare property name in a `@supports` capture into a declaration test.
+///
+/// `@supports (grid)` is always false, so `grid` becomes `grid: var(--tw)`, which
+/// is true when the browser knows the property. A capture that starts with a function,
+/// such as `selector(...)`, or that contains `:` is already a condition and is kept.
+fn supports_feature_test(value: LeanString) -> LeanString {
+    let is_function = value.find('(').is_some_and(|index| {
+        value[..index].trim_end().chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        })
+    });
+    if is_function || value.contains(':') {
+        value
+    } else {
+        format_args!("{value}: var(--tw)").to_lean_string()
+    }
+}
+
 /// Builds a synthetic nested variant from capture text, keeping the raw spelling so an
 /// inner resolution can report the text the author wrote.
 pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
@@ -609,6 +630,20 @@ fn attribute_variant_selector(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn supports_captures_test_bare_properties_and_keep_conditions() {
+        for (capture, expected) in [
+            ("grid", "grid: var(--tw)"),
+            ("--foo", "--foo: var(--tw)"),
+            ("display:grid", "display:grid"),
+            ("selector(a:hover)", "selector(a:hover)"),
+            ("font-format(woff2)", "font-format(woff2)"),
+            ("(display:grid) and (gap:0)", "(display:grid) and (gap:0)"),
+        ] {
+            assert_eq!(supports_feature_test(capture.into()), expected, "{capture}");
+        }
+    }
 
     #[test]
     fn modifiers_and_attribute_captures_preserve_nested_syntax() {

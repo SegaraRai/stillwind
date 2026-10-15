@@ -138,6 +138,8 @@
 
 @stillwind-utility transition-* {
   transition-property: --value([transition-property]);
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
 }
 
 @stillwind-arbitrary-property transition-behavior;

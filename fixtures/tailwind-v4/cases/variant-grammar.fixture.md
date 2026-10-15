@@ -288,3 +288,51 @@ aria-busy:bg-red-500 aria-checked:bg-red-500 aria-disabled:bg-red-500 aria-expan
   }
 }
 ```
+
+## `variants.supports-features-and-variable-breakpoints`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+supports-grid:flex supports-display:flex supports-backdrop-filter:flex supports-[--foo]:flex not-supports-grid:flex min-(--x):flex max-(--x):flex @min-(--x):flex @max-(--x):flex
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  @supports not (grid: var(--tw)) {
+    .not-supports-grid\:flex {
+      display: flex;
+    }
+  }
+  @supports (backdrop-filter: var(--tw)) {
+    .supports-backdrop-filter\:flex {
+      display: flex;
+    }
+  }
+  @supports (display: var(--tw)) {
+    .supports-display\:flex {
+      display: flex;
+    }
+  }
+  @supports (grid: var(--tw)) {
+    .supports-grid\:flex {
+      display: flex;
+    }
+  }
+  @supports (--foo: var(--tw)) {
+    .supports-\[--foo\]\:flex {
+      display: flex;
+    }
+  }
+}
+```

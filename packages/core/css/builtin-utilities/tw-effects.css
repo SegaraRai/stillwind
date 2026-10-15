@@ -117,6 +117,18 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
+/*
+An untyped variable selects the earliest registered branch that accepts it. Keep this
+branch before the shadow color branches so `shadow-(--x)` sets the shadow, as in
+Tailwind.
+*/
+@stillwind-utility shadow-* {
+  --tw-shadow: --stillwind-builtin-shadow-color([shadow], --tw-shadow-color);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
 @stillwind-arbitrary-property --tw-ring-shadow;
 
 @stillwind-utility ring {
@@ -258,8 +270,13 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
+/*
+Theme inset shadows already contain `inset`, while arbitrary shadows receive it here.
+Keep this branch before the inset shadow color branches so `inset-shadow-(--x)` sets the
+shadow.
+*/
 @stillwind-utility inset-shadow-* {
-  --tw-inset-shadow: --value(none, [shadow]);
+  --tw-inset-shadow: inset --stillwind-builtin-shadow-color([shadow], --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);

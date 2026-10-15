@@ -13,7 +13,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property
 use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
 use super::namespace::ThemeNamespace;
-use super::references::resolve_theme_references;
+use super::references::{inline_theme_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::UtilityOrderMode;
 use crate::evaluation::UtilityPrograms;
@@ -261,6 +261,19 @@ impl ThemeIndex {
         value: &str,
     ) -> Result<Option<LeanString>, ThemeReferenceError> {
         resolve_theme_references(value, |name| self.custom_property(name).is_some())
+    }
+
+    /// Replaces build-time `theme()` calls in an arbitrary value with the authored
+    /// values of active tokens or with the calls' fallbacks.
+    ///
+    /// Returns [`None`] when a call is malformed or names an inactive token without a
+    /// fallback.
+    #[must_use]
+    pub fn inline_theme_functions(&self, value: &str) -> Option<LeanString> {
+        inline_theme_functions(value, |name| {
+            self.custom_property(name)
+                .map(|token| token.value.value.as_str())
+        })
     }
 
     /// Returns the effective CSS custom properties after v4 namespace resets.

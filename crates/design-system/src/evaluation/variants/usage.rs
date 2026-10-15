@@ -203,15 +203,14 @@ mod tests {
     use crate::test_support::parse_fixture_theme;
 
     #[test]
-    fn spacing_domains_distinguish_named_tokens_from_numeric_scales_and_variables() {
+    fn spacing_domains_distinguish_named_tokens_from_explicit_values_and_reject_variables() {
         let source = SourceFile::new(
             FileId(1),
             None,
             None,
             "@theme inline {
-            --spacing:0.25rem; --spacing-ref-small:1rem;
-            --spacing-gutter:var(--spacing-ref-small);
-        } @variant scaled-* { @media (width>=--value(--spacing())) {@slot;} }",
+            --spacing:0.25rem; --spacing-ref-small:1rem; --spacing-gutter:2rem;
+        } @variant scaled-* { @media (width>=--value(--spacing(), [length])) {@slot;} }",
         )
         .unwrap();
         let theme = parse_fixture_theme(&source).unwrap();
@@ -221,17 +220,7 @@ mod tests {
                 vec!["--spacing-gutter"],
                 VariantValueSource::ThemeToken("--spacing-gutter".into()),
             ),
-            ("4", vec!["--spacing"], VariantValueSource::Explicit),
-            (
-                "[var(--spacing-ref-small)]",
-                vec!["--spacing-ref-small"],
-                VariantValueSource::Explicit,
-            ),
-            (
-                r"(--spacing-ref-\73mall)",
-                vec!["--spacing-ref-small"],
-                VariantValueSource::Explicit,
-            ),
+            ("[3rem]", vec![], VariantValueSource::Explicit),
         ] {
             let resolved = resolve_variant_with_usage(
                 &parse_nested_variant(&format_args!("scaled-{capture}").to_lean_string()),
@@ -240,6 +229,15 @@ mod tests {
             .unwrap();
             assert_eq!(resolved.tokens, tokens, "{capture}");
             assert_eq!(resolved.media_values[0].sources, [origin], "{capture}");
+        }
+        // A media query cannot evaluate `var()`, including the one in a numeric
+        // spacing value.
+        for capture in ["4", "[var(--spacing-ref-small)]", "(--spacing-ref-small)"] {
+            let variant = parse_nested_variant(&format_args!("scaled-{capture}").to_lean_string());
+            assert!(
+                resolve_variant_with_usage(&variant, &theme).is_none(),
+                "{capture}"
+            );
         }
     }
 

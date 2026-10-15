@@ -11,7 +11,7 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
+use stillwind_css::{find_css_functions, shadow_with_color_fallback, shadow_with_color_override};
 
 use super::super::EvaluationContext;
 use super::super::builtins::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
@@ -130,7 +130,12 @@ pub(in crate::evaluation) fn resolve_shadow_color(
         _ => return None,
     };
     let value = if domain.trim() == "[shadow]" {
-        resolve_value_domains(domain, capture, theme)?
+        let value = resolve_value_domains(domain, capture, theme)?;
+        // A variable hides the shadow's color, so it has no color to override.
+        if is_single_var_reference(&value) {
+            return Some(value.into());
+        }
+        value
     } else {
         let namespace = domain
             .trim()
@@ -152,9 +157,24 @@ pub(in crate::evaluation) fn resolve_shadow_color(
     }
 }
 
+/// True when `value` consists of exactly one `var()` function.
+fn is_single_var_reference(value: &str) -> bool {
+    find_css_functions(value, &["var"], 0)
+        .first()
+        .is_some_and(|function| function.start == 0 && function.end == Some(value.len()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn single_var_references_cover_the_whole_value() {
+        assert!(is_single_var_reference("var(--x)"));
+        assert!(is_single_var_reference("var(--x, 0 1px red)"));
+        assert!(!is_single_var_reference("0 1px var(--x)"));
+        assert!(!is_single_var_reference("var(--x) var(--y)"));
+    }
 
     #[test]
     fn compatibility_color_modes_handle_keywords_and_explicit_alpha() {

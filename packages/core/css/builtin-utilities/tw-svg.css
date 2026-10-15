@@ -34,12 +34,17 @@
   );
 }
 
+/*
+An untyped variable selects the earliest registered branch that accepts it. Keep this
+color branch before the stroke-width branch so `stroke-(--x)` sets the stroke, as in
+Tailwind.
+*/
+@stillwind-utility stroke-* {
+  stroke: --value(--color-*, current, inherit, transparent, [color]);
+}
+
 @stillwind-arbitrary-property stroke-width;
 
 @stillwind-utility stroke-* {
   stroke-width: --value(integer, [length]);
-}
-
-@stillwind-utility stroke-* {
-  stroke: --value(--color-*, current, inherit, transparent, [color]);
 }

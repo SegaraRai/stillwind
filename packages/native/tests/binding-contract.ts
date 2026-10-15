@@ -979,7 +979,7 @@ export const policies=style('child:[padding-left:2px] text-red-500');`;
 @utility p-* {padding:--value(--spacing-*);} @utility flex {display:flex;} @utility gap {gap:1rem;}
 @variant speed-* { & {transition-duration:--value(--duration-*); @slot;} }
 @variant max-* { @media (width < --value([length])) { @slot; } }
-@variant scaled-* { @media (width >= --value(--spacing())) { @slot; } }
+@variant scaled-* { @media (width >= --value(--spacing-*, [length])) { @slot; } }
 @stillwind-variant supports-* (value: [supports-condition]) { @supports (--value()) { @slot; } }
 @variant tablet { @media (width >= 900px) { @slot; } }
 @stillwind-slot utilities;`;
@@ -1040,11 +1040,10 @@ const x=style('max-[900px]:flex');`,
     const variables = compileSource(
       oneShotInput(
         `import {style} from 'stillwind/react';
-const a=style('max-[var(--spacing-ref-small)]:flex');
+const a=style('supports-[padding:var(--spacing-ref-small)]:flex');
 const b=style('max-(--spacing-ref-small):flex');
 const c=style('supports-[transition-duration:var(--duration-ref-fast)]:flex');
-const d=style('max-[var(--spacing-gutter)]:flex');
-const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
+const d=style('supports-[padding:var(--spacing-gutter)]:flex');`,
         "variables.tsx",
         css,
       ),
@@ -1057,13 +1056,12 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     expect(variables.diagnostics).toEqual([]);
     expect(variables.reports.map((report: { code: string }) => report.code)).toEqual([
       "no-restricted-theme-tokens",
-      "no-restricted-theme-tokens",
-      "no-restricted-theme-tokens",
+      "unknown-utility",
       "no-restricted-theme-tokens",
     ]);
     const spacing = compileSource(
       oneShotInput(
-        "import {style} from 'stillwind/react';const a=style('scaled-gutter:flex');const b=style('scaled-4:flex');",
+        "import {style} from 'stillwind/react';const a=style('scaled-gutter:flex');const b=style('scaled-[3rem]:flex');",
         "spacing.tsx",
         css,
       ),

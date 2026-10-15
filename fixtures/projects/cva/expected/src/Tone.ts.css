@@ -1,5 +1,5 @@
 .sw_eloo8 {
-  font-size: var(--tone);
+  color: var(--tone);
 }
 @media (hover: hover) {
   .sw_b9uo2:hover {

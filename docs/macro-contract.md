@@ -422,7 +422,8 @@ const props = style("bg-(image:--image) w-[calc(var(--progress)*100%)]", {
 The bundler processes the image import, including asset hashing and deployment
 base handling. Stillwind does not resolve or rewrite these runtime values.
 `bg-(image:--image)` explicitly selects background-image; an untyped background
-variable can select the color utility instead.
+variable selects background-color instead. See
+[Arbitrary values](#arbitrary-values) for the selection rule.
 
 | Value                                      | Inline CSS text                        |
 | ------------------------------------------ | -------------------------------------- |
@@ -657,3 +658,42 @@ media query lists, and combined conditions such as `(a) and (b)`.
 A `[variant]` definition without a `modifier:` declaration passes a modifier to its inner
 variant. `not-group-hover/menu`, `has-group-hover/menu`, and `in-group-hover/menu`
 therefore test the `group/menu` element.
+
+## Arbitrary values
+
+Several utility definitions can share a root, such as the `border-*` definitions for
+border-width and border-color. A type hint such as `border-(length:--x)` selects the
+definitions that accept that type. An unhinted value selects the definitions that
+accept its inferred type: `border-[3px]` sets border-width, and `border-[red]` sets
+border-color.
+
+The type of a `var()` reference or a CSS-wide keyword cannot be inferred. Such a
+value selects only the earliest registered definition that accepts it, so it never
+sets several properties at once. The built-in definitions are registered in
+Tailwind's order:
+
+| Candidate                             | Property                       |
+| ------------------------------------- | ------------------------------ |
+| `border-(--x)`, `border-[var(--x)]`   | `border-color`                 |
+| `text-(--x)`, `stroke-(--x)`          | `color`, `stroke`              |
+| `from-(--x)`, `via-(--x)`, `to-(--x)` | the gradient color stop        |
+| `font-(--x)`                          | `font-weight`                  |
+| `shadow-(--x)`, `inset-shadow-(--x)`  | the shadow, not its color      |
+| `drop-shadow-(--x)`                   | the drop shadow, not its color |
+
+For project `@utility` definitions, the definition authored first wins.
+
+`theme(--name)` in an arbitrary value is replaced with the authored value of the
+active theme token at build time: `[--x:theme(--color-red-500)]` sets `--x` to the
+color. `theme(--name, fallback)` uses the fallback when the token is not active.
+A candidate whose `theme()` call names an inactive token without a fallback, or
+names something other than a custom property, is unresolved.
+
+Variant values must not contain `var()`, because media queries, container queries,
+and selectors cannot evaluate it. `min-(--x)`, `max-[var(--x)]`, and `@min-(--x)`
+are therefore unresolved.
+
+A `supports-*` value without `:` that does not start with a function is a property
+name. `supports-grid` emits `@supports (grid: var(--tw))`, which is true when the
+browser knows the `grid` property. `supports-[display:grid]` and
+`supports-[selector(:has(*))]` are used as written.

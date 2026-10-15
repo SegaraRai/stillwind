@@ -111,6 +111,10 @@ pub fn resolve_utility(
     };
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
+            let Some(value) = theme.inline_theme_functions(value) else {
+                return Ok(None);
+            };
+            let value = value.as_str();
             let mut resolution =
                 UtilityResolution::plain(format_args!("{property}:{value};").to_lean_string());
             resolution.arbitrary_uses.push(UtilityArbitraryUse {

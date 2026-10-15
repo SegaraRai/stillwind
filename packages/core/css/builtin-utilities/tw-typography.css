@@ -207,7 +207,19 @@
   vertical-align: --value([vertical-align]);
 }
 
-/* MARK: Fonts */
+/* MARK: Fonts and Colors */
+
+@stillwind-arbitrary-property font-weight;
+
+/*
+An untyped variable selects the earliest registered branch that accepts it. Keep the
+font-weight branch before the font-family branch so `font-(--x)` sets the weight, as in
+Tailwind.
+*/
+@stillwind-utility font-* {
+  --tw-font-weight: --value(--font-weight-*, [number]);
+  font-weight: --value(--font-weight-*, [number]);
+}
 
 @stillwind-arbitrary-property font-family;
 
@@ -219,6 +231,24 @@
 
 @stillwind-utility font-features-* {
   font-feature-settings: --value([font-feature-settings]);
+}
+
+@stillwind-arbitrary-property color;
+
+/*
+An untyped variable selects the earliest registered branch that accepts it. Keep this
+color branch before the font-size branches so `text-(--x)` sets the color, as in
+Tailwind.
+*/
+@stillwind-utility text-* {
+  color: --value(--color-*, current, inherit, transparent);
+}
+
+@stillwind-utility text-* {
+  color: --compat-color(
+    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
 }
 
 @stillwind-arbitrary-property font-size;
@@ -266,8 +296,6 @@
 }
 
 /* MARK: `font-weight` */
-
-@stillwind-arbitrary-property font-weight;
 
 @stillwind-utility font-bold {
   --tw-font-weight: var(--font-weight-bold);
@@ -416,21 +444,6 @@
 
 @stillwind-utility tab-* {
   tab-size: --value([tab-size]);
-}
-
-/* MARK: `color` */
-
-@stillwind-arbitrary-property color;
-
-@stillwind-utility text-* {
-  color: --value(--color-*, current, inherit, transparent);
-}
-
-@stillwind-utility text-* {
-  color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
 }
 
 /* MARK: `color` of placeholders */

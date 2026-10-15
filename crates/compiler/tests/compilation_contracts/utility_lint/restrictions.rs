@@ -7,7 +7,6 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
     let theme = "@theme inline {--spacing-ref-small:1rem; --spacing-gutter:var(--spacing-ref-small); --duration-ref-fast:100ms; --duration-enter:var(--duration-ref-fast); --breakpoint-md:48rem; }
 @utility p-* {padding:--value(--spacing-*,[length]);} @utility duration-* {transition-duration:--value(--duration-*,[time]);} @utility flex {display:flex;}
 @variant speed-* { & {transition-duration:--value(--duration-*); @slot;} }
-@variant screen-* { @media (width>=--value([length])) {@slot;} }
 @variant choose-* { @media (width>=--value(--spacing-*,[length])) { @supports (display:--value([color])) {@slot;} } }
 @variant choose-* { @media (width>=--value(--breakpoint-*,[length])) {@slot;} }";
     let theme = with_defaults(theme);
@@ -33,8 +32,6 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
         "speed-ref-fast:flex",
         "md:flex",
         "choose-md:flex",
-        "screen-[var(--spacing-ref-small)]:flex",
-        "screen-(--spacing-ref-small):flex",
         "supports-[transition-duration:var(--duration-ref-fast)]:flex",
     ] {
         assert_eq!(
@@ -47,7 +44,6 @@ fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
         "p-gutter",
         "duration-enter",
         "speed-enter:flex",
-        "screen-[var(--spacing-gutter)]:flex",
         "supports-[transition-duration:var(--duration-enter)]:flex",
         "data-[token=var(--spacing-ref-small)]:flex",
         "[padding:var(--spacing-ref-runtime)]",

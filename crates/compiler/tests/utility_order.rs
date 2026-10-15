@@ -55,12 +55,6 @@ fn tailwind_resolved_property_sort_matches_upstream() {
             "-tracking-wide",
             "-tracking-wider",
             "-tracking-widest",
-            "font-black",
-            "font-extrabold",
-            "font-extralight",
-            "font-light",
-            "font-normal",
-            "font-thin",
             "max-w-prose",
             "shadow"
         ]

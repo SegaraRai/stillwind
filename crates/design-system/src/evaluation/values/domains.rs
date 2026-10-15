@@ -91,7 +91,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary_hint(arbitrary);
-        let value = decode_arbitrary(value);
+        let value = theme.inline_theme_functions(&decode_arbitrary(value))?;
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
         (hint_is_compatible && accepts_runtime_value(expected, &value)).then(|| {
             theme.record_value_tokens(&value);
