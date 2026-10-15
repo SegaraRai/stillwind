@@ -52,7 +52,6 @@ impl PreparedDeclarations {
             .collect();
         let uses_placeholder = declarations.iter().any(|declaration| {
             declaration.contains("--value(")
-                || declaration.contains("--value-literal(")
                 || declaration.contains("--value-map(")
                 || declaration.contains("--modifier(")
                 || declaration.contains("--modifier-map(")
@@ -61,9 +60,9 @@ impl PreparedDeclarations {
                 || declaration.contains("--compat-color(")
                 || declaration.contains("--stillwind-builtin-shadow-color(")
         });
-        let uses_value = declarations.iter().any(|declaration| {
-            declaration.contains("--value(") || declaration.contains("--value-literal(")
-        });
+        let uses_value = declarations
+            .iter()
+            .any(|declaration| declaration.contains("--value("));
         let requires_modifier = declarations
             .iter()
             .any(|declaration| declaration.contains("--modifier("));
@@ -159,7 +158,6 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         let theme = &tracked;
         let authored_declaration = &authored.text;
         let contains_placeholder = authored_declaration.contains("--value(")
-            || authored_declaration.contains("--value-literal(")
             || authored_declaration.contains("--value-map(")
             || authored_declaration.contains("--modifier(")
             || authored_declaration.contains("--modifier-map(")
@@ -169,8 +167,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             || authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_modifier = authored_declaration.contains("--modifier(");
         let contains_required = authored_declaration.contains("--stillwind-builtin-shadow-color(");
-        let contains_value = authored_declaration.contains("--value(")
-            || authored_declaration.contains("--value-literal(");
+        let contains_value = authored_declaration.contains("--value(");
         let static_value = authored.static_value(builtin);
         let resolved = if let Some(value) = static_value {
             Some(value.clone())

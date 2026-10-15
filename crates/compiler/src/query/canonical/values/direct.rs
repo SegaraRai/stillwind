@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use lean_string::{LeanStr, LeanString, ToLeanStr};
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
@@ -227,7 +227,6 @@ fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BT
                 value,
                 &[
                     "--value",
-                    "--value-literal",
                     "--value-map",
                     "--modifier",
                     "--modifier-map",
@@ -281,39 +280,14 @@ fn modifier_preserves_value(body: &str) -> bool {
             return false;
         };
         let value = value.trim().trim_end_matches(';').trim();
-        let calls = find_css_functions(value, &["--value", "--value-literal"], 0);
+        let calls = find_css_functions(value, &["--value"], 0);
         if calls.is_empty() {
             continue;
         }
-        if calls.len() != 1 {
+        if calls.len() != 1 || calls[0].start != 0 || calls[0].end != Some(value.len()) {
             return false;
         }
-        if calls[0].name_index == 0 && calls[0].start == 0 && calls[0].end == Some(value.len()) {
-            preserves = true;
-        } else {
-            let compact: LeanString = value
-                .chars()
-                .filter(|character| !character.is_ascii_whitespace())
-                .collect();
-            let source = &value[calls[0].start..calls[0].end.unwrap_or(value.len())];
-            let source: LeanString = source
-                .chars()
-                .filter(|character| !character.is_ascii_whitespace())
-                .collect();
-            if calls[0].name_index != 1
-                || compact
-                    != format_args!("--compat-color({source},--alpha(--modifier()))").to_lean_str()
-            {
-                return false;
-            }
-            if value_namespaces(value, "--value-literal")
-                .iter()
-                .any(|namespace| namespace != "--color-")
-            {
-                return false;
-            }
-            preserves = true;
-        }
+        preserves = true;
     }
     preserves
 }
@@ -321,12 +295,7 @@ fn modifier_preserves_value(body: &str) -> bool {
 fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> bool {
     let functions = find_css_functions(
         body,
-        &[
-            "--value",
-            "--value-literal",
-            "--value-map",
-            "--stillwind-builtin-shadow-color",
-        ],
+        &["--value", "--value-map", "--stillwind-builtin-shadow-color"],
         0,
     );
     !functions.is_empty()

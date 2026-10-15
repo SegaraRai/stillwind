@@ -2,8 +2,8 @@
 //!
 //! Two lookups exist and must not be confused. [`theme_value`] produces the value the
 //! generated declaration should reference, which is a `var()` reference for an ordinary
-//! token and the authored text for an inline token. [`theme_value_literal`] always
-//! produces the authored text for explicit literal lookups and theme shadow modifiers.
+//! token and the authored text for an inline token. [`theme_value_literal`] reads the
+//! authored token text so shadow color overrides can replace colors inside the value.
 //!
 //! Typed captures - `[hint:value]`, parenthesized variables, and arbitrary lengths -
 //! are validated against the namespace's CSS-declared value types, so the accepted
@@ -69,8 +69,8 @@ pub(in crate::evaluation) fn theme_value(
 
 /// Resolves a value in `namespace` to its authored token text.
 ///
-/// Use this for fallback branches that must not depend on a variable being defined
-/// elsewhere; it falls back to [`theme_value`] when no token matches.
+/// Shadow color overrides read the authored value to find the colors they replace.
+/// Falls back to [`theme_value`] when no token matches.
 pub(in crate::evaluation) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,

@@ -12,18 +12,8 @@
 use lean_string::{LeanStr, ToLeanStr};
 
 use super::super::EvaluationContext;
-use super::domains::{resolve_literal_value_domains, split_domains, theme_domain_pattern};
+use super::domains::{split_domains, theme_domain_pattern};
 use super::theme::theme_value;
-
-/// Resolves one `--value-literal(...)` to the authored token text. Non-theme domains
-/// use the ordinary value resolver.
-pub(in crate::evaluation) fn resolve_literal_value_placeholder(
-    arguments: &str,
-    capture: Option<&str>,
-    theme: &EvaluationContext<'_>,
-) -> Option<LeanStr> {
-    resolve_literal_value_domains(arguments, capture, theme)
-}
 
 /// Resolves one `--stillwind-theme-suffix(...)` to a composed token value.
 ///
@@ -84,10 +74,6 @@ mod tests {
         assert_eq!(resolve_value_map_placeholder("sm:1", None), None);
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
-        assert_eq!(
-            resolve_literal_value_placeholder("[number]", Some("[2]"), &theme,),
-            Some("2".into())
-        );
         assert_eq!(
             resolve_theme_suffix_placeholder("invalid", Some("x"), &theme),
             None

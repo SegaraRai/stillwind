@@ -13,9 +13,7 @@ use stillwind_css::ValueDomain;
 
 use super::super::EvaluationContext;
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
-use super::theme::{
-    ViewportAxis, axis_size_value, fraction_value, theme_value, theme_value_literal,
-};
+use super::theme::{ViewportAxis, axis_size_value, fraction_value, theme_value};
 use crate::ThemeNamespace;
 use crate::conditionals::accepts_runtime_value;
 
@@ -115,32 +113,6 @@ fn arbitrary_hint(value: &str) -> (&str, &str) {
     ("", value)
 }
 
-/// Resolves a typed domain to its authored theme token value rather than a
-/// `var(--token)` reference. Tailwind uses this form for broad-gamut-safe sRGB
-/// fallbacks, while retaining the variable reference in the upgraded branch.
-///
-/// Non-theme domains fallback to [`resolve_value_domains`] so a list mixing literal and
-/// theme domains keeps its authored order.
-pub(in crate::evaluation) fn resolve_literal_value_domains(
-    domains: &str,
-    capture: Option<&str>,
-    theme: &EvaluationContext<'_>,
-) -> Option<LeanStr> {
-    split_domains(domains).into_iter().find_map(|domain| {
-        let domain = domain.trim();
-        if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
-            return capture.and_then(|capture| {
-                theme_value_literal(
-                    namespace,
-                    &format_args!("{capture}{suffix}").to_lean_str(),
-                    theme,
-                )
-            });
-        }
-        resolve_value_domains(domain, capture, theme)
-    })
-}
-
 /// Splits a domain list on top-level commas.
 ///
 /// Commas inside parentheses or brackets belong to a function argument list and are not
@@ -203,7 +175,7 @@ mod tests {
             None
         );
         assert_eq!(
-            resolve_literal_value_domains("[number]", Some("[2]"), &theme),
+            resolve_value_domains("[number]", Some("[2]"), &theme),
             Some("2".into())
         );
         assert_eq!(resolve_value_domains("[number]", None, &theme), None);

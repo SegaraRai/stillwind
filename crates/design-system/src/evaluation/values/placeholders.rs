@@ -20,14 +20,10 @@ use super::arbitrary::alpha;
 use super::colors::{resolve_compat_color, resolve_shadow_color};
 use super::domains::{resolve_value_domains, split_domains};
 use super::expansion::{expand_placeholders, matching_functions};
-use super::macros::{
-    resolve_literal_value_placeholder, resolve_theme_suffix_placeholder,
-    resolve_value_map_placeholder,
-};
+use super::macros::{resolve_theme_suffix_placeholder, resolve_value_map_placeholder};
 
 // Order is semantic: replacements may introduce functions from later families.
 const PLACEHOLDERS: &[&str] = &[
-    "--value-literal",
     "--stillwind-theme-suffix",
     "--value-map",
     "--value",
@@ -143,9 +139,8 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
     let mut body = body.to_lean_string();
     expand_placeholders(
         &mut body,
-        &PLACEHOLDERS[..6],
+        &PLACEHOLDERS[..5],
         |function, arguments| match function {
-            "--value-literal" => resolve_literal_value_placeholder(arguments, capture, theme),
             "--stillwind-theme-suffix" => {
                 resolve_theme_suffix_placeholder(arguments, capture, theme)
             }
@@ -194,7 +189,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
     remove_modifier_none(&mut body, modifier)?;
     expand_placeholders(
         &mut body,
-        &PLACEHOLDERS[7..],
+        &PLACEHOLDERS[6..],
         |function, arguments| match function {
             "--alpha" => alpha(arguments).map(Into::into),
             "--compat-color" => resolve_compat_color(arguments).map(Into::into),
@@ -243,8 +238,11 @@ fn remove_modifier_none(body: &mut LeanString, modifier: Option<&Value>) -> Opti
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{CssSourceName, FileId};
+    use stillwind_test_support::css_source;
+
     use super::*;
-    use crate::ThemeIndex;
+    use crate::{ThemeIndex, parse_theme};
 
     #[test]
     fn prepared_values_keep_expansion_limits_and_recursive_token_behavior() {
@@ -264,14 +262,23 @@ mod tests {
 
     #[test]
     fn batch_resolution_preserves_phase_barrier_and_rejects_reintroduced_families() {
-        let theme = ThemeIndex::default();
+        let source = css_source(
+            FileId(1),
+            "@theme { --color-a--tone: red; } @theme inline { --color-a: --stillwind-theme-suffix(--color-*, --tone); }",
+        )
+        .unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         let theme = EvaluationContext::untracked(&theme);
         let resolve = |body| resolve_css_placeholders(body, "x-*", "x-a", None, &theme);
         assert_eq!(
             resolve("opacity:--value-map(a:--alpha(.5));"),
             Some("opacity:50%;".into())
         );
-        assert_eq!(resolve("x:--value-map(a:--value-literal([number]));"), None);
+        assert_eq!(
+            resolve("x:--stillwind-theme-suffix(--color-*, --tone);"),
+            Some("x:var(--color-a--tone);".into())
+        );
+        assert_eq!(resolve("x:--value(--color-*);"), None);
         assert_eq!(
             resolve(
                 "x:--modifier-none() --modifier-none(invalid);y:--alpha(.5);z:--modifier-none();"
