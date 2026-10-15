@@ -25,7 +25,13 @@ export default defineConfig(({ mode }) => ({
     },
     rules: {
       curly: "error",
-      eqeqeq: ["error", "always", { null: "ignore" }],
+      eqeqeq: [
+        "error",
+        "always",
+        {
+          null: "ignore",
+        },
+      ],
       "no-unused-vars": [
         "error",
         {
