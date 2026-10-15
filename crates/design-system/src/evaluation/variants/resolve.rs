@@ -17,7 +17,9 @@ use std::sync::Arc;
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{selector_repeats_subject, selector_uses_subject};
+use stillwind_css::{
+    selector_is_subject_condition, selector_repeats_subject, selector_uses_subject,
+};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
@@ -204,16 +206,17 @@ pub struct VariantDeclaration {
 
 /// Resolves one variant against the theme.
 ///
-/// Arbitrary selectors become selector templates; arbitrary at-rules use the
-/// same structural body resolver as named definitions. A relative selector such as
-/// `[>img]` returns `None`, because only a `:has()` slot gives it an anchor element. A
-/// named variant is matched against project definitions first and built-ins second, and
-/// only its first matching candidate is used. A CSS definition with `[if-condition]`
-/// and the `builtin-if-variant` intrinsic produces a `Conditional` application; its
-/// public spelling comes only from the registered pattern. A `[variant]` definition
-/// with the `builtin-not-variant` intrinsic produces the negation of its inner variant.
-/// Invalid captures, inner variants without a negated form, and unmatched variants
-/// return `None`.
+/// Arbitrary selectors become selector templates as described by
+/// [`arbitrary_variant_application`]; arbitrary at-rules use the same structural body
+/// resolver as named definitions. A relative selector such as `[>img]` returns `None`,
+/// because only a `:has()` slot gives it an anchor element. A named variant is matched
+/// against project definitions first and built-ins second, and only its first matching
+/// candidate is used. A CSS definition with `[if-condition]` and the
+/// `builtin-if-variant` intrinsic produces a `Conditional` application; its public
+/// spelling comes only from the registered pattern. A `[variant]` definition with the
+/// `builtin-not-variant` intrinsic produces the negation of its inner variant. Invalid
+/// captures, inner variants without a negated form, and unmatched variants return
+/// `None`.
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
@@ -221,7 +224,7 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
         if is_relative_selector(&value) {
             return None;
         }
-        return selector_or_at_rule_application(&value);
+        return arbitrary_variant_application(&value);
     }
     let VariantKind::Named(value) = &variant.kind else {
         return None;
@@ -231,16 +234,37 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     })
 }
 
-/// Resolves the text of an arbitrary variant or a `@custom-variant name (...)`
-/// shorthand.
+/// Resolves the decoded text of an arbitrary variant.
 ///
+/// A selector without `&` tests the styled element, as in Tailwind: `[:hover]` becomes
+/// `&:is(:hover)`. The selector is kept as written when `&:is(...)` would be invalid or
+/// could never match the styled element, such as `[::selection]` or `[:root]`. Such a
+/// template does not refer to the subject, and [`document_scoped_selector`] reports it.
 /// Text that starts with `@` is an at-rule prelude and resolves like a body that wraps
-/// the slot in that at-rule. Other text is a selector template.
-fn selector_or_at_rule_application(value: &str) -> Option<VariantApplication> {
+/// the slot in that at-rule. A selector that contains `&` is kept as written.
+///
+/// A custom variant shorthand resolves differently, as a nested style rule; see
+/// [`shorthand_variant_application`].
+fn arbitrary_variant_application(value: &str) -> Option<VariantApplication> {
     if value.starts_with('@') {
         return resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string());
     }
+    if !selector_uses_subject(value) && selector_is_subject_condition(value) {
+        return Some(VariantApplication::SelectorTemplate(
+            format_args!("&:is({value})").to_lean_str(),
+        ));
+    }
     Some(VariantApplication::SelectorTemplate(value.into()))
+}
+
+/// Resolves the text of a `@custom-variant name (...)` shorthand.
+///
+/// The shorthand resolves like the body `<value> { @slot; }`. Text that starts with `@`
+/// is an at-rule prelude. Other text is a nested style rule selector, so a branch
+/// without `&` styles descendants, as in CSS Nesting and Tailwind: `(:hover)` becomes
+/// `& :hover`.
+fn shorthand_variant_application(value: &str) -> Option<VariantApplication> {
+    resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string())
 }
 
 /// Visits definitions in resolution order, including the registry's bare token form.
@@ -425,8 +449,8 @@ fn resolve_registered_variant_from(
 ///
 /// A typed definition delegates to [`resolve_typed_variant`]; otherwise the body is
 /// filled in and classified, falling back to the definition's shorthand when the body
-/// cannot produce an application. A shorthand that starts with `@`, such as
-/// `(@media print)`, is an at-rule; any other shorthand is a selector template.
+/// cannot produce an application. The shorthand resolves as
+/// [`shorthand_variant_application`] describes.
 pub(in crate::evaluation) fn resolve_registered_variant_candidate(
     custom: &CustomVariant,
     capture: Option<&str>,
@@ -444,7 +468,7 @@ pub(in crate::evaluation) fn resolve_registered_variant_candidate(
         &EvaluationContext::untracked(theme),
     )?;
     resolve_variant_body(&body).or_else(|| {
-        selector_or_at_rule_application(&substitute_variant_capture(&custom.selector, capture)?)
+        shorthand_variant_application(&substitute_variant_capture(&custom.selector, capture)?)
     })
 }
 
@@ -706,5 +730,33 @@ mod tests {
             parse_nested_variant("[&:hover]").kind,
             VariantKind::Arbitrary(_)
         ));
+    }
+
+    #[test]
+    fn arbitrary_selectors_without_subject_test_the_styled_element_when_they_can() {
+        for (value, expected) in [
+            (":hover", "&:is(:hover)"),
+            (":nth-child(3)", "&:is(:nth-child(3))"),
+            (".is-open", "&:is(.is-open)"),
+            ("[data-x]", "&:is([data-x])"),
+            (":hover,:focus", "&:is(:hover,:focus)"),
+            (".dark .item", "&:is(.dark .item)"),
+            ("&:hover", "&:hover"),
+            ("::selection", "::selection"),
+            ("::view-transition-old(*)", "::view-transition-old(*)"),
+            (":root", ":root"),
+            (":host", ":host"),
+            (":hover, :root", ":hover, :root"),
+        ] {
+            assert_eq!(
+                arbitrary_variant_application(value),
+                Some(VariantApplication::SelectorTemplate(expected.to_lean_str())),
+                "{value}"
+            );
+        }
+        assert_eq!(
+            arbitrary_variant_application("@media print"),
+            Some(VariantApplication::Media("print".to_lean_str()))
+        );
     }
 }

@@ -77,3 +77,61 @@ bg-brand tab-8 hocus:bg-brand
   }
 }
 ```
+
+## `custom-css.variants-without-nesting-selector`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@custom-variant hv (:hover);
+@custom-variant op (.open);
+@custom-variant child (> .item);
+@custom-variant either (:hover, .open);
+@custom-variant blk {
+  :hover {
+    @slot;
+  }
+}
+@custom-variant blk-next {
+  + .x {
+    @slot;
+  }
+}
+```
+
+### Candidates
+
+```text
+hv:flex op:flex child:flex either:flex blk:flex blk-next:flex
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  .hv\:flex :hover {
+    display: flex;
+  }
+  .op\:flex .open {
+    display: flex;
+  }
+  .child\:flex > .item {
+    display: flex;
+  }
+  .either\:flex :hover, .either\:flex  .open {
+    display: flex;
+  }
+  .blk\:flex :hover {
+    display: flex;
+  }
+  .blk-next\:flex + .x {
+    display: flex;
+  }
+}
+```
+
+A custom variant selector without `&` styles descendants, as in CSS Nesting. Stillwind
+rejects `not-*` of these variants; `variants.negation` describes this difference.

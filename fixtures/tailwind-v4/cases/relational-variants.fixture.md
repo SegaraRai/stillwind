@@ -217,6 +217,11 @@ Stillwind rejects negations of selectors that style another element. Tailwind em
 `not-[&_.foo]` as `:not(* .foo)`, which tests the styled element instead of its
 `.foo` descendants. `not-*` and `not-**` are rejected for the same reason.
 
+A custom variant selector without `&`, such as `@custom-variant hv (:hover)` or
+`@custom-variant hv { :hover { @slot; } }`, also styles descendants: `hv:flex` emits
+`.hv\:flex :hover` in both compilers. Stillwind therefore rejects `not-hv`. Tailwind
+emits `.not-hv\:flex:not(:hover)`, which tests the styled element instead.
+
 Both compilers reject `not-before`, `not-placeholder`, `not-file`, and `not-starting`,
 because their variants contain pseudo-elements, declarations, or `@starting-style`.
 

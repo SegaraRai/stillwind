@@ -255,3 +255,46 @@ fn shorthand_variants_resolve_at_rules_and_selectors() {
         assert_eq!(resolve(candidate), Some(expected), "{candidate}");
     }
 }
+
+#[test]
+fn selectors_without_nesting_selector_style_descendants() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "@custom-variant hv (:hover);\n@custom-variant op (.open);\n@custom-variant child (> .item);\n@custom-variant either (:hover, .open);\n@custom-variant blk { :hover { @slot; } }\n@custom-variant next (+ &);",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+    let variant = |candidate: &str| parse_candidate(candidate).unwrap().variants[0].clone();
+    let resolve = |candidate: &str| resolve_variant(&variant(candidate), &theme);
+
+    for (candidate, expected) in [
+        ("hv:flex", "& :hover"),
+        ("op:flex", "& .open"),
+        ("child:flex", "& > .item"),
+        ("either:flex", "& :hover, & .open"),
+        ("blk:flex", "& :hover"),
+    ] {
+        let application = resolve(candidate);
+        assert_eq!(
+            application,
+            Some(VariantApplication::SelectorTemplate(expected.to_lean_str())),
+            "{candidate}"
+        );
+        assert_eq!(document_scoped_selector(&application.unwrap()), None);
+        assert_eq!(repeated_subject_selector(&variant(candidate), &theme), None);
+    }
+    for candidate in [
+        "not-hv:flex",
+        "not-op:flex",
+        "not-blk:flex",
+        "not-child:flex",
+    ] {
+        assert_eq!(resolve(candidate), None, "{candidate}");
+    }
+    assert_eq!(
+        repeated_subject_selector(&variant("next:flex"), &theme).as_deref(),
+        Some("& + &")
+    );
+}

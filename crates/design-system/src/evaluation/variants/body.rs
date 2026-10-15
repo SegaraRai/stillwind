@@ -5,12 +5,17 @@
 //! classified by its outermost construct: a media, container, or support condition, a
 //! starting-style block, or a selector rule, in that priority order.
 //!
+//! A selector rule is a nested style rule, so a selector without `&` is relative to the
+//! styled element as in CSS Nesting: `:hover { @slot; }` styles hovered descendants.
+//!
 //! A selector rule may also declare properties of its own (for example a `group`
 //! variant that also sets a custom property). Those declarations are kept separate from
 //! the utility's declarations so the emitter can place them correctly.
 
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
+
+use stillwind_css::absolutize_nested_selector;
 
 use super::super::syntax::closing_brace;
 use super::resolve::{VariantApplication, VariantDeclaration};
@@ -133,7 +138,7 @@ fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
 /// One selector rule inside a variant body: its selector and any declarations authored
 /// beside the slot.
 pub(in crate::evaluation) struct VariantSelectorRule {
-    /// Selector template, containing `&` for the position of the utility.
+    /// Selector template, containing `&` in each branch for the position of the utility.
     pub(in crate::evaluation) selector: LeanStr,
     /// Declarations stated by the rule itself, in authored order.
     pub(in crate::evaluation) declarations: Vec<VariantDeclaration>,
@@ -141,10 +146,10 @@ pub(in crate::evaluation) struct VariantSelectorRule {
 
 /// Reads a selector block from a variant body.
 ///
-/// The selector must be the only construct in the body. Nested blocks,
-/// an empty selector, and declarations without a property or value are all rejected, so
-/// a malformed definition fails instead of emitting a selector the author did not
-/// write.
+/// The returned selector has `&` inserted as [`absolutize_nested_selector`] describes.
+/// The selector must be the only construct in the body. Nested blocks, an empty
+/// selector, and declarations without a property or value are all rejected, so a
+/// malformed definition fails instead of emitting a selector the author did not write.
 fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     let open = block_open(body)?;
     let close = closing_brace(body, open)?;
@@ -189,7 +194,7 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
         return None;
     }
     Some(VariantSelectorRule {
-        selector: selector.to_lean_str(),
+        selector: absolutize_nested_selector(selector).to_lean_str(),
         declarations,
     })
 }
@@ -209,9 +214,7 @@ mod tests {
                 "@container panel (width > 1px) { @media print { @slot; } }",
                 false,
             ),
-            (r#"[data-value="&{"] .\& /* & */ { @slot; }"#, false),
             (r#":is(&, [data-value="&"]) { @slot; }"#, true),
-            ("::view-transition-old(*) { @slot; }", false),
         ] {
             let application = resolve_variant_body(body).unwrap();
             assert_eq!(
@@ -237,6 +240,32 @@ mod tests {
             Some(VariantApplication::Supports("(display:grid)".into()))
         );
         assert_eq!(resolve_variant_body("&:hover {color:red;}"), None);
+        for (body, selector) in [
+            (":hover { @slot; }", "& :hover"),
+            ("> .item { @slot; }", "& > .item"),
+            (":hover, .open { @slot; }", "& :hover, & .open"),
+            (
+                r#"[data-value="&{"] .\& { @slot; }"#,
+                r#"& [data-value="&{"] .\&"#,
+            ),
+            (
+                "::view-transition-old(*) { @slot; }",
+                "& ::view-transition-old(*)",
+            ),
+        ] {
+            assert_eq!(
+                resolve_variant_body(body),
+                Some(VariantApplication::SelectorTemplate(selector.into())),
+                "{body}"
+            );
+        }
+        assert_eq!(
+            resolve_variant_body("@media print { .open { @slot; } }"),
+            Some(VariantApplication::SelectorMedia {
+                selector: "& .open".into(),
+                condition: "print".into(),
+            })
+        );
         assert!(split_variant_blocks("& { @slot; }").is_some());
         assert!(split_variant_blocks("& {").is_none());
         assert!(selector_rule_from_variant_body("& { @slot; } trailing").is_none());

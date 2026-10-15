@@ -165,6 +165,69 @@ fn subject_uses(parser: &mut Parser<'_>) -> usize {
     largest.max(current)
 }
 
+/// Returns the selector that a nested style rule selector denotes under CSS Nesting.
+///
+/// Each comma-separated branch that starts with a combinator (`>`, `+`, or `~`) or
+/// that contains no `&` gets `& ` in front of it, so `:hover` becomes `& :hover` and
+/// `> .item` becomes `& > .item`. Other branches, whitespace and comments stay as
+/// written. Quoted, escaped, commented, and attribute-value ampersands are literal text
+/// and do not count as `&`.
+pub fn absolutize_nested_selector(selector: &str) -> LeanString {
+    let mut parser = Parser::new(selector);
+    let mut insertions = Vec::new();
+    let mut branch: Option<(usize, bool)> = None;
+    let mut uses_subject = false;
+    loop {
+        let start = parser.position().byte_index();
+        let (token, end) = match parser.next_including_whitespace_and_comments() {
+            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => continue,
+            Ok(Token::Comma) => (None, false),
+            Ok(token) => (Some(token.clone()), false),
+            Err(_) => (None, true),
+        };
+        let Some(token) = token else {
+            if let Some((position, relative)) = branch.take()
+                && (relative || !uses_subject)
+            {
+                insertions.push(position);
+            }
+            uses_subject = false;
+            if end {
+                break;
+            }
+            continue;
+        };
+        branch.get_or_insert((start, matches!(token, Token::Delim('>' | '+' | '~'))));
+        match token {
+            Token::Delim('&') => uses_subject = true,
+            Token::Function(_) | Token::ParenthesisBlock => {
+                let mut positions = Vec::new();
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    collect(inner, &mut positions);
+                    Ok(())
+                });
+                uses_subject |= !positions.is_empty();
+            }
+            Token::SquareBracketBlock | Token::CurlyBracketBlock => {
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    Ok(())
+                });
+            }
+            _ => {}
+        }
+    }
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    for position in insertions {
+        output.push_str(&selector[cursor..position]);
+        output.push_str("& ");
+        cursor = position;
+    }
+    output.push_str(&selector[cursor..]);
+    output
+}
+
 /// Emits a selector template with CSS nesting tokens bound to `parent`.
 /// Strings, comments, escaped identifiers and attribute values remain literal.
 pub fn instantiate_selector(template: &str, parent: &str) -> LeanString {
@@ -299,6 +362,79 @@ fn is_legacy_pseudo_element(name: &str) -> bool {
 /// selector grammar.
 pub fn selector_is_element_condition(selector: &str, inside_has: bool) -> bool {
     check_element_condition(&mut Parser::new(selector), inside_has)
+}
+
+/// Whether `&:is(<selector>)` is a valid selector that can match the element `&`
+/// denotes.
+///
+/// The check fails when the selector contains a pseudo-element, because `:is()` cannot
+/// contain one. It also fails when the final compound of a branch contains `:root`,
+/// `:scope`, `:host`, `:host()`, or `:host-context()`. Those pseudo-classes select the
+/// document root or a shadow host, so the branch cannot select the element that a
+/// utility class styles. Strings, attributes and escaped identifiers do not contribute
+/// selector operations. This check does not validate the full selector grammar.
+pub fn selector_is_subject_condition(selector: &str) -> bool {
+    selector_is_element_condition(selector, false)
+        && !final_compound_selects_root(&mut Parser::new(selector))
+}
+
+/// Whether the final compound of a branch contains a pseudo-class for the document root
+/// or a shadow host.
+fn final_compound_selects_root(parser: &mut Parser<'_>) -> bool {
+    let mut root = false;
+    let mut colon = false;
+    let mut separated = false;
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        match token {
+            Token::WhiteSpace(_) => separated = true,
+            Token::Comment(_) => {}
+            Token::Comma => {
+                if root {
+                    return true;
+                }
+                colon = false;
+                separated = false;
+            }
+            token => {
+                if separated || matches!(token, Token::Delim('>' | '+' | '~')) {
+                    root = false;
+                    separated = false;
+                }
+                match token {
+                    Token::Colon => {
+                        colon = true;
+                        continue;
+                    }
+                    Token::Ident(name) if colon => {
+                        root |= ["root", "scope", "host"]
+                            .iter()
+                            .any(|pseudo| name.eq_ignore_ascii_case(pseudo));
+                    }
+                    Token::Function(name) => {
+                        root |= colon
+                            && ["host", "host-context"]
+                                .iter()
+                                .any(|pseudo| name.eq_ignore_ascii_case(pseudo));
+                        let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                            while inner.next_including_whitespace_and_comments().is_ok() {}
+                            Ok(())
+                        });
+                    }
+                    Token::ParenthesisBlock
+                    | Token::SquareBracketBlock
+                    | Token::CurlyBracketBlock => {
+                        let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                            while inner.next_including_whitespace_and_comments().is_ok() {}
+                            Ok(())
+                        });
+                    }
+                    _ => {}
+                }
+                colon = false;
+            }
+        }
+    }
+    root
 }
 
 fn check_element_condition(parser: &mut Parser<'_>, inside_has: bool) -> bool {
@@ -481,5 +617,63 @@ mod tests {
             true
         ));
         assert!(selector_is_element_condition(r".escaped\:\:before", true));
+    }
+
+    #[test]
+    fn nested_selectors_gain_a_leading_subject_unless_they_use_one() {
+        for (selector, expected) in [
+            (":hover", "& :hover"),
+            (".open", "& .open"),
+            ("> .item", "& > .item"),
+            ("+.x", "& +.x"),
+            ("~ .x", "& ~ .x"),
+            (":hover, .open", "& :hover, & .open"),
+            (" :hover ,	.open", " & :hover ,	& .open"),
+            ("&:hover", "&:hover"),
+            (".parent &", ".parent &"),
+            (":is(&:hover)", ":is(&:hover)"),
+            ("> &", "& > &"),
+            ("&:hover, .open", "&:hover, & .open"),
+            (
+                r#"[data-x="&"] .\&, /* & */ .a"#,
+                r#"& [data-x="&"] .\&, /* & */ & .a"#,
+            ),
+            (":not(.a, .b)", "& :not(.a, .b)"),
+        ] {
+            assert_eq!(absolutize_nested_selector(selector), expected, "{selector}");
+        }
+    }
+
+    #[test]
+    fn subject_conditions_reject_pseudo_elements_and_final_root_compounds() {
+        for (selector, expected) in [
+            (":hover", true),
+            (":nth-child(3)", true),
+            (".is-open", true),
+            ("[data-x]", true),
+            (":hover,:focus", true),
+            (":root .dark", true),
+            (":host .item", true),
+            (":not(:root)", true),
+            (r"[data-x=':root'], .\:root", true),
+            ("::selection", false),
+            ("::view-transition-old(*)", false),
+            (".a:before", false),
+            (":root", false),
+            (":ROOT.dark", false),
+            (":scope", false),
+            (":host", false),
+            (":host(.dark)", false),
+            (":host-context(.dark) ", false),
+            (".a > :root", false),
+            (":hover, :root", false),
+            (":root , .a", false),
+        ] {
+            assert_eq!(
+                selector_is_subject_condition(selector),
+                expected,
+                "{selector}"
+            );
+        }
     }
 }

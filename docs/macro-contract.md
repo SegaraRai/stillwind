@@ -261,9 +261,22 @@ structure and remain in their execution scope.
 
 Direct assignments, updates, and `delete` produce `MacroArgumentMutation`
 (`mutating-macro-argument`) findings. `await`, `yield`, and dynamic imports produce
-`MacroExecutionBoundary` (`suspending-macro-argument`) findings. Selectors that
-refer to neither an element nor a declaration identity, such as `[:host]:` and
-`[::view-transition-old(*)]:`, produce `DocumentScopedSelector`
+`MacroExecutionBoundary` (`suspending-macro-argument`) findings.
+
+A `@custom-variant` selector is a nested style rule selector, in both the shorthand
+`(<selector>)` and the block form `{ <selector> { @slot; } }`. As in CSS Nesting and
+Tailwind, `& ` is inserted before each branch that contains no `&` or that starts with
+a combinator. Such a branch styles another element: `(:hover)` becomes `& :hover`, and
+`(> .item)` becomes `& > .item`. These selectors depend on the styled element, so they
+do not produce `DocumentScopedSelector` findings.
+
+An arbitrary variant selector without `&` tests the styled element, as in Tailwind:
+`[:hover]:`, `[.is-open]:`, and `[:hover,:focus]:` become `&:is(...)`. The selector
+stays document-wide when `&:is(...)` would be invalid or could never match the styled
+element. This happens when the selector contains a pseudo-element, or when the final
+compound of a branch contains `:root`, `:scope`, `:host`, `:host()`, or
+`:host-context()`. Selectors that stay document-wide, such as `[:host]:`, `[:root]:`,
+and `[::view-transition-old(*)]:`, produce `DocumentScopedSelector`
 (`document-scoped-selector`) findings. Their CSS applies whether the element exists
 or not; place document-wide rules in a stylesheet.
 
@@ -274,7 +287,8 @@ Transform output is retained even when lint findings exist.
 A variant selector that uses `&` more than once in one complex selector produces
 `RepeatedNestingSelector` (`repeated-nesting-selector`) findings. Examples are `[&+&]:`,
 `[&_&]:`, a custom variant `(& ~ &)`, and the inner variant of `group-[&+&]:`,
-`peer-[&~&]:`, or `not-[&+&]:`. Each `&` stands for a generated utility class, so
+`peer-[&~&]:`, or `not-[&+&]:`. The check uses a custom variant selector after `&`
+insertion, so `(+ &)` reports `& + &`. Each `&` stands for a generated utility class, so
 the selector matches by the identity of generated classes. The compiler derives that
 identity from the module, the call site, and the contribution branch, so it does not
 describe a relationship between elements. Comma-separated alternatives count
@@ -649,7 +663,9 @@ negation, so `not-before`, `not-placeholder`, `not-file`, and `not-starting` are
 unresolved. A selector whose `&` is not the final compound of every complex selector
 styles another element, so its negation is also unresolved: `not-*`, `not-**`, and
 `not-[&_.foo]` are rejected, but `not-[.foo_&]`, `not-group-hover`, and `not-has-checked`
-resolve.
+resolve. A custom variant selector without `&`, such as `(:hover)`, styles descendants,
+so its negation is unresolved. Tailwind negates it as a condition on the styled element
+instead. A document-wide arbitrary selector such as `[:root]` has no negation either.
 
 Stillwind also resolves negations that Tailwind rejects or emits as invalid CSS:
 negated negations such as `not-not-hover`, variants with several rule blocks,

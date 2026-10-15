@@ -16,8 +16,7 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    SelectorTarget, selector_is_element_condition, selector_target, selector_uses_subject,
-    subject_as_universal,
+    SelectorTarget, selector_is_element_condition, selector_target, subject_as_universal,
 };
 
 use super::resolve::VariantApplication;
@@ -195,29 +194,27 @@ fn branch_application(branch: Branch) -> Option<VariantApplication> {
 
 /// Negates a selector template as a pseudo-class on the subject.
 ///
-/// A template without `&` tests the subject itself, as `[:hover]` does. A template that
-/// is exactly `&:not(<list>)` negates to `:is(<list>)`. Every other template becomes
-/// `:not(<template>)` with `&` bound to the subject. Selector lists stay in one
-/// `:not()`. Returns `None` for a template with a pseudo-element, because `:not()`
-/// cannot test one.
+/// A template that is exactly `&:not(<list>)` negates to `:is(<list>)`. Every other
+/// template becomes `:not(<template>)` with `&` bound to the subject. Selector lists
+/// stay in one `:not()`. Returns `None` for a template with a pseudo-element, because
+/// `:not()` cannot test one.
 ///
 /// Returns `None` when a branch of the template selects an element other than `&`, such
-/// as `& > *` or `& .item`. The utility then styles a descendant, and `&:not(...)` on
-/// the styled element would not express "no such descendant is selected".
+/// as `& > *`, `& .item`, or the custom variant shorthand `(:hover)`, which resolves to
+/// `& :hover`. The utility then styles a descendant, and `&:not(...)` on the styled
+/// element would not express "no such descendant is selected". A template without `&`,
+/// such as `::selection` or `:root`, also returns `None`, because it selects no element
+/// relative to the subject.
 fn negate_selector(template: &str) -> Option<Literal> {
     if let Some(list) = negated_selector_list(template) {
         return Some(Literal::Selector(
             format_args!(":is({list})").to_lean_string(),
         ));
     }
-    let argument = if selector_uses_subject(template) {
-        if selector_target(template) != SelectorTarget::Attachment {
-            return None;
-        }
-        subject_as_universal(template)
-    } else {
-        format_args!(":is({template})").to_lean_string()
-    };
+    if selector_target(template) != SelectorTarget::Attachment {
+        return None;
+    }
+    let argument = subject_as_universal(template);
     selector_is_element_condition(&argument, false)
         .then(|| Literal::Selector(format_args!(":not({argument})").to_lean_string()))
 }
@@ -368,7 +365,7 @@ mod tests {
             (".foo ~ &", "&:not(.foo ~ *)"),
             (":where([data-open]) &", "&:not(:where([data-open]) *)"),
             ("&:has(> img)", "&:not(:has(> img))"),
-            (":hover", "&:not(:is(:hover))"),
+            ("&:is(:hover)", "&:not(:is(:hover))"),
             (
                 "&:is(:where(.group):hover *)",
                 "&:not(:is(:where(.group):hover *))",
@@ -395,6 +392,10 @@ mod tests {
             ":is(& > *)",
             ":is(& *)",
             "&:hover, & > span",
+            "& :hover",
+            "& > .item",
+            ":hover",
+            ":root",
         ] {
             assert_eq!(negate(&template(selector)), None, "{selector}");
         }

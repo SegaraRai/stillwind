@@ -130,7 +130,9 @@ fn reports_variant_selectors_that_do_not_depend_on_the_subject() {
         document_scoped("[::view-transition-old(*)]:flex").as_deref(),
         Some("::view-transition-old(*)")
     );
+    assert_eq!(document_scoped("[:root]:flex").as_deref(), Some(":root"));
     assert_eq!(document_scoped("[&:hover]:flex"), None);
+    assert_eq!(document_scoped("[:hover]:flex"), None);
     assert_eq!(document_scoped("hover:flex"), None);
     assert_eq!(document_scoped("motion-reduce:flex"), None);
     assert_eq!(document_scoped("supports-[display:grid]:flex"), None);
