@@ -18,7 +18,8 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    selector_is_subject_condition, selector_repeats_subject, selector_uses_subject,
+    selector_is_subject_condition, selector_is_valid, selector_repeats_subject,
+    selector_uses_subject,
 };
 use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
@@ -241,13 +242,17 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
 /// could never match the styled element, such as `[::selection]` or `[:root]`. Such a
 /// template does not refer to the subject, and [`document_scoped_selector`] reports it.
 /// Text that starts with `@` is an at-rule prelude and resolves like a body that wraps
-/// the slot in that at-rule. A selector that contains `&` is kept as written.
+/// the slot in that at-rule. A selector that contains `&` is kept as written. Text that
+/// is not a valid selector list, such as `color:` or `&:`, returns `None`.
 ///
 /// A custom variant shorthand resolves differently, as a nested style rule; see
 /// [`shorthand_variant_application`].
 fn arbitrary_variant_application(value: &str) -> Option<VariantApplication> {
     if value.starts_with('@') {
         return resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string());
+    }
+    if !selector_is_valid(value) {
+        return None;
     }
     if !selector_uses_subject(value) && selector_is_subject_condition(value) {
         return Some(VariantApplication::SelectorTemplate(
@@ -631,7 +636,9 @@ fn is_relative_selector(value: &str) -> bool {
 ///
 /// An arbitrary selector without `&` tests the element that the outer variant names, as
 /// in Tailwind: `group-[.open]` receives `&:is(.open)`. At-rules and relative selectors
-/// such as `>img` are kept as written.
+/// such as `>img` are kept as written. Text that is not a valid selector list is also
+/// kept as written, so that its resolution fails; `:is()` would otherwise accept it as a
+/// forgiving selector list that matches nothing.
 pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
     let raw = value.into();
     let kind = value
@@ -641,7 +648,11 @@ pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
             || VariantKind::Named(value.into()),
             |value| {
                 let value = decode_arbitrary(value);
-                if value.starts_with('@') || value.contains('&') || is_relative_selector(&value) {
+                if value.starts_with('@')
+                    || value.contains('&')
+                    || is_relative_selector(&value)
+                    || !selector_is_valid(&value)
+                {
                     VariantKind::Arbitrary(value.into())
                 } else {
                     VariantKind::Arbitrary(format_args!("&:is({value})").to_lean_str())
@@ -757,6 +768,16 @@ mod tests {
         assert_eq!(
             arbitrary_variant_application("@media print"),
             Some(VariantApplication::Media("print".to_lean_str()))
+        );
+        for value in ["--x:", "color:", "color:red;", "&:", "&;", ":hover,"] {
+            assert_eq!(arbitrary_variant_application(value), None, "{value}");
+            assert_eq!(shorthand_variant_application(value), None, "{value}");
+        }
+        assert_eq!(
+            shorthand_variant_application(":hover"),
+            Some(VariantApplication::SelectorTemplate(
+                "& :hover".to_lean_str()
+            ))
         );
     }
 }

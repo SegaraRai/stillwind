@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::find_css_function;
+use stillwind_css::{find_css_function, selector_is_element_condition};
 use stillwind_source::ReplaceText;
 
 use super::super::values::expand_placeholder;
@@ -130,8 +130,14 @@ pub(in crate::evaluation) fn apply_nested_variant(
 /// Folds an inner selector into the definition body at its `:--value()` slot.
 ///
 /// The selector must be relative to the utility - it starts with `&` - and the fragment
-/// after `&` is what replaces the slot.
+/// after `&` is what replaces the slot. A selector with a pseudo-element, such as
+/// `&::before`, returns `None` for every body, as in Tailwind. The built-in
+/// relationship variants place the slot inside `:is()`, `:where()`, or `:has()`, and
+/// those functions cannot contain pseudo-elements.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
+    if !selector_is_element_condition(selector, false) {
+        return None;
+    }
     let fragment = selector.strip_prefix('&')?;
     resolve_variant_body(&body.replace_text(":--value()", fragment))
 }

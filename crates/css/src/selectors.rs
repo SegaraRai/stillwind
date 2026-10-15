@@ -2,6 +2,19 @@
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::LeanString;
+use lightningcss::selector::SelectorList;
+use lightningcss::stylesheet::ParserOptions;
+use lightningcss::traits::ParseWithOptions;
+
+/// Whether `selector` is a valid selector list, in which `&` may appear anywhere a
+/// compound selector may.
+///
+/// Unknown pseudo-classes and pseudo-elements with valid syntax are accepted, because
+/// browsers may support selectors that the parser does not know. A branch that starts
+/// with a combinator is rejected.
+pub fn selector_is_valid(selector: &str) -> bool {
+    SelectorList::parse_string_with_options(selector, ParserOptions::default()).is_ok()
+}
 
 /// Which element each branch identifies, using a pseudo-element's originating element.
 /// The nesting selector `&` denotes the attachment element.
@@ -512,6 +525,28 @@ fn collect(parser: &mut Parser<'_>, positions: &mut Vec<usize>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn valid_selectors_allow_nesting_and_unknown_pseudo_classes() {
+        for (selector, expected) in [
+            ("&:hover", true),
+            (".a, .b &", true),
+            (":is(&, [data-value='&'])", true),
+            ("&::-webkit-details-marker", true),
+            (":future-state(x)", true),
+            ("::view-transition-old(*)", true),
+            ("--x:", false),
+            ("color:", false),
+            ("color:red;", false),
+            ("&:", false),
+            ("&;", false),
+            (".a,", false),
+            ("> img", false),
+            ("", false),
+        ] {
+            assert_eq!(selector_is_valid(selector), expected, "{selector}");
+        }
+    }
 
     #[test]
     fn declaration_targets_preserve_predicates_and_skip_unknown_functions() {

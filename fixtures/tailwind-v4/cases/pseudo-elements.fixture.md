@@ -82,3 +82,27 @@ before:content-[''] before:block after:content-['→'] placeholder:text-red-500 
   }
 }
 ```
+
+## `variants.relationships-with-pseudo-elements`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+group-before:flex group-after:flex group-placeholder:flex group-file:flex group-marker:flex group-selection:flex group-backdrop:flex group-first-line:flex group-first-letter:flex group-details-content:flex peer-before:flex peer-after:flex peer-placeholder:flex peer-file:flex peer-marker:flex peer-selection:flex peer-backdrop:flex peer-first-line:flex peer-first-letter:flex peer-details-content:flex has-before:flex has-after:flex has-placeholder:flex has-file:flex has-marker:flex has-selection:flex has-backdrop:flex has-first-line:flex has-first-letter:flex has-details-content:flex in-before:flex in-after:flex in-placeholder:flex in-file:flex in-marker:flex in-selection:flex in-backdrop:flex in-first-line:flex in-first-letter:flex in-details-content:flex
+```
+
+### Expected CSS
+
+```css
+```
+
+Both compilers reject a pseudo-element variant inside `group-*`, `peer-*`, `has-*`, and
+`in-*`, because these variants place the inner selector in `:is()`, `:where()`, or
+`:has()`, and those functions cannot contain pseudo-elements.

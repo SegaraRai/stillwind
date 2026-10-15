@@ -82,8 +82,8 @@ pub use output::{CssOutputNode, CssOutputTemplate};
 pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition, instantiate_selector,
-    selector_is_element_condition, selector_is_subject_condition, selector_repeats_subject,
-    selector_target, selector_uses_subject, subject_as_universal,
+    selector_is_element_condition, selector_is_subject_condition, selector_is_valid,
+    selector_repeats_subject, selector_target, selector_uses_subject, subject_as_universal,
 };
 pub use values::{
     CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,

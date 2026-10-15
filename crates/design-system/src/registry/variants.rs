@@ -13,6 +13,8 @@
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use lightningcss::printer::PrinterOptions;
+use lightningcss::rules::CssRule;
+use lightningcss::rules::supports::SupportsCondition;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
@@ -133,6 +135,10 @@ impl BuiltinVariantValueType {
     /// Compound variants and attribute shorthands are resolved structurally by the
     /// Tailwind registry instead, so those types report `false` here rather than
     /// accepting anything.
+    ///
+    /// A support capture is tested as the condition `(<value>)`. The condition is
+    /// rejected when a part of it can never be true, as [`supports_condition_can_match`]
+    /// describes.
     #[must_use]
     pub fn accepts_css(self, value: &str) -> bool {
         let stylesheet = match self {
@@ -143,7 +149,37 @@ impl BuiltinVariantValueType {
             }
             Self::Variant | Self::Aria | Self::Data => return false,
         };
-        StyleSheet::parse(&stylesheet, ParserOptions::default()).is_ok()
+        let Ok(stylesheet) = StyleSheet::parse(&stylesheet, ParserOptions::default()) else {
+            return false;
+        };
+        match stylesheet.rules.0.as_slice() {
+            [CssRule::Supports(rule)] => supports_condition_can_match(&rule.condition),
+            _ => self == Self::Nth,
+        }
+    }
+}
+
+/// Whether every part of a `@supports` condition is a test that a browser can pass.
+///
+/// CSS evaluates text that is neither a declaration, a nested condition, nor a known
+/// support function as `<general-enclosed>`, which is always false. `(--foo)` and
+/// `var(--foo)` are such text. A part of a negated condition may also be
+/// `<general-enclosed>`, because the browser treats it as false and the negation as
+/// true. The known functions are `selector()`, `font-format()`, `font-tech()`, and
+/// `at-rule()`.
+fn supports_condition_can_match(condition: &SupportsCondition<'_>) -> bool {
+    match condition {
+        SupportsCondition::Not(_)
+        | SupportsCondition::Declaration { .. }
+        | SupportsCondition::Selector(_) => true,
+        SupportsCondition::And(conditions) | SupportsCondition::Or(conditions) => {
+            conditions.iter().all(supports_condition_can_match)
+        }
+        SupportsCondition::Unknown(text) => text.split_once('(').is_some_and(|(name, _)| {
+            ["font-format", "font-tech", "at-rule"]
+                .iter()
+                .any(|function| name.eq_ignore_ascii_case(function))
+        }),
     }
 }
 
@@ -406,6 +442,22 @@ mod tests {
         assert!(BuiltinVariantValueType::Nth.accepts_css("odd"));
         assert!(!BuiltinVariantValueType::Nth.accepts_css("not-an-nth"));
         assert!(BuiltinVariantValueType::SupportsCondition.accepts_css("display: grid"));
+        for (value, expected) in [
+            ("--foo: var(--tw)", true),
+            ("selector(a:hover)", true),
+            ("font-format(woff2)", true),
+            ("(display: grid) and (not (--foo))", true),
+            ("(--foo)", false),
+            ("var(--foo)", false),
+            ("(display: grid) or (--foo)", false),
+            ("unknown-function(x)", false),
+        ] {
+            assert_eq!(
+                BuiltinVariantValueType::SupportsCondition.accepts_css(value),
+                expected,
+                "{value}"
+            );
+        }
     }
 
     #[test]

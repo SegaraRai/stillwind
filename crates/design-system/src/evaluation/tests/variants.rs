@@ -250,6 +250,54 @@ fn inner_arbitrary_selectors_without_subject_test_the_named_element() {
 }
 
 #[test]
+fn rejects_variants_that_would_emit_invalid_or_never_matching_css() {
+    let theme = theme();
+    let resolve =
+        |candidate: &str| resolve_variant(&parse_candidate(candidate).unwrap().variants[0], &theme);
+
+    for candidate in [
+        "[--x:]:flex",
+        "[color:]:flex",
+        "[color:red;]:flex",
+        "[&:]:flex",
+        "group-[color:]:flex",
+        "has-[&:]:flex",
+        "supports-(--foo):flex",
+        "supports-[(--foo)]:flex",
+        "supports-[var(--foo)]:flex",
+        "not-supports-(--foo):flex",
+    ] {
+        assert_eq!(resolve(candidate), None, "{candidate}");
+    }
+    // `:is()`, `:where()`, and `:has()` cannot contain pseudo-elements.
+    for relationship in ["group", "peer", "has", "in"] {
+        for pseudo_element in [
+            "before",
+            "after",
+            "placeholder",
+            "file",
+            "marker",
+            "selection",
+            "backdrop",
+            "first-line",
+            "first-letter",
+            "details-content",
+            "[&::before]",
+            "[&:after]",
+        ] {
+            let candidate = format!("{relationship}-{pseudo_element}:flex");
+            assert_eq!(resolve(&candidate), None, "{candidate}");
+        }
+    }
+    assert_eq!(
+        resolve("supports-[--foo]:flex"),
+        Some(VariantApplication::Supports(
+            "(--foo: var(--tw))".to_lean_str()
+        ))
+    );
+}
+
+#[test]
 fn reports_selectors_that_repeat_the_styled_element() {
     let theme = theme();
     let repeated = |candidate: &str| {

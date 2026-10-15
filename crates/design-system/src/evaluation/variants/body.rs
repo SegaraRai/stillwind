@@ -15,7 +15,7 @@
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::absolutize_nested_selector;
+use stillwind_css::{absolutize_nested_selector, selector_is_valid};
 
 use super::super::syntax::closing_brace;
 use super::resolve::{VariantApplication, VariantDeclaration};
@@ -147,8 +147,8 @@ pub(in crate::evaluation) struct VariantSelectorRule {
 /// Reads a selector block from a variant body.
 ///
 /// The returned selector has `&` inserted as [`absolutize_nested_selector`] describes.
-/// The selector must be the only construct in the body. Nested blocks, an empty
-/// selector, and declarations without a property or value are all rejected, so a
+/// The selector must be the only construct in the body. Nested blocks, an empty or
+/// invalid selector, and declarations without a property or value are all rejected, so a
 /// malformed definition fails instead of emitting a selector the author did not write.
 fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     let open = block_open(body)?;
@@ -193,8 +193,9 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
     if !inner[start..].trim().is_empty() {
         return None;
     }
-    Some(VariantSelectorRule {
-        selector: absolutize_nested_selector(selector).to_lean_str(),
+    let selector = absolutize_nested_selector(selector);
+    selector_is_valid(&selector).then(|| VariantSelectorRule {
+        selector: selector.to_lean_str(),
         declarations,
     })
 }
@@ -240,6 +241,9 @@ mod tests {
             Some(VariantApplication::Supports("(display:grid)".into()))
         );
         assert_eq!(resolve_variant_body("&:hover {color:red;}"), None);
+        for body in ["color: { @slot; }", "&: { @slot; }", ".a, { @slot; }"] {
+            assert_eq!(resolve_variant_body(body), None, "{body}");
+        }
         for (body, selector) in [
             (":hover { @slot; }", "& :hover"),
             ("> .item { @slot; }", "& > .item"),

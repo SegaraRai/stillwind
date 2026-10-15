@@ -337,6 +337,10 @@ supports-grid:flex supports-display:flex supports-backdrop-filter:flex supports-
 }
 ```
 
+Stillwind rejects `supports-(--foo)` and `supports-[(--foo)]`. Tailwind emits them as
+`@supports var(--foo)` and `@supports (--foo)`. CSS evaluates both conditions as
+false, so this case does not compare these candidates.
+
 ## `variants.breakpoint-functions`
 
 ### Input CSS
@@ -379,3 +383,34 @@ min-[calc(100px+1rem)]:flex max-[calc(100px-1rem)]:flex min-[theme(--breakpoint-
   }
 }
 ```
+
+## `variants.invalid-arbitrary-selectors`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+[color:red;]:flex [&;]:flex group-[color:red;]:flex
+```
+
+### Expected CSS
+
+```css
+```
+
+Stillwind rejects an arbitrary variant whose text is not a valid selector list,
+including inside `group-*`, `peer-*`, `has-*`, `in-*`, and `not-*`. Tailwind wraps such
+text in `:is()` or appends it to the class, so this case does not compare these
+candidates:
+
+- `[--x:]:flex` and `[color:]:flex` emit `:is(--x:)` and `:is(color:)`, which match
+  no element.
+- `group-[color:]:flex` emits `:is(:where(.group):is(color:) *)`, which matches no
+  element.
+- `[&:]:flex` emits the invalid selector `.\[\&\:\]\:flex:`.
