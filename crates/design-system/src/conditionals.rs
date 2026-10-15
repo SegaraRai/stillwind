@@ -9,6 +9,7 @@
 use std::fmt;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::LeanString;
 
 use stillwind_css::{ValueDomain, find_css_functions, matching_css_delimiter};
 
@@ -161,7 +162,7 @@ fn accepts(domain: ValueDomain, value: &str, depth: usize) -> bool {
             |(_, yes, no)| accepts(domain, yes, depth + 1) && accepts(domain, no, depth + 1),
         );
     }
-    let mut normalized = String::new();
+    let mut normalized = LeanString::new();
     let mut cursor = 0;
     for function in functions {
         if runtime_if_arguments(&value[function.arguments.clone()]).is_none()
@@ -223,6 +224,8 @@ fn unbrace(value: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
@@ -240,7 +243,9 @@ mod tests {
         ] {
             let parsed = RuntimeCondition::parse(condition);
             assert_eq!(
-                parsed.map(|condition| condition.to_string()).as_deref(),
+                parsed
+                    .map(|condition| condition.to_lean_string())
+                    .as_deref(),
                 Some(canonical),
                 "{condition}"
             );
@@ -250,7 +255,7 @@ mod tests {
         }
         let (condition, yes, no) = runtime_if_arguments(" !!!--c, {a,b}, f(x,y) ").unwrap();
         assert_eq!(
-            (condition.to_string().as_str(), yes, no),
+            (condition.to_lean_string().as_str(), yes, no),
             ("!--c", "a,b", "f(x,y)")
         );
     }

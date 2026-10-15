@@ -2,6 +2,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::properties_interfere;
 use stillwind_diagnostics::{Label, LabelScope, LintDiagnostic, LintFinding, LintKind};
 use stillwind_semantic::IdentityId;
@@ -169,10 +171,12 @@ fn provider_finding(
     style: &ResolvedStyle<'_>,
     previous: &ResolvedSupply<'_>,
     current: &ResolvedSupply<'_>,
-    properties: String,
+    properties: LeanString,
 ) -> LintFinding {
     let mut finding = LintFinding::new(
-        LintDiagnostic::ProviderConflict { properties },
+        LintDiagnostic::ProviderConflict {
+            properties: (properties).into(),
+        },
         local_span(style, current),
     );
     finding.info.labels.push(Label {
@@ -211,11 +215,11 @@ fn imported_interference(
 
 /// Returns one property name for equal inputs or an ordered pair for an overlap.
 /// Inputs are decoded property names; lexicographic order stabilizes diagnostics.
-fn describe_properties(a: &str, b: &str) -> String {
+fn describe_properties(a: &str, b: &str) -> LeanString {
     match a.cmp(b) {
         std::cmp::Ordering::Equal => a.into(),
-        std::cmp::Ordering::Less => format!("{a} and {b}"),
-        std::cmp::Ordering::Greater => format!("{b} and {a}"),
+        std::cmp::Ordering::Less => format_args!("{a} and {b}").to_lean_string(),
+        std::cmp::Ordering::Greater => format_args!("{b} and {a}").to_lean_string(),
     }
 }
 
@@ -227,7 +231,7 @@ fn base_interference(
     style: &ResolvedStyle<'_>,
     previous: &ResolvedSupply<'_>,
     current: &ResolvedSupply<'_>,
-    properties: String,
+    properties: LeanString,
 ) -> Option<LintDiagnostic> {
     let (Some(left), Some(right)) = (&previous.base, &current.base) else {
         return [&previous, &current]
@@ -235,7 +239,7 @@ fn base_interference(
             .any(|s| s.base.is_some() && s.owner.module_id() != style.root.identity.module_id())
             .then(|| LintDiagnostic::ImportedBaseInterference {
                 module: imported_module(style, previous, current),
-                properties,
+                properties: (properties).into(),
             });
     };
     if left == right || style.reaches(left, right) || style.reaches(right, left) {
@@ -244,10 +248,12 @@ fn base_interference(
     Some(if imported_interference(style, previous, current) {
         LintDiagnostic::ImportedBaseInterference {
             module: imported_module(style, previous, current),
-            properties,
+            properties: (properties).into(),
         }
     } else {
-        LintDiagnostic::AmbiguousBaseOrder { properties }
+        LintDiagnostic::AmbiguousBaseOrder {
+            properties: (properties).into(),
+        }
     })
 }
 

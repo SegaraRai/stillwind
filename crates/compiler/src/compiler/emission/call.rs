@@ -5,6 +5,8 @@
 //! custom-property captures. Class expressions and per-kind arms live in the sibling
 //! files.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use stillwind_design_system::ThemeIndex;
@@ -51,7 +53,8 @@ pub(in crate::compiler) struct CallEmitter<'a> {
     pub(super) theme: &'a ThemeIndex,
     /// Effective lint settings of this compilation.
     pub(super) lint_settings: LintSettings,
-    /// Whether runtime conditions lower to native CSS `if()` instead of fallback helpers.
+    /// Whether runtime conditions lower to native CSS `if()` instead of fallback
+    /// helpers.
     pub(super) use_css_if: bool,
     /// Analyzed style call being lowered.
     pub(super) call: &'a StyleCall,
@@ -76,7 +79,7 @@ pub(in crate::compiler) struct CallEmitter<'a> {
     /// Direct contributions with their conditions and base references.
     pub(super) style_effects: Vec<StyleEffect>,
     /// Unconditional inline literals with no possible competing write in this call.
-    pub(super) static_custom_properties: BTreeMap<String, CustomPropertyEntry>,
+    pub(super) static_custom_properties: BTreeMap<LeanStr, CustomPropertyEntry>,
 }
 
 impl<'a> CallEmitter<'a> {
@@ -173,7 +176,7 @@ impl<'a> CallEmitter<'a> {
                         ordinal: 0,
                         kind: SupplyKind::Declaration {
                             property: "view-transition-class".into(),
-                            value: DeclarationValue::Css(transition_list),
+                            value: DeclarationValue::Css((transition_list).into()),
                             important: false,
                             context: RuleContext {
                                 selector: "&".into(),
@@ -316,7 +319,7 @@ impl<'a> CallEmitter<'a> {
                         return None;
                     }
                 };
-                let marker = marker.as_str().to_owned();
+                let marker = marker.as_str().to_lean_str();
                 self.record_supplies(
                     *value,
                     guard,
@@ -326,7 +329,7 @@ impl<'a> CallEmitter<'a> {
                 if !guard.is_empty() {
                     self.parts.push(StyleEmissionPart::Class {
                         emitted: Emitted::Leaf {
-                            names: vec![marker],
+                            names: vec![(marker)],
                         },
                         position: value.start.0,
                     });
@@ -432,11 +435,11 @@ impl<'a> CallEmitter<'a> {
         &mut self,
         reference: &AssetReference,
         kind: AssetKind,
-    ) -> Result<String, CompileDiagnostic> {
+    ) -> Result<LeanString, CompileDiagnostic> {
         let symbol = definition_name_symbol(self.identifiers, reference, kind)?;
         let name = symbol.name.clone();
         self.written_name_symbols.push(symbol);
-        Ok(name.to_string())
+        Ok(name.to_lean_string())
     }
 
     /// Converts a generator failure into a fatal diagnostic at `span`.
@@ -465,10 +468,10 @@ impl<'a> CallEmitter<'a> {
         property: &CustomPropertyEntry,
     ) -> Option<Property> {
         Some(Property {
-            static_value: property.static_value.clone(),
+            static_value: (property.static_value.clone()),
             computed_value: None,
-            name: property.name.value.clone(),
-            value: self.slice(property.value)?,
+            name: (property.name.value.clone()),
+            value: (self.slice(property.value)?).into(),
             span: property.value,
         })
     }
@@ -480,8 +483,8 @@ impl<'a> CallEmitter<'a> {
         Some(Property {
             static_value: None,
             computed_value: None,
-            name: attribute.name.value.clone(),
-            value: self.slice(attribute.value)?,
+            name: (attribute.name.value.clone()),
+            value: (self.slice(attribute.value)?).into(),
             span: attribute.value,
         })
     }
@@ -501,7 +504,10 @@ impl<'a> CallEmitter<'a> {
     /// Copies a source expression while retaining the slicing cause for callers that
     /// distinguish an optional expression from an unreadable one.
     pub(super) fn source_expression_result(&self, span: Span) -> Result<Code, SourceError> {
-        Ok(Code::source(self.source.slice(span)?.to_owned(), span))
+        Ok(Code::source(
+            self.source.slice(span)?.to_lean_string(),
+            span,
+        ))
     }
 
     pub(super) fn report_source_error(&mut self, error: &SourceError) {
@@ -513,9 +519,9 @@ impl<'a> CallEmitter<'a> {
 
     /// Copies a valid source slice verbatim, retaining authored whitespace. Returns
     /// `None` on a slicing error after recording its typed cause at the call site.
-    fn slice(&mut self, span: Span) -> Option<String> {
+    fn slice(&mut self, span: Span) -> Option<LeanString> {
         match self.source.slice(span) {
-            Ok(value) => Some(value.to_owned()),
+            Ok(value) => Some(value.to_lean_string()),
             Err(error) => {
                 self.report_source_error(&error);
                 None
@@ -587,7 +593,7 @@ pub(in crate::compiler) struct CallEmitterInputs<'a> {
     pub(in crate::compiler) symbols: &'a mut Vec<GeneratedSymbol>,
     /// Previously emitted (class name, canonical input) pairs used to suppress
     /// identical units.
-    pub(in crate::compiler) emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    pub(in crate::compiler) emitted_utility_classes: &'a mut BTreeSet<(LeanStr, LeanStr)>,
     /// Referenced runtime identities used to retain declarations that need runtime
     /// values.
     pub(in crate::compiler) runtime_assets: &'a mut BTreeSet<IdentityId>,

@@ -3,6 +3,8 @@
 //! [`LiteralContribution::resolve`] omits unresolved candidates and reports lint
 //! findings while applying semantic wrappers to resolved utilities.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compatibility_marker_class, is_condition_variant,
     is_tailwind_relationship_candidate, resolve_variant,
@@ -11,7 +13,7 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
     UtilityFailure,
 };
-use stillwind_source::{Span, Spanned};
+use stillwind_source::{ReplaceText, Span, Spanned};
 use stillwind_syntax::{Utility, parse_candidate};
 
 use super::conditionals::{UnsupportedCondition, check_candidate};
@@ -29,13 +31,13 @@ use super::variants::document_scoped_selector;
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Hash fragment for rule-bearing candidates and their wrappers, in source order.
-    pub(super) canonical: String,
+    pub(super) canonical: LeanString,
     /// Utilities to emit as this leaf's rule.
     pub(super) utilities: Vec<CompiledUtility>,
     /// Compatibility markers, emitted instead of a rule.
-    pub(super) markers: Vec<String>,
+    pub(super) markers: Vec<LeanStr>,
     /// Names with no rule of their own, such as asset markers.
-    pub(super) plain: Vec<String>,
+    pub(super) plain: Vec<LeanStr>,
     /// Transition uses with their tokens, CSS contexts, and names, in encounter order.
     pub(super) view_transitions: Vec<TransitionContribution>,
 }
@@ -69,7 +71,7 @@ impl LiteralContribution {
     /// the design system appends a fatal diagnostic, and callers must discard the
     /// compilation if diagnostics are present.
     pub(super) fn resolve(
-        value: &Spanned<String>,
+        value: &Spanned<LeanStr>,
         plan: &StyleVariantPlan,
         theme: &ThemeIndex,
         lint_settings: &LintSettings,
@@ -81,7 +83,7 @@ impl LiteralContribution {
         let mut decoded_offset = 0;
         for utility in lex_utilities(value, diagnostics) {
             let start = value.value[decoded_offset..]
-                .find(&utility.value.raw)
+                .find(utility.value.raw.as_str())
                 .map_or(decoded_offset, |offset| decoded_offset + offset);
             decoded_offset = start + utility.value.raw.len();
             let source_span = Span::new(
@@ -89,8 +91,11 @@ impl LiteralContribution {
                 value.span.start.0 + u32::try_from(start).unwrap_or_default(),
                 value.span.start.0 + u32::try_from(decoded_offset).unwrap_or_default(),
             );
-            let mut raw = utility.value.raw.clone();
-            raw.insert_str(0, &plan.prefix);
+            let raw = if plan.prefix.is_empty() {
+                utility.value.raw.clone()
+            } else {
+                ToLeanStr::to_lean_str(&format_args!("{}{}", plan.prefix, utility.value.raw))
+            };
             if let Some(diagnostic) =
                 runtime_condition_lint(&raw, &utility.value.raw, theme, use_css_if)
             {
@@ -104,7 +109,7 @@ impl LiteralContribution {
             {
                 lint_findings.push(LintFinding::new(
                     LintDiagnostic::PreferTypedRelationships {
-                        utility: raw.clone(),
+                        utility: (raw.clone()),
                     },
                     utility.span,
                 ));
@@ -112,12 +117,13 @@ impl LiteralContribution {
             if !plan.has_refs
                 && let Some(marker) = compatibility_marker_class(&raw, theme)
             {
-                contribution.markers.push(marker);
+                contribution.markers.push((marker).into());
                 continue;
             }
             match resolve_utility_targets(&raw, theme) {
                 Ok(Some(mut resolved)) => {
-                    let canonical_candidate = format!("{}{}", plan.canonical, utility.value.raw);
+                    let canonical_candidate =
+                        format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
                     contribution.canonical.push_str(&canonical_candidate);
                     contribution.canonical.push('\0');
                     if lint_settings.enabled_for_detection(LintKind::RequireElementScope)
@@ -128,7 +134,9 @@ impl LiteralContribution {
                             .find_map(|variant| document_scoped_selector(variant, theme))
                     {
                         lint_findings.push(LintFinding::new(
-                            LintDiagnostic::DocumentScopedSelector { selector },
+                            LintDiagnostic::DocumentScopedSelector {
+                                selector: (selector).into(),
+                            },
                             utility.span,
                         ));
                     }
@@ -146,7 +154,7 @@ impl LiteralContribution {
                         if lint_settings.enabled_for_detection(classification.lint_kind()) {
                             lint_findings.push(LintFinding::new(
                                 LintDiagnostic::UnresolvedUtility {
-                                    utility: utility.value.raw.clone(),
+                                    utility: (utility.value.raw.clone()),
                                     classification,
                                 },
                                 utility.span,
@@ -173,12 +181,12 @@ pub(super) struct TransitionContribution {
     /// retain slot names when other call inputs are omitted from an isolated preview.
     pub(super) source_offset: u32,
     /// Canonical generated token, escaped when serialized into CSS.
-    pub(super) token: String,
+    pub(super) token: LeanStr,
     /// Escaped static participant name.
-    pub(super) name: Option<String>,
+    pub(super) name: Option<LeanStr>,
     /// Custom property that holds a dynamic name controlled by a CSS variant.
     /// Requires `plan` and a runtime value for this property from the same use.
-    pub(super) dynamic_name_property: Option<String>,
+    pub(super) dynamic_name_property: Option<LeanStr>,
     /// CSS application context; absence permits a base token to be emitted literally.
     pub(super) plan: Option<StyleVariantPlan>,
 }
@@ -215,7 +223,7 @@ fn runtime_condition_lint(
 ) -> Option<LintDiagnostic> {
     let candidate = parse_candidate(raw)?;
     let invalid = || LintDiagnostic::UnresolvedUtility {
-        utility: utility.to_owned(),
+        utility: utility.to_lean_str(),
         classification: UtilityFailure::Invalid,
     };
     if candidate.variants.iter().any(|variant| {
@@ -227,8 +235,8 @@ fn runtime_condition_lint(
         Utility::Named { name, .. } => name
             .find('[')
             .and_then(|start| name[start + 1..].strip_suffix(']'))
-            .map(|value| value.replace('_', " ")),
-        Utility::ArbitraryProperty { value, .. } => Some(value.to_string()),
+            .map(|value| value.replace_char('_', " ")),
+        Utility::ArbitraryProperty { value, .. } => Some(value.to_lean_string()),
     };
     let conditions = candidate
         .variants
@@ -240,15 +248,15 @@ fn runtime_condition_lint(
         .collect::<Vec<_>>();
     match check_candidate(
         value.as_deref(),
-        conditions.iter().map(String::as_str),
+        conditions.iter().map(LeanStr::as_str),
         use_css_if,
     ) {
         Ok(()) => None,
         Err(UnsupportedCondition::Syntax) => Some(invalid()),
         Err(UnsupportedCondition::RequiresNative(detail)) => {
             Some(LintDiagnostic::RuntimeConditionRequiresNative {
-                utility: utility.to_owned(),
-                detail: detail.to_owned(),
+                utility: utility.to_lean_str(),
+                detail: detail.to_lean_str(),
             })
         }
     }

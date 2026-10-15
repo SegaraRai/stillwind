@@ -1,5 +1,6 @@
 //! Detection policies and partial overrides for lint rules with options.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use super::LintSeverity;
@@ -100,9 +101,9 @@ pub struct ConflictingUtilitiesOverride {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LengthUnitRule {
     /// Case-insensitive property globs supporting `*` and `?`.
-    pub properties: Vec<String>,
+    pub properties: Vec<LeanStr>,
     /// Length unit names compared without ASCII case; zero lengths are exempt.
-    pub disallow: Vec<String>,
+    pub disallow: Vec<LeanStr>,
 }
 
 /// Property-specific unit restrictions in precedence order.
@@ -130,7 +131,7 @@ pub struct RestrictedThemeTokensConfig {
     /// Reporting level of forbidden token references.
     pub severity: LintSeverity,
     /// Case-sensitive complete custom-property name globs supporting `*` and `?`.
-    pub tokens: Vec<String>,
+    pub tokens: Vec<LeanStr>,
 }
 
 /// Explicit fields overriding the restricted theme token policy.
@@ -140,7 +141,7 @@ pub struct RestrictedThemeTokensOverride {
     /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission preserves existing patterns; a supplied list replaces them.
-    pub tokens: Option<Vec<String>>,
+    pub tokens: Option<Vec<LeanStr>>,
 }
 
 /// Arbitrary spacing restrictions selected by CSS property domain.
@@ -149,7 +150,7 @@ pub struct ArbitrarySpacingConfig {
     /// Reporting level for explicit nonzero lengths and percentages.
     pub severity: LintSeverity,
     /// Additional case-insensitive property globs. Margin, padding, and gap are always checked.
-    pub properties: Vec<String>,
+    pub properties: Vec<LeanStr>,
 }
 
 /// Explicit fields overriding the arbitrary spacing policy.
@@ -159,7 +160,7 @@ pub struct ArbitrarySpacingOverride {
     /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// A supplied list replaces additional property globs.
-    pub properties: Option<Vec<String>>,
+    pub properties: Option<Vec<LeanStr>>,
 }
 
 /// A forbidden utility spelling and the explanation presented to its author.
@@ -167,9 +168,9 @@ pub struct ArbitrarySpacingOverride {
 #[serde(deny_unknown_fields)]
 pub struct RestrictedUtilityRule {
     /// Case-sensitive full utility glob, excluding enclosing variants and important modifiers.
-    pub pattern: String,
+    pub pattern: LeanStr,
     /// Optional project-specific explanation.
-    pub message: Option<String>,
+    pub message: Option<LeanStr>,
 }
 
 /// Utility spellings forbidden independently of their resolved declarations.
@@ -196,11 +197,11 @@ pub struct RestrictedUtilitiesOverride {
 #[serde(deny_unknown_fields)]
 pub struct RestrictedDeclarationRule {
     /// Case-insensitive complete CSS property globs.
-    pub properties: Vec<String>,
+    pub properties: Vec<LeanStr>,
     /// Case-insensitive complete serialized value globs; strings and URLs remain CSS text.
-    pub values: Vec<String>,
+    pub values: Vec<LeanStr>,
     /// Optional project-specific explanation.
-    pub message: Option<String>,
+    pub message: Option<LeanStr>,
 }
 
 /// Forbidden combinations of resolved properties and values.

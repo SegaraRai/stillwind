@@ -4,6 +4,8 @@
 //! that names a variable or an arbitrary value is resolved before any theme lookup
 //! happens, and its spelling rules are the same for every namespace.
 
+use lean_string::{LeanString, ToLeanString};
+
 /// A CSS-variable capture: `(--name)` or `(hint:--name)`.
 pub(in crate::evaluation) struct CssVariable<'a> {
     /// Value-type hint written before the colon, when present.
@@ -29,8 +31,8 @@ pub(in crate::evaluation) fn parse_css_variable(value: &str) -> Option<CssVariab
 /// A backslash escapes the next character, so `\_` is an underscore rather than the
 /// space that a bare `_` produces. Every other character is kept as written, which is
 /// why this cannot be a general CSS unescaper.
-pub(in crate::evaluation) fn decode_arbitrary(value: &str) -> String {
-    let mut result = String::new();
+pub(in crate::evaluation) fn decode_arbitrary(value: &str) -> LeanString {
+    let mut result = LeanString::new();
     let mut escaped = false;
     for character in value.chars() {
         if escaped {
@@ -53,15 +55,15 @@ pub(in crate::evaluation) fn decode_arbitrary(value: &str) -> String {
 /// is already a percentage and is only given its unit. A `var()` reference is passed
 /// through unchanged because its value is not known here, and anything that is not a
 /// number produces [`None`].
-pub(in crate::evaluation) fn alpha(value: &str) -> Option<String> {
+pub(in crate::evaluation) fn alpha(value: &str) -> Option<LeanString> {
     if value.starts_with("var(") {
-        return Some(value.to_owned());
+        return Some(value.to_lean_string());
     }
     let number = value.parse::<f64>().ok()?;
     Some(if number <= 1.0 {
-        format!("{}%", number * 100.0)
+        format_args!("{}%", number * 100.0).to_lean_string()
     } else {
-        format!("{number}%")
+        format_args!("{number}%").to_lean_string()
     })
 }
 

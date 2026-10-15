@@ -60,7 +60,7 @@ fn css_and_script_sources_share_ids_without_sharing_retention() {
 fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     let snapshot = brand_snapshot("red");
     let options = CompilerOptions {
-        class_namespace: "first".to_owned(),
+        class_namespace: ("first".to_owned()).into(),
         ..CompilerOptions::default()
     };
     let mut session = ProjectSession::new(
@@ -73,7 +73,7 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     session.update_module(module("button.tsx", "flex"));
     let before = session.artifacts()[&ModuleId::from("button.tsx")].clone();
     let next = CompilerOptions {
-        class_namespace: "second".to_owned(),
+        class_namespace: ("second".to_owned()).into(),
         ..options
     };
     let update = session.reload(Ok(snapshot), next.clone()).unwrap();

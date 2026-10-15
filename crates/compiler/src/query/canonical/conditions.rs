@@ -4,8 +4,11 @@
 //! every other byte of the candidate, so the utility and its other variants are
 //! unchanged.
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{RuntimeCondition, ThemeIndex, VariantApplication, resolve_variant};
+use stillwind_source::ReplaceText;
 use stillwind_syntax::parse_candidate;
 
 /// Returns `raw` with canonical runtime conditions, or `None` when every condition is
@@ -14,9 +17,9 @@ use stillwind_syntax::parse_candidate;
 /// Captures of conditional variants and the first argument of `--if()` functions are
 /// rewritten. In arbitrary values, `_` encodes a space, so the condition is decoded
 /// before parsing and the canonical text encodes spaces as `_` again.
-pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<String> {
+pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
     let candidate = parse_candidate(raw)?;
-    let mut rewritten = raw.to_owned();
+    let mut rewritten = raw.to_lean_string();
     for variant in &candidate.variants {
         let Some(VariantApplication::Conditional(canonical)) = resolve_variant(variant, theme)
         else {
@@ -29,9 +32,15 @@ pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<Stri
             continue;
         };
         if capture.trim() != canonical {
-            let replacement = format!("{}({canonical})", &variant.raw[..open]);
-            rewritten =
-                rewritten.replacen(&format!("{}:", variant.raw), &format!("{replacement}:"), 1);
+            let replacement =
+                format_args!("{}({canonical})", &variant.raw[..open]).to_lean_string();
+            rewritten = rewritten
+                .replacen(
+                    format_args!("{}:", variant.raw).to_lean_string().as_str(),
+                    &format_args!("{replacement}:").to_lean_string(),
+                    1,
+                )
+                .into();
         }
     }
     let functions = find_css_functions(&rewritten, &["--if"], 0);
@@ -39,11 +48,11 @@ pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<Stri
         let arguments = &rewritten[function.arguments.clone()];
         let end = top_level_comma(arguments).unwrap_or(arguments.len());
         let written = &arguments[..end];
-        let decoded = written.replace('_', " ");
+        let decoded = written.replace_char('_', " ");
         let Some(condition) = RuntimeCondition::parse(&decoded) else {
             continue;
         };
-        let canonical = condition.to_string().replace(' ', "_");
+        let canonical = condition.to_lean_string().replace_char(' ', "_");
         if written.trim() != canonical {
             let start = function.arguments.start;
             rewritten.replace_range(start..start + end, &canonical);

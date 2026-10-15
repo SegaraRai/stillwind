@@ -4,7 +4,7 @@
 //! identity alongside each written name so document-wide collision checks can
 //! distinguish name reuse from a collision.
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;
@@ -211,7 +211,7 @@ fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
 ///
 /// An empty label is no label: a declaration whose label cleans to nothing is named
 /// without one rather than failing.
-fn declared_label(label: Option<&Spanned<String>>) -> Option<Label> {
+fn declared_label(label: Option<&Spanned<LeanStr>>) -> Option<Label> {
     label.and_then(|label| Label::new(&label.value).ok())
 }
 
@@ -264,10 +264,11 @@ fn owner_declaration_identity(
     end: u32,
     binding: &str,
 ) -> LeanStr {
-    format!(
+    format_args!(
         "stillwind-identity/v1\0{}",
         declaration_fields(module_id, kind, start, end, binding),
     )
+    .to_lean_string()
     .into()
 }
 
@@ -297,8 +298,8 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
 /// into the name.
 pub(super) fn named_declaration(
     module_id: &ModuleId,
-    definition: &Spanned<String>,
-    label: Option<&Spanned<String>>,
+    definition: &Spanned<LeanStr>,
+    label: Option<&Spanned<LeanStr>>,
 ) -> DeclarationContext {
     DeclarationContext {
         module: module_id.clone(),
@@ -340,9 +341,9 @@ fn declared_name(
         AssetKind::Style => context
             .class_name(&ClassContext {
                 module: declaration.module.clone(),
-                namespace: String::new(),
+                namespace: (LeanString::new()).into(),
                 call: declaration.start,
-                branch: declaration.binding.to_string(),
+                branch: declaration.binding.to_lean_str(),
             })?
             .as_str()
             .into(),
@@ -375,8 +376,8 @@ pub(super) fn generated_symbol(
     context: &IdentifierContext,
     module_id: &ModuleId,
     kind: AssetKind,
-    definition: &Spanned<String>,
-    label: Option<&Spanned<String>>,
+    definition: &Spanned<LeanStr>,
+    label: Option<&Spanned<LeanStr>>,
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
         name: declared_name(
@@ -433,13 +434,14 @@ pub(super) fn generated_ref_marker_symbol(
         name: ref_marker_name(context, definition)?.as_str().into(),
         kind: GeneratedSymbolKind::RefMarker,
         pool: IdentifierPool::ClassToken,
-        identity: format!(
+        identity: format_args!(
             "stillwind-identity/v1\0ref-marker\0{}\0{}:{}\0{}\0",
             definition.module_id,
             definition.binding.span.start.0,
             definition.binding.span.end.0,
             definition.binding.value,
         )
+        .to_lean_string()
         .into(),
         origin: SymbolOrigin::Module(definition.module_id.clone()),
         start: Some(definition.binding.span.start.0),
@@ -463,7 +465,9 @@ pub(super) fn generated_class_symbol(
         name: name.into(),
         kind: GeneratedSymbolKind::Class,
         pool: IdentifierPool::ClassToken,
-        identity: format!("stillwind-identity/v1\0class\0{canonical_input}").into(),
+        identity: format_args!("stillwind-identity/v1\0class\0{canonical_input}")
+            .to_lean_string()
+            .into(),
         origin: SymbolOrigin::Module(module_id.clone()),
         start: Some(span.start.0),
         end: Some(span.end.0),
@@ -534,7 +538,7 @@ pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
 pub(super) fn named_identity(
     module_id: &ModuleId,
     kind: AssetKind,
-    name: &Spanned<String>,
+    name: &Spanned<LeanStr>,
 ) -> IdentityId {
     IdentityId::new(
         kind,
@@ -592,11 +596,11 @@ mod tests {
         let identifiers = identifiers();
         let class = |branch: &str| ClassContext {
             module: ModuleId::from("src/x.tsx"),
-            namespace: String::new(),
+            namespace: (LeanString::new()).into(),
             call: 0,
-            branch: branch.to_owned(),
+            branch: branch.to_lean_str(),
         };
-        let name = Spanned::new("ref".to_owned(), Span::new(FileId(1), 2, 5));
+        let name = Spanned::new("ref".to_lean_str(), Span::new(FileId(1), 2, 5));
         assert_ne!(
             owner_declaration_identity(&ModuleId::from(r"src\x.tsx"), "ref", 2, 5, &name.value),
             owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", 2, 5, &name.value)
@@ -622,9 +626,9 @@ mod tests {
         );
         let namespaced = |namespace: &str| ClassContext {
             module: ModuleId::from("src/x.tsx"),
-            namespace: namespace.to_owned(),
+            namespace: namespace.to_lean_str(),
             call: 0,
-            branch: "flex".to_owned(),
+            branch: "flex".to_lean_str(),
         };
         assert_eq!(
             identifiers.class_name(&namespaced("app")),
@@ -639,7 +643,7 @@ mod tests {
     #[test]
     fn owner_identities_share_one_declaration_spelling() {
         let module = ModuleId::from("src/x.tsx");
-        let name = Spanned::new("item".to_owned(), Span::new(FileId(1), 2, 6));
+        let name = Spanned::new("item".to_lean_str(), Span::new(FileId(1), 2, 6));
         let identity = IdentityId::new(AssetKind::Ref, module.clone(), 2, 6, "item");
         let context = LocatorContext {
             module: module.clone(),

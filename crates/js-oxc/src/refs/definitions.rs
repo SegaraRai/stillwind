@@ -4,6 +4,7 @@
 //! prefix separate from the independent shared scope conditions supplied by `in()`.
 //! Container queries remain conditions on the final styled target.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{CallExpression, ChainElement, Expression};
 use oxc::span::GetSpan;
 
@@ -21,7 +22,7 @@ enum RefVariantText<'e, 'a> {
     Bare(&'e Expression<'a>),
     Prefix {
         reference: &'e Expression<'a>,
-        prefix: Spanned<String>,
+        prefix: Spanned<LeanStr>,
     },
 }
 
@@ -30,7 +31,7 @@ impl<'a> MacroExtractor<'a> {
     /// arguments produce a lint and an unlabeled declaration with the same identity.
     pub(crate) fn collect_ref_definition(
         &mut self,
-        binding: Spanned<String>,
+        binding: Spanned<LeanStr>,
         call: &CallExpression<'a>,
     ) -> RefDefinition {
         self.omit_input(call.span);
@@ -118,7 +119,7 @@ impl<'a> MacroExtractor<'a> {
     fn ref_container_variant(
         &mut self,
         receiver: &Expression<'a>,
-        query: Spanned<String>,
+        query: Spanned<LeanStr>,
     ) -> Option<StyleVariant> {
         if self.completed_ref_variant(receiver) {
             self.ref_input_error(LintDiagnostic::InvalidRefVariantReceiver, receiver.span());
@@ -186,14 +187,14 @@ impl<'a> MacroExtractor<'a> {
                 Some(RefVariantText::Prefix {
                     reference: &tagged.tag,
                     prefix: Spanned::new(
-                        cooked.to_string(),
+                        cooked.to_lean_str(),
                         Span::new(span.file, span.start.0 + 1, span.end.0.saturating_sub(1)),
                     ),
                 })
             }
             Expression::CallExpression(call) if !call.optional => {
                 let text = match call.arguments.as_slice() {
-                    [] => Spanned::new(String::new(), self.source_span(call.span)),
+                    [] => Spanned::new(LeanStr::new(), self.source_span(call.span)),
                     [argument] => {
                         let Some(Expression::StringLiteral(value)) = argument.as_expression()
                         else {
@@ -251,7 +252,7 @@ impl<'a> MacroExtractor<'a> {
             RefVariantText::Prefix { reference, prefix } => (reference, prefix),
             RefVariantText::Bare(expression) if allow_presence => (
                 expression,
-                Spanned::new(String::new(), self.source_span(expression.span())),
+                Spanned::new(LeanStr::new(), self.source_span(expression.span())),
             ),
             RefVariantText::Bare(_) => {
                 self.ref_input_error(LintDiagnostic::IncompleteRefCondition, expression.span());
@@ -295,7 +296,7 @@ impl<'a> MacroExtractor<'a> {
             &LintDiagnostic::NonRefVariantReceiver,
         );
         if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
-            prefix.value.push(':');
+            prefix.value = format_args!("{}:", prefix.value).to_lean_str();
         }
         Some(RefCondition { refs, prefix })
     }
@@ -368,6 +369,8 @@ impl<'a> MacroExtractor<'a> {
 mod tests {
     use std::collections::BTreeMap;
 
+    use lean_string::ToLeanStr;
+
     use stillwind_diagnostics::{CompileDiagnostic, LintKind};
     use stillwind_ir::{
         ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
@@ -379,15 +382,16 @@ mod tests {
     use crate::{ParsedJavaScript, parse};
 
     fn parse_variant_input(input: &str) -> (SourceFile, ParsedJavaScript) {
-        let code = format!(
+        let code = format_args!(
             "import {{style}} from 'stillwind/react';\n\
              // 日本語 🧭\n\
              const target = style.ref('target'); const inner = style.ref('inner');\n\
              const outer = style.ref('outer'); const alias = target;\n\
              declare const choose: boolean;\n\
              export const result = style({input});"
-        );
-        let source = SourceFile::new(FileId(1), None, None, code).unwrap();
+        )
+        .to_lean_str();
+        let source = SourceFile::new(FileId(1), None, None, code.as_str()).unwrap();
         let target_start = source.text().find("target =").unwrap();
         let target = IdentityId::new(
             AssetKind::Ref,
@@ -445,8 +449,8 @@ mod tests {
             r"alias('hover')[`i\u006e`](inner('focus'))['in'](outer)",
         ] {
             for input in [
-                format!("{{[{expression}]: 'flex'}}"),
-                format!("`${{{expression}}}:flex`"),
+                format_args!("{{[{expression}]: 'flex'}}").to_lean_str(),
+                format_args!("`${{{expression}}}:flex`").to_lean_str(),
             ] {
                 let (source, parsed) = parse_variant_input(&input);
                 let StyleVariant::Ref { condition, scopes } = extracted_variant(&parsed) else {
@@ -502,7 +506,8 @@ mod tests {
             "target[`at`]('width > 40rem')",
             r"target[`a\u0074`]`width > 40rem`",
         ] {
-            let (source, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
+            let (source, parsed) =
+                parse_variant_input(&format_args!("{{[{expression}]: 'flex'}}").to_lean_str());
             let StyleVariant::Container { refs, query } = extracted_variant(&parsed) else {
                 panic!("{expression}: expected container variant");
             };
@@ -511,7 +516,8 @@ mod tests {
             assert_eq!(source.slice(query.span).unwrap(), "width > 40rem");
         }
         for expression in ["target['at']()", "target[`at`]('')", "target[`at`]``"] {
-            let (_, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
+            let (_, parsed) =
+                parse_variant_input(&format_args!("{{[{expression}]: 'flex'}}").to_lean_str());
             let StyleVariant::Container { query, .. } = extracted_variant(&parsed) else {
                 panic!("{expression}: expected container variant");
             };
@@ -534,7 +540,8 @@ mod tests {
             ("target['in']()", LintKind::InvalidRefInput),
             ("target[`in`](...inner)", LintKind::InvalidRefInput),
         ] {
-            let (_, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
+            let (_, parsed) =
+                parse_variant_input(&format_args!("{{[{expression}]: 'flex'}}").to_lean_str());
             assert!(
                 parsed
                     .lint_findings
@@ -558,7 +565,8 @@ mod tests {
             "target[`i${'n'}`](inner)",
             "target[choose ? 'in' : 'at'](inner)",
         ] {
-            let (_, parsed) = parse_variant_input(&format!("{{[{expression}]: 'flex'}}"));
+            let (_, parsed) =
+                parse_variant_input(&format_args!("{{[{expression}]: 'flex'}}").to_lean_str());
             assert!(
                 !parsed.lint_findings.is_empty(),
                 "{expression}: accepted unsupported syntax"
@@ -585,13 +593,14 @@ mod tests {
             "target[`in`](inner)[\"in\"](outer)",
             "(choose ? first : second)('hover').in(choose ? inner : outer)",
         ] {
-            let code = format!(
+            let code = format_args!(
                 "import {{style}} from 'stillwind/react';\n\
                  import {{target, first, second, inner, outer}} from './refs';\n\
                  declare const choose: boolean;\n\
                  export const result = style({{[{expression}]: 'flex'}});"
-            );
-            let source = SourceFile::new(FileId(1), None, None, code).unwrap();
+            )
+            .to_lean_str();
+            let source = SourceFile::new(FileId(1), None, None, code.as_str()).unwrap();
             let parsed = parse(
                 &source,
                 &ModuleId::from("consumer.ts"),

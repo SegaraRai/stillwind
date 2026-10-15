@@ -1,6 +1,6 @@
 //! Splitting one decoded utility string into source-spanned tokens.
 //!
-//! Input is a [`Spanned<String>`] the host already decoded from JavaScript: the span
+//! Input is a [`Spanned<LeanStr>`] the host already decoded from JavaScript: the span
 //! normally covers the literal contents and the value is decoded text. Tokens are
 //! split on Unicode whitespace in value order. When decoding changed the byte length,
 //! tokens retain the whole literal's provenance rather than inventing raw offsets.
@@ -9,6 +9,8 @@
 //! is the exact substring, and runs of whitespace disappear instead of producing empty
 //! tokens. [`Span`] arithmetic is checked, so a reversed input span or an offset that
 //! overflows 32 bits fails rather than wrapping.
+
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::{SourceError, Span, Spanned};
 
@@ -19,7 +21,7 @@ use stillwind_source::{SourceError, Span, Spanned};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityToken {
     /// Exact substring of the supplied value; this lexer performs no unescaping.
-    pub raw: String,
+    pub raw: LeanStr,
 }
 
 /// Splits one decoded utility string on Unicode whitespace while retaining a source
@@ -31,7 +33,7 @@ pub struct UtilityToken {
 /// # Errors
 ///
 /// Returns an error for reversed spans or token offsets outside the 32-bit range.
-pub fn lex_utilities(input: &Spanned<String>) -> Result<Vec<Spanned<UtilityToken>>, SourceError> {
+pub fn lex_utilities(input: &Spanned<LeanStr>) -> Result<Vec<Spanned<UtilityToken>>, SourceError> {
     let len =
         u32::try_from(input.value.len()).map_err(|_| SourceError::TooLarge(input.value.len()))?;
     if input.span.len().is_none() || input.span.start.0.checked_add(len).is_none() {
@@ -64,7 +66,7 @@ pub fn lex_utilities(input: &Spanned<String>) -> Result<Vec<Spanned<UtilityToken
 /// `char_indices`; the checked conversions only guard against a value that does not fit
 /// the 32-bit coordinate space.
 fn push_token(
-    input: &Spanned<String>,
+    input: &Spanned<LeanStr>,
     start: usize,
     end: usize,
     tokens: &mut Vec<Spanned<UtilityToken>>,
@@ -73,7 +75,7 @@ fn push_token(
     let end = u32::try_from(end).map_err(|_| SourceError::TooLarge(end))?;
     tokens.push(Spanned::new(
         UtilityToken {
-            raw: input.value[start as usize..end as usize].to_owned(),
+            raw: input.value[start as usize..end as usize].to_lean_str(),
         },
         if input.span.len() == u32::try_from(input.value.len()).ok() {
             Span::new(
@@ -122,7 +124,7 @@ mod tests {
     #[test]
     fn retains_each_utilitys_exact_relative_span() {
         let input = Spanned::new(
-            "px-4  text-center\nβeta".to_owned(),
+            "px-4  text-center\nβeta".to_lean_str(),
             Span::new(FileId(4), 12, 35),
         );
 
@@ -142,6 +144,8 @@ mod tests {
 
 #[cfg(test)]
 mod boundary_tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::FileId;
 
     use super::*;
@@ -149,9 +153,9 @@ mod boundary_tests {
     proptest::proptest! {
         #[test]
         fn token_spans_slice_back_to_the_original_input(a in "[a-z]{1,12}", b in "[a-z]{1,12}") {
-            let text = format!("  {a}\t{b} ");
+            let text = format_args!("  {a}\t{b} ").to_lean_string();
             let input = Spanned::new(
-                text.clone(),
+                text.clone().into(),
                 Span::new(FileId(1), 0, u32::try_from(text.len()).unwrap())
             );
             let tokens = lex_utilities(&input).unwrap();

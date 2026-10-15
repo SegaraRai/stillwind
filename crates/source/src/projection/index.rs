@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::{LeanStr, LeanString};
 use serde::{Deserialize, Serialize};
 
 use super::volar::VolarMapping;
@@ -19,7 +20,7 @@ pub enum ProjectionError {
     #[error("invalid projection map: {0}")]
     Map(
         /// Human-readable map validation failure.
-        String,
+        LeanStr,
     ),
     /// A host coordinate did not address a scalar boundary.
     #[error(transparent)]
@@ -65,9 +66,9 @@ pub enum ProjectionMap {
     /// original file.
     V3 {
         /// The source map document.
-        json: String,
+        json: LeanStr,
         /// Name the map uses for the original file.
-        source: String,
+        source: LeanStr,
     },
     /// Volar-style offset tables, one entry per mapped interval.
     Volar {
@@ -198,7 +199,7 @@ impl<'a> ProjectionIndex<'a> {
             return Err(ProjectionError::Map("empty projection fragments".into()));
         };
         let projected = Span::new(self.generated.id(), first.start.0, last_span.end.0);
-        let mut text = String::new();
+        let mut text = LeanString::new();
         let mut previous_end = 0;
         for fragment in fragments {
             if fragment.start.0 < previous_end {

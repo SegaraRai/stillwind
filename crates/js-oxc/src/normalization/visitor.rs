@@ -1,5 +1,6 @@
 //! Collects proven normalization omissions and checker targets from the generated AST.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
     ArrayExpressionElement, ArrowFunctionBody, BindingPattern, CallExpression, Expression,
     NewExpression, ObjectExpression, ObjectProperty, ObjectPropertyKind, Program, PropertyKey,
@@ -175,7 +176,7 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
             && self.index.is_unmapped_syntax(self.span(reference.span))
         {
             self.bindings.push(CheckerBinding {
-                name: reference.name.to_string(),
+                name: reference.name.to_lean_str(),
                 span: self.span(reference.span),
             });
         }
@@ -297,7 +298,7 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
             }
             if ignored || self.keep(decision) {
                 self.bindings.push(CheckerBinding {
-                    name: callee.name.to_string(),
+                    name: callee.name.to_lean_str(),
                     span: self.span(callee.span),
                 });
             }
@@ -354,7 +355,7 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
         } else if !property.method && !property.shorthand {
             let fragments = self.fragments(self.span(property.value.span()));
             if self.index.verify_fragments(&fragments).is_ok() {
-                let value_name: String = fragments
+                let value_name: LeanStr = fragments
                     .iter()
                     .filter_map(|span| self.source.slice(*span).ok())
                     .collect();

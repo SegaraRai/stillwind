@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::SourceFile;
@@ -14,13 +15,13 @@ use crate::AdapterKind;
 pub struct SourceDocument {
     file: Arc<SourceFile>,
     format: SourceFormat,
-    upstream_map: Option<String>,
+    upstream_map: Option<LeanStr>,
 }
 
 impl SourceDocument {
     /// Takes an immutable file, its original format, and an optional upstream map.
     /// The upstream map is retained verbatim for consumers and does not change the edit target.
-    pub fn new(file: Arc<SourceFile>, format: SourceFormat, map: Option<String>) -> Self {
+    pub fn new(file: Arc<SourceFile>, format: SourceFormat, map: Option<LeanStr>) -> Self {
         Self {
             file,
             format,

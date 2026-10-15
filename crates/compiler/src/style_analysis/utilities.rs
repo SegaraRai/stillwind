@@ -5,8 +5,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_css::{properties_interfere, property_covers};
 use stillwind_diagnostics::{Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind};
+use stillwind_source::JoinText;
 
 use super::composition::ResolvedSupply;
 use super::{ResolvedStyle, SupplyKind, UseId};
@@ -80,7 +83,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                 LintDiagnostic::ConflictingUtilities {
                     previous: previous_candidate.clone(),
                     utility: candidate.clone(),
-                    properties: overlaps.into_iter().collect::<Vec<_>>().join(", "),
+                    properties: (overlaps.into_iter().collect::<Vec<_>>().join_text(", ")).into(),
                 }
             };
             if reported.insert((
@@ -128,7 +131,7 @@ fn overlapping_properties(
     current: &[&ResolvedSupply<'_>],
     previous: &[&ResolvedSupply<'_>],
     allow: bool,
-) -> BTreeSet<String> {
+) -> BTreeSet<LeanStr> {
     let mut overlaps = BTreeSet::new();
     for a in current {
         let SupplyKind::Declaration {
@@ -165,7 +168,7 @@ fn overlapping_properties(
             overlaps.insert(if ap == bp {
                 ap.clone()
             } else {
-                format!("{bp} and {ap}")
+                format_args!("{bp} and {ap}").to_lean_str()
             });
         }
     }

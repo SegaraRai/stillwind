@@ -55,7 +55,7 @@ pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BuiltinArbitraryPropertyOrder {
     /// Property name, or a prefix pattern with a trailing `*`.
-    pub pattern: String,
+    pub pattern: LeanStr,
     /// Byte offset of the directive in the registry CSS.
     pub builtin_order: usize,
 }

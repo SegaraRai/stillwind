@@ -2047,6 +2047,7 @@ name = "stillwind-css"
 version = "0.0.0"
 dependencies = [
  "cssparser 0.38.0",
+ "lean_string",
  "lightningcss",
  "parcel_sourcemap",
  "proptest",
@@ -2076,6 +2077,7 @@ dependencies = [
 name = "stillwind-diagnostics"
 version = "0.0.0"
 dependencies = [
+ "lean_string",
  "serde",
  "serde_json",
  "stillwind-source",
@@ -2086,6 +2088,7 @@ dependencies = [
 name = "stillwind-ir"
 version = "0.0.0"
 dependencies = [
+ "lean_string",
  "serde",
  "serde_json",
  "stillwind-diagnostics",
@@ -2098,6 +2101,7 @@ dependencies = [
 name = "stillwind-js-oxc"
 version = "0.0.0"
 dependencies = [
+ "lean_string",
  "oxc",
  "stillwind-diagnostics",
  "stillwind-ir",
@@ -2109,6 +2113,7 @@ dependencies = [
 name = "stillwind-napi"
 version = "0.0.0"
 dependencies = [
+ "lean_string",
  "napi",
  "napi-build",
  "napi-derive",
@@ -2132,6 +2137,7 @@ name = "stillwind-project"
 version = "0.0.0"
 dependencies = [
  "cssparser 0.38.0",
+ "lean_string",
  "proptest",
  "stillwind-compiler",
  "stillwind-css",

@@ -207,15 +207,21 @@ impl HostPreparedSource {
                 )
                 .map_err(|error| Error::from_reason(error.to_string()))?;
             let projection = projection.input(code, &original, sources)?;
-            let document =
-                SourceDocument::new(original, document.format, document.upstream_map.clone());
+            let document = SourceDocument::new(
+                original,
+                document.format,
+                (document.upstream_map.clone()).map(Into::into),
+            );
             PreparedSource::Projected(
                 ProjectedSource::try_new(document, projection)
                     .map_err(|error| Error::from_reason(error.to_string()))?,
             )
         } else {
-            let document =
-                SourceDocument::new(code, document.format, document.upstream_map.clone());
+            let document = SourceDocument::new(
+                code,
+                document.format,
+                (document.upstream_map.clone()).map(Into::into),
+            );
             PreparedSource::Direct(
                 DirectSource::try_new(document, *syntax)
                     .map_err(|error| Error::from_reason(error.to_string()))?,
@@ -223,8 +229,11 @@ impl HostPreparedSource {
         };
         let mut input = SourceInput::new(module_id.clone(), prepared);
         input.framework = *framework;
-        input.stylesheet_imports.clone_from(stylesheet_imports);
-        input.module_css_import.clone_from(module_css_import);
+        input.stylesheet_imports = stylesheet_imports
+            .iter()
+            .map(|value| value.as_str().into())
+            .collect();
+        input.module_css_import = module_css_import.as_deref().map(Into::into);
         Ok(input)
     }
 }

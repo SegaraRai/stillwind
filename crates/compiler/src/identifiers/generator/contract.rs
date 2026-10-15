@@ -2,6 +2,8 @@
 
 use std::rc::Rc;
 
+use lean_string::LeanString;
+
 use super::super::{
     AnchorName, ClassContext, ConditionContext, ConditionHelperName, ContainerName,
     DeclarationContext, IdentifierHash, IdentifierMode, KeyframesName, LayerContext, LayerName,
@@ -84,7 +86,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -97,7 +99,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<RefMarker>, String> {
+    ) -> Result<GeneratedName<RefMarker>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -110,7 +112,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &LocatorContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<AnchorName>, String> {
+    ) -> Result<GeneratedName<AnchorName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -123,7 +125,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &LocatorContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ContainerName>, String> {
+    ) -> Result<GeneratedName<ContainerName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -136,7 +138,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<KeyframesName>, String> {
+    ) -> Result<GeneratedName<KeyframesName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -149,7 +151,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionClass>, String> {
+    ) -> Result<GeneratedName<ViewTransitionClass>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -169,7 +171,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &ConditionContext,
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ConditionHelperName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -182,7 +184,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionSlotName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 
@@ -195,7 +197,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         &self,
         _context: &LayerContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<LayerName>, String> {
+    ) -> Result<GeneratedName<LayerName>, LeanString> {
         Ok(GeneratedName::Builtin)
     }
 }

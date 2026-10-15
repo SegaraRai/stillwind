@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, ModuleId};
 
@@ -9,14 +11,16 @@ use super::*;
 /// Answers with a fixed name and records every request.
 #[derive(Debug, Default)]
 struct RecordingGenerator {
-    calls: RefCell<Vec<(&'static str, String)>>,
+    calls: RefCell<Vec<(&'static str, LeanStr)>>,
 }
 
 impl RecordingGenerator {
     /// Records one request and answers with the family's fixed body.
-    fn record(&self, family: &'static str, hash: &IdentifierHash) -> String {
-        self.calls.borrow_mut().push((family, hash.to_hex()));
-        format!("fixed-{family}")
+    fn record(&self, family: &'static str, hash: &IdentifierHash) -> LeanString {
+        self.calls
+            .borrow_mut()
+            .push((family, (hash.to_hex()).into()));
+        format_args!("fixed-{family}").to_lean_string()
     }
 }
 
@@ -25,7 +29,7 @@ impl IdentifierGenerator for RecordingGenerator {
         &self,
         _context: &ClassContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         Ok(GeneratedName::provided(
             UtilityClass::new(&self.record("class", hash)).expect("canonical test body"),
         ))
@@ -35,7 +39,7 @@ impl IdentifierGenerator for RecordingGenerator {
         &self,
         _context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<RefMarker>, String> {
+    ) -> Result<GeneratedName<RefMarker>, LeanString> {
         Ok(GeneratedName::provided(
             RefMarker::new(&self.record("ref-marker", hash)).expect("canonical test body"),
         ))
@@ -51,17 +55,17 @@ impl IdentifierGenerator for FailingGenerator {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
-        Err("no name for this call".to_owned())
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
+        Err("no name for this call".to_lean_string())
     }
 }
 
 fn class_context(branch: &str) -> ClassContext {
     ClassContext {
         module: ModuleId::from("src/a.tsx"),
-        namespace: String::new(),
+        namespace: (LeanString::new()).into(),
         call: 12,
-        branch: branch.to_owned(),
+        branch: branch.to_lean_str(),
     }
 }
 
@@ -218,7 +222,10 @@ fn a_digest_is_spelled_in_base_36_and_the_length_extends_its_suffix() {
     let long = hash.short_base36(24);
     assert_eq!(short.len(), 5);
     assert_eq!(long.len(), 24);
-    assert!(long.ends_with(&short), "{long} does not end with {short}");
+    assert!(
+        long.ends_with(short.as_str()),
+        "{long} does not end with {short}"
+    );
     assert!(
         long.chars()
             .all(|character| character.is_ascii_digit() || character.is_ascii_lowercase()),
@@ -336,9 +343,9 @@ fn the_hash_is_stable_for_equal_requests_and_specific_to_the_family() {
 fn identity_fields_use_nul_boundaries() {
     let class = ClassName(ClassContext {
         module: ModuleId::from("src/a:1.tsx"),
-        namespace: "app:one".to_owned(),
+        namespace: "app:one".to_lean_str(),
         call: 12,
-        branch: "0:flex:wide".to_owned(),
+        branch: "0:flex:wide".to_lean_str(),
     });
     assert_eq!(
         class.identity(),
@@ -347,7 +354,7 @@ fn identity_fields_use_nul_boundaries() {
     assert_eq!(
         LayerNameRequest(LayerContext {
             template: CssSourceName::from("a:b.css"),
-            namespace: "app:one".to_owned(),
+            namespace: "app:one".to_lean_str(),
         })
         .identity(),
         "stillwind/layer/v1\0app:one\0a:b.css\0"
@@ -374,7 +381,7 @@ fn detached_owner_identities_do_not_reuse_hash_inputs() {
     );
     let helper = ConditionHelperRequest(ConditionContext {
         role: ConditionRole::Gate,
-        text: "--a:1".to_owned(),
+        text: "--a:1".to_lean_str(),
     });
     context.condition_helper(&helper.0).unwrap();
     let name = context.drain_detached().pop().unwrap();
@@ -395,7 +402,7 @@ fn detached_owner_identities_do_not_reuse_hash_inputs() {
 
     let layer = LayerContext {
         template: CssSourceName::from("theme.css"),
-        namespace: "app".to_owned(),
+        namespace: "app".to_lean_str(),
     };
     context.record_layer(&layer, "sw-anon-0");
     let name = context.drain_detached().pop().unwrap();
@@ -431,7 +438,7 @@ fn a_helper_carries_its_role_in_the_hash_and_its_text_beside_it() {
     let helper = |role, text: &str| {
         ConditionHelperRequest(ConditionContext {
             role,
-            text: text.to_owned(),
+            text: text.to_lean_str(),
         })
     };
     let gate = helper(ConditionRole::GateValue, "--a:1");
@@ -451,7 +458,7 @@ fn a_helper_carries_its_role_in_the_hash_and_its_text_beside_it() {
 fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
     let request = ConditionHelperRequest(ConditionContext {
         role: ConditionRole::Rule,
-        text: ".a{color:red}".to_owned(),
+        text: ".a{color:red}".to_lean_str(),
     });
     let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name.as_str();
@@ -464,7 +471,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
     // The name carries no leading hyphens: the custom-property family's render method adds them.
     assert_eq!(
         ConditionHelperName::new(&name).unwrap().property(),
-        format!("--{name}"),
+        format_args!("--{name}").to_lean_string(),
         "{name}"
     );
     // Every role letter is its own spelling of one text hash.
@@ -477,7 +484,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
     ] {
         let spelled = ConditionHelperRequest(ConditionContext {
             role,
-            text: ".a{color:red}".to_owned(),
+            text: ".a{color:red}".to_lean_str(),
         })
         .builtin(&request.hash(), DEFAULT_HASH_LENGTH);
         assert!(spelled.starts_with(expected), "{spelled}");
@@ -489,7 +496,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
 fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
     let request = LayerNameRequest(LayerContext {
         template: CssSourceName::from("entry"),
-        namespace: String::new(),
+        namespace: (LeanString::new()).into(),
     });
     let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name
@@ -502,7 +509,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
         request.hash(),
         LayerNameRequest(LayerContext {
             template: CssSourceName::from("entry"),
-            namespace: "other-app".to_owned(),
+            namespace: "other-app".to_lean_str(),
         })
         .hash()
     );
@@ -510,7 +517,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
         request.hash(),
         LayerNameRequest(LayerContext {
             template: CssSourceName::from("other"),
-            namespace: String::new(),
+            namespace: (LeanString::new()).into(),
         })
         .hash()
     );
@@ -536,7 +543,7 @@ impl IdentifierGenerator for DigestGenerator {
         &self,
         _context: &ClassContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         let name = if hash.as_bytes().len() == 32 && hash.to_hex().len() == 64 {
             "a-full-digest"
         } else {

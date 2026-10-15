@@ -39,5 +39,5 @@ pub fn render_stylesheet(
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn fold_calc_expressions(css: String, zero_unit: Option<String>) -> String {
-    stillwind_css::fold_calc_expressions(&css, zero_unit.as_deref())
+    (stillwind_css::fold_calc_expressions(&css, zero_unit.as_deref())).into()
 }

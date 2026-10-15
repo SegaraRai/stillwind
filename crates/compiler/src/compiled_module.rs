@@ -7,6 +7,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use lean_string::LeanStr;
 use serde::Serialize;
 
 use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
@@ -37,7 +38,7 @@ pub struct ModuleTransformError(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleArtifactKey {
     /// Compiler version plus the build fingerprint of the compiler and its dependencies.
-    pub(crate) compiler_version: String,
+    pub(crate) compiler_version: LeanStr,
     /// Hash of the resolved [`crate::CompilerOptions`].
     pub(crate) compiler_options: Fingerprint,
     /// The frontend's actual compiler inputs, independent of its implementation.
@@ -51,7 +52,7 @@ pub struct ModuleArtifactKey {
     /// Identity of the source file, which may differ from the module id after projection.
     pub(crate) source_file_id: u32,
     /// Which frontend produced the analysis, for example `oxc`.
-    pub(crate) frontend_kind: String,
+    pub(crate) frontend_kind: LeanStr,
     /// Adapter mode the analysis was extracted under.
     pub(crate) adapter_mode: AdapterKind,
     /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
@@ -102,15 +103,15 @@ impl ModuleArtifactKey {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CompilationDependencies {
     /// Candidate spellings the module mentions, including their variant prefixes.
-    pub candidates: BTreeSet<String>,
+    pub candidates: BTreeSet<LeanStr>,
     /// Theme token names whose values appear in the module's generated CSS.
-    pub theme_tokens: BTreeSet<String>,
+    pub theme_tokens: BTreeSet<LeanStr>,
     /// All registered utility definition names, including unused definitions.
-    pub utilities: Arc<BTreeSet<String>>,
+    pub utilities: Arc<BTreeSet<LeanStr>>,
     /// All registered variant definition names, including unused definitions.
-    pub variants: Arc<BTreeSet<String>>,
+    pub variants: Arc<BTreeSet<LeanStr>>,
     /// All currently registered custom-property definition names.
-    pub properties: Arc<BTreeSet<String>>,
+    pub properties: Arc<BTreeSet<LeanStr>>,
     /// Identities of the assets the module used.
     pub assets: BTreeSet<IdentityId>,
 }
@@ -124,11 +125,11 @@ pub struct CompilationDependencies {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleResourceReference {
     /// Token standing in for the URL in the emitted CSS, quoted or inside `url(...)`.
-    pub placeholder: String,
+    pub placeholder: LeanStr,
     /// Module whose CSS contained the reference.
     pub owner: ModuleId,
     /// Decoded URL specifier, without the surrounding CSS syntax.
-    pub specifier: String,
+    pub specifier: LeanStr,
 }
 
 /// One module's complete compiled output.
@@ -218,15 +219,15 @@ impl CompiledModule {
                 .rules
                 .iter()
                 .map(|rule| CssContribution {
-                    css: rule.to_css(),
+                    css: (rule.to_css()),
                     keyframes: rule.keyframes(),
                     required_properties: rule.required_properties().to_vec(),
                 })
                 .collect(),
             composition: self.composition.clone(),
             resources: self.resources.clone(),
-            css: module_css.clone(),
-            module_css,
+            css: (module_css.clone()),
+            module_css: (module_css),
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
             rejected_names: self.rejected_names.clone(),

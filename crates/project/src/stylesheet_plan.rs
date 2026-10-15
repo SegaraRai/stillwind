@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_compiler::{
     GeneratedRule, MappedStylesheet, ModuleArtifactKey, ModuleResourceReference,
@@ -57,9 +58,9 @@ pub enum StylesheetCoverage {
     /// can check which output and graph revision the guarantee applies to.
     Complete {
         /// Host-defined identity of the output being planned, for example a route id.
-        target: String,
+        target: LeanStr,
         /// Host-defined revision of the module graph the selection came from.
-        revision: String,
+        revision: LeanStr,
     },
 }
 
@@ -404,7 +405,7 @@ fn stylesheet_parts(
             let part = StylesheetPart {
                 mappings,
                 key: Fingerprint::of(&css),
-                css,
+                css: (css).into(),
                 producers: owners,
                 slot,
                 sequence: *sequence,
@@ -477,12 +478,12 @@ impl IntervalIndex {
 /// appearing inside a string, a comment, or an escape sequence cannot be mistaken for
 /// the generated identifier; locations themselves come from compiler metadata, never
 /// from this scan.
-fn rule_identifiers(css: &str) -> BTreeSet<String> {
-    fn visit(parser: &mut Parser<'_>, names: &mut BTreeSet<String>) {
+fn rule_identifiers(css: &str) -> BTreeSet<LeanStr> {
+    fn visit(parser: &mut Parser<'_>, names: &mut BTreeSet<LeanStr>) {
         while let Ok(token) = parser.next() {
             match token {
                 Token::Ident(name) => {
-                    names.insert(name.to_string());
+                    names.insert(name.to_lean_str());
                 }
                 Token::CurlyBracketBlock
                 | Token::SquareBracketBlock
@@ -628,8 +629,8 @@ mod tests {
         let selection = StylesheetSelection {
             modules: [ModuleId::from("red.tsx")].into(),
             coverage: StylesheetCoverage::Complete {
-                target: "route/index".to_owned(),
-                revision: "graph-2".to_owned(),
+                target: ("route/index".to_owned()).into(),
+                revision: ("graph-2".to_owned()).into(),
             },
         };
         let carrier = session
@@ -653,8 +654,8 @@ mod tests {
                 StylesheetSelection {
                     modules: BTreeSet::new(),
                     coverage: StylesheetCoverage::Complete {
-                        target: String::new(),
-                        revision: String::new()
+                        target: LeanStr::new(),
+                        revision: LeanStr::new()
                     }
                 },
                 StylesheetPlacement::Document

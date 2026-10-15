@@ -3,13 +3,15 @@
 
 use std::sync::Arc;
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, SourceEdit, SourceRange,
 };
 use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
 };
-use stillwind_source::{SourceFile, Span, Spanned};
+use stillwind_source::{ReplaceText, SourceFile, Span, Spanned};
 
 use crate::DesignSystemQuery;
 
@@ -48,10 +50,12 @@ pub(crate) fn detect(
             if !canonical_enabled || boundaries.is_none() {
                 continue;
             }
-            let Ok(Some(canonical)) = query.canonical_candidate(&format!("{prefix}{token}")) else {
+            let Ok(Some(canonical)) =
+                query.canonical_candidate(&format_args!("{prefix}{token}").to_lean_string())
+            else {
                 continue;
             };
-            let Some(replacement) = canonical.strip_prefix(&prefix) else {
+            let Some(replacement) = canonical.strip_prefix(prefix.as_str()) else {
                 continue;
             };
             let Ok(range) = SourceRange::from_source(Arc::clone(&module.source), span) else {
@@ -65,7 +69,10 @@ pub(crate) fn detect(
             let mut finding = LintFinding::new(LintDiagnostic::CanonicalUtilities, span);
             finding.actions.push(FixAction {
                 title: "Use canonical utility spelling".into(),
-                edits: vec![SourceEdit { range, replacement }],
+                edits: vec![SourceEdit {
+                    range,
+                    replacement: (replacement).into(),
+                }],
             });
             findings.push(finding);
         }
@@ -76,7 +83,7 @@ pub(crate) fn detect(
 fn collect_inputs<'a>(
     inputs: &'a [StyleInput],
     prefix: &str,
-    literals: &mut Vec<(&'a Spanned<String>, String)>,
+    literals: &mut Vec<(&'a Spanned<LeanStr>, LeanString)>,
 ) {
     for input in inputs {
         match input {
@@ -96,7 +103,7 @@ fn collect_inputs<'a>(
 fn collect_class<'a>(
     expression: &'a ClassExpression,
     prefix: &str,
-    literals: &mut Vec<(&'a Spanned<String>, String)>,
+    literals: &mut Vec<(&'a Spanned<LeanStr>, LeanString)>,
 ) {
     match expression {
         ClassExpression::Rule(rule) => collect_rule(rule, prefix, literals),
@@ -128,10 +135,10 @@ fn collect_class<'a>(
 fn collect_rule<'a>(
     expression: &'a RuleExpression,
     prefix: &str,
-    literals: &mut Vec<(&'a Spanned<String>, String)>,
+    literals: &mut Vec<(&'a Spanned<LeanStr>, LeanString)>,
 ) {
     match expression {
-        RuleExpression::Utilities(value) => literals.push((value, prefix.to_owned())),
+        RuleExpression::Utilities(value) => literals.push((value, prefix.to_lean_string())),
         RuleExpression::Array(elements)
         | RuleExpression::Group {
             inputs: elements, ..
@@ -151,8 +158,10 @@ fn collect_rule<'a>(
         }
         RuleExpression::Variant { variant, inputs } => {
             let prefix = match variant {
-                StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
-                _ => prefix.to_owned(),
+                StyleVariant::Prefix(value) => {
+                    format_args!("{prefix}{}", value.value).to_lean_string()
+                }
+                _ => prefix.to_lean_string(),
             };
             for input in inputs {
                 collect_rule(input, &prefix, literals);
@@ -162,17 +171,17 @@ fn collect_rule<'a>(
     }
 }
 
-fn escape_literal(value: &str, quote: char) -> String {
+fn escape_literal(value: &str, quote: char) -> LeanString {
     let quote = if matches!(quote, '\'' | '"' | '`') {
         quote
     } else {
         '`'
     };
     let mut value = value
-        .replace('\\', "\\\\")
-        .replace(quote, &format!("\\{quote}"));
+        .replace_char('\\', "\\\\")
+        .replace_char(quote, &format_args!("\\{quote}").to_lean_string());
     if quote == '`' {
-        value = value.replace("${", "\\${");
+        value = value.replace_text("${", "\\${");
     }
     value
 }
@@ -180,10 +189,10 @@ fn escape_literal(value: &str, quote: char) -> String {
 /// Maps decoded byte boundaries back to a contiguous original literal. Unmapped projections are skipped.
 pub(crate) fn literal_boundaries(
     source: &SourceFile,
-    literal: &Spanned<String>,
+    literal: &Spanned<LeanStr>,
 ) -> Option<Vec<u32>> {
     let raw = source.slice(literal.span).ok()?;
-    let mut text = String::new();
+    let mut text = LeanString::new();
     let mut positions = vec![literal.span.start.0];
     let mut index = 0;
     while index < raw.len() {

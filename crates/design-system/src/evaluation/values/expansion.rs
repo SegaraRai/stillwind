@@ -2,6 +2,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_css::{CssFunctionMatch, find_css_functions};
 
 /// Skips tokenization when every requested function name is absent.
@@ -16,9 +18,9 @@ pub(in super::super) fn matching_functions(input: &str, names: &[&str]) -> Vec<C
 
 /// Single-family wrapper of [`expand_placeholders`].
 pub(in super::super) fn expand_placeholder(
-    body: &mut String,
+    body: &mut LeanString,
     name: &str,
-    mut resolve: impl FnMut(&str) -> Option<String>,
+    mut resolve: impl FnMut(&str) -> Option<LeanStr>,
 ) -> Option<()> {
     expand_placeholders(body, &[name], |_, arguments| resolve(arguments))
 }
@@ -29,9 +31,9 @@ pub(in super::super) fn expand_placeholder(
 /// Absent families share a token scan. Failure leaves `body` intact.
 /// Cycles, depth, work and output size are bounded independently for each family.
 pub(in super::super) fn expand_placeholders(
-    body: &mut String,
+    body: &mut LeanString,
     names: &[&str],
-    mut resolve: impl FnMut(&str, &str) -> Option<String>,
+    mut resolve: impl FnMut(&str, &str) -> Option<LeanStr>,
 ) -> Option<()> {
     let mut matches = matching_functions(body, names);
     // Limits apply only to executable expansion, not large authored strings/data URLs.
@@ -69,7 +71,7 @@ struct Expansion<'a> {
     remaining: usize,
     /// Exact invocation text on the recursive expansion path, used to reject cycles;
     /// not a completed-result cache.
-    active: BTreeSet<String>,
+    active: BTreeSet<LeanStr>,
 }
 
 impl Expansion<'_> {
@@ -77,13 +79,13 @@ impl Expansion<'_> {
         &mut self,
         input: &str,
         matches: impl Iterator<Item = &'a CssFunctionMatch>,
-        resolve: &mut impl FnMut(&str) -> Option<String>,
-    ) -> Option<String> {
+        resolve: &mut impl FnMut(&str) -> Option<LeanStr>,
+    ) -> Option<LeanString> {
         const MAX_BYTES: usize = 1_048_576;
         if input.len() > MAX_BYTES || self.active.len() >= 64 {
             return None;
         }
-        let mut output = String::with_capacity(input.len());
+        let mut output = LeanString::with_capacity(input.len());
         let mut cursor = 0;
         for found in matches {
             let start = found.start;
@@ -94,7 +96,7 @@ impl Expansion<'_> {
             self.remaining = self.remaining.checked_sub(1)?;
             let end = found.end?;
             let invocation = &input[start..end];
-            if !self.active.insert(invocation.to_owned()) {
+            if !self.active.insert(invocation.to_lean_str()) {
                 return None;
             }
             let replacement = resolve(&input[found.arguments.clone()])?;
@@ -123,19 +125,21 @@ impl Expansion<'_> {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
     fn batch_expansion_obeys_family_order_and_does_not_revisit_earlier_families() {
-        let mut body = "--b(--a(1)) --a(2)".to_owned();
+        let mut body = "--b(--a(1)) --a(2)".to_lean_string();
         let mut calls = Vec::new();
         assert_eq!(
             expand_placeholders(&mut body, &["--a", "--b"], |name, arg| {
-                calls.push((name.to_owned(), arg.to_owned()));
+                calls.push((name.to_lean_string(), arg.to_lean_string()));
                 Some(if name == "--b" {
-                    format!("--a({arg})")
+                    format_args!("--a({arg})").to_lean_str()
                 } else {
-                    arg.to_owned()
+                    arg.to_lean_str()
                 })
             }),
             Some(())
@@ -149,10 +153,10 @@ mod tests {
                 ("--b".into(), "1".into())
             ]
         );
-        let mut body = "--a(1)".to_owned();
+        let mut body = "--a(1)".to_lean_string();
         expand_placeholders(&mut body, &["--absent", "--a", "--b"], |name, arg| {
             Some(if name == "--a" {
-                format!("--b({arg})")
+                format_args!("--b({arg})").to_lean_str()
             } else {
                 "done".into()
             })
@@ -164,23 +168,23 @@ mod tests {
     #[test]
     fn batch_failure_is_transactional_and_outer_replacements_consume_nested_calls() {
         let original = "--a(1) --b(2)";
-        let mut body = original.to_owned();
+        let mut body = original.to_lean_string();
         assert_eq!(
             expand_placeholders(&mut body, &["--a", "--b"], |name, _| (name == "--a")
                 .then(|| "ok".into())),
             None
         );
         assert_eq!(body, original);
-        let mut body = "--a(--a(1)) --a(2)".to_owned();
+        let mut body = "--a(--a(1)) --a(2)".to_lean_string();
         let mut calls = Vec::new();
         expand_placeholder(&mut body, "--a", |arg| {
-            calls.push(arg.to_owned());
+            calls.push(arg.to_lean_string());
             Some("ok".into())
         })
         .unwrap();
         assert_eq!(body, "ok ok");
         assert_eq!(calls, ["--a(1)", "2"]);
-        let mut body = "--a(--b(1)".to_owned();
+        let mut body = "--a(--b(1)".to_lean_string();
         assert_eq!(
             expand_placeholder(&mut body, "--a", |_| Some("ok".into())),
             None
@@ -190,7 +194,7 @@ mod tests {
     #[test]
     fn rejects_cycles_and_amplification_but_allows_shared_subexpressions() {
         for value in ["--x(a)", "--x(b)"] {
-            let mut body = value.to_owned();
+            let mut body = value.to_lean_string();
             assert_eq!(
                 expand_placeholder(&mut body, "--x", |arg| Some(
                     if arg == "a" { "--x(b)" } else { "--x(a)" }.into()
@@ -202,7 +206,7 @@ mod tests {
         assert_eq!(
             expand_placeholder(&mut body, "--x", |arg| {
                 let next: usize = arg.parse::<usize>().ok()? + 1;
-                Some(format!("--x({next})--x({next})"))
+                Some(format_args!("--x({next})--x({next})").to_lean_str())
             }),
             None
         );
@@ -229,7 +233,7 @@ mod tests {
         let matches = find_css_functions(input, &["--x"], 0);
         let output = expansion
             .expand_matches(input, matches.iter(), &mut |arguments| {
-                Some(arguments.to_owned())
+                Some(arguments.to_lean_str())
             })
             .unwrap();
         assert_eq!(output, "pre 1 2 post");
@@ -252,7 +256,7 @@ mod tests {
         assert!(
             expansion
                 .expand_matches(input, matches.iter(), &mut |arguments| Some(
-                    arguments.to_owned()
+                    arguments.to_lean_str()
                 ))
                 .is_none()
         );
@@ -265,7 +269,9 @@ mod tests {
         };
         assert!(
             expansion
-                .expand_matches(unclosed, matches.iter(), &mut |_| Some(String::new()))
+                .expand_matches(unclosed, matches.iter(), &mut |_| Some(
+                    (LeanString::new()).into()
+                ))
                 .is_none()
         );
         let input = "--x(1)";
@@ -295,9 +301,9 @@ mod tests {
         };
         assert!(
             expansion
-                .expand_matches(input, matches.iter(), &mut |arguments| Some(format!(
-                    "--x({arguments})"
-                )))
+                .expand_matches(input, matches.iter(), &mut |arguments| Some(
+                    format_args!("--x({arguments})").to_lean_str()
+                ))
                 .is_none()
         );
         let input = "--x(--x(1))";
@@ -311,7 +317,7 @@ mod tests {
         let output = expansion
             .expand_matches(input, matches.iter(), &mut |_| {
                 calls += 1;
-                Some("R".to_owned())
+                Some("R".to_lean_str())
             })
             .unwrap();
         assert_eq!(output, "R");
@@ -331,17 +337,21 @@ mod tests {
         };
         assert!(
             expansion
-                .expand_matches(&long, std::iter::empty(), &mut |_| Some(String::new()))
+                .expand_matches(&long, std::iter::empty(), &mut |_| Some(
+                    (LeanString::new()).into()
+                ))
                 .is_none()
         );
         let mut expansion = Expansion {
             name: "--x",
             remaining: 4,
-            active: (0..64).map(|index| index.to_string()).collect(),
+            active: (0..64).map(|index| index.to_lean_str()).collect(),
         };
         assert!(
             expansion
-                .expand_matches("--x(1)", std::iter::empty(), &mut |_| Some(String::new()))
+                .expand_matches("--x(1)", std::iter::empty(), &mut |_| Some(
+                    (LeanString::new()).into()
+                ))
                 .is_none()
         );
     }

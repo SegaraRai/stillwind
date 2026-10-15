@@ -3,6 +3,7 @@
 use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::LeanString;
 
 /// Returns declaration ranges excluding their top-level terminating semicolons.
 /// Strings, comments, URLs and nested blocks do not introduce boundaries.
@@ -29,8 +30,8 @@ pub fn declaration_ranges(css: &str) -> Vec<Range<usize>> {
 }
 
 /// Adds priority to each nonempty declaration, preserving values and existing priority.
-pub fn important_declarations(css: &str) -> String {
-    let mut output = String::new();
+pub fn important_declarations(css: &str) -> LeanString {
+    let mut output = LeanString::new();
     for range in declaration_ranges(css) {
         let declaration = &css[range];
         let mut parser = Parser::new(declaration);

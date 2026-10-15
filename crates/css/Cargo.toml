@@ -13,6 +13,7 @@ workspace = true
 minify = ["lightningcss/sourcemap", "dep:parcel_sourcemap", "dep:serde_json"]
 
 [dependencies]
+lean_string.workspace = true
 stillwind-source = { path = "../source" }
 cssparser.workspace = true
 lightningcss.workspace = true

@@ -2,6 +2,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
     BuiltinVariantValueType, DesignSystemRevision, ThemeNamespace, ThemeTokenKind,
@@ -15,7 +17,7 @@ use super::{CandidateContext, DesignSystemQuery, last_top_level};
 pub struct CompletionInput {
     /// Decoded text of one partial candidate before the cursor, including its variant
     /// prefix. JavaScript string escapes must already be decoded.
-    pub prefix: String,
+    pub prefix: LeanStr,
     /// Input role used to validate labels and select their registry.
     pub context: CandidateContext,
 }
@@ -24,7 +26,7 @@ pub struct CompletionInput {
 #[derive(Clone, Debug)]
 pub struct CompletionItem {
     /// Text to insert, ending in `:` for a variant.
-    pub label: String,
+    pub label: LeanStr,
     /// Snapshot revision the label is valid for.
     pub revision: DesignSystemRevision,
 }
@@ -65,17 +67,17 @@ impl DesignSystemQuery {
                 if let Some(root) = definition.name.strip_suffix('*') {
                     for namespace in value_namespaces(&definition.body, "--value") {
                         for token in theme.active_tokens() {
-                            if let Some(value) = token.name.value.strip_prefix(&namespace) {
-                                vocabulary.insert(format!("{root}{value}"));
+                            if let Some(value) = token.name.value.strip_prefix(namespace.as_str()) {
+                                vocabulary.insert(format_args!("{root}{value}").to_lean_str());
                             }
                         }
                     }
                 } else {
-                    vocabulary.insert(definition.name.to_string());
+                    vocabulary.insert(definition.name.to_lean_str());
                 }
             }
         }
-        let mut completions: BTreeSet<String> = BTreeSet::new();
+        let mut completions: BTreeSet<LeanStr> = BTreeSet::new();
         completions.extend(self.complete_theme_values(
             &prefix,
             split,
@@ -88,7 +90,7 @@ impl DesignSystemQuery {
             .into_iter()
             .filter(|label| label.starts_with(utility_partial))
         {
-            let label = format!("{variants}{utility_flags}{label}");
+            let label = format_args!("{variants}{utility_flags}{label}").to_lean_str();
             if context != CandidateContext::DefinitionVariants
                 && self.valid_input(&label, context)?
             {
@@ -99,9 +101,12 @@ impl DesignSystemQuery {
         variant_names.extend(self.compound_variant_vocabulary(partial, &variant_names, 0));
         for variant in variant_names {
             if variant.starts_with(partial)
-                && self.valid_input_variant(&format!("{variants}{variant}"), context)
+                && self.valid_input_variant(
+                    &format_args!("{variants}{variant}").to_lean_str(),
+                    context,
+                )
             {
-                completions.insert(format!("{variants}{variant}:"));
+                completions.insert(format_args!("{variants}{variant}:").to_lean_str());
             }
         }
         Ok(completions
@@ -130,7 +135,7 @@ impl DesignSystemQuery {
         utility_partial: &str,
         flags: usize,
         context: CandidateContext,
-    ) -> Result<BTreeSet<String>, UtilityResolutionError> {
+    ) -> Result<BTreeSet<LeanStr>, UtilityResolutionError> {
         let theme = self.context.design_system.theme();
         let mut completions = BTreeSet::new();
         let modifier = last_top_level(partial, '/');
@@ -143,17 +148,17 @@ impl DesignSystemQuery {
                 if token.name.value.starts_with(fragment)
                     && domains
                         .iter()
-                        .any(|namespace| token.name.value.starts_with(namespace))
+                        .any(|namespace| token.name.value.starts_with((namespace).as_str()))
                 {
                     let before = &prefix[..prefix.len() - input.len() + index];
                     let closing = completion_closers(before);
-                    let label = format!("{before}{}{closing}", token.name.value);
+                    let label = format_args!("{before}{}{closing}", token.name.value).to_lean_str();
                     if context != CandidateContext::DefinitionVariants
                         && self.valid_input(&label, context)?
                     {
                         completions.insert(label);
                     } else if modifier.is_none() && self.valid_input_variant(&label, context) {
-                        completions.insert(format!("{label}:"));
+                        completions.insert(format_args!("{label}:").to_lean_str());
                     }
                 }
             }
@@ -162,10 +167,10 @@ impl DesignSystemQuery {
             let before = &prefix[..=split + index];
             for token in theme.active_tokens() {
                 for namespace in &domains {
-                    if let Some(name) = token.name.value.strip_prefix(namespace)
+                    if let Some(name) = token.name.value.strip_prefix((namespace).as_str())
                         && name.starts_with(input)
                     {
-                        let label = format!("{before}{name}");
+                        let label = format_args!("{before}{name}").to_lean_str();
                         if context != CandidateContext::DefinitionVariants
                             && self.valid_input(&label, context)?
                         {
@@ -187,7 +192,7 @@ impl DesignSystemQuery {
         input: &str,
         modifier: bool,
         context: CandidateContext,
-    ) -> BTreeSet<String> {
+    ) -> BTreeSet<LeanStr> {
         let mut domains = self
             .context
             .design_system
@@ -247,7 +252,7 @@ impl DesignSystemQuery {
         domains
     }
 
-    pub(super) fn utility_vocabulary_for(&self, prefix: &str) -> BTreeSet<String> {
+    pub(super) fn utility_vocabulary_for(&self, prefix: &str) -> BTreeSet<LeanStr> {
         let theme = self.context.design_system.theme();
         let mut vocabulary: BTreeSet<_> = self
             .context
@@ -255,20 +260,24 @@ impl DesignSystemQuery {
             .utilities()
             .names()
             .filter(|name| !name.contains('*') && name.starts_with(prefix))
-            .map(str::to_owned)
+            .map(LeanStr::from)
             .collect();
         {
             let token_prefixes = builtin_utility_token_prefixes(theme)
                 .into_iter()
                 .filter(|(root, _)| {
-                    format!("{root}-").starts_with(prefix)
-                        || prefix.starts_with(&format!("{root}-"))
+                    format_args!("{root}-").to_lean_str().starts_with(prefix)
+                        || prefix.starts_with(format_args!("{root}-").to_lean_str().as_str())
                 })
                 .collect::<Vec<_>>();
             for token in theme.active_tokens() {
                 for (root, namespace) in &token_prefixes {
-                    if let Some(name) = token.name.value.strip_prefix(&format!("--{namespace}-")) {
-                        vocabulary.insert(format!("{root}-{name}"));
+                    if let Some(name) = token
+                        .name
+                        .value
+                        .strip_prefix(format_args!("--{namespace}-").to_lean_str().as_str())
+                    {
+                        vocabulary.insert(format_args!("{root}-{name}").to_lean_str());
                     }
                 }
             }
@@ -281,8 +290,8 @@ impl DesignSystemQuery {
                 for definition in definitions {
                     for namespace in value_namespaces(&definition.body, "--value") {
                         for token in theme.active_tokens() {
-                            if let Some(value) = token.name.value.strip_prefix(&namespace) {
-                                vocabulary.insert(format!("{root}{value}"));
+                            if let Some(value) = token.name.value.strip_prefix(namespace.as_str()) {
+                                vocabulary.insert(format_args!("{root}{value}").to_lean_str());
                             }
                         }
                     }
@@ -293,7 +302,7 @@ impl DesignSystemQuery {
         vocabulary
     }
 
-    fn variant_vocabulary(&self) -> BTreeSet<String> {
+    fn variant_vocabulary(&self) -> BTreeSet<LeanStr> {
         let theme = self.context.design_system.theme();
         let mut variant_names: BTreeSet<_> = self
             .context
@@ -305,15 +314,16 @@ impl DesignSystemQuery {
                     .iter()
                     .any(|definition| definition.wildcard.is_none())
             })
-            .map(|(name, _)| name.to_owned())
+            .map(|(name, _)| name.to_lean_str())
             .collect();
         for (_, definitions) in self.context.design_system.variants().iter() {
             for definition in definitions {
                 if let Some((prefix, suffix)) = definition.wildcard_parts() {
                     for namespace in value_namespaces(&definition.body, "--value") {
                         for token in theme.active_tokens() {
-                            if let Some(value) = token.name.value.strip_prefix(&namespace) {
-                                variant_names.insert(format!("{prefix}{value}{suffix}"));
+                            if let Some(value) = token.name.value.strip_prefix(namespace.as_str()) {
+                                variant_names
+                                    .insert(format_args!("{prefix}{value}{suffix}").to_lean_str());
                             }
                         }
                     }
@@ -337,9 +347,9 @@ impl DesignSystemQuery {
     fn compound_variant_vocabulary(
         &self,
         partial: &str,
-        names: &BTreeSet<String>,
+        names: &BTreeSet<LeanStr>,
         depth: usize,
-    ) -> BTreeSet<String> {
+    ) -> BTreeSet<LeanStr> {
         let mut labels = BTreeSet::new();
         if depth > 64 {
             return labels;
@@ -373,7 +383,7 @@ impl DesignSystemQuery {
                 labels.extend(
                     children
                         .into_iter()
-                        .map(|child| format!("{prefix}{child}{suffix}")),
+                        .map(|child| format_args!("{prefix}{child}{suffix}").to_lean_str()),
                 );
             }
         }
@@ -381,16 +391,16 @@ impl DesignSystemQuery {
     }
 }
 
-pub(super) fn value_namespaces(body: &str, function: &str) -> Vec<String> {
+pub(super) fn value_namespaces(body: &str, function: &str) -> Vec<LeanStr> {
     find_css_functions(body, &[function], 0)
         .into_iter()
         .flat_map(|found| body[found.arguments].split(',').collect::<Vec<_>>())
-        .filter_map(|part| part.trim().strip_suffix('*').map(str::to_owned))
+        .filter_map(|part| part.trim().strip_suffix('*').map(LeanStr::from))
         .filter(|part| part.starts_with("--"))
         .collect()
 }
 
-fn completion_closers(text: &str) -> String {
+fn completion_closers(text: &str) -> LeanString {
     let mut stack = Vec::new();
     let mut quote = None;
     let mut escaped = false;

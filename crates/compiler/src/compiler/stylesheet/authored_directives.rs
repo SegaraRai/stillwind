@@ -9,6 +9,8 @@
 //! contribute nothing. An unterminated application or an unresolvable variant ends
 //! its expansion loop, leaving that directive and later occurrences unchanged.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_syntax::parse_candidate;
@@ -34,10 +36,10 @@ use crate::identifiers::IdentifierContext;
 pub(in crate::compiler) fn expand_authored_directives(
     css: &str,
     theme: &ThemeIndex,
-    required_properties: &mut Vec<String>,
+    required_properties: &mut Vec<LeanStr>,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
-    let mut output = css.to_owned();
+) -> Result<LeanString, CompileDiagnostic> {
+    let mut output = css.to_lean_string();
     while let Some(start) = output.find("@apply ") {
         let Some(end_rel) = output[start..].find(';') else {
             break;
@@ -66,7 +68,7 @@ pub(in crate::compiler) fn expand_authored_directives(
                 )
             })
         });
-        let mut declarations = String::new();
+        let mut declarations = LeanString::new();
         for utility in ordered {
             required_properties.extend(utility.required_properties.iter().cloned());
             if utility.variants.iter().any(|variant| {
@@ -117,10 +119,12 @@ fn expand_authored_variant(
     body: &str,
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
-) -> Result<Option<String>, CompileDiagnostic> {
-    let mut output = String::new();
+) -> Result<Option<LeanString>, CompileDiagnostic> {
+    let mut output = LeanString::new();
     for variant_sequence in split_css_top_level(prelude, ',') {
-        let Some(candidate) = parse_candidate(&format!("{}:flex", variant_sequence.trim())) else {
+        let Some(candidate) =
+            parse_candidate(&format_args!("{}:flex", variant_sequence.trim()).to_lean_string())
+        else {
             return Ok(None);
         };
         if candidate.variants.is_empty() {
@@ -212,22 +216,23 @@ pub(in crate::compiler) fn render_authored_variant_path(
     body: &str,
     applications: &[VariantApplication],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     variant_paths(applications)
         .iter()
         .map(|path| {
             path.iter()
                 .try_fold(
-                    (body.to_owned(), Vec::new()),
+                    (body.to_lean_string(), Vec::new()),
                     |(body, mut gates), application| match *application {
                         VariantStep::SelectorSuffix(suffix) => {
-                            Ok((format!("&{suffix}{{{body}}}"), gates))
+                            Ok((format_args!("&{suffix}{{{body}}}").to_lean_string(), gates))
                         }
-                        VariantStep::SelectorCondition(condition) => {
-                            Ok((format!("&{condition}{{{body}}}"), gates))
-                        }
+                        VariantStep::SelectorCondition(condition) => Ok((
+                            format_args!("&{condition}{{{body}}}").to_lean_string(),
+                            gates,
+                        )),
                         VariantStep::SelectorTemplate(selector) => {
-                            Ok((format!("{selector}{{{body}}}"), gates))
+                            Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
                         }
                         VariantStep::SelectorRule {
                             selector,
@@ -235,12 +240,16 @@ pub(in crate::compiler) fn render_authored_variant_path(
                         } => {
                             let mut body = body;
                             prepend_missing_declarations(&mut body, declarations);
-                            Ok((format!("{selector}{{{body}}}"), gates))
+                            Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
                         }
                         VariantStep::SelectorMedia {
                             selector,
                             condition,
-                        } => Ok((format!("{selector}{{@media {condition}{{{body}}}}}"), gates)),
+                        } => Ok((
+                            format_args!("{selector}{{@media {condition}{{{body}}}}}")
+                                .to_lean_string(),
+                            gates,
+                        )),
                         VariantStep::SelectorMediaRule {
                             selector,
                             declarations,
@@ -248,26 +257,34 @@ pub(in crate::compiler) fn render_authored_variant_path(
                         } => {
                             let mut body = body;
                             prepend_missing_declarations(&mut body, declarations);
-                            Ok((format!("{selector}{{@media {condition}{{{body}}}}}"), gates))
+                            Ok((
+                                format_args!("{selector}{{@media {condition}{{{body}}}}}")
+                                    .to_lean_string(),
+                                gates,
+                            ))
                         }
-                        VariantStep::Media(condition) => {
-                            Ok((format!("@media {condition}{{{body}}}"), gates))
-                        }
-                        VariantStep::Container(condition) => {
-                            Ok((format!("@container {condition}{{{body}}}"), gates))
-                        }
-                        VariantStep::Supports(condition) => {
-                            Ok((format!("@supports ({condition}){{{body}}}"), gates))
-                        }
+                        VariantStep::Media(condition) => Ok((
+                            format_args!("@media {condition}{{{body}}}").to_lean_string(),
+                            gates,
+                        )),
+                        VariantStep::Container(condition) => Ok((
+                            format_args!("@container {condition}{{{body}}}").to_lean_string(),
+                            gates,
+                        )),
+                        VariantStep::Supports(condition) => Ok((
+                            format_args!("@supports ({condition}){{{body}}}").to_lean_string(),
+                            gates,
+                        )),
                         VariantStep::Conditional(condition) => {
                             let guarded = guard(&body, condition, identifiers, &gates)?;
                             gates.extend(guarded.gates);
-                            let rule = format!("&{{{}}}", guarded.css);
+                            let rule = format_args!("&{{{}}}", guarded.css).to_lean_string();
                             Ok((protect(&rule), gates))
                         }
-                        VariantStep::StartingStyle => {
-                            Ok((format!("@starting-style{{{body}}}"), gates))
-                        }
+                        VariantStep::StartingStyle => Ok((
+                            format_args!("@starting-style{{{body}}}").to_lean_string(),
+                            gates,
+                        )),
                     },
                 )
                 // The gates are already written into the body; see the function documentation.
@@ -292,8 +309,8 @@ mod tests {
     fn expand(
         css: &str,
         theme: &ThemeIndex,
-        required: &mut Vec<String>,
-    ) -> Result<String, CompileDiagnostic> {
+        required: &mut Vec<LeanStr>,
+    ) -> Result<LeanString, CompileDiagnostic> {
         expand_authored_directives(
             css,
             theme,
@@ -326,7 +343,7 @@ mod tests {
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())
-            .collect::<String>();
+            .collect::<LeanString>();
 
         assert!(
             compact.contains("&:hover{@media(hover:hover){opacity:0.8;}}"),
@@ -361,7 +378,7 @@ mod tests {
         let compact = expanded
             .chars()
             .filter(|character| !character.is_whitespace())
-            .collect::<String>();
+            .collect::<LeanString>();
 
         assert!(compact.contains(
             "display:inline-flex;background-color:var(--color-red-500);padding-inline:calc(var(--spacing)*4);"

@@ -15,7 +15,7 @@
 use std::collections::BTreeSet;
 
 use cssparser::Parser;
-use lean_string::LeanStr;
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
 
@@ -26,12 +26,12 @@ pub struct CustomUtility {
     /// Authored name; a trailing `*` marks a prefix pattern.
     pub name: LeanStr,
     /// Declaration body, excluding the selector block or `@slot`.
-    pub body: String,
+    pub body: LeanStr,
     /// Global registration order for built-in utilities (`@stillwind-utility`).
     pub builtin_order: Option<usize>,
     /// Property name from the header's `(tw-sort: property)` descriptor, which replaces
     /// the resolved property indices in Tailwind ordering mode.
-    pub tw_sort: Option<String>,
+    pub tw_sort: Option<LeanStr>,
 }
 
 /// Splits a definition header into its name and its optional `(tw-sort: property)`
@@ -40,7 +40,7 @@ pub struct CustomUtility {
 /// The name is the first whitespace-delimited token. The descriptor, when present, must
 /// hold exactly one `tw-sort` key whose value is a single identifier; any other header
 /// is rejected, which drops the definition from the registry.
-fn parse_utility_header(header: &str) -> Option<(LeanStr, Option<String>)> {
+fn parse_utility_header(header: &str) -> Option<(LeanStr, Option<LeanStr>)> {
     let end = header.find(char::is_whitespace).unwrap_or(header.len());
     let name: LeanStr = header[..end].into();
     if name.is_empty() {
@@ -62,7 +62,7 @@ fn parse_utility_header(header: &str) -> Option<(LeanStr, Option<String>)> {
     parser.expect_ident().ok()?;
     parser
         .is_exhausted()
-        .then(|| (name, Some(value.to_owned())))
+        .then(|| (name, Some(value.to_lean_str())))
 }
 
 /// Parses user-authored `@utility` definitions without requiring a complete theme
@@ -122,7 +122,7 @@ fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUt
 /// A marker utility emits a literal class that relational selectors can find across
 /// independent style calls, so the set is data about the registry, not a list of
 /// utilities to resolve.
-pub fn parse_marker_utilities(css: &str) -> BTreeSet<String> {
+pub fn parse_marker_utilities(css: &str) -> BTreeSet<LeanStr> {
     extract_marker_utilities(css)
 }
 
@@ -154,23 +154,26 @@ fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility
 ///
 /// The set only answers membership, so authored order and repeats carry no meaning
 /// here.
-pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<String> {
+pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<LeanStr> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
         .filter_map(|segment| segment.split_once(';').map(|(name, _)| name.trim()))
         .filter(|name| !name.is_empty())
-        .map(str::to_owned)
+        .map(LeanStr::from)
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
     fn parses_sort_metadata_without_adding_css_declarations() {
         for directive in ["@utility", "@stillwind-utility"] {
-            let css = format!("{directive} space-x-* (tw-sort: row-gap) {{ margin:0; }}");
+            let css = format_args!("{directive} space-x-* (tw-sort: row-gap) {{ margin:0; }}")
+                .to_lean_string();
             let utilities = parse_ordered_utility_definitions(&css, directive);
             assert_eq!(utilities.len(), 1);
             assert_eq!(utilities[0].name, "space-x-*");

@@ -4,6 +4,7 @@
 //! [`GeneratedClass`] and [`GuardStep`] expose class selection to consumers. These
 //! records preserve source ordering anchors but do not select keys or serialize props.
 
+use lean_string::LeanStr;
 use serde::Serialize;
 
 use stillwind_ir::ConditionalBranches;
@@ -31,7 +32,7 @@ pub struct GuardStep {
 #[serde(rename_all = "camelCase")]
 pub struct GeneratedClass {
     /// The generated class name, without a leading dot.
-    pub class_name: String,
+    pub class_name: LeanStr,
     /// The `style()` call that produced the class.
     pub call_span: Span,
     /// Outermost to innermost conditional tests that select this class.
@@ -92,7 +93,7 @@ pub(crate) struct StyleEmission {
     /// retains these records only if compilation succeeds.
     pub(crate) style_effects: StyleEffects,
     /// Unquoted unconditional class names in concatenation order; may be empty.
-    pub(crate) static_names: Vec<String>,
+    pub(crate) static_names: Vec<LeanStr>,
     /// Parts in traversal order; fragment construction stably sorts their source
     /// positions.
     pub(crate) parts: Vec<StyleEmissionPart>,

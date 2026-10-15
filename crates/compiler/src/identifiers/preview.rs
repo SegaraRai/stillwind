@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use super::{
     AnchorName, AnchorNameRequest, ClassName, ConditionHelperName, ConditionHelperRequest,
     ConditionRole, ContainerName, ContainerNameRequest, IdentifierHash, IdentifierKind,
@@ -32,12 +34,12 @@ pub(crate) trait PreviewRequest<T: Token>: NameRequest<T> {
 pub(crate) struct PreviewNames {
     /// Raw tokens by family and full request hash. Aliases of one declaration reuse a
     /// token.
-    names: BTreeMap<(IdentifierKind, IdentifierHash), String>,
+    names: BTreeMap<(IdentifierKind, IdentifierHash), LeanStr>,
     /// Last allocated one-based index for requests without labels, separately per role.
     counters: BTreeMap<&'static str, usize>,
     /// Tokens already allocated across all roles, including names after collision
     /// suffixing.
-    used: BTreeSet<String>,
+    used: BTreeSet<LeanStr>,
 }
 
 impl PreviewNames {
@@ -47,14 +49,17 @@ impl PreviewNames {
     /// suffixes from `_2`. CSS punctuation such as `.` or `--` is added by the token's
     /// serializer. A request without a display role returns `None` and leaves the table
     /// unchanged.
-    pub(crate) fn name<T: Token>(&mut self, request: &impl PreviewRequest<T>) -> Option<String> {
+    pub(crate) fn name<T: Token>(
+        &mut self,
+        request: &impl PreviewRequest<T>,
+    ) -> Option<LeanString> {
         let role = request.preview_role()?;
         let key = (request.kind(), request.hash());
         if let Some(name) = self.names.get(&key) {
-            return Some(name.clone());
+            return Some((name.clone()).into());
         }
         let base = if let Some(label) = request.preview_label() {
-            let label: String = label
+            let label: LeanString = label
                 .chars()
                 .map(|character| {
                     if character.is_alphanumeric() || matches!(character, '_' | '-') {
@@ -64,19 +69,19 @@ impl PreviewNames {
                     }
                 })
                 .collect();
-            format!("__{role}_{label}")
+            format_args!("__{role}_{label}").to_lean_string()
         } else {
             let index = self.counters.entry(role).or_default();
             *index += 1;
-            format!("__{role}_{index}")
+            format_args!("__{role}_{index}").to_lean_string()
         };
         let mut name = base.clone();
         let mut suffix = 2;
-        while !self.used.insert(name.clone()) {
-            name = format!("{base}_{suffix}");
+        while !self.used.insert((name.clone()).into()) {
+            name = format_args!("{base}_{suffix}").to_lean_string();
             suffix += 1;
         }
-        self.names.insert(key, name.clone());
+        self.names.insert(key, (name.clone()).into());
         Some(name)
     }
 }

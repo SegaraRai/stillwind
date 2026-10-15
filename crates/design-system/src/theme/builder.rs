@@ -27,7 +27,7 @@ pub(crate) struct ThemeBuilder {
     /// Every token in authored order, including resets and superseded values.
     pub(crate) tokens: Vec<ThemeToken>,
     /// Authored CSS outside definition blocks, retained verbatim.
-    pub(crate) custom_css: String,
+    pub(crate) custom_css: LeanStr,
     /// User `@utility` definitions in authored order.
     pub(crate) utilities: Vec<CustomUtility>,
     /// User variant definitions grouped by syntax form; source order within each form.
@@ -35,13 +35,13 @@ pub(crate) struct ThemeBuilder {
     /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub(crate) properties: Vec<CustomPropertyDefinition>,
     /// Utility names whose declarations provide compatibility marker classes.
-    pub(crate) marker_utilities: BTreeSet<String>,
+    pub(crate) marker_utilities: BTreeSet<LeanStr>,
     /// Generic serialization formats attached to CSS declarations.
-    pub(crate) declaration_formats: BTreeMap<String, String>,
+    pub(crate) declaration_formats: BTreeMap<LeanStr, LeanStr>,
     /// Candidate patterns identifying compatibility relationships, such as `group-*`.
-    pub(crate) relationship_patterns: BTreeSet<String>,
+    pub(crate) relationship_patterns: BTreeSet<LeanStr>,
     /// Property names declared by authored `@property` rules.
-    pub(crate) authored_properties: BTreeSet<String>,
+    pub(crate) authored_properties: BTreeSet<LeanStr>,
     /// Host-selected ordering strategy for resolved utilities.
     pub(crate) utility_order: UtilityOrderMode,
 }

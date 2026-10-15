@@ -6,9 +6,10 @@
 //! Unedited text is copied verbatim; synthetic replacement gaps use the edit's anchor.
 //! This module does not produce source-map v3 or compose framework/loader maps.
 
+use lean_string::{LeanStr, LeanString};
 use serde::Serialize;
 
-use stillwind_source::{CoordinateIndex, SourceError, SourceFile, Span};
+use stillwind_source::{CoordinateIndex, ReplaceText, SourceError, SourceFile, Span};
 
 /// Reasons a transform plan cannot be applied.
 #[derive(Debug, thiserror::Error)]
@@ -52,7 +53,7 @@ pub struct SourceTransform {
     /// Half-open UTF-8 range in the original source; an empty span denotes insertion.
     pub call_span: Span,
     /// UTF-8 replacement text; empty text deletes a nonempty source range.
-    pub replacement: String,
+    pub replacement: LeanString,
     /// Nonempty, nonoverlapping intervals in ascending replacement-byte order.
     /// Offsets must be UTF-8 boundaries within `replacement`; all origins belong to
     /// the source being edited. Empty lists are omitted from serialized transforms.
@@ -77,7 +78,7 @@ impl SourceTransform {
     /// the compiler does this while lowering one macro call - and must not attach ranges
     /// carried over from another compilation. Mutation is not transactional: the
     /// replacement has been taken even when a panic starts.
-    pub(crate) fn rewrite_generated(&mut self, rewrite: impl Fn(&str) -> String) {
+    pub(crate) fn rewrite_generated(&mut self, rewrite: impl Fn(&str) -> LeanStr) {
         let old = std::mem::take(&mut self.replacement);
         let mut cursor = 0;
         for mapping in &mut self.expressions {
@@ -118,7 +119,7 @@ impl SourceTransform {
         let mut mappings = Vec::new();
         for mapping in &self.expressions {
             self.replacement
-                .push_str(&old[cursor..mapping.start].replace(character, entity));
+                .push_str(&old[cursor..mapping.start].replace_char(character, entity));
             let value = &old[mapping.start..mapping.end];
             if !value.contains(character) {
                 let start = self.replacement.len();
@@ -159,7 +160,7 @@ impl SourceTransform {
             cursor = mapping.end;
         }
         self.replacement
-            .push_str(&old[cursor..].replace(character, entity));
+            .push_str(&old[cursor..].replace_char(character, entity));
         self.expressions = mappings;
     }
 }
@@ -383,6 +384,8 @@ fn add_offset(offset: u32, length: u32) -> Result<u32, TransformError> {
 mod tests {
     use std::error::Error;
 
+    use lean_string::ToLeanString;
+
     use stillwind_source::{FileId, SourceError, SourceFile, Span};
 
     use super::*;
@@ -405,7 +408,7 @@ mod tests {
         let source = SourceFile::new(FileId(1), None, None, "\"😀--sw-user\"").unwrap();
         let mut edit = SourceTransform {
             call_span: source.full_span(),
-            replacement: format!("--sw-generated({})", source.text()),
+            replacement: format_args!("--sw-generated({})", source.text()).to_lean_string(),
             expressions: vec![ExpressionMapping {
                 start: 15,
                 end: 15 + source.text().len(),
@@ -413,7 +416,7 @@ mod tests {
                 exact: true,
             }],
         };
-        edit.rewrite_generated(|value| value.replace("--sw-", "--long-prefix-"));
+        edit.rewrite_generated(|value| (value.replace_text("--sw-", "--long-prefix-")).into());
         assert!(edit.replacement.starts_with("--long-prefix-generated("));
         assert!(edit.replacement.contains("--sw-user"));
         edit.encode_attribute('"', "&quot;");
@@ -431,7 +434,7 @@ mod tests {
                     &original[mapping.original_start as usize..mapping.original_end as usize]
                 );
             } else {
-                assert_eq!(String::from_utf16(value).unwrap(), "&quot;");
+                assert_eq!(LeanString::from_utf16(value).unwrap(), "&quot;");
                 assert_eq!(original[mapping.original_start as usize], u16::from(b'"'));
             }
         }
@@ -560,7 +563,7 @@ mod tests {
             prefix in ".{0,30}", middle in ".{0,30}", suffix in ".{0,30}",
             first in ".{0,20}", second in ".{0,20}"
         ) {
-            let text = format!("{prefix}日本{middle}😀{suffix}");
+            let text = format_args!("{prefix}日本{middle}😀{suffix}").to_lean_string();
             let source = SourceFile::new(FileId(1), None, None, &*text).unwrap();
             let first_start = prefix.len();
             let first_end = first_start + "日本".len();
@@ -569,40 +572,40 @@ mod tests {
             let edits = vec![
                 SourceTransform {
                     call_span: Span::new(FileId(1), u32::try_from(second_start).unwrap(), u32::try_from(second_end).unwrap()),
-                    replacement: second.clone(),
+                    replacement: (second.clone()).into(),
                     expressions: Vec::new(),
                 },
                 SourceTransform {
                     call_span: Span::new(FileId(1), u32::try_from(first_start).unwrap(), u32::try_from(first_end).unwrap()),
-                    replacement: first.clone(),
+                    replacement: (first.clone()).into(),
                     expressions: Vec::new(),
                 },
             ];
             let rendered = render_transforms(&source, &edits).unwrap();
-            proptest::prop_assert_eq!(&rendered.code, &format!("{prefix}{first}{middle}{second}{suffix}"));
+            proptest::prop_assert_eq!(&rendered.code, &format_args!("{prefix}{first}{middle}{second}{suffix}").to_lean_string());
             for (mapping, (start, end, generated_prefix, replacement)) in rendered.mappings.iter().zip([
                 (first_start, first_end, prefix.clone(), first.clone()),
-                (second_start, second_end, format!("{prefix}{first}{middle}"), second.clone()),
+                (second_start, second_end, format_args!("{prefix}{first}{middle}").to_string(), second.clone()),
             ]) {
                 proptest::prop_assert_eq!(mapping.original_start as usize, text[..start].encode_utf16().count());
                 proptest::prop_assert_eq!(mapping.original_end as usize, text[..end].encode_utf16().count());
                 proptest::prop_assert_eq!(mapping.generated_start as usize, generated_prefix.encode_utf16().count());
-                proptest::prop_assert_eq!(mapping.generated_end as usize, format!("{generated_prefix}{replacement}").encode_utf16().count());
+                proptest::prop_assert_eq!(mapping.generated_end as usize, format_args!("{generated_prefix}{replacement}").to_lean_string().encode_utf16().count());
             }
         }
 
         #[test]
         fn replacing_one_span_preserves_both_sides(prefix in "[a-z]{0,12}", suffix in "[a-z]{0,12}", replacement in "[A-Z]{0,12}") {
-            let source = SourceFile::new(FileId(1), None, None, format!("{prefix}é{suffix}")).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, (format_args!("{prefix}é{suffix}").to_lean_string()).as_str()).unwrap();
             let start = u32::try_from(prefix.len()).unwrap();
             let transform = SourceTransform {
                 call_span: Span::new(FileId(1), start, start + 2),
-                replacement: replacement.clone(),
+                replacement: (replacement.clone()).into(),
                 expressions: Vec::new(),
             };
             proptest::prop_assert_eq!(
                 apply_transforms(&source, &[transform]).unwrap(),
-                format!("{prefix}{replacement}{suffix}")
+                format_args!("{prefix}{replacement}{suffix}").to_lean_string()
             );
         }
     }

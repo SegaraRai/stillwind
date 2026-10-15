@@ -6,6 +6,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, CustomUtility, ThemeIndex, ThemeToken, parse_theme};
 use stillwind_diagnostics::CompileDiagnostic;
@@ -27,7 +29,7 @@ fn identifiers() -> IdentifierContext {
 }
 
 /// The name one anonymous layer of `template` carries, without its traversal index.
-fn layer_name(template: &CssOutputTemplate, options: &CompilerOptions) -> String {
+fn layer_name(template: &CssOutputTemplate, options: &CompilerOptions) -> LeanString {
     identifiers()
         .layer_name(&LayerContext {
             template: template.source_identity.clone(),
@@ -84,7 +86,7 @@ impl IdentifierGenerator for FixedLayerGenerator {
         &self,
         _context: &LayerContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<LayerName>, String> {
+    ) -> Result<GeneratedName<LayerName>, LeanString> {
         Ok(GeneratedName::provided(
             LayerName::new("app-layer").expect("canonical test body"),
         ))
@@ -214,15 +216,25 @@ fn anonymous_layers_share_identity_across_document_and_partial_carriers() {
     let document = render(template, &theme, "", &options, true).unwrap();
     let module = render(template, &theme, ".x{color:green}", &options, false).unwrap();
     assert!(
-        document.contains(&format!("@layer {prefix}-0{{")),
+        document.contains(
+            format_args!("@layer {prefix}-0{{")
+                .to_lean_string()
+                .as_str()
+        ),
         "{document}"
     );
-    assert!(document.contains(&format!("@layer {prefix}-1{{@layer {prefix}-2{{}}}}")));
+    assert!(
+        document.contains(
+            format_args!("@layer {prefix}-1{{@layer {prefix}-2{{}}}}")
+                .to_lean_string()
+                .as_str()
+        )
+    );
     assert_eq!(
         module,
-        format!(
+        format_args!(
             "@layer {prefix}-0;@layer {prefix}-1{{@layer {prefix}-2{{.x{{color:green}}}}}}@layer named;"
-        )
+        ).to_lean_string()
     );
     assert!(document.contains("@layer named"));
     let isolated = CompilerOptions {
@@ -421,7 +433,7 @@ fn repeated_keyframe_slots_preserve_each_mapping_and_wrapper() {
         .unwrap();
         assert_eq!(
             output.css,
-            format!("@media print{{{css}}}@layer motion{{{css}}}")
+            format_args!("@media print{{{css}}}@layer motion{{{css}}}").to_lean_string()
         );
         assert_eq!(output.mappings.len(), 2);
         for mapping in &output.mappings {

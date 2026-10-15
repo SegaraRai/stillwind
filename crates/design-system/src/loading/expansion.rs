@@ -13,6 +13,8 @@
 //! the host later substitutes; that run records both original endpoints because its
 //! length is not preserved.
 
+use lean_string::{LeanStr, ToLeanString};
+
 use stillwind_css::relative_css_urls;
 use stillwind_source::{CssSourceName, Fingerprint, SourceError, SourceFile, Span};
 
@@ -52,7 +54,7 @@ impl ExpandedSource {
     pub(super) fn append_import(
         &mut self,
         other: &Self,
-        wrappers: &[String],
+        wrappers: &[LeanStr],
     ) -> Result<(), SourceError> {
         for wrapper in wrappers {
             self.append_text(wrapper)?;
@@ -89,16 +91,19 @@ impl ExpandedSource {
             let start = range.start + resource.range.start;
             let end = range.start + resource.range.end;
             self.append_original(source, cursor..start)?;
-            let identity = format!(
+            let identity = format_args!(
                 "stillwind/resource/css/v1\0{}\0{}\0",
                 name.as_str(),
                 resource.specifier
-            );
-            let placeholder = format!("__stillwind_resource_{}__", Fingerprint::of(identity).0);
+            )
+            .to_lean_string();
+            let placeholder =
+                format_args!("__stillwind_resource_{}__", Fingerprint::of(identity).0)
+                    .to_lean_string();
             let replacement = if resource.string {
-                format!("\"{placeholder}\"")
+                format_args!("\"{placeholder}\"").to_lean_string()
             } else {
-                format!("url(\"{placeholder}\")")
+                format_args!("url(\"{placeholder}\")").to_lean_string()
             };
             let generated_start = self.text.len();
             self.append_text(&replacement)?;
@@ -109,7 +114,7 @@ impl ExpandedSource {
                 source_end: Some(end),
             });
             self.resources.push(CssResourceReference {
-                placeholder,
+                placeholder: (placeholder).into(),
                 source_name: name.clone(),
                 specifier: resource.specifier,
                 span: Span::new(

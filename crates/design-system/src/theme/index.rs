@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
 
@@ -29,14 +29,14 @@ struct ThemeDeclarations {
     output_template: CssOutputTemplate,
     registry: Arc<BuiltinDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
-    custom_css: String,
+    custom_css: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
-    marker_utilities: BTreeSet<String>,
-    declaration_formats: BTreeMap<String, String>,
-    relationship_patterns: BTreeSet<String>,
-    authored_properties: BTreeSet<String>,
+    marker_utilities: BTreeSet<LeanStr>,
+    declaration_formats: BTreeMap<LeanStr, LeanStr>,
+    relationship_patterns: BTreeSet<LeanStr>,
+    authored_properties: BTreeSet<LeanStr>,
     utility_order: UtilityOrderMode,
 }
 
@@ -160,22 +160,22 @@ impl ThemeIndex {
     }
 
     /// Utility names whose declarations provide compatibility marker classes.
-    pub fn marker_utilities(&self) -> &BTreeSet<String> {
+    pub fn marker_utilities(&self) -> &BTreeSet<LeanStr> {
         &self.inner.declarations.marker_utilities
     }
 
     /// Generic serialization formats attached to CSS declarations.
-    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+    pub fn declaration_formats(&self) -> &BTreeMap<LeanStr, LeanStr> {
         &self.inner.declarations.declaration_formats
     }
 
     /// Candidate patterns identifying compatibility relationships, such as `group-*`.
-    pub fn relationship_patterns(&self) -> &BTreeSet<String> {
+    pub fn relationship_patterns(&self) -> &BTreeSet<LeanStr> {
         &self.inner.declarations.relationship_patterns
     }
 
     /// Property names declared by authored `@property` rules.
-    pub fn authored_properties(&self) -> &BTreeSet<String> {
+    pub fn authored_properties(&self) -> &BTreeSet<LeanStr> {
         &self.inner.declarations.authored_properties
     }
 
@@ -224,7 +224,7 @@ impl ThemeIndex {
         if let Some(namespace) = ThemeNamespace::parse(namespace) {
             return self.token_in(namespace, name);
         }
-        let expected = format!("--{namespace}-{name}");
+        let expected = format_args!("--{namespace}-{name}").to_lean_string();
         self.custom_property(&expected)
     }
 
@@ -259,7 +259,7 @@ impl ThemeIndex {
     pub fn resolve_theme_references(
         &self,
         value: &str,
-    ) -> Result<Option<String>, ThemeReferenceError> {
+    ) -> Result<Option<LeanString>, ThemeReferenceError> {
         resolve_theme_references(value, |name| self.custom_property(name).is_some())
     }
 
@@ -283,7 +283,7 @@ impl ThemeIndex {
         &self,
         css: &str,
         include_preflight: bool,
-        omit_rules: &[(String, String)],
+        omit_rules: &[(LeanStr, LeanStr)],
     ) -> Vec<&ThemeToken> {
         let tokens = self.active_tokens();
         let mut required = custom_property_references(css);
@@ -291,10 +291,7 @@ impl ThemeIndex {
             required.extend(custom_property_references(self.custom_css()));
         }
         for token in &tokens {
-            if matches!(token.mode, ThemeTokenMode::Static)
-                || (!matches!(token.mode, ThemeTokenMode::Inline)
-                    && custom_property_references(css).contains(&token.name.value))
-            {
+            if matches!(token.mode, ThemeTokenMode::Static) {
                 required.insert(token.name.value.clone());
             }
         }
@@ -313,8 +310,8 @@ impl ThemeIndex {
         // Registry-authored pruning rules can remove intermediate aliases after
         // dependency closure, without embedding property names here.
         for (prefix, condition) in omit_rules {
-            if css.contains(condition) {
-                required.retain(|name| !name.starts_with(prefix));
+            if css.contains(condition.as_str()) {
+                required.retain(|name| !name.starts_with(prefix.as_str()));
             }
         }
         tokens

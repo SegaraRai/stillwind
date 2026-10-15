@@ -8,6 +8,8 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::ToLeanStr;
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, Label, LabelScope, Labels};
 use stillwind_ir::{CheckerProjection, CheckerRole, ProjectedSource};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
@@ -118,14 +120,12 @@ pub(crate) fn parse_projected(
 
 fn add_projection_context(error: &mut CompileError, projected: &ProjectedSource) {
     let converter = projected.projection().converter();
-    error.notes.push(format!(
-        "Source format: {:?}",
-        projected.document().format()
-    ));
-    error.notes.push(format!(
-        "Converter: {}@{}",
-        converter.name, converter.version
-    ));
+    error
+        .notes
+        .push(format_args!("Source format: {:?}", projected.document().format()).to_lean_str());
+    error
+        .notes
+        .push(format_args!("Converter: {}@{}", converter.name, converter.version).to_lean_str());
 }
 
 fn validate_macro_references(
@@ -142,7 +142,7 @@ fn validate_macro_references(
     {
         let mut error = CompileError::for_document(
             CompileDiagnostic::UnmappedMacroReference {
-                local: specifier.local.clone(),
+                local: (specifier.local.clone()),
                 span: specifier.span,
             },
             original,

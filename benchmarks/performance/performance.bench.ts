@@ -229,10 +229,12 @@ for (const count of sizes) {
         const project = createViteProject({ css: "root.css" });
         const plugins = createVitePlugins(project);
         active = await startServer(root, plugins);
-        const [plugin] = plugins;
         const environment = active.environments.client;
+        const compilerTransform = environment.plugins.find(
+          (plugin) => plugin.name === "stillwind:compiler",
+        )?.transform;
         const hook =
-          typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
+          typeof compilerTransform === "function" ? compilerTransform : compilerTransform?.handler;
         if (!hook) {
           expect.fail("Compiler transform hook is required");
         }
@@ -368,10 +370,12 @@ for (const count of sizes) {
       const plugins = stillwind({
         css: "root.css",
       });
-      const [plugin] = plugins;
       active = await startServer(root, plugins);
+      const compilerTransform = active.environments.client.plugins.find(
+        (plugin) => plugin.name === "stillwind:compiler",
+      )?.transform;
       const hook =
-        typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
+        typeof compilerTransform === "function" ? compilerTransform : compilerTransform?.handler;
       if (!hook) {
         expect.fail("Compiler transform hook is required");
       }

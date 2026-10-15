@@ -6,6 +6,7 @@
 //! "looks plausible". Some helpers still use lexical shape checks, so acceptance is not
 //! proof that a browser will accept the whole value.
 
+use lean_string::ToLeanString;
 use lightningcss::properties::{Property, PropertyId};
 use lightningcss::stylesheet::ParserOptions;
 use lightningcss::traits::Parse;
@@ -37,7 +38,7 @@ pub(super) fn contains_custom_property_reference(value: &str) -> bool {
 /// The text is re-wrapped as `function(value)` and handed to Lightning CSS, so this
 /// accepts exactly what a gradient parser accepts there.
 pub(super) fn gradient_arguments(function: &str, value: &str) -> bool {
-    Image::parse_string(&format!("{function}({value})")).is_ok()
+    Image::parse_string(&format_args!("{function}({value})").to_lean_string()).is_ok()
 }
 
 /// True for the primitive `content` productions Stillwind supports: the keywords, a CSS
@@ -66,7 +67,7 @@ pub(super) fn content_value(value: &str) -> bool {
 /// The check goes through the `transform` property parser, so a value that parser
 /// leaves unparsed counts as a rejection.
 pub(super) fn transform_function_arguments(function: &str, value: &str) -> bool {
-    let value = format!("{function}({value})");
+    let value = format_args!("{function}({value})").to_lean_string();
     matches!(
         Property::parse_string(
             PropertyId::from("transform"),

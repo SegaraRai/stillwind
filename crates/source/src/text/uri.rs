@@ -1,12 +1,12 @@
 //! Host document identities whose original spelling is retained.
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 use serde::{Deserialize, Serialize};
 
 /// An invalid source-document identifier supplied by a host.
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("invalid source URI: {0}")]
-pub struct SourceUriError(pub String);
+pub struct SourceUriError(pub LeanString);
 
 /// Host-supplied identity of an editable or virtual source document.
 ///
@@ -25,7 +25,7 @@ impl SourceUri {
     pub fn parse(value: impl Into<LeanStr>) -> Result<Self, SourceUriError> {
         let value = value.into();
         let Some((scheme, rest)) = value.split_once(':') else {
-            return Err(SourceUriError(value.to_string()));
+            return Err(SourceUriError(value.to_lean_string()));
         };
         let valid_scheme = !scheme.is_empty()
             && scheme.bytes().enumerate().all(|(index, byte)| {
@@ -51,7 +51,7 @@ impl SourceUri {
             }
         }
         if !valid_scheme || !valid_rest {
-            return Err(SourceUriError(value.to_string()));
+            return Err(SourceUriError(value.to_lean_string()));
         }
         Ok(Self(value))
     }
@@ -64,7 +64,7 @@ impl SourceUri {
 
 impl<'de> Deserialize<'de> for SourceUri {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let value = String::deserialize(deserializer)?;
+        let value = LeanString::deserialize(deserializer)?;
         Self::parse(value).map_err(serde::de::Error::custom)
     }
 }

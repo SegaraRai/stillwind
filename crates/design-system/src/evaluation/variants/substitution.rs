@@ -9,6 +9,10 @@
 
 use std::sync::Arc;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
+use stillwind_source::ReplaceText;
+
 use super::super::values::expand_placeholder;
 use super::super::values::{resolve_value_domains, split_domains, theme_domain_pattern};
 use super::body::resolve_variant_body;
@@ -26,9 +30,9 @@ pub(in crate::evaluation) fn substitute_typed_modifier(
     body: &str,
     modifier_type: Option<BuiltinVariantModifierType>,
     modifier: Option<&str>,
-) -> Option<String> {
+) -> Option<LeanString> {
     let Some(modifier_type) = modifier_type else {
-        return Some(body.to_owned());
+        return Some(body.to_lean_string());
     };
     let modifier = modifier_type.serialize(modifier?)?;
     substitute_quoted_macro(body, ":--modifier(\"", "{modifier}", &modifier)
@@ -38,7 +42,7 @@ pub(in crate::evaluation) fn substitute_typed_modifier(
 pub(in crate::evaluation) fn substitute_quoted_variant_value(
     body: &str,
     value: &str,
-) -> Option<String> {
+) -> Option<LeanString> {
     substitute_quoted_macro(body, ":--value(\"", "{value}", value)
 }
 
@@ -51,13 +55,13 @@ fn substitute_quoted_macro(
     prefix: &str,
     placeholder: &str,
     value: &str,
-) -> Option<String> {
+) -> Option<LeanString> {
     let start = body.find(prefix)?;
     let template_start = start + prefix.len();
     let template_end = body[template_start..].find("\")")? + template_start;
     let template = &body[template_start..template_end];
-    let replacement = template.replace(placeholder, value);
-    let mut result = body.to_owned();
+    let replacement = template.replace_text(placeholder, value);
+    let mut result = body.to_lean_string();
     result.replace_range(start..template_end + 2, &replacement);
     Some(result)
 }
@@ -94,7 +98,7 @@ pub(in crate::evaluation) fn apply_nested_variant(
             Some(VariantApplication::Sequence(conditions))
         }
         VariantApplication::SelectorSuffix(suffix) => {
-            apply_nested_selector(body, &format!("&{suffix}"))
+            apply_nested_selector(body, &format_args!("&{suffix}").to_lean_string())
         }
         VariantApplication::SelectorTemplate(selector) => apply_nested_selector(body, selector),
         VariantApplication::SelectorMedia {
@@ -128,7 +132,7 @@ pub(in crate::evaluation) fn apply_nested_variant(
 /// after `&` is what replaces the slot.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     let fragment = selector.strip_prefix('&')?;
-    resolve_variant_body(&body.replace(":--value()", fragment))
+    resolve_variant_body(&body.replace_text(":--value()", fragment))
 }
 
 /// Attaches a media condition to a selector application.
@@ -139,7 +143,7 @@ fn attach_media(application: VariantApplication, condition: &str) -> Option<Vari
     match application {
         VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorMedia {
             selector,
-            condition: condition.to_owned(),
+            condition: condition.to_lean_str(),
         }),
         VariantApplication::SelectorRule {
             selector,
@@ -147,7 +151,7 @@ fn attach_media(application: VariantApplication, condition: &str) -> Option<Vari
         } => Some(VariantApplication::SelectorMediaRule {
             selector,
             declarations,
-            condition: condition.to_owned(),
+            condition: condition.to_lean_str(),
         }),
         _ => None,
     }
@@ -207,13 +211,13 @@ pub(in crate::evaluation) fn registered_variant_candidates<'a, 'b>(
 pub(in crate::evaluation) fn substitute_variant_capture(
     value: &str,
     capture: Option<&str>,
-) -> Option<String> {
+) -> Option<LeanString> {
     if !value.contains("--value()")
         && !value.contains(r"\*")
         && !value.contains("{modifier}")
         && !value.contains(r"\{modifier\}")
     {
-        return Some(value.to_owned());
+        return Some(value.to_lean_string());
     }
     let capture = capture?;
     let (capture, modifier) = capture
@@ -227,17 +231,20 @@ pub(in crate::evaluation) fn substitute_variant_capture(
     {
         // Arbitrary selector variants use `[&...]`; relationship CSS expects
         // the selector fragment without the variant's leading `&` wrapper.
-        inner.strip_prefix('&').unwrap_or(inner).replace('_', " ")
+        inner
+            .strip_prefix('&')
+            .unwrap_or(inner)
+            .replace_char('_', " ")
     } else {
-        capture.replace('_', " ")
+        capture.replace_char('_', " ")
     };
     let modifier = modifier
-        .map(|modifier| modifier.replace('_', " ").replace('/', r"\/"))
+        .map(|modifier| modifier.replace_char('_', " ").replace_char('/', r"\/"))
         .unwrap_or_default();
     let modifier_suffix = if modifier.is_empty() {
-        String::new()
+        LeanString::new()
     } else {
-        format!(r"\/{modifier}")
+        format_args!(r"\/{modifier}").to_lean_string()
     };
     let substitutions = [
         ("--value()", capture.as_str()),
@@ -247,7 +254,7 @@ pub(in crate::evaluation) fn substitute_variant_capture(
         ("/{modifier}", modifier_suffix.as_str()),
         ("{modifier}", modifier.as_str()),
     ];
-    let mut expanded = String::new();
+    let mut expanded = LeanString::new();
     let mut remaining = value;
     while !remaining.is_empty() {
         if let Some((marker, replacement)) = substitutions
@@ -275,11 +282,11 @@ pub(in crate::evaluation) fn resolve_variant_css_placeholders(
     variant_name: &str,
     value: &str,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanString> {
     let capture = variant_value_capture(variant_name, value);
-    let mut body = body.to_owned();
+    let mut body = body.to_lean_string();
     expand_placeholder(&mut body, "--value", |arguments| {
-        resolve_variant_value_domains(arguments, capture, theme)
+        (resolve_variant_value_domains(arguments, capture, theme)).map(Into::into)
     })?;
     Some(body)
 }
@@ -300,21 +307,22 @@ fn resolve_variant_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
-    resolve_variant_value_with_source(domains, capture, theme).map(|(value, _)| value)
+) -> Option<LeanString> {
+    (resolve_variant_value_with_source(domains, capture, theme).map(|(value, _)| value))
+        .map(Into::into)
 }
 
 pub(super) fn resolve_variant_value_with_source(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<(String, VariantValueSource)> {
+) -> Option<(LeanStr, VariantValueSource)> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture.and_then(|name| {
                 theme
-                    .token_in(namespace, &format!("{name}{suffix}"))
+                    .token_in(namespace, &format_args!("{name}{suffix}").to_lean_string())
                     .map(|token| {
                         theme.record_token(&token.name.value);
                         (

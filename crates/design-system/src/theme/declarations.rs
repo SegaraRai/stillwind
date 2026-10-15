@@ -9,6 +9,8 @@
 //! Extraction is syntax-level. Namespace resets and duplicate resolution are decided
 //! later, because they depend on the whole token list rather than on one declaration.
 
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+
 use stillwind_css::matching_brace;
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Span, Spanned};
@@ -50,7 +52,7 @@ pub enum ThemeTokenKind {
         /// Namespace the token was declared under.
         namespace: ThemeNamespace,
         /// Token name without its namespace prefix.
-        name: String,
+        name: LeanStr,
     },
     /// A property that Stillwind emits unchanged but does not use for built-ins.
     Custom,
@@ -60,9 +62,9 @@ pub enum ThemeTokenKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeToken {
     /// Authored custom-property name with its span in the parsed buffer.
-    pub name: Spanned<String>,
+    pub name: Spanned<LeanStr>,
     /// Authored value with its span in the parsed buffer.
-    pub value: Spanned<String>,
+    pub value: Spanned<LeanStr>,
     /// Which namespace and name the declaration resolved to.
     pub kind: ThemeTokenKind,
     /// Emission policy: ordinary referenced token, inline value, or static retention.
@@ -144,11 +146,11 @@ pub(crate) fn extract_theme_declarations(
             body_start + declaration_start + declaration.find(value).unwrap_or_default();
         tokens.push(ThemeToken {
             name: Spanned::new(
-                name.to_owned(),
+                name.to_lean_str(),
                 Span::new(file, offset(name_start)?, offset(name_start + name.len())?),
             ),
             value: Spanned::new(
-                value.to_owned(),
+                value.to_lean_str(),
                 Span::new(
                     file,
                     offset(value_start)?,
@@ -199,10 +201,12 @@ fn classify_theme_token(name: &str) -> ThemeTokenKind {
         if name == namespace_name {
             return ThemeTokenKind::Scale(namespace);
         }
-        if let Some(token_name) = name.strip_prefix(&format!("{namespace_name}-")) {
+        if let Some(token_name) =
+            name.strip_prefix(format_args!("{namespace_name}-").to_lean_string().as_str())
+        {
             return ThemeTokenKind::Token {
                 namespace,
-                name: token_name.to_owned(),
+                name: token_name.to_lean_str(),
             };
         }
     }

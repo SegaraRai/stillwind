@@ -6,6 +6,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::LeanStr;
+
 use stillwind_css::{inspect_css_value, media_size_comparisons};
 use stillwind_syntax::{Variant, VariantKind};
 
@@ -28,7 +30,7 @@ pub struct ResolvedVariant {
     /// The application produced by ordinary variant resolution.
     pub application: VariantApplication,
     /// Direct custom-property names, before inline expansion and alias traversal.
-    pub tokens: Vec<String>,
+    pub tokens: Vec<LeanStr>,
     /// Viewport size comparisons and the origins of their supplied values.
     pub media_values: Vec<VariantMediaValue>,
 }
@@ -37,7 +39,7 @@ pub struct ResolvedVariant {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariantMediaValue {
     /// Expanded comparison, including parentheses.
-    pub condition: String,
+    pub condition: LeanStr,
     /// Origins of substitutions in this condition; a fixed prelude uses `Definition`.
     pub sources: Vec<VariantValueSource>,
 }
@@ -48,7 +50,7 @@ pub enum VariantValueSource {
     /// A named token selected by the successful value domain.
     ThemeToken(
         /// Complete custom-property name, including its `--` prefix.
-        String,
+        LeanStr,
     ),
     /// A value supplied directly by the source capture or an arbitrary media variant.
     Explicit,
@@ -125,7 +127,7 @@ pub fn resolve_variant_with_usage(
                             sources.push(VariantValueSource::Definition);
                         }
                         media_values.push(VariantMediaValue {
-                            condition: expanded,
+                            condition: (expanded).into(),
                             sources,
                         });
                     }
@@ -157,7 +159,7 @@ fn media_conditions(application: &VariantApplication) -> Vec<&str> {
     }
 }
 
-fn application_tokens(application: &VariantApplication) -> BTreeSet<String> {
+fn application_tokens(application: &VariantApplication) -> BTreeSet<LeanStr> {
     let mut tokens = BTreeSet::new();
     match application {
         VariantApplication::Compound(children) | VariantApplication::Sequence(children) => {
@@ -193,6 +195,8 @@ fn application_tokens(application: &VariantApplication) -> BTreeSet<String> {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
@@ -230,7 +234,7 @@ mod tests {
             ),
         ] {
             let resolved = resolve_variant_with_usage(
-                &parse_nested_variant(&format!("scaled-{capture}")),
+                &parse_nested_variant(&format_args!("scaled-{capture}").to_lean_string()),
                 &theme,
             )
             .unwrap();

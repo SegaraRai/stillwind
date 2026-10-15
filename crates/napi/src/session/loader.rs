@@ -111,8 +111,8 @@ impl NativeDesignSystemLoader {
                     .into_iter()
                     .map(|request| NativeCssRequest {
                         id: request.id,
-                        importer: request.importer.as_str().to_owned(),
-                        specifier: request.specifier,
+                        importer: (request.importer.as_str().to_owned()).into(),
+                        specifier: (request.specifier).into(),
                     })
                     .collect(),
             }),
@@ -125,9 +125,9 @@ impl NativeDesignSystemLoader {
                         .resources
                         .iter()
                         .map(|resource| NativeCssResource {
-                            placeholder: resource.placeholder.clone(),
-                            source_name: resource.source_name.as_str().to_owned(),
-                            specifier: resource.specifier.clone(),
+                            placeholder: (resource.placeholder.clone()).into(),
+                            source_name: (resource.source_name.as_str().to_owned()).into(),
+                            specifier: (resource.specifier.clone()).into(),
                             start: resource.span.start.0,
                             end: resource.span.end.0,
                         })

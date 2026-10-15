@@ -4,6 +4,8 @@
 //! primitives, numeric and CSS-wide keyword domains, and the compact spacing families
 //! that mix negative and fractional values.
 
+use lean_string::ToLeanStr;
+
 use stillwind_test_support::{CssAssertions as _, assert_css_eq, css_tokens};
 
 use super::*;
@@ -66,8 +68,8 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Some(VariantApplication::SelectorMedia {
-            selector: "&:is(:where(.group):hover *)".to_owned(),
-            condition: "(hover: hover)".to_owned(),
+            selector: "&:is(:where(.group):hover *)".to_lean_str(),
+            condition: "(hover: hover)".to_lean_str(),
         })
     );
     assert_eq!(
@@ -76,7 +78,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Some(VariantApplication::SelectorTemplate(
-            "&:is(:where(.peer):checked ~ *)".to_owned()
+            "&:is(:where(.peer):checked ~ *)".to_lean_str()
         ))
     );
     assert_eq!(
@@ -87,7 +89,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Some(VariantApplication::SelectorTemplate(
-            "&:is(:where(.group)[data-open] *)".to_owned()
+            "&:is(:where(.group)[data-open] *)".to_lean_str()
         ))
     );
     assert_eq!(
@@ -98,13 +100,15 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Some(VariantApplication::SelectorMedia {
-            selector: r"&:is(:where(.group\/menu\:open):hover *)".to_owned(),
-            condition: "(hover: hover)".to_owned(),
+            selector: r"&:is(:where(.group\/menu\:open):hover *)".to_lean_str(),
+            condition: "(hover: hover)".to_lean_str(),
         })
     );
     assert_eq!(
         resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+        Some(VariantApplication::Container(
+            "(width >= 24rem)".to_lean_str()
+        ))
     );
 }
 

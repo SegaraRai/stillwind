@@ -4,6 +4,8 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::ops::Deref;
 
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+
 use stillwind_css::inspect_css_value;
 
 use crate::ThemeIndex;
@@ -31,7 +33,7 @@ impl<'a> EvaluationContext<'a> {
 
     pub(in crate::evaluation) fn record_token(&self, name: &str) {
         if let Some(selections) = &self.selections {
-            selections.borrow_mut().tokens.insert(name.to_owned());
+            selections.borrow_mut().tokens.insert(name.to_lean_str());
         }
     }
 
@@ -45,7 +47,7 @@ impl<'a> EvaluationContext<'a> {
 
     pub(in crate::evaluation) fn record_variable_token(&self, name: &str) {
         if self.selections.is_some() {
-            self.record_value_tokens(&format!("var({name})"));
+            self.record_value_tokens(&format_args!("var({name})").to_lean_string());
         }
     }
 
@@ -55,7 +57,7 @@ impl<'a> EvaluationContext<'a> {
                 .borrow_mut()
                 .values
                 .push(ArbitraryValueSelection {
-                    value: value.to_owned(),
+                    value: value.to_lean_str(),
                     color,
                 });
         }
@@ -81,12 +83,12 @@ impl Deref for EvaluationContext<'_> {
 /// Direct source selections before expansion and declaration formatting.
 #[derive(Default)]
 pub(in crate::evaluation) struct ValueSelections {
-    pub(in crate::evaluation) tokens: BTreeSet<String>,
+    pub(in crate::evaluation) tokens: BTreeSet<LeanStr>,
     pub(in crate::evaluation) values: Vec<ArbitraryValueSelection>,
 }
 
 /// An accepted arbitrary capture before theme expansion and declaration formatting.
 pub(in crate::evaluation) struct ArbitraryValueSelection {
-    pub(in crate::evaluation) value: String,
+    pub(in crate::evaluation) value: LeanStr,
     pub(in crate::evaluation) color: bool,
 }

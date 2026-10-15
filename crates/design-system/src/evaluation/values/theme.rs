@@ -11,10 +11,11 @@
 //! are validated against the namespace's CSS-declared value types, so the accepted
 //! grammar follows the registry rather than this file.
 
-use crate::evaluation::EvaluationContext;
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::ValueType;
 
+use super::super::EvaluationContext;
 use super::super::builtins::builtin_theme_namespace_types;
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
@@ -30,11 +31,11 @@ pub(in crate::evaluation) fn theme_value(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
         _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
-            format!("var({value})")
+            format_args!("var({value})").to_lean_str()
         }
         // This named-token lookup is ASCII-only; the earlier arbitrary-value and
         // variable paths do not share that restriction.
@@ -44,21 +45,21 @@ pub(in crate::evaluation) fn theme_value(
             if matches!(token.mode, ThemeTokenMode::Inline) {
                 token.value.value.clone()
             } else {
-                format!("var({})", token.name.value)
+                format_args!("var({})", token.name.value).to_lean_str()
             }
         }
         _ if namespace == ThemeNamespace::Spacing
             && theme.scale(ThemeNamespace::Spacing).is_some() =>
         {
             if value == "px" {
-                "1px".to_owned()
+                "1px".to_lean_str()
             } else if value.parse::<f64>().is_ok() {
                 if value.parse::<f64>().is_ok_and(|number| number == 0.0) {
-                    return Some("0".to_owned());
+                    return Some("0".to_lean_str());
                 }
                 let scale_name = theme.scale(ThemeNamespace::Spacing)?.name.value.as_str();
                 theme.record_token(scale_name);
-                return Some(format!("calc(var({scale_name}) * {value})"));
+                return Some(format_args!("calc(var({scale_name}) * {value})").to_lean_str());
             } else {
                 return None;
             }
@@ -76,11 +77,11 @@ pub(in crate::evaluation) fn theme_value_literal(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let value = match (namespace, value) {
         _ if let Some(value) = typed_theme_arbitrary(namespace, value, theme) => value,
         _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
-            format!("var({value})")
+            format_args!("var({value})").to_lean_str()
         }
         _ if let Some(token) = theme.token_in(namespace, value) => {
             theme.record_token(&token.name.value);
@@ -100,7 +101,7 @@ fn typed_theme_arbitrary(
     namespace: ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
     let value = decode_arbitrary(value);
@@ -109,12 +110,13 @@ fn typed_theme_arbitrary(
         || types.is_empty()
         || ValueType::from_hint(hint)
             .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint)));
-    (hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
+    ((hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
         .then(|| {
             theme.record_value_tokens(&value);
             theme.record_arbitrary_value(&value, types.contains(&ValueType::Color));
             value
-        })
+        }))
+    .map(Into::into)
 }
 
 /// The value types declared for a namespace by the selected built-ins.
@@ -131,11 +133,13 @@ pub(in crate::evaluation) fn theme_arbitrary_types(
 ///
 /// Zero is a valid numerator but not a denominator, and both components are limited to
 /// unsigned 16-bit integers so a fraction cannot overflow.
-pub(in crate::evaluation) fn fraction_value(value: &str) -> Option<String> {
+pub(in crate::evaluation) fn fraction_value(value: &str) -> Option<LeanStr> {
     let (numerator, denominator) = value.split_once('/')?;
     let numerator = numerator.parse::<u16>().ok()?;
     let denominator = denominator.parse::<u16>().ok()?;
-    (denominator != 0).then(|| format!("calc({numerator} / {denominator} * 100%)"))
+    ((denominator != 0)
+        .then(|| format_args!("calc({numerator} / {denominator} * 100%)").to_lean_string()))
+    .map(Into::into)
 }
 
 /// The viewport axis used by the `screen` size keyword.
@@ -161,24 +165,24 @@ impl ViewportAxis {
 pub(in crate::evaluation) fn axis_size_value(
     value: &str,
     viewport_axis: ViewportAxis,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let value = match value {
-        "auto" => "auto".to_owned(),
-        "full" => "100%".to_owned(),
-        "screen" => format!("100{}", viewport_axis.unit()),
-        "svw" => "100svw".to_owned(),
-        "lvw" => "100lvw".to_owned(),
-        "dvw" => "100dvw".to_owned(),
-        "svh" => "100svh".to_owned(),
-        "lvh" => "100lvh".to_owned(),
-        "dvh" => "100dvh".to_owned(),
-        "min" => "min-content".to_owned(),
-        "max" => "max-content".to_owned(),
-        "fit" => "fit-content".to_owned(),
-        "lh" => "1lh".to_owned(),
+        "auto" => "auto".to_lean_string(),
+        "full" => "100%".to_lean_string(),
+        "screen" => format_args!("100{}", viewport_axis.unit()).to_lean_string(),
+        "svw" => "100svw".to_lean_string(),
+        "lvw" => "100lvw".to_lean_string(),
+        "dvw" => "100dvw".to_lean_string(),
+        "svh" => "100svh".to_lean_string(),
+        "lvh" => "100lvh".to_lean_string(),
+        "dvh" => "100dvh".to_lean_string(),
+        "min" => "min-content".to_lean_string(),
+        "max" => "max-content".to_lean_string(),
+        "fit" => "fit-content".to_lean_string(),
+        "lh" => "1lh".to_lean_string(),
         _ => return None,
     };
-    Some(value)
+    Some((value).into())
 }
 
 fn typed_css_variable<'a>(
@@ -264,7 +268,7 @@ mod tests {
     proptest::proptest! {
         #[test]
         fn valid_fraction_components_are_never_reversed(a in 0u16..1000, b in 1u16..1000) {
-            proptest::prop_assert_eq!(fraction_value(&format!("{a}/{b}")), Some(format!("calc({a} / {b} * 100%)")));
+            proptest::prop_assert_eq!(fraction_value(&format_args!("{a}/{b}").to_lean_string()), Some(format_args!("calc({a} / {b} * 100%)").to_lean_str()));
         }
     }
 }

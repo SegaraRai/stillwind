@@ -78,7 +78,7 @@ impl From<IdentityId> for NativeIdentity {
         let (kind, module_id, start, end, binding_name) = value.into_parts();
         Self {
             kind: kind.into(),
-            module_id: module_id.into_string(),
+            module_id: (module_id.into_string()).into(),
             start,
             end,
             binding_name: binding_name.to_string(),

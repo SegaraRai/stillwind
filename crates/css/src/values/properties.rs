@@ -9,6 +9,7 @@
 //! Property names are not part of the public `--value([type])` grammar: this module
 //! backs named value domains that the registry maps to properties.
 
+use lean_string::{LeanStr, ToLeanStr};
 use lightningcss::properties::{Property, PropertyId};
 use lightningcss::stylesheet::ParserOptions;
 use lightningcss::traits::Parse;
@@ -91,7 +92,7 @@ const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssProperty {
     /// Recognized CSS property name used for value parsing and declaration serialization.
-    name: String,
+    name: LeanStr,
     /// Parser selected for this property, including local grammars unavailable from Lightning CSS.
     grammar: CssPropertyGrammar,
 }
@@ -108,7 +109,7 @@ impl CssProperty {
         let property_id = PropertyId::from(name);
         if !matches!(property_id, PropertyId::Custom(_)) {
             return Some(Self {
-                name: webref.name.to_owned(),
+                name: webref.name.to_lean_str(),
                 grammar: CssPropertyGrammar::LightningCss,
             });
         }
@@ -116,7 +117,7 @@ impl CssProperty {
             .iter()
             .find(|(candidate, _)| candidate.eq_ignore_ascii_case(name))
             .map(|(name, grammar)| Self {
-                name: (*name).to_owned(),
+                name: (*name).to_lean_str(),
                 grammar: *grammar,
             })
     }

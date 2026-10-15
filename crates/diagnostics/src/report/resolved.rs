@@ -2,6 +2,7 @@
 
 use std::fmt::Write;
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Position, SourceUri};
@@ -25,7 +26,7 @@ pub struct ResolvedLocation {
     /// Host-supplied document identity.
     pub uri: SourceUri,
     /// Fingerprint of the exact source bytes used to compute the positions.
-    pub revision: String,
+    pub revision: LeanStr,
     /// Inclusive UTF-8 byte start.
     pub start: u32,
     /// Exclusive UTF-8 byte end.
@@ -50,7 +51,7 @@ pub struct ResolvedLabel {
     /// Source and coordinates of this highlight.
     pub location: ResolvedLocation,
     /// Explanation displayed next to the highlight.
-    pub message: Option<String>,
+    pub message: Option<LeanStr>,
 }
 
 /// One proposed replacement within a revision-pinned source.
@@ -60,7 +61,7 @@ pub struct ResolvedEdit {
     /// Document and range to replace.
     pub location: ResolvedLocation,
     /// Replacement text.
-    pub replacement: String,
+    pub replacement: LeanStr,
 }
 
 /// One alternative user-invoked fix consisting of one or more edits.
@@ -68,7 +69,7 @@ pub struct ResolvedEdit {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedAction {
     /// Title shown by an editor.
-    pub title: String,
+    pub title: LeanStr,
     /// Edits applied as one action.
     pub edits: Vec<ResolvedEdit>,
 }
@@ -78,9 +79,9 @@ pub struct ResolvedAction {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedDiagnostic {
     /// Stable reporting code or lint rule name.
-    pub code: String,
+    pub code: LeanStr,
     /// Human-readable cause.
-    pub message: String,
+    pub message: LeanStr,
     /// Effective reporting level.
     pub severity: DiagnosticSeverity,
     /// Main location reported for this failure.
@@ -88,7 +89,7 @@ pub struct ResolvedDiagnostic {
     /// Additional locations, in producer order.
     pub related: Vec<ResolvedLabel>,
     /// Supplementary explanations.
-    pub notes: Vec<String>,
+    pub notes: Vec<LeanStr>,
     /// Alternative fixes offered to the user.
     pub actions: Vec<ResolvedAction>,
 }
@@ -96,12 +97,12 @@ pub struct ResolvedDiagnostic {
 impl ResolvedDiagnostic {
     /// Renders a diagnostic for text-only hosts. Range labels use one-based line and
     /// column numbers. Document labels omit those coordinates.
-    pub fn display_text(&self) -> String {
+    pub fn display_text(&self) -> LeanString {
         let at = &self.primary.location;
         let mut text = if self.primary.scope == LabelScope::Document {
-            format!("{}: {}: {}", at.uri.as_str(), self.code, self.message)
+            format_args!("{}: {}: {}", at.uri.as_str(), self.code, self.message).to_lean_string()
         } else {
-            format!(
+            format_args!(
                 "{}:{}:{}-{}:{}: {}: {}",
                 at.uri.as_str(),
                 at.start_position.line + 1,
@@ -111,6 +112,7 @@ impl ResolvedDiagnostic {
                 self.code,
                 self.message,
             )
+            .to_lean_string()
         };
         for label in &self.related {
             let at = &label.location;

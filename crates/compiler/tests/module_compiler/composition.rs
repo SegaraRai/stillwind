@@ -1,5 +1,7 @@
 //! Checks composition ordering and provider contributions.
 
+use lean_string::LeanString;
+
 use stillwind_diagnostics::LintDiagnostic;
 
 use super::*;
@@ -94,7 +96,7 @@ fn static_provider_does_not_attach_a_marker_named_like_an_object_property() {
             &self,
             _context: &DeclarationContext,
             _hash: &IdentifierHash,
-        ) -> Result<GeneratedName<RefMarker>, String> {
+        ) -> Result<GeneratedName<RefMarker>, LeanString> {
             Ok(GeneratedName::provided(
                 RefMarker::new("__proto__").expect("canonical test body"),
             ))

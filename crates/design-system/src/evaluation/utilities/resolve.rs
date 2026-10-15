@@ -10,6 +10,8 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
@@ -36,15 +38,15 @@ pub struct ResolvedUtility {
     /// The parsed candidate, including its variants, flags, and modifier.
     pub candidate: Candidate,
     /// Registrations explicitly required by the selected utility branches.
-    pub required_properties: Vec<String>,
+    pub required_properties: Vec<LeanStr>,
     /// Authored position of the matched definition, from the import-expanded stylesheet
     /// when the snapshot orders by authored position and from the built-in registry
     /// otherwise.
     pub builtin_order: Option<usize>,
     /// Finalized declarations for the utility itself.
-    pub declaration: String,
+    pub declaration: LeanStr,
     /// Selector the declarations must be nested under, when the branch has one.
-    pub selector: Option<String>,
+    pub selector: Option<LeanStr>,
     /// Conditional rules emitted next to the base declaration.
     pub nested: Vec<NestedUtilityRule>,
     /// Additional selector targets produced by typed `@utility` overloads. CSS
@@ -59,9 +61,9 @@ pub struct UtilityTokenUse {
     /// True when the declaration belongs to the utility's base list; false for nested or additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the selected tokens.
-    pub property: String,
+    pub property: LeanStr,
     /// Complete custom-property names; aliases retain the directly selected name.
-    pub tokens: Vec<String>,
+    pub tokens: Vec<LeanStr>,
 }
 
 /// One arbitrary source capture accepted by a utility declaration.
@@ -70,9 +72,9 @@ pub struct UtilityArbitraryUse {
     /// True for the base declaration list; false for nested and additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the capture.
-    pub property: String,
+    pub property: LeanStr,
     /// Decoded CSS text before token expansion and declaration formatting.
-    pub value: String,
+    pub value: LeanStr,
     /// The capture was accepted by a color value domain.
     pub color: bool,
 }
@@ -81,9 +83,9 @@ pub struct UtilityArbitraryUse {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtilityTarget {
     /// Finalized declarations for this target.
-    pub declaration: String,
+    pub declaration: LeanStr,
     /// Selector this target is nested under, when it has one.
-    pub selector: Option<String>,
+    pub selector: Option<LeanStr>,
     /// Nested rules emitted inside this target, in authored order.
     pub nested: Vec<NestedUtilityRule>,
 }
@@ -109,18 +111,19 @@ pub fn resolve_utility(
     };
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
-            let mut resolution = UtilityResolution::plain(format!("{property}:{value};"));
+            let mut resolution =
+                UtilityResolution::plain(format_args!("{property}:{value};").to_lean_string());
             resolution.arbitrary_uses.push(UtilityArbitraryUse {
                 base: true,
-                property: property.as_str().to_ascii_lowercase(),
-                value: value.to_string(),
+                property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
+                value: value.to_lean_str(),
                 color: false,
             });
             let tokens = inspect_css_value(value).1;
             if !tokens.is_empty() {
                 resolution.token_uses.push(UtilityTokenUse {
                     base: true,
-                    property: property.as_str().to_ascii_lowercase(),
+                    property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
                     tokens: tokens.into_iter().collect(),
                 });
             }
@@ -196,7 +199,7 @@ pub fn resolve_utility(
         required_properties: resolution.required_properties,
         candidate,
         builtin_order: resolution.builtin_order,
-        declaration,
+        declaration: (declaration),
         selector,
         nested,
         additional,
@@ -218,7 +221,7 @@ pub fn resolve_utility(
 pub fn resolve_animation_option(
     raw: &str,
     theme: &ThemeIndex,
-) -> Result<Option<String>, UtilityResolutionError> {
+) -> Result<Option<LeanString>, UtilityResolutionError> {
     let Some(candidate) = parse_candidate(raw) else {
         return Ok(None);
     };
@@ -244,10 +247,11 @@ pub fn resolve_animation_option(
         modifier.as_ref(),
         theme,
     )? {
-        return Ok((resolution.selector.is_none()
+        return Ok(((resolution.selector.is_none()
             && resolution.nested.is_empty()
             && resolution.additional.is_empty())
-        .then(|| finalize_declaration(resolution.declaration, false, theme)));
+        .then(|| finalize_declaration(resolution.declaration, false, theme)))
+        .map(Into::into));
     }
     project_animation_option_utility(raw, theme)
 }
@@ -260,7 +264,7 @@ pub fn resolve_animation_option(
 fn project_animation_option_utility(
     raw: &str,
     theme: &ThemeIndex,
-) -> Result<Option<String>, UtilityResolutionError> {
+) -> Result<Option<LeanString>, UtilityResolutionError> {
     let Some(utility) = resolve_utility(raw, theme)? else {
         return Ok(None);
     };
@@ -272,7 +276,7 @@ fn project_animation_option_utility(
         return Ok(None);
     }
     let mappings = animation_option_property_mappings(theme);
-    let mut projected = String::new();
+    let mut projected = LeanString::new();
     for declaration in utility
         .declaration
         .split(';')
@@ -303,11 +307,11 @@ mod tests {
         super::resolve_utility(raw, theme).unwrap()
     }
 
-    fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
+    fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
         super::resolve_animation_option(raw, theme).unwrap()
     }
 
-    fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<String> {
+    fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
         super::project_animation_option_utility(raw, theme).unwrap()
     }
 

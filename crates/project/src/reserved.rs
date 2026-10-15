@@ -24,28 +24,29 @@
 use std::collections::BTreeSet;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, ToLeanStr};
 
 /// Names one document already uses, by CSS namespace.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ReservedNames {
     /// Custom property names, including the leading double hyphen, from declarations,
     /// `var()` references, and `@property` registrations.
-    pub custom_properties: BTreeSet<String>,
+    pub custom_properties: BTreeSet<LeanStr>,
     /// `@layer` names, both statement and block forms.
-    pub layers: BTreeSet<String>,
+    pub layers: BTreeSet<LeanStr>,
     /// `@keyframes` names.
-    pub keyframes: BTreeSet<String>,
+    pub keyframes: BTreeSet<LeanStr>,
     /// Class tokens written as class selectors.
-    pub classes: BTreeSet<String>,
+    pub classes: BTreeSet<LeanStr>,
     /// `anchor-name`, `position-anchor`, and `anchor-scope` values.
-    pub anchor_names: BTreeSet<String>,
+    pub anchor_names: BTreeSet<LeanStr>,
     /// `container-name` values and `@container` prelude names.
-    pub container_names: BTreeSet<String>,
+    pub container_names: BTreeSet<LeanStr>,
     /// `view-transition-class` values, the namespace generated transition tokens are written in.
     ///
     /// `view-transition-name` values are pairing keys rather than allocated names, so an
     /// authored name is deliberately not reserved.
-    pub view_transition_classes: BTreeSet<String>,
+    pub view_transition_classes: BTreeSet<LeanStr>,
 }
 
 impl ReservedNames {
@@ -79,7 +80,7 @@ impl ReservedNames {
             NamePool::Container => &mut self.container_names,
             NamePool::ViewTransitionClass => &mut self.view_transition_classes,
         };
-        names.insert(name.to_string());
+        names.insert(name.to_lean_str());
     }
 }
 
@@ -98,7 +99,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                 let mut next_at_declaration = false;
                 if at_declaration {
                     if is_custom_property(name) {
-                        reserved.custom_properties.insert(name.to_string());
+                        reserved.custom_properties.insert(name.to_lean_str());
                     } else if let Some(names) = ident_names(name) {
                         // A property whose value is a custom-ident names something in the document,
                         // so the value belongs to that name's pool.
@@ -111,7 +112,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                 // A dot directly before an ident is a class selector: an identifier cannot start
                 // with a dot, so a value can never spell one, and `.5px` is a number instead.
                 if let Ok(Token::Ident(name)) = parser.next() {
-                    reserved.classes.insert(name.to_string());
+                    reserved.classes.insert(name.to_lean_str());
                 }
             }
             Token::Semicolon => at_declaration = true,
@@ -139,7 +140,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                     }
                     "keyframes" => {
                         if let Ok(name) = parser.expect_ident_cloned() {
-                            reserved.keyframes.insert(name.to_string());
+                            reserved.keyframes.insert(name.to_lean_str());
                         }
                     }
                     "container" => collect_container_queries(reserved, parser),
@@ -147,7 +148,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                         if let Ok(Token::Ident(name)) = parser.next()
                             && is_custom_property(name)
                         {
-                            reserved.custom_properties.insert(name.to_string());
+                            reserved.custom_properties.insert(name.to_lean_str());
                         }
                     }
                     _ => {}
@@ -159,7 +160,7 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                     if let Ok(Token::Ident(name)) = arguments.next()
                         && is_custom_property(name)
                     {
-                        reserved.custom_properties.insert(name.to_string());
+                        reserved.custom_properties.insert(name.to_lean_str());
                     }
                     walk(reserved, arguments, false);
                     Ok::<(), ParseError<()>>(())
@@ -232,7 +233,7 @@ fn collect_container_queries(reserved: &mut ReservedNames, parser: &mut Parser<'
     loop {
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::Ident(name)) if !is_condition_operator(name) => {
-                reserved.container_names.insert(name.to_string());
+                reserved.container_names.insert(name.to_lean_str());
             }
             Ok(token) if is_block(token) => {
                 if matches!(token, Token::CurlyBracketBlock) {
@@ -295,7 +296,7 @@ fn collect_layer(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {}
             Ok(Token::Ident(name)) if next => {
-                reserved.layers.insert(name.to_string());
+                reserved.layers.insert(name.to_lean_str());
                 next = false;
             }
             Ok(Token::Comma) if !next => {

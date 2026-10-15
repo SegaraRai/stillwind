@@ -13,6 +13,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
     BindingIdentifier, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, Program,
 };
@@ -28,7 +29,7 @@ use crate::local_span::LocalSpan;
 #[derive(Default)]
 struct StatementReads {
     /// Bound names paired with their symbols, in source order.
-    bindings: Vec<(String, SymbolId)>,
+    bindings: Vec<(LeanStr, SymbolId)>,
     /// Identifier reads as span plus reference id, in source order.
     references: Vec<(LocalSpan, ReferenceId)>,
     /// Non-macro import bindings paired with their local symbols, including imports
@@ -46,7 +47,7 @@ impl<'a> Visit<'a> for StatementReads {
             for specifier in declaration.specifiers.iter().flatten() {
                 let (local, imported) = match specifier {
                     ImportDeclarationSpecifier::ImportSpecifier(specifier) => {
-                        (&specifier.local, specifier.imported.name().to_string())
+                        (&specifier.local, specifier.imported.name().to_lean_str())
                     }
                     ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
                         (&specifier.local, "default".into())
@@ -59,9 +60,9 @@ impl<'a> Visit<'a> for StatementReads {
                     self.imports.push((
                         symbol,
                         ImportBinding {
-                            source: declaration.source.value.to_string(),
+                            source: declaration.source.value.to_lean_str(),
                             imported,
-                            local: local.name.to_string(),
+                            local: local.name.to_lean_str(),
                         },
                     ));
                 }
@@ -73,7 +74,7 @@ impl<'a> Visit<'a> for StatementReads {
     /// Records one declared binding.
     fn visit_binding_identifier(&mut self, node: &BindingIdentifier<'a>) {
         if let Some(symbol) = node.symbol_id.get() {
-            self.bindings.push((node.name.to_string(), symbol));
+            self.bindings.push((node.name.to_lean_str(), symbol));
         }
     }
 
@@ -97,7 +98,7 @@ pub(crate) fn collect(
     program: &Program<'_>,
     scoping: &Scoping,
     probes: &BTreeSet<LocalSpan>,
-    exports: &[(SymbolId, String)],
+    exports: &[(SymbolId, LeanStr)],
     summary: &mut ModuleSummary,
 ) {
     let mut dependencies = HashMap::<SymbolId, Vec<SymbolId>>::new();

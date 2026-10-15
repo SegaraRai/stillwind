@@ -20,7 +20,9 @@
 use std::fmt;
 
 use cssparser::serialize_identifier;
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
+use stillwind_source::ReplaceText;
 
 use crate::generated::js_string;
 
@@ -122,19 +124,19 @@ brand! {
 
 impl UtilityClass {
     /// This name as a class selector, including its leading dot.
-    pub fn selector(&self) -> String {
+    pub fn selector(&self) -> LeanString {
         class_selector(self.as_str())
     }
 }
 
 impl RefMarker {
     /// This name as a class selector, including its leading dot.
-    pub fn selector(&self) -> String {
+    pub fn selector(&self) -> LeanString {
         class_selector(self.as_str())
     }
 
     /// This name as the value of a JavaScript string literal.
-    pub fn javascript_string(&self) -> String {
+    pub fn javascript_string(&self) -> LeanString {
         js_string(self.as_str())
     }
 }
@@ -144,33 +146,33 @@ impl AnchorName {
     ///
     /// Those properties accept a `<dashed-ident>`, so the leading double hyphen belongs
     /// to the value rather than to the name.
-    pub fn dashed_ident(&self) -> String {
+    pub fn dashed_ident(&self) -> LeanString {
         dashed_ident(self.as_str())
     }
 }
 
 impl ContainerName {
     /// This name as a custom-ident value in a property or at-rule prelude.
-    pub fn custom_ident(&self) -> String {
+    pub fn custom_ident(&self) -> LeanString {
         escaped_identifier(self.as_str())
     }
 }
 
 impl KeyframesName {
     /// This name as a custom-ident value in a property or at-rule prelude.
-    pub fn custom_ident(&self) -> String {
+    pub fn custom_ident(&self) -> LeanString {
         escaped_identifier(self.as_str())
     }
 
     /// This name as the value of a JavaScript string literal.
-    pub fn javascript_string(&self) -> String {
+    pub fn javascript_string(&self) -> LeanString {
         js_string(self.as_str())
     }
 }
 
 impl ViewTransitionClass {
     /// This token as a `view-transition-class` value, in a declaration or a property value.
-    pub fn custom_ident(&self) -> String {
+    pub fn custom_ident(&self) -> LeanString {
         escaped_identifier(self.as_str())
     }
 
@@ -178,12 +180,12 @@ impl ViewTransitionClass {
     ///
     /// `::view-transition-group()`, `::view-transition-old()`, and `::view-transition-new()`
     /// select participants by their class, so those rules write the selector spelling.
-    pub fn selector(&self) -> String {
+    pub fn selector(&self) -> LeanString {
         class_selector(self.as_str())
     }
 
     /// This token as the value of a JavaScript string literal.
-    pub fn javascript_string(&self) -> String {
+    pub fn javascript_string(&self) -> LeanString {
         js_string(self.as_str())
     }
 }
@@ -193,7 +195,7 @@ impl ConditionHelperName {
     ///
     /// The two hyphens belong to the property grammar rather than to the name, so the
     /// compiler adds them here.
-    pub fn property(&self) -> String {
+    pub fn property(&self) -> LeanString {
         dashed_ident(self.as_str())
     }
 }
@@ -203,14 +205,14 @@ impl ViewTransitionSlotName {
     ///
     /// The two hyphens belong to the property grammar rather than to the name, so the
     /// compiler adds them here.
-    pub fn property(&self) -> String {
+    pub fn property(&self) -> LeanString {
         dashed_ident(self.as_str())
     }
 }
 
 impl LayerName {
     /// This name as the `@layer` prelude, written after the at-keyword.
-    pub fn custom_ident(&self) -> String {
+    pub fn custom_ident(&self) -> LeanString {
         escaped_identifier(self.as_str())
     }
 }
@@ -264,7 +266,7 @@ impl Token for Label {
 /// no CSS spelling at all. Both become `_`; every other character is kept, because a selector
 /// and a JavaScript string can escape it.
 fn class_token(name: &str) -> Result<LeanStr, IdentifierNameError> {
-    let canonical: String = name
+    let canonical: LeanString = name
         .chars()
         .map(|character| match character {
             '\0' => '_',
@@ -287,7 +289,7 @@ fn custom_ident(name: &str) -> Result<LeanStr, IdentifierNameError> {
 ///
 /// A dot would name a nested layer instead of a layer of its own, so it becomes `_`.
 fn layer_name(name: &str) -> Result<LeanStr, IdentifierNameError> {
-    non_empty(name.replace('.', "_").into())
+    non_empty(name.replace_char('.', "_").into())
 }
 
 /// Rejects a name that holds nothing.
@@ -300,22 +302,22 @@ fn non_empty(name: LeanStr) -> Result<LeanStr, IdentifierNameError> {
 }
 
 /// Escapes one canonical name as a class selector.
-fn class_selector(name: &str) -> String {
-    format!(".{}", escaped_identifier(name))
+fn class_selector(name: &str) -> LeanString {
+    format_args!(".{}", escaped_identifier(name)).to_lean_string()
 }
 
 /// Escapes one canonical name as a `--`-prefixed identifier.
 ///
 /// A custom property name and a `<dashed-ident>` value share this spelling: the two
 /// hyphens belong to the property or value grammar, not to the name.
-fn dashed_ident(name: &str) -> String {
-    escaped_identifier(&format!("--{name}"))
+fn dashed_ident(name: &str) -> LeanString {
+    escaped_identifier(&format_args!("--{name}").to_lean_string())
 }
 
 /// Escapes one canonical name as a CSS identifier.
-pub(crate) fn escaped_identifier(name: &str) -> String {
-    let mut escaped = String::new();
-    // Writing through `fmt::Write` into a `String` cannot fail.
+pub(crate) fn escaped_identifier(name: &str) -> LeanString {
+    let mut escaped = LeanString::new();
+    // Writing through `fmt::Write` into a `LeanString` cannot fail.
     let _ = serialize_identifier(name, &mut escaped);
     escaped
 }
@@ -325,8 +327,8 @@ pub(crate) fn escaped_identifier(name: &str) -> String {
 /// A view-transition-name is a pairing key rather than an allocated name: it is derived
 /// from the participant's class token and the key as written, escaped for a value
 /// position, and two different transitions may compose the same value on purpose.
-pub(crate) fn view_transition_name(token: &str, key: &str) -> String {
-    escaped_identifier(&format!("{token}-{key}"))
+pub(crate) fn view_transition_name(token: &str, key: &str) -> LeanString {
+    escaped_identifier(&format_args!("{token}-{key}").to_lean_string())
 }
 
 #[cfg(test)]

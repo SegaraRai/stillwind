@@ -10,6 +10,7 @@
 //! and rejects failed compilations. This module defines transport values; compilation,
 //! slot assembly, and host resource resolution belong to their respective callers.
 
+use lean_string::LeanStr;
 use serde::Serialize;
 
 use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
@@ -106,11 +107,11 @@ impl CompileResult {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CssContribution {
     /// Complete generated rule blocks in emission order.
-    pub css: String,
+    pub css: LeanStr,
     /// True when all blocks are generated animation definitions for the keyframes
     /// slot; false when they belong to the utilities contribution.
     pub keyframes: bool,
     /// Custom-property names requiring registration. Encounter order and duplicates
     /// are allowed here; artifact construction sorts and deduplicates them.
-    pub required_properties: Vec<String>,
+    pub required_properties: Vec<LeanStr>,
 }

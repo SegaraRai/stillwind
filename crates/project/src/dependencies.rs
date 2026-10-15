@@ -15,6 +15,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::LeanStr;
+
 use stillwind_compiler::CompilationDependencies;
 use stillwind_semantic::IdentityId;
 use stillwind_source::ModuleId;
@@ -26,15 +28,15 @@ use stillwind_source::ModuleId;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DependencyIndex {
     /// Maps candidate text to modules that mention it.
-    pub candidates: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub candidates: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps theme token names to modules that reference them.
-    pub theme_tokens: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub theme_tokens: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps utility names to modules, including modules that do not use the utility.
-    pub utilities: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub utilities: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps variant names to modules, including modules that do not use the variant.
-    pub variants: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub variants: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps property names to modules, including modules that do not use the property.
-    pub properties: BTreeMap<String, BTreeSet<ModuleId>>,
+    pub properties: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps asset identities to modules that declare them or receive them in external
     /// facts.
     pub assets: BTreeMap<IdentityId, BTreeSet<ModuleId>>,

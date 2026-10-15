@@ -1,9 +1,11 @@
 //! Ref projections, static and dynamic, and the declarations they render.
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_design_system::UtilityOrder;
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, StyleVariant};
-use stillwind_source::{ModuleId, Span};
+use stillwind_source::{JoinText, ModuleId, Span};
 
 use super::super::fragment::{Emitted, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -54,7 +56,7 @@ impl CallEmitter<'_> {
             None
         } else {
             match ref_marker_name(self.identifiers, definition) {
-                Ok(marker) => Some(format!("&:where({})", marker.selector())),
+                Ok(marker) => Some(format_args!("&:where({})", marker.selector()).to_lean_string()),
                 Err(failure) => {
                     self.reject_name(failure, self.call.span);
                     return None;
@@ -89,7 +91,7 @@ impl CallEmitter<'_> {
                 guard,
                 vec![SupplyKind::Provider {
                     reference: ref_identity(definition),
-                    name: definition.binding.value.clone(),
+                    name: (definition.binding.value.clone()),
                 }],
                 None,
             );
@@ -131,7 +133,7 @@ impl CallEmitter<'_> {
                     guard,
                     vec![SupplyKind::Provider {
                         reference: ref_identity(definition),
-                        name: definition.binding.value.clone(),
+                        name: (definition.binding.value.clone()),
                     }],
                     Some((index, refs.len())),
                 );
@@ -144,7 +146,7 @@ impl CallEmitter<'_> {
                 provider.then(|| ref_identity(definition)).as_ref(),
                 Some((index, refs.len())),
             );
-            candidates.push((marker.as_str().to_owned(), contribution));
+            candidates.push((marker.as_str().to_lean_string(), contribution));
         }
         self.emit_candidate_units(value, CLASS_KEY, candidates, guard)
     }
@@ -194,30 +196,31 @@ impl CallEmitter<'_> {
 /// these strings and `plan` in its canonical identity and allocates no class or symbol.
 pub(super) fn rule_contribution(
     plan: &StyleVariantPlan,
-    declaration: String,
-    selector: Option<String>,
+    declaration: LeanString,
+    selector: Option<LeanString>,
 ) -> LiteralContribution {
-    let canonical = format!(
+    let canonical = format_args!(
         "{}\0ref-use\0{}\0{}\0",
         plan.canonical,
         selector.as_deref().unwrap_or(""),
         declaration
-    );
+    )
+    .to_lean_string();
     let mut utility = CompiledUtility {
         source: UtilitySource::default(),
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),
-        declaration,
-        selector,
+        declaration: (declaration).into(),
+        selector: (selector).map(Into::into),
         container: None,
         nested: Vec::new(),
         order: UtilityOrder::Authored(None),
-        candidate: String::new(),
+        candidate: (LeanString::new()).into(),
     };
     plan.apply_rule(&mut utility);
     LiteralContribution {
-        canonical,
+        canonical: (canonical),
         utilities: vec![utility],
         ..LiteralContribution::default()
     }
@@ -234,23 +237,23 @@ pub(super) fn rule_contribution(
 fn render_anchor_scope(
     context: &IdentifierContext,
     scope: &AnchorScope,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     let value = match scope {
-        AnchorScope::All => "all".to_owned(),
-        AnchorScope::None => "none".to_owned(),
+        AnchorScope::All => "all".to_lean_string(),
+        AnchorScope::None => "none".to_lean_string(),
         AnchorScope::Refs(refs) => {
             if refs.is_empty() {
-                return Ok(String::new());
+                return Ok(LeanString::new());
             }
             refs.iter()
                 .map(|definition| {
                     anchor_name(context, definition, None).map(|name| name.dashed_ident())
                 })
                 .collect::<Result<Vec<_>, _>>()?
-                .join(",")
+                .join_text(",")
         }
     };
-    Ok(format!("anchor-scope:{value};"))
+    Ok(format_args!("anchor-scope:{value};").to_lean_string())
 }
 
 /// Returns an expression that will read the marker token from a compiled ref's `c`
@@ -276,7 +279,7 @@ fn render_ref_projection(
     definition: &RefDefinition,
     projection: &RefProjection,
     module_id: &ModuleId,
-) -> Result<(String, Option<GeneratedSymbol>), CompileDiagnostic> {
+) -> Result<(LeanString, Option<GeneratedSymbol>), CompileDiagnostic> {
     let name = anchor_name(context, definition, Some(ref_projection_name(projection)))?;
     let symbol = |name: &str, pool: IdentifierPool, kind: GeneratedSymbolKind| {
         Some(projection_symbol(
@@ -290,7 +293,7 @@ fn render_ref_projection(
     };
     Ok(match projection {
         RefProjection::AsAnchor(scope) => (
-            format!(
+            format_args!(
                 "anchor-name:{};{}",
                 name.dashed_ident(),
                 scope
@@ -298,26 +301,29 @@ fn render_ref_projection(
                     .map(|scope| render_anchor_scope(context, scope))
                     .transpose()?
                     .unwrap_or_default()
-            ),
+            )
+            .to_lean_string(),
             symbol(
                 name.as_str(),
                 IdentifierPool::AnchorName,
                 GeneratedSymbolKind::Anchor,
             ),
         ),
-        RefProjection::PositionAnchor => {
-            (format!("position-anchor:{};", name.dashed_ident()), None)
-        }
+        RefProjection::PositionAnchor => (
+            format_args!("position-anchor:{};", name.dashed_ident()).to_lean_string(),
+            None,
+        ),
         RefProjection::AsContainer(kind) => {
             let container = ref_container_name(context, definition)?;
             (
-                format!(
+                format_args!(
                     "container-name:{};{}",
                     container.custom_ident(),
                     kind.as_ref()
-                        .map(|kind| format!("container-type:{};", kind.value))
+                        .map(|kind| format_args!("container-type:{};", kind.value).to_lean_string())
                         .unwrap_or_default()
-                ),
+                )
+                .to_lean_string(),
                 Some(projection_symbol(
                     container.as_str(),
                     identity_input_parts(&ref_context(definition, None)),
@@ -333,6 +339,8 @@ fn render_ref_projection(
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanStr;
+
     use stillwind_ir::ContainerType;
     use stillwind_source::{FileId, Span, Spanned};
 
@@ -352,7 +360,7 @@ mod tests {
 
     #[test]
     fn projections_share_their_ref_identity() {
-        let binding = Spanned::new("ref".to_owned(), Span::new(FileId(1), 0, 3));
+        let binding = Spanned::new("ref".to_lean_str(), Span::new(FileId(1), 0, 3));
         let mut definition = RefDefinition {
             module_id: ModuleId::from("x"),
             binding: binding.clone(),
@@ -382,10 +390,16 @@ mod tests {
             &ModuleId::from("x"),
         )
         .unwrap();
-        assert_eq!(position, format!("position-anchor:{reference}"));
+        assert_eq!(
+            position,
+            format_args!("position-anchor:{reference}").to_lean_string()
+        );
         let scope_projection =
             render_anchor_scope(&context, &AnchorScope::Refs(vec![definition.clone()])).unwrap();
-        assert_eq!(scope_projection, format!("anchor-scope:{reference}"));
+        assert_eq!(
+            scope_projection,
+            format_args!("anchor-scope:{reference}").to_lean_string()
+        );
         let (container, container_symbol) = render_ref_projection(
             &context,
             &definition,

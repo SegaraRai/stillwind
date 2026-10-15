@@ -173,7 +173,7 @@ impl<'a> StylesheetRenderer<'a> {
                 &self.identifiers,
             )
             .map(|css| MappedStylesheet {
-                css,
+                css: (css),
                 ..MappedStylesheet::default()
             }),
         )
@@ -200,7 +200,7 @@ impl<'a> StylesheetRenderer<'a> {
                 &self.identifiers,
             )
             .map(|css| MappedStylesheet {
-                css,
+                css: (css),
                 ..MappedStylesheet::default()
             }),
         )
@@ -266,6 +266,8 @@ mod tests {
     use std::rc::Rc;
     use std::sync::Arc;
 
+    use lean_string::LeanString;
+
     use stillwind_design_system::{DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -289,7 +291,7 @@ mod tests {
             &self,
             _context: &LayerContext,
             _hash: &IdentifierHash,
-        ) -> Result<GeneratedName<LayerName>, String> {
+        ) -> Result<GeneratedName<LayerName>, LeanString> {
             self.layers.set(self.layers.get() + 1);
             Err("layer rejected".into())
         }
@@ -298,7 +300,7 @@ mod tests {
             &self,
             _context: &ClassContext,
             _hash: &IdentifierHash,
-        ) -> Result<GeneratedName<UtilityClass>, String> {
+        ) -> Result<GeneratedName<UtilityClass>, LeanString> {
             Err("class rejected".into())
         }
     }

@@ -2,13 +2,15 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::LeanStr;
+
 use stillwind_ir::{ClassExpression, CustomPropertyEntry, GroupEntry, StyleInput};
 
 /// Returns unguarded literal properties that occur once in the complete input tree.
 /// Composition disables extraction because a producer may supply the same property.
 pub(super) fn static_custom_properties(
     inputs: &[StyleInput],
-) -> BTreeMap<String, CustomPropertyEntry> {
+) -> BTreeMap<LeanStr, CustomPropertyEntry> {
     let mut properties = BTreeMap::new();
     let mut composition = false;
     collect_static_inputs(inputs, false, &mut properties, &mut composition);
@@ -24,7 +26,7 @@ pub(super) fn static_custom_properties(
 fn collect_static_inputs(
     inputs: &[StyleInput],
     guarded: bool,
-    properties: &mut BTreeMap<String, Option<CustomPropertyEntry>>,
+    properties: &mut BTreeMap<LeanStr, Option<CustomPropertyEntry>>,
     composition: &mut bool,
 ) {
     for input in inputs {
@@ -48,7 +50,7 @@ fn collect_static_inputs(
 fn collect_static_class(
     expression: &ClassExpression,
     guarded: bool,
-    properties: &mut BTreeMap<String, Option<CustomPropertyEntry>>,
+    properties: &mut BTreeMap<LeanStr, Option<CustomPropertyEntry>>,
 ) {
     match expression {
         ClassExpression::Array(elements) => {

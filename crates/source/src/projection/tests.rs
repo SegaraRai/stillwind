@@ -27,7 +27,7 @@ fn point_map(points: &[(u32, Option<u32>)], original: &str) -> ProjectionMap {
         );
     }
     ProjectionMap::V3 {
-        json: builder.into_sourcemap().to_json_string(),
+        json: (builder.into_sourcemap().to_json_string()).into(),
         source: "component".into(),
     }
 }

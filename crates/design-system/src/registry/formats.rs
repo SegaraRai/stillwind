@@ -6,12 +6,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 /// Parses generic token-pruning rules authored by the registry CSS.
 ///
 /// Each rule pairs a token-name prefix with a condition string; when generated CSS
 /// contains the condition, the prefixed tokens are dropped after dependency closure.
 /// Rules keep authored order and incomplete entries are skipped.
-pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
+pub fn parse_omit_token_prefixes(css: &str) -> Vec<(LeanStr, LeanStr)> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-omit-token-prefix"))
         .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
@@ -20,38 +22,38 @@ pub fn parse_omit_token_prefixes(css: &str) -> Vec<(String, String)> {
             let prefix = prefix.trim();
             let condition = condition.trim();
             (!prefix.is_empty() && !condition.is_empty())
-                .then(|| (prefix.to_owned(), condition.to_owned()))
+                .then(|| (prefix.to_lean_str(), condition.to_lean_str()))
         })
         .collect()
 }
 
 /// Parses the authored order of theme namespaces used when serializing the generated
 /// theme layer.
-pub fn parse_theme_order(css: &str) -> Vec<String> {
+pub fn parse_theme_order(css: &str) -> Vec<LeanStr> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-theme-order"))
         .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
         .flat_map(str::split_whitespace)
         .filter(|value| !value.is_empty())
-        .map(str::to_owned)
+        .map(LeanStr::from)
         .collect()
 }
 
 /// Parses the utility-name patterns whose presence marks a relationship candidate, for
 /// example `group-*`, as a set.
-pub fn parse_relationship_patterns(css: &str) -> BTreeSet<String> {
+pub fn parse_relationship_patterns(css: &str) -> BTreeSet<LeanStr> {
     extract_relationship_patterns(css)
 }
 
 /// Parses source-to-target declaration mappings used when an ordinary utility is
 /// accepted as an animation option.
 #[must_use]
-pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<String, String> {
+pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<LeanStr, LeanStr> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-animation-option-property"))
         .filter_map(|segment| segment.split_once(';').map(|(mapping, _)| mapping.trim()))
         .filter_map(|mapping| mapping.split_once(':'))
-        .map(|(source, target)| (source.trim().to_owned(), target.trim().to_owned()))
+        .map(|(source, target)| (source.trim().to_lean_str(), target.trim().to_lean_str()))
         .filter(|(source, target)| !source.is_empty() && !target.is_empty())
         .collect()
 }
@@ -61,7 +63,7 @@ pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<String, S
 ///
 /// Repeated entries for one key accumulate into one space-separated list and keep their
 /// authored order.
-pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
+pub fn parse_declaration_formats(css: &str) -> BTreeMap<LeanStr, LeanStr> {
     extract_declaration_formats(css)
 }
 
@@ -69,10 +71,10 @@ pub fn parse_declaration_formats(css: &str) -> BTreeMap<String, String> {
 /// single-wildcard property pattern.
 #[must_use]
 pub fn declaration_format<'a>(
-    formats: &'a BTreeMap<String, String>,
+    formats: &'a BTreeMap<LeanStr, LeanStr>,
     property: &str,
 ) -> Option<&'a str> {
-    formats.get(property).map(String::as_str).or_else(|| {
+    formats.get(property).map(LeanStr::as_str).or_else(|| {
         formats.iter().find_map(|(pattern, format)| {
             let (prefix, suffix) = pattern.split_once('*')?;
             (property.starts_with(prefix) && property.ends_with(suffix)).then_some(format.as_str())
@@ -82,20 +84,20 @@ pub fn declaration_format<'a>(
 
 /// Reads `@stillwind-format` statements, merging repeats for one property into a single
 /// space-separated format list.
-pub(crate) fn extract_declaration_formats(css: &str) -> BTreeMap<String, String> {
-    let mut formats = BTreeMap::new();
+pub(crate) fn extract_declaration_formats(css: &str) -> BTreeMap<LeanStr, LeanStr> {
+    let mut formats: BTreeMap<LeanStr, LeanString> = BTreeMap::new();
     for (property, format) in css
         .split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-format"))
         .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
         .filter_map(|value| {
             let mut parts = value.split_whitespace();
-            Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
+            Some((parts.next()?.to_lean_str(), parts.next()?.to_lean_string()))
         })
     {
         formats
             .entry(property)
-            .and_modify(|existing: &mut String| {
+            .and_modify(|existing: &mut LeanString| {
                 if !existing.is_empty() {
                     existing.push(' ');
                 }
@@ -104,15 +106,18 @@ pub(crate) fn extract_declaration_formats(css: &str) -> BTreeMap<String, String>
             .or_insert(format);
     }
     formats
+        .into_iter()
+        .map(|(property, value)| (property, value.into()))
+        .collect()
 }
 
 /// Reads `@stillwind-relationship` statements into a deduplicated set.
-pub(crate) fn extract_relationship_patterns(css: &str) -> BTreeSet<String> {
+pub(crate) fn extract_relationship_patterns(css: &str) -> BTreeSet<LeanStr> {
     css.split('@')
         .filter_map(|segment| segment.strip_prefix("stillwind-relationship"))
         .filter_map(|segment| segment.split_once(';').map(|(value, _)| value.trim()))
         .filter(|value| !value.is_empty())
-        .map(str::to_owned)
+        .map(LeanStr::from)
         .collect()
 }
 
@@ -128,7 +133,7 @@ mod tests {
                        @stillwind-theme-namespace --leading-* [number] [length];";
         assert_eq!(
             parse_animation_option_property_mappings(css).get("transition-duration"),
-            Some(&"animation-duration".to_owned())
+            Some(&"animation-duration".to_lean_str())
         );
     }
 
@@ -138,12 +143,12 @@ mod tests {
             "@stillwind-format transform zero-length; @stillwind-format transform compose-space;",
         );
         assert_eq!(
-            formats.get("transform").map(String::as_str),
+            formats.get("transform").map(LeanStr::as_str),
             Some("zero-length compose-space")
         );
         assert_eq!(
             parse_omit_token_prefixes("@stillwind-omit-token-prefix --shadow- --tw-shadow:;"),
-            vec![("--shadow-".to_owned(), "--tw-shadow:".to_owned())]
+            vec![("--shadow-".to_lean_str(), "--tw-shadow:".to_lean_str())]
         );
     }
 

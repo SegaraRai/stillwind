@@ -4,11 +4,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use cssparser::{ParseError, Parser, Token};
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{CssMinifyOptions, CssRule, Declaration, fold_calc_expressions, minify_css};
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
+use stillwind_source::ReplaceText;
 
 use crate::GeneratedRule;
 use crate::query::QueryContext;
@@ -19,15 +20,15 @@ pub(super) struct Normalization {
     /// Whether to substitute the owning query's spacing scale.
     pub(super) resolve_scale: bool,
     /// Property names whose pixel dimensions use the query's root font size.
-    pub(super) properties: BTreeSet<String>,
+    pub(super) properties: BTreeSet<LeanStr>,
 }
 
 /// Rendered candidate data reused while this query compares canonical spellings.
 #[derive(Debug)]
 pub(in crate::query) struct CanonicalPreview {
-    pub(super) css: String,
-    pub(super) resolved_css: Option<String>,
-    pub(super) required_properties: Vec<String>,
+    pub(super) css: LeanStr,
+    pub(super) resolved_css: Option<LeanStr>,
+    pub(super) required_properties: Vec<LeanStr>,
     // Query clones can move to different threads while sharing these previews.
     pub(super) signatures: Mutex<BTreeMap<Normalization, Option<LeanStr>>>,
 }
@@ -38,7 +39,7 @@ impl CanonicalPreview {
     pub(super) fn signature(
         &self,
         scale: Option<&str>,
-        properties: &BTreeSet<String>,
+        properties: &BTreeSet<LeanStr>,
         options: &CanonicalUtilitiesConfig,
     ) -> Option<LeanStr> {
         let key = Normalization {
@@ -69,12 +70,12 @@ impl CanonicalPreview {
 pub(super) fn normalized_signature(
     css: &str,
     scale: Option<&str>,
-    properties: &BTreeSet<String>,
+    properties: &BTreeSet<LeanStr>,
     options: &CanonicalUtilitiesConfig,
 ) -> Option<LeanStr> {
-    let mut normalized = css.to_owned();
+    let mut normalized = css.to_lean_string();
     if let Some(scale) = scale {
-        normalized = normalized.replace("var(--spacing)", scale);
+        normalized = normalized.replace_text("var(--spacing)", scale);
     }
     if !properties.is_empty() {
         normalized =
@@ -96,14 +97,14 @@ impl QueryContext {
         }
         let result = self.resolve_with_selector(raw, Some("&"), false)?;
         let preview = result.diagnostics.is_empty().then(|| {
-            let css: String = result
+            let css: LeanString = result
                 .generated_rules
                 .iter()
                 .map(GeneratedRule::to_css)
                 .collect();
             Arc::new(CanonicalPreview {
-                resolved_css: self.resolve_theme_values(&css),
-                css,
+                resolved_css: (self.resolve_theme_values(&css)),
+                css: (css).into(),
                 required_properties: result.required_properties,
                 signatures: Mutex::new(BTreeMap::new()),
             })
@@ -144,7 +145,7 @@ pub(super) fn dimension(value: &str) -> Option<(f64, SpacingUnit)> {
     number.is_finite().then_some((number, unit))
 }
 
-pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<String>, depth: usize) {
+pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<LeanStr>, depth: usize) {
     if depth > 64 {
         return;
     }
@@ -169,12 +170,12 @@ pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<String>, d
 
 fn convert_spacing_declarations(
     css: &str,
-    properties: &BTreeSet<String>,
+    properties: &BTreeSet<LeanStr>,
     root: f64,
     depth: usize,
-) -> String {
+) -> LeanString {
     if depth > 64 {
-        return css.to_owned();
+        return css.to_lean_string();
     }
     if let Some(declarations) = Declaration::parse(css) {
         return declarations
@@ -183,26 +184,25 @@ fn convert_spacing_declarations(
                 if properties.contains(&declaration.property)
                     && let Some((name, value)) = declaration.css.split_once(':')
                 {
-                    format!("{name}:{};", convert_pixel_dimensions(value, root))
+                    format_args!("{name}:{};", convert_pixel_dimensions(value, root))
+                        .to_lean_string()
                 } else {
-                    format!("{};", declaration.css)
+                    format_args!("{};", declaration.css).to_lean_string()
                 }
             })
             .collect();
     }
     CssRule::parse(css).map_or_else(
-        |_| css.to_owned(),
+        |_| css.to_lean_string(),
         |rules| {
             rules
                 .into_iter()
                 .map(|mut rule| {
                     if let Some(body) = &rule.body {
-                        rule.body = Some(convert_spacing_declarations(
-                            body,
-                            properties,
-                            root,
-                            depth + 1,
-                        ));
+                        rule.body = Some(
+                            (convert_spacing_declarations(body, properties, root, depth + 1))
+                                .into(),
+                        );
                     }
                     rule.to_css()
                 })
@@ -211,12 +211,12 @@ fn convert_spacing_declarations(
     )
 }
 
-pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> String {
+pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> LeanString {
     fn collect(
         parser: &mut Parser<'_>,
         value: &str,
         root: f64,
-        edits: &mut Vec<(std::ops::Range<usize>, String)>,
+        edits: &mut Vec<(std::ops::Range<usize>, LeanString)>,
     ) {
         loop {
             let start = parser.position().byte_index();
@@ -227,7 +227,10 @@ pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> String {
                 Token::Dimension { unit, .. } if unit.eq_ignore_ascii_case("px") => {
                     let end = parser.position().byte_index();
                     if let Some((number, _)) = dimension(&value[start..end]) {
-                        edits.push((start..end, format!("{}rem", number / root)));
+                        edits.push((
+                            start..end,
+                            format_args!("{}rem", number / root).to_lean_string(),
+                        ));
                     }
                 }
                 Token::Function(name) if !name.eq_ignore_ascii_case("url") => {
@@ -242,7 +245,7 @@ pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> String {
     }
     let mut edits = Vec::new();
     collect(&mut Parser::new(value), value, root, &mut edits);
-    let mut result = value.to_owned();
+    let mut result = value.to_lean_string();
     for (range, replacement) in edits.into_iter().rev() {
         result.replace_range(range, &replacement);
     }

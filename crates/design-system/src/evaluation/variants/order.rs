@@ -15,7 +15,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString};
 
 use stillwind_syntax::{Variant, VariantKind};
 
@@ -166,7 +166,7 @@ fn compare_sort_values(
 /// A wildcard capture is the text between the definition's literal boundaries, a bare variant is the
 /// whole name, and an arbitrary capture is accepted only when the group's namespace
 /// value types accept it. A capture's `/modifier` part takes no part in ordering.
-fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<LeanString> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
@@ -191,9 +191,10 @@ fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
             .any(|value_type| value_type.accepts(&arbitrary))
             .then_some(arbitrary);
     }
-    theme
+    (theme
         .token_in(namespace, capture)
-        .map(|token| token.value.value.clone())
+        .map(|token| token.value.value.clone()))
+    .map(Into::into)
 }
 
 /// Compares two variants that share an ordering position.
@@ -239,12 +240,12 @@ fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Varia
 
 /// The capture of the first definition whose declared value type is a variant stack, so
 /// the capture can be parsed as an inner variant.
-fn compound_variant_capture(variants: &[Arc<CustomVariant>], value: &str) -> Option<String> {
+fn compound_variant_capture(variants: &[Arc<CustomVariant>], value: &str) -> Option<LeanString> {
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {
             (variant.value_type == Some(BuiltinVariantValueType::Variant))
-                .then(|| capture.map(str::to_owned))?
+                .then(|| capture.map(LeanString::from))?
         })
 }
 
@@ -344,7 +345,7 @@ struct VariantGroupOrder {
     inner: Option<Box<VariantSequenceOrder>>,
     direction: Option<BuiltinVariantSortDirection>,
     /// Theme token text or a decoded arbitrary capture.
-    value: Option<String>,
+    value: Option<LeanStr>,
 }
 
 impl VariantGroupOrder {
@@ -356,7 +357,7 @@ impl VariantGroupOrder {
             direction: builtin_variant_for_order(variant, theme)
                 .and_then(|definition| definition.sort.as_ref())
                 .and_then(|sort| sort.direction),
-            value: variant_sort_value(variant, theme),
+            value: (variant_sort_value(variant, theme)).map(Into::into),
         }
     }
 
@@ -379,6 +380,8 @@ impl VariantGroupOrder {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
+    use lean_string::ToLeanString;
 
     use stillwind_syntax::parse_candidate;
 
@@ -530,8 +533,8 @@ mod tests {
     proptest::proptest! {
         #[test]
         fn same_unit_numeric_comparison_is_antisymmetric(a in 0u16..1000, b in 0u16..1000) {
-            let left = format!("{a}px");
-            let right = format!("{b}px");
+            let left = format_args!("{a}px").to_lean_string();
+            let right = format_args!("{b}px").to_lean_string();
             proptest::prop_assert_eq!(
                 compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
                 a.cmp(&b)

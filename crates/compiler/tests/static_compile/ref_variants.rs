@@ -73,7 +73,7 @@ fn compile(args: &str, scoped: bool) -> (String, String) {
     for (index, class) in result.classes.iter().enumerate() {
         let normalized = format!("test_class_{index}");
         css = css.replace(&format!(".{}", class.class_name), &format!(".{normalized}"));
-        code = code.replace(&class.class_name, &normalized);
+        code = code.replace(class.class_name.as_str(), &normalized);
     }
     (css, code)
 }

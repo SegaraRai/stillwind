@@ -5,6 +5,8 @@
 //! variants. The distinction between a candidate that is not valid syntax and a name the registry
 //! does not know is preserved here, because the lint code a user sees depends on it.
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_design_system::{
     NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex, UtilityArbitraryUse, UtilityOrder,
     UtilityResolutionError, UtilityTokenUse, VariantApplication, resolve_variant,
@@ -27,21 +29,21 @@ pub(crate) struct CompiledUtility {
     /// steps retain application order.
     pub(in crate::compiler) variant_applications: Vec<Vec<VariantApplication>>,
     /// Serialized declaration-list content without the outer rule braces.
-    pub(in crate::compiler) declaration: String,
+    pub(in crate::compiler) declaration: LeanStr,
     /// Custom-property registration names required by this utility, independent of CSS
     /// references.
-    pub(in crate::compiler) required_properties: Vec<String>,
+    pub(in crate::compiler) required_properties: Vec<LeanStr>,
     /// Optional selector template whose ampersands denote the generated class selector.
-    pub(in crate::compiler) selector: Option<String>,
+    pub(in crate::compiler) selector: Option<LeanStr>,
     /// Optional container query prelude without @container or braces.
-    pub(in crate::compiler) container: Option<String>,
+    pub(in crate::compiler) container: Option<LeanStr>,
     /// Conditional utility rules in resolved emission order.
     pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
     /// Snapshot-selected declaration metadata or authored registration position.
     pub(in crate::compiler) order: UtilityOrder,
     /// Original candidate spelling for ordering and diagnostics; empty for synthetic
     /// utility rules.
-    pub(in crate::compiler) candidate: String,
+    pub(in crate::compiler) candidate: LeanStr,
 }
 
 /// Origin shared by all rules that expand from one utility candidate.
@@ -125,7 +127,7 @@ pub(crate) fn resolve_utility_targets(
                 container: None,
                 nested: target.nested,
                 order: resolved.order.clone(),
-                candidate: utility.to_owned(),
+                candidate: utility.to_lean_str(),
             })
             .collect(),
     ))

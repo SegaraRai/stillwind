@@ -8,6 +8,8 @@ use support::brand_snapshot;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use lean_string::LeanString;
+
 use stillwind_compiler::{
     AnchorName, CompilerOptions, DeclarationContext, GeneratedName, GeneratedSymbolKind,
     IdentifierGenerator, IdentifierHash, IdentifierMode, Identifiers, LocatorContext, RefMarker,
@@ -29,7 +31,7 @@ impl IdentifierGenerator for FixedBodyGenerator {
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<RefMarker>, String> {
+    ) -> Result<GeneratedName<RefMarker>, LeanString> {
         Ok(GeneratedName::provided(
             RefMarker::new("shared").expect("canonical test name"),
         ))
@@ -39,7 +41,7 @@ impl IdentifierGenerator for FixedBodyGenerator {
         &self,
         _context: &LocatorContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<AnchorName>, String> {
+    ) -> Result<GeneratedName<AnchorName>, LeanString> {
         Ok(GeneratedName::provided(
             AnchorName::new("shared").expect("canonical test name"),
         ))

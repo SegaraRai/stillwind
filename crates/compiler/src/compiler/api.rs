@@ -13,6 +13,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use lean_string::ToLeanString;
+
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
@@ -119,7 +121,9 @@ impl Compiler {
             schema: TypeFacts::SCHEMA,
             module_id: scan.module_id.clone(),
             source_revision: scan.source_revision.clone(),
-            semantic_revision: Fingerprint::of(format!("{facts:?}{assets:?}")),
+            semantic_revision: Fingerprint::of(
+                format_args!("{facts:?}{assets:?}").to_lean_string(),
+            ),
             facts: facts.to_vec(),
             assets: assets.clone(),
         };

@@ -13,6 +13,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_source::{CssSourceName, Fingerprint, SourceFile, SourceRegistryError, Span};
 
@@ -56,7 +58,7 @@ impl DesignSystemError {
         let kind = match self {
             DesignSystemError::UnresolvedImports { requests } => {
                 CompileDiagnostic::UnresolvedCssImports {
-                    requests: format!("{requests:?}"),
+                    requests: format_args!("{requests:?}").to_lean_str(),
                 }
             }
             DesignSystemError::Load(error) => match error {
@@ -87,7 +89,7 @@ impl DesignSystemError {
                 }
                 DesignSystemLoadError::InvalidOptions(error) => error,
                 DesignSystemLoadError::Cycle { chain } => CompileDiagnostic::CssImportCycle {
-                    requests: format!("{chain:?}"),
+                    requests: format_args!("{chain:?}").to_lean_str(),
                 },
             },
         };
@@ -123,13 +125,13 @@ pub struct DefinitionFingerprints {
     pub ordering: Fingerprint,
     /// Fingerprint of each effective token after namespace resets and overrides. Its
     /// keys match the active token registry.
-    pub theme_tokens: BTreeMap<String, Fingerprint>,
+    pub theme_tokens: BTreeMap<LeanStr, Fingerprint>,
     /// One fingerprint per utility name group.
-    pub utilities: BTreeMap<String, Fingerprint>,
+    pub utilities: BTreeMap<LeanStr, Fingerprint>,
     /// One fingerprint per variant name group.
-    pub variants: BTreeMap<String, Fingerprint>,
+    pub variants: BTreeMap<LeanStr, Fingerprint>,
     /// One fingerprint per `@property` definition name.
-    pub properties: BTreeMap<String, Fingerprint>,
+    pub properties: BTreeMap<LeanStr, Fingerprint>,
 }
 
 /// Stores resolved snapshot data. Construction sets it once, and snapshot methods
@@ -149,15 +151,15 @@ struct DesignSystemData {
     /// Contains the names of all effective utility definitions in this snapshot.
     /// The set avoids repeated registry scans. `Arc` lets modules share it
     /// without copying the names.
-    utility_names: Arc<BTreeSet<String>>,
+    utility_names: Arc<BTreeSet<LeanStr>>,
     /// Contains the names of all effective variant definitions in this snapshot.
     /// The set avoids repeated registry scans. `Arc` lets modules share it
     /// without copying the names.
-    variant_names: Arc<BTreeSet<String>>,
+    variant_names: Arc<BTreeSet<LeanStr>>,
     /// Contains the names of all effective `@property` definitions in this snapshot.
     /// The set avoids repeated registry scans. `Arc` lets modules share it
     /// without copying the names.
-    property_names: Arc<BTreeSet<String>>,
+    property_names: Arc<BTreeSet<LeanStr>>,
     /// Retained CSS source graph for diagnostics, mappings, and resources.
     sources: CssSourceGraph,
     /// Effective utility definitions grouped by name.
@@ -171,9 +173,9 @@ struct DesignSystemData {
     /// Effective theme tokens grouped by custom-property name.
     tokens: ThemeRegistry,
     /// Maps property names to templates for serializing authored declarations.
-    declaration_formats: BTreeMap<String, String>,
+    declaration_formats: BTreeMap<LeanStr, LeanStr>,
     /// Registered relationship names used to validate relationship-aware candidates.
-    relationships: BTreeSet<String>,
+    relationships: BTreeSet<LeanStr>,
 }
 
 /// Stores one resolved design-system revision that callers can read and share.
@@ -239,15 +241,18 @@ impl DesignSystemSnapshot {
         // participate in semantic identity or asynchronous load order.
         let mut semantic_template = theme.output_template().clone();
         semantic_template.map_origins(|_| None);
-        let config_hash = Fingerprint::of(format!("{config:?}"));
-        let ordering = Fingerprint::of(format!(
-            "{:?}{:?}{:?}{:?}{:?}",
-            semantic_template,
-            builtin_theme_order(&theme),
-            theme.variant_positions(),
-            theme.utility_positions(),
-            theme.utility_order(),
-        ));
+        let config_hash = Fingerprint::of(format_args!("{config:?}").to_lean_string());
+        let ordering = Fingerprint::of(
+            format_args!(
+                "{:?}{:?}{:?}{:?}{:?}",
+                semantic_template,
+                builtin_theme_order(&theme),
+                theme.variant_positions(),
+                theme.utility_positions(),
+                theme.utility_order(),
+            )
+            .to_lean_string(),
+        );
         let builtins = theme.registry();
         let mut declaration_formats = builtins.declaration_formats().clone();
         declaration_formats.extend(theme.declaration_formats().clone());
@@ -285,10 +290,13 @@ impl DesignSystemSnapshot {
             .map(|token| {
                 (
                     token.name.value.clone(),
-                    Fingerprint::of(format!(
-                        "{:?}\0{:?}\0{}\0",
-                        token.kind, token.mode, token.value.value
-                    )),
+                    Fingerprint::of(
+                        format_args!(
+                            "{:?}\0{:?}\0{}\0",
+                            token.kind, token.mode, token.value.value
+                        )
+                        .to_lean_string(),
+                    ),
                 )
             })
             .collect();
@@ -298,7 +306,7 @@ impl DesignSystemSnapshot {
             .iter()
             .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode))
             .collect();
-        let content = Fingerprint::of(format!(
+        let content = Fingerprint::of(format_args!(
             "{}\0{config:?}\0{tokens:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
             env!("CARGO_PKG_VERSION"),
             theme.utilities(),
@@ -311,13 +319,16 @@ impl DesignSystemSnapshot {
             theme.relationship_patterns(),
             theme.authored_properties(),
             theme.custom_css()
-        ));
-        let content = Fingerprint::of(format!(
-            "{}\0{}\0{:?}\0",
-            content.0,
-            builtins.source(),
-            semantic_template,
-        ));
+        ).to_lean_string());
+        let content = Fingerprint::of(
+            format_args!(
+                "{}\0{}\0{:?}\0",
+                content.0,
+                builtins.source(),
+                semantic_template,
+            )
+            .to_lean_string(),
+        );
         let utilities = utility_registry.fingerprints();
         let variants = variant_registry.fingerprints();
         let properties = property_registry.fingerprints();
@@ -370,21 +381,21 @@ impl DesignSystemSnapshot {
     /// Returns the shared set of all effective utility definition names.
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
-    pub fn utility_names(&self) -> &Arc<BTreeSet<String>> {
+    pub fn utility_names(&self) -> &Arc<BTreeSet<LeanStr>> {
         &self.inner.utility_names
     }
 
     /// Returns the shared set of all effective variant definition names.
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
-    pub fn variant_names(&self) -> &Arc<BTreeSet<String>> {
+    pub fn variant_names(&self) -> &Arc<BTreeSet<LeanStr>> {
         &self.inner.variant_names
     }
 
     /// Returns the shared set of all effective custom-property definition names.
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
-    pub fn property_names(&self) -> &Arc<BTreeSet<String>> {
+    pub fn property_names(&self) -> &Arc<BTreeSet<LeanStr>> {
         &self.inner.property_names
     }
 
@@ -413,12 +424,12 @@ impl DesignSystemSnapshot {
     }
 
     /// Returns declaration formats after project CSS overrides the selected built-ins.
-    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+    pub fn declaration_formats(&self) -> &BTreeMap<LeanStr, LeanStr> {
         &self.inner.declaration_formats
     }
 
     /// Returns relationship patterns after project CSS overrides the selected built-ins.
-    pub fn relationships(&self) -> &BTreeSet<String> {
+    pub fn relationships(&self) -> &BTreeSet<LeanStr> {
         &self.inner.relationships
     }
 

@@ -13,6 +13,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::ModuleId;
@@ -26,12 +27,12 @@ use super::symbolic::ExportedValue;
 #[serde(rename_all = "camelCase")]
 pub struct ImportBinding {
     /// Local name in the importing module.
-    pub local: String,
+    pub local: LeanStr,
     /// Decoded module specifier value; never resolved here.
-    pub source: String,
+    pub source: LeanStr,
     /// Name imported from that module: the exported name, `default` for a default
     /// import, or `*` for a namespace import.
-    pub imported: String,
+    pub imported: LeanStr,
 }
 
 /// One name re-exported from another module by an `export ... from` declaration.
@@ -39,11 +40,11 @@ pub struct ImportBinding {
 #[serde(rename_all = "camelCase")]
 pub struct ReExport {
     /// Name visible to importers of this module.
-    pub exported: String,
+    pub exported: LeanStr,
     /// Decoded module specifier value; never resolved here.
-    pub source: String,
+    pub source: LeanStr,
     /// Name imported from that module (`default` or `*` as in [`ImportBinding`]).
-    pub imported: String,
+    pub imported: LeanStr,
 }
 
 /// Exact string-literal span for host-authoritative shadow module resolution.
@@ -55,7 +56,7 @@ pub struct ReExport {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleSpecifier {
     /// Decoded string-literal value, without quotes or source escape spelling.
-    pub source: String,
+    pub source: LeanStr,
     /// UTF-8 byte offset of the literal start in the original source.
     pub start: u32,
     /// UTF-8 byte offset of the literal end, exclusive.
@@ -84,13 +85,13 @@ pub struct ModuleSummary {
     /// Assets declared in this module.
     pub assets: Vec<AssetRecord>,
     /// What each exported name denotes, keyed by exported name.
-    pub exports: BTreeMap<String, ExportedValue>,
+    pub exports: BTreeMap<LeanStr, ExportedValue>,
     /// Import bindings reachable from type probes through local declarations.
     #[serde(default)]
     pub probe_imports: Vec<ImportBinding>,
     /// Import bindings needed by each explicitly exported local variable.
     #[serde(default)]
-    pub export_imports: BTreeMap<String, Vec<ImportBinding>>,
+    pub export_imports: BTreeMap<LeanStr, Vec<ImportBinding>>,
 }
 
 impl ModuleSummary {

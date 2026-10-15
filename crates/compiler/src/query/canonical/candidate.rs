@@ -2,9 +2,12 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_css::{CssRule, Declaration};
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
+use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, parse_candidate};
 
 use super::conditions::canonical_conditions;
@@ -25,10 +28,13 @@ impl DesignSystemQuery {
     /// # Errors
     ///
     /// Returns malformed requirements in the design system.
-    pub fn canonical_candidate(&self, raw: &str) -> Result<Option<String>, UtilityResolutionError> {
+    pub fn canonical_candidate(
+        &self,
+        raw: &str,
+    ) -> Result<Option<LeanStr>, UtilityResolutionError> {
         // Runtime conditions have one canonical spelling, independent of other rules.
         if let Some(canonical) = canonical_conditions(raw, self.context.design_system.theme()) {
-            return Ok(Some(canonical));
+            return Ok(Some((canonical).into()));
         }
         // Only arbitrary values, properties, and variants have replacement rules.
         // Arbitrary modifiers alone remain unchanged.
@@ -47,11 +53,11 @@ impl DesignSystemQuery {
         });
         self.canonical_cache
             .borrow_mut()
-            .insert(raw.to_owned(), result.clone());
+            .insert(raw.to_lean_str(), result.clone());
         Ok(result)
     }
 
-    fn find_canonical(&self, raw: &str) -> Result<Option<String>, UtilityResolutionError> {
+    fn find_canonical(&self, raw: &str) -> Result<Option<LeanStr>, UtilityResolutionError> {
         let Some(parsed) = parse_candidate(raw) else {
             return Ok(None);
         };
@@ -82,27 +88,29 @@ impl DesignSystemQuery {
                     return Ok(None);
                 };
                 (
-                    name[..index].trim_end_matches('-').to_owned(),
-                    value.replace('_', " "),
+                    name[..index].trim_end_matches('-').to_lean_str(),
+                    value.replace_char('_', " ").into(),
                     None,
                 )
             }
             Utility::ArbitraryProperty { property, value } => {
-                (String::new(), value.to_string(), Some(property.as_str()))
+                (LeanStr::new(), value.to_lean_str(), Some(property.as_str()))
             }
         };
         let bare_value = value
             .split_once(':')
             .map_or(value.as_str(), |(_, value)| value);
         let roots = self.canonical_roots(&root, property);
-        let base_raw = format!(
+        let base_raw = format_args!(
             "{}{}",
             if parsed.negative { "-" } else { "" },
             match &parsed.utility {
-                Utility::Named { name, .. } => name.to_string(),
-                Utility::ArbitraryProperty { property, value } => format!("[{property}:{value}]"),
+                Utility::Named { name, .. } => name.to_lean_str(),
+                Utility::ArbitraryProperty { property, value } =>
+                    format_args!("[{property}:{value}]").to_lean_str(),
             }
-        );
+        )
+        .to_lean_str();
         let base = if base_raw == raw {
             Some(original.clone())
         } else {
@@ -117,11 +125,12 @@ impl DesignSystemQuery {
         };
         let labels = self.canonical_labels(&search, &original, base.as_deref());
         for label in labels {
-            let replacement = format!(
+            let replacement = format_args!(
                 "{prefix}{}{}{label}{suffix}",
                 if parsed.important { "!" } else { "" },
                 if parsed.negative { "-" } else { "" }
-            );
+            )
+            .to_lean_str();
             if replacement == raw || replacement.len() >= raw.len() {
                 continue;
             }
@@ -154,7 +163,7 @@ impl DesignSystemQuery {
         search: &CanonicalSearch<'_>,
         original: &CanonicalPreview,
         base: Option<&CanonicalPreview>,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         let CanonicalSearch {
             roots,
             value: bare_value,
@@ -167,11 +176,11 @@ impl DesignSystemQuery {
         let scale_dimension = scale.as_deref().and_then(dimension);
         let mut labels = BTreeSet::new();
         for root in roots {
-            labels.insert(format!("{root}-{bare_value}"));
+            labels.insert(format_args!("{root}-{bare_value}").to_lean_str());
         }
         if let Some((number, unit)) = dimension(bare_value) {
             for root in roots {
-                labels.insert(format!("{root}-{number}"));
+                labels.insert(format_args!("{root}-{number}").to_lean_str());
             }
             if let Some((step, scale_unit)) = scale_dimension {
                 let amount = if unit == scale_unit {
@@ -186,7 +195,7 @@ impl DesignSystemQuery {
                 };
                 if let Some(amount) = amount.filter(|_| step > 0.0) {
                     for root in roots {
-                        labels.insert(format!("{root}-{}", amount / step));
+                        labels.insert(format_args!("{root}-{}", amount / step).to_lean_str());
                     }
                 }
             }
@@ -198,7 +207,7 @@ impl DesignSystemQuery {
                 if let Some(label) =
                     eligible_label(&record, roots, property, negative, &self.context)
                 {
-                    labels.insert(label.to_owned());
+                    labels.insert(label.to_lean_str());
                 }
             }
         }
@@ -218,7 +227,7 @@ impl DesignSystemQuery {
                                     .any(|entry| !entry.properties.is_disjoint(&properties))
                         })
                 {
-                    labels.insert(label.to_owned());
+                    labels.insert(label.to_lean_str());
                 }
             }
         }
@@ -231,7 +240,7 @@ impl DesignSystemQuery {
                     .iter()
                     .filter_map(|label| {
                         eligible_label(label, roots, property, negative, &self.context)
-                            .map(str::to_owned)
+                            .map(LeanStr::from)
                     }),
             );
         }
@@ -240,9 +249,9 @@ impl DesignSystemQuery {
         labels
     }
 
-    fn canonical_roots(&self, root: &str, property: Option<&str>) -> BTreeSet<String> {
+    fn canonical_roots(&self, root: &str, property: Option<&str>) -> BTreeSet<LeanStr> {
         if !root.is_empty() {
-            return BTreeSet::from([root.to_owned()]);
+            return BTreeSet::from([root.to_lean_str()]);
         }
         property
             .into_iter()
@@ -252,7 +261,7 @@ impl DesignSystemQuery {
                     .utility_search()
                     .names_for_property(property)
             })
-            .filter_map(|name| name.strip_suffix("-*").map(str::to_owned))
+            .filter_map(|name| name.strip_suffix("-*").map(LeanStr::from))
             .collect()
     }
 
@@ -260,7 +269,7 @@ impl DesignSystemQuery {
         &self,
         raw: &str,
         original: &CanonicalPreview,
-    ) -> Result<Option<String>, UtilityResolutionError> {
+    ) -> Result<Option<LeanStr>, UtilityResolutionError> {
         let Some(candidate) = parse_candidate(raw) else {
             return Ok(None);
         };
@@ -285,8 +294,13 @@ impl DesignSystemQuery {
                 .variants
                 .matching(&self.context, raw, &variant.raw);
             for name in names {
-                let replacement =
-                    raw.replacen(&format!("{}:", variant.raw), &format!("{name}:"), 1);
+                let replacement: LeanString = raw
+                    .replacen(
+                        format_args!("{}:", variant.raw).to_lean_str().as_str(),
+                        &format_args!("{name}:").to_lean_str(),
+                        1,
+                    )
+                    .into();
                 if replacement.len() >= raw.len() {
                     continue;
                 }
@@ -294,7 +308,7 @@ impl DesignSystemQuery {
                     && preview.required_properties == original.required_properties
                     && preview.signature(None, &properties, &options).as_ref() == Some(&signature)
                 {
-                    return Ok(Some(replacement));
+                    return Ok(Some((replacement).into()));
                 }
             }
         }
@@ -303,7 +317,7 @@ impl DesignSystemQuery {
 }
 
 struct CanonicalSearch<'a> {
-    roots: &'a BTreeSet<String>,
+    roots: &'a BTreeSet<LeanStr>,
     value: &'a str,
     property: Option<&'a str>,
     negative: bool,
@@ -312,7 +326,7 @@ struct CanonicalSearch<'a> {
 
 fn eligible_label<'a>(
     label: &'a str,
-    roots: &BTreeSet<String>,
+    roots: &BTreeSet<LeanStr>,
     property: Option<&str>,
     negative: bool,
     query: &QueryContext,
@@ -327,13 +341,14 @@ fn eligible_label<'a>(
         label
     };
     let eligible = roots.iter().any(|root| {
-        let Some(capture) = label.strip_prefix(&format!("{root}-")) else {
+        let Some(capture) = label.strip_prefix(format_args!("{root}-").to_lean_str().as_str())
+        else {
             return false;
         };
         if query.design_system.utilities().get(registered).is_some() {
             return true;
         }
-        let family = format!("{}{root}-*", if negative { "-" } else { "" });
+        let family = format_args!("{}{root}-*", if negative { "-" } else { "" }).to_lean_str();
         query
             .design_system
             .utility_search()
@@ -345,7 +360,7 @@ fn eligible_label<'a>(
                             query
                                 .design_system
                                 .tokens()
-                                .get(&format!("{namespace}{capture}"))
+                                .get(&format_args!("{namespace}{capture}").to_lean_str())
                                 .is_some()
                         })
                     })
@@ -360,7 +375,7 @@ fn eligible_label<'a>(
     eligible.then_some(label)
 }
 
-fn declared_properties(css: &str, depth: usize) -> BTreeSet<String> {
+fn declared_properties(css: &str, depth: usize) -> BTreeSet<LeanStr> {
     if depth > 64 {
         return BTreeSet::new();
     }
@@ -385,6 +400,8 @@ fn declared_properties(css: &str, depth: usize) -> BTreeSet<String> {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
+    use lean_string::ToLeanStr;
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_diagnostics::{
@@ -454,7 +471,7 @@ mod tests {
         ] {
             assert_eq!(
                 query.canonical_candidate(raw).unwrap(),
-                Some(expected.to_owned()),
+                Some(expected.to_lean_str()),
                 "{raw}"
             );
             assert!(query.canonical_candidate(expected).unwrap().is_none());
@@ -667,7 +684,7 @@ mod tests {
         for (raw, expected) in [("tone-[#f00]", "tone-a"), ("tone-[#00f]", "tone-b")] {
             assert_eq!(
                 query.canonical_candidate(raw).unwrap(),
-                Some(expected.to_owned()),
+                Some(expected.to_lean_str()),
                 "{raw}"
             );
         }
@@ -837,22 +854,22 @@ mod tests {
             ("padded", "1rem", ""),
             ("text", "1rem", "/tight"),
         ] {
-            let raw = format!("{root}-[{value}]{modifier}");
+            let raw = format_args!("{root}-[{value}]{modifier}").to_lean_str();
             let original = query.context.canonical_preview(&raw).unwrap().unwrap();
             let options = query.canonical_options();
             let scale = query.spacing_scale();
             let mut labels: Vec<_> = index
                 .labels
                 .iter()
-                .filter(|label| label.starts_with(&format!("{root}-")))
+                .filter(|label| label.starts_with(format_args!("{root}-").to_lean_str().as_str()))
                 .cloned()
                 .collect();
             if value == "1rem" {
-                labels.push(format!("{root}-4"));
+                labels.push(format_args!("{root}-4").to_lean_str());
             }
             labels.sort_by(|left, right| rank(left, right));
             let expected = labels.into_iter().find_map(|label| {
-                let replacement = format!("{label}{modifier}");
+                let replacement = format_args!("{label}{modifier}").to_lean_str();
                 if replacement.len() >= raw.len() {
                     return None;
                 }

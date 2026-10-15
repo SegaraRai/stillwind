@@ -8,6 +8,8 @@
 //! same rule are inserted after the property they override, so a nested at-rule cannot
 //! win by appearing before the value it is meant to replace.
 
+use lean_string::LeanString;
+
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
@@ -33,10 +35,10 @@ pub(crate) fn emit_utility_rules(
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
 ) -> Result<(), CompileDiagnostic> {
-    let mut css = String::new();
+    let mut css = LeanString::new();
     emit_utility_css(&mut css, class_selector, utilities, theme, identifiers)?;
     contributions.push(CssContribution {
-        css,
+        css: (css).into(),
         required_properties: utilities
             .iter()
             .flat_map(|utility| utility.required_properties.clone())
@@ -47,7 +49,7 @@ pub(crate) fn emit_utility_rules(
 }
 
 fn emit_utility_css(
-    output: &mut String,
+    output: &mut LeanString,
     class_selector: &str,
     utilities: &[CompiledUtility],
     theme: &ThemeIndex,
@@ -134,7 +136,7 @@ fn emit_utility_css(
 /// property; the rest follow the declarations in their own order. Utilities with no declarations at
 /// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
 fn emit_base_utility_group(
-    output: &mut String,
+    output: &mut LeanString,
     class_selector: &str,
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
@@ -155,7 +157,7 @@ fn emit_base_utility_group(
 
 /// Arranges conditional rules at declaration boundaries before emitting the body.
 /// Each conditional is emitted once, in source order, including unmatched properties.
-fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> String {
+fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> LeanString {
     let declarations = declaration_ranges(base)
         .into_iter()
         .map(|range| &base[range])
@@ -171,7 +173,7 @@ fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> St
             })
         })
         .collect::<Vec<_>>();
-    let mut output = String::new();
+    let mut output = LeanString::new();
     for (index, declaration) in declarations.iter().enumerate() {
         output.push_str(declaration);
         output.push(';');
@@ -189,7 +191,7 @@ fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> St
     output
 }
 
-fn emit_nested_rule(output: &mut String, nested: &NestedUtilityRule) {
+fn emit_nested_rule(output: &mut LeanString, nested: &NestedUtilityRule) {
     match nested.at_rule {
         NestedUtilityAtRule::Media => {
             output.push_str("@media ");

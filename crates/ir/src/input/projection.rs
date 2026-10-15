@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::{FileId, ProjectionMap, SourceError, SourceFile, Span};
@@ -295,11 +296,11 @@ fn validate_import_metadata(
 #[serde(rename_all = "camelCase")]
 pub struct ConverterIdentity {
     /// Converter package or tool name.
-    pub name: String,
+    pub name: LeanStr,
     /// Converter version string.
-    pub version: String,
+    pub version: LeanStr,
     /// Fingerprint of the converter settings that produced the mapping.
-    pub options_fingerprint: String,
+    pub options_fingerprint: LeanStr,
 }
 
 /// An import scope of a converted framework file.

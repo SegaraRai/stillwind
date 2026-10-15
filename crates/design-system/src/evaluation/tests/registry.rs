@@ -3,6 +3,9 @@
 //! Pins arbitrary-property order, animation option resolution, theme suffix metadata,
 //! and the value domains used by theme namespaces.
 
+use lean_string::ToLeanString;
+
+use stillwind_source::JoinText;
 use stillwind_test_support::{BUILTIN_REGISTRY_CSS, css_tokens};
 
 use super::*;
@@ -120,10 +123,13 @@ fn simple_utility_domains_follow_csswg_formal_syntax() {
                 };
                 let mut visited = BTreeSet::new();
                 let Some(syntax) = expanded_csswg_syntax(property, &mut visited) else {
-                    failures.push(format!(
-                        "{property} in @utility {} has no Webref formal syntax",
-                        utility.name
-                    ));
+                    failures.push(
+                        format_args!(
+                            "{property} in @utility {} has no Webref formal syntax",
+                            utility.name
+                        )
+                        .to_lean_string(),
+                    );
                     continue;
                 };
                 let terms = formal_terms(&syntax);
@@ -138,12 +144,12 @@ fn simple_utility_domains_follow_csswg_formal_syntax() {
                     .iter()
                     .any(|expected| terms.contains(expected))
                 {
-                    checked.insert(format!("{property} [{domain:?}]"));
+                    checked.insert(format_args!("{property} [{domain:?}]").to_lean_string());
                 } else {
-                    failures.push(format!(
+                    failures.push(format_args!(
                             "{property} in @utility {} uses [{domain:?}], but CSSWG declares {syntax:?}",
                             utility.name
-                        ));
+                        ).to_lean_string());
                 }
             }
         }
@@ -152,7 +158,7 @@ fn simple_utility_domains_follow_csswg_formal_syntax() {
     assert!(
         failures.is_empty(),
         "built-in simple value domains diverge from CSSWG formal syntax:\n{}",
-        failures.join("\n")
+        failures.join_text("\n")
     );
     assert!(
         checked.len() >= 20,

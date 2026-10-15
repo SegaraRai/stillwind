@@ -6,6 +6,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::{
     SelectorTarget, append_element_condition, arbitrary_value_flags, declaration_is_physical,
     inspect_css_value, instantiate_selector, media_has_size_comparison, policy_glob_matches,
@@ -17,7 +19,7 @@ use stillwind_design_system::{
 use stillwind_diagnostics::{
     Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind, LintSettings,
 };
-use stillwind_source::{FileId, Span};
+use stillwind_source::{FileId, JoinText, Span};
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::emission::collect_declarations;
@@ -37,7 +39,9 @@ pub(in crate::compiler) fn check(
         && let Some(selector) = variant_other_target(utility, theme)
     {
         findings.push(LintFinding::new(
-            LintDiagnostic::IndirectStyling { selector },
+            LintDiagnostic::IndirectStyling {
+                selector: (selector).into(),
+            },
             span,
         ));
     }
@@ -65,8 +69,8 @@ pub(in crate::compiler) fn check(
             && declaration_is_physical(property, value)
             && reported.insert((
                 LintKind::PreferLogicalProperties,
-                property.clone(),
-                String::new(),
+                (property.clone()).into(),
+                LeanString::new(),
             ))
         {
             findings.push(LintFinding::new(
@@ -97,7 +101,7 @@ fn check_length_units(
     theme: &ThemeIndex,
     settings: &LintSettings,
     span: Span,
-    reported: &mut BTreeSet<(LintKind, String, String)>,
+    reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
     findings: &mut Vec<LintFinding>,
 ) {
     if settings.enabled_for_detection(LintKind::LengthUnits)
@@ -115,7 +119,10 @@ fn check_length_units(
                 rule.properties.iter().any(|pattern| {
                     domains.iter().any(|(name, _)| {
                         (name == domain || property_covers(name, domain))
-                            && policy_glob_matches(&pattern.to_ascii_lowercase(), name)
+                            && policy_glob_matches(
+                                &pattern.to_lean_string().to_ascii_lowercase(),
+                                name,
+                            )
                     })
                 })
             }) else {
@@ -136,10 +143,10 @@ fn check_length_units(
                     .iter()
                     .any(|forbidden| forbidden.eq_ignore_ascii_case(unit))
             }) {
-                if reported.insert((LintKind::LengthUnits, domain.clone(), unit.clone())) {
+                if reported.insert((LintKind::LengthUnits, domain.clone(), (unit.clone()).into())) {
                     let mut finding = LintFinding::new(
                         LintDiagnostic::ForbiddenLengthUnit {
-                            property: domain.clone(),
+                            property: (domain.clone()).into(),
                             unit,
                         },
                         span,
@@ -164,16 +171,20 @@ fn check_declaration_restrictions(
     important: bool,
     settings: &LintSettings,
     span: Span,
-    reported: &mut BTreeSet<(LintKind, String, String)>,
+    reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
     findings: &mut Vec<LintFinding>,
 ) {
     if important
         && settings.enabled_for_detection(LintKind::NoImportant)
-        && reported.insert((LintKind::NoImportant, property.to_owned(), String::new()))
+        && reported.insert((
+            LintKind::NoImportant,
+            property.to_lean_string(),
+            LeanString::new(),
+        ))
     {
         findings.push(LintFinding::new(
             LintDiagnostic::ImportantDeclaration {
-                property: property.to_owned(),
+                property: property.to_lean_str(),
             },
             span,
         ));
@@ -184,28 +195,25 @@ fn check_declaration_restrictions(
     {
         for (domain, value) in property_value_domains(property, value) {
             for rule in &config.rules {
-                if rule
-                    .properties
-                    .iter()
-                    .any(|pattern| policy_glob_matches(&pattern.to_ascii_lowercase(), &domain))
-                    && rule.values.iter().any(|pattern| {
-                        policy_glob_matches(
-                            &pattern.to_ascii_lowercase(),
-                            &value.to_ascii_lowercase(),
-                        )
-                    })
-                {
+                if rule.properties.iter().any(|pattern| {
+                    policy_glob_matches(&pattern.to_lean_string().to_ascii_lowercase(), &domain)
+                }) && rule.values.iter().any(|pattern| {
+                    policy_glob_matches(
+                        &pattern.to_lean_string().to_ascii_lowercase(),
+                        &value.to_lean_string().to_ascii_lowercase(),
+                    )
+                }) {
                     let explanation = explanation(rule.message.as_deref());
                     if reported.insert((
                         LintKind::NoRestrictedDeclarations,
                         domain.clone(),
-                        format!("{value}{explanation}"),
+                        format_args!("{value}{explanation}").to_lean_string(),
                     )) {
                         findings.push(LintFinding::new(
                             LintDiagnostic::RestrictedDeclaration {
-                                property: domain.clone(),
-                                value: value.clone(),
-                                explanation,
+                                property: (domain.clone()).into(),
+                                value: (value.clone()).into(),
+                                explanation: (explanation).into(),
                             },
                             span,
                         ));
@@ -251,13 +259,13 @@ fn check_source_policies(
                 .find(|(domain, _)| spacing_property(domain, &config.properties))
             && reported.insert((
                 LintKind::NoArbitrarySpacing,
-                domain.clone(),
+                (domain.clone()).into(),
                 usage.value.clone(),
             ))
         {
             findings.push(LintFinding::new(
                 LintDiagnostic::ArbitrarySpacing {
-                    property: domain,
+                    property: (domain).into(),
                     value: usage.value.clone(),
                 },
                 span,
@@ -269,7 +277,7 @@ fn check_source_policies(
             .source
             .token_uses
             .iter()
-            .flat_map(|usage| usage.tokens.iter().map(String::as_str)),
+            .flat_map(|usage| usage.tokens.iter().map(LeanStr::as_str)),
         theme,
         settings,
         span,
@@ -295,7 +303,7 @@ fn check_source_policies(
     }
 }
 
-pub(in crate::compiler) fn spacing_property(property: &str, additional: &[String]) -> bool {
+pub(in crate::compiler) fn spacing_property(property: &str, additional: &[LeanStr]) -> bool {
     [
         "margin",
         "margin-*",
@@ -308,13 +316,15 @@ pub(in crate::compiler) fn spacing_property(property: &str, additional: &[String
     .into_iter()
     .any(|pattern| policy_glob_matches(pattern, property))
         || additional.iter().any(|pattern| {
-            let pattern = pattern.to_ascii_lowercase();
+            let pattern = pattern.to_lean_string().to_ascii_lowercase();
             policy_glob_matches(&pattern, property) || property_covers(&pattern, property)
         })
 }
 
-pub(crate) fn explanation(message: Option<&str>) -> String {
-    message.map_or_else(String::new, |message| format!(": {message}"))
+pub(crate) fn explanation(message: Option<&str>) -> LeanString {
+    message.map_or_else(LeanString::new, |message| {
+        format_args!(": {message}").to_lean_string()
+    })
 }
 
 pub(crate) fn check_candidate_name(
@@ -346,7 +356,7 @@ pub(crate) fn check_candidate_name(
             LintFinding::new(
                 LintDiagnostic::RestrictedUtility {
                     utility: utility.into(),
-                    explanation: explanation(rule.message.as_deref()),
+                    explanation: (explanation(rule.message.as_deref())).into(),
                 },
                 span,
             )
@@ -372,11 +382,11 @@ fn check_tokens<'a>(
                     .tokens
                     .iter()
                     .any(|pattern| policy_glob_matches(pattern, token))
-                && reported.insert(token.to_owned())
+                && reported.insert(token.to_lean_string())
             {
                 let mut finding = LintFinding::new(
                     LintDiagnostic::RestrictedThemeToken {
-                        token: token.to_owned(),
+                        token: token.to_lean_str(),
                     },
                     span,
                 );
@@ -413,7 +423,7 @@ pub(in crate::compiler) fn check_variant(
     };
     let mut findings = Vec::new();
     check_tokens(
-        resolved.tokens.iter().map(String::as_str),
+        resolved.tokens.iter().map(LeanStr::as_str),
         theme,
         settings,
         span,
@@ -432,8 +442,8 @@ pub(in crate::compiler) fn check_variant(
         if !conditions.is_empty() {
             findings.push(LintFinding::new(
                 LintDiagnostic::ArbitraryBreakpoint {
-                    variant: variant.raw.to_string(),
-                    condition: conditions.into_iter().collect::<Vec<_>>().join(", "),
+                    variant: variant.raw.to_lean_str(),
+                    condition: (conditions.into_iter().collect::<Vec<_>>().join_text(", ")).into(),
                 },
                 span,
             ));
@@ -445,9 +455,9 @@ pub(in crate::compiler) fn check_variant(
 fn collect_token_units(
     value: &str,
     theme: &ThemeIndex,
-    seen: &mut BTreeSet<String>,
+    seen: &mut BTreeSet<LeanStr>,
     depth: usize,
-    units: &mut BTreeSet<String>,
+    units: &mut BTreeSet<LeanStr>,
     spans: &mut Vec<Span>,
 ) {
     if depth == 32 {
@@ -465,7 +475,7 @@ fn collect_token_units(
     }
 }
 
-fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option<String> {
+fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option<LeanString> {
     let applications = if utility.variant_applications.is_empty() {
         vec![
             utility
@@ -481,7 +491,7 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
         .iter()
         .flat_map(|applications: &Vec<VariantApplication>| variant_paths(applications))
         .find_map(|path| {
-            let mut selector = "&".to_owned();
+            let mut selector = "&".to_lean_string();
             for step in path {
                 match step {
                     VariantStep::SelectorSuffix(suffix) => selector.push_str(suffix),

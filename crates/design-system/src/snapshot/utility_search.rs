@@ -5,6 +5,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::LeanStr;
+
 use stillwind_css::{CssRule, Declaration, find_css_functions};
 
 use super::UtilityRegistry;
@@ -12,8 +14,8 @@ use super::UtilityRegistry;
 /// Lookup metadata for utility definitions in one snapshot.
 #[derive(Debug, Default)]
 pub struct UtilitySearchIndex {
-    definitions: BTreeMap<String, Vec<UtilitySearchEntry>>,
-    by_property: BTreeMap<String, BTreeSet<String>>,
+    definitions: BTreeMap<LeanStr, Vec<UtilitySearchEntry>>,
+    by_property: BTreeMap<LeanStr, BTreeSet<LeanStr>>,
 }
 
 impl UtilitySearchIndex {
@@ -36,7 +38,7 @@ impl UtilitySearchIndex {
                         .flat_map(|found| definition.body[found.arguments].split(','))
                         .filter_map(|part| part.trim().strip_suffix('*'))
                         .filter(|part| part.starts_with("--"))
-                        .map(str::to_owned)
+                        .map(LeanStr::from)
                         .collect();
                     UtilitySearchEntry {
                         properties,
@@ -56,7 +58,7 @@ impl UtilitySearchIndex {
             .get(property)
             .into_iter()
             .flatten()
-            .map(String::as_str)
+            .map(LeanStr::as_str)
     }
 
     /// Returns names starting with `prefix` and their overloads in lexical name order.
@@ -66,7 +68,10 @@ impl UtilitySearchIndex {
         prefix: &'a str,
     ) -> impl Iterator<Item = (&'a str, &'a [UtilitySearchEntry])> {
         self.definitions
-            .range(prefix.to_owned()..)
+            .range::<str, _>((
+                std::ops::Bound::Included(prefix),
+                std::ops::Bound::Unbounded,
+            ))
             .take_while(move |(name, _)| name.starts_with(prefix))
             .map(|(name, entries)| (name.as_str(), entries.as_slice()))
     }
@@ -76,13 +81,13 @@ impl UtilitySearchIndex {
 #[derive(Debug)]
 pub struct UtilitySearchEntry {
     /// Authored declaration property names, including names inside nested blocks.
-    pub properties: BTreeSet<String>,
+    pub properties: BTreeSet<LeanStr>,
     /// Custom-property prefixes accepted by `--value`, without the trailing `*`.
     /// Entries retain their order and may repeat.
-    pub value_namespaces: Vec<String>,
+    pub value_namespaces: Vec<LeanStr>,
 }
 
-fn declared_properties(body: &str, depth: usize) -> BTreeSet<String> {
+fn declared_properties(body: &str, depth: usize) -> BTreeSet<LeanStr> {
     if depth > 64 {
         return BTreeSet::new();
     }

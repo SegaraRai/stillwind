@@ -161,7 +161,7 @@ fn rebase_resources(
         let rebased = pathdiff::diff_paths(&target, entry_directory).unwrap_or(target);
         let url = rebased.to_string_lossy().replace('\\', "/");
         let quoted = serde_json::to_string(&url)?;
-        css = css.replace(placeholder, &quoted[1..quoted.len() - 1]);
+        css = css.replace((placeholder).as_str(), &quoted[1..quoted.len() - 1]);
     }
     Ok(css)
 }
@@ -216,9 +216,10 @@ fn run() -> Result<(), CommandError> {
     };
     let module_id = ModuleId::from(source_path.as_str());
     let options = CompilerOptions {
-        prefix: optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned()),
-        tailwind_prefix: optional_argument("--tailwind-prefix")
-            .unwrap_or_else(|| "--tw-".to_owned()),
+        prefix: (optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned())).into(),
+        tailwind_prefix: (optional_argument("--tailwind-prefix")
+            .unwrap_or_else(|| "--tw-".to_owned()))
+        .into(),
         use_css_if: has_flag("--use-css-if"),
         ..CompilerOptions::default()
     };

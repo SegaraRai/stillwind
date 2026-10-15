@@ -1,5 +1,7 @@
 //! Complete conditional keyframe definitions and their registration requirements.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
@@ -49,6 +51,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
         }
     };
 
+    let mut css: LeanString = std::mem::take(&mut contribution.css).into();
     for (_, paths, frames) in definitions {
         let mut frame_contribution = CssContribution::default();
         emit_frames(
@@ -62,18 +65,20 @@ pub(in crate::compiler) fn emit_keyframes_definition(
             continue;
         }
         contribution.keyframes = true;
-        let rule = format!(
+        let rule = format_args!(
             "@keyframes {}{{{}}}",
             name.custom_ident(),
             frame_contribution.css
-        );
+        )
+        .to_lean_string();
         contribution
             .required_properties
             .extend(frame_contribution.required_properties);
         for path in paths {
-            contribution.css.push_str(&wrap_conditions(&rule, &path));
+            css.push_str(&wrap_conditions(&rule, &path));
         }
     }
+    contribution.css = css.into();
 }
 
 /// One definition to emit: the plan its wrappers resolve to, the condition paths those
@@ -148,7 +153,7 @@ fn emit_frames(
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
-    let output = &mut contribution.css;
+    let mut output: LeanString = std::mem::take(&mut contribution.css).into();
     for frame in frames {
         let (declaration, properties) =
             resolve_frame(&frame.utilities, theme, diagnostics, lint_findings);
@@ -161,6 +166,7 @@ fn emit_frames(
         output.push_str(&declaration);
         output.push('}');
     }
+    contribution.css = output.into();
 }
 
 /// Resolves a frame's decoded utility list against `theme`, rejecting utility variants.
@@ -169,11 +175,11 @@ fn emit_frames(
 /// contribute. Returns the combined declaration body without braces and the required
 /// property names in utility order, including repeated names.
 pub(crate) fn resolve_frame(
-    input: &Spanned<String>,
+    input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
-) -> (String, Vec<String>) {
+) -> (LeanString, Vec<LeanStr>) {
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
         match resolve_utility(&utility.value.raw, theme) {
@@ -184,7 +190,7 @@ pub(crate) fn resolve_frame(
             )),
             Ok(None) => lint_findings.push(LintFinding::new(
                 LintDiagnostic::UnresolvedUtility {
-                    utility: utility.value.raw.clone(),
+                    utility: (utility.value.raw.clone()),
                     classification: unresolved_utility_kind(&utility.value.raw),
                 },
                 utility.span,

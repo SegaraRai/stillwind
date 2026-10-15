@@ -1,5 +1,6 @@
 //! Declarations, imports, and style calls extracted from one module.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::Span;
@@ -87,7 +88,7 @@ pub struct CvaReplacement {
     /// Original expression or entry without its surrounding separator.
     pub span: Span,
     /// Static JavaScript that preserves the enclosing object or array syntax.
-    pub replacement: String,
+    pub replacement: LeanStr,
 }
 
 /// Binding-aware import information. All spans belong to the editable source.
@@ -100,7 +101,7 @@ pub struct ModuleImports {
     #[serde(default)]
     pub consumed_uses: Vec<Span>,
     /// Includes nested bindings and unresolved reads to avoid capturing user code.
-    pub reserved_names: Vec<String>,
+    pub reserved_names: Vec<LeanStr>,
     /// Macro imports that code generation may remove once the call is lowered.
     pub macros: Vec<MacroImport>,
     /// Source-literal spans of explicit module CSS value imports.
@@ -129,7 +130,7 @@ pub struct MacroImportSpecifier {
     /// Span of the binding as written, local name included.
     pub span: Span,
     /// Name the module binds the import to.
-    pub local: String,
+    pub local: LeanStr,
     /// Only value imports of the framework macro may be removed after lowering.
     pub is_macro: bool,
     /// Incomplete reference correspondence forbids deleting this binding.

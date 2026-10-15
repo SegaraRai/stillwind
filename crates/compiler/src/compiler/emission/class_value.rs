@@ -6,11 +6,13 @@
 //! their independent props channels. Final framework fields and helper imports are
 //! selected later by fragment rendering.
 
+use lean_string::{LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::{
     ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
 };
-use stillwind_source::Span;
+use stillwind_source::{JoinText, Span};
 
 use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -78,7 +80,9 @@ impl CallEmitter<'_> {
             .find_map(|variant| document_scoped_selector(variant, theme))
         {
             self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::DocumentScopedSelector { selector },
+                LintDiagnostic::DocumentScopedSelector {
+                    selector: (selector).into(),
+                },
                 prefix.span,
             ));
         }
@@ -502,7 +506,7 @@ impl CallEmitter<'_> {
         &mut self,
         value: &Span,
         key: &str,
-        candidates: Vec<(String, LiteralContribution)>,
+        candidates: Vec<(LeanString, LiteralContribution)>,
         guard: &[GuardStep],
     ) -> Option<Emitted> {
         if candidates.len() == 1 {
@@ -523,16 +527,18 @@ impl CallEmitter<'_> {
             };
             let key = js_string(&identity);
             let key = if identity == "__proto__" {
-                format!("[{key}]")
+                format_args!("[{key}]").to_lean_string()
             } else {
                 key
             };
-            table.push(format!("{key}:{}", js_string(&names.join(" "))));
+            table.push(format_args!("{key}:{}", js_string(&names.join_text(" "))).to_lean_string());
         }
         Some(Emitted::Expression(ValueExpr::Lookup {
             value: Box::new(ValueExpr::Source(self.source_expression(*value)?)),
-            key: key.to_owned(),
-            table: format!("{{{}}}", table.join(",")).into(),
+            key: key.to_lean_str(),
+            table: format_args!("{{{}}}", table.join_text(","))
+                .to_lean_string()
+                .into(),
             span: *value,
         }))
     }

@@ -9,10 +9,11 @@
 //! and `transparent` select oklab in both passes when no extra modern alpha is
 //! supplied. Identical branch text can then be emitted without a capability wrapper.
 
-use crate::evaluation::EvaluationContext;
+use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{shadow_with_color_fallback, shadow_with_color_override};
 
+use super::super::EvaluationContext;
 use super::super::builtins::{COMPAT_COLOR_LEGACY_SPACE, COMPAT_COLOR_MODERN_SPACE};
 use super::domains::{resolve_value_domains, split_domains};
 use super::theme::theme_value_literal;
@@ -63,7 +64,7 @@ impl CompatColorKind {
 pub(in crate::evaluation) fn resolve_compat_color(
     arguments: &str,
     mode: CompatColorMode,
-) -> Option<String> {
+) -> Option<LeanString> {
     let arguments = split_domains(arguments);
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
         [color, alpha] => (*color, *alpha, None),
@@ -77,7 +78,7 @@ pub(in crate::evaluation) fn resolve_compat_color(
     }
     let color_kind = CompatColorKind::from_css(color);
     if color.eq_ignore_ascii_case("inherit") && alpha == "100%" {
-        return Some(color.to_owned());
+        return Some(color.to_lean_string());
     }
     let color_space = match (mode, color_kind, modern_alpha.is_none()) {
         // Tailwind does not synthesize an sRGB compatibility branch for CSS
@@ -92,16 +93,19 @@ pub(in crate::evaluation) fn resolve_compat_color(
     let mixed = if alpha == "100%"
         || (mode == CompatColorMode::Legacy && color_kind == CompatColorKind::CurrentColor)
     {
-        color.to_owned()
+        color.to_lean_string()
     } else {
-        format!("color-mix(in {color_space}, {color} {alpha}, transparent)")
+        format_args!("color-mix(in {color_space}, {color} {alpha}, transparent)").to_lean_string()
     };
     if mode == CompatColorMode::Modern
         && let Some(modern_alpha) = modern_alpha
     {
-        return Some(format!(
-            "color-mix(in {COMPAT_COLOR_MODERN_SPACE}, {mixed} {modern_alpha}, transparent)"
-        ));
+        return Some(
+            format_args!(
+                "color-mix(in {COMPAT_COLOR_MODERN_SPACE}, {mixed} {modern_alpha}, transparent)"
+            )
+            .to_lean_string(),
+        );
     }
     Some(mixed)
 }
@@ -118,7 +122,7 @@ pub(in crate::evaluation) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanString> {
     let arguments = split_domains(arguments);
     let (domain, color_property, alpha) = match arguments.as_slice() {
         [domain, color_property] => (*domain, *color_property, None),

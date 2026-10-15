@@ -6,6 +6,8 @@
 //! value nests deeper than the calculator accepts: it is reported against the token's own
 //! span so the value never reaches a parser that would refuse it.
 
+use lean_string::LeanStr;
+
 use stillwind_css::{MAX_VALUE_NESTING, value_nesting_overflow};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_source::Spanned;
@@ -16,7 +18,7 @@ use stillwind_syntax::UtilityToken;
 /// A coordinate failure appends a fatal error at `input.span` and returns an empty
 /// token list. Existing diagnostics are retained; successful tokenization adds none.
 pub(super) fn lex_utilities(
-    input: &Spanned<String>,
+    input: &Spanned<LeanStr>,
     diagnostics: &mut Vec<CompileError>,
 ) -> Vec<Spanned<UtilityToken>> {
     match stillwind_syntax::lex_utilities(input) {

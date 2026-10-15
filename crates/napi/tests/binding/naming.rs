@@ -7,8 +7,8 @@ use super::*;
 fn rejected_names_are_transported_beside_symbols() {
     let rejected = RejectedIdentifier {
         kind: IdentifierKind::RefMarker,
-        hash: "0123456789abcdef".to_owned(),
-        reason: "no name for this declaration".to_owned(),
+        hash: ("0123456789abcdef".to_owned()).into(),
+        reason: ("no name for this declaration".to_owned()).into(),
         substituted: true,
     };
     let native: BindingRejectedIdentifier = rejected.into();

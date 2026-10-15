@@ -5,6 +5,8 @@
 //! the fragment renderer chooses framework props, while definition emission owns the
 //! transition's pseudo-element rules.
 
+use lean_string::{LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceError, Span};
@@ -171,9 +173,9 @@ impl CallEmitter<'_> {
     /// resolution fails, it adds a diagnostic and returns `None`.
     fn transition_contribution(
         &mut self,
-        token: String,
-        name: Option<String>,
-        dynamic_name_property: Option<String>,
+        token: LeanString,
+        name: Option<LeanString>,
+        dynamic_name_property: Option<LeanString>,
         wrappers: &[StyleVariant],
         source_offset: u32,
     ) -> Option<LiteralContribution> {
@@ -188,19 +190,20 @@ impl CallEmitter<'_> {
                 self.lint_findings,
             )?)
         };
-        let canonical = format!(
+        let canonical = format_args!(
             "{}\0view-transition\0{token}\0{}\0{}\0",
             plan.as_ref().map_or("", |plan| plan.canonical.as_str()),
             name.as_deref().unwrap_or(""),
             dynamic_name_property.as_deref().unwrap_or("")
-        );
+        )
+        .to_lean_string();
         Some(LiteralContribution {
-            canonical,
+            canonical: (canonical),
             view_transitions: vec![TransitionContribution {
                 source_offset,
-                token,
-                name,
-                dynamic_name_property,
+                token: (token).into(),
+                name: (name).map(Into::into),
+                dynamic_name_property: (dynamic_name_property).map(Into::into),
                 plan,
             }],
             ..LiteralContribution::default()
@@ -210,7 +213,7 @@ impl CallEmitter<'_> {
     /// Returns the custom-property name for a dynamic transition name at an original
     /// UTF-8 source offset. Reports allocation failure and returns `None` when the name
     /// cannot be generated.
-    fn view_transition_name_property(&mut self, source_offset: u32) -> Option<String> {
+    fn view_transition_name_property(&mut self, source_offset: u32) -> Option<LeanString> {
         match self.units.view_transition_dynamic_name_slot(source_offset) {
             Ok(name) => Some(name),
             Err(failure) => {
@@ -226,7 +229,7 @@ impl CallEmitter<'_> {
     fn view_transition_emitted(
         class: Emitted,
         name_value: Option<ValueExpr>,
-        name_property: Option<String>,
+        name_property: Option<LeanString>,
         span: Span,
     ) -> Emitted {
         let Some(name_value) = name_value else {
@@ -236,13 +239,13 @@ impl CallEmitter<'_> {
             EmittedEntry::CustomProperty(Property {
                 static_value: None,
                 computed_value: Some(name_value),
-                name: property,
-                value: String::new(),
+                name: (property).into(),
+                value: (LeanString::new()).into(),
                 span,
             })
         } else {
             EmittedEntry::StylePayload(ValueExpr::Entry {
-                property: "view-transition-name".to_owned(),
+                property: "view-transition-name".to_lean_str(),
                 value: Box::new(name_value),
             })
         };
@@ -268,7 +271,7 @@ impl CallEmitter<'_> {
             }
         };
         let receiver = match token {
-            Some(token) => format!("\"{token}\"").into(),
+            Some(token) => format_args!("\"{token}\"").to_lean_string().into(),
             _ => self.source_expression_result(value)?,
         };
         let arguments = vec![receiver, self.source_expression_result(key)?];
@@ -312,7 +315,7 @@ impl CallEmitter<'_> {
 ///
 /// A literal key is folded here; an expression key is written as a style property
 /// instead.
-fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option<String> {
+fn static_view_transition_name(name: &ViewTransitionName, token: &str) -> Option<LeanString> {
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Literal(key)) => {
             Some(view_transition_name(token, key))
@@ -329,7 +332,7 @@ fn runtime_name(name: &ViewTransitionName, slot: Option<&str>) -> Option<Declara
     match name {
         ViewTransitionName::Key(ViewTransitionKey::Dynamic(expression)) => {
             Some(slot.map_or(DeclarationValue::Runtime(*expression), |slot| {
-                DeclarationValue::Css(format!("var({slot})"))
+                DeclarationValue::Css(format_args!("var({slot})").to_lean_str())
             }))
         }
         _ => None,

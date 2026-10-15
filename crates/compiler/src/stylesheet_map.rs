@@ -11,6 +11,8 @@
 use std::ops::Range;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, LeanString};
+
 use stillwind_source::{SourceFile, Span};
 
 /// One generated range and the authored range it came from.
@@ -38,7 +40,7 @@ pub struct MappedStylesheet {
     pub keyframes: Vec<Self>,
     /// Explicit custom-property registration names. Accumulation preserves encounter
     /// order and permits duplicates; registration selection treats them as a set.
-    pub required_properties: Vec<String>,
+    pub required_properties: Vec<LeanStr>,
     /// Rule text before slot assembly, or complete CSS after rendering. Pending
     /// keyframes in `keyframes` are not part of this string.
     pub css: String,
@@ -66,7 +68,7 @@ impl MappedStylesheet {
     /// Invalid edit ordering or UTF-8 bounds can panic during slicing. Invalid mapping
     /// coordinates can panic during offset arithmetic. `self` is replaced only after
     /// the complete edited result has been assembled.
-    pub(crate) fn replace_ranges(&mut self, edits: &[(Range<usize>, String)]) {
+    pub(crate) fn replace_ranges(&mut self, edits: &[(Range<usize>, LeanString)]) {
         if edits.is_empty() {
             return;
         }
@@ -209,6 +211,8 @@ impl MappedStylesheet {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::FileId;
 
     use super::*;
@@ -331,7 +335,10 @@ mod tests {
         second.text(source.text(), Some((source.clone(), span)));
         second.text(".日本{color:red}", Some((source.clone(), span)));
         first.append(&second);
-        assert_eq!(first.css, format!("{}{}", source.text(), second.css));
+        assert_eq!(
+            first.css,
+            format_args!("{}{}", source.text(), second.css).to_lean_string()
+        );
         assert_eq!(first.mappings.len(), 3);
         assert_eq!(first.mappings[0].generated, 0..offset);
         for (mapping, original) in first.mappings[1..].iter().zip(&second.mappings) {

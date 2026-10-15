@@ -1,5 +1,6 @@
 //! Ordered style inputs and the ref conditions and variants they apply.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_semantic::IdentityId;
@@ -31,7 +32,7 @@ pub struct RefCondition {
     pub refs: Vec<RefDefinition>,
     /// Static variant text with an optional final separator normalized to `:`. Empty
     /// text tests marker presence. The span identifies this condition's use.
-    pub prefix: Spanned<String>,
+    pub prefix: Spanned<LeanStr>,
 }
 
 /// The CSS role a ref plays at a use site.
@@ -171,7 +172,7 @@ pub enum StyleVariant {
     /// variant grammar when resolving the wrapper.
     Prefix(
         /// Authored prefix and its original source span.
-        Spanned<String>,
+        Spanned<LeanStr>,
     ),
     /// A named-container query over finite ref candidates, written as `ref.at(query)`.
     Container {
@@ -181,7 +182,7 @@ pub enum StyleVariant {
         refs: Vec<RefDefinition>,
         /// Literal CSS query condition, without the generated container name.
         /// Empty text emits only the container name.
-        query: Spanned<String>,
+        query: Spanned<LeanStr>,
     },
     /// A ref condition with optional shared scopes, written as a call or tag followed
     /// by zero or more `.in(scope)` calls.

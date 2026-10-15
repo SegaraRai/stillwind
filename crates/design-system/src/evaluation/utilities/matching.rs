@@ -13,6 +13,8 @@
 
 use std::collections::HashSet;
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
@@ -58,7 +60,7 @@ fn resolve_user_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    let lookup = negative.then(|| format!("-{name}"));
+    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
         theme.matching_utilities(lookup).into_iter(),
@@ -79,7 +81,7 @@ fn resolve_builtin_css_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    let lookup = negative.then(|| format!("-{name}"));
+    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     let lookup = lookup.as_deref().unwrap_or(name);
     resolve_css_utility_branches(
         theme.registry().matching_utilities(lookup).into_iter(),
@@ -169,7 +171,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
                     .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
             );
             resolution.declaration =
-                merge_branch_declarations(&resolution.declaration, &branch.declaration);
+                (merge_branch_declarations(&resolution.declaration, &branch.declaration)).into();
             merge_nested_rules(&mut resolution.nested, branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
@@ -224,7 +226,7 @@ fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
 ///
 /// [`None`] means the candidate named a hinted arbitrary value or is not an arbitrary
 /// capture at all; hinted values are matched by domain instead.
-fn unhinted_arbitrary_value(name: &str) -> Option<String> {
+fn unhinted_arbitrary_value(name: &str) -> Option<LeanString> {
     if let Some(start) = name.rfind("-[")
         && let Some(value) = name[start + 2..].strip_suffix(']')
     {
@@ -235,7 +237,7 @@ fn unhinted_arbitrary_value(name: &str) -> Option<String> {
     let variable = name[start + 2..].strip_suffix(')')?;
     variable
         .starts_with("--")
-        .then(|| format!("var({variable})"))
+        .then(|| format_args!("var({variable})").to_lean_string())
 }
 
 /// Chooses the value type an unhinted arbitrary value most likely means.
@@ -307,7 +309,7 @@ fn declaration_property_names(declaration: &str) -> HashSet<&str> {
 /// Merges independent `@utility` overloads without erasing repeated fallback
 /// declarations inside either body. For example `opacity-0` keeps its static
 /// declaration instead of also gaining the generic percentage overload.
-fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
+fn merge_branch_declarations(primary: &str, secondary: &str) -> LeanString {
     let mut properties = declaration_ranges(primary)
         .into_iter()
         .map(|range| &primary[range])
@@ -317,7 +319,7 @@ fn merge_branch_declarations(primary: &str, secondary: &str) -> String {
                 .map(|(property, _)| property.trim())
         })
         .collect::<HashSet<_>>();
-    let mut merged = primary.to_owned();
+    let mut merged = primary.to_lean_string();
     for range in declaration_ranges(secondary) {
         let declaration = &secondary[range];
         let Some((property, _)) = declaration.split_once(':') else {

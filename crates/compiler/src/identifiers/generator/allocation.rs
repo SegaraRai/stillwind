@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;
@@ -35,10 +35,10 @@ pub struct RejectedIdentifier {
     /// Family the generator was asked for.
     pub kind: IdentifierKind,
     /// Canonical hash of the request, which identifies the rejected input.
-    pub hash: String,
+    pub hash: LeanStr,
     /// Why the name was rejected: the generator's message, or why a returned name could
     /// not be used.
-    pub reason: String,
+    pub reason: LeanStr,
     /// Whether the built-in name was substituted for it.
     pub substituted: bool,
 }
@@ -51,7 +51,7 @@ pub struct RejectedNames {
     entries: Vec<RejectedIdentifier>,
     /// Keys of the entries, used to report one rejection once.
     #[serde(skip)]
-    seen: BTreeSet<(IdentifierKind, String, String)>,
+    seen: BTreeSet<(IdentifierKind, LeanStr, LeanStr)>,
 }
 
 impl RejectedNames {
@@ -120,7 +120,7 @@ pub struct IdentifierContext {
     mode: IdentifierMode,
     /// How many base-36 digits of a request hash a built-in name keeps.
     hash_length: usize,
-    memo: RefCell<BTreeMap<MemoKey, Result<LeanStr, String>>>,
+    memo: RefCell<BTreeMap<MemoKey, Result<LeanStr, LeanStr>>>,
     /// Rejections collected in development mode.
     rejected: RefCell<RejectedNames>,
     /// Names of the families that carry no declaration position.
@@ -191,10 +191,11 @@ impl IdentifierContext {
         self.detached.borrow_mut().push(DetachedName {
             kind: IdentifierKind::LayerName,
             name: written.into(),
-            identity: format!(
+            identity: format_args!(
                 "stillwind-identity/v1\0anonymous-layer\0{}\0{}\0",
                 context.template, context.namespace,
             )
+            .to_lean_string()
             .into(),
         });
     }
@@ -375,7 +376,7 @@ impl IdentifierContext {
         &self,
         request: &R,
         hash: &IdentifierHash,
-    ) -> Result<LeanStr, String> {
+    ) -> Result<LeanStr, LeanStr> {
         let name = match self.generators.generator() {
             Some(generator) => request.name(generator, hash),
             None => Ok(GeneratedName::Builtin),
@@ -383,7 +384,7 @@ impl IdentifierContext {
         match name {
             Ok(GeneratedName::Builtin) => Ok(request.builtin(hash, self.hash_length).into()),
             Ok(GeneratedName::Provided(name)) => Ok(name.as_str().into()),
-            Err(message) => Err(message),
+            Err(message) => Err((message).into()),
         }
     }
 
@@ -392,7 +393,7 @@ impl IdentifierContext {
         &self,
         request: &R,
         hash: &IdentifierHash,
-        generated: Result<LeanStr, String>,
+        generated: Result<LeanStr, LeanStr>,
     ) -> Result<T, CompileDiagnostic> {
         match generated {
             // A host name arrives as a name its own family already built, so cleaning
@@ -403,7 +404,7 @@ impl IdentifierContext {
                     error.to_string().into(),
                 )
             }),
-            Err(reason) => self.reject(request, hash, reason),
+            Err(reason) => self.reject(request, hash, (reason).into()),
         }
     }
 
@@ -416,21 +417,25 @@ impl IdentifierContext {
         &self,
         request: &R,
         hash: &IdentifierHash,
-        reason: String,
+        reason: LeanString,
     ) -> Result<T, CompileDiagnostic> {
         let kind = request.kind();
-        let failure = |detail: String| {
-            CompileDiagnostic::IdentifierGenerationFailed(kind.as_str().into(), detail.into())
+        let failure = |detail: LeanString| {
+            CompileDiagnostic::IdentifierGenerationFailed(
+                kind.as_str().into(),
+                detail.as_str().into(),
+            )
         };
         if self.mode == IdentifierMode::Release {
             return Err(failure(reason));
         }
         self.rejected.borrow_mut().push(RejectedIdentifier {
             kind,
-            hash: hash.to_hex(),
-            reason,
+            hash: (hash.to_hex()).into(),
+            reason: (reason).into(),
             substituted: true,
         });
-        T::new(&request.builtin(hash, self.hash_length)).map_err(|error| failure(error.to_string()))
+        T::new(&request.builtin(hash, self.hash_length))
+            .map_err(|error| failure(error.to_lean_string()))
     }
 }

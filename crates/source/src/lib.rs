@@ -39,6 +39,6 @@ pub use projection::{
     ProjectionError, ProjectionIndex, ProjectionMap, SourceProvenance, VolarMapping,
 };
 pub use text::{
-    BytePos, FileId, Position, SourceError, SourceFile, SourceRegistry, SourceRegistryError,
-    SourceUri, SourceUriError, Span, Spanned, range_of,
+    BytePos, FileId, JoinText, Position, ReplaceText, SourceError, SourceFile, SourceRegistry,
+    SourceRegistryError, SourceUri, SourceUriError, Span, Spanned, range_of,
 };

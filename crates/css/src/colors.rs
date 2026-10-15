@@ -8,10 +8,13 @@
 //! keeps its exact spelling inside the fallback, so precision the author wrote is not
 //! lost to a reprint.
 
+use lean_string::{LeanString, ToLeanString};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::properties::box_shadow::BoxShadow;
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::color::CssColor;
+
+use stillwind_source::JoinText;
 
 use crate::{CssRule, Declaration};
 
@@ -23,7 +26,7 @@ pub fn shadow_with_color_fallback(
     value: &str,
     color_property: &str,
     alpha: &str,
-) -> Option<String> {
+) -> Option<LeanString> {
     shadow_with_color_override(value, color_property, Some(alpha))
 }
 
@@ -39,12 +42,12 @@ pub fn shadow_with_color_override(
     value: &str,
     color_property: &str,
     alpha: Option<&str>,
-) -> Option<String> {
+) -> Option<LeanString> {
     split_top_level_commas(value)
         .into_iter()
         .map(|shadow| rewrite_shadow_color(shadow, color_property, alpha))
         .collect::<Option<Vec<_>>>()
-        .map(|shadows| shadows.join(", "))
+        .map(|shadows| shadows.join_text(", "))
 }
 
 /// Rewrites one shadow, returning `None` when it cannot be parsed or its color cannot
@@ -53,22 +56,30 @@ pub fn shadow_with_color_override(
 /// The trailing-component path keeps the authored color text; the fallback path
 /// reprints the parsed shadow, which is why it is only used when the color is not the
 /// final component.
-fn rewrite_shadow_color(value: &str, color_property: &str, alpha: Option<&str>) -> Option<String> {
+fn rewrite_shadow_color(
+    value: &str,
+    color_property: &str,
+    alpha: Option<&str>,
+) -> Option<LeanString> {
     let shadow = BoxShadow::parse_string(value).ok()?;
     if let Some((base, color)) = trailing_top_level_css_component(value)
         && CssColor::parse_string(color).is_ok()
     {
         let fallback = alpha.map_or_else(
-            || color.to_owned(),
-            |alpha| format!("oklab(from {color} l a b / {alpha})"),
+            || color.to_lean_string(),
+            |alpha| format_args!("oklab(from {color} l a b / {alpha})").to_lean_string(),
         );
-        return Some(format!("{base} var({color_property}, {fallback})"));
+        return Some(format_args!("{base} var({color_property}, {fallback})").to_lean_string());
     }
 
     // The fallback remains grammar-driven for shadows whose color is not written as the
     // final component. Built-in theme shadows take the source preserving path above, so
     // their authored precision is retained.
-    let color = shadow.color.to_css_string(PrinterOptions::default()).ok()?;
+    let color: LeanString = shadow
+        .color
+        .to_css_string(PrinterOptions::default())
+        .ok()?
+        .into();
     let lengths = [
         &shadow.x_offset,
         &shadow.y_offset,
@@ -78,17 +89,17 @@ fn rewrite_shadow_color(value: &str, color_property: &str, alpha: Option<&str>) 
     .into_iter()
     .map(|length| length.to_css_string(PrinterOptions::default()).ok())
     .collect::<Option<Vec<_>>>()?
-    .join(" ");
+    .join_text(" ");
     let without_color = if shadow.inset {
-        format!("inset {lengths}")
+        format_args!("inset {lengths}").to_lean_string()
     } else {
         lengths
     };
     let fallback = alpha.map_or_else(
         || color.clone(),
-        |alpha| format!("oklab(from {color} l a b / {alpha})"),
+        |alpha| format_args!("oklab(from {color} l a b / {alpha})").to_lean_string(),
     );
-    Some(format!("{without_color} var({color_property}, {fallback})"))
+    Some(format_args!("{without_color} var({color_property}, {fallback})").to_lean_string())
 }
 
 /// Splits on commas that are not inside parentheses, brackets, quotes or escapes, and
@@ -133,7 +144,7 @@ fn split_top_level_commas(value: &str) -> Vec<&str> {
 /// that is the legacy form; every other color keeps its serialized spelling with the
 /// alpha appended. `None` means the value is not a color.
 #[must_use]
-pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
+pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<LeanString> {
     let color = CssColor::parse_string(value).ok()?.to_rgb().ok()?;
     let serialized = color.to_css_string(PrinterOptions::default()).ok()?;
     if let (Some(hex), Some(percent)) = (
@@ -149,9 +160,9 @@ pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<String> {
         // range before this intentional float conversion.
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let byte = (percent.clamp(0.0, 100.0) * 255.0 / 100.0).round() as u8;
-        return Some(format!("#{hex}{byte:02x}"));
+        return Some(format_args!("#{hex}{byte:02x}").to_lean_string());
     }
-    Some(format!("{serialized} / {alpha}"))
+    Some(format_args!("{serialized} / {alpha}").to_lean_string())
 }
 
 /// Converts a fully determined CSS color to sRGB components in the inclusive range 0..=1.
@@ -267,7 +278,7 @@ mod tests {
             ),
             Some(
                 "0 0 1px var(--tw-shadow-color, rgb(255 0 0 / 0.4)), 0 0 3px var(--tw-shadow-color, rgb(0 0 255 / 0.2))"
-                    .to_owned()
+                    .to_lean_string()
             )
         );
     }
@@ -282,7 +293,7 @@ mod tests {
             ),
             Some(
                 "inset 0 2px 4px var(--tw-inset-shadow-color, oklab(from rgb(0 0 0 / 0.05) l a b / 50%))"
-                    .to_owned()
+                    .to_lean_string()
             )
         );
     }

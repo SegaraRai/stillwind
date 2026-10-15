@@ -10,7 +10,7 @@
 //! turns it into the compiler's own name. A family whose spelling is not the prefix followed by the
 //! digest declares that spelling here, next to its identity rule.
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_source::{CssSourceName, ModuleId};
 
@@ -43,8 +43,8 @@ impl IdentifierHash {
     }
 
     /// The whole digest in lowercase hexadecimal.
-    pub fn to_hex(&self) -> String {
-        blake3::Hash::from(self.0).to_hex().to_string()
+    pub fn to_hex(&self) -> LeanString {
+        blake3::Hash::from(self.0).to_hex().to_lean_string()
     }
 
     /// The low-order `digits` base-36 digits of the digest.
@@ -52,7 +52,7 @@ impl IdentifierHash {
     /// The digest is one big-endian integer, so these digits are its remainder modulo
     /// `36^digits` and every bit of the digest participates. Asking for more digits
     /// extends the same suffix, and a digit the digest cannot fill is `0`.
-    pub(crate) fn short_base36(&self, digits: usize) -> String {
+    pub(crate) fn short_base36(&self, digits: usize) -> LeanString {
         let mut value = self.0;
         let mut spelled = Vec::with_capacity(digits);
         for _ in 0..digits {
@@ -78,11 +78,11 @@ pub struct ClassContext {
     /// Module identity of the call site.
     pub module: ModuleId,
     /// The caller's class namespace, which separates independently built projects.
-    pub namespace: String,
+    pub namespace: LeanStr,
     /// Byte offset of the call.
     pub call: u32,
     /// Branch discriminator and canonical spelling of the contribution.
-    pub branch: String,
+    pub branch: LeanStr,
 }
 
 /// The context one declaration name is generated from.
@@ -184,7 +184,7 @@ pub struct LayerContext {
     /// Identity of the template the layer belongs to.
     pub template: CssSourceName,
     /// The caller's class namespace, which separates independently built projects.
-    pub namespace: String,
+    pub namespace: LeanStr,
 }
 
 /// What one generated conditional helper is written for.
@@ -234,7 +234,7 @@ pub struct ConditionContext {
     /// Which helper the name is written for.
     pub role: ConditionRole,
     /// Canonical owner and interval identity for `Rule`; otherwise the conditional CSS.
-    pub text: String,
+    pub text: LeanStr,
 }
 
 /// One family's name request: the context plus the identity it is hashed from.
@@ -243,10 +243,10 @@ pub trait NameRequest<T: Token> {
     fn kind(&self) -> IdentifierKind;
 
     /// The canonical input this request is hashed from.
-    fn identity(&self) -> String;
+    fn identity(&self) -> LeanString;
 
     /// Owner identity for a name recorded without a declaration position.
-    fn detached_owner_identity(&self) -> Option<String> {
+    fn detached_owner_identity(&self) -> Option<LeanString> {
         None
     }
 
@@ -265,7 +265,7 @@ pub trait NameRequest<T: Token> {
         &self,
         generator: &dyn IdentifierGenerator,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<T>, String>;
+    ) -> Result<GeneratedName<T>, LeanString>;
 
     /// The compiler's own name for this request.
     ///
@@ -273,7 +273,7 @@ pub trait NameRequest<T: Token> {
     /// family that spells an authored label writes it, normalized, between the prefix
     /// and the digest; the label is what makes a marker readable in generated markup. A
     /// family whose spelling is neither form overrides this.
-    fn builtin(&self, hash: &IdentifierHash, hash_length: usize) -> String {
+    fn builtin(&self, hash: &IdentifierHash, hash_length: usize) -> LeanString {
         builtin_spelling(self.kind(), self.label(), &hash.short_base36(hash_length))
     }
 
@@ -289,16 +289,17 @@ fn hashed(identity: &str) -> IdentifierHash {
 }
 
 /// Spells one family's built-in name from its prefix, its label, and the request digest.
-fn builtin_spelling(kind: IdentifierKind, label: Option<&Label>, digest: &str) -> String {
+fn builtin_spelling(kind: IdentifierKind, label: Option<&Label>, digest: &str) -> LeanString {
     match label {
-        Some(label) => format!(
+        Some(label) => format_args!(
             "{}{}{}{}",
             builtin_prefix(kind),
             label.as_str(),
             builtin_label_separator(kind),
             digest,
-        ),
-        None => format!("{}{}", builtin_prefix(kind), digest),
+        )
+        .to_lean_string(),
+        None => format_args!("{}{}", builtin_prefix(kind), digest).to_lean_string(),
     }
 }
 
@@ -322,7 +323,7 @@ macro_rules! name_requests {
                     IdentifierKind::$kind
                 }
 
-                fn identity(&self) -> String {
+                fn identity(&self) -> LeanString {
                     $identity(&self.0)
                 }
 
@@ -330,7 +331,7 @@ macro_rules! name_requests {
                     &self,
                     generator: &dyn IdentifierGenerator,
                     hash: &IdentifierHash,
-                ) -> Result<GeneratedName<$token>, String> {
+                ) -> Result<GeneratedName<$token>, LeanString> {
                     generator.$generator(&self.0, hash)
                 }
 
@@ -345,8 +346,8 @@ macro_rules! name_requests {
 }
 
 /// Canonical identity of a named declaration, in the versioned identity spelling.
-fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> String {
-    format!(
+fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> LeanString {
+    format_args!(
         "stillwind/v1\0{}",
         declaration_fields(
             context.module(),
@@ -356,6 +357,7 @@ fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> Strin
             context.binding()
         )
     )
+    .to_lean_string()
 }
 
 /// Fields shared by the hash request and owner identity of a named declaration.
@@ -365,8 +367,8 @@ pub(crate) fn declaration_fields(
     start: u32,
     end: u32,
     binding: &str,
-) -> String {
-    format!("{module}\0{kind}\0{start}:{end}\0{binding}\0")
+) -> LeanString {
+    format_args!("{module}\0{kind}\0{start}:{end}\0{binding}\0").to_lean_string()
 }
 
 /// The declaration fields one identity is computed from.
@@ -405,42 +407,47 @@ impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
         }
     }
 
-    fn identity(&self) -> String {
-        format!(
+    fn identity(&self) -> LeanString {
+        format_args!(
             "stillwind/condition/v1\0{}\0{}\0",
             self.0.role.as_str(),
             self.0.text,
         )
+        .to_lean_string()
     }
 
-    fn detached_owner_identity(&self) -> Option<String> {
-        Some(format!(
-            "stillwind-identity/v1\0condition-helper\0{}\0{}\0",
-            self.0.role.as_str(),
-            self.0.text,
-        ))
+    fn detached_owner_identity(&self) -> Option<LeanString> {
+        Some(
+            format_args!(
+                "stillwind-identity/v1\0condition-helper\0{}\0{}\0",
+                self.0.role.as_str(),
+                self.0.text,
+            )
+            .to_lean_string(),
+        )
     }
 
     fn name(
         &self,
         generator: &dyn IdentifierGenerator,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ConditionHelperName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
         generator.condition_helper(&self.0, hash, &self.text_hash())
     }
 
-    fn builtin(&self, _hash: &IdentifierHash, hash_length: usize) -> String {
+    fn builtin(&self, _hash: &IdentifierHash, hash_length: usize) -> LeanString {
         if self.0.role == ConditionRole::Rule {
             return self.text_hash().short_base36(hash_length);
         }
         // The role is a letter of the prefix rather than part of the digest, so the
         // name is the helper's text hash under the spelling of its own role.
-        format!(
+        format_args!(
             "{}{}-{}",
             builtin_prefix(self.kind()),
             self.0.role.builtin_letter(),
             self.text_hash().short_base36(hash_length),
         )
+        .to_lean_string()
     }
 }
 
@@ -457,48 +464,52 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
         IdentifierKind::ViewTransitionSlot
     }
 
-    fn identity(&self) -> String {
-        format!(
+    fn identity(&self) -> LeanString {
+        format_args!(
             "stillwind/view-transition-slot/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
             namespace = self.0.namespace,
             module = self.0.module,
             call = self.0.call,
             branch = self.0.branch,
         )
+        .to_lean_string()
     }
 
-    fn detached_owner_identity(&self) -> Option<String> {
-        Some(format!(
-            "stillwind-identity/v1\0slot\0{}\0{}\0{}\0{}\0",
-            self.0.module, self.0.namespace, self.0.call, self.0.branch,
-        ))
+    fn detached_owner_identity(&self) -> Option<LeanString> {
+        Some(
+            format_args!(
+                "stillwind-identity/v1\0slot\0{}\0{}\0{}\0{}\0",
+                self.0.module, self.0.namespace, self.0.call, self.0.branch,
+            )
+            .to_lean_string(),
+        )
     }
 
     fn name(
         &self,
         generator: &dyn IdentifierGenerator,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionSlotName>, LeanString> {
         generator.view_transition_slot(&self.0, hash)
     }
 }
 
 name_requests! {
-    ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format!(
+    ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format_args!(
         "stillwind/style/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
         namespace = context.namespace,
         module = context.module,
         call = context.call,
         branch = context.branch,
-    ), asks(utility_class);
+    ).to_lean_string(), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);
     AnchorNameRequest(LocatorContext): AnchorName as AnchorName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(anchor_name), labels(label);
     ContainerNameRequest(LocatorContext): ContainerName as ContainerName = |context: &LocatorContext| declaration_identity(context, "ref"), asks(container_name), labels(label);
     KeyframesNameRequest(DeclarationContext): KeyframesName as KeyframesName = |context: &DeclarationContext| declaration_identity(context, "keyframes"), asks(keyframes_name), labels(label);
     ViewTransitionClassRequest(DeclarationContext): ViewTransitionClass as ViewTransitionClass = |context: &DeclarationContext| declaration_identity(context, "view-transition"), asks(view_transition_class), labels(label);
-    LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format!(
+    LayerNameRequest(LayerContext): LayerName as LayerName = |context: &LayerContext| format_args!(
         "stillwind/layer/v1\0{namespace}\0{template}\0",
         namespace = context.namespace,
         template = context.template,
-    ), asks(layer_name);
+    ).to_lean_string(), asks(layer_name);
 }

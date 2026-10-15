@@ -1,5 +1,7 @@
 //! View-transition definitions: the group rule and the three pseudo-element phases.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::ViewTransitionDefinition;
@@ -29,7 +31,6 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
-    let output = &mut contribution.css;
     let class = match identifiers.view_transition_class(&named_declaration(
         module_id,
         &transition.binding,
@@ -42,8 +43,10 @@ pub(in crate::compiler) fn emit_view_transition_definition(
         }
     };
     let class = class.selector();
+    let mut css: LeanString = std::mem::take(&mut contribution.css).into();
+    let output = &mut css;
     if let Some(group) = &transition.group {
-        let selector = format!("::view-transition-group({class})");
+        let selector = format_args!("::view-transition-group({class})").to_lean_string();
         let resolved = resolve_options(
             group,
             OptionVariants::Conditions,
@@ -63,7 +66,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
         };
         emit_view_transition_utilities(
             output,
-            &format!("::view-transition-{pseudo}({class})"),
+            &format_args!("::view-transition-{pseudo}({class})").to_lean_string(),
             utilities,
             theme,
             diagnostics,
@@ -71,6 +74,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
             lint_findings,
         );
     }
+    contribution.css = css.into();
 }
 
 /// Writes one pseudo-element phase's rules for `selector`.
@@ -81,23 +85,23 @@ pub(in crate::compiler) fn emit_view_transition_definition(
 /// contribute nothing; successful tokens still append their property requirements, so callers
 /// must check diagnostics before publishing.
 pub(crate) fn emit_view_transition_utilities(
-    output: &mut String,
+    output: &mut LeanString,
     selector: &str,
-    input: &Spanned<String>,
+    input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
-    required_properties: &mut Vec<String>,
+    required_properties: &mut Vec<LeanStr>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
     let mut plain = Vec::new();
-    let mut conditional = String::new();
+    let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
         let resolved = match resolve_utility(&utility.value.raw, theme) {
             Ok(Some(resolved)) => resolved,
             Ok(None) => {
                 lint_findings.push(LintFinding::new(
                     LintDiagnostic::UnresolvedUtility {
-                        utility: utility.value.raw.clone(),
+                        utility: (utility.value.raw.clone()),
                         classification: unresolved_utility_kind(&utility.value.raw),
                     },
                     utility.span,
@@ -129,7 +133,7 @@ pub(crate) fn emit_view_transition_utilities(
         required_properties.extend(resolved.required_properties.clone());
         let declaration = combine_declarations_for_theme(&[&resolved], theme);
         for path in paths {
-            let rule = format!("{selector}{{ {declaration}}}");
+            let rule = format_args!("{selector}{{ {declaration}}}").to_lean_string();
             conditional.push_str(&wrap_conditions(&rule, &path));
         }
     }
@@ -157,7 +161,7 @@ pub(crate) fn emit_view_transition_utilities(
 /// state: the conditioned rule follows the unconditional one and wins for the properties both
 /// declare. `view-transition-group` carries no element state the condition could select through,
 /// so the condition wraps the rule rather than the selector.
-fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedOptions) {
+fn emit_option_rules(output: &mut LeanString, selector: &str, options: &ResolvedOptions) {
     if !options.declaration.is_empty() {
         output.push_str(selector);
         output.push_str("{ ");
@@ -165,7 +169,7 @@ fn emit_option_rules(output: &mut String, selector: &str, options: &ResolvedOpti
         output.push('}');
     }
     for option in &options.conditioned {
-        let rule = format!("{selector}{{ {}}}", option.declaration);
+        let rule = format_args!("{selector}{{ {}}}", option.declaration).to_lean_string();
         for path in &option.paths {
             output.push_str(&wrap_conditions(&rule, path));
         }
@@ -202,7 +206,11 @@ mod tests {
                 FileId(1),
                 None,
                 None,
-                format!("import {{ style }} from 'stillwind/react'; const motion = {definition};"),
+                (format_args!(
+                    "import {{ style }} from 'stillwind/react'; const motion = {definition};"
+                )
+                .to_lean_string())
+                .as_str(),
             )
             .unwrap();
             let theme = css_source(FileId(2), "").unwrap();

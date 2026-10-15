@@ -63,6 +63,8 @@ impl fmt::Debug for SnapshotAnalyses {
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
+    use lean_string::LeanString;
+
     use super::*;
 
     #[test]
@@ -95,7 +97,7 @@ mod tests {
         assert_eq!(*cache.get_or_init(Fingerprint::of("other"), || 9usize), 9);
         assert_eq!(
             cache
-                .get_or_init(key, || String::from("different type"))
+                .get_or_init(key, || LeanString::from("different type"))
                 .as_str(),
             "different type"
         );

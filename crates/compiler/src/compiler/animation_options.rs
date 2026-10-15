@@ -5,6 +5,8 @@
 //! a condition. Options resolve through the animation option registry, which is why a
 //! theme duration is usable as an option even though it is not a utility.
 
+use lean_string::{LeanStr, LeanString};
+
 use stillwind_design_system::{ThemeIndex, resolve_animation_option};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_source::Spanned;
@@ -26,7 +28,7 @@ pub(crate) enum OptionVariants {
 #[derive(Default)]
 pub(crate) struct ResolvedOptions {
     /// Declarations of the options that apply unconditionally, in written order.
-    pub(crate) declaration: String,
+    pub(crate) declaration: LeanString,
     /// One entry per conditioned option, in written order. Always empty under
     /// [`OptionVariants::Rejected`].
     pub(crate) conditioned: Vec<ConditionedOption>,
@@ -37,7 +39,7 @@ pub(crate) struct ConditionedOption {
     /// Alternative paths for this option, each with conditions ordered outermost first.
     pub(crate) paths: Vec<Vec<OptionCondition>>,
     /// Declarations the option contributes.
-    pub(crate) declaration: String,
+    pub(crate) declaration: LeanString,
 }
 
 /// Resolves a whitespace-separated option list, keeping the conditions its options
@@ -51,7 +53,7 @@ pub(crate) struct ConditionedOption {
 /// [`OptionVariants::Rejected`] and as an invalid view-transition variant under
 /// [`OptionVariants::Conditions`].
 pub(crate) fn resolve_options(
-    options: &Spanned<String>,
+    options: &Spanned<LeanStr>,
     variants: OptionVariants,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
@@ -63,7 +65,7 @@ pub(crate) fn resolve_options(
         let unknown = || {
             LintFinding::new(
                 LintDiagnostic::UnknownAnimationOption {
-                    option: raw.clone(),
+                    option: (raw.clone()),
                 },
                 option.span,
             )
@@ -109,9 +111,10 @@ pub(crate) fn resolve_options(
             ));
             continue;
         };
-        resolved
-            .conditioned
-            .push(ConditionedOption { paths, declaration });
+        resolved.conditioned.push(ConditionedOption {
+            paths,
+            declaration: (declaration),
+        });
     }
     resolved
 }
@@ -127,6 +130,8 @@ fn strip_variants<'a>(raw: &'a str, variants: &[Variant]) -> &'a str {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanStr;
+
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, Span};
@@ -142,7 +147,7 @@ mod tests {
             css_source(FileId(1), "@theme { --duration-normal: 180ms; }").unwrap();
         let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
-            "duration-normal both".to_owned(),
+            "duration-normal both".to_lean_str(),
             Span::new(FileId(2), 0, 20),
         );
         let mut diagnostics = Vec::new();
@@ -167,7 +172,7 @@ mod tests {
         let theme = css_source(FileId(2), "").unwrap();
         let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
-            "duration-180 motion-reduce:duration-0".to_owned(),
+            "duration-180 motion-reduce:duration-0".to_lean_str(),
             Span::new(FileId(2), 0, 34),
         );
         let mut diagnostics = Vec::new();
@@ -202,7 +207,7 @@ mod tests {
         let theme = css_source(FileId(2), "").unwrap();
         let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
         let options = Spanned::new(
-            "motion-reduce:duration-0".to_owned(),
+            "motion-reduce:duration-0".to_lean_str(),
             Span::new(FileId(2), 0, 24),
         );
         let mut diagnostics = Vec::new();
@@ -223,7 +228,7 @@ mod tests {
                 .map(|error| error.diagnostic.clone())
                 .collect::<Vec<_>>(),
             vec![LintDiagnostic::UnknownAnimationOption {
-                option: "motion-reduce:duration-0".to_owned(),
+                option: "motion-reduce:duration-0".to_lean_str(),
             }]
         );
     }
@@ -267,7 +272,7 @@ mod tests {
             .filter(|error| {
                 error.diagnostic
                     == LintDiagnostic::UnknownAnimationOption {
-                        option: "motion-reduce:nope-0".to_owned(),
+                        option: "motion-reduce:nope-0".to_lean_str(),
                     }
             })
             .collect::<Vec<_>>();

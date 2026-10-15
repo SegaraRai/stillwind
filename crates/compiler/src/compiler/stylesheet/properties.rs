@@ -12,8 +12,11 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_css::CustomPropertyUsage;
 use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
+use stillwind_source::JoinText;
 
 use crate::CompilerOptions;
 
@@ -21,9 +24,9 @@ use crate::CompilerOptions;
 #[derive(Default)]
 pub(super) struct PropertyOutput {
     /// Complete `@property` rules in registry order after duplicate-name selection.
-    pub(super) registrations: String,
+    pub(super) registrations: LeanStr,
     /// Builtin fallback declarations in the same selected order, without a selector.
-    pub(super) initials: String,
+    pub(super) initials: LeanStr,
 }
 
 /// Selects registration rules and builtin fallback declarations required by `usage`.
@@ -43,7 +46,7 @@ pub(super) fn render_used_properties(
     theme: &ThemeIndex,
     usage: &CustomPropertyUsage,
     options: &CompilerOptions,
-    explicit: &[String],
+    explicit: &[LeanStr],
 ) -> PropertyOutput {
     let builtin_properties = builtin_property_definitions(theme);
     let definitions = builtin_properties.iter().chain(theme.properties());
@@ -52,8 +55,8 @@ pub(super) fn render_used_properties(
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
             (property.activation.is_active(
-                usage.declared.contains(&name),
-                usage.referenced.contains(&name),
+                usage.declared.contains(name.as_str()),
+                usage.referenced.contains(name.as_str()),
             ) || property
                 .activation_properties
                 .iter()
@@ -71,7 +74,7 @@ pub(super) fn render_used_properties(
         changed = false;
         for property in definitions.clone() {
             let name = options.rewrite_generated(&property.name);
-            if required.contains(&name) {
+            if required.contains(name.as_str()) {
                 for dependency in &property.dependencies {
                     changed |= required.insert(options.rewrite_generated(dependency));
                 }
@@ -93,8 +96,8 @@ pub(super) fn render_used_properties(
             let name = options.rewrite_generated(&property.name);
             // Authored @property declarations take precedence over compiler
             // defaults, including when they intentionally reuse a builtin name.
-            if !required.contains(&name)
-                || theme.authored_properties().contains(&name)
+            if !required.contains(name.as_str())
+                || theme.authored_properties().contains(name.as_str())
                 || !seen.insert(name.clone())
             {
                 return None;
@@ -106,7 +109,7 @@ pub(super) fn render_used_properties(
         })
         .collect::<Vec<_>>();
     properties.reverse();
-    let mut output = String::new();
+    let mut output = LeanString::new();
     let mut builtin_initials = Vec::new();
     for (name, body, builtin) in &properties {
         if *builtin {
@@ -116,10 +119,10 @@ pub(super) fn render_used_properties(
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
                 .unwrap_or("initial");
-            builtin_initials.push(format!("{name}:{initial};"));
+            builtin_initials.push(format_args!("{name}:{initial};").to_lean_string());
         }
     }
-    let initials = builtin_initials.concat();
+    let initials = builtin_initials.join_text("");
     for (name, body, _) in properties {
         if !output.is_empty() {
             output.push('\n');
@@ -131,7 +134,7 @@ pub(super) fn render_used_properties(
         output.push_str("}\n");
     }
     PropertyOutput {
-        registrations: output,
-        initials,
+        registrations: (output).into(),
+        initials: (initials).into(),
     }
 }

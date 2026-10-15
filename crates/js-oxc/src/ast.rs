@@ -4,6 +4,7 @@
 //! may be a normalized projection; the projection pipeline subsequently maps its
 //! local spans to the editable original. Re-tagging alone does not map coordinates.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{Expression, PropertyKey, StringLiteral};
 
 use stillwind_ir::AssetReference;
@@ -18,14 +19,14 @@ impl<'a> MacroExtractor<'a> {
     /// The quotes are excluded, so the span can be sliced back out of the source and
     /// compared with the value. Decoded escapes may make the value shorter than the
     /// span; producers that need byte-exact text keep the raw source instead.
-    pub(crate) fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<String> {
+    pub(crate) fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<LeanStr> {
         let literal_span = self.source_span(literal.span);
         let content_span = Span::new(
             literal_span.file,
             literal_span.start.0 + 1,
             literal_span.end.0.saturating_sub(1),
         );
-        Spanned::new(literal.value.to_string(), content_span)
+        Spanned::new(literal.value.to_lean_str(), content_span)
     }
 
     /// Re-tags an Oxc span with the file id of the analysed source.
@@ -57,7 +58,7 @@ impl<'a> MacroExtractor<'a> {
         &self,
         identity: &IdentityId,
         span: Span,
-    ) -> Option<Spanned<String>> {
+    ) -> Option<Spanned<LeanStr>> {
         let declared = match identity.kind() {
             AssetKind::Keyframes => self
                 .keyframes_declarations
@@ -87,10 +88,10 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Computed and numeric keys return `None`; callers decide whether that is an error
     /// or simply an entry they do not understand.
-    pub(crate) fn property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<String>> {
+    pub(crate) fn property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<LeanStr>> {
         match key {
             PropertyKey::StaticIdentifier(identifier) => Some(Spanned::new(
-                identifier.name.to_string(),
+                identifier.name.to_lean_str(),
                 self.source_span(identifier.span),
             )),
             PropertyKey::StringLiteral(literal) => Some(self.string_literal(literal)),
@@ -99,7 +100,7 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Resolves literal object keys, including expression-free template keys.
-    pub(crate) fn static_property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<String>> {
+    pub(crate) fn static_property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<LeanStr>> {
         if let Some(name) = self.property_name(key) {
             return Some(name);
         }
@@ -107,7 +108,13 @@ impl<'a> MacroExtractor<'a> {
         match expression {
             Expression::StringLiteral(literal) => Some(self.string_literal(literal)),
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
-                let value = template.quasis.first()?.value.cooked.as_ref()?.to_string();
+                let value = template
+                    .quasis
+                    .first()?
+                    .value
+                    .cooked
+                    .as_ref()?
+                    .to_lean_str();
                 let span = self.source_span(template.span);
                 Some(Spanned::new(
                     value,

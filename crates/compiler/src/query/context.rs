@@ -7,6 +7,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, ToLeanString};
+
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CanonicalUtilitiesConfig, LintConfig, LintKind};
 use stillwind_source::Fingerprint;
@@ -24,7 +26,7 @@ pub(super) struct QueryContext {
     /// Conversion policy after applying project lint overrides to compiler defaults.
     pub(super) canonical_policy: CanonicalUtilitiesConfig,
     /// Candidate CSS and signatures scoped to the resolved inputs above.
-    pub(super) canonical_previews: RefCell<BTreeMap<String, Option<Arc<CanonicalPreview>>>>,
+    pub(super) canonical_previews: RefCell<BTreeMap<LeanStr, Option<Arc<CanonicalPreview>>>>,
 }
 
 impl QueryContext {
@@ -46,13 +48,16 @@ impl QueryContext {
     /// Temporary previews used during preparation are released after the index owns
     /// the values it needs. Requirement failures remain deferred until candidate use.
     pub(super) fn canonical_index(&self) -> Arc<CanonicalIndex> {
-        let key = Fingerprint::of(format!(
-            "canonical-index/v1\0{}\0{}\0{}\0{}",
-            self.canonical_policy.px_to_rem,
-            self.canonical_policy.root_font_size.get().to_bits(),
-            self.options.prefix,
-            self.options.tailwind_prefix
-        ));
+        let key = Fingerprint::of(
+            format_args!(
+                "canonical-index/v1\0{}\0{}\0{}\0{}",
+                self.canonical_policy.px_to_rem,
+                self.canonical_policy.root_font_size.get().to_bits(),
+                self.options.prefix,
+                self.options.tailwind_prefix
+            )
+            .to_lean_string(),
+        );
         self.design_system.analysis(key, || {
             let index = CanonicalIndex::prepare(self);
             self.canonical_previews.borrow_mut().clear();

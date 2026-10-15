@@ -7,6 +7,8 @@
 //! path and the generated utility path expand the same inputs through the same code and
 //! cannot drift apart.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantDeclaration, resolve_variant,
 };
@@ -167,18 +169,21 @@ fn conditions_only(paths: &[Vec<VariantStep<'_>>]) -> bool {
 /// A selector without the nesting subject is live wherever the stylesheet loads, which a
 /// `style()` call must not author; document-wide CSS belongs in a stylesheet. Conditions and
 /// selectors that keep the subject are unaffected.
-pub(super) fn document_scoped_selector(variant: &Variant, theme: &ThemeIndex) -> Option<String> {
+pub(super) fn document_scoped_selector(
+    variant: &Variant,
+    theme: &ThemeIndex,
+) -> Option<LeanString> {
     let application = resolve_variant(variant, theme)?;
-    stillwind_design_system::document_scoped_selector(&application).map(str::to_owned)
+    stillwind_design_system::document_scoped_selector(&application).map(LeanString::from)
 }
 
 /// One condition wrapper a rule is nested under.
 #[derive(Debug)]
 pub(crate) enum OptionCondition {
     /// `@media <condition>`
-    Media(String),
+    Media(LeanStr),
     /// `@supports (<condition>)`
-    Supports(String),
+    Supports(LeanStr),
 }
 
 impl OptionCondition {
@@ -188,26 +193,28 @@ impl OptionCondition {
     /// than emitting it unconditionally.
     fn from_step(step: &VariantStep<'_>) -> Option<Self> {
         match step {
-            VariantStep::Media(condition) => Some(Self::Media((*condition).to_owned())),
-            VariantStep::Supports(condition) => Some(Self::Supports((*condition).to_owned())),
+            VariantStep::Media(condition) => Some(Self::Media((*condition).to_lean_str())),
+            VariantStep::Supports(condition) => Some(Self::Supports((*condition).to_lean_str())),
             _ => None,
         }
     }
 
     /// Wraps one rule in this condition.
-    fn wrap(&self, rule: &str) -> String {
+    fn wrap(&self, rule: &str) -> LeanString {
         match self {
-            Self::Media(condition) => format!("@media {condition}{{{rule}}}"),
-            Self::Supports(condition) => format!("@supports ({condition}){{{rule}}}"),
+            Self::Media(condition) => format_args!("@media {condition}{{{rule}}}").to_lean_string(),
+            Self::Supports(condition) => {
+                format_args!("@supports ({condition}){{{rule}}}").to_lean_string()
+            }
         }
     }
 }
 
 /// Wraps one rule in a condition path, outermost condition first.
-pub(crate) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> String {
+pub(crate) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> LeanString {
     path.iter()
         .rev()
-        .fold(rule.to_owned(), |wrapped, condition| {
+        .fold(rule.to_lean_string(), |wrapped, condition| {
             condition.wrap(&wrapped)
         })
 }
@@ -272,7 +279,7 @@ mod tests {
     }
 
     /// Renders one authored variant path with the compiler's own helper names.
-    fn render_variant_path(body: &str, applications: &[VariantApplication]) -> String {
+    fn render_variant_path(body: &str, applications: &[VariantApplication]) -> LeanString {
         render_authored_variant_path(body, applications, &identifiers())
             .expect("the built-in generator cannot reject a name")
     }
@@ -320,7 +327,7 @@ mod tests {
             container: None,
             nested: Vec::new(),
             order: UtilityOrder::Authored(None),
-            candidate: String::new(),
+            candidate: (LeanString::new()).into(),
         };
         assert_eq!(
             render_utility_rule_path(

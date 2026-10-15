@@ -12,6 +12,7 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::ToLeanStr;
 use oxc::allocator::Allocator;
 use oxc::ast_visit::Visit;
 use oxc::parser::Parser;
@@ -128,7 +129,7 @@ pub(crate) fn parse_with_coordinates(
         .map(|diagnostic| {
             let mut error =
                 CompileError::new(CompileDiagnostic::JavaScriptParse, source.full_span());
-            error.notes.push(diagnostic.to_string());
+            error.notes.push(diagnostic.to_lean_str());
             error
         })
         .collect();

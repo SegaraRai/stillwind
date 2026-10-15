@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::ToLeanStr;
 use oxc_sourcemap::SourceMap;
 
 use super::index::{ProjectionError, ProjectionIndex};
@@ -25,7 +26,7 @@ pub(super) fn load<'a>(
         ranges: Vec::new(),
     };
     let map = SourceMap::from_json_string(json)
-        .map_err(|error| ProjectionError::Map(error.to_string()))?;
+        .map_err(|error| ProjectionError::Map(error.to_lean_str()))?;
     let sources: Vec<_> = map
         .get_sources()
         .enumerate()

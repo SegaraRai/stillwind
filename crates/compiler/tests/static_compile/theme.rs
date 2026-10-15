@@ -117,7 +117,8 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
             assert!(result.diagnostics.is_empty(), "{case_name}: {candidate}");
             let class_name = &result.classes[0].class_name;
             let selector = tailwind_class_selector(candidate);
-            let actual = css_rule(&result.css, class_name).replace(class_name, &selector);
+            let actual =
+                css_rule(&result.css, class_name).replace((class_name).as_str(), &selector);
             let expected = css_rule(&expected_css, &selector);
             assert_eq!(
                 minify_css(&actual),

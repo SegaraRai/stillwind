@@ -1,5 +1,6 @@
 //! Lowers class trees and object entries without changing expression evaluation order.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
     ArrayExpressionElement, Expression, ObjectExpression, ObjectProperty, ObjectPropertyKind,
     PropertyKind,
@@ -381,14 +382,14 @@ impl<'a> MacroExtractor<'a> {
 /// literal operand. Returns `None` for other expressions or an unavailable cooked
 /// template value, leaving conversion to runtime even when the expression could be
 /// constant.
-fn static_css_value(expression: &Expression<'_>) -> Option<String> {
+fn static_css_value(expression: &Expression<'_>) -> Option<LeanStr> {
     match expression.get_inner_expression() {
-        Expression::StringLiteral(value) => Some(value.value.to_string()),
+        Expression::StringLiteral(value) => Some(value.value.to_lean_str()),
         Expression::BooleanLiteral(value) => Some(if value.value { " " } else { "initial" }.into()),
-        Expression::NumericLiteral(value) => Some(value.value.to_js_string()),
+        Expression::NumericLiteral(value) => Some(value.value.to_js_string().to_lean_str()),
         Expression::UnaryExpression(value) if value.operator == UnaryOperator::UnaryNegation => {
             if let Expression::NumericLiteral(number) = value.argument.get_inner_expression() {
-                Some((-number.value).to_js_string())
+                Some((-number.value).to_js_string().to_lean_str())
             } else {
                 None
             }
@@ -399,7 +400,7 @@ fn static_css_value(expression: &Expression<'_>) -> Option<String> {
             .value
             .cooked
             .as_ref()
-            .map(ToString::to_string),
+            .map(ToLeanStr::to_lean_str),
         _ => None,
     }
 }

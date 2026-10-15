@@ -9,8 +9,9 @@
 //! the candidate capture plus an authored suffix, which is how a wildcard definition
 //! resolves a token whose name it cannot spell in advance.
 
-use crate::evaluation::EvaluationContext;
+use lean_string::{LeanStr, ToLeanStr};
 
+use super::super::EvaluationContext;
 use super::colors::CompatColorMode;
 use super::domains::{
     resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
@@ -27,7 +28,7 @@ pub(in crate::evaluation) fn resolve_literal_value_placeholder(
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
     compat_color_mode: CompatColorMode,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let replacement = match compat_color_mode {
         CompatColorMode::Legacy => resolve_literal_value_domains(arguments, capture, theme)?,
         CompatColorMode::Modern => resolve_value_domains(arguments, capture, theme)?,
@@ -44,7 +45,7 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let arguments = split_domains(arguments);
     let [domain, suffix] = arguments.as_slice() else {
         return None;
@@ -54,7 +55,7 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     let suffix = suffix.trim().strip_prefix("--")?;
     let value = theme_value(
         namespace,
-        &format!("{capture}{domain_suffix}--{suffix}"),
+        &format_args!("{capture}{domain_suffix}--{suffix}").to_lean_str(),
         theme,
     )?;
     Some(value)
@@ -67,7 +68,7 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
 pub(in crate::evaluation) fn resolve_value_map_placeholder(
     arguments: &str,
     capture: Option<&str>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let capture = capture?;
     let replacement = split_domains(arguments)
         .into_iter()
@@ -75,7 +76,7 @@ pub(in crate::evaluation) fn resolve_value_map_placeholder(
             let (key, value) = entry.trim().split_once(':')?;
             (key.trim() == capture).then(|| value.trim())
         })?
-        .to_owned();
+        .to_lean_str();
     Some(replacement)
 }
 

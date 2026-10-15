@@ -1,5 +1,6 @@
 //! Formats complete CSS for display without running stylesheet optimization.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
 use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
 
 /// CSS could not be parsed or printed for display.
@@ -7,10 +8,10 @@ use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
 pub enum CssFormatError {
     /// The stylesheet parser rejected the input.
     #[error("CSS parse failed: {0}")]
-    Parse(String),
+    Parse(LeanStr),
     /// The stylesheet printer could not serialize a parsed value.
     #[error("CSS print failed: {0}")]
-    Print(String),
+    Print(LeanStr),
 }
 
 /// Returns CSS with line breaks and two-space indentation for editor previews.
@@ -21,13 +22,13 @@ pub enum CssFormatError {
 /// # Errors
 ///
 /// Returns an error if the stylesheet cannot be parsed or printed.
-pub fn format_css(css: &str) -> Result<String, CssFormatError> {
+pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
     let stylesheet = StyleSheet::parse(css, ParserOptions::default())
-        .map_err(|error| CssFormatError::Parse(error.to_string()))?;
+        .map_err(|error| CssFormatError::Parse(error.to_lean_str()))?;
     stylesheet
         .to_css(PrinterOptions::default())
-        .map(|result| result.code)
-        .map_err(|error| CssFormatError::Print(error.to_string()))
+        .map(|result| result.code.into())
+        .map_err(|error| CssFormatError::Print(error.to_lean_str()))
 }
 
 #[cfg(test)]

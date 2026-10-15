@@ -11,6 +11,7 @@ use stillwind_diagnostics::{
 };
 use stillwind_source::ModuleId;
 
+use super::NativeText;
 use crate::semantic::NativeModuleSummary;
 
 /// Throws an error with source-resolved diagnostics attached as `reports`.
@@ -30,17 +31,21 @@ pub(crate) fn report_error(env: Env, message: String, reports: Vec<BindingReport
 #[serde(rename_all = "camelCase")]
 pub struct BindingReport {
     /// Stable compiler code or lint rule.
-    pub code: String,
+    #[napi(ts_type = "string")]
+    pub code: NativeText,
     /// Human-readable cause.
-    pub message: String,
+    #[napi(ts_type = "string")]
+    pub message: NativeText,
     /// Effective `error` or `warning` level after lint policy.
-    pub severity: String,
+    #[napi(ts_type = "string")]
+    pub severity: NativeText,
     /// Main highlighted range.
     pub primary: BindingLabel,
     /// Further highlighted ranges in producer order.
     pub related: Vec<BindingLabel>,
     /// Supplementary explanations.
-    pub notes: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub notes: Vec<NativeText>,
     /// Alternative revision-pinned fixes.
     pub actions: Vec<BindingAction>,
 }
@@ -48,8 +53,8 @@ pub struct BindingReport {
 impl From<ResolvedDiagnostic> for BindingReport {
     fn from(value: ResolvedDiagnostic) -> Self {
         Self {
-            code: value.code,
-            message: value.message,
+            code: (value.code).into(),
+            message: (value.message).into(),
             severity: match value.severity {
                 DiagnosticSeverity::Error => "error",
                 DiagnosticSeverity::Warning => "warning",
@@ -57,7 +62,7 @@ impl From<ResolvedDiagnostic> for BindingReport {
             .into(),
             primary: value.primary.into(),
             related: value.related.into_iter().map(Into::into).collect(),
-            notes: value.notes,
+            notes: (value.notes).into_iter().map(Into::into).collect(),
             actions: value.actions.into_iter().map(Into::into).collect(),
         }
     }
@@ -70,11 +75,12 @@ impl From<ResolvedDiagnostic> for BindingReport {
 pub struct BindingLabel {
     /// Whether the producer identified a range or only the document.
     #[napi(ts_type = "'range' | 'document'")]
-    pub scope: String,
+    pub scope: NativeText,
     /// Source revision and editor range.
     pub location: BindingLocation,
     /// Explanation for this range, when one was supplied.
-    pub message: Option<String>,
+    #[napi(ts_type = "string")]
+    pub message: Option<NativeText>,
 }
 
 impl From<ResolvedLabel> for BindingLabel {
@@ -86,7 +92,7 @@ impl From<ResolvedLabel> for BindingLabel {
             }
             .into(),
             location: value.location.into(),
-            message: value.message,
+            message: (value.message).map(Into::into),
         }
     }
 }
@@ -97,9 +103,11 @@ impl From<ResolvedLabel> for BindingLabel {
 #[serde(rename_all = "camelCase")]
 pub struct BindingLocation {
     /// Absolute document URI supplied by the host or formed for a virtual input.
-    pub uri: String,
+    #[napi(ts_type = "string")]
+    pub uri: NativeText,
     /// Fingerprint of the exact source text used for these coordinates.
-    pub revision: String,
+    #[napi(ts_type = "string")]
+    pub revision: NativeText,
     /// Inclusive UTF-8 byte offset.
     pub start: u32,
     /// Exclusive UTF-8 byte offset.
@@ -121,8 +129,8 @@ pub struct BindingLocation {
 impl From<ResolvedLocation> for BindingLocation {
     fn from(value: ResolvedLocation) -> Self {
         Self {
-            uri: value.uri.as_str().into(),
-            revision: value.revision,
+            uri: value.uri.into(),
+            revision: (value.revision).into(),
             start: value.start,
             end: value.end,
             start_utf16: value.start_utf16,
@@ -143,14 +151,15 @@ pub struct BindingEdit {
     /// Range in the source revision to replace.
     pub location: BindingLocation,
     /// Text inserted at the range.
-    pub replacement: String,
+    #[napi(ts_type = "string")]
+    pub replacement: NativeText,
 }
 
 impl From<ResolvedEdit> for BindingEdit {
     fn from(value: ResolvedEdit) -> Self {
         Self {
             location: value.location.into(),
-            replacement: value.replacement,
+            replacement: (value.replacement).into(),
         }
     }
 }
@@ -161,7 +170,8 @@ impl From<ResolvedEdit> for BindingEdit {
 #[serde(rename_all = "camelCase")]
 pub struct BindingAction {
     /// Title shown by an editor.
-    pub title: String,
+    #[napi(ts_type = "string")]
+    pub title: NativeText,
     /// Edits applied atomically after verifying every source revision.
     pub edits: Vec<BindingEdit>,
 }
@@ -169,7 +179,7 @@ pub struct BindingAction {
 impl From<ResolvedAction> for BindingAction {
     fn from(value: ResolvedAction) -> Self {
         Self {
-            title: value.title,
+            title: (value.title).into(),
             edits: value.edits.into_iter().map(Into::into).collect(),
         }
     }
@@ -182,15 +192,19 @@ impl From<ResolvedAction> for BindingAction {
 pub struct BindingDiagnostic {
     /// Whether the producer identified a range or only the document.
     #[napi(ts_type = "'range' | 'document'")]
-    pub scope: String,
+    pub scope: NativeText,
     /// Stable diagnostic code, such as `SW01012`.
-    pub code: String,
+    #[napi(ts_type = "string")]
+    pub code: NativeText,
     /// Rendered message.
-    pub message: String,
+    #[napi(ts_type = "string")]
+    pub message: NativeText,
     /// Exact source document identity.
-    pub uri: String,
+    #[napi(ts_type = "string")]
+    pub uri: NativeText,
     /// Fingerprint of the source revision used for the range.
-    pub revision: String,
+    #[napi(ts_type = "string")]
+    pub revision: NativeText,
     /// Byte start of the primary label.
     pub start: u32,
     /// Byte end of the primary label.
@@ -208,7 +222,8 @@ pub struct BindingDiagnostic {
     /// Zero-based UTF-16 column of the primary label end.
     pub end_column: u32,
     /// Additional explanation lines.
-    pub notes: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub notes: Vec<NativeText>,
 }
 
 /// One lint finding.
@@ -217,13 +232,17 @@ pub struct BindingDiagnostic {
 #[serde(rename_all = "camelCase")]
 pub struct BindingLintFinding {
     /// Rule name, as used by `swlint-disable` directives.
-    pub rule: String,
+    #[napi(ts_type = "string")]
+    pub rule: NativeText,
     /// Rendered message.
-    pub message: String,
+    #[napi(ts_type = "string")]
+    pub message: NativeText,
     /// Exact source document identity.
-    pub uri: String,
+    #[napi(ts_type = "string")]
+    pub uri: NativeText,
     /// Fingerprint of the source revision used for the range.
-    pub revision: String,
+    #[napi(ts_type = "string")]
+    pub revision: NativeText,
     /// Byte start of the finding.
     pub start: u32,
     /// Byte end of the finding.
@@ -237,7 +256,8 @@ pub struct BindingLintFinding {
     /// Zero-based UTF-16 column of the primary range end.
     pub end_column: u32,
     /// Additional explanation lines.
-    pub notes: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub notes: Vec<NativeText>,
 }
 
 /// Latest source-resolved findings for one module's attempted revision.
@@ -246,7 +266,8 @@ pub struct BindingLintFinding {
 #[serde(rename_all = "camelCase")]
 pub struct NativeDiagnosticBatch {
     /// Project module identity for the attempted analysis.
-    pub module: String,
+    #[napi(ts_type = "string")]
+    pub module: NativeText,
     /// Diagnostics in report order.
     pub reports: Vec<BindingReport>,
 }

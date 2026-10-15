@@ -10,6 +10,8 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use stillwind_diagnostics::{CompileError, LintDirective, LintFinding};
 use stillwind_semantic::{
     AssetKind, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts, TypeFactsUpdate,
@@ -58,7 +60,7 @@ pub struct CheckerSpan {
 #[derive(Clone, Debug)]
 pub struct CheckerBinding {
     /// Global helper identifier.
-    pub name: String,
+    pub name: LeanStr,
     /// Generated UTF-8 range of the identifier reference.
     pub span: Span,
 }
@@ -179,7 +181,7 @@ pub struct ModuleAnalysis {
     /// package whose asset semantics are required.
     pub integration_diagnostics: Vec<IntegrationDiagnostic>,
     /// Frontend implementation name, part of artifact identity.
-    pub frontend_kind: String,
+    pub frontend_kind: LeanStr,
 }
 
 impl ModuleAnalysis {

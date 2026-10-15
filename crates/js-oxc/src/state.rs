@@ -12,6 +12,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::ModuleExportName;
 use oxc::semantic::{Scoping, SymbolId};
 
@@ -53,7 +54,7 @@ pub(crate) struct MacroExtractor<'a> {
     /// Ref definitions in declaration order.
     pub(crate) ref_definitions: Vec<RefDefinition>,
     /// Symbols bound to an keyframes declaration, with their names.
-    pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(crate) keyframes_symbols: HashMap<SymbolId, Spanned<LeanStr>>,
     /// Animation declarations in declaration order.
     pub(crate) keyframes_declarations: Vec<KeyframesDefinition>,
     /// Ranges in the AST buffer that have already been handled as macro uses.
@@ -62,7 +63,7 @@ pub(crate) struct MacroExtractor<'a> {
     /// range therefore does not guarantee successful lowering.
     pub(crate) consumed_use_spans: BTreeSet<LocalSpan>,
     /// Symbols bound to a view-transition declaration, with their names.
-    pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<String>>,
+    pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<LeanStr>>,
     /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
     /// Symbolic value of each local binding the pass could resolve.
@@ -97,7 +98,7 @@ pub(crate) struct MacroExtractor<'a> {
     /// Re-export edges of this module, in source order.
     pub(crate) re_exports: Vec<ReExport>,
     /// Exported bindings as symbol plus exported name, in visit order.
-    pub(crate) export_symbols: Vec<(SymbolId, String)>,
+    pub(crate) export_symbols: Vec<(SymbolId, LeanStr)>,
     /// Checker facts keyed by original UTF-8 expression range.
     pub(crate) type_facts: HashMap<LocalSpan, CheckedValue>,
     /// AST-buffer ranges the checker should resolve, accumulated during the visit.
@@ -193,7 +194,7 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// The span is the declaration's name, so uses elsewhere resolve back to this
     /// declaration rather than to their own position.
-    pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<String>) -> IdentityId {
+    pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<LeanStr>) -> IdentityId {
         let span = (self.coordinates)(name.span).unwrap_or(self.original.full_span());
         IdentityId::new(
             kind,
@@ -279,8 +280,8 @@ impl<'a> MacroExtractor<'a> {
         &self,
         summary: &mut ModuleSummary,
         kind: AssetKind,
-        binding: &Spanned<String>,
-        label: Option<&Spanned<String>>,
+        binding: &Spanned<LeanStr>,
+        label: Option<&Spanned<LeanStr>>,
         call_span: Span,
     ) {
         summary.assets.push(AssetRecord {
@@ -297,11 +298,11 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// String-literal export names are supported, so `export { x as "y-z" }` keeps the
     /// spelling users import.
-    pub(crate) fn module_export_name(name: &ModuleExportName<'a>) -> String {
+    pub(crate) fn module_export_name(name: &ModuleExportName<'a>) -> LeanStr {
         match name {
-            ModuleExportName::IdentifierName(name) => name.name.to_string(),
-            ModuleExportName::IdentifierReference(name) => name.name.to_string(),
-            ModuleExportName::StringLiteral(name) => name.value.to_string(),
+            ModuleExportName::IdentifierName(name) => name.name.to_lean_str(),
+            ModuleExportName::IdentifierReference(name) => name.name.to_lean_str(),
+            ModuleExportName::StringLiteral(name) => name.value.to_lean_str(),
         }
     }
 }

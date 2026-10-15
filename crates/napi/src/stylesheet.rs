@@ -13,9 +13,8 @@ use napi_derive::napi;
 
 use stillwind_compiler::{RenderedStylesheet, StylesheetMapping, StylesheetRenderError};
 use stillwind_project::{StylesheetCoverage, StylesheetPlan};
-use stillwind_source::ModuleId;
 
-use crate::output::{BindingRejectedIdentifier, NativeModuleResource};
+use crate::output::{BindingRejectedIdentifier, NativeModuleResource, NativeText};
 
 /// Throws an assembly error with its fallback reports attached as `rejectedNames`.
 /// Returns the pending-exception status so native and WASM bindings preserve the same JS object.
@@ -72,20 +71,25 @@ pub struct NativeCssRequest {
     /// Id the host must answer with.
     pub id: u32,
     /// Opaque name of the source that contains the import.
-    pub importer: String,
+    #[napi(ts_type = "string")]
+    pub importer: NativeText,
     /// Decoded import specifier, without CSS quoting or escapes.
-    pub specifier: String,
+    #[napi(ts_type = "string")]
+    pub specifier: NativeText,
 }
 
 /// A resource reference found in authored CSS.
 #[napi(object, object_from_js = false)]
 pub struct NativeCssResource {
     /// Placeholder left in the CSS that the host must substitute.
-    pub placeholder: String,
+    #[napi(ts_type = "string")]
+    pub placeholder: NativeText,
     /// Opaque name of the source that owns the reference.
-    pub source_name: String,
+    #[napi(ts_type = "string")]
+    pub source_name: NativeText,
     /// Authored `url()` specifier.
-    pub specifier: String,
+    #[napi(ts_type = "string")]
+    pub specifier: NativeText,
     /// Byte start of the complete authored resource expression in the owning source.
     pub start: u32,
     /// Exclusive byte end of the complete authored resource expression.
@@ -98,7 +102,8 @@ pub struct NativeReload {
     /// Whether the assembled CSS differs from the previous revision.
     pub css_changed: bool,
     /// Modules whose code transforms changed.
-    pub transformed_modules: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub transformed_modules: Vec<NativeText>,
 }
 
 /// Completeness claim attached to a host selection.
@@ -141,7 +146,8 @@ pub struct NativeStylesheetPlan {
     /// Ordered occurrences. Repeated payloads retain their positions.
     pub parts: Vec<NativeStylesheetPart>,
     /// The rendered CSS text.
-    pub css: String,
+    #[napi(ts_type = "string")]
+    pub css: NativeText,
     /// Development fallbacks observed during this plan's renders, in request order.
     pub rejected_names: Vec<BindingRejectedIdentifier>,
     /// Source locations for the rules that have one.
@@ -153,7 +159,8 @@ pub struct NativeStylesheetPlan {
     /// Placement this plan was rendered for.
     pub placement: NativeStylesheetPlacement,
     /// Content fingerprint of the design system used.
-    pub design_system: String,
+    #[napi(ts_type = "string")]
+    pub design_system: NativeText,
     /// One entry per selected producer, for cache identity.
     pub producers: Vec<NativeStylesheetProducer>,
 }
@@ -168,9 +175,10 @@ impl NativeStylesheetPlan {
     ) -> napi::Result<Self> {
         let coverage = match plan.coverage {
             StylesheetCoverage::Observed => NativeCoverage::Observed,
-            StylesheetCoverage::Complete { target, revision } => {
-                NativeCoverage::Complete { target, revision }
-            }
+            StylesheetCoverage::Complete { target, revision } => NativeCoverage::Complete {
+                target: (target).into(),
+                revision: (revision).into(),
+            },
         };
         Ok(Self {
             parts: plan
@@ -188,17 +196,17 @@ impl NativeStylesheetPlan {
                         sequence: u32::try_from(part.sequence).map_err(|_| {
                             Error::from_reason("Stylesheet sequence exceeds 32 bits")
                         })?,
-                        key: part.key.0,
-                        css: part.css,
+                        key: (part.key.0).into(),
+                        css: (part.css).into(),
                         producers: part
                             .producers
                             .into_iter()
-                            .map(ModuleId::into_string)
+                            .map(|module| module.into_string().into())
                             .collect(),
                     })
                 })
                 .collect::<napi::Result<_>>()?,
-            css: plan.css,
+            css: (plan.css).into(),
             rejected_names: plan.rejected_names.into_iter().map(Into::into).collect(),
             source_map: stylesheet_locations(if include_source_maps {
                 &plan.mappings
@@ -208,20 +216,21 @@ impl NativeStylesheetPlan {
             resources: plan.resources.into_iter().map(Into::into).collect(),
             coverage,
             placement,
-            design_system: plan.design_system.0,
+            design_system: (plan.design_system.0).into(),
             producers: plan
                 .producers
                 .into_iter()
                 .map(|(module, key)| NativeStylesheetProducer {
-                    module: module.into_string(),
-                    source_revision: key.source_revision().0.clone(),
-                    semantic_revision: key
+                    module: (module.into_string()).into(),
+                    source_revision: (key.source_revision().0.clone()).into(),
+                    semantic_revision: (key
                         .semantic_revision()
                         .as_ref()
-                        .map(|revision| revision.0.clone()),
-                    compiler_version: key.compiler_version().to_owned(),
-                    compiler_options: key.compiler_options().0.clone(),
-                    analysis_revision: key.analysis_revision().0.clone(),
+                        .map(|revision| revision.0.clone()))
+                    .map(Into::into),
+                    compiler_version: (key.compiler_version().to_owned()).into(),
+                    compiler_options: (key.compiler_options().0.clone()).into(),
+                    analysis_revision: (key.analysis_revision().0.clone()).into(),
                 })
                 .collect(),
         })
@@ -238,35 +247,45 @@ pub struct NativeStylesheetPart {
     /// Zero-based occurrence index for this template slot and producer set.
     pub sequence: u32,
     /// Producer paths contributing to this occurrence; empty for shared support.
-    pub producers: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub producers: Vec<NativeText>,
     /// Content fingerprint.
-    pub key: String,
+    #[napi(ts_type = "string")]
+    pub key: NativeText,
     /// Complete CSS including enclosing context.
-    pub css: String,
+    #[napi(ts_type = "string")]
+    pub css: NativeText,
 }
 
 /// Artifact identity of one selected producer.
 #[napi(object, object_from_js = false, use_nullable = true)]
 pub struct NativeStylesheetProducer {
     /// Module path.
-    pub module: String,
+    #[napi(ts_type = "string")]
+    pub module: NativeText,
     /// Content revision of the module source.
-    pub source_revision: String,
+    #[napi(ts_type = "string")]
+    pub source_revision: NativeText,
     /// Revision of the semantic facts used, when the module had any.
-    pub semantic_revision: Option<String>,
+    #[napi(ts_type = "string")]
+    pub semantic_revision: Option<NativeText>,
     /// Compiler build fingerprint.
-    pub compiler_version: String,
+    #[napi(ts_type = "string")]
+    pub compiler_version: NativeText,
     /// Fingerprint of the resolved compilation settings.
-    pub compiler_options: String,
+    #[napi(ts_type = "string")]
+    pub compiler_options: NativeText,
     /// Fingerprint of the finalized analysis the artifact was built from.
-    pub analysis_revision: String,
+    #[napi(ts_type = "string")]
+    pub analysis_revision: NativeText,
 }
 
 /// Rendered CSS with its source map, without a selection.
 #[napi(object, object_from_js = false)]
 pub struct NativeStylesheetOutput {
     /// The rendered CSS text.
-    pub css: String,
+    #[napi(ts_type = "string")]
+    pub css: NativeText,
     /// Source locations for the rules that have one.
     pub source_map: NativeStylesheetMap,
     /// Development fallbacks observed during this render, in request order.
@@ -281,7 +300,7 @@ impl NativeStylesheetOutput {
         include_source_maps: bool,
     ) -> napi::Result<Self> {
         Ok(Self {
-            css: output.stylesheet.css,
+            css: (output.stylesheet.css).into(),
             source_map: stylesheet_locations(if include_source_maps {
                 &output.stylesheet.mappings
             } else {
@@ -305,10 +324,12 @@ pub struct NativeStylesheetMap {
 #[napi(object, object_from_js = false)]
 pub struct NativeMapSource {
     /// Host-supplied source-map entry name for this source revision.
-    pub source_map_source: String,
+    #[napi(ts_type = "string")]
+    pub source_map_source: NativeText,
     /// Full text, so a consumer can build a standard source map without reading the
     /// file again.
-    pub content: String,
+    #[napi(ts_type = "string")]
+    pub content: NativeText,
 }
 
 /// One generated-to-original mapping in byte offsets.
@@ -352,7 +373,7 @@ pub(crate) fn stylesheet_locations(
         let index = *indices.entry(mapping.source.id()).or_insert_with(|| {
             sources.push(NativeMapSource {
                 source_map_source: source_map_source.into(),
-                content: mapping.source.text().into(),
+                content: NativeText::source_text(mapping.source.clone()),
             });
             next
         });

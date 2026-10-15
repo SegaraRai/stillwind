@@ -15,6 +15,7 @@ use std::cell::Cell;
 use std::fmt;
 use std::rc::Rc;
 
+use lean_string::{LeanString, ToLeanString};
 use napi::bindgen_prelude::{Buffer, Env, FnArgs, Function, FunctionRef};
 use napi::sys;
 use napi_derive::napi;
@@ -191,7 +192,7 @@ impl NativeNaming {
         &self,
         function: Option<&FunctionRef<Args, Option<String>>>,
         args: Args,
-    ) -> Result<Option<String>, String>
+    ) -> Result<Option<String>, LeanString>
     where
         Args: napi::bindgen_prelude::JsValuesTupleIntoVec,
     {
@@ -200,12 +201,12 @@ impl NativeNaming {
         };
         let Some(raw) = self.env.get() else {
             return Err(
-                "a host name generator was asked for a name outside a host call".to_owned(),
+                "a host name generator was asked for a name outside a host call".to_lean_string(),
             );
         };
         let env = Env::from_raw(raw);
         let function = function.borrow_back(&env).map_err(reason)?;
-        function.call(args).map_err(reason)
+        function.call(args).map_err(reason).map_err(Into::into)
     }
 }
 
@@ -220,15 +221,15 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &ClassContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         let Some(name) = self.call(
             self.utility_class.as_ref(),
             FnArgs::from((
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
-                    namespace: context.namespace.clone(),
+                    namespace: (context.namespace.clone()).into(),
                     call: context.call,
-                    branch: context.branch.clone(),
+                    branch: (context.branch.clone()).into(),
                 },
                 digest(hash),
             )),
@@ -245,7 +246,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<RefMarker>, String> {
+    ) -> Result<GeneratedName<RefMarker>, LeanString> {
         let Some(name) = self.call(
             self.ref_marker.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
@@ -262,7 +263,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &LocatorContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<AnchorName>, String> {
+    ) -> Result<GeneratedName<AnchorName>, LeanString> {
         let Some(name) = self.call(
             self.anchor_name.as_ref(),
             FnArgs::from((locator(context), digest(hash))),
@@ -279,7 +280,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &LocatorContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ContainerName>, String> {
+    ) -> Result<GeneratedName<ContainerName>, LeanString> {
         let Some(name) = self.call(
             self.container_name.as_ref(),
             FnArgs::from((locator(context), digest(hash))),
@@ -296,7 +297,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<KeyframesName>, String> {
+    ) -> Result<GeneratedName<KeyframesName>, LeanString> {
         let Some(name) = self.call(
             self.keyframes_name.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
@@ -313,7 +314,7 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &DeclarationContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionClass>, String> {
+    ) -> Result<GeneratedName<ViewTransitionClass>, LeanString> {
         let Some(name) = self.call(
             self.view_transition_class.as_ref(),
             FnArgs::from((declaration(context), digest(hash))),
@@ -330,15 +331,15 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &ClassContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ViewTransitionSlotName>, String> {
+    ) -> Result<GeneratedName<ViewTransitionSlotName>, LeanString> {
         let Some(name) = self.call(
             self.view_transition_slot.as_ref(),
             FnArgs::from((
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
-                    namespace: context.namespace.clone(),
+                    namespace: (context.namespace.clone()).into(),
                     call: context.call,
-                    branch: context.branch.clone(),
+                    branch: (context.branch.clone()).into(),
                 },
                 digest(hash),
             )),
@@ -356,13 +357,13 @@ impl IdentifierGenerator for NativeNaming {
         context: &ConditionContext,
         hash: &IdentifierHash,
         text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ConditionHelperName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
         let Some(name) = self.call(
             self.condition_helper.as_ref(),
             FnArgs::from((
                 NativeConditionContext {
                     role: context.role.as_str().to_owned(),
-                    text: context.text.clone(),
+                    text: (context.text.clone()).into(),
                 },
                 digest(hash),
                 digest(text_hash),
@@ -380,13 +381,13 @@ impl IdentifierGenerator for NativeNaming {
         &self,
         context: &LayerContext,
         hash: &IdentifierHash,
-    ) -> Result<GeneratedName<LayerName>, String> {
+    ) -> Result<GeneratedName<LayerName>, LeanString> {
         let Some(name) = self.call(
             self.layer_name.as_ref(),
             FnArgs::from((
                 NativeLayerContext {
                     template: context.template.as_str().to_owned(),
-                    namespace: context.namespace.clone(),
+                    namespace: (context.namespace.clone()).into(),
                 },
                 digest(hash),
             )),

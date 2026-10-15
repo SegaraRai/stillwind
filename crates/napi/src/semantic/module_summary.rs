@@ -3,6 +3,8 @@
 //! [`NativeModuleSummary::new`] converts domain summaries and adds frontend counts.
 //! Export names such as `__proto__` remain array entries rather than object keys.
 
+use crate::output::NativeText;
+
 use napi_derive::napi;
 use serde::Serialize;
 
@@ -17,7 +19,8 @@ use super::values::NativeExportedValue;
 #[serde(rename_all = "camelCase")]
 pub struct NativeAssetMetadata {
     /// Optional label the user gave the declaration.
-    pub label: Option<String>,
+    #[napi(ts_type = "string")]
+    pub label: Option<NativeText>,
 }
 
 /// A produced asset as reported in a module summary.
@@ -40,7 +43,7 @@ impl From<AssetRecord> for NativeAssetRecord {
         Self {
             identity: value.identity.into(),
             metadata: NativeAssetMetadata {
-                label: value.metadata.label,
+                label: (value.metadata.label).map(Into::into),
             },
             call_start: value.call_start,
             call_end: value.call_end,
@@ -54,19 +57,22 @@ impl From<AssetRecord> for NativeAssetRecord {
 #[serde(rename_all = "camelCase")]
 pub struct NativeImportBinding {
     /// Local name in the importing module.
-    pub local: String,
+    #[napi(ts_type = "string")]
+    pub local: NativeText,
     /// Authored module specifier.
-    pub source: String,
+    #[napi(ts_type = "string")]
+    pub source: NativeText,
     /// Name in the exporting module.
-    pub imported: String,
+    #[napi(ts_type = "string")]
+    pub imported: NativeText,
 }
 
 impl From<ImportBinding> for NativeImportBinding {
     fn from(value: ImportBinding) -> Self {
         Self {
-            local: value.local,
-            source: value.source,
-            imported: value.imported,
+            local: (value.local).into(),
+            source: (value.source).into(),
+            imported: (value.imported).into(),
         }
     }
 }
@@ -77,19 +83,22 @@ impl From<ImportBinding> for NativeImportBinding {
 #[serde(rename_all = "camelCase")]
 pub struct NativeReExport {
     /// Name the module exports.
-    pub exported: String,
+    #[napi(ts_type = "string")]
+    pub exported: NativeText,
     /// Authored module specifier.
-    pub source: String,
+    #[napi(ts_type = "string")]
+    pub source: NativeText,
     /// Name in the source module.
-    pub imported: String,
+    #[napi(ts_type = "string")]
+    pub imported: NativeText,
 }
 
 impl From<ReExport> for NativeReExport {
     fn from(value: ReExport) -> Self {
         Self {
-            exported: value.exported,
-            source: value.source,
-            imported: value.imported,
+            exported: (value.exported).into(),
+            source: (value.source).into(),
+            imported: (value.imported).into(),
         }
     }
 }
@@ -100,7 +109,8 @@ impl From<ReExport> for NativeReExport {
 #[serde(rename_all = "camelCase")]
 pub struct NativeModuleSpecifier {
     /// Authored specifier text.
-    pub source: String,
+    #[napi(ts_type = "string")]
+    pub source: NativeText,
     /// Inclusive original UTF-8 byte offset of the specifier literal.
     pub start: u32,
     /// Exclusive original UTF-8 byte offset of the specifier literal.
@@ -110,7 +120,7 @@ pub struct NativeModuleSpecifier {
 impl From<ModuleSpecifier> for NativeModuleSpecifier {
     fn from(value: ModuleSpecifier) -> Self {
         Self {
-            source: value.source,
+            source: (value.source).into(),
             start: value.start,
             end: value.end,
         }
@@ -140,7 +150,8 @@ pub struct NativeTypeProbe {
 #[serde(rename_all = "camelCase")]
 pub struct NativeExport {
     /// Export name, possibly `__proto__`.
-    pub name: String,
+    #[napi(ts_type = "string")]
+    pub name: NativeText,
     /// Resolved value.
     pub value: NativeExportedValue,
 }
@@ -151,7 +162,8 @@ pub struct NativeExport {
 #[serde(rename_all = "camelCase")]
 pub struct NativeExportImports {
     /// Export name.
-    pub name: String,
+    #[napi(ts_type = "string")]
+    pub name: NativeText,
     /// Imports the export depends on.
     pub imports: Vec<NativeImportBinding>,
 }
@@ -162,7 +174,8 @@ pub struct NativeExportImports {
 #[serde(rename_all = "camelCase")]
 pub struct NativeCheckerSpan {
     /// Required AST role: expression, producer, or moduleSpecifier.
-    pub role: String,
+    #[napi(ts_type = "string")]
+    pub role: NativeText,
     /// Inclusive original UTF-8 byte offset.
     pub start: u32,
     /// Exclusive original UTF-8 byte offset.
@@ -179,7 +192,8 @@ pub struct NativeCheckerSpan {
 #[serde(rename_all = "camelCase")]
 pub struct NativeCheckerBinding {
     /// Name of the global helper declaration.
-    pub name: String,
+    #[napi(ts_type = "string")]
+    pub name: NativeText,
     /// Inclusive projected UTF-16 offset of the identifier reference.
     pub projected_start: u32,
     /// Exclusive projected UTF-16 offset of the identifier reference.
@@ -198,7 +212,8 @@ pub struct NativeModuleSummary {
     /// Summary schema version; see [`stillwind_semantic::ModuleSummary::SCHEMA`].
     pub schema: u32,
     /// Module this summary describes.
-    pub module_id: String,
+    #[napi(ts_type = "string")]
+    pub module_id: NativeText,
     /// Number of explicit module CSS imports.
     pub module_css_imports: u32,
     /// Number of framework macro import statements.
@@ -233,7 +248,7 @@ impl NativeModuleSummary {
             checker_spans: Vec::new(),
             checker_bindings: Vec::new(),
             schema: summary.schema,
-            module_id: summary.module_id.into_string(),
+            module_id: (summary.module_id.into_string()).into(),
             module_css_imports,
             macro_imports,
             type_probes,
@@ -249,7 +264,7 @@ impl NativeModuleSummary {
                 .export_imports
                 .into_iter()
                 .map(|(name, value)| NativeExportImports {
-                    name,
+                    name: (name).into(),
                     imports: value.into_iter().map(Into::into).collect(),
                 })
                 .collect(),
@@ -258,7 +273,7 @@ impl NativeModuleSummary {
                 .exports
                 .into_iter()
                 .map(|(name, value)| NativeExport {
-                    name,
+                    name: (name).into(),
                     value: value.into(),
                 })
                 .collect(),

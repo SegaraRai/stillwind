@@ -7,6 +7,8 @@
 //! `initial` (or that has no fallback) drops the containing declaration entirely,
 //! which [`None`] reports to the caller.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_css::{find_css_functions, split_css_function_arguments};
 
 /// A malformed `--theme()` reference and its byte offset within a value.
@@ -24,7 +26,7 @@ pub enum ThemeReferenceError {
         /// Zero-based byte offset within the value.
         offset: usize,
         /// Name supplied as the first function argument.
-        reference: String,
+        reference: LeanStr,
     },
 }
 
@@ -50,8 +52,8 @@ impl ThemeReferenceError {
 pub(crate) fn resolve_theme_references(
     value: &str,
     mut is_defined: impl FnMut(&str) -> bool,
-) -> Result<Option<String>, ThemeReferenceError> {
-    let mut output = String::with_capacity(value.len());
+) -> Result<Option<LeanString>, ThemeReferenceError> {
+    let mut output = LeanString::with_capacity(value.len());
     let mut cursor = 0;
     let mut omitted = false;
     for found in find_css_functions(value, &["--theme"], 0) {
@@ -69,7 +71,7 @@ pub(crate) fn resolve_theme_references(
         if !reference.starts_with("--") {
             return Err(ThemeReferenceError::InvalidProperty {
                 offset: start,
-                reference: reference.to_owned(),
+                reference: reference.to_lean_str(),
             });
         }
         let fallback = fallback

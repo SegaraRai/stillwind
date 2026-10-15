@@ -5,6 +5,8 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_design_system::{
     ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, resolve_variant,
 };
@@ -71,7 +73,7 @@ impl DesignSystemQuery {
 /// Retains candidate keys without holding another reference to their owning snapshot.
 #[derive(Clone, Debug, Default)]
 pub(super) struct CandidateOrdering {
-    keys: RefCell<HashMap<String, Option<Arc<CandidateOrder>>>>,
+    keys: RefCell<HashMap<LeanStr, Option<Arc<CandidateOrder>>>>,
 }
 
 impl CandidateOrdering {
@@ -97,7 +99,9 @@ impl CandidateOrdering {
                     utility: resolved.order,
                 })
             });
-        self.keys.borrow_mut().insert(raw.to_owned(), key.clone());
+        self.keys
+            .borrow_mut()
+            .insert(raw.to_lean_str(), key.clone());
         Ok(key)
     }
 }
@@ -119,6 +123,8 @@ impl CandidateOrder {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -158,7 +164,7 @@ mod tests {
                 FileId(1),
                 None,
                 None,
-                format!("{css} @stillwind-slot utilities;"),
+                (format_args!("{css} @stillwind-slot utilities;").to_lean_string()).as_str(),
             )
             .unwrap();
             let snapshot = DesignSystemSnapshot::from_source(

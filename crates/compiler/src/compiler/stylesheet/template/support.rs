@@ -10,6 +10,8 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::{CssOutputNode, CssOutputTemplate, custom_property_usage};
 use stillwind_design_system::{
     CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
@@ -42,7 +44,7 @@ pub(super) struct SupportSelection<'a> {
     tokens: BTreeSet<usize>,
     /// First whitespace-delimited words of selected animation-token values, in
     /// required-token order. Duplicate names are retained.
-    animations: Vec<String>,
+    animations: Vec<LeanStr>,
     /// Only [`CssOutputNode::Theme`] nodes, in depth-first source order across
     /// group and style children; no output wrappers are retained here.
     definitions: Vec<&'a CssOutputNode>,
@@ -88,9 +90,9 @@ impl<'a> SupportSelection<'a> {
                 identifiers,
             )?
         } else {
-            String::new()
+            LeanString::new()
         };
-        let mut used = format!("{}{authored}", utility_css.css);
+        let mut used = format_args!("{}{authored}", utility_css.css).to_lean_string();
         for frames in &utility_css.keyframes {
             used.push_str(&frames.css);
         }
@@ -114,7 +116,7 @@ impl<'a> SupportSelection<'a> {
                     .then_some(index)
             })
             .collect();
-        let animations: Vec<String> = required
+        let animations: Vec<LeanStr> = required
             .iter()
             .filter_map(|token| match token.kind {
                 ThemeTokenKind::Token {
@@ -125,7 +127,7 @@ impl<'a> SupportSelection<'a> {
                     .value
                     .split_whitespace()
                     .next()
-                    .map(str::to_owned),
+                    .map(LeanStr::from),
                 _ => None,
             })
             .collect();
@@ -133,7 +135,7 @@ impl<'a> SupportSelection<'a> {
         collect_theme_nodes(&template.nodes, &mut definitions);
         // Include selected theme values and frames in registration demand even when
         // their slots are conditional: placement does not remove their dependencies.
-        let mut declarations = String::new();
+        let mut declarations = LeanString::new();
         for token in &required {
             if let Some(value) = resolve_theme_value(theme, &token.value.value)? {
                 let _ = write!(declarations, "{}:{value};", token.name.value);
@@ -146,12 +148,12 @@ impl<'a> SupportSelection<'a> {
         }
         let mut property_usage =
             custom_property_usage(&used).map_err(|error| CompileDiagnostic::PropertyUsage {
-                detail: error.0.to_string(),
+                detail: error.0.to_lean_str(),
             })?;
         property_usage
             .add_declarations(&declarations)
             .map_err(|error| CompileDiagnostic::PropertyUsage {
-                detail: error.0.to_string(),
+                detail: error.0.to_lean_str(),
             })?;
         let properties = render_used_properties(theme, &property_usage, options, &explicit);
         Ok(Self {
@@ -242,7 +244,8 @@ impl<'a> SupportSelection<'a> {
                     continue;
                 };
                 if value.contains("--if(") {
-                    let declaration = format!("{}:{value};", token.name.value);
+                    let declaration =
+                        format_args!("{}:{value};", token.name.value).to_lean_string();
                     let lowered = lower(&declaration, self.options.use_css_if, self.identifiers)?;
                     declarations.text(
                         &self.options.rewrite_generated(&lowered),
@@ -279,11 +282,11 @@ impl<'a> SupportSelection<'a> {
 fn resolve_theme_value(
     theme: &ThemeIndex,
     value: &str,
-) -> Result<Option<String>, CompileDiagnostic> {
+) -> Result<Option<LeanString>, CompileDiagnostic> {
     theme.resolve_theme_references(value).map_err(|error| {
         CompileDiagnostic::InvalidThemeReference {
             offset: error.offset(),
-            detail: error.to_string(),
+            detail: error.to_lean_str(),
         }
     })
 }

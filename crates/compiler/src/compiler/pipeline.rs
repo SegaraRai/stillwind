@@ -15,6 +15,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, finish_lint_findings};
 use stillwind_ir::{
@@ -269,7 +271,7 @@ impl Compiler {
             };
             result.transforms.push(SourceTransform {
                 call_span: call.span,
-                replacement: replacement.text,
+                replacement: (replacement.text),
                 expressions: replacement.mappings,
             });
         }
@@ -278,9 +280,9 @@ impl Compiler {
             result.transforms.push(SourceTransform {
                 call_span: if cva.empty { cva.span } else { cva.callee_span },
                 replacement: if cva.empty {
-                    format!("{helper}()")
+                    format_args!("{helper}()").to_lean_string()
                 } else {
-                    helper
+                    (helper).into()
                 },
                 expressions: Vec::new(),
             });
@@ -288,7 +290,7 @@ impl Compiler {
                 .transforms
                 .extend(cva.replacements.iter().map(|replacement| SourceTransform {
                     call_span: replacement.span,
-                    replacement: replacement.replacement.clone(),
+                    replacement: (replacement.replacement.clone()).into(),
                     expressions: Vec::new(),
                 }));
         }
@@ -341,11 +343,11 @@ impl Compiler {
                         Ok(marker) => ref_value(&marker.javascript_string()),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, ref_definition.call_span));
-                            "undefined".to_owned()
+                            "undefined".to_lean_string()
                         }
                     }
                 } else {
-                    "undefined".to_owned()
+                    "undefined".to_lean_string()
                 },
                 expressions: Vec::new(),
             });
@@ -364,15 +366,16 @@ impl Compiler {
                         animation.label.as_ref(),
                     )) {
                         Ok(name) => {
-                            format!("{{{KEYFRAMES_KEY}:{}}}", name.javascript_string())
+                            format_args!("{{{KEYFRAMES_KEY}:{}}}", name.javascript_string())
+                                .to_lean_string()
                         }
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, animation.call_span));
-                            "undefined".to_owned()
+                            "undefined".to_lean_string()
                         }
                     }
                 } else {
-                    "undefined".to_owned()
+                    "undefined".to_lean_string()
                 },
                 expressions: Vec::new(),
             });
@@ -390,17 +393,18 @@ impl Compiler {
                         &transition.binding,
                         transition.label.as_ref(),
                     )) {
-                        Ok(class) => format!(
+                        Ok(class) => format_args!(
                             "{{{VIEW_TRANSITION_CLASS_KEY}:{class}}}",
                             class = class.javascript_string()
-                        ),
+                        )
+                        .to_lean_string(),
                         Err(failure) => {
                             diagnostics.push(CompileError::new(failure, transition.call_span));
-                            "undefined".to_owned()
+                            "undefined".to_lean_string()
                         }
                     }
                 } else {
-                    "undefined".to_owned()
+                    "undefined".to_lean_string()
                 },
                 expressions: Vec::new(),
             });
@@ -425,7 +429,7 @@ impl Compiler {
         if result.diagnostics.is_empty() {
             for contribution in &mut utility_css {
                 match lower(&contribution.css, options.use_css_if, identifiers) {
-                    Ok(css) => contribution.css = css,
+                    Ok(css) => contribution.css = (css).into(),
                     Err(kind) => result
                         .diagnostics
                         .push(CompileError::new(kind, source.full_span())),
@@ -463,7 +467,7 @@ impl Compiler {
             transform.rewrite_generated(|text| options.rewrite_generated(text));
         }
         for symbol in &mut result.symbols {
-            symbol.name = options.rewrite_generated(&symbol.name).into();
+            symbol.name = options.rewrite_generated(&symbol.name);
         }
 
         result
@@ -520,8 +524,8 @@ fn dedupe_name_symbols(symbols: Vec<GeneratedSymbol>) -> Vec<GeneratedSymbol> {
 ///
 /// `token` is the marker written as a JavaScript string literal. Attachments and
 /// projections read `c` directly as their class contribution.
-fn ref_value(token: &str) -> String {
-    format!("{{{CLASS_KEY}:{token}}}")
+fn ref_value(token: &str) -> LeanString {
+    format_args!("{{{CLASS_KEY}:{token}}}").to_lean_string()
 }
 
 /// Keeps a named symbol, or reports the generator's failure at `span`.

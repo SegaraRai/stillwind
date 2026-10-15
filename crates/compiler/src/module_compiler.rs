@@ -15,6 +15,8 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::relative_css_urls;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintKind};
@@ -72,18 +74,21 @@ impl ModuleCompiler {
                     self.design_system.clone(),
                     self.options.clone(),
                     identifiers.clone(),
-                    Fingerprint::of(format!(
-                        "{:?}{:?}{:?}{:?}{:?}",
-                        module.module_id,
-                        module.source_revision,
-                        self.design_system.fingerprints().content,
-                        self.options,
-                        module
-                            .asset_support
-                            .iter()
-                            .map(|support| (&support.module_id, &support.source_revision))
-                            .collect::<Vec<_>>(),
-                    )),
+                    Fingerprint::of(
+                        format_args!(
+                            "{:?}{:?}{:?}{:?}{:?}",
+                            module.module_id,
+                            module.source_revision,
+                            self.design_system.fingerprints().content,
+                            self.options,
+                            module
+                                .asset_support
+                                .iter()
+                                .map(|support| (&support.module_id, &support.source_revision))
+                                .collect::<Vec<_>>(),
+                        )
+                        .to_lean_string(),
+                    ),
                     Rc::clone(&names),
                 )
             })
@@ -152,18 +157,21 @@ impl ModuleCompiler {
     /// even when its own source is unchanged.
     pub fn key_for(&self, module: &ModuleAnalysis) -> ModuleArtifactKey {
         ModuleArtifactKey {
-            compiler_options: Fingerprint::of(format!("{:?}", self.options)),
-            analysis_revision: Fingerprint::of(format!(
-                "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
-                module.input.revision(),
-                module.ir,
-                module.summary,
-                module.external_assets,
-                module.lint_directives,
-                module.diagnostics,
-                module.lint_findings,
-                module.asset_support,
-            )),
+            compiler_options: Fingerprint::of(format_args!("{:?}", self.options).to_lean_string()),
+            analysis_revision: Fingerprint::of(
+                format_args!(
+                    "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+                    module.input.revision(),
+                    module.ir,
+                    module.summary,
+                    module.external_assets,
+                    module.lint_directives,
+                    module.diagnostics,
+                    module.lint_findings,
+                    module.asset_support,
+                )
+                .to_lean_string(),
+            ),
             compiler_version: concat!(
                 env!("CARGO_PKG_VERSION"),
                 "+",
@@ -174,20 +182,27 @@ impl ModuleCompiler {
             source_revision: module.source_revision.clone(),
             module_id: module.module_id.clone(),
             source_file_id: module.source.id().0,
-            frontend_kind: module.frontend_kind.clone(),
+            frontend_kind: (module.frontend_kind.clone()),
             adapter_mode: module.ir.adapter,
             semantic_revision: if module.asset_support.is_empty() {
                 module.semantic_revision.clone()
             } else {
-                Some(Fingerprint::of(format!(
-                    "{:?}{:?}",
-                    module.semantic_revision,
-                    module
-                        .asset_support
-                        .iter()
-                        .map(|support| (&support.module_id, &support.source_revision, &support.ir))
-                        .collect::<Vec<_>>()
-                )))
+                Some(Fingerprint::of(
+                    format_args!(
+                        "{:?}{:?}",
+                        module.semantic_revision,
+                        module
+                            .asset_support
+                            .iter()
+                            .map(|support| (
+                                &support.module_id,
+                                &support.source_revision,
+                                &support.ir
+                            ))
+                            .collect::<Vec<_>>()
+                    )
+                    .to_lean_string(),
+                ))
             },
         }
     }
@@ -248,29 +263,36 @@ impl ModuleCompiler {
                     .iter()
                     .any(|resource| resource.placeholder == reference.specifier)
             });
+            if references.is_empty() {
+                continue;
+            }
+            let mut css: LeanString = std::mem::take(&mut contribution.css).into();
             for reference in references.into_iter().rev() {
-                let placeholder = format!(
+                let placeholder = format_args!(
                     "__stillwind_js_resource_{}__",
-                    Fingerprint::of(format!(
-                        "stillwind/resource/module/v1\0{owner}\0{}\0",
-                        reference.specifier
-                    ))
+                    Fingerprint::of(
+                        format_args!(
+                            "stillwind/resource/module/v1\0{owner}\0{}\0",
+                            reference.specifier
+                        )
+                        .to_lean_string()
+                    )
                     .0
-                );
+                )
+                .to_lean_string();
                 let replacement = if reference.string {
-                    format!("\"{placeholder}\"")
+                    format_args!("\"{placeholder}\"").to_lean_string()
                 } else {
-                    format!("url(\"{placeholder}\")")
+                    format_args!("url(\"{placeholder}\")").to_lean_string()
                 };
-                contribution
-                    .css
-                    .replace_range(reference.range, &replacement);
+                css.replace_range(reference.range, &replacement);
                 result.resources.push(ModuleResourceReference {
-                    placeholder,
+                    placeholder: (placeholder).into(),
                     owner: owner.clone(),
                     specifier: reference.specifier,
                 });
             }
+            contribution.css = css.into();
         }
         result.module_css = result
             .contributions
@@ -368,7 +390,7 @@ impl ModuleCompiler {
 /// are concatenated so a qualified candidate is recorded in its spelled form, and
 /// unresolved candidates are included too, because they may resolve after a
 /// design-system change.
-fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
+fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<LeanStr> {
     let mut candidates = BTreeSet::new();
     for call in module.ir.style_inputs() {
         collect(&call.inputs, "", &mut candidates);
@@ -376,7 +398,7 @@ fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<String> {
     candidates
 }
 
-fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String>) {
+fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<LeanStr>) {
     for input in inputs {
         match input {
             StyleInput::Array(inputs) => {
@@ -396,7 +418,7 @@ fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<String
     }
 }
 
-fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BTreeSet<String>) {
+fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BTreeSet<LeanStr>) {
     match expression {
         ClassExpression::Rule(rule) => {
             collect_rule(rule, prefix, candidates);
@@ -429,14 +451,14 @@ fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BT
 /// Adds authored utility candidates in a rule subtree to the compilation set.
 /// Literal variant prefixes are included; ref and container variants do not
 /// alter the candidate spelling passed to the utility resolver.
-fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTreeSet<String>) {
+fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTreeSet<LeanStr>) {
     match expression {
         RuleExpression::Utilities(value) => {
             candidates.extend(
                 value
                     .value
                     .split_whitespace()
-                    .map(|token| format!("{prefix}{token}")),
+                    .map(|token| format_args!("{prefix}{token}").to_lean_str()),
             );
         }
         RuleExpression::Array(elements)
@@ -458,8 +480,12 @@ fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTre
         }
         RuleExpression::Variant { variant, inputs } => {
             let prefix = match variant {
-                StyleVariant::Prefix(value) => format!("{prefix}{}", value.value),
-                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => prefix.to_owned(),
+                StyleVariant::Prefix(value) => {
+                    format_args!("{prefix}{}", value.value).to_lean_string()
+                }
+                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => {
+                    prefix.to_lean_string()
+                }
             };
             for input in inputs {
                 collect_rule(input, &prefix, candidates);

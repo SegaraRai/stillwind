@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use cssparser::{Parser, Token};
+use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
@@ -105,11 +106,12 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
-    fn boundary_owner(&self, position: usize) -> String {
-        format!(
+    fn boundary_owner(&self, position: usize) -> LeanString {
+        format_args!(
             "authored\0{}\0{}\0{position}",
             self.layer_identity.template, self.options.class_namespace
         )
+        .to_lean_string()
     }
 
     /// Renders `nodes` in rule context using the current traversal counters.
@@ -225,12 +227,13 @@ impl Context<'_> {
                         let index = self.anonymous_layers;
                         self.anonymous_layers += 1;
                         let name = self.identifiers.layer_name(&self.layer_identity)?;
-                        let written = format!("{}-{index}", name.custom_ident());
+                        let written =
+                            format_args!("{}-{index}", name.custom_ident()).to_lean_string();
                         self.identifiers
                             .record_layer(&self.layer_identity, &written);
-                        format!("@layer {written}")
+                        format_args!("@layer {written}").to_lean_string()
                     } else {
-                        header.clone()
+                        (header.clone()).into()
                     };
                     let body = self.nodes(children)?;
                     if !self.document && body.css.trim().is_empty() && is_layer(&header) {

@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
     ArrayExpressionElement, CallExpression, Expression, ObjectExpression, ObjectProperty,
     ObjectPropertyKind, PropertyKey, PropertyKind,
@@ -160,7 +161,7 @@ impl<'a> MacroExtractor<'a> {
     fn cva_compounds(
         &mut self,
         expression: &Expression<'a>,
-        axes: &BTreeMap<String, BTreeSet<String>>,
+        axes: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
         values: &mut Vec<StyleCall>,
     ) {
         let Expression::ArrayExpression(compounds) = expression.get_inner_expression() else {
@@ -217,7 +218,7 @@ impl<'a> MacroExtractor<'a> {
     fn cva_properties<'e>(
         &mut self,
         expression: &'e Expression<'a>,
-    ) -> Option<Vec<(String, &'e ObjectProperty<'a>)>> {
+    ) -> Option<Vec<(LeanStr, &'e ObjectProperty<'a>)>> {
         let Expression::ObjectExpression(object) = expression.get_inner_expression() else {
             self.cva_error(expression, "expected a literal object");
             self.cva_replace(expression, "{}");
@@ -229,7 +230,7 @@ impl<'a> MacroExtractor<'a> {
     fn cva_object_properties<'e>(
         &mut self,
         object: &'e ObjectExpression<'a>,
-    ) -> Vec<(String, &'e ObjectProperty<'a>)> {
+    ) -> Vec<(LeanStr, &'e ObjectProperty<'a>)> {
         let mut properties = Vec::new();
         let mut keys = BTreeSet::new();
         for entry in &object.properties {
@@ -249,7 +250,7 @@ impl<'a> MacroExtractor<'a> {
             };
             let name = if let PropertyKey::NumericLiteral(value) = &property.key {
                 Some(Spanned::new(
-                    value.value.to_js_string(),
+                    value.value.to_js_string().to_lean_str(),
                     self.source_span(value.span),
                 ))
             } else {
@@ -279,7 +280,7 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         axis: &str,
         expression: &Expression<'a>,
-        variants: &BTreeMap<String, BTreeSet<String>>,
+        variants: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
         multiple: bool,
     ) -> bool {
         let Some(options) = variants.get(axis) else {
@@ -302,9 +303,9 @@ impl<'a> MacroExtractor<'a> {
             return valid;
         }
         let key = match expression.get_inner_expression() {
-            Expression::StringLiteral(value) => Some(value.value.to_string()),
-            Expression::NumericLiteral(value) => Some(value.value.to_js_string()),
-            Expression::BooleanLiteral(value) => Some(value.value.to_string()),
+            Expression::StringLiteral(value) => Some(value.value.to_lean_str()),
+            Expression::NumericLiteral(value) => Some(value.value.to_js_string().to_lean_str()),
+            Expression::BooleanLiteral(value) => Some(value.value.to_lean_str()),
             Expression::NullLiteral(_) => None,
             value if is_undefined(value) => None,
             _ => {

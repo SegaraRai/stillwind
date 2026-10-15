@@ -6,12 +6,12 @@
 //! `integer`, `number`, `percentage`, `--spacing()`, `--fraction()`, and the axis-size
 //! built-ins, and theme namespace patterns such as `--color-*`.
 
-use crate::evaluation::EvaluationContext;
-
 use cssparser::{Parser, Token};
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::ValueDomain;
 
+use super::super::EvaluationContext;
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::theme::{
     ViewportAxis, axis_size_value, fraction_value, theme_value, theme_value_literal,
@@ -31,24 +31,24 @@ pub(in crate::evaluation) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
         if domain == "integer" {
             return capture
                 .filter(|value| value.parse::<i64>().is_ok())
-                .map(str::to_owned);
+                .map(LeanStr::from);
         }
         if domain == "number" {
             return capture
                 .filter(|value| value.parse::<f64>().is_ok())
-                .map(str::to_owned);
+                .map(LeanStr::from);
         }
         if domain == "percentage" {
             return capture
                 .and_then(|value| value.strip_suffix('%'))
                 .filter(|value| value.parse::<f64>().is_ok())
-                .map(|value| format!("{value}%"));
+                .map(|value| format_args!("{value}%").to_lean_str());
         }
         if domain == "--spacing()" {
             return capture
@@ -64,15 +64,20 @@ pub(in crate::evaluation) fn resolve_value_domains(
             return capture.and_then(|capture| axis_size_value(capture, ViewportAxis::Height));
         }
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
-            return capture
-                .and_then(|capture| theme_value(namespace, &format!("{capture}{suffix}"), theme));
+            return capture.and_then(|capture| {
+                theme_value(
+                    namespace,
+                    &format_args!("{capture}{suffix}").to_lean_str(),
+                    theme,
+                )
+            });
         }
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(|value| {
                 if value == "current" {
-                    "currentcolor".to_owned()
+                    "currentcolor".to_lean_str()
                 } else {
-                    value.to_owned()
+                    value.to_lean_str()
                 }
             });
         }
@@ -81,7 +86,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
             let hint_is_compatible = variable.hint.is_none_or(|hint| expected.accepts_hint(hint));
             return hint_is_compatible.then(|| {
                 theme.record_variable_token(variable.name);
-                format!("var({})", variable.name)
+                format_args!("var({})", variable.name).to_lean_str()
             });
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
@@ -91,7 +96,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
         (hint_is_compatible && accepts_runtime_value(expected, &value)).then(|| {
             theme.record_value_tokens(&value);
             theme.record_arbitrary_value(&value, Some(expected) == ValueDomain::from_hint("color"));
-            value
+            value.into()
         })
     })
 }
@@ -120,12 +125,16 @@ pub(in crate::evaluation) fn resolve_literal_value_domains(
     domains: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture.and_then(|capture| {
-                theme_value_literal(namespace, &format!("{capture}{suffix}"), theme)
+                theme_value_literal(
+                    namespace,
+                    &format_args!("{capture}{suffix}").to_lean_str(),
+                    theme,
+                )
             });
         }
         resolve_value_domains(domain, capture, theme)

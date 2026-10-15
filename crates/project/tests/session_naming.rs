@@ -8,6 +8,8 @@ use support::{brand_snapshot, module};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use lean_string::LeanString;
+
 use stillwind_compiler::{
     ClassContext, CompilerOptions, ConditionContext, ConditionHelperName, DeclarationContext,
     GeneratedName, GeneratedSymbolKind, IdentifierGenerator, IdentifierHash, IdentifierMode,
@@ -30,7 +32,7 @@ impl IdentifierGenerator for FixedClassGenerator {
         &self,
         context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         Ok(GeneratedName::provided(
             UtilityClass::new(&format!("fixed{}", context.branch.len()))
                 .expect("canonical test name"),
@@ -80,7 +82,7 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
         &self,
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<KeyframesName>, String> {
+    ) -> Result<GeneratedName<KeyframesName>, LeanString> {
         Ok(GeneratedName::provided(
             KeyframesName::new("authored").expect("canonical test name"),
         ))
@@ -150,7 +152,7 @@ impl IdentifierGenerator for FixedHelperGenerator {
         _context: &ConditionContext,
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ConditionHelperName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
         Ok(GeneratedName::provided(
             ConditionHelperName::new("shared-if").expect("canonical test name"),
         ))
@@ -257,7 +259,7 @@ impl IdentifierGenerator for FixedLayerGenerator {
         &self,
         _context: &LayerContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<LayerName>, String> {
+    ) -> Result<GeneratedName<LayerName>, LeanString> {
         Ok(GeneratedName::provided(
             LayerName::new("app-layer").expect("canonical test name"),
         ))

@@ -14,6 +14,7 @@
 //! depend on runtime conditions. `@stillwind-slot` is the exception and may be nested.
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_diagnostics::CompileDiagnostic;
@@ -63,7 +64,7 @@ pub fn parse_output_template(
 /// Returns a block error for unparsable or unterminated `@theme` syntax.
 pub(crate) fn theme_blocks(
     css: &str,
-) -> Result<Vec<(std::ops::Range<usize>, String)>, CompileDiagnostic> {
+) -> Result<Vec<(std::ops::Range<usize>, LeanString)>, CompileDiagnostic> {
     let mut blocks = Vec::new();
     parse_nodes(css, 0, &[], &mut blocks, false, 0)?;
     Ok(blocks)
@@ -128,7 +129,7 @@ fn parse_nodes(
     css: &str,
     base: usize,
     tokens: &[ThemeToken],
-    theme_blocks: &mut Vec<(std::ops::Range<usize>, String)>,
+    theme_blocks: &mut Vec<(std::ops::Range<usize>, LeanString)>,
     conditional: bool,
     depth: usize,
 ) -> Result<Vec<CssOutputNode>, CompileDiagnostic> {
@@ -144,7 +145,7 @@ fn parse_nodes(
         let start = parser.position().byte_index();
         let Ok(first) = parser.next() else { break };
         let name = match first {
-            Token::AtKeyword(name) => Some(name.to_string()),
+            Token::AtKeyword(name) => Some(name.to_lean_string()),
             _ => None,
         };
         let header_end = parser.position().byte_index();
@@ -210,7 +211,7 @@ fn parse_nodes(
                             (base + open < position && position < base + close).then_some(index)
                         })
                         .collect(),
-                    keyframes: extract_keyframe_blocks(&css[open + 1..close]),
+                    keyframes: (extract_keyframe_blocks(&css[open + 1..close])).into(),
                 });
             }
             (
@@ -319,6 +320,8 @@ fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), Com
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanStr;
+
     use super::*;
 
     #[test]
@@ -353,7 +356,7 @@ mod tests {
         assert_eq!(
             nodes.nodes[0],
             CssOutputNode::LayerOrder {
-                css: "@layer a, b;".to_owned(),
+                css: "@layer a, b;".to_lean_str(),
                 origin: Some(Span::new(
                     FileId(0),
                     0,
@@ -363,7 +366,9 @@ mod tests {
         );
         // Declaration slots require a style rule and keep it as a Style node.
         for slot in ["theme", "property-initials"] {
-            let css = format!("@media print{{.scope{{before:1;@stillwind-slot {slot};after:2;}}}}");
+            let css =
+                format_args!("@media print{{.scope{{before:1;@stillwind-slot {slot};after:2;}}}}")
+                    .to_lean_string();
             let nodes = parse_output_template(&css, &[])
                 .unwrap_or_else(|error| panic!("{slot}: {error:?}"));
             assert!(
@@ -380,7 +385,7 @@ mod tests {
             ("keyframes", CssOutputNode::Keyframes),
             ("properties", CssOutputNode::Properties),
         ] {
-            let css = format!("@stillwind-slot {slot};");
+            let css = format_args!("@stillwind-slot {slot};").to_lean_string();
             let nodes = parse_output_template(&css, &[])
                 .unwrap_or_else(|error| panic!("{slot}: {error:?}"));
             assert_eq!(nodes.nodes, [expected], "{slot}");
@@ -415,7 +420,12 @@ mod tests {
             ),
         ] {
             let error = parse_output_template(css, &[]).expect_err(css);
-            assert!(format!("{error:?}").contains(expected), "{css}: {error:?}");
+            assert!(
+                format_args!("{error:?}")
+                    .to_lean_string()
+                    .contains(expected),
+                "{css}: {error:?}"
+            );
         }
         assert!(matches!(
             parse_output_template("@media print { @theme { --a: 1; } }", &[]),
@@ -426,17 +436,19 @@ mod tests {
     /// Group nesting is bounded, and the limit is reported as a nesting error.
     #[test]
     fn parse_nodes_bounds_group_nesting() {
-        let shallow = format!(
+        let shallow = format_args!(
             "{}.x{{color:red}}{}",
             "@media a{".repeat(MAX_BLOCK_NESTING),
             "}".repeat(2)
-        );
+        )
+        .to_lean_string();
         assert!(parse_output_template(&shallow, &[]).is_ok());
-        let deep = format!(
+        let deep = format_args!(
             "{}.x{{color:red}}{}",
             "@media a{".repeat(MAX_BLOCK_NESTING + 1),
             "}".repeat(MAX_BLOCK_NESTING + 1)
-        );
+        )
+        .to_lean_string();
         assert!(matches!(
             parse_output_template(&deep, &[]),
             Err(CompileDiagnostic::CssNestingTooDeep { limit, .. }) if limit == MAX_BLOCK_NESTING

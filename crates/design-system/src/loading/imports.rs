@@ -12,6 +12,7 @@
 //! of being silently ignored.
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::CompileDiagnostic;
 
@@ -26,10 +27,10 @@ pub(super) struct Import {
     /// Byte offset just past the statement, including the semicolon.
     pub(super) end: usize,
     /// Decoded specifier text, which the host resolves.
-    pub(super) specifier: String,
+    pub(super) specifier: LeanStr,
     /// Wrapper at-rule preludes without braces, outermost first; expansion
     /// nests them in this order, and an empty vector means no condition.
-    pub(super) wrappers: Vec<String>,
+    pub(super) wrappers: Vec<LeanStr>,
 }
 
 /// Finds every authored `@import` at the top level of one buffer, in source
@@ -65,7 +66,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
                 })
                 .map_err(|error| CompileDiagnostic::InvalidImportBlock {
                     offset: start,
-                    detail: format!("{:?}", error.kind),
+                    detail: format_args!("{:?}", error.kind).to_lean_str(),
                 })?;
             continue;
         }
@@ -76,9 +77,9 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
             .expect_url_or_string()
             .map_err(|error| CompileDiagnostic::InvalidImportSpecifier {
                 offset: start,
-                detail: error.kind.to_string(),
+                detail: error.kind.to_lean_str(),
             })?
-            .to_string();
+            .to_lean_string();
         let tail_start = parser.position();
         loop {
             match parser.next_including_whitespace_and_comments() {
@@ -97,7 +98,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
         imports.push(Import {
             start,
             end: parser.position().byte_index(),
-            specifier,
+            specifier: (specifier).into(),
             wrappers,
         });
     }
@@ -118,9 +119,9 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
 /// change how the imported file is interpreted in its own right, and
 /// [`CompileDiagnostic::InvalidImportModifiers`] or [`CompileDiagnostic::InvalidImportModifierBlock`]
 /// when a modifier cannot be tokenized or its block is malformed.
-fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, CompileDiagnostic> {
+fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, CompileDiagnostic> {
     let mut parser = Parser::new(tail);
-    let mut wrappers = Vec::new();
+    let mut wrappers: Vec<LeanStr> = Vec::new();
     let mut supports_seen = false;
     while !parser.is_exhausted() {
         let state = parser.state();
@@ -128,7 +129,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, Compil
             .next()
             .map_err(|error| CompileDiagnostic::InvalidImportModifiers {
                 offset: base_offset + state.position().byte_index(),
-                detail: error.kind.to_string(),
+                detail: error.kind.to_lean_str(),
             })? {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 if !wrappers.is_empty() {
@@ -161,14 +162,14 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, Compil
                             nested.next()?;
                             while nested.next_including_whitespace_and_comments().is_ok() {}
                         }
-                        Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_owned())
+                        Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_lean_string())
                     })
                     .map_err(|error| CompileDiagnostic::InvalidImportModifierBlock {
                         offset: base_offset + state.position().byte_index(),
-                        detail: format!("{:?}", error.kind),
+                        detail: format_args!("{:?}", error.kind).to_lean_str(),
                     })?;
                 wrappers.push(if layer {
-                    format!("@layer {condition}")
+                    format_args!("@layer {condition}").to_lean_str()
                 } else {
                     let mut declaration = Parser::new(&condition);
                     if declaration
@@ -178,9 +179,9 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, Compil
                         })
                         .is_ok()
                     {
-                        format!("@supports ({condition})")
+                        format_args!("@supports ({condition})").to_lean_str()
                     } else {
-                        format!("@supports {condition}")
+                        format_args!("@supports {condition}").to_lean_str()
                     }
                 });
             }
@@ -191,14 +192,14 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<String>, Compil
             {
                 return Err(CompileDiagnostic::UnsupportedImportModifier {
                     offset: base_offset + state.position().byte_index(),
-                    modifier: name.to_string(),
+                    modifier: name.to_lean_str(),
                 });
             }
             _ => {
-                wrappers.push(format!(
-                    "@media {}",
-                    tail[state.position().byte_index()..].trim()
-                ));
+                wrappers.push(
+                    format_args!("@media {}", tail[state.position().byte_index()..].trim())
+                        .to_lean_str(),
+                );
                 break;
             }
         }

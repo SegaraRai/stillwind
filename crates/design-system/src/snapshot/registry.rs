@@ -13,7 +13,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::CustomPropertyDefinition;
 use stillwind_source::Fingerprint;
@@ -90,10 +90,15 @@ pub type PropertyRegistry = DefinitionRegistry<CustomPropertyDefinition>;
 impl<T: std::fmt::Debug> DefinitionRegistry<T> {
     /// One content fingerprint per group, derived from the ordered definitions so an
     /// overload reorder or edit invalidates dependents.
-    pub(crate) fn fingerprints(&self) -> BTreeMap<String, Fingerprint> {
+    pub(crate) fn fingerprints(&self) -> BTreeMap<LeanStr, Fingerprint> {
         self.entries
             .iter()
-            .map(|(name, values)| (name.to_string(), Fingerprint::of(format!("{values:?}"))))
+            .map(|(name, values)| {
+                (
+                    name.clone(),
+                    Fingerprint::of(format_args!("{values:?}").to_lean_string()),
+                )
+            })
             .collect()
     }
 }

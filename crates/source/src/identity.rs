@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString};
 use serde::{Deserialize, Serialize};
 
 /// Host-provided identity of a script module, compared without normalization.
@@ -20,8 +20,8 @@ impl ModuleId {
     }
 
     /// Returns the host key as an owned string.
-    pub fn into_string(self) -> String {
-        self.0.to_string()
+    pub fn into_string(self) -> LeanStr {
+        self.0
     }
 }
 
@@ -33,6 +33,18 @@ impl std::fmt::Display for ModuleId {
 
 impl From<String> for ModuleId {
     fn from(value: String) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<LeanStr> for ModuleId {
+    fn from(value: LeanStr) -> Self {
+        Self(value)
+    }
+}
+
+impl From<LeanString> for ModuleId {
+    fn from(value: LeanString) -> Self {
         Self(value.into())
     }
 }
@@ -73,6 +85,18 @@ impl From<Arc<str>> for CssSourceName {
 
 impl From<String> for CssSourceName {
     fn from(value: String) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<LeanStr> for CssSourceName {
+    fn from(value: LeanStr) -> Self {
+        Self(value)
+    }
+}
+
+impl From<LeanString> for CssSourceName {
+    fn from(value: LeanString) -> Self {
         Self(value.into())
     }
 }

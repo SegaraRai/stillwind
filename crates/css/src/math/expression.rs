@@ -8,6 +8,8 @@
 //! Serialization uses operator precedence. It may flatten equal-precedence sums and
 //! products, so the printed syntax tree need not be identical to the stored tree.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 /// A numeric CSS value whose unit category is retained during constant folding.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum MathValue {
@@ -21,7 +23,7 @@ pub(super) enum MathValue {
         /// Numeric coefficient preceding the unit.
         f64,
         /// Authored unit token, without whitespace or a numeric prefix; compared by exact spelling.
-        String,
+        LeanStr,
     ),
     /// A percentage, stored as the numeric part only.
     Percentage(
@@ -42,7 +44,7 @@ pub(super) enum MathExpression {
     /// exactly as it was written.
     Atom(
         /// Opaque CSS operand text, preserving its internal whitespace and syntax.
-        String,
+        LeanStr,
     ),
     /// Addition of two operands.
     Sum(
@@ -113,7 +115,7 @@ impl MathExpression {
             | (value, Self::Value(MathValue::Number(0.0))) => value
                 .numeric_unit()
                 .map_or(Self::Value(MathValue::Number(0.0)), |unit| {
-                    Self::Value(MathValue::Dimension(0.0, unit.to_owned()))
+                    Self::Value(MathValue::Dimension(0.0, unit.to_lean_str()))
                 }),
             (Self::Value(MathValue::Number(1.0)), value)
             | (value, Self::Value(MathValue::Number(1.0))) => value,
@@ -189,44 +191,52 @@ impl MathExpression {
     /// A negation on the right of a sum prints as subtraction, and division prints its
     /// right operand one level tighter. Equal-precedence sums and products may be
     /// flattened during printing.
-    pub(super) fn serialize(&self, parent_precedence: u8) -> String {
+    pub(super) fn serialize(&self, parent_precedence: u8) -> LeanString {
         let precedence = self.precedence();
         let value = match self {
             Self::Value(MathValue::Number(value)) => serialize_number(*value),
             Self::Value(MathValue::Dimension(value, unit)) => {
-                format!("{}{unit}", serialize_number(*value))
+                format_args!("{}{unit}", serialize_number(*value)).to_lean_string()
             }
-            Self::Value(MathValue::Percentage(value)) => format!("{}%", serialize_number(*value)),
-            Self::Atom(value) => value.clone(),
+            Self::Value(MathValue::Percentage(value)) => {
+                format_args!("{}%", serialize_number(*value)).to_lean_string()
+            }
+            Self::Atom(value) => (value.clone()).into(),
             Self::Sum(left, right) => {
                 if let Self::Negate(right) = right.as_ref() {
-                    format!(
+                    format_args!(
                         "{} - {}",
                         left.serialize(precedence),
                         right.serialize(precedence + 1)
                     )
+                    .to_lean_string()
                 } else {
-                    format!(
+                    format_args!(
                         "{} + {}",
                         left.serialize(precedence),
                         right.serialize(precedence)
                     )
+                    .to_lean_string()
                 }
             }
-            Self::Product(left, right) => format!(
+            Self::Product(left, right) => format_args!(
                 "{} * {}",
                 left.serialize(precedence),
                 right.serialize(precedence)
-            ),
-            Self::Quotient(left, right) => format!(
+            )
+            .to_lean_string(),
+            Self::Quotient(left, right) => format_args!(
                 "{} / {}",
                 left.serialize(precedence),
                 right.serialize(precedence + 1)
-            ),
-            Self::Negate(value) => format!("-{}", value.serialize(precedence)),
+            )
+            .to_lean_string(),
+            Self::Negate(value) => {
+                format_args!("-{}", value.serialize(precedence)).to_lean_string()
+            }
         };
         if precedence < parent_precedence {
-            format!("({value})")
+            format_args!("({value})").to_lean_string()
         } else {
             value
         }
@@ -237,18 +247,18 @@ impl MathExpression {
 ///
 /// Negative zero prints as `0`, integral values lose their fractional part, and
 /// fractions below one drop the leading zero (`.5`, `-.5`).
-fn serialize_number(value: f64) -> String {
+fn serialize_number(value: f64) -> LeanString {
     if value == 0.0 {
-        return "0".to_owned();
+        return "0".to_lean_string();
     }
     if value.fract() == 0.0 {
-        return format!("{value:.0}");
+        return format_args!("{value:.0}").to_lean_string();
     }
-    let mut value = value.to_string();
+    let mut value = value.to_lean_string();
     if let Some(fraction) = value.strip_prefix("0.") {
-        value = format!(".{fraction}");
+        value = format_args!(".{fraction}").to_lean_string();
     } else if let Some(fraction) = value.strip_prefix("-0.") {
-        value = format!("-.{fraction}");
+        value = format_args!("-.{fraction}").to_lean_string();
     }
     value
 }

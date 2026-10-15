@@ -1,5 +1,7 @@
 //! Integration of frontend/theme loading, registries and final compiler output.
 
+use lean_string::{ToLeanStr, ToLeanString};
+
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
@@ -79,14 +81,18 @@ fn compiles_theme_backed_styles_through_the_source_analyzer() {
     );
     assert_eq!(result.classes.len(), 1);
     let class = &result.classes[0].class_name;
-    assert!(result.css.contains(&format!(".{class}")));
+    assert!(
+        result
+            .css
+            .contains(format_args!(".{class}").to_lean_string().as_str())
+    );
     let transformed = result.apply_to_source(&js).unwrap();
-    assert!(transformed.contains(class), "{transformed}");
+    assert!(transformed.contains((class).as_str()), "{transformed}");
     assert!(transformed.contains("className"), "{transformed}");
     assert!(!transformed.contains("style("), "{transformed}");
     assert_eq!(
         transformed,
-        format!(" export const props = {{className:\"{class}\"}};")
+        format_args!(" export const props = {{className:\"{class}\"}};").to_lean_string()
     );
 }
 
@@ -153,7 +159,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
     let theme = css_source(FileId(2), "@theme {}").unwrap();
     let options = CompilerOptions {
-        tailwind_prefix: "--internal-".to_owned(),
+        tailwind_prefix: "--internal-".to_lean_str(),
         ..CompilerOptions::default()
     };
 

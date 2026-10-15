@@ -1,6 +1,7 @@
 //! Expansion of nesting selector templates at rule construction time.
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::LeanString;
 
 /// Which element each branch identifies, using a pseudo-element's originating element.
 /// The nesting selector `&` denotes the attachment element.
@@ -126,10 +127,10 @@ pub fn selector_uses_subject(selector: &str) -> bool {
 
 /// Emits a selector template with CSS nesting tokens bound to `parent`.
 /// Strings, comments, escaped identifiers and attribute values remain literal.
-pub fn instantiate_selector(template: &str, parent: &str) -> String {
+pub fn instantiate_selector(template: &str, parent: &str) -> LeanString {
     let mut positions = Vec::new();
     collect(&mut Parser::new(template), &mut positions);
-    let mut output = String::new();
+    let mut output = LeanString::new();
     let mut cursor = 0;
     for position in positions {
         output.push_str(&template[cursor..position]);
@@ -145,7 +146,7 @@ pub fn instantiate_selector(template: &str, parent: &str) -> String {
 /// as `:is(.scope *)`. The fragment is inserted before the final compound's first
 /// pseudo-element, so the condition tests its originating element. Selector lists,
 /// whitespace, comments and literal text are preserved.
-pub fn append_element_condition(selector: &str, condition: &str) -> String {
+pub fn append_element_condition(selector: &str, condition: &str) -> LeanString {
     let mut parser = Parser::new(selector);
     let mut positions = Vec::new();
     let mut pseudo = None;
@@ -207,7 +208,7 @@ pub fn append_element_condition(selector: &str, condition: &str) -> String {
             }
         }
     }
-    let mut output = String::new();
+    let mut output = LeanString::new();
     let mut cursor = 0;
     for position in positions {
         output.push_str(&selector[cursor..position]);

@@ -112,7 +112,10 @@ impl From<NativeSourceProjection> for HostSourceProjection {
             code: value.code,
             syntax: value.syntax.into(),
             map: match value.map {
-                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 { json, source },
+                NativeProjectionMap::V3 { json, source } => ProjectionMap::V3 {
+                    json: (json).into(),
+                    source: (source).into(),
+                },
                 NativeProjectionMap::Volar { mappings } => ProjectionMap::Volar {
                     mappings: mappings
                         .into_iter()
@@ -126,9 +129,9 @@ impl From<NativeSourceProjection> for HostSourceProjection {
                 },
             },
             converter: ConverterIdentity {
-                name: value.converter.name,
-                version: value.converter.version,
-                options_fingerprint: value.converter.options_fingerprint,
+                name: (value.converter.name).into(),
+                version: (value.converter.version).into(),
+                options_fingerprint: (value.converter.options_fingerprint).into(),
             },
             import_realms: value.import_realms,
             editable_regions: value.editable_regions,

@@ -11,9 +11,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
-use stillwind_source::Span;
+use stillwind_source::{JoinText, ReplaceText, Span};
 
 use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
 
@@ -115,9 +117,9 @@ pub(crate) struct RuntimeBindings<'a> {
     /// Projection regions of the module, which decide the import realm of each use.
     regions: &'a [ProjectionRegion],
     /// Names already bound in the module; never handed out as a local helper name.
-    reserved: BTreeSet<String>,
+    reserved: BTreeSet<LeanStr>,
     /// One local name per helper and realm, allocated on first use.
-    names: BTreeMap<(RuntimeHelper, Option<u32>), String>,
+    names: BTreeMap<(RuntimeHelper, Option<u32>), LeanStr>,
     /// Every recorded use, in the order it was requested.
     uses: Vec<(RuntimeHelper, Span, Option<u32>)>,
     /// Whether the compilation runs in development mode.
@@ -163,7 +165,7 @@ impl<'a> RuntimeBindings<'a> {
     /// The name is the export name unless it collides with a reserved name, in which case
     /// a numeric suffix is appended until it is free. Allocation is deterministic
     /// for a fixed use order; different realms compete for names in one reserved set.
-    pub(crate) fn require(&mut self, helper: RuntimeHelper, at: Span) -> String {
+    pub(crate) fn require(&mut self, helper: RuntimeHelper, at: Span) -> LeanStr {
         let realm = self
             .regions
             .iter()
@@ -174,13 +176,13 @@ impl<'a> RuntimeBindings<'a> {
             .entry((helper, realm))
             .or_insert_with(|| {
                 let base = helper.exported();
-                let mut name = base.to_owned();
+                let mut name = base.to_lean_string();
                 let mut suffix = 0_u64;
-                while !self.reserved.insert(name.clone()) {
+                while !self.reserved.insert((name.clone()).into()) {
                     suffix += 1;
-                    name = format!("{base}_{suffix}");
+                    name = format_args!("{base}_{suffix}").to_lean_string();
                 }
-                name
+                (name).into()
             })
             .clone()
     }
@@ -194,13 +196,13 @@ impl<'a> RuntimeBindings<'a> {
         module: &ModuleAnalysis,
         anchor: ImportAnchor,
         helpers: BTreeSet<(RuntimeHelper, Option<u32>)>,
-    ) -> String {
+    ) -> LeanStr {
         let names = helpers
             .into_iter()
             .map(|(helper, realm_id)| {
                 let local = self
                     .local_name(helper, realm_id)
-                    .unwrap_or_else(|| helper.exported().to_owned());
+                    .unwrap_or_else(|| helper.exported().to_lean_string());
                 let exported = match helper.development_variant() {
                     Some(development) if anchor.development => development.exported(),
                     _ => helper.exported(),
@@ -208,26 +210,26 @@ impl<'a> RuntimeBindings<'a> {
                 if local == exported {
                     local
                 } else {
-                    format!("{exported} as {local}")
+                    format_args!("{exported} as {local}").to_lean_string()
                 }
             })
             .collect::<Vec<_>>()
-            .join(", ");
+            .join_text(", ");
         let spec = module.ir.adapter.spec();
         let runtime_module = if anchor.development {
             spec.runtime_import_dev
         } else {
             spec.runtime_import
         };
-        format!("import {{ {names} }} from \"{runtime_module}\";")
+        format_args!("import {{ {names} }} from \"{runtime_module}\";").to_lean_str()
     }
 
     ///
     /// A helper whose development variant has a different export name is bound under
     /// the release name in both modes, so the generated call sites do not depend on the
     /// mode.
-    fn local_name(&self, helper: RuntimeHelper, realm: Option<u32>) -> Option<String> {
-        self.names.get(&(helper, realm)).cloned()
+    fn local_name(&self, helper: RuntimeHelper, realm: Option<u32>) -> Option<LeanString> {
+        (self.names.get(&(helper, realm)).cloned()).map(Into::into)
     }
 
     /// Returns the import edits and macro-removal edits for the recorded uses.
@@ -290,7 +292,7 @@ impl<'a> RuntimeBindings<'a> {
             })?;
             edits.push(SourceTransform {
                 call_span: span,
-                replacement: quoted.replace('<', "\\u003c"),
+                replacement: (quoted.replace_char('<', "\\u003c")),
                 expressions: Vec::new(),
             });
         }
@@ -326,7 +328,8 @@ impl<'a> RuntimeBindings<'a> {
                         anchor,
                     )
                 })?;
-                edit.replacement.push_str(&quoted.replace('<', "\\u003c"));
+                edit.replacement
+                    .push_str(&quoted.replace_char('<', "\\u003c"));
                 edit.replacement.push(';');
             }
         }
@@ -527,9 +530,9 @@ mod runtime_anchor_tests {
                 }],
             },
             ConverterIdentity {
-                name: "test-converter".to_owned(),
-                version: "0".to_owned(),
-                options_fingerprint: "none".to_owned(),
+                name: "test-converter".to_lean_str(),
+                version: "0".to_lean_str(),
+                options_fingerprint: "none".to_lean_str(),
             },
             FileId(3),
             realms,

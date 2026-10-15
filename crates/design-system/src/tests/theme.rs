@@ -6,6 +6,8 @@
 
 use std::sync::Arc;
 
+use lean_string::{ToLeanStr, ToLeanString};
+
 use stillwind_css::CssOutputNode;
 
 use crate::test_support::parse_fixture_theme;
@@ -228,7 +230,7 @@ fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
         color.kind,
         ThemeTokenKind::Token {
             namespace: ThemeNamespace::Color,
-            name: "accent".to_owned(),
+            name: "accent".to_lean_str(),
         }
     );
     assert_eq!(source.slice(color.name.span).unwrap(), "--color-accent");
@@ -255,13 +257,13 @@ fn resolves_theme_reference_fallbacks_generically() {
         theme
             .resolve_theme_references("--theme(--known, initial)")
             .unwrap(),
-        Some("var(--known)".to_owned())
+        Some("var(--known)".to_lean_string())
     );
     assert_eq!(
         theme
             .resolve_theme_references("calc(1px + --theme(--missing, 2px))")
             .unwrap(),
-        Some("calc(1px + 2px)".to_owned())
+        Some("calc(1px + 2px)".to_lean_string())
     );
     assert_eq!(
         theme
@@ -273,7 +275,7 @@ fn resolves_theme_reference_fallbacks_generically() {
         theme
             .resolve_theme_references("\"--theme(--missing, initial)\"")
             .unwrap(),
-        Some("\"--theme(--missing, initial)\"".to_owned())
+        Some("\"--theme(--missing, initial)\"".to_lean_string())
     );
 }
 

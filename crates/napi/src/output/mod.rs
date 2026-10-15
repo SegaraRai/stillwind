@@ -11,11 +11,12 @@
 //!
 //! `compilation` carries compiler results and generated identities. `reporting`
 //! carries diagnostic batches and scan outcomes. `mapping` carries original and
-//! transformed source coordinates.
+//! transformed source coordinates. `text` transfers owned UTF-8 buffers to Node-API.
 
 mod compilation;
 mod mapping;
 mod reporting;
+mod text;
 
 pub use compilation::{
     BindingOutput, BindingRejectedIdentifier, NativeModuleResource, ProjectBindingOutput,
@@ -25,5 +26,6 @@ pub use mapping::{NativeSpan, NativeTransformMapping};
 pub use reporting::{
     BindingDiagnostic, BindingLintFinding, BindingReport, NativeDiagnosticBatch, NativeScanResult,
 };
+pub use text::NativeText;
 
 pub(crate) use reporting::report_error;

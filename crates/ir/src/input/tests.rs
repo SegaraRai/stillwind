@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use stillwind_source::{FileId, ProjectionMap, SourceFile, Span};
 
 use super::*;
@@ -68,7 +70,7 @@ fn projected(
 struct DocumentFixture {
     file: Arc<SourceFile>,
     format: SourceFormat,
-    upstream_map: Option<String>,
+    upstream_map: Option<LeanStr>,
 }
 
 struct ProjectionFixture {
@@ -90,7 +92,7 @@ fn assert_revision_change(
     let mut document = DocumentFixture {
         file: original.file().clone(),
         format: original.format(),
-        upstream_map: original.upstream_map().map(str::to_owned),
+        upstream_map: original.upstream_map().map(LeanStr::from),
     };
     let mut projection = ProjectionFixture {
         code: prepared.code().clone(),

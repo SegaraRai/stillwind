@@ -9,6 +9,7 @@
 use std::collections::BTreeSet;
 
 use cssparser::{Parser, Token};
+use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::{
     arbitrary_value_flags, declaration_ranges, inspect_css_value, instantiate_selector,
@@ -163,7 +164,7 @@ impl CallEmitter<'_> {
                     let finding = LintFinding::new(
                         LintDiagnostic::ArbitraryColor {
                             property: usage.property.clone(),
-                            value: value.clone(),
+                            value: (value.clone()),
                         },
                         property.value,
                     );
@@ -179,8 +180,8 @@ impl CallEmitter<'_> {
                 {
                     let finding = LintFinding::new(
                         LintDiagnostic::ArbitrarySpacing {
-                            property: domain,
-                            value: value.clone(),
+                            property: (domain).into(),
+                            value: (value.clone()),
                         },
                         property.value,
                     );
@@ -373,7 +374,7 @@ impl CallEmitter<'_> {
 pub(in crate::compiler) fn collect_declarations(
     css: &str,
     selector: &str,
-    at_rules: &[String],
+    at_rules: &[LeanStr],
     provider: bool,
     gate: Option<&IdentityId>,
     out: &mut Vec<SupplyKind>,
@@ -401,7 +402,7 @@ pub(in crate::compiler) fn collect_declarations(
             continue;
         }
         let mut parser = Parser::new(text);
-        let Ok(property) = parser.expect_ident().map(ToString::to_string) else {
+        let Ok(property) = parser.expect_ident().map(ToLeanString::to_lean_string) else {
             continue;
         };
         if parser.expect_colon().is_err() {
@@ -411,18 +412,18 @@ pub(in crate::compiler) fn collect_declarations(
             .trim()
             .trim_end_matches(';')
             .trim()
-            .to_owned();
+            .to_lean_string();
         let subject = subject(selector);
         out.push(SupplyKind::Declaration {
             property: if property.starts_with("--") {
-                property
+                (property).into()
             } else {
-                property.to_ascii_lowercase()
+                (property.to_lean_string().to_ascii_lowercase()).into()
             },
             important: value
                 .rsplit_once('!')
                 .is_some_and(|(_, priority)| priority.trim().eq_ignore_ascii_case("important")),
-            value: DeclarationValue::Css(value),
+            value: DeclarationValue::Css((value).into()),
             context: RuleContext {
                 selector: selector.into(),
                 at_rules: at_rules.to_vec(),

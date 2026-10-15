@@ -199,17 +199,17 @@ pub(crate) fn binding_output_with_batch(
         .iter()
         .skip(result.diagnostics.len())
         .map(|diagnostic| BindingLintFinding {
-            rule: diagnostic.code.clone(),
-            message: diagnostic.message.clone(),
-            uri: diagnostic.primary.location.uri.as_str().to_owned(),
-            revision: diagnostic.primary.location.revision.clone(),
+            rule: (diagnostic.code.clone()).into(),
+            message: (diagnostic.message.clone()).into(),
+            uri: diagnostic.primary.location.uri.clone().into(),
+            revision: (diagnostic.primary.location.revision.clone()).into(),
             start: diagnostic.primary.location.start,
             end: diagnostic.primary.location.end,
             start_line: diagnostic.primary.location.start_position.line,
             start_column: diagnostic.primary.location.start_position.utf16_column,
             end_line: diagnostic.primary.location.end_position.line,
             end_column: diagnostic.primary.location.end_position.utf16_column,
-            notes: diagnostic.notes.clone(),
+            notes: diagnostic.notes.iter().cloned().map(Into::into).collect(),
         })
         .collect();
     let reports = resolved
@@ -222,8 +222,8 @@ pub(crate) fn binding_output_with_batch(
         BindingOutput {
             composition: result.composition.into_iter().map(Into::into).collect(),
             resources: result.resources.into_iter().map(Into::into).collect(),
-            css: result.css,
-            code,
+            css: (result.css).into(),
+            code: (code).map(Into::into),
             mappings: mappings.into_iter().map(Into::into).collect(),
             classes: result.classes.into_iter().map(Into::into).collect(),
             symbols: result.symbols.into_iter().map(Into::into).collect(),
@@ -257,10 +257,10 @@ fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
             LabelScope::Document => "document",
         }
         .into(),
-        code: diagnostic.code.clone(),
-        message: diagnostic.message.clone(),
-        uri: location.uri.as_str().to_owned(),
-        revision: location.revision.clone(),
+        code: (diagnostic.code.clone()).into(),
+        message: (diagnostic.message.clone()).into(),
+        uri: location.uri.clone().into(),
+        revision: (location.revision.clone()).into(),
         start: location.start,
         end: location.end,
         start_utf16: location.start_utf16,
@@ -269,7 +269,7 @@ fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
         start_column: location.start_position.utf16_column,
         end_line: location.end_position.line,
         end_column: location.end_position.utf16_column,
-        notes: diagnostic.notes.clone(),
+        notes: diagnostic.notes.iter().cloned().map(Into::into).collect(),
     }
 }
 

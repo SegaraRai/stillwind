@@ -5,6 +5,8 @@
 //! carry source provenance. Folding and field selection belong to [`super::fold`];
 //! rendering is deferred so rejected candidates never allocate helper imports.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_ir::ConditionalBranches;
 use stillwind_source::Span;
 
@@ -48,7 +50,7 @@ pub(crate) enum ValueExpr {
         /// Runtime asset value whose identity selects the class.
         value: Box<Self>,
         /// Property containing the asset identity, without its leading dot.
-        key: String,
+        key: LeanStr,
         /// Table literal mapping candidate identities to generated classes.
         table: Code,
         /// Source span selecting the helper import realm for checked ref reads.
@@ -61,7 +63,7 @@ pub(crate) enum ValueExpr {
     /// one place.
     Entry {
         /// Property name, written as a JavaScript string key.
-        property: String,
+        property: LeanStr,
         /// Property value expression.
         value: Box<Self>,
     },
@@ -118,9 +120,9 @@ impl ValueExpr {
                     value.render(runtime),
                     ")",
                     if key.is_empty() {
-                        String::new()
+                        LeanString::new()
                     } else {
-                        format!(".{key}")
+                        format_args!(".{key}").to_lean_string()
                     },
                     "]"
                 ]
@@ -132,9 +134,9 @@ impl ValueExpr {
     }
 }
 
-impl From<String> for ValueExpr {
+impl From<LeanString> for ValueExpr {
     /// Wraps text as an opaque value with no exact source mappings.
-    fn from(value: String) -> Self {
+    fn from(value: LeanString) -> Self {
         Self::Source(value.into())
     }
 }
@@ -150,14 +152,14 @@ impl From<&str> for ValueExpr {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Property {
     /// Preconverted CSS text for literal custom-property values.
-    pub(crate) static_value: Option<String>,
+    pub(crate) static_value: Option<LeanStr>,
     /// Compiler-generated expression already producing CSS text. Used when
     /// `static_value` is absent, before falling back to source-value conversion.
     pub(crate) computed_value: Option<ValueExpr>,
     /// Decoded property name, without JavaScript quoting.
-    pub(crate) name: String,
+    pub(crate) name: LeanStr,
     /// Verbatim UTF-8 expression text equal to the original source slice at `span`.
-    pub(crate) value: String,
+    pub(crate) value: LeanStr,
     /// Original-source UTF-8 value span identifying this occurrence and its import realm.
     pub(crate) span: Span,
 }
@@ -170,7 +172,7 @@ pub(crate) enum Emitted {
     /// Class-name contributions in one leaf.
     Leaf {
         /// Class strings in contribution order, joined with spaces and quoted by the renderer.
-        names: Vec<String>,
+        names: Vec<LeanStr>,
     },
     /// A dynamic class value or deferred runtime lookup.
     Expression(
@@ -244,7 +246,7 @@ impl Emitted {
     /// expressions and property entries are never treated as empty here.
     pub(crate) fn is_empty(&self) -> bool {
         match self {
-            Self::Leaf { names } => names.iter().all(String::is_empty),
+            Self::Leaf { names } => names.iter().all(LeanStr::is_empty),
             Self::Array(items) => items.iter().flatten().all(Self::is_empty),
             Self::Conditional { branches, .. } => branches
                 .consequent()

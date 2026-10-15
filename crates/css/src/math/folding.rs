@@ -6,6 +6,8 @@
 //! is copied through unchanged, so malformed input still reaches the CSS parser and
 //! produces a real error there.
 
+use lean_string::{LeanString, ToLeanStr, ToLeanString};
+
 use super::expression::{MathExpression, MathValue};
 use super::parser::{MAX_VALUE_NESTING, MathParser};
 use crate::find_css_functions;
@@ -109,8 +111,8 @@ pub(super) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
 /// The unit applies only to a value that really folded to the bare number zero,
 /// including `calc(0)`, but never to a bare `0` outside `calc()` or to an atom.
 #[must_use]
-pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> String {
-    let mut output = String::with_capacity(value.len());
+pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> LeanString {
+    let mut output = LeanString::with_capacity(value.len());
     let mut cursor = 0;
     for found in find_css_functions(value, &["calc"], 0) {
         let start = found.start;
@@ -127,7 +129,7 @@ pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> String {
             if matches!(expression, MathExpression::Value(MathValue::Number(0.0)))
                 && let Some(unit) = zero_unit
             {
-                expression = MathExpression::Value(MathValue::Dimension(0.0, unit.to_owned()));
+                expression = MathExpression::Value(MathValue::Dimension(0.0, unit.to_lean_str()));
             }
             let serialized = expression.serialize(0);
             if matches!(
@@ -152,19 +154,21 @@ pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> String {
 /// Applies a declaration's length-zero format after parsing the value as CSS numeric
 /// syntax. Non-zero and non-numeric values are returned unchanged.
 #[must_use]
-pub fn format_numeric_zero(value: &str, unit: &str) -> String {
+pub fn format_numeric_zero(value: &str, unit: &str) -> LeanString {
     if matches!(
         MathParser::new(value.trim()).parse(),
         Some(MathExpression::Value(MathValue::Number(0.0)))
     ) {
-        format!("0{unit}")
+        format_args!("0{unit}").to_lean_string()
     } else {
-        value.to_owned()
+        value.to_lean_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::ReplaceText;
+
     use super::*;
     use crate::important_declarations;
 
@@ -173,7 +177,7 @@ mod tests {
         let css = r#"content:"calc(1 + 1)";/* calc(2 + 2) */background:url('data:text/plain;calc(1 + 1)');x:mycalc(2 + 2);width:calc(1px + 2px);"#;
         assert_eq!(
             fold_calc_expressions(css, None),
-            css.replace("width:calc(1px + 2px)", "width:3px")
+            css.replace_text("width:calc(1px + 2px)", "width:3px")
         );
         let important = important_declarations(css);
         assert!(
@@ -207,18 +211,21 @@ mod tests {
     #[test]
     fn nesting_past_the_limit_is_reported_and_left_unfolded() {
         let levels = MAX_VALUE_NESTING + 1;
-        let value = format!("{}1{}", "(".repeat(levels), ")".repeat(levels));
+        let value = format_args!("{}1{}", "(".repeat(levels), ")".repeat(levels)).to_lean_string();
         assert_eq!(value_nesting_overflow(&value), Some(MAX_VALUE_NESTING));
-        let css = format!("width:calc({value})");
+        let css = format_args!("width:calc({value})").to_lean_string();
         assert_eq!(fold_calc_expressions(&css, None), css);
     }
 
     #[test]
     fn sibling_groups_and_quoted_parentheses_do_not_consume_nesting() {
-        let siblings = format!("calc({})", "(1) + ".repeat(200).trim_end_matches(" + "));
+        let siblings =
+            format_args!("calc({})", "(1) + ".repeat(200).trim_end_matches(" + ")).to_lean_string();
         assert_eq!(value_nesting_overflow(&siblings), None);
         assert_eq!(
-            value_nesting_overflow(&format!("content:\"{}\"", "(".repeat(100))),
+            value_nesting_overflow(
+                &format_args!("content:\"{}\"", "(".repeat(100)).to_lean_string()
+            ),
             None
         );
         assert_eq!(fold_calc_expressions(&siblings, None), "200");
@@ -243,13 +250,13 @@ mod boundary_tests {
     proptest::proptest! {
         #[test]
         fn integer_arithmetic_obeys_precedence(a in -1000i32..1000, b in -1000i32..1000,c in -20i32..20) {
-            let source = format!("calc({a} + {b} * {c})");
-            proptest::prop_assert_eq!(fold_calc_expressions(&source, None), (a + b * c).to_string());
+            let source = format_args!("calc({a} + {b} * {c})").to_lean_string();
+            proptest::prop_assert_eq!(fold_calc_expressions(&source, None), (a + b * c).to_lean_string());
         }
 
         #[test]
         fn folding_a_numeric_result_is_idempotent(a in -1000i32..1000, b in -1000i32..1000) {
-            let once = fold_calc_expressions(&format!("calc({a}px + {b}px)"), None);
+            let once = fold_calc_expressions(&format_args!("calc({a}px + {b}px)").to_lean_string(), None);
             proptest::prop_assert_eq!(fold_calc_expressions(&once, None), once);
         }
     }

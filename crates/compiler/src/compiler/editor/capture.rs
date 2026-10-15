@@ -9,6 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{
     KeyframesBody, KeyframesDefinition, ModuleAnalysis, StyleCall, StyleVariant,
@@ -60,12 +62,12 @@ pub struct EditorSite {
     /// Generated CSS with element subjects represented by `&` and other generated names
     /// replaced by readable identifiers. Empty on failure or when the site contributes
     /// no CSS.
-    pub css: String,
+    pub css: LeanStr,
     /// Required styles and global definitions, sorted and deduplicated by identity.
     pub dependencies: Vec<IdentityId>,
     /// Authored expressions that supply view-transition naming keys at runtime, in
     /// source order. Repeated occurrences can contain the same expression text.
-    pub runtime_names: Vec<String>,
+    pub runtime_names: Vec<LeanStr>,
 }
 
 /// Enclosing IR retained for an occurrence or a replacement literal.
@@ -153,24 +155,27 @@ impl ModuleEditor {
         for call in module.ir.style_inputs() {
             editor.add_call(call);
         }
-        editor.revision = Fingerprint::of(format!(
-            "{:?}{:?}",
-            editor.revision,
-            editor
-                .sites
-                .iter()
-                .map(|site| (
-                    site.span.start,
-                    site.span.end,
-                    site.kind,
-                    &site.identity,
-                    site.context,
-                    site.valid,
-                    &site.css,
-                    &site.dependencies
-                ))
-                .collect::<Vec<_>>()
-        ));
+        editor.revision = Fingerprint::of(
+            format_args!(
+                "{:?}{:?}",
+                editor.revision,
+                editor
+                    .sites
+                    .iter()
+                    .map(|site| (
+                        site.span.start,
+                        site.span.end,
+                        site.kind,
+                        &site.identity,
+                        site.context,
+                        site.valid,
+                        &site.css,
+                        &site.dependencies
+                    ))
+                    .collect::<Vec<_>>()
+            )
+            .to_lean_string(),
+        );
         editor
     }
 
@@ -296,7 +301,7 @@ impl ModuleEditor {
     /// contain several tokens. The plan retains its enclosing variants and conditions.
     /// The captured analysis, slot allocations, and names remain unchanged.
     /// Returns `None` for an unknown start, failed emission, or output with no CSS.
-    pub fn preview_input(&self, start: u32, candidate: &str) -> Option<String> {
+    pub fn preview_input(&self, start: u32, candidate: &str) -> Option<LeanString> {
         let (span, plan) = self.plans.iter().find(|(span, _)| span.start.0 == start)?;
         let mut plan = plan.clone();
         replace_text(&mut plan, *span, candidate);
@@ -334,7 +339,7 @@ impl ModuleEditor {
         identity: Option<IdentityId>,
         context: Option<CandidateContext>,
         plan: EditorPlan,
-        output: Option<(String, Vec<IdentityId>)>,
+        output: Option<(LeanString, Vec<IdentityId>)>,
     ) {
         let output = output.filter(|_| {
             !matches!(kind, EditorSiteKind::Style | EditorSiteKind::Definition)
@@ -359,7 +364,7 @@ impl ModuleEditor {
         }
         let runtime_names = keys
             .into_values()
-            .filter_map(|span| self.module.source.slice(span).ok().map(str::to_owned))
+            .filter_map(|span| self.module.source.slice(span).ok().map(LeanStr::from))
             .collect();
         self.sites.push(EditorSite {
             span,
@@ -367,7 +372,7 @@ impl ModuleEditor {
             identity,
             context,
             valid,
-            css,
+            css: (css).into(),
             dependencies,
             runtime_names,
         });
@@ -383,7 +388,7 @@ impl ModuleEditor {
         &self,
         plan: &EditorPlan,
         names: &Rc<RefCell<PreviewNames>>,
-    ) -> Option<(String, Vec<IdentityId>)> {
+    ) -> Option<(LeanString, Vec<IdentityId>)> {
         let mut slots = match plan {
             EditorPlan::Call(call) => self
                 .slots
@@ -402,7 +407,7 @@ impl ModuleEditor {
         &self,
         plan: &EditorPlan,
         slots: &mut PreviewSlots,
-    ) -> Option<(String, Vec<IdentityId>)> {
+    ) -> Option<(LeanString, Vec<IdentityId>)> {
         self.render_with_names(plan, slots, &self.names)
     }
 
@@ -417,7 +422,7 @@ impl ModuleEditor {
         plan: &EditorPlan,
         slots: &mut PreviewSlots,
         names: &Rc<RefCell<PreviewNames>>,
-    ) -> Option<(String, Vec<IdentityId>)> {
+    ) -> Option<(LeanString, Vec<IdentityId>)> {
         let context = self
             .identifiers
             .context(self.options.hash_length)
@@ -495,7 +500,7 @@ impl ModuleEditor {
                 lower(&part.css, self.options.use_css_if, &context)
                     .map(|css| self.options.rewrite_generated(&css))
             })
-            .collect::<Result<String, _>>()
+            .collect::<Result<LeanString, _>>()
             .ok()?;
         Some((
             preview_resource_urls(css, &self.snapshot),

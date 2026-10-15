@@ -1,5 +1,7 @@
 //! Producer diagnostics whose labels retain the source revisions they describe.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_source::{SourceRegistry, SourceRegistryError};
 
 use crate::{
@@ -24,10 +26,10 @@ impl DiagnosticCause {
         }
     }
 
-    pub(super) fn message(&self) -> String {
+    pub(super) fn message(&self) -> LeanString {
         match self {
-            Self::Compile(kind) => kind.to_string(),
-            Self::Lint(kind) => kind.to_string(),
+            Self::Compile(kind) => kind.to_lean_string(),
+            Self::Lint(kind) => kind.to_lean_string(),
         }
     }
 }
@@ -40,7 +42,7 @@ pub struct LocatedLabel {
     /// Validated source revision and byte range.
     pub range: SourceRange,
     /// Explanation shown beside the highlight.
-    pub message: Option<String>,
+    pub message: Option<LeanStr>,
 }
 
 /// A completed diagnostic with source-bound labels and optional corrections.
@@ -53,7 +55,7 @@ pub struct LocatedDiagnostic {
     /// Further highlights in producer order.
     pub related: Vec<LocatedLabel>,
     /// Supplementary explanations.
-    pub notes: Vec<String>,
+    pub notes: Vec<LeanStr>,
     /// Alternative user-invoked corrections.
     pub actions: Vec<FixAction>,
 }

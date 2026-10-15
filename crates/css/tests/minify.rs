@@ -85,7 +85,7 @@ fn generates_and_composes_maps_to_multiple_original_sources() {
         .unwrap();
     input.add_mapping(0, 0, Some(OriginalLocation::new(10, 2, first, None)));
     input.add_mapping(1, 0, Some(OriginalLocation::new(20, 4, second, None)));
-    options.input_source_map = Some(input.to_json(Some("../src/")).unwrap());
+    options.input_source_map = Some((input.to_json(Some("../src/")).unwrap()).into());
     let output = minify_css(css, &options).unwrap();
     let json = output.source_map.unwrap();
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();

@@ -8,6 +8,7 @@
 use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use crate::{csswg_formal_syntax, declaration_ranges, properties_interfere};
 
@@ -17,17 +18,17 @@ pub struct CssRule {
     /// Original UTF-8 byte range. Merging expands it to cover contributing occurrences.
     pub range: Range<usize>,
     /// Lossless selector, at-rule header, or complete statement.
-    pub prelude: String,
+    pub prelude: LeanStr,
     /// Contents of a brace block, when present.
-    pub body: Option<String>,
+    pub body: Option<LeanStr>,
 }
 
 impl CssRule {
     /// Serializes a rule without changing tokens or whitespace.
-    pub fn to_css(&self) -> String {
+    pub fn to_css(&self) -> LeanStr {
         self.body.as_ref().map_or_else(
             || self.prelude.clone(),
-            |body| format!("{}{{{body}}}", self.prelude),
+            |body| format_args!("{}{{{body}}}", self.prelude).to_lean_str(),
         )
     }
 
@@ -94,9 +95,9 @@ impl CssRule {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Declaration {
     /// Standard properties are lowercase; custom properties preserve case.
-    pub property: String,
+    pub property: LeanStr,
     /// Complete declaration without its terminating semicolon.
-    pub css: String,
+    pub css: LeanStr,
 }
 
 impl Declaration {
@@ -114,9 +115,9 @@ impl Declaration {
                     return None;
                 };
                 let property = if name.starts_with("--") {
-                    name.to_string()
+                    name.to_lean_string()
                 } else {
-                    name.to_ascii_lowercase()
+                    name.to_lean_string().to_ascii_lowercase()
                 };
                 if !property.starts_with("--") && csswg_formal_syntax(&property).is_none() {
                     return None;
@@ -130,7 +131,7 @@ impl Declaration {
                     }
                 }
                 Some(Self {
-                    property,
+                    property: (property).into(),
                     css: text.into(),
                 })
             })
@@ -194,11 +195,12 @@ fn optimize_nested(rules: &mut Vec<CssRule>, depth: usize) {
             rule.body = Some(
                 declarations
                     .iter()
-                    .fold(String::new(), |mut text, declaration| {
+                    .fold(LeanString::new(), |mut text, declaration| {
                         text.push_str(&declaration.css);
                         text.push(';');
                         text
-                    }),
+                    })
+                    .into(),
             );
         }
     }
@@ -218,11 +220,12 @@ fn optimize_nested(rules: &mut Vec<CssRule>, depth: usize) {
             if rules[previous].body == rules[index].body {
                 // A comma list is safe for the plain class selectors accepted above.
                 if rules[previous].prelude.trim() != rules[index].prelude.trim() {
-                    rules[previous].prelude = format!(
+                    rules[previous].prelude = format_args!(
                         "{},{}",
                         rules[previous].prelude.trim(),
                         rules[index].prelude.trim()
-                    );
+                    )
+                    .to_lean_str();
                 }
                 rules[previous].range.end = rules[index].range.end;
                 rules.remove(index);
@@ -249,13 +252,13 @@ fn optimize_nested(rules: &mut Vec<CssRule>, depth: usize) {
 /// # Errors
 ///
 /// Returns the start byte of the block contents if nested-block parsing fails.
-pub fn stylesheet_fragments(css: &str) -> Result<Vec<(String, Range<usize>)>, usize> {
+pub fn stylesheet_fragments(css: &str) -> Result<Vec<(LeanString, Range<usize>)>, usize> {
     fn visit(
         css: &str,
         offset: usize,
-        wrappers: &[String],
+        wrappers: &[LeanString],
         depth: usize,
-        output: &mut Vec<(String, Range<usize>)>,
+        output: &mut Vec<(LeanString, Range<usize>)>,
     ) -> Result<(), usize> {
         for rule in CssRule::parse(css)? {
             let header = rule.prelude.trim_start();
@@ -268,7 +271,7 @@ pub fn stylesheet_fragments(css: &str) -> Result<Vec<(String, Range<usize>)>, us
                 && !body.trim().is_empty()
             {
                 let mut nested = wrappers.to_vec();
-                nested.push(rule.prelude.clone());
+                nested.push((rule.prelude.clone()).into());
                 visit(
                     body,
                     offset + rule.range.start + rule.prelude.len() + 1,
@@ -279,9 +282,12 @@ pub fn stylesheet_fragments(css: &str) -> Result<Vec<(String, Range<usize>)>, us
             } else {
                 let mut text = rule.to_css();
                 for wrapper in wrappers.iter().rev() {
-                    text = format!("{wrapper}{{{text}}}");
+                    text = format_args!("{wrapper}{{{text}}}").to_lean_str();
                 }
-                output.push((text, offset + rule.range.start..offset + rule.range.end));
+                output.push((
+                    (text).into(),
+                    offset + rule.range.start..offset + rule.range.end,
+                ));
             }
         }
         Ok(())
@@ -337,13 +343,13 @@ mod tests {
                     .unwrap()
                     .iter()
                     .map(CssRule::to_css)
-                    .collect::<String>(),
+                    .collect::<LeanString>(),
                 css
             );
         }
     }
 
-    fn optimize(css: &str) -> String {
+    fn optimize(css: &str) -> LeanString {
         let mut rules = CssRule::parse(css).unwrap();
         optimize_rules(&mut rules);
         rules.iter().map(CssRule::to_css).collect()
@@ -375,7 +381,7 @@ mod tests {
         );
     }
 
-    fn cascade(css: &str, classes: &[&str]) -> BTreeMap<String, String> {
+    fn cascade(css: &str, classes: &[&str]) -> BTreeMap<LeanStr, LeanStr> {
         let mut result = BTreeMap::new();
         for rule in CssRule::parse(css).unwrap() {
             if rule
@@ -396,7 +402,7 @@ mod tests {
         fn scheduling_preserves_every_class_combination(values in proptest::collection::vec((0u8..3, 0u8..3, 0u8..9), 0..25)) {
             let names = ["a", "b", "c"];
             let properties = ["color", "width", "height"];
-            let css = values.into_iter().fold(String::new(), |mut css, (class, property, value)| {
+            let css = values.into_iter().fold(LeanString::new(), |mut css, (class, property, value)| {
                 use std::fmt::Write;
                 write!(css, ".{}{{{}:{}px;}}", names[class as usize], properties[property as usize], value).unwrap();
                 css
@@ -409,7 +415,7 @@ mod tests {
         }
     }
 
-    fn optimize_nested_css(css: &str) -> String {
+    fn optimize_nested_css(css: &str) -> LeanString {
         let mut rules = CssRule::parse(css).unwrap();
         optimize_nested(&mut rules, 0);
         rules.iter().map(CssRule::to_css).collect()
@@ -457,19 +463,19 @@ mod tests {
     #[test]
     fn optimize_nested_merges_only_within_its_lookback_window() {
         let fillers = |count: usize| {
-            (0..count).fold(String::new(), |mut css, index| {
+            (0..count).fold(LeanString::new(), |mut css, index| {
                 use std::fmt::Write;
                 write!(css, ".f{index}{{--v{index}:{index};}}").unwrap();
                 css
             })
         };
-        let near = format!(".a{{color:red}}{}.dup{{color:red}}", fillers(63));
+        let near = format_args!(".a{{color:red}}{}.dup{{color:red}}", fillers(63)).to_lean_string();
         let optimized = optimize_nested_css(&near);
         assert!(
             optimized.contains(".a,.dup{color:red;}"),
             "distance 64 must merge: {optimized}"
         );
-        let far = format!(".a{{color:red}}{}.dup{{color:red}}", fillers(64));
+        let far = format_args!(".a{{color:red}}{}.dup{{color:red}}", fillers(64)).to_lean_string();
         let optimized = optimize_nested_css(&far);
         assert!(
             optimized.contains(".a{color:red;}") && optimized.contains(".dup{color:red;}"),
@@ -482,12 +488,14 @@ mod tests {
     #[test]
     fn optimize_nested_stops_at_the_depth_limit() {
         let body = ".a{color:red}.b{color:red}";
-        let shallow = format!("{}{}{}", "@media a{".repeat(63), body, "}".repeat(63));
+        let shallow =
+            format_args!("{}{}{}", "@media a{".repeat(63), body, "}".repeat(63)).to_lean_string();
         assert!(
             optimize_nested_css(&shallow).contains(".a,.b{color:red;}"),
             "at the limit the inner rules are optimized"
         );
-        let deep = format!("{}{}{}", "@media a{".repeat(64), body, "}".repeat(64));
+        let deep =
+            format_args!("{}{}{}", "@media a{".repeat(64), body, "}".repeat(64)).to_lean_string();
         assert_eq!(
             optimize_nested_css(&deep),
             deep,

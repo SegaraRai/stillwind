@@ -10,12 +10,15 @@
 //! `uri` validates host document identities. `span` defines byte ranges and their
 //! buffer identities. `file` validates immutable text and converts editor positions.
 //! `registry` retains revisions and allocates IDs within one project scope.
+//! `construction` joins and replaces compact owned text.
 
+mod construction;
 mod file;
 mod registry;
 mod span;
 mod uri;
 
+pub use construction::{JoinText, ReplaceText};
 pub use file::{Position, SourceError, SourceFile};
 pub use registry::{SourceRegistry, SourceRegistryError};
 pub use span::{BytePos, FileId, Span, Spanned, range_of};

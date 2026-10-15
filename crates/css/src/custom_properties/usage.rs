@@ -12,6 +12,7 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, ToLeanStr};
 use lightningcss::declaration::DeclarationBlock;
 use lightningcss::error::{Error, ParserError};
 use lightningcss::properties::Property;
@@ -36,11 +37,11 @@ pub struct PropertyUsageError(#[source] pub Error<ParserError<'static>>);
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CustomPropertyUsage {
     /// Custom properties declared in a declaration block, such as `--x: red`.
-    pub declared: BTreeSet<String>,
+    pub declared: BTreeSet<LeanStr>,
     /// Custom properties read through `var()`, including nested fallbacks.
-    pub referenced: BTreeSet<String>,
+    pub referenced: BTreeSet<LeanStr>,
     /// Names of the ordinary properties that appear in the stylesheet.
-    pub declaration_properties: BTreeSet<String>,
+    pub declaration_properties: BTreeSet<LeanStr>,
 }
 
 impl CustomPropertyUsage {
@@ -59,7 +60,9 @@ impl CustomPropertyUsage {
                 ..ParserOptions::default()
             },
         )
-        .map_err(|error| PropertyUsageError(Error::from(error, String::new()).into_owned()))?;
+        .map_err(|error| {
+            PropertyUsageError(Error::from(error, std::string::String::new()).into_owned())
+        })?;
         match declarations.visit(self) {
             Ok(()) => Ok(()),
             Err(error) => match error {},
@@ -76,11 +79,11 @@ impl<'i> Visitor<'i> for CustomPropertyUsage {
 
     fn visit_property(&mut self, property: &mut Property<'i>) -> Result<(), Self::Error> {
         self.declaration_properties
-            .insert(property.property_id().name().to_owned());
+            .insert(property.property_id().name().to_lean_str());
         if let Property::Custom(property) = property {
             let name = property.name.as_ref();
             if name.starts_with("--") {
-                self.declared.insert(name.to_owned());
+                self.declared.insert(name.to_lean_str());
             }
         }
         property.visit_children(self)
@@ -88,7 +91,7 @@ impl<'i> Visitor<'i> for CustomPropertyUsage {
 
     fn visit_variable(&mut self, variable: &mut Variable<'i>) -> Result<(), Self::Error> {
         self.referenced
-            .insert(variable.name.ident.0.as_ref().to_owned());
+            .insert(variable.name.ident.0.as_ref().to_lean_str());
         variable.visit_children(self)
     }
 }
@@ -99,7 +102,7 @@ impl<'i> Visitor<'i> for CustomPropertyUsage {
 /// This is the lexical union of declarations and references, so it cannot
 /// distinguish the two; use [`custom_property_usage`] when that matters.
 #[must_use]
-pub fn used_custom_properties(css: &str) -> BTreeSet<String> {
+pub fn used_custom_properties(css: &str) -> BTreeSet<LeanStr> {
     custom_property_references(&strip_css_comments(&strip_blocks(css, "@property")))
 }
 
@@ -111,7 +114,7 @@ pub fn used_custom_properties(css: &str) -> BTreeSet<String> {
 /// A `var()` whose argument is not a `--` name contributes nothing, and names
 /// inside `@property` blocks or comments are ignored.
 #[must_use]
-pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
+pub fn referenced_custom_properties(css: &str) -> BTreeSet<LeanStr> {
     let css = strip_css_comments(&strip_blocks(css, "@property"));
     let mut references = BTreeSet::new();
     let mut cursor = 0;
@@ -132,7 +135,7 @@ pub fn referenced_custom_properties(css: &str) -> BTreeSet<String> {
                 name_start + offset + character.len_utf8()
             });
         if end > name_start + 2 {
-            references.insert(css[name_start..end].to_owned());
+            references.insert(css[name_start..end].to_lean_str());
         }
         cursor = end.max(start);
     }
@@ -182,7 +185,8 @@ mod tests {
         usage.add_declarations(declarations).unwrap();
         assert_eq!(
             usage,
-            custom_property_usage(&format!("{css}:root{{{declarations}}}")).unwrap()
+            custom_property_usage(&format_args!("{css}:root{{{declarations}}}").to_lean_str())
+                .unwrap()
         );
         assert_eq!(
             usage.referenced,
@@ -194,12 +198,12 @@ mod tests {
                     "--color",
                     "--nested",
                 ]
-                .map(str::to_owned)
+                .map(LeanStr::from)
             )
         );
         assert_eq!(
             usage.declared,
-            BTreeSet::from(["--theme", "--block"].map(str::to_owned))
+            BTreeSet::from(["--theme", "--block"].map(LeanStr::from))
         );
         let before = usage.clone();
         usage.add_declarations("").unwrap();
@@ -213,17 +217,17 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(usage.declared, BTreeSet::from(["--declared".to_owned()]));
+        assert_eq!(usage.declared, BTreeSet::from(["--declared".to_lean_str()]));
         assert!(usage.declaration_properties.contains("color"));
         assert!(usage.declaration_properties.contains("scroll-snap-type"));
         assert_eq!(
             usage.referenced,
             BTreeSet::from([
-                "--color".to_owned(),
-                "--fallback".to_owned(),
-                "--referenced".to_owned(),
-                "--snap".to_owned(),
-                "--transform".to_owned(),
+                "--color".to_lean_str(),
+                "--fallback".to_lean_str(),
+                "--referenced".to_lean_str(),
+                "--snap".to_lean_str(),
+                "--transform".to_lean_str(),
             ])
         );
     }
@@ -233,7 +237,7 @@ mod tests {
         let css = "--unused:red;--used:var(--source, var(--fallback));@property --ignored { syntax: '*' }";
         assert_eq!(
             referenced_custom_properties(css),
-            BTreeSet::from(["--source".to_owned(), "--fallback".to_owned()])
+            BTreeSet::from(["--source".to_lean_str(), "--fallback".to_lean_str()])
         );
     }
 }

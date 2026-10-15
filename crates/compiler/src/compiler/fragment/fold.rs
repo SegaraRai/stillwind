@@ -7,7 +7,10 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::LeanString;
+
 use stillwind_ir::{FrameworkSpec, StyleFormat};
+use stillwind_source::JoinText;
 
 use super::expression::{Atom, Emitted, Fragment, ValueExpr};
 
@@ -238,9 +241,9 @@ pub(super) fn known_record(fragment: &Fragment) -> Option<Vec<Atom>> {
 
 /// Returns a static leaf's names joined by one space, without JavaScript quoting.
 /// Returns `None` for every other node, including arrays or branches of static leaves.
-pub(super) fn static_class(value: &Emitted) -> Option<String> {
+pub(super) fn static_class(value: &Emitted) -> Option<LeanString> {
     if let Emitted::Leaf { names } = value {
-        Some(names.join(" "))
+        Some(names.join_text(" "))
     } else {
         None
     }

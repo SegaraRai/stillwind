@@ -491,20 +491,22 @@ fn map_variant<E>(
 
 #[cfg(test)]
 mod tests {
+    use lean_string::{LeanStr, ToLeanStr};
+
     use stillwind_source::FileId;
 
     use super::*;
 
     fn utilities(text: &str, start: u32) -> ClassExpression {
         RuleExpression::Utilities(Spanned::new(
-            text.to_owned(),
+            text.to_lean_str(),
             Span::new(FileId(1), start, start + u32::try_from(text.len()).unwrap()),
         ))
         .into()
     }
 
     /// Returns the utility text and span inside a rule-valued class fixture.
-    fn utility(expression: &ClassExpression) -> &Spanned<String> {
+    fn utility(expression: &ClassExpression) -> &Spanned<LeanStr> {
         let ClassExpression::Rule(rule) = expression else {
             panic!("rule")
         };

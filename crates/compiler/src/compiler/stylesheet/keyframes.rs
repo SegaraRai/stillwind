@@ -5,15 +5,17 @@
 //! at `@keyframes`, so a request for `spin` does not select `spin-fast`. A rule whose braces never
 //! close contributes nothing rather than a truncated rule that would change the animation.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 /// Copies the named `@keyframes` rules out of `css`, in the order the names are given.
 ///
 /// A name that does not appear is skipped silently: a theme may reference a keyframe declared by
 /// the host's own CSS, and that is not an error here.
-pub(in crate::compiler) fn extract_authored_keyframes(css: &str, names: &[String]) -> String {
-    let mut output = String::new();
+pub(in crate::compiler) fn extract_authored_keyframes(css: &str, names: &[LeanStr]) -> LeanString {
+    let mut output = LeanString::new();
     for name in names {
-        let needle = format!("@keyframes {name}");
-        let Some(start) = css.find(&needle) else {
+        let needle = format_args!("@keyframes {name}").to_lean_string();
+        let Some(start) = css.find(needle.as_str()) else {
             continue;
         };
         let Some(open_rel) = css[start..].find('{') else {

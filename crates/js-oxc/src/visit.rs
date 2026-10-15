@@ -9,6 +9,7 @@
 //! [`ImportBinding`], because an import declaration is the only construct that can
 //! associate a name with a module before any symbol exists.
 
+use lean_string::ToLeanStr;
 use oxc::ast::ast::{
     Argument, BindingPattern, CallExpression, Declaration, ExportAllDeclaration, ExportDeclaration,
     ExportFromDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration,
@@ -44,7 +45,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// [`ImportBinding`]s.
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_string(),
+            source: declaration.source.value.to_lean_str(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
@@ -84,19 +85,19 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             for specifier in specifiers {
                 let (local, imported) = match specifier {
                     ImportDeclarationSpecifier::ImportSpecifier(specifier) => (
-                        specifier.local.name.to_string(),
+                        specifier.local.name.to_lean_str(),
                         Self::module_export_name(&specifier.imported),
                     ),
                     ImportDeclarationSpecifier::ImportDefaultSpecifier(specifier) => {
-                        (specifier.local.name.to_string(), "default".to_owned())
+                        (specifier.local.name.to_lean_str(), "default".to_lean_str())
                     }
                     ImportDeclarationSpecifier::ImportNamespaceSpecifier(specifier) => {
-                        (specifier.local.name.to_string(), "*".to_owned())
+                        (specifier.local.name.to_lean_str(), "*".to_lean_str())
                     }
                 };
                 self.imports.push(ImportBinding {
                     local: local.clone(),
-                    source: declaration.source.value.to_string(),
+                    source: declaration.source.value.to_lean_str(),
                     imported,
                 });
             }
@@ -115,7 +116,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                     && let Some(symbol) = identifier.symbol_id.get()
                 {
                     self.export_symbols
-                        .push((symbol, identifier.name.to_string()));
+                        .push((symbol, identifier.name.to_lean_str()));
                 }
             }
         }
@@ -149,14 +150,14 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// without re-parsing this module.
     fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_string(),
+            source: declaration.source.value.to_lean_str(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
         for specifier in &declaration.specifiers {
             self.re_exports.push(ReExport {
                 exported: Self::module_export_name(&specifier.exported),
-                source: declaration.source.value.to_string(),
+                source: declaration.source.value.to_lean_str(),
                 imported: Self::module_export_name(&specifier.local),
             });
         }
@@ -169,7 +170,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// distinguishable from a genuine `*` re-export.
     fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_string(),
+            source: declaration.source.value.to_lean_str(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
@@ -177,9 +178,9 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             exported: declaration
                 .exported
                 .as_ref()
-                .map_or_else(|| "*".to_owned(), Self::module_export_name),
-            source: declaration.source.value.to_string(),
-            imported: "*".to_owned(),
+                .map_or_else(|| "*".to_lean_str(), Self::module_export_name),
+            source: declaration.source.value.to_lean_str(),
+            imported: "*".to_lean_str(),
         });
         walk::walk_export_all_declaration(self, declaration);
     }
@@ -254,7 +255,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
-                identifier.name.to_string(),
+                identifier.name.to_lean_str(),
                 self.source_span(identifier.span),
             );
             let definition = self.collect_ref_definition(name, call);
@@ -275,7 +276,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
-                identifier.name.to_string(),
+                identifier.name.to_lean_str(),
                 self.source_span(identifier.span),
             );
             let definition = self.collect_keyframes_definition(name.clone(), call);
@@ -296,7 +297,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             && let Some(symbol_id) = identifier.symbol_id.get()
         {
             let name = Spanned::new(
-                identifier.name.to_string(),
+                identifier.name.to_lean_str(),
                 self.source_span(identifier.span),
             );
             let definition = self.collect_view_transition_definition(name.clone(), call);

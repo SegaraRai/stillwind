@@ -7,6 +7,8 @@
 //! conditions combine by containment instead of being merged into one query. Resolved
 //! values are emitted without minification.
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::{append_element_condition, instantiate_selector};
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
@@ -36,7 +38,7 @@ pub(in crate::compiler) fn render_utility_rule(
     declaration: &str,
     nested_rule: Option<&NestedUtilityRule>,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     if !utility.variant_applications.is_empty() {
         return utility
             .variant_applications
@@ -99,7 +101,7 @@ pub(in crate::compiler) fn render_utility_rule_path(
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantApplication],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     variant_paths(applications)
         .iter()
         .map(|path| {
@@ -128,9 +130,9 @@ fn render_utility_steps(
     nested_rule: Option<&NestedUtilityRule>,
     applications: &[VariantStep<'_>],
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
-    let mut declaration = declaration.to_owned();
-    let class_selector = class_selector.to_owned();
+) -> Result<LeanString, CompileDiagnostic> {
+    let mut declaration = declaration.to_lean_string();
+    let class_selector = class_selector.to_lean_string();
     let mut selector = utility.selector.as_deref().map_or_else(
         || class_selector.clone(),
         |selector| instantiate_selector(selector, &class_selector),
@@ -163,7 +165,7 @@ fn render_utility_steps(
                 condition,
             } => {
                 selector = instantiate_selector(template, &selector);
-                media.push(condition.to_owned());
+                media.push(condition.to_lean_string());
             }
             VariantStep::SelectorMediaRule {
                 selector: template,
@@ -172,16 +174,16 @@ fn render_utility_steps(
             } => {
                 selector = instantiate_selector(template, &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
-                media.push(condition.to_owned());
+                media.push(condition.to_lean_string());
             }
             VariantStep::Media(condition) => {
-                media.push(condition.to_owned());
+                media.push(condition.to_lean_string());
             }
             VariantStep::Container(condition) => {
-                containers.push(condition.to_owned());
+                containers.push(condition.to_lean_string());
             }
             VariantStep::Supports(condition) => {
-                supports.push(condition.to_owned());
+                supports.push(condition.to_lean_string());
             }
             VariantStep::Conditional(condition) => conditions.push(condition),
             VariantStep::StartingStyle => {
@@ -195,34 +197,34 @@ fn render_utility_steps(
     let mut gates = Vec::new();
     for condition in conditions {
         let guarded = guard(&declaration, condition, identifiers, &gates)?;
-        declaration = guarded.css;
+        declaration = (guarded.css).into();
         gates.extend(guarded.gates);
     }
-    let mut rule = format!("{selector}{{{declaration}}}");
+    let mut rule = format_args!("{selector}{{{declaration}}}").to_lean_string();
     if let Some(nested) = nested_rule {
         rule = match nested.at_rule {
             NestedUtilityAtRule::Media => {
-                format!("@media {}{{{rule}}}", nested.condition)
+                format_args!("@media {}{{{rule}}}", nested.condition).to_lean_string()
             }
             NestedUtilityAtRule::Supports => {
-                format!("@supports ({}){{{rule}}}", nested.condition)
+                format_args!("@supports ({}){{{rule}}}", nested.condition).to_lean_string()
             }
         };
     }
     for condition in supports.into_iter().rev() {
-        rule = format!("@supports ({condition}){{{rule}}}");
+        rule = format_args!("@supports ({condition}){{{rule}}}").to_lean_string();
     }
     for condition in media.into_iter().rev() {
-        rule = format!("@media {condition}{{{rule}}}");
+        rule = format_args!("@media {condition}{{{rule}}}").to_lean_string();
     }
     for condition in containers.into_iter().rev() {
-        rule = format!("@container {condition}{{{rule}}}");
+        rule = format_args!("@container {condition}{{{rule}}}").to_lean_string();
     }
     if starting_style {
-        rule = format!("@starting-style{{{rule}}}");
+        rule = format_args!("@starting-style{{{rule}}}").to_lean_string();
     }
     if let Some(container) = &utility.container {
-        rule = format!("@container {container}{{{rule}}}");
+        rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
     if conditional {
         Ok(protect(&rule))
@@ -233,6 +235,8 @@ fn render_utility_steps(
 
 #[cfg(test)]
 mod render_step_tests {
+    use lean_string::ToLeanStr;
+
     use stillwind_design_system::{UtilityOrder, VariantDeclaration};
 
     use super::super::resolve::UtilitySource;
@@ -254,9 +258,9 @@ mod render_step_tests {
             source: UtilitySource::default(),
             variants: Vec::new(),
             variant_applications: Vec::new(),
-            declaration: declaration.to_owned(),
+            declaration: declaration.to_lean_str(),
             required_properties: Vec::new(),
-            selector: selector.map(str::to_owned),
+            selector: (selector.map(LeanString::from)).map(Into::into),
             container: None,
             nested: Vec::new(),
             order: UtilityOrder::Authored(None),
@@ -344,8 +348,8 @@ mod render_step_tests {
     fn render_utility_steps_prepends_missing_declarations_and_wraps_nested_rules() {
         let context = identifiers();
         let declarations = [VariantDeclaration {
-            property: "color".to_owned(),
-            value: "blue".to_owned(),
+            property: "color".to_lean_str(),
+            value: "blue".to_lean_str(),
         }];
         let steps = [VariantStep::SelectorRule {
             selector: "&:hover",
@@ -378,8 +382,8 @@ mod render_step_tests {
         let nested = NestedUtilityRule {
             compatibility: false,
             at_rule: NestedUtilityAtRule::Supports,
-            condition: "display:grid".to_owned(),
-            declaration: "display:grid;".to_owned(),
+            condition: "display:grid".to_lean_str(),
+            declaration: "display:grid;".to_lean_str(),
             inside: false,
         };
         assert_eq!(

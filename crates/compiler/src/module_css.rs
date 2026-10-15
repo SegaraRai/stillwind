@@ -5,6 +5,8 @@
 
 use std::sync::Arc;
 
+use lean_string::{LeanStr, ToLeanString};
+
 use stillwind_css::CssRule;
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
@@ -20,7 +22,7 @@ pub struct GeneratedRule {
     /// Whether this occurrence belongs in the keyframes slot.
     keyframes: bool,
     /// Registration dependencies, sorted and unique after construction.
-    required_properties: Vec<String>,
+    required_properties: Vec<LeanStr>,
     /// CSS syntax and its occurrence range in the original contribution.
     syntax: CssRule,
     /// Content identity computed after registration dependencies are normalized.
@@ -32,16 +34,16 @@ impl GeneratedRule {
     /// `syntax` supplies CSS tokens and the original contribution range. `keyframes` selects
     /// the keyframes slot. Registration names are sorted and deduplicated; the renderer
     /// validates their CSS spelling and whether the template can emit their registrations.
-    pub fn new(syntax: CssRule, keyframes: bool, mut required_properties: Vec<String>) -> Self {
+    pub fn new(syntax: CssRule, keyframes: bool, mut required_properties: Vec<LeanStr>) -> Self {
         required_properties.sort();
         required_properties.dedup();
         let css = syntax.to_css();
         let key = if !keyframes && required_properties.is_empty() {
             RuleKey(Fingerprint::of(css))
         } else {
-            let mut content = format!("{keyframes}\0");
+            let mut content = format_args!("{keyframes}\0").to_lean_string();
             for property in &required_properties {
-                content.push_str(&property.len().to_string());
+                content.push_str(&property.len().to_lean_string());
                 content.push(':');
                 content.push_str(property);
             }
@@ -63,7 +65,7 @@ impl GeneratedRule {
     }
 
     /// Returns registration names in lexical order without duplicates.
-    pub fn required_properties(&self) -> &[String] {
+    pub fn required_properties(&self) -> &[LeanStr] {
         &self.required_properties
     }
 
@@ -96,7 +98,7 @@ impl GeneratedRule {
     }
 
     /// Serializes tokens, excluding support metadata.
-    pub fn to_css(&self) -> String {
+    pub fn to_css(&self) -> LeanStr {
         self.syntax.to_css()
     }
 }
@@ -132,7 +134,10 @@ impl ModuleCssArtifact {
 
     /// Serializes reference order without expanding template slots.
     pub fn to_css(&self) -> String {
-        self.rules.iter().map(GeneratedRule::to_css).collect()
+        self.rules.iter().fold(String::new(), |mut output, rule| {
+            output.push_str(&rule.to_css());
+            output
+        })
     }
 }
 

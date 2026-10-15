@@ -5,6 +5,8 @@
 //! or changes the contribution tree. CSS contexts describe emitted rules and do not
 //! encode implications between CSS predicates or correlations between runtime tests.
 
+use lean_string::LeanStr;
+
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::IdentityId;
@@ -120,14 +122,14 @@ pub(crate) struct StyleSupply {
 pub(crate) enum SupplyKind {
     /// A resolved candidate and the CSS contexts in which its rules contribute.
     Utility {
-        candidate: String,
+        candidate: LeanStr,
         contexts: Vec<RuleContext>,
     },
     /// A resolved CSS or inline declaration.
     Declaration {
         /// Decoded property name; ordinary names are ASCII lowercase and custom names
         /// retain case.
-        property: String,
+        property: LeanStr,
         /// CSS value or runtime expression; serialized CSS retains any priority suffix.
         value: DeclarationValue,
         /// Whether the declaration carries `!important`.
@@ -150,7 +152,7 @@ pub(crate) enum SupplyKind {
         /// Canonical ref declaration identity.
         reference: IdentityId,
         /// Ref binding name used in diagnostics.
-        name: String,
+        name: LeanStr,
     },
     /// Declares participation in a view transition.
     Transition {
@@ -169,7 +171,7 @@ pub(crate) enum DeclarationValue {
     /// remain.
     Css(
         /// Serialized value; a CSS priority suffix is retained when present.
-        String,
+        LeanStr,
     ),
     /// Original expression converted to a name at runtime.
     Runtime(
@@ -182,9 +184,9 @@ pub(crate) enum DeclarationValue {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct RuleContext {
     /// Expanded selector with nesting tokens in place of the generated class.
-    pub(crate) selector: String,
+    pub(crate) selector: LeanStr,
     /// Enclosing at-rule headers, outermost first.
-    pub(crate) at_rules: Vec<String>,
+    pub(crate) at_rules: Vec<LeanStr>,
     /// Element classification used for participant and provider checks.
     pub(crate) subject: RuleSubject,
 }

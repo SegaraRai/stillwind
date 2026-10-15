@@ -12,6 +12,7 @@ use std::fmt::Write as _;
 use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{RuntimeCondition, runtime_if_arguments};
@@ -27,11 +28,11 @@ fn helper(
     identifiers: &IdentifierContext,
     role: ConditionRole,
     text: &str,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     Ok(identifiers
         .condition_helper(&ConditionContext {
             role,
-            text: text.to_owned(),
+            text: text.to_lean_str(),
         })?
         .property())
 }
@@ -52,13 +53,13 @@ pub(crate) fn lower(
     css: &str,
     use_css_if: bool,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     if !css.contains("--if(") {
-        return Ok(css.to_owned());
+        return Ok(css.to_lean_string());
     }
     map_declarations(css, |property, value| {
-        let mut value = value.to_owned();
-        let mut helpers = String::new();
+        let mut value = value.to_lean_string();
+        let mut helpers = LeanString::new();
         // Reverse source order keeps the start offsets of pending replacements valid.
         let functions = find_css_functions(&value, &["--if"], 0);
         if functions.len() > 128 {
@@ -101,7 +102,7 @@ pub(crate) fn lower(
                 ..condition
             };
             let replacement = if use_css_if {
-                format!("if(style({condition}):{yes};else:{no})")
+                format_args!("if(style({condition}):{yes};else:{no})").to_lean_string()
             } else {
                 if is_css_wide(yes) {
                     return Err(invalid(
@@ -113,15 +114,15 @@ pub(crate) fn lower(
                     ConditionRole::Fallback,
                     &value[function.start..end],
                 )?;
-                // Writing through `fmt::Write` into a `String` cannot fail.
+                // Writing through `fmt::Write` into a `LeanString` cannot fail.
                 let _ = write!(helpers, "{name}:var({condition}) {yes};");
-                format!("var({name},{no})")
+                format_args!("var({name},{no})").to_lean_string()
             };
             let delta = replacement.len().cast_signed() - (end - function.start).cast_signed();
             value.replace_range(function.start..end, &replacement);
             changes.push((function.start, delta));
         }
-        Ok(format!("{helpers}{property}:{value}"))
+        Ok(format_args!("{helpers}{property}:{value}").to_lean_string())
     })
 }
 
@@ -201,7 +202,7 @@ pub(super) fn check_candidate<'a>(
 /// Returns whether `value` is a CSS-wide keyword that a fallback helper cannot store.
 fn is_css_wide(value: &str) -> bool {
     matches!(
-        value.to_ascii_lowercase().as_str(),
+        value.to_lean_string().to_ascii_lowercase().as_str(),
         "initial" | "inherit" | "unset" | "revert" | "revert-layer" | "revert-rule"
     )
 }
@@ -209,16 +210,16 @@ fn is_css_wide(value: &str) -> bool {
 /// Copies a lowering failure's explanation into the compilation diagnostic kind.
 fn invalid(detail: &str) -> CompileDiagnostic {
     CompileDiagnostic::InvalidRuntimeConditional {
-        detail: detail.to_owned(),
+        detail: detail.to_lean_str(),
     }
 }
 
 /// One guarded declaration body and the gate declarations written into it.
 pub(super) struct Guarded {
     /// The body, with the gates this pass wrote in front of the declarations they gate.
-    pub(super) css: String,
+    pub(super) css: LeanStr,
     /// Names of those gates, which a later pass must not guard again.
-    pub(super) gates: Vec<String>,
+    pub(super) gates: Vec<LeanStr>,
 }
 
 /// Guards every declaration, including nested rules, with a validated condition.
@@ -236,12 +237,12 @@ pub(super) fn guard(
     css: &str,
     condition: &str,
     identifiers: &IdentifierContext,
-    known: &[String],
+    known: &[LeanStr],
 ) -> Result<Guarded, CompileDiagnostic> {
     let mut gates = Vec::new();
     let css = map_declarations::<CompileDiagnostic>(css, |property, value| {
         if known.iter().any(|gate| gate == property.trim()) {
-            return Ok(format!("{property}:{value}"));
+            return Ok(format_args!("{property}:{value}").to_lean_string());
         }
         let mut parser = Parser::new(value);
         let mut priority = None;
@@ -264,8 +265,8 @@ pub(super) fn guard(
             }
         }
         let (value, priority) = priority.map_or((value, ""), |start| value.split_at(start));
-        let mut gate = String::new();
-        let mut condition = condition.to_owned();
+        let mut gate = LeanString::new();
+        let mut condition = condition.to_lean_string();
         let mut value = value;
         if let Some(arguments) = value
             .trim()
@@ -273,28 +274,32 @@ pub(super) fn guard(
             .and_then(|v| v.strip_suffix(')'))
             && let Some((inner, yes, "revert-rule")) = runtime_if_arguments(arguments)
         {
-            let inner = inner.to_string();
+            let inner = inner.to_lean_string();
             // A gate joins two conditions, and the join has to identify exactly one
             // pair: a condition value may itself contain `/`, so the separator is a
             // NUL, which no condition text carries.
             let name = helper(
                 identifiers,
                 ConditionRole::Gate,
-                &format!("{condition}\0{inner}"),
+                &format_args!("{condition}\0{inner}").to_lean_string(),
             )?;
             let left = gate_condition(&condition, &mut gate, identifiers, &mut gates)?;
             let right = gate_condition(&inner, &mut gate, identifiers, &mut gates)?;
-            // Writing through `fmt::Write` into a `String` cannot fail.
+            // Writing through `fmt::Write` into a `LeanString` cannot fail.
             let _ = write!(gate, "{name}:var({left}) var({right});");
-            gates.push(name.clone());
+            gates.push((name.clone()).into());
             condition = name;
             value = yes;
         }
-        Ok(format!(
-            "{gate}{property}:--if({condition},{{{value}}},revert-rule){priority}"
-        ))
+        Ok(
+            format_args!("{gate}{property}:--if({condition},{{{value}}},revert-rule){priority}")
+                .to_lean_string(),
+        )
     })?;
-    Ok(Guarded { css, gates })
+    Ok(Guarded {
+        css: (css).into(),
+        gates,
+    })
 }
 
 /// Returns a custom-property name suitable for a fallback AND expression.
@@ -308,33 +313,33 @@ pub(super) fn guard(
 /// Returns the host generator's failure for the helper's name.
 fn gate_condition(
     condition: &str,
-    declarations: &mut String,
+    declarations: &mut LeanString,
     identifiers: &IdentifierContext,
-    gates: &mut Vec<String>,
-) -> Result<String, CompileDiagnostic> {
+    gates: &mut Vec<LeanStr>,
+) -> Result<LeanString, CompileDiagnostic> {
     let condition = condition.trim();
     let Some(parsed) = RuntimeCondition::parse(condition) else {
-        return Ok(condition.to_owned());
+        return Ok(condition.to_lean_string());
     };
     if parsed.value.is_some() {
         let name = helper(identifiers, ConditionRole::GateValue, condition)?;
-        // Writing through `fmt::Write` into a `String` cannot fail.
+        // Writing through `fmt::Write` into a `LeanString` cannot fail.
         let _ = write!(declarations, "{name}:--if({condition},{{}},initial);");
-        gates.push(name.clone());
+        gates.push((name.clone()).into());
         return Ok(name);
     }
     if !parsed.negated {
-        return Ok(condition.to_owned());
+        return Ok(condition.to_lean_string());
     }
     let property = parsed.name;
     let name = helper(identifiers, ConditionRole::GateNot, condition)?;
-    // Writing through `fmt::Write` into a `String` cannot fail.
+    // Writing through `fmt::Write` into a `LeanString` cannot fail.
     let _ = write!(
         declarations,
         "{name}:--if({},initial,{{}});",
         property.trim()
     );
-    gates.push(name.clone());
+    gates.push((name.clone()).into());
     Ok(name)
 }
 
@@ -437,9 +442,9 @@ fn add_declaration(
 /// partial CSS, but any state changes made by earlier callback invocations remain.
 fn map_declarations<E>(
     css: &str,
-    mut map: impl FnMut(&str, &str) -> Result<String, E>,
-) -> Result<String, E> {
-    let mut output = String::new();
+    mut map: impl FnMut(&str, &str) -> Result<LeanString, E>,
+) -> Result<LeanString, E> {
+    let mut output = LeanString::new();
     let mut cursor = 0;
     for (property, value) in declaration_values(css) {
         output.push_str(&css[cursor..property.start]);
@@ -452,6 +457,10 @@ fn map_declarations<E>(
 
 #[cfg(test)]
 mod tests {
+    use lean_string::{LeanStr, ToLeanStr};
+
+    use stillwind_source::ReplaceText;
+
     use super::*;
     use crate::identifiers::{DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierMode};
 
@@ -465,7 +474,7 @@ mod tests {
     }
 
     /// Lowers with the compiler's own helper names.
-    fn lower_builtin(css: &str, use_css_if: bool) -> Result<String, CompileDiagnostic> {
+    fn lower_builtin(css: &str, use_css_if: bool) -> Result<LeanString, CompileDiagnostic> {
         lower(css, use_css_if, &identifiers())
     }
 
@@ -480,7 +489,7 @@ mod tests {
         let native = lower_builtin(css, true).unwrap();
         assert_eq!(
             native,
-            css.replace(
+            css.replace_text(
                 "--if(--x,calc(1px + 2px),3px)",
                 "if(style(--x):calc(1px + 2px);else:3px)"
             )
@@ -519,10 +528,10 @@ mod tests {
     }
 
     /// The name one guarded body allocated for its gate.
-    fn gate_name(css: &str) -> String {
+    fn gate_name(css: &str) -> LeanStr {
         let start = css.find("--sw-ifg-").expect("a gate name");
         let rest = &css[start..];
-        rest[..rest.find(':').expect("the gate declaration")].to_owned()
+        rest[..rest.find(':').expect("the gate declaration")].to_lean_str()
     }
 
     #[test]
@@ -530,7 +539,7 @@ mod tests {
         let identifiers = identifiers();
         let guard_gate = |condition: &str, inner: &str| {
             guard(
-                &format!(".a{{width:--if({inner},{{1px}},revert-rule)}}"),
+                &format_args!(".a{{width:--if({inner},{{1px}},revert-rule)}}").to_lean_str(),
                 condition,
                 &identifiers,
                 &[],
@@ -566,15 +575,17 @@ mod tests {
 
 #[cfg(test)]
 mod declaration_value_tests {
+    use lean_string::{LeanStr, ToLeanStr};
+
     use super::declaration_values;
 
-    fn slices(css: &str) -> Vec<(String, String)> {
+    fn slices(css: &str) -> Vec<(LeanStr, LeanStr)> {
         declaration_values(css)
             .into_iter()
             .map(|(property, value)| {
                 (
-                    css[property].trim().to_owned(),
-                    css[value].trim().to_owned(),
+                    css[property].trim().to_lean_str(),
+                    css[value].trim().to_lean_str(),
                 )
             })
             .collect()
@@ -587,13 +598,13 @@ mod declaration_value_tests {
         assert_eq!(
             slices("a:1;b:2;"),
             [
-                ("a".to_owned(), "1".to_owned()),
-                ("b".to_owned(), "2".to_owned())
+                ("a".to_lean_str(), "1".to_lean_str()),
+                ("b".to_lean_str(), "2".to_lean_str())
             ]
         );
         assert_eq!(slices("a:1;b:2"), slices("a:1;b:2;"));
-        assert_eq!(slices(""), [] as [(String, String); 0]);
-        assert_eq!(slices("no-colon;"), [] as [(String, String); 0]);
+        assert_eq!(slices(""), [] as [(LeanStr, LeanStr); 0]);
+        assert_eq!(slices("no-colon;"), [] as [(LeanStr, LeanStr); 0]);
         // Surrounding whitespace is retained in both ranges.
         let css = "  a : 1 ; ";
         let values = declaration_values(css);
@@ -608,22 +619,22 @@ mod declaration_value_tests {
         assert_eq!(
             slices("--x:{a:1};y:2;"),
             [
-                ("--x".to_owned(), "{a:1}".to_owned()),
-                ("y".to_owned(), "2".to_owned())
+                ("--x".to_lean_str(), "{a:1}".to_lean_str()),
+                ("y".to_lean_str(), "2".to_lean_str())
             ]
         );
         assert_eq!(
             slices("x:url(a;b);y:calc(1;2);"),
             [
-                ("x".to_owned(), "url(a;b)".to_owned()),
-                ("y".to_owned(), "calc(1;2)".to_owned())
+                ("x".to_lean_str(), "url(a;b)".to_lean_str()),
+                ("y".to_lean_str(), "calc(1;2)".to_lean_str())
             ]
         );
         assert_eq!(
             slices("x:fn({a:1});y:2;"),
             [
-                ("x".to_owned(), "fn({a:1})".to_owned()),
-                ("y".to_owned(), "2".to_owned())
+                ("x".to_lean_str(), "fn({a:1})".to_lean_str()),
+                ("y".to_lean_str(), "2".to_lean_str())
             ]
         );
     }
@@ -635,8 +646,8 @@ mod declaration_value_tests {
         assert_eq!(
             slices("@media x{a:1;}b:2;"),
             [
-                ("a".to_owned(), "1".to_owned()),
-                ("b".to_owned(), "2".to_owned())
+                ("a".to_lean_str(), "1".to_lean_str()),
+                ("b".to_lean_str(), "2".to_lean_str())
             ]
         );
         let css = "@media x{a:1;}b:2;";

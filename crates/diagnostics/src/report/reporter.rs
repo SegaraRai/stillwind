@@ -3,6 +3,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_source::{
     Fingerprint, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri, Span,
 };
@@ -25,13 +27,13 @@ pub enum ReportError {
     InvalidDocumentLabel,
     /// A source has no host-supplied document identity.
     #[error("source {0} has no URI")]
-    MissingUri(String),
+    MissingUri(LeanStr),
     /// A label or edit has invalid byte coordinates.
     #[error("{0}")]
     Source(#[from] SourceError),
     /// A proposed edit refers to another revision of its document.
     #[error("stale edit for {0}")]
-    StaleEdit(String),
+    StaleEdit(LeanStr),
     /// An action has no edits or contains overlapping edits.
     #[error("invalid fix action: {0}")]
     InvalidAction(&'static str),
@@ -51,7 +53,7 @@ pub enum AggregateError {
 /// Temporary reporter for a single analysis or update.
 pub struct Reporter {
     lint_settings: LintSettings,
-    revisions: BTreeMap<SourceUri, String>,
+    revisions: BTreeMap<SourceUri, LeanStr>,
     diagnostics: Vec<ResolvedDiagnostic>,
     sources: BTreeMap<usize, ReportSource>,
 }
@@ -141,8 +143,8 @@ impl Reporter {
             DiagnosticSeverity::Error
         };
         let resolved = ResolvedDiagnostic {
-            code: diagnostic.cause.code().to_owned(),
-            message: diagnostic.cause.message(),
+            code: diagnostic.cause.code().to_lean_str(),
+            message: (diagnostic.cause.message()).into(),
             severity,
             primary,
             related,
@@ -163,18 +165,18 @@ impl Reporter {
 
     fn check_revision(
         &mut self,
-        revisions: &mut BTreeMap<SourceUri, String>,
+        revisions: &mut BTreeMap<SourceUri, LeanStr>,
         range: &SourceRange,
     ) -> Result<(), ReportError> {
         let source = range.source();
-        let uri = source
-            .uri()
-            .ok_or_else(|| ReportError::MissingUri(format!("{:?}", source.id())))?;
+        let uri = source.uri().ok_or_else(|| {
+            ReportError::MissingUri(format_args!("{:?}", source.id()).to_lean_str())
+        })?;
         let revision = self.source_info(range).revision.clone();
         if let Some(previous) = revisions.insert(uri.clone(), revision.clone())
             && previous != revision
         {
-            return Err(ReportError::StaleEdit(uri.as_str().to_owned()));
+            return Err(ReportError::StaleEdit(uri.as_str().to_lean_str()));
         }
         Ok(())
     }
@@ -238,7 +240,7 @@ impl Reporter {
 struct ReportSource {
     // Retaining the source keeps its pointer key valid until reporting finishes.
     source: Arc<SourceFile>,
-    revision: String,
+    revision: LeanStr,
     directives: Vec<LintDirective>,
     locations: BTreeMap<(u32, u32), ResolvedLocation>,
 }
@@ -261,9 +263,9 @@ impl ReportSource {
         let source = &self.source;
         let span = Span::new(source.id(), range.start(), range.end());
         source.slice(span)?;
-        let uri = source
-            .uri()
-            .ok_or_else(|| ReportError::MissingUri(format!("{:?}", source.id())))?;
+        let uri = source.uri().ok_or_else(|| {
+            ReportError::MissingUri(format_args!("{:?}", source.id()).to_lean_str())
+        })?;
         let location = ResolvedLocation {
             uri: uri.clone(),
             revision: self.revision.clone(),

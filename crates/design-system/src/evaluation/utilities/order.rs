@@ -9,6 +9,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
 use cssparser::Parser;
+use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::declaration_ranges;
 
@@ -76,7 +77,7 @@ impl UtilityPropertySort {
                 if parser.expect_ident().is_err() {
                     continue;
                 }
-                let property = parser.slice_from(start).to_owned();
+                let property = parser.slice_from(start).to_lean_string();
                 if parser.expect_colon().is_err() {
                     continue;
                 }
@@ -135,7 +136,7 @@ fn compare_candidates(left: &str, right: &str) -> Ordering {
                         .take_while(|value| digit(value))
                         .count()];
             let number = |digits: &[u16]| {
-                String::from_utf16_lossy(digits)
+                LeanString::from_utf16_lossy(digits)
                     .parse::<f64>()
                     .unwrap_or(f64::INFINITY)
             };

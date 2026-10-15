@@ -10,6 +10,7 @@
 //! the utility's declarations so the emitter can place them correctly.
 
 use cssparser::{Parser, Token};
+use lean_string::{LeanStr, ToLeanStr};
 
 use super::super::syntax::closing_brace;
 use super::resolve::{VariantApplication, VariantDeclaration};
@@ -42,16 +43,16 @@ pub(in crate::evaluation) fn resolve_variant_body(body: &str) -> Option<VariantA
                 (name, header[name.len()..].trim())
             });
         let wrapper = match name {
-            "@media" if !condition.is_empty() => VariantApplication::Media(condition.to_owned()),
+            "@media" if !condition.is_empty() => VariantApplication::Media(condition.to_lean_str()),
             "@container" if !condition.is_empty() => {
-                VariantApplication::Container(condition.to_owned())
+                VariantApplication::Container(condition.to_lean_str())
             }
             "@supports" if !condition.is_empty() => VariantApplication::Supports(
                 condition
                     .strip_prefix('(')
                     .and_then(|value| value.strip_suffix(')'))
                     .unwrap_or(condition)
-                    .to_owned(),
+                    .to_lean_str(),
             ),
             "@starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
             _ => return None,
@@ -137,7 +138,7 @@ fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
 /// beside the slot.
 pub(in crate::evaluation) struct VariantSelectorRule {
     /// Selector template, containing `&` for the position of the utility.
-    pub(in crate::evaluation) selector: String,
+    pub(in crate::evaluation) selector: LeanStr,
     /// Declarations stated by the rule itself, in authored order.
     pub(in crate::evaluation) declarations: Vec<VariantDeclaration>,
 }
@@ -181,8 +182,8 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
                     return None;
                 }
                 declarations.push(VariantDeclaration {
-                    property: property.to_owned(),
-                    value: value.to_owned(),
+                    property: property.to_lean_str(),
+                    value: value.to_lean_str(),
                 });
             }
             _ => {}
@@ -192,7 +193,7 @@ fn selector_rule_from_variant_body(body: &str) -> Option<VariantSelectorRule> {
         return None;
     }
     Some(VariantSelectorRule {
-        selector: selector.to_owned(),
+        selector: selector.to_lean_str(),
         declarations,
     })
 }

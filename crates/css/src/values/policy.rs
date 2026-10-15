@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use lightningcss::properties::{Property, PropertyId};
 use lightningcss::stylesheet::{ParserOptions, PrinterOptions};
 use lightningcss::traits::Parse;
@@ -44,13 +45,16 @@ pub fn policy_glob_matches(pattern: &str, value: &str) -> bool {
 
 /// Returns the declaration and its parsed longhand values, including nested shorthands.
 /// Unknown properties and unparsed variable values retain only the original declaration.
-pub fn property_value_domains(property: &str, value: &str) -> Vec<(String, String)> {
+pub fn property_value_domains(property: &str, value: &str) -> Vec<(LeanString, LeanString)> {
     let value = value
         .rsplit_once('!')
         .filter(|(_, suffix)| suffix.trim().eq_ignore_ascii_case("important"))
         .map_or(value, |(value, _)| value)
         .trim();
-    let mut result = vec![(property.to_ascii_lowercase(), value.to_owned())];
+    let mut result = vec![(
+        property.to_lean_string().to_ascii_lowercase(),
+        value.to_lean_string(),
+    )];
     let Ok(parsed) =
         Property::parse_string(PropertyId::from(property), value, ParserOptions::default())
     else {
@@ -64,7 +68,7 @@ pub fn property_value_domains(property: &str, value: &str) -> Vec<(String, Strin
                     if let Ok(css) = longhand.to_css_string(false, PrinterOptions::default())
                         && let Some((name, value)) = css.split_once(':')
                     {
-                        result.push((name.trim().to_owned(), value.trim().to_owned()));
+                        result.push((name.trim().to_lean_string(), value.trim().to_lean_string()));
                     }
                     pending.push(longhand);
                 }
@@ -76,7 +80,7 @@ pub fn property_value_domains(property: &str, value: &str) -> Vec<(String, Strin
 
 /// Returns nonzero length unit names and direct `var()` / `--theme()` references.
 /// References in fallback arguments are included; their declaration values are not followed.
-pub fn inspect_css_value(value: &str) -> (BTreeSet<String>, BTreeSet<String>) {
+pub fn inspect_css_value(value: &str) -> (BTreeSet<LeanStr>, BTreeSet<LeanStr>) {
     let mut units = BTreeSet::new();
     let mut references = BTreeSet::new();
     inspect(&mut Parser::new(value), &mut units, &mut references);
@@ -87,7 +91,7 @@ pub fn inspect_css_value(value: &str) -> (BTreeSet<String>, BTreeSet<String>) {
 /// Strings and URL arguments are skipped. Variable fallbacks and mathematical expressions
 /// are inspected; referenced custom-property definitions are left to the caller.
 pub fn arbitrary_value_flags(property: &str, value: &str, color_domain: bool) -> (bool, bool) {
-    let property = property.to_ascii_lowercase();
+    let property = property.to_lean_string().to_ascii_lowercase();
     let color = color_domain
         || property.contains("color")
         || matches!(
@@ -137,7 +141,7 @@ fn inspect_arbitrary(parser: &mut Parser<'_>, color: bool, flags: &mut (bool, bo
                     .any(|skip| name.eq_ignore_ascii_case(skip));
                 let color_function = color
                     && matches!(
-                        name.to_ascii_lowercase().as_str(),
+                        name.to_lean_string().to_ascii_lowercase().as_str(),
                         "rgb"
                             | "rgba"
                             | "hsl"
@@ -181,13 +185,13 @@ pub fn media_has_size_comparison(condition: &str) -> bool {
 /// Returns parenthesized viewport size comparisons from a media prelude.
 /// Logical groups are traversed; unrelated feature values and function arguments
 /// do not become size comparisons.
-pub fn media_size_comparisons(condition: &str) -> Vec<String> {
+pub fn media_size_comparisons(condition: &str) -> Vec<LeanStr> {
     let mut comparisons = Vec::new();
     size_comparisons(&mut Parser::new(condition), false, &mut comparisons);
     comparisons
 }
 
-fn size_comparisons(parser: &mut Parser<'_>, feature_block: bool, comparisons: &mut Vec<String>) {
+fn size_comparisons(parser: &mut Parser<'_>, feature_block: bool, comparisons: &mut Vec<LeanStr>) {
     let start = parser.position();
     let (mut size, mut comparison) = (false, false);
     while let Ok(token) = parser.next() {
@@ -215,19 +219,19 @@ fn size_comparisons(parser: &mut Parser<'_>, feature_block: bool, comparisons: &
         }
     }
     if size && comparison {
-        comparisons.push(format!("({})", parser.slice_from(start)));
+        comparisons.push(format_args!("({})", parser.slice_from(start)).to_lean_str());
     }
 }
 
 fn inspect(
     parser: &mut Parser<'_>,
-    units: &mut BTreeSet<String>,
-    references: &mut BTreeSet<String>,
+    units: &mut BTreeSet<LeanStr>,
+    references: &mut BTreeSet<LeanStr>,
 ) {
     while let Ok(token) = parser.next() {
         match token {
             Token::Dimension { value, unit, .. } if *value != 0.0 && is_length_unit(unit) => {
-                units.insert(unit.to_ascii_lowercase());
+                units.insert((unit.to_lean_string().to_ascii_lowercase()).into());
             }
             Token::Function(name) => {
                 let reference =
@@ -236,10 +240,10 @@ fn inspect(
                 let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
                     if reference
                         && let Ok(name) =
-                            inner.try_parse(|p| p.expect_ident().map(ToString::to_string))
+                            inner.try_parse(|p| p.expect_ident().map(ToLeanString::to_lean_string))
                         && name.starts_with("--")
                     {
-                        references.insert(name);
+                        references.insert((name).into());
                     }
                     if !skip {
                         inspect(inner, units, references);
@@ -261,7 +265,7 @@ fn inspect(
 /// Returns whether a unit name denotes a CSS length, without ASCII case.
 pub fn is_length_unit(unit: &str) -> bool {
     matches!(
-        unit.to_ascii_lowercase().as_str(),
+        unit.to_lean_string().to_ascii_lowercase().as_str(),
         "px" | "cm"
             | "mm"
             | "q"

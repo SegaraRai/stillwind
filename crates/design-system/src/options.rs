@@ -3,9 +3,11 @@
 //! Snapshot construction validates the supplied namespaces and captures the ordering
 //! strategy before utility evaluation. Generated identifiers use the captured prefixes.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
 use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_source::ReplaceText;
 
 /// Property namespaces and utility ordering captured by a design-system snapshot.
 ///
@@ -15,10 +17,10 @@ use stillwind_diagnostics::CompileDiagnostic;
 #[serde(default, rename_all = "camelCase")]
 pub struct DesignSystemOptions {
     /// Prefix of Stillwind-owned generated properties.
-    pub prefix: String,
+    pub prefix: LeanStr,
     /// Prefix of the Tailwind-compatibility namespace, which stays distinct from
     /// `prefix` even when both are customized.
-    pub tailwind_prefix: String,
+    pub tailwind_prefix: LeanStr,
     /// Strategy for ordering resolved utilities.
     pub utility_order: UtilityOrderMode,
 }
@@ -26,8 +28,8 @@ pub struct DesignSystemOptions {
 impl Default for DesignSystemOptions {
     fn default() -> Self {
         Self {
-            prefix: "--sw-".to_owned(),
-            tailwind_prefix: "--tw-".to_owned(),
+            prefix: "--sw-".to_lean_str(),
+            tailwind_prefix: "--tw-".to_lean_str(),
             utility_order: UtilityOrderMode::default(),
         }
     }
@@ -76,12 +78,12 @@ impl DesignSystemOptions {
     /// prefixes. This keeps swapped or overlapping prefixes from rewriting one another's
     /// output. The caller supplies generated text without these reserved sentinel strings;
     /// the operation is literal substitution rather than CSS-aware identifier rewriting.
-    pub fn rewrite_generated(&self, value: &str) -> String {
+    pub fn rewrite_generated(&self, value: &str) -> LeanString {
         value
-            .replace("--sw-", "\u{e000}stillwind-prefix\u{e001}")
-            .replace("--tw-", "\u{e000}tailwind-prefix\u{e001}")
-            .replace("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
-            .replace("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
+            .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
+            .replace_text("--tw-", "\u{e000}tailwind-prefix\u{e001}")
+            .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
+            .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
     }
 }
 

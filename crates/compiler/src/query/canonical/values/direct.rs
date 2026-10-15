@@ -5,6 +5,8 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
     take_property_requirements,
@@ -16,11 +18,11 @@ use crate::query::completion::value_namespaces;
 
 #[derive(Debug, Default)]
 pub(super) struct DirectValues {
-    families: BTreeMap<String, BTreeSet<String>>,
-    search: BTreeMap<String, BTreeSet<String>>,
-    modifiers: BTreeSet<String>,
-    values: HashMap<String, Vec<String>>,
-    covered: BTreeSet<String>,
+    families: BTreeMap<LeanStr, BTreeSet<LeanStr>>,
+    search: BTreeMap<LeanStr, BTreeSet<LeanStr>>,
+    modifiers: BTreeSet<LeanStr>,
+    values: HashMap<LeanStr, Vec<LeanStr>>,
+    covered: BTreeSet<LeanStr>,
 }
 
 impl DirectValues {
@@ -35,10 +37,10 @@ impl DirectValues {
                 .iter()
                 .all(|definition| modifier_preserves_value(&definition.body))
             {
-                index.modifiers.insert(root.to_owned());
+                index.modifiers.insert(root.to_lean_str());
             }
             index.search.insert(
-                root.to_owned(),
+                root.to_lean_str(),
                 definitions
                     .iter()
                     .flat_map(|definition| value_namespaces(&definition.body, "--value"))
@@ -49,7 +51,7 @@ impl DirectValues {
                     .iter()
                     .map(|definition| definition.body.as_str()),
             ) {
-                index.families.insert(root.to_owned(), namespaces);
+                index.families.insert(root.to_lean_str(), namespaces);
             }
         }
         index.modifiers.retain(|root| {
@@ -70,29 +72,33 @@ impl DirectValues {
                 continue;
             }
 
-            valid_tokens.insert(name.to_owned());
+            valid_tokens.insert(name.to_lean_str());
             for key in keys {
-                index.values.entry(key).or_default().push(name.to_owned());
+                index
+                    .values
+                    .entry(key)
+                    .or_default()
+                    .push(name.to_lean_str());
             }
         }
         for (root, namespaces) in &index.families {
-            let own = format!("{root}-");
+            let own = format_args!("{root}-").to_lean_str();
             let foreign: Vec<_> = query
                 .design_system
                 .utilities()
                 .iter()
                 .filter_map(|(name, definitions)| {
                     let prefix = name.strip_suffix('*')?;
-                    (prefix != own && (own.starts_with(prefix) || prefix.starts_with(&own)))
+                    (prefix != own && (own.starts_with(prefix) || prefix.starts_with(own.as_str())))
                         .then_some((prefix, definitions))
                 })
                 .collect();
             for namespace in namespaces {
                 for token in query.design_system.tokens().names_with_prefix(namespace) {
-                    let Some(capture) = token.strip_prefix(namespace) else {
+                    let Some(capture) = token.strip_prefix((namespace).as_str()) else {
                         continue;
                     };
-                    let label = format!("{root}-{capture}");
+                    let label = format_args!("{root}-{capture}").to_lean_str();
                     if !valid_tokens.contains(token) {
                         continue;
                     }
@@ -112,7 +118,7 @@ impl DirectValues {
         index
     }
 
-    pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<String>, suffix: &str) -> bool {
+    pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<LeanStr>, suffix: &str) -> bool {
         suffix
             .strip_prefix('/')
             .and_then(|value| value.parse::<f64>().ok())
@@ -127,9 +133,9 @@ impl DirectValues {
     pub(super) fn matching(
         &self,
         query: &QueryContext,
-        roots: &BTreeSet<String>,
+        roots: &BTreeSet<LeanStr>,
         value: &str,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         let Some(value) = query.resolve_theme_values(value) else {
             return Vec::new();
         };
@@ -144,8 +150,8 @@ impl DirectValues {
             };
             for name in &names {
                 for namespace in namespaces {
-                    if let Some(capture) = name.strip_prefix(namespace) {
-                        labels.push(format!("{root}-{capture}"));
+                    if let Some(capture) = name.strip_prefix((namespace).as_str()) {
+                        labels.push(format_args!("{root}-{capture}").to_lean_str());
                     }
                 }
             }
@@ -156,10 +162,10 @@ impl DirectValues {
 
 fn modifier_branches_are_local(
     root: &str,
-    namespaces: &BTreeSet<String>,
+    namespaces: &BTreeSet<LeanStr>,
     query: &QueryContext,
 ) -> bool {
-    let own = format!("{root}-");
+    let own = format_args!("{root}-").to_lean_str();
     query
         .design_system
         .utilities()
@@ -168,7 +174,7 @@ fn modifier_branches_are_local(
             let Some(prefix) = name.strip_suffix('*') else {
                 return true;
             };
-            if prefix == own || (!own.starts_with(prefix) && !prefix.starts_with(&own)) {
+            if prefix == own || (!own.starts_with(prefix) && !prefix.starts_with(own.as_str())) {
                 return true;
             }
             namespaces.iter().all(|namespace| {
@@ -177,8 +183,11 @@ fn modifier_branches_are_local(
                     .tokens()
                     .names_with_prefix(namespace)
                     .all(|token| {
-                        let label =
-                            format!("{own}{}", token.strip_prefix(namespace).unwrap_or(token));
+                        let label = format_args!(
+                            "{own}{}",
+                            token.strip_prefix((namespace).as_str()).unwrap_or(token)
+                        )
+                        .to_lean_str();
                         let Some(capture) = label.strip_prefix(prefix) else {
                             return true;
                         };
@@ -190,7 +199,7 @@ fn modifier_branches_are_local(
         })
 }
 
-fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BTreeSet<String>> {
+fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BTreeSet<LeanStr>> {
     let mut namespaces = BTreeSet::new();
     let mut captured = BTreeSet::new();
     let mut fixed = BTreeSet::new();
@@ -282,17 +291,18 @@ fn modifier_preserves_value(body: &str) -> bool {
         if calls[0].name_index == 0 && calls[0].start == 0 && calls[0].end == Some(value.len()) {
             preserves = true;
         } else {
-            let compact: String = value
+            let compact: LeanString = value
                 .chars()
                 .filter(|character| !character.is_ascii_whitespace())
                 .collect();
             let source = &value[calls[0].start..calls[0].end.unwrap_or(value.len())];
-            let source: String = source
+            let source: LeanString = source
                 .chars()
                 .filter(|character| !character.is_ascii_whitespace())
                 .collect();
             if calls[0].name_index != 1
-                || compact != format!("--compat-color({source},--alpha(--modifier()))")
+                || compact
+                    != format_args!("--compat-color({source},--alpha(--modifier()))").to_lean_str()
             {
                 return false;
             }
@@ -334,7 +344,7 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
                     return query
                         .design_system
                         .tokens()
-                        .get(&format!("{prefix}{capture}"))
+                        .get(&format_args!("{prefix}{capture}").to_lean_str())
                         .is_none();
                 }
                 if argument.starts_with('[') {
@@ -360,7 +370,7 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
         })
 }
 
-fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<String> {
+fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
     let options = query.canonical_options();
     let mut values = vec![fold_calc_expressions(value, None)];
     if options.px_to_rem
@@ -382,11 +392,11 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<String> {
                 .into_iter()
                 .filter_map(move |property| {
                     minify_css(
-                        &format!("&{{{property}:{value}}}"),
+                        &format_args!("&{{{property}:{value}}}").to_lean_str(),
                         &CssMinifyOptions::default(),
                     )
                     .ok()
-                    .map(|output| output.css)
+                    .map(|output| LeanStr::from(output.css))
                 })
         })
         .collect()

@@ -10,6 +10,7 @@
 //! and a record must not be used to identify an asset without its
 //! [`AssetRecord::identity`] (labels are not unique).
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use super::identity::IdentityId;
@@ -21,7 +22,7 @@ pub struct AssetMetadata {
     /// Optional literal label the author gave the declaration, such as
     /// `style.ref("trigger")`. Naming input only: identity never depends on it,
     /// so equal labels stay distinct assets.
-    pub label: Option<String>,
+    pub label: Option<LeanStr>,
 }
 
 /// One declared asset, keyed by its declaration-site identity.

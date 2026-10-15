@@ -8,6 +8,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_css::{CustomPropertyDefinition, ValueType};
 
 use crate::{ThemeIndex, ThemeNamespace};
@@ -25,7 +27,7 @@ pub fn builtin_property_definitions(
 /// Completion uses these to offer token names without hard-coding which utility family
 /// owns which namespace. A definition whose body does not name a `--value(--token-*)`
 /// domain contributes nothing.
-pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(String, String)> {
+pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(LeanStr, LeanStr)> {
     let mut entries = Vec::new();
     for utility in theme.registry().utilities() {
         let Some(prefix) = utility.name.strip_suffix('*') else {
@@ -37,28 +39,28 @@ pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(String, String
         };
         let rest = &utility.body[start + "--value(--".len()..];
         let Some(end) = rest.find("-*") else { continue };
-        entries.push((prefix.to_owned(), rest[..end].to_owned()));
+        entries.push((prefix.to_lean_str(), rest[..end].to_lean_str()));
     }
     entries
 }
 
 /// Names of utilities that emit a compatibility marker class.
-pub(in crate::evaluation) fn builtin_marker_utilities(theme: &ThemeIndex) -> &BTreeSet<String> {
+pub(in crate::evaluation) fn builtin_marker_utilities(theme: &ThemeIndex) -> &BTreeSet<LeanStr> {
     theme.registry().marker_utilities()
 }
 
 /// Declaration-format metadata declared by the selected built-ins.
-pub fn builtin_declaration_formats(theme: &ThemeIndex) -> &BTreeMap<String, String> {
+pub fn builtin_declaration_formats(theme: &ThemeIndex) -> &BTreeMap<LeanStr, LeanStr> {
     theme.registry().declaration_formats()
 }
 
 /// Token-pruning rules declared by the selected built-ins.
-pub fn builtin_omit_token_prefixes(theme: &ThemeIndex) -> &[(String, String)] {
+pub fn builtin_omit_token_prefixes(theme: &ThemeIndex) -> &[(LeanStr, LeanStr)] {
     theme.registry().omit_token_prefixes()
 }
 
 /// The authored theme-namespace order used when serializing the theme layer.
-pub fn builtin_theme_order(theme: &ThemeIndex) -> &[String] {
+pub fn builtin_theme_order(theme: &ThemeIndex) -> &[LeanStr] {
     theme.registry().theme_order()
 }
 
@@ -81,6 +83,6 @@ pub(in crate::evaluation) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in
 /// Relationship patterns declared by the selected built-ins.
 pub(in crate::evaluation) fn builtin_relationship_patterns(
     theme: &ThemeIndex,
-) -> &BTreeSet<String> {
+) -> &BTreeSet<LeanStr> {
     theme.registry().relationships()
 }

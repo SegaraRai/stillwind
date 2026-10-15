@@ -4,6 +4,8 @@
 //! that namespace resets are respected, and that typed branches prune only the
 //! declarations that do not match a candidate.
 
+use lean_string::ToLeanString;
+
 use stillwind_test_support::{CssAssertions as _, assert_css_eq, catalog_section, css_source};
 
 use super::*;
@@ -36,7 +38,7 @@ fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
 
     let unresolved = roots
         .into_iter()
-        .map(|root| format!("{root}-[initial]"))
+        .map(|root| format_args!("{root}-[initial]").to_lean_string())
         .filter(|candidate| resolve_utility(candidate, &theme).is_none())
         .collect::<Vec<_>>();
 
@@ -56,8 +58,8 @@ fn resolves_every_upstream_static_variant_from_the_css_registry() {
     let unresolved = variants
         .into_iter()
         .filter(|name| {
-            let candidate =
-                parse_candidate(&format!("{name}:flex")).expect("catalog variants must parse");
+            let candidate = parse_candidate(&format_args!("{name}:flex").to_lean_string())
+                .expect("catalog variants must parse");
             resolve_variant(&candidate.variants[0], &theme).is_none()
         })
         .collect::<Vec<_>>();

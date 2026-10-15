@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use lean_string::ToLeanStr;
 use napi::Error;
 use napi_derive::napi;
 
@@ -32,11 +33,21 @@ pub enum NativeSourceIssue {
 impl From<NativeSourceIssue> for CompileDiagnostic {
     fn from(value: NativeSourceIssue) -> Self {
         match value {
-            NativeSourceIssue::Syntax { detail } => Self::ComponentSyntax { detail },
-            NativeSourceIssue::Projection { detail } => Self::ProjectionPreparation { detail },
-            NativeSourceIssue::Checker { detail } => Self::CheckerTargetUnavailable { detail },
-            NativeSourceIssue::Assignment { detail } => Self::IdentityAssignment { detail },
-            NativeSourceIssue::Identity { detail } => Self::IdentityUnavailable { detail },
+            NativeSourceIssue::Syntax { detail } => Self::ComponentSyntax {
+                detail: (detail).into(),
+            },
+            NativeSourceIssue::Projection { detail } => Self::ProjectionPreparation {
+                detail: (detail).into(),
+            },
+            NativeSourceIssue::Checker { detail } => Self::CheckerTargetUnavailable {
+                detail: (detail).into(),
+            },
+            NativeSourceIssue::Assignment { detail } => Self::IdentityAssignment {
+                detail: (detail).into(),
+            },
+            NativeSourceIssue::Identity { detail } => Self::IdentityUnavailable {
+                detail: (detail).into(),
+            },
         }
     }
 }
@@ -91,12 +102,11 @@ impl NativeSourceFailure {
         };
         error
             .notes
-            .push(format!("Source format: {:?}", document.format));
+            .push(format_args!("Source format: {:?}", document.format).to_lean_str());
         if let Some(converter) = self.converter {
-            error.notes.push(format!(
-                "Converter: {}@{}",
-                converter.name, converter.version
-            ));
+            error.notes.push(
+                format_args!("Converter: {}@{}", converter.name, converter.version).to_lean_str(),
+            );
         }
         Ok((ModuleId::from(self.module_id), source, error))
     }

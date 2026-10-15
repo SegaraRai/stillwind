@@ -4,6 +4,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_design_system::{
     DesignSystemRevision, UtilityResolutionError, builtin_property_definitions, resolve_variant,
 };
@@ -33,9 +35,9 @@ pub struct CandidateResolution {
     pub generated_rules: Vec<GeneratedRule>,
     /// Registered property names textually present in the preview. This is a lexical
     /// hint, not the renderer's activation, dependency, and group closure.
-    pub required_properties: Vec<String>,
+    pub required_properties: Vec<LeanStr>,
     /// Theme tokens the rendered CSS references.
-    pub referenced_tokens: Vec<String>,
+    pub referenced_tokens: Vec<LeanStr>,
     /// Resolution or generated-CSS failures in synthetic file 0. The primary range is
     /// `0..min(candidate.len(), u32::MAX)` in UTF-8 bytes, not a host document
     /// location.
@@ -46,9 +48,9 @@ pub struct CandidateResolution {
 #[derive(Clone, Debug)]
 pub struct CandidateHover {
     /// The candidate that was asked about, as the caller spelled it.
-    pub candidate: String,
+    pub candidate: LeanStr,
     /// Concatenated rules for the candidate.
-    pub css: String,
+    pub css: LeanStr,
     /// Snapshot revision the CSS was rendered from.
     pub revision: DesignSystemRevision,
 }
@@ -107,10 +109,10 @@ impl QueryContext {
     /// use the intended subject and prefix spelling. Failed lowering returns `None`
     /// without partial output; this operation does not validate arbitrary CSS or add
     /// document support rules.
-    pub(super) fn preview_declarations(&self, css: &str) -> Option<String> {
+    pub(super) fn preview_declarations(&self, css: &str) -> Option<LeanStr> {
         lower_conditionals(css, self.options.use_css_if, &candidate_identifiers(true))
             .ok()
-            .map(|css| preview_resource_urls(css, &self.design_system))
+            .map(|css| LeanStr::from(preview_resource_urls(css, &self.design_system)))
     }
 
     /// Rewrites contributions in place with merge barriers shared by this `candidate`.
@@ -127,7 +129,10 @@ impl QueryContext {
         preview: bool,
         span: Span,
     ) -> Vec<LintFinding> {
-        let mut boundaries = RuleBoundaries::new(format!("preview\0{candidate}"), identifiers);
+        let mut boundaries = RuleBoundaries::new(
+            format_args!("preview\0{candidate}").to_lean_string(),
+            identifiers,
+        );
         let mut diagnostics = Vec::new();
         for contribution in contributions {
             let css = boundaries.render(&contribution.css).and_then(|css| {
@@ -138,9 +143,9 @@ impl QueryContext {
                 }
             });
             if let Ok(css) = css {
-                contribution.css = css;
+                contribution.css = (css).into();
             } else {
-                contribution.css.clear();
+                contribution.css = LeanStr::new();
                 diagnostics.push(invalid_candidate_css(candidate, span, 0));
             }
         }
@@ -159,7 +164,7 @@ impl QueryContext {
             u32::try_from(candidate.len()).unwrap_or(u32::MAX),
         );
         let selector =
-            preview_selector.map_or_else(|| candidate_selector(candidate), str::to_owned);
+            preview_selector.map_or_else(|| candidate_selector(candidate), LeanString::from);
         let selector = selector.as_str();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
@@ -190,13 +195,13 @@ impl QueryContext {
         } else {
             vec![LintFinding::new(
                 LintDiagnostic::UnresolvedCandidate {
-                    candidate: candidate.to_owned(),
+                    candidate: candidate.to_lean_str(),
                     classification: unresolved_utility_kind(candidate),
                 },
                 span,
             )]
         };
-        let css: String = contributions.iter().map(|part| part.css.as_str()).collect();
+        let css: LeanString = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = if include_referenced_tokens {
             theme
                 .tokens_required_by(&css, false, &[])
@@ -212,7 +217,7 @@ impl QueryContext {
             .chain(builtin_property_definitions(theme));
         let required_properties = properties
             .filter(|property| {
-                css.contains(&property.name)
+                css.contains(property.name.as_str())
                     || contributions
                         .iter()
                         .any(|part| part.required_properties.contains(&property.name))
@@ -222,10 +227,11 @@ impl QueryContext {
         for contribution in &mut contributions {
             contribution.css = self.options.rewrite_generated(&contribution.css);
             if preview_selector.is_some() {
-                contribution.css = preview_resource_urls(
-                    std::mem::take(&mut contribution.css),
+                contribution.css = (preview_resource_urls(
+                    std::mem::take(&mut contribution.css).into(),
                     &self.design_system,
-                );
+                ))
+                .into();
             }
             for name in &mut contribution.required_properties {
                 *name = self.options.rewrite_generated(name);
@@ -249,7 +255,7 @@ impl QueryContext {
     }
 }
 
-fn candidate_selector(candidate: &str) -> String {
+fn candidate_selector(candidate: &str) -> LeanString {
     IdentifierContext::new(
         GeneratorSet::default(),
         IdentifierMode::Release,
@@ -257,9 +263,9 @@ fn candidate_selector(candidate: &str) -> String {
     )
     .class_name(&ClassContext {
         module: ModuleId::from(""),
-        namespace: String::new(),
+        namespace: (LeanString::new()).into(),
         call: 0,
-        branch: format!("{candidate}\0"),
+        branch: format_args!("{candidate}\0").to_lean_str(),
     })
     .map(|name| name.selector())
     .unwrap_or_default()
@@ -303,7 +309,7 @@ mod tests {
     use stillwind_diagnostics::UtilityFailure;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{CssSourceName, SourceFile};
+    use stillwind_source::{CssSourceName, ReplaceText, SourceFile};
     use stillwind_test_support::css_source;
 
     use super::super::CandidateContext;
@@ -349,8 +355,13 @@ mod tests {
         assert_eq!(resolved.generated_rules.len(), compiled.css.rules.len());
         for (queried, generated) in resolved.generated_rules.iter().zip(&compiled.css.rules) {
             assert_eq!(queried.syntax().prelude, generated.syntax().prelude);
-            let declarations = |body: &Option<String>| {
-                body.as_ref().unwrap().split_once('{').unwrap().1.to_owned()
+            let declarations = |body: &Option<LeanStr>| {
+                body.as_ref()
+                    .unwrap()
+                    .split_once('{')
+                    .unwrap()
+                    .1
+                    .to_lean_string()
             };
             assert_eq!(
                 declarations(&queried.syntax().body),
@@ -363,7 +374,7 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .css
-                .replace(' ', "")
+                .replace_char(' ', "")
                 .contains("color:red")
         );
         assert!(query.hover_candidate("missing:brand").unwrap().is_none());
@@ -387,8 +398,8 @@ mod tests {
                 }
             );
             assert_eq!(
-                findings[0].to_string(),
-                format!("unresolved candidate: {candidate}")
+                findings[0].to_lean_string(),
+                format_args!("unresolved candidate: {candidate}").to_lean_string()
             );
             assert_eq!(findings[0].labels[0].span.file, FileId(0));
             assert_eq!(findings[0].labels[0].span.start.0, 0);

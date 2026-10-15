@@ -1,5 +1,9 @@
 //! Checks pinned revisions, resolved configuration, and registry contents.
 
+use lean_string::ToLeanString;
+
+use stillwind_source::ReplaceText;
+
 use super::*;
 
 #[test]
@@ -53,8 +57,16 @@ fn imported_variant_blocks_obey_later_shorthand_overrides() {
     };
     let candidate = parse_candidate("state:x").unwrap();
     let variant = resolve_variant(&candidate.variants[0], snapshot.theme()).unwrap();
-    assert!(format!("{variant:?}").contains(":focus"));
-    assert!(!format!("{variant:?}").contains(":hover"));
+    assert!(
+        format_args!("{variant:?}")
+            .to_lean_string()
+            .contains(":focus")
+    );
+    assert!(
+        !format_args!("{variant:?}")
+            .to_lean_string()
+            .contains(":hover")
+    );
 }
 
 #[test]
@@ -203,12 +215,13 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
                             let file = Path::new(request.importer.as_str())
                                 .parent()
                                 .unwrap()
-                                .join(&request.specifier)
+                                .join(request.specifier.as_str())
                                 .canonicalize()
                                 .unwrap();
-                            let source = std::fs::read_to_string(&file)
-                                .unwrap()
-                                .replace("display: flex;", &format!("display: {display};"));
+                            let source = std::fs::read_to_string(&file).unwrap().replace_text(
+                                "display: flex;",
+                                &format_args!("display: {display};").to_lean_string(),
+                            );
                             input(request.id, file.to_string_lossy().as_ref(), &source)
                         })
                         .collect::<Vec<_>>();

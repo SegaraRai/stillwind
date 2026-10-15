@@ -12,7 +12,7 @@
 //! are rejected. Arbitrary-property names and values receive no semantic validation
 //! here, and may be empty.
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 /// How a variant prefix was written.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -201,7 +201,7 @@ fn parse_value(value: &str) -> Option<Value> {
     {
         return value
             .strip_prefix("--")
-            .map(|value| Value::CssVariable(format!("--{value}").into()));
+            .map(|value| Value::CssVariable(format_args!("--{value}").to_lean_string().into()));
     }
     (!value.is_empty()).then(|| Value::Named(value.into()))
 }
@@ -321,7 +321,7 @@ fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
 /// `\x` yields `x` and an unescaped `_` becomes a space. Escapes are resolved first, so
 /// `\_` is a literal underscore rather than a space.
 fn decode_arbitrary(value: &str) -> LeanStr {
-    let mut output = String::new();
+    let mut output = LeanString::new();
     let mut escaped = false;
     for character in value.chars() {
         if escaped {

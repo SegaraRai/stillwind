@@ -12,6 +12,7 @@ use stillwind_compiler::{EditorSiteKind, ModuleEditor};
 
 use crate::editor::NativeCandidateContext;
 use crate::naming::NativeNaming;
+use crate::output::NativeText;
 use crate::semantic::NativeIdentity;
 
 /// The source object addressed by a preview.
@@ -39,7 +40,7 @@ impl From<EditorSiteKind> for NativeEditorSiteKind {
 }
 
 /// Generated output associated with an original module occurrence.
-#[napi(object)]
+#[napi(object, object_from_js = false)]
 pub struct NativeEditorSite {
     /// Inclusive UTF-8 byte boundary in the original source.
     pub start: u32,
@@ -57,12 +58,14 @@ pub struct NativeEditorSite {
     pub valid: bool,
     /// Generated CSS with `&` as the element subject and readable identifiers for other
     /// generated names. Empty on failure or when the occurrence contributes no CSS.
-    pub css: String,
+    #[napi(ts_type = "string")]
+    pub css: NativeText,
     /// Required styles and global definitions, sorted and deduplicated by identity.
     pub dependencies: Vec<NativeIdentity>,
     /// Authored runtime expressions for view-transition keys, in source order.
     /// Distinct source occurrences can contain the same expression text.
-    pub runtime_names: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub runtime_names: Vec<NativeText>,
 }
 
 /// Captured input plans and previews that remain valid after the session changes.
@@ -88,17 +91,17 @@ impl NativeModuleEditor {
 #[napi]
 impl NativeModuleEditor {
     /// Identifies the original module whose source ranges this capture addresses.
-    #[napi]
-    pub fn module_id(&self) -> String {
-        self.editor.module_id().as_str().to_owned()
+    #[napi(ts_return_type = "string")]
+    pub fn module_id(&self) -> NativeText {
+        self.editor.module_id().clone().into_string().into()
     }
 
     /// Returns a fingerprint of the source, supporting analyses, design system,
     /// settings, and captured output. The value remains pinned when the project session
     /// changes.
-    #[napi]
-    pub fn revision(&self) -> String {
-        self.editor.revision.0.clone()
+    #[napi(ts_return_type = "string")]
+    pub fn revision(&self) -> NativeText {
+        (self.editor.revision.0.clone()).into()
     }
 
     /// Returns copies of recognized occurrences, including invalid literals.
@@ -117,9 +120,9 @@ impl NativeModuleEditor {
                 identity: site.identity.clone().map(Into::into),
                 context: site.context.map(Into::into),
                 valid: site.valid,
-                css: site.css.clone(),
+                css: (site.css.clone()).into(),
                 dependencies: site.dependencies.iter().cloned().map(Into::into).collect(),
-                runtime_names: site.runtime_names.clone(),
+                runtime_names: site.runtime_names.iter().cloned().map(Into::into).collect(),
             })
             .collect()
     }
@@ -130,10 +133,10 @@ impl NativeModuleEditor {
     /// callbacks run in the current Node-API environment during emission.
     /// Returns null for an unknown input, failed emission, or output with no CSS.
     /// The capture and its shared names remain unchanged by the query.
-    #[napi]
+    #[napi(ts_return_type = "string | null")]
     #[allow(clippy::needless_pass_by_value)] // Node-API supplies owned strings.
-    pub fn preview_input(&self, env: Env, start: u32, candidate: String) -> Option<String> {
+    pub fn preview_input(&self, env: Env, start: u32, candidate: String) -> Option<NativeText> {
         let _naming = self.naming.as_ref().map(|naming| naming.enter(&env));
-        self.editor.preview_input(start, &candidate)
+        (self.editor.preview_input(start, &candidate)).map(Into::into)
     }
 }

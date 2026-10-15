@@ -234,7 +234,7 @@ pub(super) fn replace_text(plan: &mut EditorPlan, span: Span, candidate: &str) {
             .flatten()
             {
                 if input.span == span {
-                    candidate.clone_into(&mut input.value);
+                    input.value = candidate.into();
                 }
             }
         }
@@ -252,14 +252,14 @@ pub(super) fn replace_text(plan: &mut EditorPlan, span: Span, candidate: &str) {
 fn replace_frame_text(body: &mut KeyframesBody, span: Span, candidate: &str) {
     for frame in &mut body.frames {
         if frame.utilities.span == span {
-            candidate.clone_into(&mut frame.utilities.value);
+            frame.utilities.value = candidate.into();
         }
     }
     for branch in &mut body.branches {
         if let StyleVariant::Prefix(prefix) = &mut branch.variant
             && prefix.span == span
         {
-            candidate.clone_into(&mut prefix.value);
+            prefix.value = candidate.into();
         }
         replace_frame_text(&mut branch.body, span, candidate);
     }
@@ -316,13 +316,13 @@ fn replace_rule_text(rule: &mut RuleExpression, span: Span, candidate: &str) {
     match rule {
         RuleExpression::Utilities(input) => {
             if input.span == span {
-                candidate.clone_into(&mut input.value);
+                input.value = candidate.into();
             }
         }
         RuleExpression::KeyframesUse { options, .. }
         | RuleExpression::DynamicKeyframesUse { options, .. } => {
             if options.span == span {
-                candidate.clone_into(&mut options.value);
+                options.value = candidate.into();
             }
         }
         RuleExpression::Array(inputs)

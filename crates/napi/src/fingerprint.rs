@@ -5,11 +5,13 @@ use napi_derive::napi;
 
 use stillwind_source::Fingerprint;
 
+use crate::output::NativeText;
+
 /// Returns the compiler's lowercase hexadecimal fingerprint of UTF-8 text or raw bytes.
-#[napi]
-pub fn fingerprint(content: Either<String, Uint8Array>) -> String {
+#[napi(ts_return_type = "string")]
+pub fn fingerprint(content: Either<String, Uint8Array>) -> NativeText {
     match content {
-        Either::A(text) => Fingerprint::of(text).0,
-        Either::B(bytes) => Fingerprint::of(bytes.as_ref()).0,
+        Either::A(text) => (Fingerprint::of(text).0).into(),
+        Either::B(bytes) => Fingerprint::of(bytes.as_ref()).0.into(),
     }
 }

@@ -118,7 +118,7 @@ pub(crate) fn scan_prepared(
     }
     for binding in scan.checker_projection.bindings {
         result.checker_bindings.push(NativeCheckerBinding {
-            name: binding.name,
+            name: (binding.name).into(),
             projected_start: index
                 .utf16(binding.span.start)
                 .map_err(|e| Error::from_reason(e.to_string()))?

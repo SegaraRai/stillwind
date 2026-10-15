@@ -1,5 +1,7 @@
 //! Animation uses, static and dynamic, and the declarations they contribute.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant};
@@ -27,7 +29,7 @@ impl CallEmitter<'_> {
     pub(super) fn emit_keyframes_use(
         &mut self,
         keyframes: &AssetReference,
-        options: &Spanned<String>,
+        options: &Spanned<LeanStr>,
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
         fold: bool,
@@ -49,14 +51,15 @@ impl CallEmitter<'_> {
             self.lint_findings,
         );
         plan.apply_rule(&mut utility);
-        let canonical = format!(
+        let canonical = format_args!(
             "{}\0keyframes\0{}\0{}\0",
             plan.canonical,
             keyframes.identity.binding_name(),
             options.value
-        );
+        )
+        .to_lean_string();
         let contribution = LiteralContribution {
-            canonical,
+            canonical: (canonical),
             utilities: vec![utility],
             markers: Vec::new(),
             plain: Vec::new(),
@@ -77,7 +80,7 @@ impl CallEmitter<'_> {
         &mut self,
         value: &Span,
         keyframes: &[AssetReference],
-        options: &Spanned<String>,
+        options: &Spanned<LeanStr>,
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
@@ -108,12 +111,13 @@ impl CallEmitter<'_> {
                 self.lint_findings,
             );
             plan.apply_rule(&mut utility);
-            let canonical = format!(
+            let canonical = format_args!(
                 "{}\0dynamic-keyframes\0{identity}\0{}\0",
                 plan.canonical, options.value
-            );
+            )
+            .to_lean_string();
             let contribution = LiteralContribution {
-                canonical,
+                canonical: (canonical),
                 utilities: vec![utility],
                 markers: Vec::new(),
                 plain: Vec::new(),
@@ -133,21 +137,22 @@ impl CallEmitter<'_> {
 fn resolve_keyframes_use(
     identifiers: &IdentifierContext,
     keyframes: &AssetReference,
-    options: &Spanned<String>,
+    options: &Spanned<LeanStr>,
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> CompiledUtility {
-    let mut declaration = format!(
+    let mut declaration = format_args!(
         "animation-name:{};",
         match identifiers.keyframes_name(&identity_declaration(keyframes)) {
             Ok(name) => name.custom_ident(),
             Err(failure) => {
                 diagnostics.push(CompileError::new(failure, options.span));
-                String::new()
+                LeanString::new()
             }
         }
-    );
+    )
+    .to_lean_string();
     declaration.push_str(
         &resolve_options(
             options,
@@ -163,11 +168,11 @@ fn resolve_keyframes_use(
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),
-        declaration,
+        declaration: (declaration).into(),
         selector: None,
         container: None,
         nested: Vec::new(),
         order: UtilityOrder::Authored(None),
-        candidate: String::new(),
+        candidate: (LeanString::new()).into(),
     }
 }

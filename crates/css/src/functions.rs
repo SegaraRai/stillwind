@@ -221,6 +221,8 @@ pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
@@ -380,7 +382,7 @@ mod tests {
             proptest::sample::select(vec!["(", ")", "--x", "1", " ", "'a'", "/* c */", "[", "]", "{", "}"]),
             0..24,
         )) {
-            let value = format!("--x({}", text.concat());
+            let value = format_args!("--x({}", text.concat()).to_lean_string();
             let founds = find_css_functions(&value, &["--x"], 0);
             proptest::prop_assert!(!founds.is_empty());
             for found in founds {
@@ -403,12 +405,12 @@ mod tests {
             proptest::sample::select(vec!["a", ",", "(", ")", "[", "]", "'", "\"", "\\", " "]),
             0..16,
         )) {
-            let arguments = format!("a,{}", text.concat());
+            let arguments = format_args!("a,{}", text.concat()).to_lean_string();
             let (head, tail) = split_css_function_arguments(&arguments);
             proptest::prop_assert!(tail.is_some());
             let tail = tail.unwrap();
             proptest::prop_assert_eq!(head, "a");
-            proptest::prop_assert_eq!(format!("{head},{tail}"), arguments.as_str());
+            proptest::prop_assert_eq!(format_args!("{head},{tail}").to_lean_string(), arguments.as_str());
         }
     }
 }

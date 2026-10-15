@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{VariantApplication, resolve_utility, resolve_variant};
 use stillwind_syntax::parse_candidate;
@@ -13,9 +13,9 @@ const PROBE: &str = "[--sw-canonical-probe:initial]";
 
 #[derive(Debug, Default)]
 pub(super) struct VariantIndex {
-    signatures: HashMap<LeanStr, Vec<String>>,
-    names: Vec<String>,
-    contextual: Vec<String>,
+    signatures: HashMap<LeanStr, Vec<LeanStr>>,
+    names: Vec<LeanStr>,
+    contextual: Vec<LeanStr>,
 }
 
 impl VariantIndex {
@@ -27,8 +27,8 @@ impl VariantIndex {
             .names()
             .filter(|name| !name.contains('*'))
         {
-            index.names.push(name.to_owned());
-            let raw = format!("{name}:{PROBE}");
+            index.names.push(name.to_lean_str());
+            let raw = format_args!("{name}:{PROBE}").to_lean_string();
             if let Some(parsed) = parse_candidate(&raw)
                 && parsed
                     .variants
@@ -36,7 +36,7 @@ impl VariantIndex {
                     .and_then(|variant| resolve_variant(variant, query.design_system.theme()))
                     .is_some_and(|application| contextual(&application))
             {
-                index.contextual.push(name.to_owned());
+                index.contextual.push(name.to_lean_str());
             }
             if let Ok(Some(preview)) = query.canonical_preview(&raw)
                 && let Some(signature) =
@@ -46,13 +46,13 @@ impl VariantIndex {
                     .signatures
                     .entry(signature)
                     .or_default()
-                    .push(name.to_owned());
+                    .push(name.to_lean_str());
             }
         }
         index
     }
 
-    pub(super) fn matching(&self, query: &QueryContext, raw: &str, variant: &str) -> Vec<String> {
+    pub(super) fn matching(&self, query: &QueryContext, raw: &str, variant: &str) -> Vec<LeanStr> {
         let Some(parsed) = parse_candidate(raw) else {
             return Vec::new();
         };
@@ -69,7 +69,8 @@ impl VariantIndex {
             return self.names.clone();
         }
         let mut names: BTreeSet<_> = self.contextual.iter().cloned().collect();
-        if let Ok(Some(preview)) = query.canonical_preview(&format!("{variant}:{PROBE}"))
+        if let Ok(Some(preview)) =
+            query.canonical_preview(&format_args!("{variant}:{PROBE}").to_lean_string())
             && let Some(signature) =
                 preview.signature(None, &BTreeSet::new(), &query.canonical_options())
             && let Some(matches) = self.signatures.get(&signature)

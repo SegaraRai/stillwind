@@ -1,5 +1,7 @@
 //! Semantic declaration emission. Formatting and optimization belong to the host.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_css::{declaration_ranges, format_numeric_zero, important_declarations};
 
 use super::super::builtins::builtin_declaration_formats;
@@ -7,12 +9,12 @@ use crate::{ThemeIndex, declaration_format};
 
 /// Emits resolved declarations with candidate priority, without optimizing values.
 pub(in crate::evaluation) fn finalize_declaration(
-    declaration: String,
+    declaration: LeanStr,
     is_important: bool,
     _theme: &ThemeIndex,
-) -> String {
+) -> LeanStr {
     if is_important {
-        important_declarations(&declaration)
+        important_declarations(&declaration).into()
     } else {
         declaration
     }
@@ -24,7 +26,7 @@ pub(in crate::evaluation) fn resolve_declaration_value(
     declaration: &str,
     theme: &ThemeIndex,
     builtin: bool,
-) -> String {
+) -> LeanString {
     let formats = if theme.declaration_formats().is_empty() {
         builtin_declaration_formats(theme)
     } else {
@@ -41,9 +43,9 @@ pub(in crate::evaluation) fn resolve_declaration_value(
                 })
         })
     {
-        return declaration.to_owned();
+        return declaration.to_lean_string();
     }
-    let mut output = String::new();
+    let mut output = LeanString::new();
     for range in declaration_ranges(declaration) {
         let segment = &declaration[range];
         if let Some((property, value)) = segment.split_once(':') {

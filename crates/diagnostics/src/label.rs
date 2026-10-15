@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Fingerprint, SourceFile, SourceRegistry, SourceRegistryError, Span};
@@ -29,7 +30,7 @@ pub struct Label {
     pub span: Span,
     /// Text shown next to the range; `None` lets the diagnostic message stand for the
     /// label itself.
-    pub message: Option<String>,
+    pub message: Option<LeanStr>,
 }
 
 impl Label {
@@ -117,7 +118,7 @@ pub struct SourceEdit {
     /// Source snapshot and validated byte range to replace.
     pub range: SourceRange,
     /// Text to insert in place of the range.
-    pub replacement: String,
+    pub replacement: LeanStr,
 }
 
 /// One user-invoked fix consisting of one or more edits applied together.
@@ -125,7 +126,7 @@ pub struct SourceEdit {
 #[serde(rename_all = "camelCase")]
 pub struct FixAction {
     /// Title shown to the user.
-    pub title: String,
+    pub title: LeanStr,
     /// Edits belonging to this action; validation rejects an empty list.
     pub edits: Vec<SourceEdit>,
 }
@@ -137,7 +138,7 @@ pub struct DiagnosticInfo {
     /// The first label is the mandatory primary location.
     pub labels: Labels,
     /// Additional explanatory text.
-    pub notes: Vec<String>,
+    pub notes: Vec<LeanStr>,
     /// Alternative user-invoked fixes.
     pub actions: Vec<FixAction>,
 }

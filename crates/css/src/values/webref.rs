@@ -12,6 +12,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
 /// supported property names and their formal value syntax.
@@ -105,7 +107,7 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
     }
     let wide = longhand_family(wider);
     let narrow = longhand_family(narrower);
-    if wide.contains(&narrower.to_ascii_lowercase()) {
+    if wide.contains(&narrower.to_lean_str().to_ascii_lowercase()) {
         return true;
     }
     let leaves: Vec<_> = narrow
@@ -134,16 +136,16 @@ fn is_universal_exception(property: &str) -> bool {
 ///
 /// Names are lowercased because the generated table publishes them that way. A cycle
 /// would stop at the already-collected name rather than loop; Webref publishes none.
-fn longhand_family(property: &str) -> BTreeSet<String> {
+fn longhand_family(property: &str) -> BTreeSet<LeanStr> {
     let mut family = BTreeSet::new();
-    let mut pending = vec![property.to_ascii_lowercase()];
+    let mut pending = vec![property.to_lean_str().to_ascii_lowercase()];
     while let Some(name) = pending.pop() {
         if !family.insert(name.clone()) {
             continue;
         }
         for longhand in webref_property(&name).map_or(&[][..], |definition| definition.longhands) {
             if !family.contains(*longhand) {
-                pending.push((*longhand).to_owned());
+                pending.push((*longhand).to_lean_str());
             }
         }
     }
@@ -151,7 +153,7 @@ fn longhand_family(property: &str) -> BTreeSet<String> {
 }
 
 /// Whether the two families meet across the logical/physical boundary of one Webref group.
-fn crosses_logical_boundary(left: &BTreeSet<String>, right: &BTreeSet<String>) -> bool {
+fn crosses_logical_boundary(left: &BTreeSet<LeanStr>, right: &BTreeSet<LeanStr>) -> bool {
     left.iter().any(|left_name| {
         let Some(group) = logical_group(left_name) else {
             return false;

@@ -12,26 +12,30 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, ToLeanStr};
+
+use stillwind_source::JoinText;
+
 use crate::{extract_named_blocks, strip_css_comments};
 
 /// One parsed `@stillwind-property` registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomPropertyDefinition {
     /// Property name including the leading `--`.
-    pub name: String,
+    pub name: LeanStr,
     /// Standard `@property` descriptors, one per line, with the activation metadata
     /// removed. Emitted verbatim inside the generated block.
-    pub body: String,
+    pub body: LeanStr,
     /// When the compiler should emit this registration.
     pub activation: CustomPropertyActivation,
     /// Custom properties this registration needs; each dependency is itself a candidate
     /// for emission.
-    pub dependencies: Vec<String>,
+    pub dependencies: Vec<LeanStr>,
     /// Free-form group names, used to activate registrations together.
-    pub groups: Vec<String>,
+    pub groups: Vec<LeanStr>,
     /// Ordinary property names that activate this registration when the output declares
     /// a value for them.
-    pub activation_properties: Vec<String>,
+    pub activation_properties: Vec<LeanStr>,
 }
 
 /// One compiler-owned custom-property registration declared with
@@ -105,18 +109,18 @@ pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> 
                         activation = parsed;
                     }
                 } else if let Some(value) = trimmed.strip_prefix("depends-on:") {
-                    dependencies.extend(value.split_whitespace().map(str::to_owned));
+                    dependencies.extend(value.split_whitespace().map(LeanStr::from));
                 } else if let Some(value) = trimmed.strip_prefix("group:") {
-                    groups.extend(value.split_whitespace().map(str::to_owned));
+                    groups.extend(value.split_whitespace().map(LeanStr::from));
                 } else if let Some(value) = trimmed.strip_prefix("activate-on:") {
-                    activation_properties.extend(value.split_whitespace().map(str::to_owned));
+                    activation_properties.extend(value.split_whitespace().map(LeanStr::from));
                 } else if !trimmed.is_empty() {
-                    standard_descriptors.push(format!("{trimmed};"));
+                    standard_descriptors.push(format_args!("{trimmed};").to_lean_str());
                 }
             }
             Some(CustomPropertyDefinition {
-                name: name.to_owned(),
-                body: standard_descriptors.join("\n"),
+                name: name.to_lean_str(),
+                body: (standard_descriptors.join_text("\n")).into(),
                 activation,
                 dependencies,
                 groups,
@@ -130,12 +134,12 @@ pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> 
 ///
 /// Names are gathered so the compiler can avoid emitting a registration for a property
 /// the author already registers; nothing is removed from the output.
-pub fn extract_authored_property_names(css: &str) -> BTreeSet<String> {
+pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
     extract_named_blocks(&strip_css_comments(css), "@property")
         .into_iter()
         .filter_map(|(header, _)| {
             let name = header.split_whitespace().next()?;
-            name.starts_with("--").then(|| name.to_owned())
+            name.starts_with("--").then(|| name.to_lean_str())
         })
         .collect()
 }

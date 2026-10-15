@@ -6,8 +6,10 @@
 //! transform's fallback location. The caller supplies finalized CSS identities and
 //! validates the macro contract.
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_ir::{ConditionalBranches, FrameworkSpec, StyleFormat};
-use stillwind_source::Span;
+use stillwind_source::{JoinText, Span};
 
 use super::super::expression_render::{collect_class_arguments, render_plain};
 use super::super::props::StyleEmission;
@@ -94,7 +96,7 @@ pub(in super::super) fn render_cva_value(
                     .into_iter()
                     .filter(|name| !name.is_empty())
                     .collect::<Vec<_>>()
-                    .join(" "),
+                    .join_text(" "),
             )
             .into();
         }
@@ -139,7 +141,10 @@ impl Renderer<'_, '_> {
                                 .map(|atom| match atom {
                                     Atom::Attribute(p) => code![
                                         "{",
-                                        Self::property(p, Code::source(p.value.clone(), p.span)),
+                                        Self::property(
+                                            p,
+                                            Code::source((p.value.clone()).into(), p.span)
+                                        ),
                                         "}"
                                     ],
                                     Atom::Class(_) => self.record(
@@ -231,7 +236,10 @@ impl Renderer<'_, '_> {
             match field {
                 Field::Attribute(i) => {
                     if let Atom::Attribute(p) = &atoms[*i] {
-                        entries.push(Self::property(p, Code::source(p.value.clone(), p.span)));
+                        entries.push(Self::property(
+                            p,
+                            Code::source((p.value.clone()).into(), p.span),
+                        ));
                     }
                 }
                 Field::Classes(indices) => {
@@ -273,11 +281,12 @@ impl Renderer<'_, '_> {
                     let key = if demand == Demand::Props {
                         self.fw.style_property.into()
                     } else {
-                        format!(
+                        format_args!(
                             "[{}]",
                             self.runtime
                                 .require(RuntimeHelper::CustomPropertiesKey, self.span)
                         )
+                        .to_lean_string()
                     };
                     entries.push(code![key, ":", value]);
                 }
@@ -307,7 +316,7 @@ impl Renderer<'_, '_> {
                 .into_iter()
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
-                .join(" ");
+                .join_text(" ");
             if text.is_empty() {
                 return None;
             }
@@ -324,10 +333,11 @@ impl Renderer<'_, '_> {
         let key = if demand == Demand::Props {
             self.fw.class_property.into()
         } else {
-            format!(
+            format_args!(
                 "[{}]",
                 self.runtime.require(RuntimeHelper::ClassKey, self.span)
             )
+            .to_lean_string()
         };
         Some(code![key, ":", value])
     }
@@ -382,7 +392,7 @@ impl Renderer<'_, '_> {
             {
                 let value = if self.fw.style_format == StyleFormat::String {
                     code![
-                        js_string(&format!("{property}:")),
+                        js_string(&format_args!("{property}:").to_lean_string()),
                         "+(",
                         value.render(self.runtime),
                         ")"
@@ -460,7 +470,7 @@ impl Renderer<'_, '_> {
     /// without CSS escaping, coalescing static text around dynamic conversions. Empty input
     /// produces `""`. Only dynamic values register conversion helpers and retain mappings.
     fn custom_style_string(&mut self, properties: &[&Property]) -> Code {
-        let mut text = String::new();
+        let mut text = LeanString::new();
         let mut parts = Vec::new();
         for (index, property) in properties.iter().enumerate() {
             if index > 0 {
@@ -497,7 +507,12 @@ impl Renderer<'_, '_> {
             return value.render(self.runtime);
         }
         let helper = self.runtime.require(RuntimeHelper::CssValue, p.span);
-        code![helper, "(", Code::source(p.value.clone(), p.span), ")"]
+        code![
+            helper,
+            "(",
+            Code::source((p.value.clone()).into(), p.span),
+            ")"
+        ]
     }
 
     /// Builds an object-literal entry with an already-converted value expression.

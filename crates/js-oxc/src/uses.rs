@@ -1,6 +1,7 @@
 //! Exact consumption checks for projection uses and ref variants. Receivers are
 //! resolved through declaration bindings and checker facts before reporting a use.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::{GetSpan, Span};
 
@@ -41,7 +42,7 @@ impl<'a> MacroExtractor<'a> {
         if let Some((receiver, name, kind)) = macro_member(&call.callee)
             && self.use_receiver_is(receiver, kind)
         {
-            self.unconsumed_use(call.span, format!("{name}(...)"));
+            self.unconsumed_use(call.span, format_args!("{name}(...)").to_lean_str());
             return;
         }
         if self.use_receiver_is(&call.callee, AssetKind::Keyframes) {
@@ -120,7 +121,7 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// The span must refer to the current AST buffer. It is converted with the
     /// extractor's source-span constructor before being added to the diagnostic.
-    fn unconsumed_use(&mut self, span: Span, syntax: String) {
+    fn unconsumed_use(&mut self, span: Span, syntax: LeanStr) {
         self.diagnostics.push(CompileError::new(
             CompileDiagnostic::UnconsumedMacroUse { syntax },
             self.source_span(span),
@@ -179,6 +180,8 @@ pub(crate) fn literal_member<'e, 'a>(
 mod tests {
     use std::collections::BTreeMap;
 
+    use lean_string::ToLeanStr;
+
     use stillwind_diagnostics::CompileErrorCode;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_source::{FileId, ModuleId, SourceFile};
@@ -186,15 +189,16 @@ mod tests {
     use crate::{ParsedJavaScript, parse};
 
     fn parse_saved_use(expression: &str) -> (SourceFile, ParsedJavaScript) {
-        let code = format!(
+        let code = format_args!(
             "import {{style}} from 'stillwind/react';\n\
              // 日本語 🧭\n\
              const r = style.ref('r'); const s = style.ref('s');\n\
              const transition = style.viewTransition({{old: 'opacity-0'}});\n\
              const ordinary = {{in: (value) => value, at: () => 'plain'}};\n\
              const saved = {expression};"
-        );
-        let source = SourceFile::new(FileId(1), None, None, code).unwrap();
+        )
+        .to_lean_str();
+        let source = SourceFile::new(FileId(1), None, None, code.as_str()).unwrap();
         let parsed = parse(
             &source,
             &ModuleId::from("saved.ts"),

@@ -10,6 +10,8 @@
 //! original editable source, never a generated buffer, and may be `None` when a node
 //! has no authored origin, for example the utilities slot.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr};
+
 use stillwind_source::{CssSourceName, Span};
 
 /// One node of an output template.
@@ -22,21 +24,21 @@ pub enum CssOutputNode {
     /// Authored CSS copied through, usually the user's own rules.
     Authored {
         /// The CSS text, in authored order.
-        css: String,
+        css: LeanStr,
         /// Where the CSS came from, when the parser could attribute it.
         origin: Option<Span>,
     },
     /// One `@layer` order statement, retained at its position in the template.
     LayerOrder {
         /// The order statement text.
-        css: String,
+        css: LeanStr,
         /// Where the statement came from, when known.
         origin: Option<Span>,
     },
     /// A wrapper such as `@layer utilities { ... }` around child nodes.
     Group {
         /// The at-rule header, including its name and prelude.
-        header: String,
+        header: LeanStr,
         /// Nodes emitted inside the wrapper, in order.
         children: Vec<Self>,
         /// Where the wrapper was authored, when known.
@@ -45,7 +47,7 @@ pub enum CssOutputNode {
     /// A CSS style rule containing declaration slots and authored declarations.
     Style {
         /// Authored selector list.
-        header: String,
+        header: LeanStr,
         /// Declaration contributions in source order.
         children: Vec<Self>,
         /// Source location of the rule.
@@ -59,7 +61,7 @@ pub enum CssOutputNode {
         tokens: Vec<usize>,
         /// Keyframe definitions authored inside this block. Referenced definitions
         /// contribute to the keyframes slot independently of the token declarations.
-        keyframes: String,
+        keyframes: LeanStr,
         /// Where the block was authored, when known.
         origin: Option<Span>,
     },
@@ -94,7 +96,7 @@ impl CssOutputTemplate {
     ///
     /// Used where a carrier needs only the user's own rules; the result is not a
     /// complete stylesheet.
-    pub fn authored_css(&self) -> String {
+    pub fn authored_css(&self) -> LeanString {
         authored_css(&self.nodes)
     }
 
@@ -109,7 +111,7 @@ impl CssOutputTemplate {
 }
 
 /// Renders the authored part of a node list, wrapping groups in their headers.
-fn authored_css(nodes: &[CssOutputNode]) -> String {
+fn authored_css(nodes: &[CssOutputNode]) -> LeanString {
     nodes
         .iter()
         .map(|node| match node {
@@ -121,15 +123,13 @@ fn authored_css(nodes: &[CssOutputNode]) -> String {
             }
             | CssOutputNode::Group {
                 header, children, ..
-            } => {
-                format!("{header}{{{}}}", authored_css(children))
-            }
+            } => format_args!("{header}{{{}}}", authored_css(children)).to_lean_str(),
             CssOutputNode::Theme { .. }
             | CssOutputNode::Utilities
             | CssOutputNode::ThemeVariables
             | CssOutputNode::Keyframes
             | CssOutputNode::Properties
-            | CssOutputNode::PropertyInitials => String::new(),
+            | CssOutputNode::PropertyInitials => LeanStr::new(),
         })
         .collect()
 }

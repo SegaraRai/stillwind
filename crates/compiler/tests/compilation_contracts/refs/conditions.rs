@@ -192,7 +192,7 @@ fn equivalent_finite_scope_conditions_expand_once_when_repeated() {
             }
             let mut css = result.css;
             for (index, class) in result.classes.iter().enumerate() {
-                css = css.replace(&class.class_name, &format!("test_class_{index}"));
+                css = css.replace(class.class_name.as_str(), &format!("test_class_{index}"));
             }
             outputs.push(css);
         }
@@ -305,7 +305,7 @@ fn scoped_refs_and_container_queries_test_the_final_child_target() {
         assert!(result.css.contains("@container sw-c-"), "{}", result.css);
         let mut css = result.css;
         for (index, class) in result.classes.iter().enumerate() {
-            css = css.replace(&class.class_name, &format!("test_class_{index}"));
+            css = css.replace(class.class_name.as_str(), &format!("test_class_{index}"));
         }
         outputs.push(css);
     }

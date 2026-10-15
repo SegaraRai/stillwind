@@ -3,6 +3,8 @@
 //! [`DesignSystemQuery::preview_candidate`] renders standalone decoded text. It cannot
 //! recover surrounding source conditions; module captures provide that context.
 
+use lean_string::{LeanStr, LeanString, ToLeanString};
+
 use stillwind_design_system::{UtilityResolutionError, resolve_variant};
 use stillwind_source::{FileId, Span, Spanned};
 use stillwind_syntax::parse_candidate;
@@ -62,7 +64,7 @@ impl DesignSystemQuery {
         &self,
         candidate: &str,
         context: CandidateContext,
-    ) -> Result<Option<String>, UtilityResolutionError> {
+    ) -> Result<Option<LeanStr>, UtilityResolutionError> {
         if context == CandidateContext::Utility {
             return self
                 .hover_candidate(candidate)
@@ -71,7 +73,8 @@ impl DesignSystemQuery {
 
         let theme = self.context.design_system.theme();
         if context == CandidateContext::DefinitionVariants {
-            let text = format!("{}:[color:red]", candidate.trim_end_matches(':'));
+            let text =
+                format_args!("{}:[color:red]", candidate.trim_end_matches(':')).to_lean_string();
             let Some(parsed) = parse_candidate(&text) else {
                 return Ok(None);
             };
@@ -84,7 +87,7 @@ impl DesignSystemQuery {
         }
 
         let input = Spanned::new(
-            candidate.to_owned(),
+            LeanStr::from(candidate),
             Span::new(
                 FileId(0),
                 0,
@@ -98,9 +101,9 @@ impl DesignSystemQuery {
                 let (declaration, _) =
                     resolve_frame(&input, theme, &mut diagnostics, &mut lint_findings);
                 if declaration.is_empty() {
-                    String::new()
+                    LeanString::new()
                 } else {
-                    format!("&{{{declaration}}}")
+                    format_args!("&{{{declaration}}}").to_lean_string()
                 }
             }
             CandidateContext::AnimationOptions | CandidateContext::ViewTransitionOptions => {
@@ -116,7 +119,7 @@ impl DesignSystemQuery {
                     &mut diagnostics,
                     &mut lint_findings,
                 );
-                let mut css = String::new();
+                let mut css = LeanString::new();
                 if !resolved.declaration.is_empty() {
                     css.push_str("&{");
                     css.push_str(&resolved.declaration);
@@ -125,7 +128,7 @@ impl DesignSystemQuery {
                 for option in resolved.conditioned {
                     for path in option.paths {
                         css.push_str(&wrap_conditions(
-                            &format!("&{{{}}}", option.declaration),
+                            &format_args!("&{{{}}}", option.declaration).to_lean_string(),
                             &path,
                         ));
                     }
@@ -133,7 +136,7 @@ impl DesignSystemQuery {
                 css
             }
             CandidateContext::ViewTransitionUtilities => {
-                let mut css = String::new();
+                let mut css = LeanString::new();
                 emit_view_transition_utilities(
                     &mut css,
                     "&",
@@ -182,7 +185,8 @@ impl DesignSystemQuery {
             return false;
         }
 
-        let Some(candidate) = parse_candidate(&format!("{text}:[color:red]")) else {
+        let Some(candidate) = parse_candidate(&format_args!("{text}:[color:red]").to_lean_string())
+        else {
             return false;
         };
 

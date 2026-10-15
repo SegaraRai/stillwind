@@ -115,8 +115,8 @@ export const item = style("translate-x-1", card);"#,
     .unwrap();
     let theme = css_source(FileId(2), "@theme { --spacing-1: .25rem; }").unwrap();
     let options = CompilerOptions {
-        prefix: "--app-".to_owned(),
-        tailwind_prefix: "--compat-".to_owned(),
+        prefix: ("--app-".to_owned()).into(),
+        tailwind_prefix: ("--compat-".to_owned()).into(),
         ..CompilerOptions::default()
     };
 

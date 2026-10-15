@@ -1,5 +1,7 @@
 //! Theme queries expose authored values and resolve concrete colors in candidate previews.
 
+use lean_string::{LeanStr, ToLeanString};
+
 use stillwind_css::{css_color_values, find_css_functions, split_css_function_arguments};
 use stillwind_design_system::{ThemeNamespace, UtilityResolutionError};
 
@@ -8,7 +10,7 @@ use super::{DesignSystemQuery, QueryContext};
 impl DesignSystemQuery {
     /// Returns active theme values by their full custom-property names.
     /// Values keep their authored CSS spelling, including references to other tokens.
-    pub fn theme_values(&self) -> Vec<(String, String)> {
+    pub fn theme_values(&self) -> Vec<(LeanStr, LeanStr)> {
         self.context
             .design_system
             .tokens()
@@ -19,7 +21,7 @@ impl DesignSystemQuery {
     }
 
     /// Returns the scale used by spacing utilities, or `None` when it is absent.
-    pub fn spacing_scale(&self) -> Option<String> {
+    pub fn spacing_scale(&self) -> Option<LeanStr> {
         self.context.spacing_scale()
     }
 
@@ -54,7 +56,7 @@ impl DesignSystemQuery {
 
 impl QueryContext {
     /// Returns the scale used by spacing utilities, or `None` when it is absent.
-    pub(super) fn spacing_scale(&self) -> Option<String> {
+    pub(super) fn spacing_scale(&self) -> Option<LeanStr> {
         self.design_system
             .theme()
             .scale(ThemeNamespace::Spacing)
@@ -63,8 +65,8 @@ impl QueryContext {
 
     /// Substitutes known theme variables in `input`. Unknown variables retain their spelling.
     /// Returns `None` after 64 substitution passes or if an edit expands the CSS beyond 1 MiB.
-    pub(super) fn resolve_theme_values(&self, input: &str) -> Option<String> {
-        let mut css = input.to_owned();
+    pub(super) fn resolve_theme_values(&self, input: &str) -> Option<LeanStr> {
+        let mut css = input.to_lean_string();
         for _ in 0..64 {
             let mut edits = Vec::new();
             let mut covered = 0;
@@ -85,7 +87,7 @@ impl QueryContext {
                 }
             }
             if edits.is_empty() {
-                return Some(css);
+                return Some(css.into());
             }
             for (range, value) in edits.into_iter().rev() {
                 css.replace_range(range, &value);

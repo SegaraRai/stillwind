@@ -1,5 +1,6 @@
 //! Recursive class contributions and their conversion to CSS rule contributions.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Span, Spanned};
@@ -13,7 +14,7 @@ use super::{
 #[serde(rename_all = "camelCase")]
 pub struct AttributeEntry {
     /// Attribute name as written. It is emitted as a prop, not as a class.
-    pub name: Spanned<String>,
+    pub name: Spanned<LeanStr>,
     /// The attribute value expression, emitted verbatim.
     pub value: Span,
 }
@@ -195,7 +196,7 @@ pub enum RuleExpression {
     /// A utility string or utility template literal.
     Utilities(
         /// Decoded utility text and its original source span.
-        Spanned<String>,
+        Spanned<LeanStr>,
     ),
     /// A source array of rule expressions.
     Array(
@@ -274,7 +275,7 @@ pub enum RuleExpression {
         keyframes: AssetReference,
         /// Literal animation options and their source span, resolved into keyframes
         /// declarations by the compiler.
-        options: Spanned<String>,
+        options: Spanned<LeanStr>,
     },
     /// A keyframes use whose declaration is only known at runtime.
     DynamicKeyframesUse {
@@ -286,7 +287,7 @@ pub enum RuleExpression {
         keyframes: Vec<AssetReference>,
         /// Literal animation options and their source span, resolved into keyframes
         /// declarations by the compiler.
-        options: Spanned<String>,
+        options: Spanned<LeanStr>,
     },
 }
 
@@ -372,13 +373,13 @@ pub enum GroupEntry {
 pub struct CustomPropertyEntry {
     /// Decoded CSS property name, beginning with `--`. The JavaScript frontend
     /// selects this entry only after checking the prefix.
-    pub name: Spanned<String>,
+    pub name: Spanned<LeanStr>,
     /// Original expression whose value is converted to CSS text.
     pub value: Span,
     /// Decoded CSS text when a literal can be converted without evaluating user
     /// code. When present, rendering uses this value instead of evaluating `value`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub static_value: Option<String>,
+    pub static_value: Option<LeanStr>,
 }
 
 #[cfg(test)]

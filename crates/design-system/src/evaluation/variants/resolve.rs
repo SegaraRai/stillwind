@@ -15,8 +15,10 @@
 use std::sync::Arc;
 
 use cssparser::{Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::selector_uses_subject;
+use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, Value, Variant, VariantKind, parse_candidate};
 
 use super::super::builtins::builtin_variants;
@@ -40,7 +42,7 @@ pub enum VariantApplication {
         /// Canonical [`RuntimeCondition`] text: a presence test or `--name:value`
         /// comparison, optionally prefixed by one `!`.
         /// Refers to the styled element or pseudo-element, never a ref ancestor.
-        String,
+        LeanStr,
     ),
     /// Several applications, one per block of a compound body, in authored order.
     Compound(Vec<VariantApplication>),
@@ -49,40 +51,40 @@ pub enum VariantApplication {
     /// A fixed selector suffix appended to the utility's own selector.
     SelectorSuffix(&'static str),
     /// A resolved selector template containing `&` for the utility selector.
-    SelectorTemplate(String),
+    SelectorTemplate(LeanStr),
     /// Adds a compound selector condition to the final element selected by a rule.
     /// The renderer inserts it before that element's pseudo-elements, if present.
-    SelectorCondition(String),
+    SelectorCondition(LeanStr),
     /// A selector template that also declares properties of its own.
     SelectorRule {
         /// Selector template for the wrapped utility.
-        selector: String,
+        selector: LeanStr,
         /// Declarations the variant contributes.
         declarations: Vec<VariantDeclaration>,
     },
     /// A selector template inside a media condition.
     SelectorMedia {
         /// Selector template for the wrapped utility.
-        selector: String,
+        selector: LeanStr,
         /// Media condition the rule is nested under.
-        condition: String,
+        condition: LeanStr,
     },
     /// A selector template inside a media condition that also declares properties of
     /// its own.
     SelectorMediaRule {
         /// Selector template for the wrapped utility.
-        selector: String,
+        selector: LeanStr,
         /// Declarations the variant contributes.
         declarations: Vec<VariantDeclaration>,
         /// Media condition the rule is nested under.
-        condition: String,
+        condition: LeanStr,
     },
     /// A media condition that wraps the utility without changing its selector.
-    Media(String),
+    Media(LeanStr),
     /// A container condition that wraps the utility without changing its selector.
-    Container(String),
+    Container(LeanStr),
     /// A support condition that wraps the utility without changing its selector.
-    Supports(String),
+    Supports(LeanStr),
     /// The starting-style at-rule, which the emitter applies around the rule.
     StartingStyle,
 }
@@ -137,9 +139,9 @@ pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariantDeclaration {
     /// Property name the variant sets.
-    pub property: String,
+    pub property: LeanStr,
     /// Value of that property.
-    pub value: String,
+    pub value: LeanStr,
 }
 
 /// Resolves one variant against the theme.
@@ -155,9 +157,9 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     if let VariantKind::Arbitrary(value) = &variant.kind {
         let value = decode_variant_template(value);
         if value.starts_with('@') {
-            return resolve_variant_body(&format!("{value} {{ @slot; }}"));
+            return resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string());
         }
-        return Some(VariantApplication::SelectorTemplate(value));
+        return Some(VariantApplication::SelectorTemplate((value).into()));
     }
     let VariantKind::Named(value) = &variant.kind else {
         return None;
@@ -197,7 +199,11 @@ pub(super) fn resolve_named_variant_with<T>(
         let Some((prefix, suffix)) = custom.wildcard_parts() else {
             continue;
         };
-        if let Some(result) = evaluate(custom, Some(value), &format!("{prefix}{value}{suffix}")) {
+        if let Some(result) = evaluate(
+            custom,
+            Some(value),
+            &format_args!("{prefix}{value}{suffix}").to_lean_string(),
+        ) {
             return Some(result);
         }
     }
@@ -205,8 +211,8 @@ pub(super) fn resolve_named_variant_with<T>(
 }
 
 /// Decodes candidate whitespace while preserving CSS escapes used by selector parsing.
-fn decode_variant_template(value: &str) -> String {
-    let mut output = String::new();
+fn decode_variant_template(value: &str) -> LeanString {
+    let mut output = LeanString::new();
     let mut characters = value.chars();
     while let Some(character) = characters.next() {
         match character {
@@ -270,7 +276,7 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
 /// emitted as written, including any named modifier, so two independent calls agree on
 /// the class they must match.
 #[must_use]
-pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<String> {
+pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
     let candidate = parse_candidate(raw)?;
     if candidate.negative || candidate.important || !candidate.variants.is_empty() {
         return None;
@@ -284,8 +290,8 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<Strin
         return None;
     }
     match modifier {
-        None => Some(name.to_string()),
-        Some(Value::Named(modifier)) => Some(format!("{name}/{modifier}")),
+        None => Some(name.to_lean_string()),
+        Some(Value::Named(modifier)) => Some(format_args!("{name}/{modifier}").to_lean_string()),
         Some(Value::Arbitrary(_) | Value::CssVariable(_)) => None,
     }
 }
@@ -363,7 +369,7 @@ pub(in crate::evaluation) fn resolve_registered_variant_candidate(
     )?;
     resolve_variant_body(&body).or_else(|| {
         substitute_variant_capture(&custom.selector, capture)
-            .map(VariantApplication::SelectorTemplate)
+            .map(|value| VariantApplication::SelectorTemplate(value.into()))
     })
 }
 
@@ -389,7 +395,7 @@ fn resolve_typed_variant(
             return None;
         }
         return RuntimeCondition::parse(capture)
-            .map(|condition| VariantApplication::Conditional(condition.to_string()));
+            .map(|condition| VariantApplication::Conditional(condition.to_lean_str()));
     }
     let (capture, modifier) = split_variant_modifier(capture);
     let body = substitute_typed_modifier(&custom.body, custom.modifier_type, modifier)?;
@@ -402,11 +408,11 @@ fn resolve_typed_variant(
         }
         BuiltinVariantValueType::Aria => {
             let value = attribute_variant_selector("aria", capture, true)?;
-            resolve_variant_body(&body.replace(":--value()", &value))
+            resolve_variant_body(&body.replace_text(":--value()", &value))
         }
         BuiltinVariantValueType::Data => {
             let value = attribute_variant_selector("data", capture, false)?;
-            resolve_variant_body(&body.replace(":--value()", &value))
+            resolve_variant_body(&body.replace_text(":--value()", &value))
         }
         BuiltinVariantValueType::Nth | BuiltinVariantValueType::SupportsCondition => {
             let value = decode_variant_capture(capture);
@@ -416,7 +422,7 @@ fn resolve_typed_variant(
             let body = if value_type == BuiltinVariantValueType::Nth {
                 substitute_quoted_variant_value(&body, &value)?
             } else {
-                body.replace("--value()", &value)
+                body.replace_text("--value()", &value)
             };
             resolve_variant_body(&body)
         }
@@ -446,11 +452,11 @@ pub(in crate::evaluation) fn split_variant_modifier(value: &str) -> (&str, Optio
 /// An arbitrary capture is decoded with escape handling; a named capture only has
 /// underscores turned into spaces, because its text is a Tailwind spelling rather than
 /// CSS.
-fn decode_variant_capture(value: &str) -> String {
+fn decode_variant_capture(value: &str) -> LeanString {
     value
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
-        .map_or_else(|| value.replace('_', " "), decode_arbitrary)
+        .map_or_else(|| value.replace_char('_', " "), decode_arbitrary)
 }
 
 /// Builds a synthetic nested variant from capture text, keeping the raw spelling so an
@@ -472,11 +478,15 @@ pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
 /// `name=value` becomes an equality selector with the value quoted and escaped; a bare
 /// capture becomes `="true"` for aria variants and a presence check for data variants.
 /// An empty name or value is rejected rather than emitted.
-fn attribute_variant_selector(prefix: &str, capture: &str, default_true: bool) -> Option<String> {
+fn attribute_variant_selector(
+    prefix: &str,
+    capture: &str,
+    default_true: bool,
+) -> Option<LeanString> {
     let arbitrary = capture
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'));
-    let value = arbitrary.map_or_else(|| capture.to_owned(), decode_arbitrary);
+    let value = arbitrary.map_or_else(|| capture.to_lean_string(), decode_arbitrary);
     if value.is_empty() {
         return None;
     }
@@ -484,15 +494,18 @@ fn attribute_variant_selector(prefix: &str, capture: &str, default_true: bool) -
         if name.is_empty() || expected.is_empty() {
             return None;
         }
-        return Some(format!(
-            "[{prefix}-{name}=\"{}\"]",
-            expected.replace('"', r#"\""#)
-        ));
+        return Some(
+            format_args!(
+                "[{prefix}-{name}=\"{}\"]",
+                expected.replace_char('"', r#"\""#)
+            )
+            .to_lean_string(),
+        );
     }
     Some(if default_true {
-        format!("[{prefix}-{value}=\"true\"]")
+        format_args!("[{prefix}-{value}=\"true\"]").to_lean_string()
     } else {
-        format!("[{prefix}-{value}]")
+        format_args!("[{prefix}-{value}]").to_lean_string()
     })
 }
 

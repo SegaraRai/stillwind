@@ -5,6 +5,8 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
+use lean_string::{LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
     AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, ScriptLanguage,
@@ -43,7 +45,7 @@ fn property(name: &str, index: u32) -> Property {
         static_value: None,
         computed_value: None,
         name: name.into(),
-        value: format!("value({index})"),
+        value: format_args!("value({index})").to_lean_str(),
         span: Span::new(FileId(1), index, index + 1),
     }
 }
@@ -146,7 +148,12 @@ fn partial_folding_stops_at_opaque_props_and_is_idempotent() {
 fn large_records_fold_without_candidate_growth() {
     let source = Fragment::Sequence(
         (0..4096)
-            .map(|i| Fragment::Record(vec![Atom::Custom(property(&format!("--v{i}"), i))]))
+            .map(|i| {
+                Fragment::Record(vec![Atom::Custom(property(
+                    &format_args!("--v{i}").to_lean_string(),
+                    i,
+                ))])
+            })
             .collect(),
     );
     let folded = fold(source, AdapterKind::React.spec());
@@ -313,7 +320,7 @@ fn folded_javascript_matches_runtime_materialization() {
             .map(|index| {
                 Some(Emitted::Expression(ValueExpr::Call {
                     helper: RuntimeHelper::Clsx,
-                    arguments: vec![format!("value({index})").into()],
+                    arguments: vec![format_args!("value({index})").to_lean_string().into()],
                     span: Span::new(FileId(1), index, index + 1),
                 }))
             })
@@ -364,7 +371,7 @@ fn folded_javascript_matches_runtime_materialization() {
         cases.push(serde_json::json!({
             "framework": "react",
             "optimized": optimized.text,
-            "reference": format!("stillwindMerge({{[stillwindClassKey]:stillwindClsx({})}})", reference.text),
+            "reference": format_args!("stillwindMerge({{[stillwindClassKey]:stillwindClsx({})}})", reference.text).to_lean_string(),
         }));
     }
     execute_cases(&cases);
@@ -396,12 +403,12 @@ fn execute_cases(cases: &[serde_json::Value]) {
         .write_all(serde_json::to_string(&cases).unwrap().as_bytes())
         .unwrap();
     let output = child.wait_with_output().unwrap();
-    println!("{}", String::from_utf8_lossy(&output.stdout));
+    println!("{}", LeanString::from_utf8_lossy(&output.stdout));
     assert!(
         output.status.success(),
         "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
+        LeanString::from_utf8_lossy(&output.stdout),
+        LeanString::from_utf8_lossy(&output.stderr)
     );
 }
 
@@ -579,7 +586,7 @@ fn ref_reads_select_validation_by_compiler_mode_and_keep_source_evaluation_once(
     }
     let lookup = ValueExpr::Lookup {
         value: Box::new(ValueExpr::Source("load()".into())),
-        key: "c".to_owned(),
+        key: "c".to_lean_str(),
         table: "{marker:'class'}".into(),
         span,
     };

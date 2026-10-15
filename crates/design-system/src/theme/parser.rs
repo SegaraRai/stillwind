@@ -13,6 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use lean_string::{LeanString, ToLeanStr};
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
@@ -90,10 +91,10 @@ fn parse_theme_contents(
     let mut template = parse_output_template(source.text(), &theme.tokens)?;
     template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
     template.source_identity = source_identity.clone();
-    theme.custom_css = template.authored_css();
+    theme.custom_css = (template.authored_css()).into();
     StyleSheet::parse(&theme.custom_css, ParserOptions::default()).map_err(|error| {
         CompileDiagnostic::CssParse {
-            detail: error.to_string(),
+            detail: error.to_lean_str(),
         }
     })?;
     theme.output_template = template;
@@ -120,8 +121,8 @@ fn parse_theme_contents(
 /// Keyframes cannot be represented as custom properties, so they are copied textually
 /// and emitted with the theme layer. An unterminated keyframes block ends the scan
 /// rather than being emitted partially.
-pub(crate) fn extract_keyframe_blocks(css: &str) -> String {
-    let mut output = String::new();
+pub(crate) fn extract_keyframe_blocks(css: &str) -> LeanString {
+    let mut output = LeanString::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("@keyframes ") {
         let start = cursor + relative;
@@ -187,7 +188,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         output_template: CssOutputTemplate::default(),
         registry: Arc::default(),
         tokens,
-        custom_css: String::new(),
+        custom_css: (LeanString::new()).into(),
         utilities: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
@@ -208,7 +209,7 @@ mod tests {
 
     #[test]
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
-        let source = SourceFile::new(FileId(1), None, None, format!("{BUILTIN_REGISTRY_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
+        let source = SourceFile::new(FileId(1), None, None, std::format!("{BUILTIN_REGISTRY_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert_eq!(theme.tokens().len(), 1);
         assert_eq!(theme.tokens()[0].name.value, "--color-local");
@@ -239,13 +240,15 @@ mod tests {
 
 #[cfg(test)]
 mod panic_regressions {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
     fn unclosed_definition_blocks_return_errors() {
         for directive in ["@utility x", "@custom-variant x", "@stillwind-variant x"] {
             for body in ["", " color:red;", " &:hover {color:red;}"] {
-                let css = format!("{directive} {{{body}");
+                let css = format_args!("{directive} {{{body}").to_lean_string();
                 let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();
                 for result in [
                     parse_theme(&source, &CssSourceName::from("test.css")),
@@ -291,11 +294,12 @@ mod panic_regressions {
     #[test]
     fn nested_values_and_groups_past_the_limit_return_errors() {
         let levels = MAX_VALUE_NESTING + 1;
-        let css = format!(
+        let css = format_args!(
             "@theme {{ --x: calc({}1{}); }}",
             "(".repeat(levels),
             ")".repeat(levels)
-        );
+        )
+        .to_lean_string();
         let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();
         assert!(
             matches!(
@@ -309,7 +313,7 @@ mod panic_regressions {
         );
 
         let depth = 200;
-        let mut css = String::from("@theme { --x: red; }");
+        let mut css = LeanString::from("@theme { --x: red; }");
         css.push_str(&"@layer x {".repeat(depth));
         css.push_str(&"}".repeat(depth));
         let source = SourceFile::new(FileId(1), None, None, css.as_str()).unwrap();

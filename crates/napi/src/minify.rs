@@ -6,6 +6,8 @@ use napi_derive::napi;
 
 use stillwind_css::CssMinifyOptions;
 
+use crate::output::NativeText;
+
 /// Final asset processing settings. Omitted fields use the Rust API defaults.
 #[napi(object)]
 pub struct NativeCssMinifyOptions {
@@ -33,28 +35,45 @@ pub struct NativeCssMinifyOptions {
 impl From<NativeCssMinifyOptions> for CssMinifyOptions {
     fn from(value: NativeCssMinifyOptions) -> Self {
         Self {
-            filename: value.filename.unwrap_or_else(|| "input.css".into()),
-            targets: value.targets.map(|targets| targets.into_iter().collect()),
-            include: value.include.unwrap_or_default(),
-            exclude: value.exclude.unwrap_or_default(),
+            filename: (value.filename.unwrap_or_else(|| "input.css".into())).into(),
+            targets: value.targets.map(|targets| {
+                targets
+                    .into_iter()
+                    .map(|(name, target)| (name.into(), target))
+                    .collect()
+            }),
+            include: (value.include.unwrap_or_default())
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            exclude: (value.exclude.unwrap_or_default())
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             source_map: value.source_map.unwrap_or(false),
-            input_source_map: value.input_source_map,
+            input_source_map: (value.input_source_map).map(Into::into),
             include_sources_content: value.include_sources_content.unwrap_or(true),
-            unused_symbols: value.unused_symbols.unwrap_or_default(),
+            unused_symbols: (value.unused_symbols.unwrap_or_default())
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             error_recovery: value.error_recovery.unwrap_or(false),
         }
     }
 }
 
 /// CSS and optional debugging metadata from final asset processing.
-#[napi(object)]
+#[napi(object, object_from_js = false)]
 pub struct NativeMinifiedCss {
     /// Minified CSS without an appended source-map URL.
-    pub css: String,
+    #[napi(ts_type = "string")]
+    pub css: NativeText,
     /// Standard v3 source-map JSON when requested.
-    pub source_map: Option<String>,
+    #[napi(ts_type = "string")]
+    pub source_map: Option<NativeText>,
     /// Parser messages with input locations where available.
-    pub warnings: Vec<String>,
+    #[napi(ts_type = "Array<string>")]
+    pub warnings: Vec<NativeText>,
 }
 
 /// Minifies expanded CSS and optionally composes a supplied source map.
@@ -74,8 +93,8 @@ pub fn minify_css(
     let output = stillwind_css::minify_css(&css, &options)
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     Ok(NativeMinifiedCss {
-        css: output.css,
-        source_map: output.source_map,
-        warnings: output.warnings,
+        css: (output.css).into(),
+        source_map: (output.source_map).map(Into::into),
+        warnings: (output.warnings).into_iter().map(Into::into).collect(),
     })
 }

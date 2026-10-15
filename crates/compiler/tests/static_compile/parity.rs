@@ -201,7 +201,7 @@ fn matches_tailwind_fixture_rules_after_minification() {
         );
         let class_name = &result.classes[0].class_name;
         let selector = tailwind_class_selector(candidate);
-        let actual = css_rule(&result.css, class_name).replace(class_name, &selector);
+        let actual = css_rule(&result.css, class_name).replace((class_name).as_str(), &selector);
         let expected = css_rule(&expected_css, &selector);
         assert_eq!(
             minify_css(&actual),

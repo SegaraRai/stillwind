@@ -4,6 +4,8 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::LintSettings;
 
@@ -20,7 +22,7 @@ use crate::CompilerOptions;
 pub struct DesignSystemQuery {
     pub(super) context: QueryContext,
     pub(super) canonical_index: OnceCell<Arc<CanonicalIndex>>,
-    pub(super) canonical_cache: RefCell<BTreeMap<String, Option<String>>>,
+    pub(super) canonical_cache: RefCell<BTreeMap<LeanStr, Option<LeanStr>>>,
     pub(super) ordering: CandidateOrdering,
 }
 

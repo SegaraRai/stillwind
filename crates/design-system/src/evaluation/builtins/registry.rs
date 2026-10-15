@@ -9,6 +9,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use crate::{BuiltinDefinitions, CustomUtility, CustomVariant, ThemeIndex};
 
 /// The built-in definition set selected by this theme.
@@ -55,7 +57,7 @@ pub(in crate::evaluation) fn builtin_animation_options(
 /// option.
 pub(in crate::evaluation) fn animation_option_property_mappings(
     theme: &ThemeIndex,
-) -> &BTreeMap<String, String> {
+) -> &BTreeMap<LeanStr, LeanStr> {
     theme.registry().animation_property_mappings()
 }
 

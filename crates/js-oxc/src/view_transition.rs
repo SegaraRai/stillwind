@@ -9,6 +9,7 @@
 //! Literal keys fold into CSS; expression keys remain use-site spans for runtime name
 //! emission. Projection calls have no independently materialized value.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind};
 use oxc::span::GetSpan;
 
@@ -154,7 +155,7 @@ impl<'a> MacroExtractor<'a> {
                     self.source_span(call.span),
                 ));
             }
-            return Some(ViewTransitionKey::Literal(String::new()));
+            return Some(ViewTransitionKey::Literal(LeanStr::new()));
         };
         match argument {
             Expression::StringLiteral(value) => {
@@ -174,11 +175,11 @@ impl<'a> MacroExtractor<'a> {
                         return None;
                     }
                 };
-                Some(ViewTransitionKey::Literal(raw.to_owned()))
+                Some(ViewTransitionKey::Literal(raw.to_lean_str()))
             }
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
                 let cooked = template.quasis[0].value.cooked.as_ref()?;
-                Some(ViewTransitionKey::Literal(cooked.to_string()))
+                Some(ViewTransitionKey::Literal(cooked.to_lean_str()))
             }
             argument => Some(ViewTransitionKey::Dynamic(
                 self.source_span(argument.span()),
@@ -193,7 +194,7 @@ impl<'a> MacroExtractor<'a> {
     /// definition retains its binding and identity.
     pub(crate) fn collect_view_transition_definition(
         &mut self,
-        binding: Spanned<String>,
+        binding: Spanned<LeanStr>,
         call: &CallExpression<'a>,
     ) -> ViewTransitionDefinition {
         self.omit_input(call.span);

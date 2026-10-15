@@ -6,6 +6,8 @@
 //! a construct the parser cannot read makes the whole parse fail, which keeps folding
 //! from silently rewriting invalid input.
 
+use lean_string::ToLeanStr;
+
 use super::expression::{MathExpression, MathValue};
 use super::folding::matching_parenthesis;
 
@@ -195,7 +197,7 @@ impl<'a> MathParser<'a> {
             self.cursor = close + 1;
         }
         Some(MathExpression::Atom(
-            self.input[start..self.cursor].trim().to_owned(),
+            self.input[start..self.cursor].trim().to_lean_str(),
         ))
     }
 
@@ -233,7 +235,7 @@ impl<'a> MathParser<'a> {
         } else {
             Some(MathExpression::Value(MathValue::Dimension(
                 number,
-                self.input[unit_start..self.cursor].to_owned(),
+                self.input[unit_start..self.cursor].to_lean_str(),
             )))
         }
     }
@@ -253,6 +255,8 @@ impl<'a> MathParser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use super::*;
 
     #[test]
@@ -329,29 +333,33 @@ mod tests {
     /// parentheses and nested `calc()` calls.
     #[test]
     fn atom_nesting_is_bounded_by_the_value_limit() {
-        let at_limit = format!(
+        let at_limit = format_args!(
             "{}1{}",
             "(".repeat(MAX_VALUE_NESTING),
             ")".repeat(MAX_VALUE_NESTING)
-        );
+        )
+        .to_lean_string();
         assert!(MathParser::new(&at_limit).parse().is_some());
-        let past_limit = format!(
+        let past_limit = format_args!(
             "{}1{}",
             "(".repeat(MAX_VALUE_NESTING + 1),
             ")".repeat(MAX_VALUE_NESTING + 1)
-        );
+        )
+        .to_lean_string();
         assert!(MathParser::new(&past_limit).parse().is_none());
-        let nested_calc = format!(
+        let nested_calc = format_args!(
             "{}1{}",
             "calc(".repeat(MAX_VALUE_NESTING),
             ")".repeat(MAX_VALUE_NESTING)
-        );
+        )
+        .to_lean_string();
         assert!(MathParser::new(&nested_calc).parse().is_some());
-        let past_nested_calc = format!(
+        let past_nested_calc = format_args!(
             "{}1{}",
             "calc(".repeat(MAX_VALUE_NESTING + 1),
             ")".repeat(MAX_VALUE_NESTING + 1)
-        );
+        )
+        .to_lean_string();
         assert!(MathParser::new(&past_nested_calc).parse().is_none());
     }
 
@@ -433,7 +441,7 @@ mod tests {
         /// Integer literals round-trip through parsing and serialization.
         #[test]
         fn integer_literals_round_trip(value in -100_000i32..100_000) {
-            let text = value.to_string();
+            let text = value.to_lean_string();
             let parsed = MathParser::new(&text).parse().unwrap();
             proptest::prop_assert_eq!(parsed.serialize(0), text);
         }
@@ -441,15 +449,15 @@ mod tests {
         /// Folding a sum does not depend on the order of its operands.
         #[test]
         fn folded_sums_are_commutative(left in -1000i32..1000, right in -1000i32..1000) {
-            let forward = MathParser::new(&format!("{left} + {right}")).parse().unwrap();
-            let backward = MathParser::new(&format!("{right} + {left}")).parse().unwrap();
+            let forward = MathParser::new(&format_args!("{left} + {right}").to_lean_string()).parse().unwrap();
+            let backward = MathParser::new(&format_args!("{right} + {left}").to_lean_string()).parse().unwrap();
             proptest::prop_assert_eq!(forward.serialize(0), backward.serialize(0));
         }
 
         /// Parenthesis nesting is accepted up to the documented limit and rejected past it.
         #[test]
         fn parenthesis_nesting_respects_the_value_limit(depth in 0usize..80) {
-            let text = format!("{}1{}", "(".repeat(depth), ")".repeat(depth));
+            let text = format_args!("{}1{}", "(".repeat(depth), ")".repeat(depth)).to_lean_string();
             proptest::prop_assert_eq!(
                 MathParser::new(&text).parse().is_some(),
                 depth <= MAX_VALUE_NESTING

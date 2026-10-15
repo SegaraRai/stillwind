@@ -6,6 +6,7 @@
 //! do not analyze source-value types or decide whether evaluations can be reordered.
 
 use stillwind_ir::ConditionalBranches;
+use stillwind_source::JoinText;
 
 use super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use crate::generated::{Code, code, js_string};
@@ -48,7 +49,7 @@ pub(crate) fn collect_class_arguments<'a>(value: &'a Emitted, arguments: &mut Ve
 pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -> Option<Code> {
     match value {
         Emitted::Expression(expression) => Some(expression.render(runtime)),
-        Emitted::Leaf { names } => Some(js_string(&names.join(" ")).into()),
+        Emitted::Leaf { names } => Some(js_string(&names.join_text(" ")).into()),
         Emitted::Array(items) => {
             let mut parts = Vec::new();
             for item in items {

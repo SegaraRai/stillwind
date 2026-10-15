@@ -12,6 +12,7 @@
 use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, ToLeanString};
 
 /// One relative resource reference found in CSS text.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -19,7 +20,7 @@ pub struct CssUrl {
     /// The entire `url()` expression, or the string in `image-set()`.
     pub range: Range<usize>,
     /// Decoded specifier text, with CSS escapes resolved by the tokenizer.
-    pub specifier: String,
+    pub specifier: LeanStr,
     /// True when the reference was written as a quoted string (`image-set` candidates),
     /// false for `url()`.
     pub string: bool,
@@ -55,12 +56,12 @@ fn scan(parser: &mut Parser<'_>, image_set: bool, output: &mut Vec<CssUrl>) {
             break;
         };
         let (value, string) = match token {
-            Token::UnquotedUrl(value) => (Some(value.to_string()), false),
-            Token::QuotedString(value) if image_set => (Some(value.to_string()), true),
+            Token::UnquotedUrl(value) => (Some(value.to_lean_string()), false),
+            Token::QuotedString(value) if image_set => (Some(value.to_lean_string()), true),
             Token::Function(name) if name.eq_ignore_ascii_case("url") => {
                 let value = parser
                     .parse_nested_block(|nested| {
-                        let value = nested.expect_string_cloned()?.to_string();
+                        let value = nested.expect_string_cloned()?.to_lean_string();
                         nested.expect_exhausted()?;
                         Ok::<_, ParseError<()>>(value)
                     })
@@ -88,7 +89,7 @@ fn scan(parser: &mut Parser<'_>, image_set: bool, output: &mut Vec<CssUrl>) {
         if let Some(value) = value.filter(|value| relative(value)) {
             output.push(CssUrl {
                 range: start..parser.position().byte_index(),
-                specifier: value,
+                specifier: (value).into(),
                 string,
             });
         }

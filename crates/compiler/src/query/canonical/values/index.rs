@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
@@ -14,6 +14,7 @@ use stillwind_design_system::{
     resolve_utility,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
+use stillwind_source::ReplaceText;
 
 use super::super::index::{policy, rank};
 use super::super::preview::{CanonicalPreview, Normalization, normalized_signature};
@@ -24,12 +25,12 @@ use crate::query::completion::value_namespaces;
 #[derive(Debug, Default)]
 pub(in super::super) struct ThemeValueIndex {
     groups: BTreeMap<Normalization, ValueMatches>,
-    covered: BTreeSet<String>,
+    covered: BTreeSet<LeanStr>,
     direct: DirectValues,
 }
 
 impl ThemeValueIndex {
-    pub(in super::super) fn prepare(query: &QueryContext, labels: &BTreeSet<String>) -> Self {
+    pub(in super::super) fn prepare(query: &QueryContext, labels: &BTreeSet<LeanStr>) -> Self {
         let mut index = Self {
             direct: DirectValues::prepare(query),
             ..Self::default()
@@ -57,7 +58,7 @@ impl ThemeValueIndex {
 
     pub(in super::super) fn modifier_preserves_value(
         &self,
-        roots: &BTreeSet<String>,
+        roots: &BTreeSet<LeanStr>,
         suffix: &str,
     ) -> bool {
         self.direct.modifier_preserves_value(roots, suffix)
@@ -70,9 +71,9 @@ impl ThemeValueIndex {
     pub(in super::super) fn value_labels(
         &self,
         query: &QueryContext,
-        roots: &BTreeSet<String>,
+        roots: &BTreeSet<LeanStr>,
         value: &str,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         self.direct.matching(query, roots, value)
     }
 
@@ -80,7 +81,7 @@ impl ThemeValueIndex {
         &self,
         query: &QueryContext,
         original: &CanonicalPreview,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
         let mut labels = Vec::new();
@@ -101,11 +102,11 @@ impl ThemeValueIndex {
 struct ValuePreparation<'a> {
     query: &'a QueryContext,
     options: CanonicalUtilitiesConfig,
-    scale: Option<String>,
-    values: BTreeMap<String, Option<String>>,
-    registered: Vec<String>,
-    required_values: BTreeMap<String, Vec<bool>>,
-    resolved: BTreeMap<String, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
+    scale: Option<LeanStr>,
+    values: BTreeMap<LeanStr, Option<LeanStr>>,
+    registered: Vec<LeanStr>,
+    required_values: BTreeMap<LeanStr, Vec<bool>>,
+    resolved: BTreeMap<LeanStr, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
     signatures: HashMap<(LeanStr, Normalization), Option<LeanStr>>,
 }
 
@@ -120,7 +121,7 @@ impl<'a> ValuePreparation<'a> {
             .filter_map(|(name, group)| {
                 group.first().map(|token| {
                     (
-                        name.to_owned(),
+                        name.to_lean_str(),
                         query.resolve_theme_values(&token.value.value),
                     )
                 })
@@ -142,13 +143,13 @@ impl<'a> ValuePreparation<'a> {
                 let value = if token.mode == ThemeTokenMode::Inline {
                     token.value.value.clone()
                 } else {
-                    format!("var({name})")
+                    format_args!("var({name})").to_lean_str()
                 };
                 Some((
-                    name.to_owned(),
+                    name.to_lean_str(),
                     registered
                         .iter()
-                        .map(|name| value.contains(name))
+                        .map(|name| value.contains((name).as_str()))
                         .collect::<Vec<_>>(),
                 ))
             })
@@ -156,7 +157,7 @@ impl<'a> ValuePreparation<'a> {
         Self {
             query,
             options,
-            scale,
+            scale: (scale),
             values,
             registered,
             required_values,
@@ -170,7 +171,7 @@ impl<'a> ValuePreparation<'a> {
         index: &mut ThemeValueIndex,
         root: &str,
         namespace: &str,
-        labels: &BTreeSet<String>,
+        labels: &BTreeSet<LeanStr>,
     ) {
         let query = self.query;
         let mut template = None;
@@ -186,7 +187,7 @@ impl<'a> ValuePreparation<'a> {
             let Some(capture) = token_name.strip_prefix(namespace) else {
                 continue;
             };
-            let label = format!("{root}{capture}");
+            let label = format_args!("{root}{capture}").to_lean_str();
             if !labels.contains(&label) || index.covers(&label) {
                 continue;
             }
@@ -200,13 +201,15 @@ impl<'a> ValuePreparation<'a> {
             if template.is_none()
                 && token.mode != ThemeTokenMode::Inline
                 && let Ok(Some(preview)) = query.canonical_preview(&label)
-                && preview.css.contains(&format!("var({token_name})"))
+                && preview
+                    .css
+                    .contains(format_args!("var({token_name})").to_lean_string().as_str())
             {
                 template = Some(CssTemplate::new(
                     query,
                     token_name,
                     actual.clone(),
-                    preview.css.clone(),
+                    (preview.css.clone()).into(),
                     &self.registered,
                 ));
             }
@@ -216,12 +219,12 @@ impl<'a> ValuePreparation<'a> {
             let value = if token.mode == ThemeTokenMode::Inline {
                 token.value.value.clone()
             } else {
-                format!("var({token_name})")
+                format_args!("var({token_name})").to_lean_str()
             };
             if !template.matches(actual, &value) {
                 continue;
             }
-            let css = template.css.replace(&template.variable, &value);
+            let css = template.css.replace_text(&template.variable, &value);
             let required_properties: Vec<_> = self
                 .registered
                 .iter()
@@ -234,7 +237,7 @@ impl<'a> ValuePreparation<'a> {
                 self.values
                     .get(token_name)?
                     .as_ref()
-                    .map(|value| css.replace(&template.placeholder, value))
+                    .map(|value| css.replace_text(&template.placeholder, value))
             });
             let normalization = policy(&css, &self.options, self.scale.as_deref());
             let signature = resolved_css.as_ref().and_then(|css| {
@@ -267,15 +270,15 @@ impl<'a> ValuePreparation<'a> {
 
 #[derive(Debug, Default)]
 struct ValueMatches {
-    signatures: HashMap<(LeanStr, Vec<String>), Vec<String>>,
+    signatures: HashMap<(LeanStr, Vec<LeanStr>), Vec<LeanStr>>,
 }
 
 #[derive(Debug)]
 struct CssTemplate {
-    variable: String,
-    placeholder: String,
-    css: String,
-    expanded: Option<String>,
+    variable: LeanStr,
+    placeholder: LeanStr,
+    css: LeanStr,
+    expanded: Option<LeanStr>,
     utility: ResolvedUtility,
     required: Vec<bool>,
 }
@@ -285,25 +288,25 @@ impl CssTemplate {
         query: &QueryContext,
         token_name: &str,
         utility: ResolvedUtility,
-        css: String,
-        registered: &[String],
+        css: LeanString,
+        registered: &[LeanStr],
     ) -> Self {
-        let variable = format!("var({token_name})");
+        let variable = format_args!("var({token_name})").to_lean_string();
         let mut counter = 0;
         let marker = loop {
-            let marker = format!("--sw-canonical-index-operand-{counter}");
-            if !css.contains(&marker)
+            let marker = format_args!("--sw-canonical-index-operand-{counter}").to_lean_string();
+            if !css.contains(marker.as_str())
                 && !query.design_system.tokens().iter().any(|(_, group)| {
                     group
                         .iter()
-                        .any(|token| token.value.value.contains(&marker))
+                        .any(|token| token.value.value.contains(marker.as_str()))
                 })
             {
                 break marker;
             }
             counter += 1;
         };
-        let placeholder = format!("var({marker})");
+        let placeholder = format_args!("var({marker})").to_lean_string();
         let mut input_template = css.clone();
         let edits: Vec<_> = find_css_functions(&css, &["var"], 0)
             .into_iter()
@@ -315,20 +318,20 @@ impl CssTemplate {
         for range in edits.into_iter().rev() {
             input_template.replace_range(range, &placeholder);
         }
-        let static_css = css.replace(&variable, "");
+        let static_css = css.replace_text(&variable, "");
         let required = registered
             .iter()
             .map(|name| {
                 static_css.contains(name.as_str())
-                    || static_css.contains(&query.options.rewrite_generated(name))
+                    || static_css.contains(query.options.rewrite_generated(name).as_str())
                     || utility.required_properties.contains(name)
             })
             .collect();
         Self {
-            variable,
-            placeholder,
-            expanded: query.resolve_theme_values(&input_template),
-            css,
+            variable: (variable).into(),
+            placeholder: (placeholder).into(),
+            expanded: (query.resolve_theme_values(&input_template)),
+            css: (css).into(),
             utility,
             required,
         }
@@ -352,7 +355,7 @@ impl CssTemplate {
         if order != &self.utility.order
             || required_properties != &self.utility.required_properties
             || builtin_order != &self.utility.builtin_order
-            || declaration != &self.utility.declaration.replace(&self.variable, value)
+            || declaration != &self.utility.declaration.replace_text(&self.variable, value)
         {
             return false;
         }
@@ -360,27 +363,28 @@ impl CssTemplate {
             .utility
             .selector
             .as_ref()
-            .map(|selector| selector.replace(&self.variable, value));
+            .map(|selector| LeanStr::from(selector.replace_text(&self.variable, value)));
         if selector != &expected_selector {
             return false;
         }
         let mut expected_nested = self.utility.nested.clone();
         for rule in &mut expected_nested {
-            rule.condition = rule.condition.replace(&self.variable, value);
-            rule.declaration = rule.declaration.replace(&self.variable, value);
+            rule.condition = (rule.condition.replace_text(&self.variable, value)).into();
+            rule.declaration = (rule.declaration.replace_text(&self.variable, value)).into();
         }
         if nested != &expected_nested {
             return false;
         }
         let mut expected_additional = self.utility.additional.clone();
         for target in &mut expected_additional {
-            target.declaration = target.declaration.replace(&self.variable, value);
+            target.declaration = (target.declaration.replace_text(&self.variable, value)).into();
             if let Some(selector) = &mut target.selector {
-                *selector = selector.replace(&self.variable, value);
+                *selector = (selector.replace_text(&self.variable, value)).into();
             }
             for nested in &mut target.nested {
-                nested.condition = nested.condition.replace(&self.variable, value);
-                nested.declaration = nested.declaration.replace(&self.variable, value);
+                nested.condition = (nested.condition.replace_text(&self.variable, value)).into();
+                nested.declaration =
+                    (nested.declaration.replace_text(&self.variable, value)).into();
             }
         }
         additional == &expected_additional

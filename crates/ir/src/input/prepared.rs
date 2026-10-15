@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceError, SourceFile};
 
 use super::{
@@ -102,9 +104,9 @@ pub struct SourceInput {
     /// Explicit output adapter constraint. Macro imports select it when absent.
     pub framework: Option<AdapterKind>,
     /// Host-allocated stylesheet modules inserted at a verified macro import.
-    pub stylesheet_imports: Vec<String>,
+    pub stylesheet_imports: Vec<LeanStr>,
     /// Host-allocated JavaScript module exporting this module's CSS value.
-    pub module_css_import: Option<String>,
+    pub module_css_import: Option<LeanStr>,
 }
 
 impl SourceInput {
@@ -183,7 +185,7 @@ impl SourceInput {
     /// Debug representations contain values only, so equal revisions identify inputs
     /// that are interchangeable for analysis.
     pub fn revision(&self) -> Fingerprint {
-        Fingerprint::of(format!("{self:?}"))
+        Fingerprint::of(format_args!("{self:?}").to_lean_str())
     }
 }
 
@@ -230,7 +232,7 @@ mod tests {
             assert!(matches!(input.prepared(), PreparedSource::Direct(_)));
             assert!(input.document().upstream_map().is_none());
             assert!(input.framework.is_none());
-            assert_eq!(input.stylesheet_imports, [] as [String; 0]);
+            assert_eq!(input.stylesheet_imports, [] as [LeanStr; 0]);
             assert!(input.module_css_import.is_none());
         }
     }

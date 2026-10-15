@@ -14,6 +14,7 @@ workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+lean_string.workspace = true
 stillwind-compiler = { path = "../compiler" }
 stillwind-css = { path = "../css", features = ["minify"] }
 stillwind-design-system = { path = "../design-system" }

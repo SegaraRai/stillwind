@@ -12,6 +12,7 @@
 //! [`LintDiagnostic::InvalidUtilityTemplate`] instead of guessing how the author meant
 //! to splice a string.
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::TemplateLiteral;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
@@ -93,7 +94,7 @@ struct TemplateToken {
     /// Variants collected for the current segment, outermost first.
     variants: Vec<StyleVariant>,
     /// Literal text still to be assigned to the segment's utility.
-    tail: Option<Spanned<String>>,
+    tail: Option<Spanned<LeanStr>>,
     /// True while the next text must begin with `:`.
     needs_separator: bool,
 }
@@ -119,7 +120,7 @@ impl TemplateToken {
             text
         };
         if !text.is_empty() {
-            self.tail = Some(Spanned::new(text.to_owned(), span));
+            self.tail = Some(Spanned::new(text.to_lean_str(), span));
         }
         Ok(())
     }

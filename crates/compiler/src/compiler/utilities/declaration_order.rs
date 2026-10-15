@@ -11,11 +11,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString};
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
     ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
 };
+use stillwind_source::JoinText;
 
 use super::resolve::CompiledUtility;
 
@@ -25,7 +27,7 @@ use super::resolve::CompiledUtility;
 /// call is a no-op, so a variant that is applied through several paths cannot accumulate
 /// duplicates.
 pub(in crate::compiler) fn prepend_missing_declarations(
-    declaration: &mut String,
+    declaration: &mut LeanString,
     supporting: &[VariantDeclaration],
 ) {
     let declared = declaration_ranges(declaration)
@@ -36,7 +38,7 @@ pub(in crate::compiler) fn prepend_missing_declarations(
     let supporting = supporting
         .iter()
         .filter(|candidate| !declared.contains(candidate.property.as_str()))
-        .fold(String::new(), |mut output, candidate| {
+        .fold(LeanString::new(), |mut output, candidate| {
             output.push_str(&candidate.property);
             output.push(':');
             output.push_str(&candidate.value);
@@ -53,7 +55,7 @@ pub(in crate::compiler) fn prepend_missing_declarations(
 pub(in crate::compiler) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
-) -> String {
+) -> LeanString {
     let formats = if theme.declaration_formats().is_empty() {
         builtin_declaration_formats(theme)
     } else {
@@ -68,8 +70,8 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
 /// Other declarations retain their resolved values without output optimization.
 fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
-    formats: &BTreeMap<String, String>,
-) -> String {
+    formats: &BTreeMap<LeanStr, LeanStr>,
+) -> LeanString {
     enum Declaration<'a> {
         Raw(&'a str),
         Composed {
@@ -114,7 +116,7 @@ fn combine_declarations_with_formats(
             }
         }
     }
-    let mut output = String::new();
+    let mut output = LeanString::new();
     for declaration in ordered {
         match declaration {
             Declaration::Raw(declaration) => output.push_str(declaration),
@@ -125,7 +127,7 @@ fn combine_declarations_with_formats(
             } => {
                 output.push_str(property);
                 output.push(':');
-                output.push_str(&values.join(" "));
+                output.push_str(&values.join_text(" "));
                 if important {
                     output.push_str("!important");
                 }
@@ -182,7 +184,7 @@ pub(in crate::compiler) fn order_utilities(
 
 /// Test-only combination against the built-in fixture registry.
 #[cfg(test)]
-fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
+fn combine_declarations(utilities: &[&CompiledUtility]) -> LeanString {
     use stillwind_design_system::parse_declaration_formats;
     use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
@@ -191,6 +193,8 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanStr;
+
     use stillwind_design_system::UtilityOrder;
 
     use super::super::resolve::UtilitySource;
@@ -204,36 +208,36 @@ mod tests {
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "margin-left:0.5rem;".to_owned(),
+                declaration: "margin-left:0.5rem;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(Some(2)),
-                candidate: "ml-2".to_owned(),
+                candidate: "ml-2".to_lean_str(),
             },
             CompiledUtility {
                 source: UtilitySource::default(),
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "margin-inline:0.75rem;".to_owned(),
+                declaration: "margin-inline:0.75rem;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(Some(1)),
-                candidate: "mx-3".to_owned(),
+                candidate: "mx-3".to_lean_str(),
             },
             CompiledUtility {
                 source: UtilitySource::default(),
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "margin:1rem;".to_owned(),
+                declaration: "margin:1rem;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(Some(0)),
-                candidate: "m-4".to_owned(),
+                candidate: "m-4".to_lean_str(),
             },
         ];
 
@@ -252,24 +256,24 @@ mod tests {
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "all:unset;".to_owned(),
+                declaration: "all:unset;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(Some(usize::MAX)),
-                candidate: "[all:unset]".to_owned(),
+                candidate: "[all:unset]".to_lean_str(),
             },
             CompiledUtility {
                 source: UtilitySource::default(),
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_owned(),
+                declaration: "--tw-skew-x:skewX(6deg);transform:var(--tw-skew-x,);".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(Some(1)),
-                candidate: "skew-x-6".to_owned(),
+                candidate: "skew-x-6".to_lean_str(),
             },
         ];
 
@@ -288,24 +292,24 @@ mod tests {
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "color:red;display:block;".to_owned(),
+                declaration: "color:red;display:block;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(None),
-                candidate: String::new(),
+                candidate: (LeanString::new()).into(),
             },
             CompiledUtility {
                 source: UtilitySource::default(),
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration: "opacity:0.5;".to_owned(),
+                declaration: "opacity:0.5;".to_lean_str(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(None),
-                candidate: String::new(),
+                candidate: (LeanString::new()).into(),
             },
         ];
 
@@ -344,7 +348,7 @@ mod tests {
             container: None,
             nested: Vec::new(),
             order: UtilityOrder::Authored(None),
-            candidate: String::new(),
+            candidate: (LeanString::new()).into(),
         };
         let first = make("transform:rotate(1deg)!important;");
         let second = make("transform:scale(2) ! IMPORTANT;");

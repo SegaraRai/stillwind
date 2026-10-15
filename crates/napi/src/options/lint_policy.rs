@@ -97,8 +97,8 @@ impl TryFrom<NativeLengthUnitsOptions> for LengthUnitsOverride {
                 rules
                     .into_iter()
                     .map(|rule| LengthUnitRule {
-                        properties: rule.properties,
-                        disallow: rule.disallow,
+                        properties: (rule.properties).into_iter().map(Into::into).collect(),
+                        disallow: (rule.disallow).into_iter().map(Into::into).collect(),
                     })
                     .collect()
             }),
@@ -124,7 +124,7 @@ impl TryFrom<NativeRestrictedThemeTokensOptions> for RestrictedThemeTokensOverri
                 .severity
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            tokens: value.tokens,
+            tokens: (value.tokens).map(|values| values.into_iter().map(Into::into).collect()),
         })
     }
 }
@@ -147,7 +147,8 @@ impl TryFrom<NativeArbitrarySpacingOptions> for ArbitrarySpacingOverride {
                 .severity
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            properties: value.properties,
+            properties: (value.properties)
+                .map(|values| values.into_iter().map(Into::into).collect()),
         })
     }
 }
@@ -183,8 +184,8 @@ impl TryFrom<NativeRestrictedUtilitiesOptions> for RestrictedUtilitiesOverride {
                 rules
                     .into_iter()
                     .map(|rule| RestrictedUtilityRule {
-                        pattern: rule.pattern,
-                        message: rule.message,
+                        pattern: (rule.pattern).into(),
+                        message: (rule.message).map(Into::into),
                     })
                     .collect()
             }),
@@ -225,9 +226,9 @@ impl TryFrom<NativeRestrictedDeclarationsOptions> for RestrictedDeclarationsOver
                 rules
                     .into_iter()
                     .map(|rule| RestrictedDeclarationRule {
-                        properties: rule.properties,
-                        values: rule.values,
-                        message: rule.message,
+                        properties: (rule.properties).into_iter().map(Into::into).collect(),
+                        values: (rule.values).into_iter().map(Into::into).collect(),
+                        message: (rule.message).map(Into::into),
                     })
                     .collect()
             }),

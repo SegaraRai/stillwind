@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_css::PropertyRequirementError;
 
 use super::utilities::PreparedDeclarations;
@@ -12,8 +14,8 @@ use crate::ThemeIndex;
 /// Invalid requirements remain stored as errors until a matching utility is evaluated.
 #[derive(Debug)]
 pub(crate) struct UtilityPrograms {
-    bodies: BTreeMap<String, Result<Option<PreparedUtilityBody>, PropertyRequirementError>>,
-    declarations: BTreeMap<String, PreparedDeclarations>,
+    bodies: BTreeMap<LeanStr, Result<Option<PreparedUtilityBody>, PropertyRequirementError>>,
+    declarations: BTreeMap<LeanStr, PreparedDeclarations>,
 }
 
 impl UtilityPrograms {
@@ -21,7 +23,7 @@ impl UtilityPrograms {
     /// values. The result owns its syntax and does not retain the theme.
     pub(crate) fn new(theme: &ThemeIndex) -> Self {
         let mut bodies = BTreeMap::new();
-        let mut declarations = BTreeMap::new();
+        let mut declarations: BTreeMap<LeanStr, PreparedDeclarations> = BTreeMap::new();
         for utility in theme
             .utilities()
             .iter()
@@ -33,7 +35,7 @@ impl UtilityPrograms {
                 if let Ok(Some(body)) = &body {
                     for text in body.declaration_groups() {
                         declarations
-                            .entry(text.to_owned())
+                            .entry(text.to_lean_str())
                             .or_insert_with(|| PreparedDeclarations::parse(text, theme));
                     }
                 }

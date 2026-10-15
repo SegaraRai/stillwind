@@ -64,6 +64,8 @@ impl std::ops::DerefMut for CompileError {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::{FileId, Span};
 
     use super::*;
@@ -79,14 +81,14 @@ mod tests {
         assert_ne!(mixed.code(), conflict.code());
         assert_ne!(parse.code(), conflict.code());
         assert_eq!(
-            conflict.to_string(),
+            conflict.to_lean_string(),
             "explicit framework conflicts with the imported style macro"
         );
         assert_eq!(
-            mixed.to_string(),
+            mixed.to_lean_string(),
             "a module cannot mix framework style macros"
         );
-        assert_eq!(parse.to_string(), "JavaScript parse error");
+        assert_eq!(parse.to_lean_string(), "JavaScript parse error");
     }
 
     #[test]
@@ -119,10 +121,13 @@ mod tests {
             "衝突"
         );
         assert!(value.get("kind").is_none());
-        assert_eq!(error.to_string(), "generated identifier collision: 衝突");
         assert_eq!(
-            std::error::Error::source(&error).unwrap().to_string(),
-            error.to_string()
+            error.to_lean_string(),
+            "generated identifier collision: 衝突"
+        );
+        assert_eq!(
+            std::error::Error::source(&error).unwrap().to_lean_string(),
+            error.to_lean_string()
         );
 
         let finding = LintFinding::new(
@@ -138,7 +143,7 @@ mod tests {
         assert_eq!(value["diagnostic"]["missingRefAttachment"]["name"], "対象");
         assert!(value.get("kind").is_none());
         assert_eq!(
-            finding.to_string(),
+            finding.to_lean_string(),
             "ref `対象` provider has no matching marker attachment in this style() call"
         );
     }
@@ -155,7 +160,7 @@ mod tests {
         );
         assert_eq!(error.code(), CompileErrorCode::IdentifierGenerationFailed);
         assert_eq!(
-            error.to_string(),
+            error.to_lean_string(),
             "identifier generation failed for keyframes: no name for this declaration"
         );
         let json = serde_json::to_string(&error).unwrap();
@@ -169,7 +174,7 @@ mod tests {
             CompileDiagnostic::UnterminatedCssBlock { offset: 8 },
             Span::new(FileId(77), 0, 9),
         );
-        assert_eq!(error.to_string(), error.diagnostic.to_string());
+        assert_eq!(error.to_lean_string(), error.diagnostic.to_lean_string());
         assert_eq!(error.code(), error.diagnostic.code());
         let value: serde_json::Value = serde_json::to_value(&error).unwrap();
         assert!(value["info"].get("source_name").is_none());

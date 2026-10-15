@@ -8,6 +8,8 @@
 //! non-macro specifiers stay verbatim, so user formatting inside the declaration
 //! survives.
 
+use lean_string::LeanString;
+
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::ModuleImports;
 use stillwind_source::{SourceFile, Span};
@@ -66,7 +68,7 @@ pub fn plan_macro_import_removals(
             if specifier.has_unmapped_references {
                 return Err(CompileError::new(
                     CompileDiagnostic::UnmappedMacroReference {
-                        local: specifier.local.clone(),
+                        local: (specifier.local.clone()),
                         span: specifier.span,
                     },
                     specifier.span,
@@ -93,7 +95,7 @@ pub fn plan_macro_import_removals(
                 }) {
                     return Err(CompileError::new(
                         CompileDiagnostic::UntransformedMacroReference {
-                            local: specifier.local.clone(),
+                            local: (specifier.local.clone()),
                             span: *reference,
                         },
                         *reference,
@@ -112,7 +114,7 @@ pub fn plan_macro_import_removals(
         if removable.iter().all(|remove| *remove) {
             edits.push(SourceTransform {
                 call_span: import.span,
-                replacement: String::new(),
+                replacement: (LeanString::new()),
                 expressions: Vec::new(),
             });
             continue;
@@ -144,7 +146,7 @@ pub fn plan_macro_import_removals(
             }
         }
         ranges.sort_unstable();
-        let mut replacement = String::new();
+        let mut replacement = LeanString::new();
         let mut cursor = 0;
         for (start, end) in ranges {
             if start >= cursor {
@@ -155,7 +157,7 @@ pub fn plan_macro_import_removals(
         replacement.push_str(&declaration[cursor..]);
         edits.push(SourceTransform {
             call_span: import.span,
-            replacement,
+            replacement: (replacement),
             expressions: Vec::new(),
         });
     }
@@ -228,6 +230,8 @@ fn callee_prefix(mut prefix: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
     use stillwind_js_oxc::parse;
     use stillwind_source::{FileId, ModuleId};
@@ -237,7 +241,7 @@ mod tests {
 
     /// Rewrites a module the way a compilation pass would: lower the recorded calls,
     /// then plan the import removal against those replacements.
-    fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<String, CompileError> {
+    fn rewrite(text: &str, lower: bool, unknown: bool) -> Result<LeanString, CompileError> {
         let source = SourceFile::new(FileId(1), None, None, text).unwrap();
         let mut parsed = parse(
             &source,
@@ -281,7 +285,7 @@ mod tests {
             "{code}: {:?}",
             reparsed.diagnostics
         );
-        Ok(code)
+        Ok((code).into())
     }
 
     /// A binding is deleted only when every resolved read was lowered; a residual read
@@ -312,7 +316,7 @@ mod tests {
                 ..
             })
         ));
-        let residual = format!("{input} const macro = s;");
+        let residual = format_args!("{input} const macro = s;").to_lean_string();
         assert!(matches!(
             rewrite(&residual, true, false),
             Err(CompileError {
@@ -333,9 +337,10 @@ mod tests {
             "style, style as other, type Theme",
             "type Theme, style, style as other",
         ] {
-            let input = format!(
+            let input = format_args!(
                 "import {{ {specifiers} }} from 'stillwind/react'; const a = style('flex');"
-            );
+            )
+            .to_lean_string();
             let output = rewrite(&input, true, false).unwrap();
             assert!(output.contains("type Theme"), "{output}");
             assert!(!output.contains("style as other"), "{output}");

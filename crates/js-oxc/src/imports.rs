@@ -12,6 +12,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
     BindingIdentifier, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier,
     ModuleExportName, Program,
@@ -64,7 +65,7 @@ struct Collector<'s> {
     /// File id stamped onto every produced span.
     file: FileId,
     /// Every local binding and referenced name seen in the module.
-    names: BTreeSet<String>,
+    names: BTreeSet<LeanStr>,
     /// Macro import declarations in source order.
     imports: Vec<MacroImport>,
     /// Spans of value imports of `stillwind/module-css`.
@@ -85,7 +86,7 @@ impl Collector<'_> {
 impl<'a> Visit<'a> for Collector<'_> {
     /// Records a bound name so generated names can avoid it.
     fn visit_binding_identifier(&mut self, identifier: &BindingIdentifier<'a>) {
-        self.names.insert(identifier.name.to_string());
+        self.names.insert(identifier.name.to_lean_str());
     }
 
     /// Records a read name and attributes the reference to its symbol.
@@ -93,7 +94,7 @@ impl<'a> Visit<'a> for Collector<'_> {
     /// Unresolved references contribute their name to the reserved set but no span, so
     /// a reference to a global never looks like an import use.
     fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
-        self.names.insert(identifier.name.to_string());
+        self.names.insert(identifier.name.to_lean_str());
         if let Some(reference) = identifier.reference_id.get()
             && let Some(symbol) = self.scoping.get_reference(reference).symbol_id()
         {
@@ -140,7 +141,7 @@ impl<'a> Visit<'a> for Collector<'_> {
                 };
                 bindings.push(MacroImportSpecifier {
                     span: self.span(specifier.span()),
-                    local: local.name.to_string(),
+                    local: local.name.to_lean_str(),
                     is_macro,
                     has_unmapped_references: false,
                     references: Vec::new(),

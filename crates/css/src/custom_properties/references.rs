@@ -6,6 +6,8 @@
 //! This is the cheap dependency set used for activation decisions, not a
 //! substitute for the AST-based classification in [`super::usage`].
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use std::collections::BTreeSet;
 
 /// Returns every distinct `--name` occurrence in `css`, in `BTreeSet` order.
@@ -13,7 +15,7 @@ use std::collections::BTreeSet;
 /// Names continue only with ASCII letters, digits, `-` and `_`, so bare `--` and
 /// `--` followed by anything else are skipped. The scan never fails and never
 /// decodes escapes.
-pub fn custom_property_references(css: &str) -> BTreeSet<String> {
+pub fn custom_property_references(css: &str) -> BTreeSet<LeanStr> {
     let mut references = BTreeSet::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("--") {
@@ -28,7 +30,11 @@ pub fn custom_property_references(css: &str) -> BTreeSet<String> {
                 start + offset + character.len_utf8()
             });
         if end > start + 2 {
-            references.insert(css[start..end].to_owned());
+            let name = &css[start..end];
+            // Check borrowed text first to avoid allocating a LeanStr for duplicate long names.
+            if !references.contains(name) {
+                references.insert(name.to_lean_str());
+            }
         }
         cursor = end.max(start + 2);
     }

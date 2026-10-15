@@ -6,6 +6,8 @@
 //! so `@apply-extra` is not mistaken for `@apply`, and a block whose braces never close reports
 //! `None` rather than a truncated range.
 
+use lean_string::{LeanString, ToLeanString};
+
 /// Locates the first `@<name>` block that is followed by a prelude and a braced body.
 ///
 /// Returns `(start, prelude, open, close)`: the offset of the `@`, the trimmed text between the
@@ -14,8 +16,8 @@
 pub(in crate::compiler) fn find_at_rule_block(
     css: &str,
     name: &str,
-) -> Option<(usize, String, usize, usize)> {
-    let marker = format!("@{name}");
+) -> Option<(usize, LeanString, usize, usize)> {
+    let marker = format_args!("@{name}").to_lean_string();
     let bytes = css.as_bytes();
     let mut cursor = 0;
     let mut quote = None;
@@ -52,12 +54,17 @@ pub(in crate::compiler) fn find_at_rule_block(
                 quote = Some(character);
                 cursor += 1;
             }
-            '@' if css[cursor..].starts_with(&marker) => {
+            '@' if css[cursor..].starts_with(marker.as_str()) => {
                 let after_name = cursor + marker.len();
                 if bytes.get(after_name).is_some_and(u8::is_ascii_whitespace) {
                     let open = find_at_rule_block_open(css, after_name)?;
                     let close = matching_brace(css, open)?;
-                    return Some((cursor, css[after_name..open].trim().to_owned(), open, close));
+                    return Some((
+                        cursor,
+                        css[after_name..open].trim().to_lean_string(),
+                        open,
+                        close,
+                    ));
                 }
                 cursor = after_name;
             }

@@ -3,6 +3,8 @@
 //! [`theme`] parses package CSS through the crate's fixture parser. The syntax
 //! helpers expand CSSWG property references for comparisons with builtin domains.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::csswg_formal_syntax;
 
 use super::*;
@@ -12,7 +14,7 @@ pub(super) fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedU
     super::super::resolve_utility(raw, theme).unwrap()
 }
 
-pub(super) fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<String> {
+pub(super) fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
     super::super::resolve_animation_option(raw, theme).unwrap()
 }
 
@@ -57,13 +59,13 @@ fn property_references(syntax: &str) -> Vec<&str> {
 /// the CSS data does not describe.
 pub(super) fn expanded_csswg_syntax(
     property: &str,
-    visited: &mut BTreeSet<String>,
-) -> Option<String> {
-    if !visited.insert(property.to_owned()) {
-        return Some(String::new());
+    visited: &mut BTreeSet<LeanStr>,
+) -> Option<LeanString> {
+    if !visited.insert(property.to_lean_str()) {
+        return Some(LeanString::new());
     }
     let syntax = csswg_formal_syntax(property)?;
-    let mut expanded = syntax.to_owned();
+    let mut expanded = syntax.to_lean_string();
     for referenced_property in property_references(syntax) {
         expanded.push(' ');
         expanded.push_str(&expanded_csswg_syntax(referenced_property, visited)?);

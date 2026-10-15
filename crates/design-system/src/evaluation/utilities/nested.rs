@@ -10,6 +10,8 @@
 //! split cleanly is rejected, so a malformed definition cannot silently emit
 //! declarations at the wrong nesting level.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use super::super::syntax::closing_brace;
 
 /// A conditional declaration authored inside a CSS `@utility` body.
@@ -21,9 +23,9 @@ pub struct NestedUtilityRule {
     /// Which conditional wrapper the emitter must use.
     pub at_rule: NestedUtilityAtRule,
     /// Condition text without the at-rule keyword or braces.
-    pub condition: String,
+    pub condition: LeanStr,
     /// Declarations to place inside the conditional.
-    pub declaration: String,
+    pub declaration: LeanStr,
     /// Whether the conditional was authored inside the utility's selector block (or as
     /// a CSS `@supports` declaration, which is nested by CSS). This preserves placement
     /// from the CSS source instead of classifying declarations by Tailwind property
@@ -48,9 +50,9 @@ pub(in crate::evaluation) struct ParsedNestedUtilityRule {
     pub(in crate::evaluation) at_rule: NestedUtilityAtRule,
     /// Trimmed query text without the at-rule keyword or braces; supports removes its
     /// outer parentheses.
-    pub(in crate::evaluation) condition: String,
+    pub(in crate::evaluation) condition: LeanStr,
     /// Trimmed content inside the conditional braces, before placeholder evaluation.
-    pub(in crate::evaluation) body: String,
+    pub(in crate::evaluation) body: LeanStr,
 }
 
 /// Splits a body into its direct declarations and its conditional rules.
@@ -60,8 +62,8 @@ pub(in crate::evaluation) struct ParsedNestedUtilityRule {
 /// in the direct declarations.
 pub(in crate::evaluation) fn split_nested_conditions(
     body: &str,
-) -> Option<(String, Vec<ParsedNestedUtilityRule>)> {
-    let mut direct = String::with_capacity(body.len());
+) -> Option<(LeanString, Vec<ParsedNestedUtilityRule>)> {
+    let mut direct = LeanString::with_capacity(body.len());
     let mut nested = Vec::new();
     let mut cursor = 0;
     while let Some((start, at_rule, keyword)) = next_nested_condition(body, cursor) {
@@ -70,22 +72,22 @@ pub(in crate::evaluation) fn split_nested_conditions(
         let close = closing_brace(body, open)?;
         let condition = body[start + keyword.len()..open].trim();
         let condition = match at_rule {
-            NestedUtilityAtRule::Media => condition.to_owned(),
+            NestedUtilityAtRule::Media => condition.to_lean_string(),
             NestedUtilityAtRule::Supports => condition
                 .strip_prefix('(')
                 .and_then(|value| value.strip_suffix(')'))?
                 .trim()
-                .to_owned(),
+                .to_lean_string(),
         };
         nested.push(ParsedNestedUtilityRule {
             at_rule,
-            condition,
-            body: body[open + 1..close].trim().to_owned(),
+            condition: (condition).into(),
+            body: body[open + 1..close].trim().to_lean_str(),
         });
         cursor = close + 1;
     }
     direct.push_str(&body[cursor..]);
-    Some((direct.trim().to_owned(), nested))
+    Some((direct.trim().to_lean_string(), nested))
 }
 
 /// Finds the earliest nested conditional at or after `cursor`.
@@ -130,7 +132,7 @@ fn next_nested_condition(
 /// it would change which element the declarations apply to.
 pub(in crate::evaluation) fn split_utility_selector(
     body: &str,
-) -> Option<(Option<String>, &str, Option<&str>)> {
+) -> Option<(Option<LeanString>, &str, Option<&str>)> {
     if !body.contains('&') {
         return Some((None, body, None));
     }
@@ -161,7 +163,7 @@ pub(in crate::evaluation) fn split_utility_selector(
     let selector = body[selector_start..open].trim();
     (!selector.is_empty()).then(|| {
         (
-            Some(selector.to_owned()),
+            Some(selector.to_lean_string()),
             body[open + 1..close].trim(),
             (!body[..selector_start].trim().is_empty()).then_some(body[..selector_start].trim()),
         )

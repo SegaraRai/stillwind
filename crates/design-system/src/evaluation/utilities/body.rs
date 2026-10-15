@@ -11,7 +11,10 @@
 //! emitted as authored, including support queries that the compatibility color path
 //! adds as a second branch of one declaration.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::{PropertyRequirementError, take_property_requirements};
+use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
 use super::super::builtins::COMPAT_COLOR_SUPPORT;
@@ -28,7 +31,7 @@ use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
 #[error("utility `{name}`: {source}")]
 pub struct UtilityResolutionError {
     /// Registered utility definition containing the directive.
-    pub name: String,
+    pub name: LeanStr,
     /// Syntax failure and its offset within the definition body.
     #[source]
     pub source: PropertyRequirementError,
@@ -40,12 +43,12 @@ pub(in crate::evaluation) struct UtilityResolution {
     pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
     pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the matched selector, or for the utility itself.
-    pub(in crate::evaluation) declaration: String,
+    pub(in crate::evaluation) declaration: LeanStr,
     /// Explicit custom-property registration dependencies collected from requirement
     /// directives, independent of textual var references.
-    pub(in crate::evaluation) required_properties: Vec<String>,
+    pub(in crate::evaluation) required_properties: Vec<LeanStr>,
     /// Selector template from the body, when the body wrapped its declarations.
-    pub(in crate::evaluation) selector: Option<String>,
+    pub(in crate::evaluation) selector: Option<LeanStr>,
     /// Conditional declarations to emit next to the base declaration.
     pub(in crate::evaluation) nested: Vec<NestedUtilityRule>,
     /// Extra selector targets produced by further overloads.
@@ -56,16 +59,16 @@ pub(in crate::evaluation) struct UtilityResolution {
     pub(in crate::evaluation) builtin_order: Option<usize>,
     /// `(tw-sort: property)` value authored on the definition header, which replaces
     /// the resolved property indices when the snapshot selects Tailwind ordering.
-    pub(in crate::evaluation) tw_sort: Option<String>,
+    pub(in crate::evaluation) tw_sort: Option<LeanStr>,
 }
 
 impl UtilityResolution {
     /// A declaration with no selector, conditionals, or ordering.
-    pub(in crate::evaluation) fn plain(declaration: String) -> Self {
+    pub(in crate::evaluation) fn plain(declaration: LeanString) -> Self {
         Self {
             token_uses: Vec::new(),
             arbitrary_uses: Vec::new(),
-            declaration,
+            declaration: (declaration).into(),
             required_properties: Vec::new(),
             selector: None,
             nested: Vec::new(),
@@ -97,7 +100,7 @@ pub(in crate::evaluation) fn resolve_css_utility_body(
         return Ok(None);
     };
     let body = prepared.as_ref().map_err(|source| UtilityResolutionError {
-        name: utility.name.to_string(),
+        name: utility.name.to_lean_str(),
         source: *source,
     })?;
     Ok(body
@@ -108,11 +111,11 @@ pub(in crate::evaluation) fn resolve_css_utility_body(
 /// Structural utility syntax retained by the immutable evaluator.
 #[derive(Debug)]
 pub(in crate::evaluation) struct PreparedUtilityBody {
-    body: String,
-    selector: Option<String>,
-    parent_body: Option<String>,
+    body: LeanStr,
+    selector: Option<LeanStr>,
+    parent_body: Option<LeanStr>,
     nested: Vec<ParsedNestedUtilityRule>,
-    required_properties: Vec<String>,
+    required_properties: Vec<LeanStr>,
     consumes_modifier: bool,
 }
 
@@ -136,9 +139,9 @@ impl PreparedUtilityBody {
                 .iter()
                 .any(|rule| rule.body.contains("--modifier") || rule.body.contains("--fraction()"));
         Ok(Some(Self {
-            body,
-            selector,
-            parent_body: parent_body.map(str::to_owned),
+            body: (body).into(),
+            selector: selector.map(Into::into),
+            parent_body: (parent_body.map(LeanString::from)).map(Into::into),
             nested,
             required_properties,
             consumes_modifier,
@@ -196,7 +199,7 @@ fn resolve_valid_utility_body(
         resolved_nested.push(NestedUtilityRule {
             compatibility: true,
             at_rule: NestedUtilityAtRule::Supports,
-            condition: COMPAT_COLOR_SUPPORT.to_owned(),
+            condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
             declaration: modern,
             inside: true,
         });
@@ -228,15 +231,15 @@ fn resolve_valid_utility_body(
                 resolved_nested.push(NestedUtilityRule {
                     compatibility: false,
                     at_rule: *at_rule,
-                    condition,
-                    declaration,
+                    condition: (condition).into(),
+                    declaration: (declaration).into(),
                     inside: true,
                 });
                 for modern in declarations.compat_modern {
                     resolved_nested.push(NestedUtilityRule {
                         compatibility: true,
                         at_rule: NestedUtilityAtRule::Supports,
-                        condition: COMPAT_COLOR_SUPPORT.to_owned(),
+                        condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
                         declaration: modern,
                         inside: true,
                     });
@@ -260,7 +263,7 @@ fn resolve_valid_utility_body(
         let parent_declaration = parent.base;
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
-                declaration,
+                declaration: (declaration).into(),
                 selector,
                 nested: resolved_nested,
             }]
@@ -269,7 +272,7 @@ fn resolve_valid_utility_body(
             token_uses,
             arbitrary_uses,
             required_properties,
-            declaration: parent_declaration,
+            declaration: (parent_declaration).into(),
             selector: None,
             nested: Vec::new(),
             additional,
@@ -287,7 +290,7 @@ fn resolve_valid_utility_body(
             token_uses,
             arbitrary_uses,
             required_properties,
-            declaration,
+            declaration: (declaration).into(),
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
@@ -313,13 +316,13 @@ fn expand_theme_wildcard_nested(
     condition: &str,
     body: &str,
     theme: &ThemeIndex,
-) -> Vec<(String, String)> {
+) -> Vec<(LeanString, LeanString)> {
     let marker_start = condition.find("--value(--");
     let Some(marker_start) = marker_start else {
-        return vec![(condition.to_owned(), body.to_owned())];
+        return vec![(condition.to_lean_string(), body.to_lean_string())];
     };
     let Some(marker_end) = condition[marker_start..].find(')') else {
-        return vec![(condition.to_owned(), body.to_owned())];
+        return vec![(condition.to_lean_string(), body.to_lean_string())];
     };
     let marker_end = marker_start + marker_end + 1;
     let marker = &condition[marker_start..marker_end];
@@ -328,7 +331,7 @@ fn expand_theme_wildcard_nested(
         .and_then(|value| value.strip_suffix("-*)"))
         .and_then(ThemeNamespace::parse)
     else {
-        return vec![(condition.to_owned(), body.to_owned())];
+        return vec![(condition.to_lean_string(), body.to_lean_string())];
     };
     let mut tokens = theme.tokens_in(namespace);
     tokens.sort_by(|left, right| {
@@ -341,8 +344,8 @@ fn expand_theme_wildcard_nested(
         .map(|token| {
             let value = token.value.value.clone();
             (
-                condition.replace(marker, &value),
-                body.replace(marker, &value),
+                condition.replace_text(marker, &value),
+                body.replace_text(marker, &value),
             )
         })
         .collect()

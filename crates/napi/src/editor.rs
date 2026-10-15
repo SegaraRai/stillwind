@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use lean_string::LeanStr;
 use napi::Error;
 use napi_derive::napi;
 
@@ -15,7 +16,7 @@ use stillwind_diagnostics::{
 use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
-use crate::output::BindingReport;
+use crate::output::{BindingReport, NativeText};
 
 /// Selects the compiler contract of a candidate's source position.
 /// Option roles use the animation-option registry and its property mappings. Frame and
@@ -95,10 +96,11 @@ impl NativeEditorQuery {
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 impl NativeEditorQuery {
     /// Returns a verified canonical replacement using the effective project lint options, or null.
-    #[napi]
-    pub fn canonical_candidate(&self, candidate: String) -> napi::Result<Option<String>> {
+    #[napi(ts_return_type = "string | null")]
+    pub fn canonical_candidate(&self, candidate: String) -> napi::Result<Option<NativeText>> {
         self.query
             .canonical_candidate(&candidate)
+            .map(|value| value.map(Into::into))
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
@@ -137,7 +139,7 @@ impl NativeEditorQuery {
                 title: "Sort Stillwind utilities".into(),
                 edits: vec![SourceEdit {
                     range,
-                    replacement: edit.replacement,
+                    replacement: (edit.replacement).into(),
                 }],
             });
             findings.push(finding);
@@ -148,8 +150,8 @@ impl NativeEditorQuery {
     }
 
     /// Returns effective lint severities after stylesheet and project configuration.
-    #[napi]
-    pub fn lint_settings(&self) -> BTreeMap<String, String> {
+    #[napi(ts_return_type = "Record<string, string>")]
+    pub fn lint_settings(&self) -> BTreeMap<LeanStr, NativeText> {
         let settings = self.query.lint_settings();
         LintKind::ALL
             .iter()
@@ -200,26 +202,29 @@ impl NativeEditorQuery {
     /// # Errors
     ///
     /// Returns a malformed matching utility requirement for ordinary utility input.
-    #[napi]
+    #[napi(ts_return_type = "string | null")]
     pub fn preview_candidate(
         &self,
         candidate: String,
         context: Option<NativeCandidateContext>,
-    ) -> napi::Result<Option<String>> {
+    ) -> napi::Result<Option<NativeText>> {
         self.query
             .preview_candidate(
                 &candidate,
                 context.map_or(CandidateContext::Utility, Into::into),
             )
+            .map(|value| value.map(Into::into))
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     /// Returns a complete CSS preview with line breaks and two-space indentation.
     /// Nesting and fallback declarations are retained. Invalid CSS returns an error.
-    #[napi]
+    #[napi(ts_return_type = "string")]
     #[allow(clippy::unused_self)] // Formatting shares the editor query transport.
-    pub fn format_css(&self, css: String) -> napi::Result<String> {
-        format_css(&css).map_err(|error| Error::from_reason(error.to_string()))
+    pub fn format_css(&self, css: String) -> napi::Result<NativeText> {
+        format_css(&css)
+            .map(Into::into)
+            .map_err(|error| Error::from_reason(error.to_string()))
     }
 
     /// Completes decoded `prefix` text using the registries and variant constraints of
@@ -231,18 +236,18 @@ impl NativeEditorQuery {
     ///
     /// Returns a malformed requirement while validating a matching ordinary utility
     /// label.
-    #[napi]
+    #[napi(ts_return_type = "Array<string>")]
     pub fn complete_candidate(
         &self,
         prefix: String,
         context: Option<NativeCandidateContext>,
-    ) -> napi::Result<Vec<String>> {
+    ) -> napi::Result<Vec<NativeText>> {
         self.query
             .complete_candidate(CompletionInput {
-                prefix,
+                prefix: (prefix).into(),
                 context: context.map_or(CandidateContext::Utility, Into::into),
             })
-            .map(|items| items.into_iter().map(|item| item.label).collect())
+            .map(|items| items.into_iter().map(|item| item.label.into()).collect())
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
@@ -281,15 +286,19 @@ impl NativeEditorQuery {
     }
 
     /// Returns active theme values, keyed by their full custom-property names.
-    #[napi]
-    pub fn theme_values(&self) -> BTreeMap<String, String> {
-        self.query.theme_values().into_iter().collect()
+    #[napi(ts_return_type = "Record<string, string>")]
+    pub fn theme_values(&self) -> BTreeMap<LeanStr, NativeText> {
+        self.query
+            .theme_values()
+            .into_iter()
+            .map(|(name, value)| (name, value.into()))
+            .collect()
     }
 
     /// Returns the authored spacing scale, or null when no scale is active.
-    #[napi]
-    pub fn spacing_scale(&self) -> Option<String> {
-        self.query.spacing_scale()
+    #[napi(ts_return_type = "string | null")]
+    pub fn spacing_scale(&self) -> Option<NativeText> {
+        (self.query.spacing_scale()).map(Into::into)
     }
 
     /// Converts a fully determined CSS color to RGBA components in 0..=1, or null.

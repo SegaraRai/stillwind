@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
@@ -19,17 +19,17 @@ use crate::query::QueryContext;
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Signature {
     css: LeanStr,
-    required: Vec<String>,
+    required: Vec<LeanStr>,
 }
 
 /// Finite spellings grouped by their output and spacing conversion policy.
 #[derive(Debug, Default)]
 pub(in crate::query) struct CanonicalIndex {
     values: ThemeValueIndex,
-    policies: BTreeMap<Normalization, HashMap<Signature, Vec<String>>>,
-    pub(super) errors: Vec<(String, UtilityResolutionError)>,
-    pub(super) labels: BTreeSet<String>,
-    fixed: BTreeSet<String>,
+    policies: BTreeMap<Normalization, HashMap<Signature, Vec<LeanStr>>>,
+    pub(super) errors: Vec<(LeanStr, UtilityResolutionError)>,
+    pub(super) labels: BTreeSet<LeanStr>,
+    fixed: BTreeSet<LeanStr>,
     pub(super) variants: VariantIndex,
 }
 
@@ -41,14 +41,14 @@ impl CanonicalIndex {
                 for definition in definitions {
                     for namespace in value_namespaces(&definition.body, "--value") {
                         for token in query.design_system.tokens().names_with_prefix(&namespace) {
-                            if let Some(value) = token.strip_prefix(&namespace) {
-                                labels.insert(format!("{root}{value}"));
+                            if let Some(value) = token.strip_prefix(namespace.as_str()) {
+                                labels.insert(format_args!("{root}{value}").to_lean_str());
                             }
                         }
                     }
                 }
             } else {
-                labels.insert(name.to_owned());
+                labels.insert(name.to_lean_str());
             }
         }
         let all_labels = labels.clone();
@@ -57,7 +57,7 @@ impl CanonicalIndex {
             .utilities()
             .names()
             .filter(|name| !name.contains('*'))
-            .map(str::to_owned)
+            .map(LeanStr::from)
             .collect();
         let variants = VariantIndex::prepare(query);
         let mut index = Self {
@@ -75,7 +75,7 @@ impl CanonicalIndex {
             match query.canonical_preview(&label) {
                 Ok(Some(preview)) => index.insert(query, label, &preview),
                 Ok(None) => {}
-                Err(error) => index.errors.push((label, error)),
+                Err(error) => index.errors.push(((label), error)),
             }
         }
         for groups in index.policies.values_mut() {
@@ -89,7 +89,7 @@ impl CanonicalIndex {
         index
     }
 
-    fn insert(&mut self, query: &QueryContext, label: String, preview: &CanonicalPreview) {
+    fn insert(&mut self, query: &QueryContext, label: LeanStr, preview: &CanonicalPreview) {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
         let normalization = policy(&preview.css, &options, scale.as_deref());
@@ -107,16 +107,16 @@ impl CanonicalIndex {
         }
     }
 
-    pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<String>, suffix: &str) -> bool {
+    pub(super) fn modifier_preserves_value(&self, roots: &BTreeSet<LeanStr>, suffix: &str) -> bool {
         self.values.modifier_preserves_value(roots, suffix)
     }
 
     pub(super) fn context_labels(
         &self,
-        roots: &BTreeSet<String>,
+        roots: &BTreeSet<LeanStr>,
         negative: bool,
         preserve_value: bool,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         let mut labels = Vec::new();
         let source = if preserve_value {
             &self.fixed
@@ -124,11 +124,11 @@ impl CanonicalIndex {
             &self.labels
         };
         for root in roots {
-            let prefix = format!("{}{root}-", if negative { "-" } else { "" });
+            let prefix = format_args!("{}{root}-", if negative { "-" } else { "" }).to_lean_str();
             labels.extend(
                 source
                     .range(prefix.clone()..)
-                    .take_while(|label| label.starts_with(&prefix))
+                    .take_while(|label| label.starts_with(prefix.as_str()))
                     .cloned(),
             );
         }
@@ -138,9 +138,9 @@ impl CanonicalIndex {
     pub(super) fn value_labels(
         &self,
         query: &QueryContext,
-        roots: &BTreeSet<String>,
+        roots: &BTreeSet<LeanStr>,
         value: &str,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         self.values.value_labels(query, roots, value)
     }
 
@@ -148,7 +148,7 @@ impl CanonicalIndex {
         &self,
         query: &QueryContext,
         original: &CanonicalPreview,
-    ) -> Vec<String> {
+    ) -> Vec<LeanStr> {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
         let mut records = self.values.matching(query, original);

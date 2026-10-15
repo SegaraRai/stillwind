@@ -11,6 +11,8 @@
 //! resolve the value and modifier it depends on; a modifier-only sibling cannot make an
 //! unrelated branch valid.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::Value;
 
@@ -27,10 +29,10 @@ pub(in crate::evaluation) struct ResolvedCssDeclarations {
     pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
     pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Declarations for the base branch, joined in authored order.
-    pub(in crate::evaluation) base: String,
+    pub(in crate::evaluation) base: LeanString,
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
-    pub(in crate::evaluation) compat_modern: Vec<String>,
+    pub(in crate::evaluation) compat_modern: Vec<LeanStr>,
 }
 
 /// Parsed declaration boundaries and branch requirements shared by snapshot evaluation.
@@ -47,7 +49,7 @@ impl PreparedDeclarations {
     pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
         let declarations: Vec<_> = split_css_declarations(body)
             .into_iter()
-            .map(str::to_owned)
+            .map(LeanString::from)
             .collect();
         let uses_placeholder = declarations.iter().any(|declaration| {
             declaration.contains("--value(")
@@ -85,21 +87,31 @@ impl PreparedDeclarations {
 
 #[derive(Debug)]
 struct PreparedDeclaration {
-    text: String,
+    text: LeanStr,
     values: Option<PreparedValues>,
-    static_builtin: Option<String>,
-    static_project: Option<String>,
+    static_builtin: Option<LeanStr>,
+    static_project: Option<LeanStr>,
 }
 
 impl PreparedDeclaration {
-    fn new(text: String, theme: &ThemeIndex) -> Self {
+    fn new(text: LeanString, theme: &ThemeIndex) -> Self {
         let values = PreparedValues::parse(&text);
         let is_static = values.as_ref().is_some_and(PreparedValues::is_static);
         Self {
-            static_builtin: is_static.then(|| resolve_declaration_value(&text, theme, true)),
-            static_project: is_static.then(|| resolve_declaration_value(&text, theme, false)),
+            static_builtin: (is_static.then(|| resolve_declaration_value(&text, theme, true)))
+                .map(Into::into),
+            static_project: (is_static.then(|| resolve_declaration_value(&text, theme, false)))
+                .map(Into::into),
             values,
-            text,
+            text: (text).into(),
+        }
+    }
+
+    fn static_value(&self, builtin: bool) -> Option<&LeanStr> {
+        if builtin {
+            self.static_builtin.as_ref()
+        } else {
+            self.static_project.as_ref()
         }
     }
 }
@@ -159,15 +171,13 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         let contains_required = authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_value = authored_declaration.contains("--value(")
             || authored_declaration.contains("--value-literal(");
-        let static_value = if builtin {
-            &authored.static_builtin
-        } else {
-            &authored.static_project
-        };
+        let static_value = authored.static_value(builtin);
         let resolved = if let Some(value) = static_value {
             Some(value.clone())
         } else if let Some(values) = &authored.values {
-            values.resolve(utility_name, name, modifier, theme)
+            values
+                .resolve(utility_name, name, modifier, theme)
+                .map(Into::into)
         } else {
             resolve_css_placeholders(
                 authored_declaration,
@@ -177,6 +187,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
                 theme,
                 CompatColorMode::Legacy,
             )
+            .map(Into::into)
         };
         if let Some(declaration) = resolved
             && !declaration.trim().is_empty()
@@ -184,7 +195,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             let declaration = if static_value.is_some() {
                 declaration
             } else {
-                resolve_declaration_value(&declaration, theme, builtin)
+                (resolve_declaration_value(&declaration, theme, builtin)).into()
             };
             resolved_placeholder |= contains_placeholder;
             record_tokens(
@@ -213,7 +224,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
                 .map(|modern| resolve_declaration_value(&modern, theme, builtin))
                 && modern != declaration
             {
-                output.compat_modern.push(modern.trim_start().to_owned());
+                output.compat_modern.push(modern.trim_start().to_lean_str());
             }
         }
     }
@@ -247,7 +258,7 @@ fn record_tokens(
                     .into_iter()
                     .map(|selection| UtilityArbitraryUse {
                         base: true,
-                        property: property.trim().to_ascii_lowercase(),
+                        property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
                         value: selection.value,
                         color: selection.color,
                     }),
@@ -263,7 +274,7 @@ fn record_tokens(
     {
         output.token_uses.push(UtilityTokenUse {
             base: true,
-            property: property.trim().to_ascii_lowercase(),
+            property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
             tokens: tokens.into_iter().collect(),
         });
     }
@@ -351,6 +362,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");
-        assert_eq!(resolved.compat_modern, [] as [String; 0]);
+        assert_eq!(resolved.compat_modern, [] as [LeanString; 0]);
     }
 }

@@ -245,7 +245,7 @@ impl NativeProjectSession {
             .diagnostic_batches()
             .iter()
             .map(|(module, batch)| NativeDiagnosticBatch {
-                module: module.as_str().to_owned(),
+                module: (module.as_str().to_owned()).into(),
                 reports: batch
                     .diagnostics
                     .iter()
@@ -368,7 +368,7 @@ impl NativeProjectSession {
             transformed_modules: update
                 .transformed_modules
                 .into_iter()
-                .map(ModuleId::into_string)
+                .map(|module| module.into_string().into())
                 .collect(),
         })
     }
@@ -413,9 +413,10 @@ impl NativeProjectSession {
         let include_source_maps = include_source_maps.unwrap_or(true);
         let coverage = match input.coverage {
             NativeCoverage::Observed => StylesheetCoverage::Observed,
-            NativeCoverage::Complete { target, revision } => {
-                StylesheetCoverage::Complete { target, revision }
-            }
+            NativeCoverage::Complete { target, revision } => StylesheetCoverage::Complete {
+                target: (target).into(),
+                revision: (revision).into(),
+            },
         };
         let placement = match input.placement {
             NativeStylesheetPlacement::Document => StylesheetPlacement::Document,
@@ -484,7 +485,7 @@ impl NativeProjectSession {
             })
             .and_then(|output| {
                 Ok(NativeStylesheetOutput {
-                    css: output.css,
+                    css: (output.css).into(),
                     source_map: stylesheet_locations(&[])?,
                     rejected_names: output.rejected_names.into_iter().map(Into::into).collect(),
                 })

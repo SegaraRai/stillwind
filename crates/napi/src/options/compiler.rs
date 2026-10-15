@@ -45,8 +45,11 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                 .map(TryInto::try_into)
                 .transpose()?
                 .unwrap_or_default(),
-            prefix: input.prefix.unwrap_or(defaults.prefix),
-            tailwind_prefix: input.tailwind_prefix.unwrap_or(defaults.tailwind_prefix),
+            prefix: input.prefix.map(Into::into).unwrap_or(defaults.prefix),
+            tailwind_prefix: input
+                .tailwind_prefix
+                .map(Into::into)
+                .unwrap_or(defaults.tailwind_prefix),
             utility_order: match input.utility_order.as_deref() {
                 None | Some("authored") => UtilityOrderMode::Authored,
                 Some("tailwind") => UtilityOrderMode::Tailwind,
@@ -56,9 +59,15 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                     ));
                 }
             },
-            class_namespace: input.class_namespace.unwrap_or(defaults.class_namespace),
+            class_namespace: input
+                .class_namespace
+                .map(Into::into)
+                .unwrap_or(defaults.class_namespace),
             use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
-            naming_revision: input.naming_revision.unwrap_or(defaults.naming_revision),
+            naming_revision: input
+                .naming_revision
+                .map(Into::into)
+                .unwrap_or(defaults.naming_revision),
             hash_length: input.hash_length.map_or(defaults.hash_length, |length| {
                 usize::try_from(length).unwrap_or(usize::MAX)
             }),

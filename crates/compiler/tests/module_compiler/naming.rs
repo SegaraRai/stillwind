@@ -1,5 +1,7 @@
 //! Checks development mode and host name generators.
 
+use lean_string::LeanString;
+
 use super::*;
 
 #[test]
@@ -71,8 +73,8 @@ impl IdentifierGenerator for FailingGenerator {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
-        Err("no name for this declaration".to_owned())
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
+        Err(("no name for this declaration".to_owned()).into())
     }
 }
 
@@ -138,7 +140,7 @@ impl IdentifierGenerator for FixedGenerator {
         &self,
         context: &DeclarationContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<RefMarker>, String> {
+    ) -> Result<GeneratedName<RefMarker>, LeanString> {
         Ok(GeneratedName::provided(
             RefMarker::new(&format!("fixed{}", context.binding.len()))
                 .expect("canonical test body"),
@@ -216,7 +218,7 @@ impl IdentifierGenerator for PunctuationClassGenerator {
         &self,
         _context: &ClassContext,
         _hash: &IdentifierHash,
-    ) -> Result<GeneratedName<UtilityClass>, String> {
+    ) -> Result<GeneratedName<UtilityClass>, LeanString> {
         Ok(GeneratedName::provided(
             UtilityClass::new("a:b").expect("canonical test body"),
         ))
@@ -281,7 +283,7 @@ impl IdentifierGenerator for RoleSpellingHelperGenerator {
         context: &ConditionContext,
         _hash: &IdentifierHash,
         text_hash: &IdentifierHash,
-    ) -> Result<GeneratedName<ConditionHelperName>, String> {
+    ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
         // The role is spelled by the generator and the text is named by its own hash, which is
         // the shape a host picks when it wants two roles to share one suffix.
         Ok(GeneratedName::provided(

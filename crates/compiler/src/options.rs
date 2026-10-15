@@ -9,11 +9,13 @@
 //! this module's `rewrite_generated`; the two namespaces must stay distinct, because a
 //! consumer that recognizes one must not match the other.
 
+use lean_string::{LeanStr, ToLeanStr};
 use serde::{Deserialize, Serialize};
 
 use stillwind_css::is_length_unit;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
 use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
+use stillwind_source::ReplaceText;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 
@@ -30,14 +32,14 @@ pub struct CompilerOptions {
     /// Project lint settings applied to compiler defaults.
     pub lint: LintOverrides,
     /// Prefix for Stillwind-owned custom properties, for example `--sw-if-<hash>`.
-    pub prefix: String,
+    pub prefix: LeanStr,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
-    pub tailwind_prefix: String,
+    pub tailwind_prefix: LeanStr,
     /// Strategy for ordering resolved utilities. Defaults to authored definition positions.
     pub utility_order: UtilityOrderMode,
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
-    pub class_namespace: String,
+    pub class_namespace: LeanStr,
     /// Emit native CSS `if()` for experimental value and variant conditions.
     /// False (default) uses custom-property fallbacks; all conditional variants need
     /// `revert-rule`. Value comparisons, negated variants, and CSS-wide helper branches require true.
@@ -49,7 +51,7 @@ pub struct CompilerOptions {
     /// artifact cache. It defaults to the empty string, which denotes the built-in
     /// generators, and carries no meaning for the compiler beyond its effect on the
     /// artifact key.
-    pub naming_revision: String,
+    pub naming_revision: LeanStr,
     /// Number of base-36 digits a built-in generated name keeps from its request hash.
     ///
     /// Every family shares the length. A shorter spelling is easier to read in
@@ -62,12 +64,12 @@ impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
             lint: LintOverrides::default(),
-            prefix: "--sw-".to_owned(),
-            tailwind_prefix: "--tw-".to_owned(),
+            prefix: "--sw-".to_lean_str(),
+            tailwind_prefix: "--tw-".to_lean_str(),
             utility_order: UtilityOrderMode::default(),
-            class_namespace: String::new(),
+            class_namespace: LeanStr::new(),
             use_css_if: false,
-            naming_revision: String::new(),
+            naming_revision: LeanStr::new(),
             hash_length: DEFAULT_HASH_LENGTH,
         }
     }
@@ -123,15 +125,22 @@ impl CompilerOptions {
 
     /// Substitutes the configured prefixes into generated text.
     ///
-    /// Built-in declarations are written with the default spellings, so they are
-    /// replaced here in one pass. The private-use sentinels keep a configured prefix
-    /// that itself contains `--sw-` or `--tw-` from being rewritten twice.
-    pub(crate) fn rewrite_generated(&self, value: &str) -> String {
+    /// Built-in declarations use the default prefixes. Private-use sentinels prevent
+    /// a configured prefix that contains `--sw-` or `--tw-` from being rewritten again.
+    pub(crate) fn rewrite_generated(&self, value: &(impl ToLeanStr + ?Sized)) -> LeanStr {
+        let value = value.to_lean_str();
+        if !value.contains('\u{e000}')
+            && (self.prefix == "--sw-" || !value.contains("--sw-"))
+            && (self.tailwind_prefix == "--tw-" || !value.contains("--tw-"))
+        {
+            return value;
+        }
         value
-            .replace("--sw-", "\u{e000}stillwind-prefix\u{e001}")
-            .replace("--tw-", "\u{e000}tailwind-prefix\u{e001}")
-            .replace("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
-            .replace("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
+            .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
+            .replace_text("--tw-", "\u{e000}tailwind-prefix\u{e001}")
+            .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
+            .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
+            .into()
     }
 }
 
@@ -161,7 +170,7 @@ pub(crate) fn validate_lint_settings(settings: &LintSettings) -> Result<(), Comp
                             .properties
                             .iter()
                             .any(|p| p.is_empty() || p.chars().any(char::is_whitespace))
-                        || rule.values.iter().any(String::is_empty)
+                        || rule.values.iter().any(LeanStr::is_empty)
                 }) =>
             {
                 Some("rules require nonempty property and value patterns")

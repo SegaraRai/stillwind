@@ -1,5 +1,6 @@
 //! Builds an analysis buffer after validating projection syntax and normalization plans.
 
+use lean_string::{LeanString, ToLeanStr};
 use oxc::allocator::Allocator;
 use oxc::parser::Parser;
 
@@ -69,7 +70,7 @@ pub(crate) fn normalize_with_language<'a>(
     .parse();
     if let Some(diagnostic) = parsed.diagnostics.first() {
         let cause = CompileDiagnostic::ProjectionSyntax {
-            detail: diagnostic.to_string(),
+            detail: diagnostic.to_lean_str(),
         };
         let mapped = diagnostic.labels.first().and_then(|label| {
             let start = label.offset();
@@ -87,7 +88,7 @@ pub(crate) fn normalize_with_language<'a>(
     let mut plan = collect_plan(generated, &index, framework.spec(), &parsed.program);
     let omitted = merge_omissions(std::mem::take(&mut plan.omitted));
     let build = || -> Result<NormalizedProjection<'a>, ProjectionError> {
-        let mut output = String::with_capacity(generated.text().len());
+        let mut output = LeanString::with_capacity(generated.text().len());
         let mut cursor = 0;
         let mut segments = Vec::new();
         for omission in omitted.into_iter().chain(std::iter::once(Span::new(
@@ -118,7 +119,7 @@ pub(crate) fn normalize_with_language<'a>(
             cursor = omission.end.0;
         }
         Ok(NormalizedProjection::new(
-            SourceFile::new(analysis_id, None, None, output)?,
+            SourceFile::new(analysis_id, None, None, output.as_str())?,
             index,
             segments,
             plan,

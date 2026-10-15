@@ -17,6 +17,8 @@
 
 use std::fmt::Write as _;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::{instantiate_selector, selector_is_element_condition, selector_uses_subject};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
@@ -34,9 +36,9 @@ use crate::identifiers::{IdentifierContext, RefMarker};
 /// The lowered form of the variant wrappers around one rule contribution.
 pub(super) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
-    pub(super) prefix: String,
+    pub(super) prefix: LeanString,
     /// Identity-aware spelling for class hashing; independent of source syntax.
-    pub(super) canonical: String,
+    pub(super) canonical: LeanString,
     /// Whether any wrapper uses ref identity and requires lowered selector
     /// applications.
     pub(super) has_refs: bool,
@@ -80,8 +82,8 @@ impl StyleVariantPlan {
         lint_findings: &mut Vec<LintFinding>,
     ) -> Option<Self> {
         let mut plan = Self {
-            prefix: String::new(),
-            canonical: String::new(),
+            prefix: (LeanString::new()),
+            canonical: (LeanString::new()),
             has_refs: false,
             variants: Vec::new(),
             paths: vec![Vec::new()],
@@ -128,7 +130,7 @@ impl StyleVariantPlan {
     fn add_prefix(
         &mut self,
         theme: &ThemeIndex,
-        prefix: &Spanned<String>,
+        prefix: &Spanned<LeanStr>,
         lint_findings: &mut Vec<LintFinding>,
     ) -> Option<()> {
         let (variants, applications) =
@@ -177,10 +179,9 @@ impl StyleVariantPlan {
         for reference in references {
             let mut paths = if scope_conditions.is_empty() {
                 let mut path = reference.conditions.clone();
-                path.push(VariantApplication::SelectorCondition(format!(
-                    ":is({} *)",
-                    reference.selector
-                )));
+                path.push(VariantApplication::SelectorCondition(
+                    format_args!(":is({} *)", reference.selector).to_lean_str(),
+                ));
                 vec![path]
             } else {
                 vec![reference.conditions.clone()]
@@ -193,10 +194,13 @@ impl StyleVariantPlan {
                         candidates.iter().map(move |scope| {
                             let mut path = path.clone();
                             path.extend(scope.conditions.clone());
-                            path.push(VariantApplication::SelectorCondition(format!(
-                                ":is({}:has({}) *)",
-                                scope.selector, reference_selector
-                            )));
+                            path.push(VariantApplication::SelectorCondition(
+                                format_args!(
+                                    ":is({}:has({}) *)",
+                                    scope.selector, reference_selector
+                                )
+                                .to_lean_str(),
+                            ));
                             path
                         })
                     })
@@ -206,7 +210,7 @@ impl StyleVariantPlan {
         }
         let mut canonical = alternatives
             .iter()
-            .map(|path| format!("{path:?}"))
+            .map(|path| format_args!("{path:?}").to_lean_string())
             .collect::<Vec<_>>();
         canonical.sort();
         let _ = write!(self.canonical, "ref({canonical:?})\0");
@@ -236,7 +240,7 @@ impl StyleVariantPlan {
         &mut self,
         context: &IdentifierContext,
         refs: &[RefDefinition],
-        query: &Spanned<String>,
+        query: &Spanned<LeanStr>,
         diagnostics: &mut Vec<CompileError>,
         lint_findings: &mut Vec<LintFinding>,
     ) -> Option<()> {
@@ -253,9 +257,9 @@ impl StyleVariantPlan {
             .map(|definition| {
                 ref_container_name(context, definition).map(|name| {
                     if query.value.is_empty() {
-                        name.as_str().to_owned()
+                        name.as_str().to_lean_string()
                     } else {
-                        format!("{} ({})", name.as_str(), query.value)
+                        format_args!("{} ({})", name.as_str(), query.value).to_lean_string()
                     }
                 })
             })
@@ -273,7 +277,7 @@ impl StyleVariantPlan {
             .flat_map(|path| {
                 conditions.iter().map(move |condition| {
                     let mut path = path.clone();
-                    path.push(VariantApplication::Container(condition.clone()));
+                    path.push(VariantApplication::Container((condition.clone()).into()));
                     path
                 })
             })
@@ -338,33 +342,34 @@ impl StyleVariantPlan {
 
 /// Orders independent target conditions using declaration identities and decoded
 /// predicate text. Source use spans do not change the generated condition order.
-fn independent_variant_key(variant: &StyleVariant) -> String {
+fn independent_variant_key(variant: &StyleVariant) -> LeanString {
     match variant {
         StyleVariant::Ref { condition, scopes } => {
             let mut scopes = scopes.iter().map(condition_key).collect::<Vec<_>>();
             scopes.sort();
-            format!("ref({:?},{scopes:?})", condition_key(condition))
+            format_args!("ref({:?},{scopes:?})", condition_key(condition)).to_lean_string()
         }
         StyleVariant::Container { refs, query } => {
-            format!("container({:?},{:?})", ref_keys(refs), query.value)
+            format_args!("container({:?},{:?})", ref_keys(refs), query.value).to_lean_string()
         }
-        StyleVariant::Prefix(prefix) => format!("prefix({:?})", prefix.value),
+        StyleVariant::Prefix(prefix) => format_args!("prefix({:?})", prefix.value).to_lean_string(),
     }
 }
 
-fn condition_key(condition: &RefCondition) -> String {
-    format!(
+fn condition_key(condition: &RefCondition) -> LeanString {
+    format_args!(
         "({:?},{:?})",
         ref_keys(&condition.refs),
         condition.prefix.value
     )
+    .to_lean_string()
 }
 
-fn ref_keys(refs: &[RefDefinition]) -> Vec<String> {
+fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
     let mut identities = refs
         .iter()
         .map(|definition| {
-            format!(
+            format_args!(
                 "{:?}",
                 (
                     &definition.module_id,
@@ -373,6 +378,7 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<String> {
                     definition.label.as_ref().map(|label| &label.value),
                 )
             )
+            .to_lean_str()
         })
         .collect::<Vec<_>>();
     identities.sort();
@@ -385,7 +391,7 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<String> {
 /// `name:` list and for a variant the registry does not know.
 fn collect_variant_and_applications(
     theme: &ThemeIndex,
-    prefix: &Spanned<String>,
+    prefix: &Spanned<LeanStr>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> Option<(Vec<Variant>, Vec<VariantApplication>)> {
     let Some(variants) = parse_prefix(prefix) else {
@@ -415,11 +421,11 @@ fn collect_variant_and_applications(
 /// the candidate grammar instead of duplicating it here. A prefix that does not end in
 /// `:` or that yields an empty variant is rejected, so a malformed wrapper cannot
 /// silently shift the meaning of the utility it wraps.
-pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
+pub(super) fn parse_prefix(prefix: &Spanned<LeanStr>) -> Option<Vec<Variant>> {
     if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
         return None;
     }
-    let candidate = parse_candidate(&format!("{}utility", prefix.value))?;
+    let candidate = parse_candidate(&format_args!("{}utility", prefix.value).to_lean_string())?;
     if candidate
         .variants
         .iter()
@@ -432,7 +438,7 @@ pub(super) fn parse_prefix(prefix: &Spanned<String>) -> Option<Vec<Variant>> {
 
 /// One resolved element predicate and its subject-independent environment guards.
 struct ElementCondition {
-    selector: String,
+    selector: LeanStr,
     conditions: Vec<VariantApplication>,
 }
 
@@ -483,9 +489,11 @@ fn element_conditions(
         }
     }
     alternatives.sort_by(|a, b| {
-        a.selector
-            .cmp(&b.selector)
-            .then_with(|| format!("{:?}", a.conditions).cmp(&format!("{:?}", b.conditions)))
+        a.selector.cmp(&b.selector).then_with(|| {
+            format_args!("{:?}", a.conditions)
+                .to_lean_string()
+                .cmp(&format_args!("{:?}", b.conditions).to_lean_string())
+        })
     });
     Some(alternatives)
 }
@@ -497,7 +505,7 @@ fn reference_path(
     path: &[VariantStep<'_>],
     inside_has: bool,
 ) -> Option<ElementCondition> {
-    let mut reference = format!(":where({})", marker.selector());
+    let mut reference = format_args!(":where({})", marker.selector()).to_lean_string();
     let mut conditions = Vec::new();
     for step in path {
         match step {
@@ -516,7 +524,7 @@ fn reference_path(
                 condition,
             } if selector_uses_subject(selector) => {
                 reference = instantiate_selector(selector, &reference);
-                conditions.push(VariantApplication::Media((*condition).to_owned()));
+                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
             }
             VariantStep::SelectorMediaRule {
                 selector,
@@ -524,13 +532,13 @@ fn reference_path(
                 condition,
             } if declarations.is_empty() && selector_uses_subject(selector) => {
                 reference = instantiate_selector(selector, &reference);
-                conditions.push(VariantApplication::Media((*condition).to_owned()));
+                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
             }
             VariantStep::Media(condition) => {
-                conditions.push(VariantApplication::Media((*condition).to_owned()));
+                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
             }
             VariantStep::Supports(condition) => {
-                conditions.push(VariantApplication::Supports((*condition).to_owned()));
+                conditions.push(VariantApplication::Supports((*condition).to_lean_str()));
             }
             _ => return None,
         }
@@ -541,7 +549,7 @@ fn reference_path(
     // `:is` binds the full selector to one element before an ancestor or containment
     // relation is added. Its ancestors may lie outside the containing scope.
     Some(ElementCondition {
-        selector: format!(":is({reference})"),
+        selector: format_args!(":is({reference})").to_lean_str(),
         conditions,
     })
 }
@@ -627,8 +635,8 @@ mod add_ref_tests {
 
     fn plan() -> StyleVariantPlan {
         StyleVariantPlan {
-            prefix: String::new(),
-            canonical: String::new(),
+            prefix: LeanString::new(),
+            canonical: LeanString::new(),
             has_refs: false,
             variants: Vec::new(),
             paths: vec![Vec::new()],
@@ -639,15 +647,15 @@ mod add_ref_tests {
     fn definition(module: &str, binding: &str, call_start: u32) -> RefDefinition {
         RefDefinition {
             module_id: module.into(),
-            binding: Spanned::new(binding.to_owned(), Span::new(FileId(1), 0, 3)),
+            binding: Spanned::new(binding.to_lean_str(), Span::new(FileId(1), 0, 3)),
             label: None,
             call_span: Span::new(FileId(1), call_start, call_start + 4),
         }
     }
 
-    fn prefix(value: &str) -> Spanned<String> {
+    fn prefix(value: &str) -> Spanned<LeanStr> {
         Spanned::new(
-            value.to_owned(),
+            value.to_lean_str(),
             Span::new(FileId(1), 90, 90 + u32::try_from(value.len()).unwrap()),
         )
     }
@@ -661,8 +669,8 @@ mod add_ref_tests {
             &self,
             _context: &DeclarationContext,
             _hash: &IdentifierHash,
-        ) -> Result<GeneratedName<RefMarker>, String> {
-            Err("no marker for this ref".to_owned())
+        ) -> Result<GeneratedName<RefMarker>, LeanString> {
+            Err("no marker for this ref".to_lean_string())
         }
     }
 
@@ -694,17 +702,15 @@ mod add_ref_tests {
         let first_marker = ref_marker_name(&context, &first).unwrap();
         let second_marker = ref_marker_name(&context, &second).unwrap();
         let expected = vec![
-            vec![VariantApplication::SelectorCondition(format!(
-                ":is(:is(:where({})) *)",
-                first_marker.selector()
-            ))],
-            vec![VariantApplication::SelectorCondition(format!(
-                ":is(:is(:where({})) *)",
-                second_marker.selector()
-            ))],
+            vec![VariantApplication::SelectorCondition(
+                format_args!(":is(:is(:where({})) *)", first_marker.selector()).to_lean_str(),
+            )],
+            vec![VariantApplication::SelectorCondition(
+                format_args!(":is(:is(:where({})) *)", second_marker.selector()).to_lean_str(),
+            )],
         ];
         let mut expected = expected;
-        expected.sort_by_key(|path| format!("{path:?}"));
+        expected.sort_by_key(|path| format_args!("{path:?}").to_lean_string());
         assert_eq!(plan.applications(), expected.as_slice());
     }
 

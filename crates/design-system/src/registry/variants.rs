@@ -11,7 +11,7 @@
 //! defaults for missing metadata.
 
 use cssparser::{Parser, Token};
-use lean_string::LeanStr;
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
@@ -38,9 +38,9 @@ pub enum BuiltinVariantSortDirection {
 pub struct BuiltinVariantSort {
     /// Variants sharing a group are ordered by their group's first built-in position;
     /// the name itself is the group when none is declared.
-    pub group: Option<String>,
+    pub group: Option<LeanStr>,
     /// Theme namespace pattern whose token value orders variants in the group.
-    pub key: Option<String>,
+    pub key: Option<LeanStr>,
     /// Which end of the key's ordering comes first.
     pub direction: Option<BuiltinVariantSortDirection>,
     /// Whether the variant also matches a bare token name, such as `lg` for a
@@ -57,9 +57,9 @@ pub struct CustomVariant {
     /// `None` denotes an exact name; escaped asterisks remain literal characters.
     pub wildcard: Option<usize>,
     /// Selector shorthand from `@custom-variant name (selector)`.
-    pub selector: String,
+    pub selector: LeanStr,
     /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
-    pub body: String,
+    pub body: LeanStr,
     /// Global registration order for built-in variants (`@stillwind-variant`).
     pub builtin_order: Option<usize>,
     /// Optional ordering behavior authored in the built-in definition header.
@@ -137,9 +137,9 @@ impl BuiltinVariantValueType {
     pub fn accepts_css(self, value: &str) -> bool {
         let stylesheet = match self {
             Self::IfCondition => return is_runtime_condition(value),
-            Self::Nth => format!(".x:nth-child({value}) {{ color: red; }}"),
+            Self::Nth => format_args!(".x:nth-child({value}) {{ color: red; }}").to_lean_string(),
             Self::SupportsCondition => {
-                format!("@supports ({value}) {{ .x {{ color: red; }} }}")
+                format_args!("@supports ({value}) {{ .x {{ color: red; }} }}").to_lean_string()
             }
             Self::Variant | Self::Aria | Self::Data => return false,
         };
@@ -165,12 +165,13 @@ impl BuiltinVariantModifierType {
     /// Parses the logical class identifier and serializes it for insertion into a CSS
     /// selector, including any escapes required by CSS syntax.
     #[must_use]
-    pub fn serialize(self, value: &str) -> Option<String> {
+    pub fn serialize(self, value: &str) -> Option<LeanString> {
         match self {
             Self::ClassIdentifier => Ident::parse_string(value)
                 .ok()?
                 .to_css_string(PrinterOptions::default())
-                .ok(),
+                .ok()
+                .map(Into::into),
         }
     }
 }
@@ -203,7 +204,7 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
             Some(CustomVariant {
                 name: header.name,
                 wildcard: header.wildcard,
-                selector: String::new(),
+                selector: (LeanString::new()).into(),
                 body,
                 builtin_order: Some(builtin_order),
                 sort: header.sort,
@@ -235,7 +236,7 @@ pub(crate) struct ParsedBuiltinVariantHeader {
 /// comments, and tokens other than identifiers, leading `@`, and `*` return `None`.
 pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)> {
     let mut parser = Parser::new(value);
-    let mut name = String::new();
+    let mut name = LeanString::new();
     let mut wildcard = None;
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
@@ -286,11 +287,11 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
             "value" => value_type = Some(BuiltinVariantValueType::parse(value)?),
             "modifier" => modifier_type = Some(BuiltinVariantModifierType::parse(value)?),
             "group" => {
-                sort.group = Some(value.to_owned());
+                sort.group = Some(value.to_lean_str());
                 has_sort = true;
             }
             "sort" => {
-                sort.key = Some(value.to_owned());
+                sort.key = Some(value.to_lean_str());
                 has_sort = true;
             }
             "direction" => {
@@ -329,7 +330,13 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                 .trim()
                 .strip_prefix('(')?
                 .strip_suffix(')')?;
-            Some((offset, name, wildcard, selector.to_owned(), String::new()))
+            Some((
+                offset,
+                name,
+                wildcard,
+                selector.to_lean_string(),
+                LeanString::new(),
+            ))
         })
         .collect::<Vec<_>>();
     for directive in ["@custom-variant", "@variant"] {
@@ -341,7 +348,7 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                         return None;
                     }
                     let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
-                    Some((offset, name, wildcard, String::new(), body))
+                    Some((offset, name, wildcard, LeanString::new(), body.into()))
                 }),
         );
     }
@@ -351,8 +358,8 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
         .map(|(_, name, wildcard, selector, body)| CustomVariant {
             name,
             wildcard,
-            selector,
-            body,
+            selector: (selector).into(),
+            body: (body).into(),
             builtin_order: None,
             sort: None,
             value_type: None,

@@ -15,6 +15,7 @@
 use std::ops::Range;
 
 use cssparser::{Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::properties_interfere;
 use stillwind_diagnostics::CompileDiagnostic;
@@ -30,8 +31,8 @@ const MARKER: &str = "@-stillwind-rule-boundary";
 /// `rule` must be balanced CSS whose conditional declarations already contain their
 /// false branches. Its text is retained verbatim. The returned wrapper must pass
 /// through [`RuleBoundaries`] before publication, after all directives are expanded.
-pub(super) fn protect(rule: &str) -> String {
-    format!("{MARKER}{{{rule}}}")
+pub(super) fn protect(rule: &str) -> LeanString {
+    format_args!("{MARKER}{{{rule}}}").to_lean_string()
 }
 
 /// Accumulated conflict state for allocating one owner's rule-merge barriers.
@@ -41,13 +42,13 @@ pub(super) fn protect(rule: &str) -> String {
 /// of its earlier contributions.
 pub(crate) struct RuleBoundaries<'a> {
     /// Stable identity distinct from every other owner sharing the name pool.
-    owner: String,
+    owner: LeanStr,
     /// Zero-based interval included in the name hash, advanced once per conflicting
     /// batch.
     interval: usize,
     /// Current interval's decoded property names and trimmed, otherwise verbatim
     /// values.
-    declarations: Vec<(String, String)>,
+    declarations: Vec<(LeanStr, LeanStr)>,
     identifiers: &'a IdentifierContext,
 }
 
@@ -57,9 +58,9 @@ impl<'a> RuleBoundaries<'a> {
     /// `owner` must identify the same style call or authored rule on repeated renders
     /// and distinguish it from other owners. Names are allocated only when a protected
     /// declaration batch is reached.
-    pub(crate) fn new(owner: String, identifiers: &'a IdentifierContext) -> Self {
+    pub(crate) fn new(owner: LeanString, identifiers: &'a IdentifierContext) -> Self {
         Self {
-            owner,
+            owner: (owner).into(),
             interval: 0,
             declarations: Vec::new(),
             identifiers,
@@ -82,9 +83,9 @@ impl<'a> RuleBoundaries<'a> {
     ///
     /// Malformed block boundaries or noncanonical internal markers can produce invalid
     /// edit offsets and panic during slicing.
-    pub(crate) fn render(&mut self, css: &str) -> Result<String, CompileDiagnostic> {
+    pub(crate) fn render(&mut self, css: &str) -> Result<LeanString, CompileDiagnostic> {
         let edits = self.edits(css)?;
-        let mut output = String::new();
+        let mut output = LeanString::new();
         let mut cursor = 0;
         for (range, replacement) in edits {
             output.push_str(&css[cursor..range.start]);
@@ -127,7 +128,7 @@ impl<'a> RuleBoundaries<'a> {
     /// # Errors
     ///
     /// Returns a naming failure with any earlier state changes retained.
-    fn edits(&mut self, css: &str) -> Result<Vec<(Range<usize>, String)>, CompileDiagnostic> {
+    fn edits(&mut self, css: &str) -> Result<Vec<(Range<usize>, LeanString)>, CompileDiagnostic> {
         let mut edits = Vec::new();
         self.walk(css, 0..css.len(), false, &mut edits)?;
         edits.sort_by_key(|(range, _)| range.start);
@@ -148,7 +149,7 @@ impl<'a> RuleBoundaries<'a> {
                 let Ok(Token::Ident(property)) = parser.next() else {
                     return None;
                 };
-                Some((property.to_string(), css[value].trim().to_owned()))
+                Some((property.to_lean_str(), css[value].trim().to_lean_str()))
             })
             .collect::<Vec<_>>();
         if declarations.iter().any(|(property, value)| {
@@ -173,10 +174,10 @@ impl<'a> RuleBoundaries<'a> {
     /// # Errors
     ///
     /// Returns the identifier allocator's failure for the rule-boundary name.
-    fn support(&self) -> Result<String, CompileDiagnostic> {
+    fn support(&self) -> Result<LeanString, CompileDiagnostic> {
         let name = self.identifiers.condition_helper(&ConditionContext {
             role: ConditionRole::Rule,
-            text: format!("{}\0{}", self.owner, self.interval),
+            text: format_args!("{}\0{}", self.owner, self.interval).to_lean_str(),
         })?;
         // `x` is a valid SVG geometry CSS property, allowing a one-character feature
         // probe. The gate preserves base declarations in browsers without `revert-rule`:
@@ -184,10 +185,7 @@ impl<'a> RuleBoundaries<'a> {
         // time and use the initial or inherited value instead of recascading.
         // The custom-property condition only distinguishes queries to prevent minifiers
         // from merging conflicting rules. It never declares a property on an element.
-        Ok(format!(
-            "@supports (x:revert-rule) and ({}:){{",
-            name.property()
-        ))
+        Ok(format_args!("@supports (x:revert-rule) and ({}:){{", name.property()).to_lean_string())
     }
 
     /// Visits one complete rule-list or declaration-list range in rendered `css`.
@@ -209,16 +207,16 @@ impl<'a> RuleBoundaries<'a> {
         css: &str,
         range: Range<usize>,
         protected: bool,
-        edits: &mut Vec<(Range<usize>, String)>,
+        edits: &mut Vec<(Range<usize>, LeanString)>,
     ) -> Result<(), CompileDiagnostic> {
         let children = blocks(css, range.clone());
         let mut cursor = range.start;
         for block in children {
             self.declarations(css, cursor..block.header.start, protected, edits)?;
             if let Some(marker) = block.marker {
-                edits.push((marker..block.body.start, String::new()));
+                edits.push((marker..block.body.start, LeanString::new()));
                 self.walk(css, block.body.clone(), true, edits)?;
-                edits.push((block.body.end..block.body.end + 1, String::new()));
+                edits.push((block.body.end..block.body.end + 1, LeanString::new()));
             } else if protected && !block.at_rule && blocks(css, block.body.clone()).is_empty() {
                 self.observe(&css[block.body.clone()]);
                 edits.push((block.header.start..block.header.start, self.support()?));
@@ -249,7 +247,7 @@ impl<'a> RuleBoundaries<'a> {
         css: &str,
         range: Range<usize>,
         protected: bool,
-        edits: &mut Vec<(Range<usize>, String)>,
+        edits: &mut Vec<(Range<usize>, LeanString)>,
     ) -> Result<(), CompileDiagnostic> {
         if declaration_values(&css[range.clone()]).is_empty() {
             return Ok(());
@@ -327,10 +325,12 @@ fn blocks(css: &str, range: Range<usize>) -> Vec<Block> {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::JoinText;
+
     use super::*;
     use crate::identifiers::{GeneratorSet, IdentifierMode};
 
-    fn render(css: &str) -> String {
+    fn render(css: &str) -> LeanString {
         let identifiers =
             IdentifierContext::new(GeneratorSet::default(), IdentifierMode::Release, 5);
         RuleBoundaries::new("test".into(), &identifiers)
@@ -348,8 +348,8 @@ mod tests {
     #[test]
     fn intervals_accumulate_until_a_property_reappears() {
         let css = ["color:red", "width:1px", "color:blue", "height:2px"]
-            .map(|body| protect(&format!(".x{{{body}}}")))
-            .join("");
+            .map(|body| protect(&format_args!(".x{{{body}}}").to_lean_string()))
+            .join_text("");
         let output = render(&css);
         let names = names(&output);
         assert_eq!(names.len(), 4, "{output}");
@@ -368,11 +368,14 @@ mod tests {
             ("color:red", "", "all:initial"),
             ("color:red", ".x{width:1px}", "width:2px"),
         ] {
-            let output = render(&format!(
-                "{}{middle}{}",
-                protect(&format!(".x{{{first}}}")),
-                protect(&format!(".x{{{last}}}"))
-            ));
+            let output = render(
+                &format_args!(
+                    "{}{middle}{}",
+                    protect(&format_args!(".x{{{first}}}").to_lean_string()),
+                    protect(&format_args!(".x{{{last}}}").to_lean_string())
+                )
+                .to_lean_string(),
+            );
             let names = names(&output);
             assert_ne!(names[0], names[1], "{output}");
         }
@@ -380,10 +383,13 @@ mod tests {
 
     #[test]
     fn nested_boundaries_use_leaf_declarations_and_keep_custom_blocks_opaque() {
-        let output = render(&protect(&format!(
-            ".x{{--data:{{a:b}};color:red;@media print{{width:1px;}}{} }}",
-            protect("&:hover{color:blue}")
-        )));
+        let output = render(&protect(
+            &format_args!(
+                ".x{{--data:{{a:b}};color:red;@media print{{width:1px;}}{} }}",
+                protect("&:hover{color:blue}")
+            )
+            .to_lean_string(),
+        ));
         let names = names(&output);
         assert_eq!(names.len(), 3, "{output}");
         assert_eq!(names[0], names[1]);
@@ -394,18 +400,22 @@ mod tests {
 
     #[test]
     fn equal_helpers_do_not_split_independent_conditional_properties() {
-        let output = render(&format!(
-            "{}{}",
-            protect(".x{--gate:var(--a) var(--b);color:var(--gate)}"),
-            protect(".x{--gate:var(--a) var(--b);width:var(--gate)}")
-        ));
+        let output = render(
+            &format_args!(
+                "{}{}",
+                protect(".x{--gate:var(--a) var(--b);color:var(--gate)}"),
+                protect(".x{--gate:var(--a) var(--b);width:var(--gate)}")
+            )
+            .to_lean_string(),
+        );
         let names = names(&output);
         assert_eq!(names[0], names[1]);
     }
 
     #[test]
     fn comments_before_protected_rules_survive_finalization() {
-        let output = render(&format!(".x{{/*! keep */{} }}", protect("&{color:red}")));
+        let output =
+            render(&format_args!(".x{{/*! keep */{} }}", protect("&{color:red}")).to_lean_string());
         assert!(output.contains("/*! keep */"), "{output}");
         assert!(!output.contains(MARKER), "{output}");
         assert_eq!(names(&output).len(), 1);
@@ -413,11 +423,14 @@ mod tests {
 
     #[test]
     fn property_comments_and_escapes_do_not_hide_conflicts() {
-        let output = render(&format!(
-            "{}{}",
-            protect(".x{/* comment */color:red}"),
-            protect(r".x{c\6flor:blue}")
-        ));
+        let output = render(
+            &format_args!(
+                "{}{}",
+                protect(".x{/* comment */color:red}"),
+                protect(r".x{c\6flor:blue}")
+            )
+            .to_lean_string(),
+        );
         let names = names(&output);
         assert_ne!(names[0], names[1], "{output}");
     }

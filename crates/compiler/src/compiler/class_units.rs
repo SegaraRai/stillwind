@@ -8,9 +8,11 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_design_system::{ThemeIndex, UtilityOrder};
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_source::{ModuleId, Span};
+use stillwind_source::{JoinText, ModuleId, Span};
 
 use super::RuleBoundaries;
 use super::fragment::Emitted;
@@ -30,7 +32,7 @@ pub(in crate::compiler) struct PreviewSlots {
     /// Escaped custom-property names in occurrence order. Keys contain the original
     /// receiver's UTF-8 start and NUL-separated token, variant plan, static name, and
     /// dynamic-name property. The class unit's branch identity is excluded.
-    names: BTreeMap<(u32, String), VecDeque<String>>,
+    names: BTreeMap<(u32, LeanStr), VecDeque<LeanStr>>,
     /// True appends allocations to the queues; false consumes them during isolated
     /// emission.
     capturing: bool,
@@ -64,11 +66,11 @@ impl PreviewSlots {
 #[derive(Clone, Default)]
 pub(super) struct ViewTransitionClassUnit {
     /// Escaped class tokens the unit declares literally, in first-seen order.
-    classes: Vec<String>,
+    classes: Vec<LeanStr>,
     /// Slot names filled by this unit, referenced by the base token list.
-    slots: Vec<String>,
+    slots: Vec<LeanStr>,
     /// Escaped names the unit declares statically, in order.
-    names: Vec<String>,
+    names: Vec<LeanStr>,
 }
 
 impl ViewTransitionClassUnit {
@@ -79,12 +81,12 @@ impl ViewTransitionClassUnit {
 
     /// Records one unconditional use's class token and static name.
     fn attach(&mut self, token: &str, name: Option<&str>) {
-        let token = escaped_identifier(token);
+        let token: LeanStr = escaped_identifier(token).into();
         if !self.classes.contains(&token) {
             self.classes.push(token);
         }
         if let Some(name) = name {
-            self.names.push(name.to_owned());
+            self.names.push(name.to_lean_str());
         }
     }
 
@@ -93,9 +95,9 @@ impl ViewTransitionClassUnit {
     /// Its own classes come first and each slot follows as a `var()` reference with an
     /// empty fallback, so a slot no unit filled contributes nothing to the resolved
     /// list.
-    fn class_rules(&self, selector: &str, slots: &[String]) -> String {
+    fn class_rules(&self, selector: &str, slots: &[LeanStr]) -> LeanString {
         let list = self.class_value(slots);
-        let mut css = String::new();
+        let mut css = LeanString::new();
         if !list.is_empty() {
             css.push_str(selector);
             css.push_str("{view-transition-class:");
@@ -111,8 +113,8 @@ impl ViewTransitionClassUnit {
     /// reference uses an empty fallback so an unfilled slot contributes no token.
     /// Returns an empty string when the unit has no tokens and the caller provides no
     /// slots.
-    fn class_value(&self, slots: &[String]) -> String {
-        let mut list = self.classes.join(" ");
+    fn class_value(&self, slots: &[LeanStr]) -> LeanString {
+        let mut list = self.classes.join_text(" ");
         for slot in slots {
             if !list.is_empty() {
                 list.push(' ');
@@ -125,8 +127,8 @@ impl ViewTransitionClassUnit {
     }
 
     /// The static view-transition-name declarations this unit writes.
-    fn name_rules(&self, selector: &str) -> String {
-        let mut css = String::new();
+    fn name_rules(&self, selector: &str) -> LeanString {
+        let mut css = LeanString::new();
         for name in &self.names {
             css.push_str(selector);
             css.push_str("{view-transition-name:");
@@ -141,13 +143,13 @@ impl ViewTransitionClassUnit {
 #[derive(Default)]
 pub(super) struct BaseUnit {
     /// Hash fragments for rule-bearing base contributions in source order.
-    pub(super) canonical: String,
+    pub(super) canonical: LeanString,
     /// Resolved utilities, in their encountered order.
     pub(super) utilities: Vec<CompiledUtility>,
     /// Transition uses kept until the base unit's CSS is generated.
     transitions: Vec<TransitionContribution>,
     /// Marker names retained alongside the generated base class.
-    pub(super) names: Vec<String>,
+    pub(super) names: Vec<LeanStr>,
 }
 
 /// Per-call class allocation and deferred stylesheet output.
@@ -172,7 +174,7 @@ pub(super) struct ClassUnits<'a> {
     symbols: &'a mut Vec<GeneratedSymbol>,
     /// Previously emitted (class name, canonical input) pairs, so identical units are
     /// written once per module.
-    emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+    emitted_utility_classes: &'a mut BTreeSet<(LeanStr, LeanStr)>,
     /// Unconditional contributions accumulated across all argument positions.
     pub(super) base: BaseUnit,
     /// View-transition declarations per class unit; slot zero is the base unit.
@@ -203,7 +205,7 @@ impl<'a> ClassUnits<'a> {
         preview: Option<&'a mut PreviewSlots>,
         utility_css: &'a mut Vec<CssContribution>,
         symbols: &'a mut Vec<GeneratedSymbol>,
-        emitted_utility_classes: &'a mut BTreeSet<(String, String)>,
+        emitted_utility_classes: &'a mut BTreeSet<(LeanStr, LeanStr)>,
     ) -> Self {
         Self {
             module_id,
@@ -281,7 +283,7 @@ impl<'a> ClassUnits<'a> {
     ) -> Result<Emitted, CompileDiagnostic> {
         let mut names = Vec::new();
         if !contribution.utilities.is_empty() || !contribution.view_transitions.is_empty() {
-            let branch = format!("{}:{}", order, contribution.canonical);
+            let branch = format_args!("{}:{}", order, contribution.canonical).to_lean_string();
             let unit = self.materialize_transitions(
                 &branch,
                 contribution.view_transitions,
@@ -295,7 +297,7 @@ impl<'a> ClassUnits<'a> {
             self.classes.push((
                 order,
                 GeneratedClass {
-                    class_name: name,
+                    class_name: (name),
                     call_span: self.call_span,
                     guard_path: guard.to_vec(),
                 },
@@ -323,10 +325,10 @@ impl<'a> ClassUnits<'a> {
     /// changed. CSS is appended to the destination only after rendering succeeds.
     pub(super) fn finish(
         mut self,
-    ) -> Result<(Vec<String>, Vec<GeneratedClass>, String), CompileDiagnostic> {
+    ) -> Result<(Vec<LeanStr>, Vec<GeneratedClass>, LeanString), CompileDiagnostic> {
         let mut names = Vec::new();
         let mut deferred = Vec::new();
-        let base_branch = format!("0:{}", self.base.canonical);
+        let base_branch = format_args!("0:{}", self.base.canonical).to_lean_string();
         let transitions = std::mem::take(&mut self.base.transitions);
         let mut utilities = std::mem::take(&mut self.base.utilities);
         self.view_transition_classes[0] =
@@ -343,7 +345,7 @@ impl<'a> ClassUnits<'a> {
         let transition_list =
             self.view_transition_classes[0].class_value(&self.view_transition_slots());
         if !self.base.utilities.is_empty() || base_declares {
-            let branch = format!("0:{}", self.base.canonical);
+            let branch = format_args!("0:{}", self.base.canonical).to_lean_string();
             let definitions = std::mem::take(&mut self.base.utilities);
             let (name, rules) = self.name_unit(self.call_span.start.0, &branch, &definitions)?;
             // The base unit must precede every conditional unit in the stylesheet.
@@ -353,7 +355,7 @@ impl<'a> ClassUnits<'a> {
                 self.view_transition_classes[0].class_rules(&self.selector(&name), &slots);
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
-                    css: declarations,
+                    css: (declarations).into(),
                     required_properties: Vec::new(),
                     keyframes: false,
                 });
@@ -363,7 +365,7 @@ impl<'a> ClassUnits<'a> {
                 (
                     0,
                     GeneratedClass {
-                        class_name: name.clone(),
+                        class_name: (name.clone()),
                         call_span: self.call_span,
                         guard_path: Vec::new(),
                     },
@@ -378,13 +380,14 @@ impl<'a> ClassUnits<'a> {
                 .into_iter()
                 .map(|(_, contribution)| contribution),
         );
-        let owner = format!(
+        let owner = format_args!(
             "style\0{}\0{}\0{}",
             self.module_id, self.options.class_namespace, self.call_span.start.0
-        );
+        )
+        .to_lean_string();
         let mut boundaries = RuleBoundaries::new(owner, self.identifiers);
         for contribution in &mut deferred {
-            contribution.css = boundaries.render(&contribution.css)?;
+            contribution.css = (boundaries.render(&contribution.css)?).into();
         }
         self.utility_css.append(&mut deferred);
         self.classes.sort_by_key(|(order, _)| *order);
@@ -411,19 +414,19 @@ impl<'a> ClassUnits<'a> {
         call: u32,
         branch: &str,
         definitions: &[CompiledUtility],
-    ) -> Result<(String, Vec<CssContribution>), CompileDiagnostic> {
+    ) -> Result<(LeanStr, Vec<CssContribution>), CompileDiagnostic> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
             call,
-            branch: branch.to_owned(),
+            branch: branch.to_lean_str(),
         };
         let identity = ClassName(context.clone()).identity();
         let name = self.identifiers.class_name(&context)?;
         let mut contributions = Vec::new();
         if self
             .emitted_utility_classes
-            .insert((name.as_str().to_owned(), identity.clone()))
+            .insert((name.as_str().to_lean_str(), (identity.clone()).into()))
         {
             emit_utility_rules(
                 &mut contributions,
@@ -439,17 +442,17 @@ impl<'a> ClassUnits<'a> {
                 self.call_span,
             ));
         }
-        Ok((name.as_str().to_owned(), contributions))
+        Ok((name.as_str().to_lean_str(), contributions))
     }
 
     /// Returns `&` during a preview or a class selector with the raw `name`
     /// CSS-escaped. Ref marker selectors are allocated separately and do not pass
     /// through this helper.
-    fn selector(&self, name: &str) -> String {
+    fn selector(&self, name: &str) -> LeanString {
         if self.preview.is_some() {
-            "&".to_owned()
+            "&".to_lean_string()
         } else {
-            format!(".{}", escaped_identifier(name))
+            format_args!(".{}", escaped_identifier(name)).to_lean_string()
         }
     }
 
@@ -494,7 +497,7 @@ impl<'a> ClassUnits<'a> {
             let key = self.preview.as_ref().map(|_| {
                 (
                     transition.source_offset,
-                    format!(
+                    format_args!(
                         "{}\0{}\0{}\0{}",
                         transition.token,
                         transition
@@ -503,7 +506,8 @@ impl<'a> ClassUnits<'a> {
                             .map_or("", |plan| plan.canonical.as_str()),
                         transition.name.as_deref().unwrap_or(""),
                         transition.dynamic_name_property.as_deref().unwrap_or(""),
-                    ),
+                    )
+                    .to_lean_str(),
                 )
             });
             let captured = self
@@ -514,7 +518,9 @@ impl<'a> ClassUnits<'a> {
                 .and_then(VecDeque::pop_front);
             let property = match captured {
                 Some(property) => property,
-                None => self.view_transition_slot(&format!("{branch}\0{index}"))?,
+                None => (self
+                    .view_transition_slot(&format_args!("{branch}\0{index}").to_lean_string())?)
+                .into(),
             };
             if let Some(preview) = self
                 .preview
@@ -528,7 +534,9 @@ impl<'a> ClassUnits<'a> {
                     .or_default()
                     .push_back(property.clone());
             }
-            let mut declaration = format!("{property}:{};", escaped_identifier(&transition.token));
+            let mut declaration =
+                format_args!("{property}:{};", escaped_identifier(&transition.token))
+                    .to_lean_string();
             unit.slots.push(property);
             if let Some(name) = transition.name {
                 let _ = write!(declaration, "view-transition-name:{name};");
@@ -541,12 +549,12 @@ impl<'a> ClassUnits<'a> {
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
-                declaration,
+                declaration: (declaration).into(),
                 selector: None,
                 container: None,
                 nested: Vec::new(),
                 order: UtilityOrder::Authored(None),
-                candidate: String::new(),
+                candidate: (LeanString::new()).into(),
             };
             if let Some(plan) = transition.plan {
                 plan.apply_rule(&mut utility);
@@ -565,13 +573,15 @@ impl<'a> ClassUnits<'a> {
     pub(super) fn view_transition_dynamic_name_slot(
         &self,
         source_offset: u32,
-    ) -> Result<String, CompileDiagnostic> {
-        self.view_transition_slot(&format!("view-transition-name:{source_offset}"))
+    ) -> Result<LeanString, CompileDiagnostic> {
+        self.view_transition_slot(
+            &format_args!("view-transition-name:{source_offset}").to_lean_string(),
+        )
     }
 
     /// The slot properties the base unit references, in the order their units were
     /// allocated.
-    fn view_transition_slots(&self) -> Vec<String> {
+    fn view_transition_slots(&self) -> Vec<LeanStr> {
         self.view_transition_classes
             .iter()
             .flat_map(|unit| unit.slots.iter().cloned())
@@ -585,12 +595,12 @@ impl<'a> ClassUnits<'a> {
     /// # Errors
     ///
     /// Returns an error if the configured slot generator fails.
-    fn view_transition_slot(&self, branch: &str) -> Result<String, CompileDiagnostic> {
+    fn view_transition_slot(&self, branch: &str) -> Result<LeanString, CompileDiagnostic> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
             call: self.call_span.start.0,
-            branch: branch.to_owned(),
+            branch: branch.to_lean_str(),
         };
         Ok(self.identifiers.view_transition_slot(&context)?.property())
     }

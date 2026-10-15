@@ -1,5 +1,6 @@
 //! Named ref, animation, and view-transition declarations and use identities.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_semantic::IdentityId;
@@ -16,9 +17,9 @@ pub struct RefDefinition {
     /// Module identity of the declaring module.
     pub module_id: ModuleId,
     /// Lexical binding of the ref; its span seeds the declaration identity.
-    pub binding: Spanned<String>,
+    pub binding: Spanned<LeanStr>,
     /// Optional user label that participates in the declaration's generated names.
-    pub label: Option<Spanned<String>>,
+    pub label: Option<Spanned<LeanStr>>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
 }
@@ -28,12 +29,12 @@ pub struct RefDefinition {
 #[serde(rename_all = "camelCase")]
 pub struct KeyframesDefinition {
     /// Local binding; its span seeds the declaration identity.
-    pub binding: Spanned<String>,
+    pub binding: Spanned<LeanStr>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Authored label, which the built-in generator spells into the keyframes name.
     #[serde(default)]
-    pub label: Option<Spanned<String>>,
+    pub label: Option<Spanned<LeanStr>>,
     /// Default frames and complete conditional replacements.
     pub body: KeyframesBody,
 }
@@ -64,9 +65,9 @@ pub struct KeyframesBranch {
 #[serde(rename_all = "camelCase")]
 pub struct KeyframesFrame {
     /// Frame selector text: `from`, `to`, or a percentage list.
-    pub selector: Spanned<String>,
+    pub selector: Spanned<LeanStr>,
     /// Utility list applied inside the frame, in source order.
-    pub utilities: Spanned<String>,
+    pub utilities: Spanned<LeanStr>,
 }
 
 /// A `style.viewTransition()` declaration. Uses of one declaration share a single
@@ -75,20 +76,20 @@ pub struct KeyframesFrame {
 #[serde(rename_all = "camelCase")]
 pub struct ViewTransitionDefinition {
     /// Local binding; its span seeds the declaration identity. Every use shares it.
-    pub binding: Spanned<String>,
+    pub binding: Spanned<LeanStr>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Authored label, which the built-in generator spells into the class token.
     #[serde(default)]
-    pub label: Option<Spanned<String>>,
+    pub label: Option<Spanned<LeanStr>>,
     /// Option list for the `::view-transition-group` pseudo-element.
-    pub group: Option<Spanned<String>>,
+    pub group: Option<Spanned<LeanStr>>,
     /// Utility list for the `::view-transition-old` pseudo-element.
-    pub old: Option<Spanned<String>>,
+    pub old: Option<Spanned<LeanStr>>,
     /// Utility list for the `::view-transition-new` pseudo-element.
-    pub new: Option<Spanned<String>>,
+    pub new: Option<Spanned<LeanStr>>,
     /// Utility list for the `::view-transition-image-pair` pseudo-element.
-    pub image_pair: Option<Spanned<String>>,
+    pub image_pair: Option<Spanned<LeanStr>>,
 }
 
 /// A declaration identity paired with source provenance at its use site.
@@ -105,7 +106,7 @@ pub struct AssetReference {
     /// A label participates in the declaration's generated name, so a use site in
     /// another module needs it to spell the same name the declaring module writes.
     #[serde(default)]
-    pub label: Option<Spanned<String>>,
+    pub label: Option<Spanned<LeanStr>>,
 }
 
 /// How one view-transition use names the participants it marks.
@@ -127,7 +128,7 @@ pub enum ViewTransitionName {
 #[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ViewTransitionKey {
     /// A literal key: the name becomes a static declaration.
-    Literal(String),
+    Literal(LeanStr),
     /// An expression only the runtime knows: the name becomes an inline style value.
     Dynamic(Span),
 }

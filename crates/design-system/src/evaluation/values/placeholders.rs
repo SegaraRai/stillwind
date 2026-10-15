@@ -10,11 +10,12 @@
 //! prefix, with a slash modifier kept separately; a fraction domain is the one case
 //! where the two are reassembled, and only when both sides are unsigned integers.
 
-use crate::evaluation::EvaluationContext;
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{CssFunctionMatch, declaration_ranges};
 use stillwind_syntax::Value;
 
+use super::super::EvaluationContext;
 use super::arbitrary::alpha;
 use super::colors::{CompatColorMode, resolve_compat_color, resolve_shadow_color};
 use super::domains::{resolve_value_domains, split_domains};
@@ -41,7 +42,7 @@ const PLACEHOLDERS: &[&str] = &[
 /// A declaration whose executable placeholders all use the ordinary value family.
 #[derive(Debug)]
 pub(in super::super) struct PreparedValues {
-    body: String,
+    body: LeanStr,
     calls: Vec<CssFunctionMatch>,
 }
 
@@ -56,7 +57,7 @@ impl PreparedValues {
             end = call.end?;
         }
         Some(Self {
-            body: body.to_owned(),
+            body: body.to_lean_str(),
             calls,
         })
     }
@@ -71,14 +72,14 @@ impl PreparedValues {
         name: &str,
         modifier: Option<&Value>,
         theme: &EvaluationContext<'_>,
-    ) -> Option<String> {
+    ) -> Option<LeanString> {
         if !self.calls.is_empty() && (self.body.len() > 1_048_576 || self.calls.len() > 4096) {
             return None;
         }
         let capture = utility_name
             .strip_suffix('*')
             .and_then(|prefix| name.strip_prefix(prefix));
-        let mut output = String::with_capacity(self.body.len());
+        let mut output = LeanString::with_capacity(self.body.len());
         let mut cursor = 0;
         for call in &self.calls {
             let value =
@@ -114,7 +115,7 @@ fn resolve_value(
     capture: Option<&str>,
     modifier: Option<&Value>,
     theme: &EvaluationContext<'_>,
-) -> Option<String> {
+) -> Option<LeanStr> {
     let fraction = domains
         .contains("--fraction()")
         .then(|| {
@@ -123,13 +124,12 @@ fn resolve_value(
                     return None;
                 };
                 (capture.parse::<u16>().is_ok() && modifier.parse::<u16>().is_ok())
-                    .then(|| format!("{capture}/{modifier}"))
+                    .then(|| format_args!("{capture}/{modifier}").to_lean_string())
             })
         })
         .flatten();
     resolve_value_domains(domains, fraction.as_deref().or(capture), theme)
 }
-
 /// Resolves all placeholders in `body` for one candidate.
 ///
 /// `utility_name` supplies the wildcard prefix that yields the capture; `modifier` is
@@ -144,11 +144,11 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
     modifier: Option<&Value>,
     theme: &EvaluationContext<'_>,
     compat_color_mode: CompatColorMode,
-) -> Option<String> {
+) -> Option<LeanString> {
     let capture = utility_name
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
-    let mut body = body.to_owned();
+    let mut body = body.to_lean_string();
     expand_placeholders(
         &mut body,
         &PLACEHOLDERS[..6],
@@ -166,17 +166,17 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
                 let domains = arguments;
                 let replacement = if domains.trim().is_empty() {
                     match modifier {
-                        Value::Named(value) | Value::Arbitrary(value) => value.to_string(),
-                        Value::CssVariable(value) => format!("var({value})"),
+                        Value::Named(value) | Value::Arbitrary(value) => value.to_lean_str(),
+                        Value::CssVariable(value) => format_args!("var({value})").to_lean_str(),
                     }
                 } else {
                     let capture = match modifier {
-                        Value::Named(value) => value.to_string(),
+                        Value::Named(value) => value.to_lean_str(),
                         // `Value::Arbitrary` is decoded by the grammar. Re-wrap it so the same
                         // typed-domain resolver used by `--value(...)` can check an optional
                         // arbitrary-value hint.
-                        Value::Arbitrary(value) => format!("[{value}]"),
-                        Value::CssVariable(value) => format!("({value})"),
+                        Value::Arbitrary(value) => format_args!("[{value}]").to_lean_str(),
+                        Value::CssVariable(value) => format_args!("({value})").to_lean_str(),
                     };
                     resolve_value_domains(domains, Some(&capture), theme)?
                 };
@@ -194,7 +194,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
                         let (key, value) = entry.trim().split_once(':')?;
                         (key.trim() == modifier).then(|| value.trim())
                     })?
-                    .to_owned();
+                    .to_lean_str();
                 Some(replacement)
             }
             _ => None,
@@ -206,9 +206,11 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
         &mut body,
         &PLACEHOLDERS[7..],
         |function, arguments| match function {
-            "--alpha" => alpha(arguments),
-            "--compat-color" => resolve_compat_color(arguments, compat_color_mode),
-            "--stillwind-builtin-shadow-color" => resolve_shadow_color(arguments, capture, theme),
+            "--alpha" => alpha(arguments).map(Into::into),
+            "--compat-color" => resolve_compat_color(arguments, compat_color_mode).map(Into::into),
+            "--stillwind-builtin-shadow-color" => {
+                resolve_shadow_color(arguments, capture, theme).map(Into::into)
+            }
             _ => None,
         },
     )?;
@@ -218,7 +220,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
 }
 
 /// Removes each declaration selected by an empty modifier guard once.
-fn remove_modifier_none(body: &mut String, modifier: Option<&Value>) -> Option<()> {
+fn remove_modifier_none(body: &mut LeanString, modifier: Option<&Value>) -> Option<()> {
     let matches = matching_functions(body, &["--modifier-none"]);
     if matches.is_empty() {
         return Some(());
@@ -258,7 +260,7 @@ mod tests {
     fn prepared_values_keep_expansion_limits_and_recursive_token_behavior() {
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
-        let body = format!("width:{};", "--value([number]) ".repeat(4097));
+        let body = format_args!("width:{};", "--value([number]) ".repeat(4097)).to_lean_string();
         let prepared = PreparedValues::parse(&body).unwrap();
         assert!(prepared.resolve("x-*", "x-[1]", None, &theme).is_none());
         assert!(
@@ -294,7 +296,7 @@ mod tests {
         assert_eq!(resolve("x:--value([number]) --modifier-none();"), None);
         assert_eq!(
             resolve("x:--modifier-none() --alpha(invalid);"),
-            Some(String::new())
+            Some(LeanString::new())
         );
         assert_eq!(
             resolve("content:'--value([number])';x:custom(1);"),

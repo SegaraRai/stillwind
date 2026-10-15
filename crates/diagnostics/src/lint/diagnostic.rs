@@ -4,6 +4,7 @@
 //! [`UtilityFailure`] classifies utility syntax and selects the corresponding rule.
 //! Source locations and reporting settings are supplied by the caller.
 
+use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::ModuleId;
@@ -74,7 +75,7 @@ pub enum LintDiagnostic {
     #[error("invalid style.cva() configuration: {reason}")]
     InvalidCvaConfig {
         /// Concrete static syntax or selection requirement that failed.
-        reason: String,
+        reason: LeanStr,
     },
     /// A CVA value is outside the supported utility and custom-property forms.
     #[error(
@@ -190,9 +191,9 @@ pub enum LintDiagnostic {
     #[error("`{utility}` cannot be lowered: {detail}")]
     RuntimeConditionRequiresNative {
         /// Utility text as authored, including variants.
-        utility: String,
+        utility: LeanStr,
         /// The construct that the fallback strategy cannot represent.
-        detail: String,
+        detail: LeanStr,
     },
     /// A composition base is a style result whose declaration is unknown. Its class is
     /// merged at runtime, but its CSS has no ordering dependency on the derived call.
@@ -227,7 +228,7 @@ pub enum LintDiagnostic {
     #[error("unknown animation option `{option}`")]
     UnknownAnimationOption {
         /// Name of the invalid configuration option.
-        option: String,
+        option: LeanStr,
     },
     /// A rule group is omitted because it contains an unsupported input.
     #[error("style() rule groups cannot contain {reason}")]
@@ -241,9 +242,9 @@ pub enum LintDiagnostic {
     )]
     ArbitraryColor {
         /// Property receiving the source value.
-        property: String,
+        property: LeanStr,
         /// CSS text supplied by the source.
-        value: String,
+        value: LeanStr,
     },
     /// An explicitly supplied value contains a nonzero spacing measure.
     #[error(
@@ -251,9 +252,9 @@ pub enum LintDiagnostic {
     )]
     ArbitrarySpacing {
         /// Property domain receiving the source value.
-        property: String,
+        property: LeanStr,
         /// CSS text supplied by the source.
-        value: String,
+        value: LeanStr,
     },
     /// A style object passes through an external class value.
     #[error(
@@ -264,37 +265,37 @@ pub enum LintDiagnostic {
     #[error("utility `{utility}` is forbidden{explanation}")]
     RestrictedUtility {
         /// Utility spelling without enclosing variants or importance.
-        utility: String,
+        utility: LeanStr,
         /// Empty, or a colon followed by the configured explanation.
-        explanation: String,
+        explanation: LeanStr,
     },
     /// A resolved property and value match a project restriction.
     #[error("declaration `{property}: {value}` is forbidden{explanation}")]
     RestrictedDeclaration {
         /// Matched CSS property domain.
-        property: String,
+        property: LeanStr,
         /// Matched serialized value.
-        value: String,
+        value: LeanStr,
         /// Empty, or a colon followed by the configured explanation.
-        explanation: String,
+        explanation: LeanStr,
     },
     /// A resolved declaration has important priority.
     #[error("important declaration for `{property}` is forbidden")]
     ImportantDeclaration {
         /// CSS property receiving important priority.
-        property: String,
+        property: LeanStr,
     },
     /// A suppression directive contains an unknown name or invalid keyword.
     #[error("invalid lint suppression: {detail}")]
     InvalidLintSuppression {
         /// The unknown name or malformed directive.
-        detail: String,
+        detail: LeanStr,
     },
     /// A disable directive did not suppress a finding from an enabled rule.
     #[error("lint suppression for `{rule}` suppresses no enabled findings")]
     UnusedLintSuppression {
         /// Named rule or `*` for all rules.
-        rule: String,
+        rule: LeanStr,
     },
     /// A variant selects an element other than the attachment target.
     #[error(
@@ -302,53 +303,53 @@ pub enum LintDiagnostic {
     )]
     IndirectStyling {
         /// Expanded variant selector with `&` for the attachment element.
-        selector: String,
+        selector: LeanStr,
     },
     /// A utility candidate is repeated under the same CSS conditions.
     #[error("utility `{utility}` is repeated under the same conditions")]
     DuplicateUtility {
         /// Resolved candidate spelling, including surrounding prefixes.
-        utility: String,
+        utility: LeanStr,
     },
     /// Distinct utility candidates write competing declarations.
     #[error("utilities `{previous}` and `{utility}` overlap `{properties}`")]
     ConflictingUtilities {
         /// Candidate at the earlier source occurrence.
-        previous: String,
+        previous: LeanStr,
         /// Candidate at the current source occurrence.
-        utility: String,
+        utility: LeanStr,
         /// Competing property names and shorthand relationships.
-        properties: String,
+        properties: LeanStr,
     },
     /// A physical declaration has a logical counterpart.
     #[error("prefer a logical declaration for `{property}: {value}`")]
     PhysicalDeclaration {
         /// Physical property name or property with a physical directional value.
-        property: String,
+        property: LeanStr,
         /// Serialized declaration value.
-        value: String,
+        value: LeanStr,
     },
     /// A nonzero length uses a forbidden unit in its property domain.
     #[error("unit `{unit}` is forbidden for `{property}`")]
     ForbiddenLengthUnit {
         /// CSS property domain selecting the unit restriction.
-        property: String,
+        property: LeanStr,
         /// Lowercase CSS length unit.
-        unit: String,
+        unit: LeanStr,
     },
     /// A direct reference names a forbidden theme token.
     #[error("direct use of theme token `{token}` is forbidden")]
     RestrictedThemeToken {
         /// Complete custom-property name directly selected by the utility.
-        token: String,
+        token: LeanStr,
     },
     /// A source variant supplies a viewport size condition without a named breakpoint.
     #[error("variant `{variant}` uses an arbitrary breakpoint `{condition}`; use a named variant")]
     ArbitraryBreakpoint {
         /// Source spelling of the variant that supplied the condition.
-        variant: String,
+        variant: LeanStr,
         /// Expanded media query containing the viewport size condition.
-        condition: String,
+        condition: LeanStr,
     },
     /// A source candidate has an equivalent canonical spelling.
     #[error("prefer canonical utility spelling")]
@@ -360,11 +361,11 @@ pub enum LintDiagnostic {
     #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
     FrameworkImportMismatch {
         /// Imported macro module specifier.
-        import: String,
+        import: LeanStr,
         /// Original format label, independent of the projected parser dialect.
-        source_format: String,
+        source_format: LeanStr,
         /// Allowed macro module specifiers joined with commas.
-        expected: String,
+        expected: LeanStr,
     },
     /// A macro value expression visibly mutates state.
     #[error(
@@ -380,13 +381,13 @@ pub enum LintDiagnostic {
     #[error("anchor scope {detail}")]
     AnchorScopeList {
         /// Empty-list or repeated-identity explanation.
-        detail: String,
+        detail: LeanStr,
     },
     /// A ref provider's style call supplies no matching marker attachment.
     #[error("ref `{name}` provider has no matching marker attachment in this style() call")]
     MissingRefAttachment {
         /// Ref binding displayed to the user.
-        name: String,
+        name: LeanStr,
     },
     /// A provider and another source supply overlapping CSS properties.
     #[error(
@@ -394,7 +395,7 @@ pub enum LintDiagnostic {
     )]
     ProviderConflict {
         /// Overlapping property names, including shorthand relationships.
-        properties: String,
+        properties: LeanStr,
     },
     /// A Tailwind relationship utility violates the active typed-relationship policy.
     #[error(
@@ -402,7 +403,7 @@ pub enum LintDiagnostic {
     )]
     PreferTypedRelationships {
         /// Utility text as authored, including variants.
-        utility: String,
+        utility: LeanStr,
     },
     /// A style rule would apply to the document instead of to the styled element.
     #[error(
@@ -410,7 +411,7 @@ pub enum LintDiagnostic {
     )]
     DocumentScopedSelector {
         /// Resolved selector that references neither the element nor a declaration identity.
-        selector: String,
+        selector: LeanStr,
     },
     /// A style call marks participants with a transition class but names none.
     #[error(
@@ -437,7 +438,7 @@ pub enum LintDiagnostic {
     AmbiguousBaseOrder {
         /// The competing declarations, as `property` or `property and property` when one
         /// side is a shorthand of the other.
-        properties: String,
+        properties: LeanStr,
     },
     /// A base owned by another module declares a property this call also declares.
     #[error("the base in `{module}` overlaps these declarations: `{properties}`")]
@@ -445,13 +446,13 @@ pub enum LintDiagnostic {
         /// Host identity of the module owning the base.
         module: ModuleId,
         /// The competing declarations, as `property` or `property and property`.
-        properties: String,
+        properties: LeanStr,
     },
     /// A utility literal cannot be resolved and contributes nothing.
     #[error("unknown or unavailable utility `{utility}`")]
     UnresolvedUtility {
         /// Utility text as authored, including variants.
-        utility: String,
+        utility: LeanStr,
         /// Whether the candidate syntax is valid; determines the lint code.
         classification: UtilityFailure,
     },
@@ -459,7 +460,7 @@ pub enum LintDiagnostic {
     #[error("unresolved candidate: {candidate}")]
     UnresolvedCandidate {
         /// Candidate text supplied to the query.
-        candidate: String,
+        candidate: LeanStr,
         /// Whether the candidate syntax is valid; determines the lint code.
         classification: UtilityFailure,
     },
@@ -598,6 +599,8 @@ impl UtilityFailure {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::SourceError;
 
     use super::*;
@@ -629,7 +632,10 @@ mod tests {
                 assert_eq!(diagnostic.code(), expected.name());
             }
             assert_ne!(diagnostics[0], diagnostics[1]);
-            assert_ne!(diagnostics[1].to_string(), diagnostics[2].to_string());
+            assert_ne!(
+                diagnostics[1].to_lean_string(),
+                diagnostics[2].to_lean_string()
+            );
         }
     }
 
@@ -644,9 +650,9 @@ mod tests {
         });
         assert_eq!(findings[0].code(), "invalid-utility");
         assert_eq!(findings[1].code(), "unknown-utility");
-        assert_eq!(findings[0].to_string(), findings[1].to_string());
+        assert_eq!(findings[0].to_lean_string(), findings[1].to_lean_string());
         assert_eq!(
-            findings[0].to_string(),
+            findings[0].to_lean_string(),
             "unknown or unavailable utility `hover:[`"
         );
 
@@ -668,7 +674,7 @@ mod tests {
                     context
                 }
             );
-            assert_eq!(error.to_string(), "invalid source byte range 9..2");
+            assert_eq!(error.to_lean_string(), "invalid source byte range 9..2");
         }
     }
 }

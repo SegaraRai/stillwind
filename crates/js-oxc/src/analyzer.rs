@@ -15,6 +15,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use lean_string::ToLeanStr;
+
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, collect_lint_directives,
 };
@@ -24,7 +26,7 @@ use stillwind_ir::{
 use stillwind_semantic::{
     ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts,
 };
-use stillwind_source::Fingerprint;
+use stillwind_source::{Fingerprint, JoinText};
 
 use crate::ParsedJavaScript;
 use crate::entry::parse_with_lint;
@@ -299,11 +301,14 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
                 LintDiagnostic::FrameworkImportMismatch {
                     import: import.adapter.spec().macro_import.into(),
                     source_format: input.document().format().description().into(),
-                    expected: allowed
+                    expected: (allowed
                         .iter()
-                        .map(|adapter| format!("`{}`", adapter.spec().macro_import))
+                        .map(|adapter| {
+                            format_args!("`{}`", adapter.spec().macro_import).to_lean_str()
+                        })
                         .collect::<Vec<_>>()
-                        .join(", "),
+                        .join_text(", "))
+                    .into(),
                 },
                 import.source_span,
             ));

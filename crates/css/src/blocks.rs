@@ -12,10 +12,11 @@
 //! `{modifier}` markers; that exception is not shared by the token scanner.
 
 use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString};
 
 /// Removes complete block comments and preserves an unterminated comment tail.
-pub fn strip_css_comments(css: &str) -> String {
-    let mut output = String::new();
+pub fn strip_css_comments(css: &str) -> LeanString {
+    let mut output = LeanString::with_capacity(css.len());
     let mut remaining = css;
     while let Some(start) = remaining.find("/*") {
         output.push_str(&remaining[..start]);
@@ -34,7 +35,7 @@ pub fn strip_css_comments(css: &str) -> String {
 /// Header text is trimmed and excludes the braces; body text is trimmed. Comment text,
 /// strings and other directives are not mistaken for blocks, and a block whose body is
 /// unterminated is skipped entirely.
-pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)> {
+pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(LeanStr, LeanStr)> {
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .map(|(_, header, body)| (header, body))
@@ -50,7 +51,7 @@ pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(String, String)>
 pub fn extract_named_blocks_with_offsets(
     css: &str,
     directive: &str,
-) -> Vec<(usize, String, String)> {
+) -> Vec<(usize, LeanStr, LeanStr)> {
     directive_rules(css, directive)
         .into_iter()
         .filter_map(|rule| rule.body.map(|body| (rule.start, rule.header, body)))
@@ -61,7 +62,7 @@ pub fn extract_named_blocks_with_offsets(
 ///
 /// A statement must have no body, a non-empty name, and no whitespace in that name, so
 /// `@order a b;` is ignored rather than reported as a name.
-pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
+pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, LeanStr)> {
     directive_rules(css, directive)
         .into_iter()
         .filter_map(|rule| {
@@ -75,7 +76,7 @@ pub fn extract_order_statements(css: &str, directive: &str) -> Vec<(usize, Strin
 
 /// Extracts `(offset, header)` from bodyless directives without restricting the header.
 /// Nested functions and quoted text are kept intact by the directive token scanner.
-pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, String)> {
+pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, LeanStr)> {
     directive_rules(css, directive)
         .into_iter()
         .filter_map(|rule| rule.body.is_none().then_some((rule.start, rule.header)))
@@ -96,7 +97,7 @@ struct PropertyRequirement {
     /// Byte range of the full directive in its CSS body.
     range: std::ops::Range<usize>,
     /// Required custom-property names in authored order.
-    names: Vec<String>,
+    names: Vec<LeanStr>,
 }
 
 /// Reads semantic registration requirements from a utility definition or fragment.
@@ -121,7 +122,7 @@ fn property_requirement_ranges(
             let names = rule
                 .header
                 .split_whitespace()
-                .map(str::to_owned)
+                .map(LeanStr::from)
                 .collect::<Vec<_>>();
             if names.is_empty()
                 || names.iter().any(|name| {
@@ -154,9 +155,9 @@ fn property_requirement_ranges(
 /// Returns the byte offset of the first malformed directive.
 pub fn take_property_requirements(
     css: &str,
-) -> Result<(String, Vec<String>), PropertyRequirementError> {
+) -> Result<(LeanString, Vec<LeanStr>), PropertyRequirementError> {
     let requests = property_requirement_ranges(css)?;
-    let mut output = String::new();
+    let mut output = LeanString::new();
     let mut properties = Vec::new();
     let mut cursor = 0;
     for PropertyRequirement { range, names } in requests {
@@ -174,9 +175,9 @@ struct DirectiveRule {
     start: usize,
     /// Trimmed prelude without the directive name, braces, or statement semicolon;
     /// internal whitespace is retained.
-    header: String,
+    header: LeanStr,
     /// Trimmed text inside the outer braces; None represents a bodyless statement.
-    body: Option<String>,
+    body: Option<LeanStr>,
 }
 
 /// Collects every occurrence of one directive name.
@@ -268,8 +269,8 @@ fn scan_directives(
 /// `{modifier}` is skipped as literal text rather than counted as an opening brace. An
 /// unterminated body is preserved from the directive onward. This textual helper does
 /// not distinguish strings or comments from directive text and braces.
-pub fn strip_blocks(css: &str, directive: &str) -> String {
-    let mut output = String::new();
+pub fn strip_blocks(css: &str, directive: &str) -> LeanString {
+    let mut output = LeanString::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find(directive) {
         let start = cursor + relative;
@@ -461,7 +462,7 @@ mod tests {
     fn named_blocks_do_not_slice_unclosed_bodies() {
         assert_eq!(
             extract_named_blocks("@utility x {", "@utility"),
-            [] as [(String, String); 0]
+            [] as [(LeanStr, LeanStr); 0]
         );
         assert_eq!(
             extract_named_blocks("@utility ok {color:red;} @utility missing {", "@utility"),

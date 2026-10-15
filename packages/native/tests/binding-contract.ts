@@ -11,6 +11,14 @@ import { stillwindCva } from "../../core/src/runtime/react.ts";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("module summaries preserve UTF-8 module identities across the binding", async () => {
+    const { summarizeSource } = await import(bindingSpecifier);
+    for (const moduleId of ["short.ts", "a".repeat(16), "a".repeat(17), "日本/😀\0entry.ts"]) {
+      const summary = summarizeSource("export const value = 1;", moduleId, "ts", "module");
+      expect(summary.moduleId).toBe(moduleId);
+    }
+  });
+
   test("all stylesheet outputs retain development naming fallbacks and fatal render reports", async () => {
     const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();

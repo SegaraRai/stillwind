@@ -4,6 +4,8 @@
 //! resolve with the same slot syntax as built-ins, and that theme wildcards and typed
 //! modifiers expand inside them.
 
+use lean_string::ToLeanStr;
+
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
 use super::*;
@@ -25,11 +27,13 @@ fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
             &parse_candidate("pressed:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate("&:active".to_owned()))
+        Some(VariantApplication::SelectorTemplate(
+            "&:active".to_lean_str()
+        ))
     );
     assert_eq!(
         resolve_variant(&parse_candidate("narrow:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Media("(width < 40rem)".to_owned()))
+        Some(VariantApplication::Media("(width < 40rem)".to_lean_str()))
     );
     assert_eq!(
         resolve_variant(
@@ -37,10 +41,10 @@ fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
             &theme
         ),
         Some(VariantApplication::SelectorRule {
-            selector: "&::before".to_owned(),
+            selector: "&::before".to_lean_str(),
             declarations: vec![VariantDeclaration {
-                property: "content".to_owned(),
-                value: "var(--content)".to_owned(),
+                property: "content".to_lean_str(),
+                value: "var(--content)".to_lean_str(),
             }],
         })
     );
@@ -63,7 +67,7 @@ fn resolves_wildcard_selector_variants_from_application_css() {
             &theme
         ),
         Some(VariantApplication::SelectorTemplate(
-            "&[data-state=open]".to_owned()
+            "&[data-state=open]".to_lean_str()
         ))
     );
     assert_eq!(
@@ -72,7 +76,7 @@ fn resolves_wildcard_selector_variants_from_application_css() {
             &theme
         ),
         Some(VariantApplication::SelectorTemplate(
-            "&[aria-expanded=\"true\"]".to_owned()
+            "&[aria-expanded=\"true\"]".to_lean_str()
         ))
     );
 }
@@ -151,7 +155,9 @@ fn resolves_container_at_variants_from_css_registry() {
     let candidate = parse_candidate("@min-md:flex").unwrap();
     assert_eq!(
         resolve_variant(&candidate.variants[0], &theme),
-        Some(VariantApplication::Container("(width >= 40rem)".to_owned()))
+        Some(VariantApplication::Container(
+            "(width >= 40rem)".to_lean_str()
+        ))
     );
     for (candidate, condition) in [
         ("@md/sidebar:flex", "sidebar (width >= 40rem)"),
@@ -161,7 +167,7 @@ fn resolves_container_at_variants_from_css_registry() {
         let candidate = parse_candidate(candidate).unwrap();
         assert_eq!(
             resolve_variant(&candidate.variants[0], &theme),
-            Some(VariantApplication::Container(condition.to_owned()))
+            Some(VariantApplication::Container(condition.to_lean_str()))
         );
     }
 }
@@ -182,7 +188,7 @@ fn resolves_formal_variant_modifier_placeholder() {
             &theme
         ),
         Some(VariantApplication::SelectorTemplate(
-            r":where(.peer\/field) ~ &".to_owned()
+            r":where(.peer\/field) ~ &".to_lean_str()
         ))
     );
 }
@@ -197,17 +203,19 @@ fn resolves_wildcard_conditional_variants_from_css() {
 
     assert_eq!(
         resolve_variant(&parse_candidate("min-md:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Media("(width >= 48rem)".to_owned()))
+        Some(VariantApplication::Media("(width >= 48rem)".to_lean_str()))
     );
     assert_eq!(
         resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Container("(width >= 24rem)".to_owned()))
+        Some(VariantApplication::Container(
+            "(width >= 24rem)".to_lean_str()
+        ))
     );
     assert_eq!(
         resolve_variant(
             &parse_candidate("narrow-narrow:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::Media("(width < 40rem)".to_owned()))
+        Some(VariantApplication::Media("(width < 40rem)".to_lean_str()))
     );
 }

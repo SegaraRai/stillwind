@@ -9,6 +9,8 @@
 
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceUri, Span};
 
 use super::state::DesignSystemLoadError;
@@ -32,7 +34,7 @@ pub struct CssFileRequest {
     /// Name of the source that authored the import.
     pub importer: CssSourceName,
     /// Decoded CSS import specifier text; escapes are resolved by the tokenizer.
-    pub specifier: String,
+    pub specifier: LeanStr,
     /// Kind of dependency that produced this request.
     pub kind: CssDependencyKind,
 }
@@ -79,11 +81,11 @@ pub struct CssSourceGraph {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssResourceReference {
     /// Unique marker emitted instead of the authored resource reference.
-    pub placeholder: String,
+    pub placeholder: LeanStr,
     /// Source that authored the reference.
     pub source_name: CssSourceName,
     /// Decoded resource specifier the host must resolve.
-    pub specifier: String,
+    pub specifier: LeanStr,
     /// Span of the authored reference in its own source buffer.
     pub span: Span,
 }

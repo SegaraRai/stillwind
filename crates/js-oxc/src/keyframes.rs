@@ -6,6 +6,7 @@
 //! options. Both are validated here so the declaration-site identity and its frames are
 //! known before the compiler runs.
 
+use lean_string::LeanStr;
 use oxc::ast::ast::{
     CallExpression, Expression, ObjectExpression, ObjectPropertyKind, PropertyKind,
 };
@@ -34,7 +35,7 @@ pub(crate) enum ParsedKeyframesUse {
         /// The declared keyframes.
         keyframes: AssetReference,
         /// The options string, with the span of its contents.
-        options: Spanned<String>,
+        options: Spanned<LeanStr>,
     },
     /// Several possible keyframes; the runtime picks one.
     Dynamic {
@@ -43,7 +44,7 @@ pub(crate) enum ParsedKeyframesUse {
         /// Candidate keyframes, each a declared keyframes.
         keyframes: Vec<AssetReference>,
         /// The options string, shared by every candidate.
-        options: Spanned<String>,
+        options: Spanned<LeanStr>,
     },
 }
 
@@ -128,7 +129,7 @@ impl<'a> MacroExtractor<'a> {
 
     /// Reads the options argument of a keyframes use. A wrong arity or a nonliteral
     /// value adds a lint and returns empty options at the call span.
-    fn keyframes_options(&mut self, call: &CallExpression<'a>) -> Spanned<String> {
+    fn keyframes_options(&mut self, call: &CallExpression<'a>) -> Spanned<LeanStr> {
         if let [argument] = call.arguments.as_slice()
             && let Some(Expression::StringLiteral(options)) = argument.as_expression()
         {
@@ -142,7 +143,7 @@ impl<'a> MacroExtractor<'a> {
             LintDiagnostic::InvalidKeyframesOptions,
             self.source_span(span),
         ));
-        Spanned::new(String::new(), self.source_span(span))
+        Spanned::new(LeanStr::new(), self.source_span(span))
     }
 
     /// Lowers a keyframes use for `receiver`. A receiver with several candidates
@@ -150,7 +151,7 @@ impl<'a> MacroExtractor<'a> {
     fn keyframes_receiver_use(
         &mut self,
         receiver: &Expression<'a>,
-        options: &Spanned<String>,
+        options: &Spanned<LeanStr>,
     ) -> Option<ClassExpression> {
         let keyframes = match self.keyframes_references(receiver) {
             Ok(keyframes) => keyframes,
@@ -188,7 +189,7 @@ impl<'a> MacroExtractor<'a> {
     /// and identity.
     pub(crate) fn collect_keyframes_definition(
         &mut self,
-        binding: Spanned<String>,
+        binding: Spanned<LeanStr>,
         call: &CallExpression<'a>,
     ) -> KeyframesDefinition {
         self.omit_input(call.span);
@@ -232,7 +233,7 @@ impl<'a> MacroExtractor<'a> {
     fn keyframes_body(
         &mut self,
         object: &ObjectExpression<'a>,
-        mut label: Option<&mut Option<Spanned<String>>>,
+        mut label: Option<&mut Option<Spanned<LeanStr>>>,
     ) -> KeyframesBody {
         let mut branches = Vec::new();
         let mut frames = Vec::new();

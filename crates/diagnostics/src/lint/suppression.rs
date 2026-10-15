@@ -11,6 +11,8 @@
 
 use std::collections::BTreeSet;
 
+use lean_string::{LeanStr, ToLeanStr};
+
 use stillwind_source::{SourceFile, Span};
 
 use super::{LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity};
@@ -44,7 +46,7 @@ pub struct LintDirective {
     /// End byte offset of the directive keyword.
     pub end: usize,
     /// Explicit rule spellings, including unknown names, with their byte offsets.
-    pub names: Vec<(String, usize)>,
+    pub names: Vec<(LeanStr, usize)>,
 }
 
 /// Rules selected by one suppression directive.
@@ -160,10 +162,11 @@ pub fn finish_lint_findings(
             if directive.kind == LintDirectiveKind::Invalid {
                 additional.push(LintFinding::new(
                     LintDiagnostic::InvalidLintSuppression {
-                        detail: format!(
+                        detail: format_args!(
                             "unknown directive `{}`",
                             &source.text()[directive.offset..directive.end]
-                        ),
+                        )
+                        .to_lean_str(),
                     },
                     directive_span(source, directive.offset, directive.end),
                 ));
@@ -172,7 +175,7 @@ pub fn finish_lint_findings(
                 if name != "*" && LintKind::from_name(name).is_none() {
                     additional.push(LintFinding::new(
                         LintDiagnostic::InvalidLintSuppression {
-                            detail: format!("unknown rule `{name}`"),
+                            detail: format_args!("unknown rule `{name}`").to_lean_str(),
                         },
                         directive_span(source, *offset, *offset + name.len()),
                     ));
@@ -327,7 +330,7 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
                     break;
                 }
                 let relative = rest[cursor..].find(name)? + cursor;
-                names.push((name.to_owned(), end + relative));
+                names.push((name.to_lean_str(), end + relative));
                 cursor = relative + name.len();
             }
             let rules = if kind == LintDirectiveKind::Invalid {
@@ -361,6 +364,8 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::{FileId, Span};
 
     use super::super::LintConfig;
@@ -388,11 +393,11 @@ mod tests {
     fn unknown_rule_lists_do_not_select_all_rules() {
         for directive in ["disable", "disable-line", "disable-next-line"] {
             let text = if directive == "disable-line" {
-                format!("x // swlint-{directive} unknown-rule")
+                format_args!("x // swlint-{directive} unknown-rule").to_lean_string()
             } else {
-                format!("// swlint-{directive} unknown-rule\nx")
+                format_args!("// swlint-{directive} unknown-rule\nx").to_lean_string()
             };
-            let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+            let source = SourceFile::new(FileId(1), None, None, text.as_str()).unwrap();
             let start = u32::try_from(source.text().find('x').unwrap()).unwrap();
             let span = Span::new(FileId(1), start, start + 1);
             let mut findings = vec![LintFinding::new(

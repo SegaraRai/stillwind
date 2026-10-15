@@ -5,9 +5,12 @@
 //! discovery and included authored nodes. It neither validates requested registration
 //! names against the registry nor assigns template placement.
 
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
 use stillwind_css::take_property_requirements;
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_source::ReplaceText;
 
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
@@ -33,10 +36,10 @@ use crate::identifiers::{IdentifierContext, IdentifierKind, builtin_prefix};
 pub(super) fn render_authored(
     css: &str,
     theme: &ThemeIndex,
-    required_properties: &mut Vec<String>,
+    required_properties: &mut Vec<LeanStr>,
     options: &CompilerOptions,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     let (css, requirements) = take_property_requirements(css).map_err(|error| {
         CompileDiagnostic::MalformedPropertyRequirement {
             offset: error.offset,
@@ -52,14 +55,18 @@ pub(super) fn render_authored(
         )?)
         .map_err(|error| CompileDiagnostic::InvalidThemeReference {
             offset: error.offset(),
-            detail: error.to_string(),
+            detail: error.to_lean_str(),
         })?
         .ok_or(CompileDiagnostic::UnresolvedThemeReference)
         .and_then(|css| lower(&css, options.use_css_if, identifiers))
         // The helper prefix is the built-in marker plus the role letter, so replacing the
         // marker puts every role's spelling under the configured custom-property prefix.
         .map(|css| {
-            let marker = format!("--{}", builtin_prefix(IdentifierKind::ConditionHelper));
-            css.replace(&marker, &format!("{}if", options.prefix))
+            let marker = format_args!("--{}", builtin_prefix(IdentifierKind::ConditionHelper))
+                .to_lean_string();
+            css.replace_text(
+                &marker,
+                &format_args!("{}if", options.prefix).to_lean_string(),
+            )
         })
 }

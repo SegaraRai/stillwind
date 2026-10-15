@@ -7,6 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use lean_string::LeanStr;
+
 use stillwind_css::{CustomPropertyDefinition, ValueType, parse_property_definitions};
 
 use super::utility_lookup::UtilityLookup;
@@ -25,19 +27,19 @@ use crate::{
 /// and repeated names. Candidate matching preserves each layer's precedence.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct BuiltinDefinitions {
-    source: String,
+    source: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
     utility_lookup: UtilityLookup,
     arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
     animation_options: Vec<Arc<CustomUtility>>,
-    animation_property_mappings: BTreeMap<String, String>,
-    declaration_formats: BTreeMap<String, String>,
-    relationships: BTreeSet<String>,
-    marker_utilities: BTreeSet<String>,
-    omit_token_prefixes: Vec<(String, String)>,
-    theme_order: Vec<String>,
+    animation_property_mappings: BTreeMap<LeanStr, LeanStr>,
+    declaration_formats: BTreeMap<LeanStr, LeanStr>,
+    relationships: BTreeSet<LeanStr>,
+    marker_utilities: BTreeSet<LeanStr>,
+    omit_token_prefixes: Vec<(LeanStr, LeanStr)>,
+    theme_order: Vec<LeanStr>,
     theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
 }
 
@@ -77,32 +79,32 @@ impl BuiltinDefinitions {
     }
 
     /// Animation option name to the property it rewrites.
-    pub fn animation_property_mappings(&self) -> &BTreeMap<String, String> {
+    pub fn animation_property_mappings(&self) -> &BTreeMap<LeanStr, LeanStr> {
         &self.animation_property_mappings
     }
 
     /// Declaration format name to its serialized value grammar.
-    pub fn declaration_formats(&self) -> &BTreeMap<String, String> {
+    pub fn declaration_formats(&self) -> &BTreeMap<LeanStr, LeanStr> {
         &self.declaration_formats
     }
 
     /// Candidate patterns identifying compatibility relationships.
-    pub fn relationships(&self) -> &BTreeSet<String> {
+    pub fn relationships(&self) -> &BTreeSet<LeanStr> {
         &self.relationships
     }
 
     /// Utilities that emit only a marker class and no declarations.
-    pub fn marker_utilities(&self) -> &BTreeSet<String> {
+    pub fn marker_utilities(&self) -> &BTreeSet<LeanStr> {
         &self.marker_utilities
     }
 
     /// Namespace to the prefix a token name omits when it is referenced.
-    pub fn omit_token_prefixes(&self) -> &[(String, String)] {
+    pub fn omit_token_prefixes(&self) -> &[(LeanStr, LeanStr)] {
         &self.omit_token_prefixes
     }
 
     /// Theme namespace names in the order utilities consume them.
-    pub fn theme_order(&self) -> &[String] {
+    pub fn theme_order(&self) -> &[LeanStr] {
         &self.theme_order
     }
 
