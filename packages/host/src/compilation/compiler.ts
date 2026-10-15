@@ -216,7 +216,7 @@ export async function analyzeModule(
   for (const batch of analysis.batches) {
     for (const report of batch.reports) {
       const edits = report.actions[0]?.edits;
-      if (edits?.length && report.code !== "sort-utilities") {
+      if (edits?.length && report.code !== "prefer-sorted-utilities") {
         analysis.fixes.push(edits);
       }
     }

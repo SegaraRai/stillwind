@@ -405,7 +405,7 @@ mod tests {
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_diagnostics::{
-        CanonicalUtilitiesOverride, LintFinding, LintOverrides, LintSeverity, RootFontSize,
+        CanonicalUtilitiesOverride, LintOverrides, LintSeverity, RootFontSize,
     };
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css_source;
@@ -480,7 +480,7 @@ mod tests {
             "@import 'stillwind'; @theme { --spacing: .25rem; }",
             CompilerOptions {
                 lint: LintOverrides {
-                    canonical_utilities: Some(CanonicalUtilitiesOverride {
+                    prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
                         px_to_rem: Some(false),
                         ..Default::default()
                     }),
@@ -502,7 +502,7 @@ mod tests {
             "@import 'stillwind'; @theme { --spacing: .25rem; }",
             CompilerOptions {
                 lint: LintOverrides {
-                    canonical_utilities: Some(CanonicalUtilitiesOverride {
+                    prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
                         root_font_size: RootFontSize::new(20.5),
                         ..Default::default()
                     }),
@@ -696,10 +696,7 @@ mod tests {
             "@theme { --*:initial; --color-a:red; } @utility tone-* { color:--value(--color-*, [color]); }",
             CompilerOptions::default(),
         );
-        assert_eq!(
-            query.resolve_candidate("tone-a").unwrap().diagnostics,
-            [] as [LintFinding; 0]
-        );
+        assert_eq!(query.resolve_candidate("tone-a").unwrap().failures, []);
         assert!(query.canonical_candidate("tone-a").unwrap().is_none());
         assert!(
             query
@@ -733,7 +730,7 @@ mod tests {
             snapshot.clone(),
             CompilerOptions {
                 lint: LintOverrides {
-                    canonical_utilities: Some(CanonicalUtilitiesOverride {
+                    prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
                         severity: Some(LintSeverity::Deny),
                         ..Default::default()
                     }),
@@ -753,7 +750,7 @@ mod tests {
             snapshot,
             CompilerOptions {
                 lint: LintOverrides {
-                    canonical_utilities: Some(CanonicalUtilitiesOverride {
+                    prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
                         px_to_rem: Some(false),
                         ..Default::default()
                     }),
@@ -781,10 +778,7 @@ mod tests {
         .unwrap();
         prepare_canonical_index(&snapshot, &CompilerOptions::default());
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
-        assert_eq!(
-            query.resolve_candidate("good").unwrap().diagnostics,
-            [] as [LintFinding; 0]
-        );
+        assert_eq!(query.resolve_candidate("good").unwrap().failures, []);
         assert_eq!(
             query.canonical_candidate("bad-[red]").unwrap_err().name,
             "bad-*"

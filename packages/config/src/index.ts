@@ -28,7 +28,7 @@ export {
   type StillwindConfigFactory,
 } from "./configuration.ts";
 export { lintPresets } from "./lint-presets.ts";
-export { lintRules, type LintRule } from "./lint-rules.ts";
+export { lintRules, type LintCategory, type LintRule } from "./lint-rules.ts";
 export {
   mergeLintConfig,
   resolveLintConfig,

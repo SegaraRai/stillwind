@@ -77,8 +77,8 @@ pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::CompilerOptions;
 pub use query::{
-    CandidateContext, CandidateHover, CandidateResolution, CompletionInput, CompletionItem,
-    DesignSystemQuery, prepare_canonical_index,
+    CandidateContext, CandidateFailure, CandidateHover, CandidateResolution, CompletionInput,
+    CompletionItem, DesignSystemQuery, prepare_canonical_index,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

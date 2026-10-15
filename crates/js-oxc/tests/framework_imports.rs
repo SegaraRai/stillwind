@@ -78,7 +78,7 @@ fn original_formats_check_value_macro_imports_even_without_calls_or_jsx() {
             );
             if expected {
                 let finding = &scan.lint_findings[0];
-                assert_eq!(finding.code(), "framework-import-mismatch");
+                assert_eq!(finding.code(), "mismatched-framework-import");
                 assert_eq!(
                     scan.source.slice(finding.labels[0].span).unwrap(),
                     format!("'{import}'")
@@ -163,6 +163,6 @@ fn finalization_without_facts_preserves_one_finding() {
     assert_eq!(analysis.lint_findings.len(), 1);
     assert!(matches!(
         analysis.lint_findings[0].diagnostic,
-        LintDiagnostic::FrameworkImportMismatch { .. }
+        LintDiagnostic::MismatchedFrameworkImport { .. }
     ));
 }

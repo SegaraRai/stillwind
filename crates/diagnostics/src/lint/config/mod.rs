@@ -15,15 +15,15 @@ mod policies;
 mod presets;
 mod settings;
 
-pub use catalog::{LintConfig, LintKind, LintSeverity};
+pub use catalog::{LintCategory, LintConfig, LintKind, LintSeverity};
 pub use overrides::LintOverrides;
 pub use policies::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, RestrictedDeclarationRule,
-    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
-    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
-    RestrictedUtilityRule, RootFontSize,
+    RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
+    RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
+    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
 };
 pub use presets::LintPreset;
 pub use settings::LintSettings;

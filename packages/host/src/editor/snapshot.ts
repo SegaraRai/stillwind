@@ -151,7 +151,7 @@ export class EditorSnapshot {
   readonly #revision: string;
   /** Targets for explicit sorting and sorting fixes. False disables both. */
   readonly #sort: Readonly<UtilitySortOptions> | false;
-  /** Effective sort-utilities severity. Off skips its diagnostics and sorting in fixes. */
+  /** Effective prefer-sorted-utilities severity. Off skips its diagnostics and sorting in fixes. */
   readonly #sortSeverity: LintSeverity;
   /** Sorting reports cached by full compiler module identity, including empty results. */
   readonly #reports = new Map<string, BindingReport[]>();
@@ -191,7 +191,7 @@ export class EditorSnapshot {
             arrays: config.sort?.arrays ?? true,
             attributes: config.sort?.attributes ?? false,
           };
-    this.#sortSeverity = (css["sort-utilities"] as LintSeverity) ?? "off";
+    this.#sortSeverity = (css["prefer-sorted-utilities"] as LintSeverity) ?? "off";
     this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
   }
 
@@ -268,7 +268,7 @@ export class EditorSnapshot {
                       source.document.code,
                       bytes(source.document.code, start),
                       bytes(source.document.code, end),
-                      "sort-utilities",
+                      "prefer-sorted-utilities",
                     ),
             )
           : seed;

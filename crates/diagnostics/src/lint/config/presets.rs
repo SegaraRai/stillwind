@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use super::{LintConfig, LintKind, LintSettings, LintSeverity};
 
 const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
-    (LintKind::ValidLintSuppressions, LintSeverity::Warn),
-    (LintKind::DuplicateUtilities, LintSeverity::Warn),
+    (LintKind::InvalidLintSuppression, LintSeverity::Warn),
+    (LintKind::DuplicateUtility, LintSeverity::Warn),
     (LintKind::ConflictingUtilities, LintSeverity::Warn),
-    (LintKind::FrameworkImportMismatch, LintSeverity::Warn),
-    (LintKind::MacroArgumentMutation, LintSeverity::Deny),
-    (LintKind::MacroExecutionBoundary, LintSeverity::Deny),
+    (LintKind::MismatchedFrameworkImport, LintSeverity::Warn),
+    (LintKind::MutatingMacroArgument, LintSeverity::Deny),
+    (LintKind::SuspendingMacroArgument, LintSeverity::Deny),
     (LintKind::InvalidVariantInput, LintSeverity::Deny),
     (LintKind::InvalidStyleInput, LintSeverity::Deny),
     (LintKind::InvalidCvaConfig, LintSeverity::Deny),
@@ -27,31 +27,31 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidRefInput, LintSeverity::Deny),
     (LintKind::InvalidAnimationOption, LintSeverity::Deny),
     (LintKind::InvalidStyleComposition, LintSeverity::Deny),
-    (LintKind::RuntimeConditionRequiresNative, LintSeverity::Deny),
+    (LintKind::RuntimeConditionRequiresCssIf, LintSeverity::Deny),
     (LintKind::UnverifiedStyleBase, LintSeverity::Warn),
-    (LintKind::ValidAnchorScope, LintSeverity::Warn),
-    (LintKind::RequireRefAttachment, LintSeverity::Warn),
+    (LintKind::IneffectiveAnchorScope, LintSeverity::Warn),
+    (LintKind::MissingRefAttachment, LintSeverity::Warn),
     (LintKind::ConflictingProviderProperties, LintSeverity::Warn),
-    (LintKind::RequireElementScope, LintSeverity::Deny),
-    (LintKind::RequireViewTransitionName, LintSeverity::Warn),
-    (LintKind::SingleViewTransitionName, LintSeverity::Warn),
-    (LintKind::SingleViewTransitionClass, LintSeverity::Warn),
-    (LintKind::AmbiguousBaseOrder, LintSeverity::Warn),
-    (LintKind::ImportedBaseInterference, LintSeverity::Warn),
+    (LintKind::DocumentScopedSelector, LintSeverity::Deny),
+    (LintKind::MissingViewTransitionName, LintSeverity::Warn),
+    (LintKind::DuplicateViewTransitionName, LintSeverity::Warn),
+    (LintKind::SplitViewTransitionClass, LintSeverity::Warn),
+    (LintKind::AmbiguousStyleBaseOrder, LintSeverity::Warn),
+    (LintKind::InterferingImportedStyleBase, LintSeverity::Warn),
     (LintKind::InvalidUtility, LintSeverity::Warn),
     (LintKind::UnknownUtility, LintSeverity::Warn),
-    (LintKind::CanonicalUtilities, LintSeverity::Warn),
+    (LintKind::PreferCanonicalUtilities, LintSeverity::Warn),
 ];
 
 const STYLISTIC: &[(LintKind, LintSeverity)] = &[
     (LintKind::PreferDirectStyling, LintSeverity::Warn),
     (LintKind::PreferLogicalProperties, LintSeverity::Warn),
     (LintKind::PreferTypedRelationships, LintSeverity::Warn),
-    (LintKind::SortUtilities, LintSeverity::Warn),
+    (LintKind::PreferSortedUtilities, LintSeverity::Warn),
 ];
 
 const STRICT_ADDITIONS: &[(LintKind, LintSeverity)] =
-    &[(LintKind::NoUnusedLintSuppressions, LintSeverity::Deny)];
+    &[(LintKind::UnusedLintSuppression, LintSeverity::Deny)];
 
 /// A built-in set of lint severities. Rule options use their catalog defaults.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -95,6 +95,7 @@ impl LintPreset {
 
 #[cfg(test)]
 mod tests {
+    use super::super::LintCategory;
     use super::*;
 
     #[test]
@@ -122,17 +123,47 @@ mod tests {
             }
         }
         assert_eq!(
-            strict.reporting_severity(LintKind::NoUnusedLintSuppressions),
+            strict.reporting_severity(LintKind::UnusedLintSuppression),
             LintSeverity::Deny
         );
         let stylistic = LintPreset::Stylistic.settings();
         assert_eq!(
-            stylistic.reporting_severity(LintKind::SortUtilities),
+            stylistic.reporting_severity(LintKind::PreferSortedUtilities),
             LintSeverity::Warn
         );
         assert_eq!(
             stylistic.reporting_severity(LintKind::UnknownUtility),
             LintSeverity::Off
         );
+    }
+
+    #[test]
+    fn presets_cover_rules_by_category() {
+        let recommended = LintPreset::Recommended.settings();
+        let stylistic = LintPreset::Stylistic.settings();
+        for &kind in LintKind::ALL {
+            let enabled =
+                |settings: &LintSettings| settings.reporting_severity(kind) != LintSeverity::Off;
+            match kind.category() {
+                LintCategory::Input | LintCategory::Contract | LintCategory::Hazard => {
+                    assert!(enabled(&recommended), "{}", kind.name());
+                }
+                LintCategory::Restriction => {
+                    assert!(
+                        !enabled(&recommended) && !enabled(&stylistic),
+                        "{}",
+                        kind.name()
+                    );
+                }
+                LintCategory::Style => {
+                    assert!(
+                        enabled(&recommended) || enabled(&stylistic),
+                        "{}",
+                        kind.name()
+                    );
+                }
+                LintCategory::Suppression => {}
+            }
+        }
     }
 }

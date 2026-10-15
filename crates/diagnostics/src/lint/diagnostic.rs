@@ -189,7 +189,7 @@ pub enum LintDiagnostic {
     /// A runtime condition in a utility cannot be lowered without native CSS `if()`.
     /// The utility is omitted.
     #[error("`{utility}` cannot be lowered: {detail}")]
-    RuntimeConditionRequiresNative {
+    RuntimeConditionRequiresCssIf {
         /// Utility text as authored, including variants.
         utility: LeanStr,
         /// The construct that the fallback strategy cannot represent.
@@ -331,7 +331,7 @@ pub enum LintDiagnostic {
     },
     /// A nonzero length uses a forbidden unit in its property domain.
     #[error("unit `{unit}` is forbidden for `{property}`")]
-    ForbiddenLengthUnit {
+    RestrictedLengthUnit {
         /// CSS property domain selecting the unit restriction.
         property: LeanStr,
         /// Lowercase CSS length unit.
@@ -353,13 +353,13 @@ pub enum LintDiagnostic {
     },
     /// A source candidate has an equivalent canonical spelling.
     #[error("prefer canonical utility spelling")]
-    CanonicalUtilities,
+    NonCanonicalUtility,
     /// A static source container differs from compiler order.
     #[error("utilities are not in compiler order")]
-    SortUtilities,
+    UnsortedUtilities,
     /// A value import of the style macro is incompatible with the original file format.
     #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
-    FrameworkImportMismatch {
+    MismatchedFrameworkImport {
         /// Imported macro module specifier.
         import: LeanStr,
         /// Original format label, independent of the projected parser dialect.
@@ -371,15 +371,15 @@ pub enum LintDiagnostic {
     #[error(
         "macro arguments must be pure; perform assignments, updates, and deletes before the macro call"
     )]
-    MacroArgumentMutation,
+    MutatingMacroArgument,
     /// A macro expression suspends execution or loads a module; default severity is error.
     #[error(
         "evaluate await, yield, and dynamic imports outside macro arguments, then pass their values"
     )]
-    MacroExecutionBoundary,
+    SuspendingMacroArgument,
     /// An explicit anchor scope has no names or repeats an identity.
     #[error("anchor scope {detail}")]
-    AnchorScopeList {
+    IneffectiveAnchorScope {
         /// Empty-list or repeated-identity explanation.
         detail: LeanStr,
     },
@@ -401,7 +401,7 @@ pub enum LintDiagnostic {
     #[error(
         "Tailwind relationship utility `{utility}` is forbidden; use style.ref() and specify shared scopes with in()"
     )]
-    PreferTypedRelationships {
+    TailwindRelationshipUtility {
         /// Utility text as authored, including variants.
         utility: LeanStr,
     },
@@ -430,19 +430,19 @@ pub enum LintDiagnostic {
     #[error(
         "view-transition-class is one property: this call's list replaces the one its composed base declares, so declare the transitions in one call"
     )]
-    SplitViewTransitionClasses,
+    SplitViewTransitionClass,
     /// Two composition bases declare one declaration slot and neither precedes the other.
     #[error(
         "two composition bases declare `{properties}`; neither base precedes the other, so which declaration wins is undefined"
     )]
-    AmbiguousBaseOrder {
+    AmbiguousStyleBaseOrder {
         /// The competing declarations, as `property` or `property and property` when one
         /// side is a shorthand of the other.
         properties: LeanStr,
     },
     /// A base owned by another module declares a property this call also declares.
     #[error("the base in `{module}` overlaps these declarations: `{properties}`")]
-    ImportedBaseInterference {
+    InterferingImportedStyleBase {
         /// Host identity of the module owning the base.
         module: ModuleId,
         /// The competing declarations, as `property` or `property and property`.
@@ -453,22 +453,6 @@ pub enum LintDiagnostic {
     UnresolvedUtility {
         /// Utility text as authored, including variants.
         utility: LeanStr,
-        /// Whether the candidate syntax is valid; determines the lint code.
-        classification: UtilityFailure,
-    },
-    /// An editor candidate cannot be resolved against the pinned design system.
-    #[error("unresolved candidate: {candidate}")]
-    UnresolvedCandidate {
-        /// Candidate text supplied to the query.
-        candidate: LeanStr,
-        /// Whether the candidate syntax is valid; determines the lint code.
-        classification: UtilityFailure,
-    },
-    /// A candidate preview cannot be split into complete generated CSS blocks.
-    #[error("invalid generated CSS block at byte {offset}")]
-    InvalidCandidateCss {
-        /// Zero-based UTF-8 byte offset within the offending generated CSS contribution.
-        offset: usize,
         /// Whether the candidate syntax is valid; determines the lint code.
         classification: UtilityFailure,
     },
@@ -529,7 +513,7 @@ impl LintDiagnostic {
             Self::InvalidVariantPrefix => LintKind::InvalidUtility,
             Self::UnavailableVariantPrefix => LintKind::UnknownUtility,
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
-            Self::RuntimeConditionRequiresNative { .. } => LintKind::RuntimeConditionRequiresNative,
+            Self::RuntimeConditionRequiresCssIf { .. } => LintKind::RuntimeConditionRequiresCssIf,
             Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,
             Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
                 LintKind::InvalidStyleComposition
@@ -541,33 +525,31 @@ impl LintDiagnostic {
             Self::RestrictedUtility { .. } => LintKind::NoRestrictedUtilities,
             Self::RestrictedDeclaration { .. } => LintKind::NoRestrictedDeclarations,
             Self::ImportantDeclaration { .. } => LintKind::NoImportant,
-            Self::InvalidLintSuppression { .. } => LintKind::ValidLintSuppressions,
-            Self::UnusedLintSuppression { .. } => LintKind::NoUnusedLintSuppressions,
+            Self::InvalidLintSuppression { .. } => LintKind::InvalidLintSuppression,
+            Self::UnusedLintSuppression { .. } => LintKind::UnusedLintSuppression,
             Self::IndirectStyling { .. } => LintKind::PreferDirectStyling,
-            Self::DuplicateUtility { .. } => LintKind::DuplicateUtilities,
+            Self::DuplicateUtility { .. } => LintKind::DuplicateUtility,
             Self::ConflictingUtilities { .. } => LintKind::ConflictingUtilities,
             Self::PhysicalDeclaration { .. } => LintKind::PreferLogicalProperties,
-            Self::ForbiddenLengthUnit { .. } => LintKind::LengthUnits,
+            Self::RestrictedLengthUnit { .. } => LintKind::NoRestrictedLengthUnits,
             Self::RestrictedThemeToken { .. } => LintKind::NoRestrictedThemeTokens,
             Self::ArbitraryBreakpoint { .. } => LintKind::NoArbitraryBreakpoints,
-            Self::CanonicalUtilities => LintKind::CanonicalUtilities,
-            Self::SortUtilities => LintKind::SortUtilities,
-            Self::FrameworkImportMismatch { .. } => LintKind::FrameworkImportMismatch,
-            Self::MacroArgumentMutation => LintKind::MacroArgumentMutation,
-            Self::MacroExecutionBoundary => LintKind::MacroExecutionBoundary,
-            Self::AnchorScopeList { .. } => LintKind::ValidAnchorScope,
-            Self::MissingRefAttachment { .. } => LintKind::RequireRefAttachment,
+            Self::NonCanonicalUtility => LintKind::PreferCanonicalUtilities,
+            Self::UnsortedUtilities => LintKind::PreferSortedUtilities,
+            Self::MismatchedFrameworkImport { .. } => LintKind::MismatchedFrameworkImport,
+            Self::MutatingMacroArgument => LintKind::MutatingMacroArgument,
+            Self::SuspendingMacroArgument => LintKind::SuspendingMacroArgument,
+            Self::IneffectiveAnchorScope { .. } => LintKind::IneffectiveAnchorScope,
+            Self::MissingRefAttachment { .. } => LintKind::MissingRefAttachment,
             Self::ProviderConflict { .. } => LintKind::ConflictingProviderProperties,
-            Self::PreferTypedRelationships { .. } => LintKind::PreferTypedRelationships,
-            Self::DocumentScopedSelector { .. } => LintKind::RequireElementScope,
-            Self::MissingViewTransitionName => LintKind::RequireViewTransitionName,
-            Self::DuplicateViewTransitionName { .. } => LintKind::SingleViewTransitionName,
-            Self::SplitViewTransitionClasses => LintKind::SingleViewTransitionClass,
-            Self::AmbiguousBaseOrder { .. } => LintKind::AmbiguousBaseOrder,
-            Self::ImportedBaseInterference { .. } => LintKind::ImportedBaseInterference,
-            Self::UnresolvedUtility { classification, .. }
-            | Self::UnresolvedCandidate { classification, .. }
-            | Self::InvalidCandidateCss { classification, .. } => classification.lint_kind(),
+            Self::TailwindRelationshipUtility { .. } => LintKind::PreferTypedRelationships,
+            Self::DocumentScopedSelector { .. } => LintKind::DocumentScopedSelector,
+            Self::MissingViewTransitionName => LintKind::MissingViewTransitionName,
+            Self::DuplicateViewTransitionName { .. } => LintKind::DuplicateViewTransitionName,
+            Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,
+            Self::AmbiguousStyleBaseOrder { .. } => LintKind::AmbiguousStyleBaseOrder,
+            Self::InterferingImportedStyleBase { .. } => LintKind::InterferingImportedStyleBase,
+            Self::UnresolvedUtility { classification, .. } => classification.lint_kind(),
         }
     }
 
@@ -605,39 +587,6 @@ mod tests {
 
     use super::*;
     use crate::{CompileDiagnostic, CompileErrorCode, SourceFailureContext};
-
-    #[test]
-    fn utility_diagnostics_share_rules_without_losing_their_contents() {
-        for classification in [UtilityFailure::Invalid, UtilityFailure::Unknown] {
-            let diagnostics = [
-                LintDiagnostic::UnresolvedUtility {
-                    utility: "x".into(),
-                    classification,
-                },
-                LintDiagnostic::UnresolvedCandidate {
-                    candidate: "x".into(),
-                    classification,
-                },
-                LintDiagnostic::InvalidCandidateCss {
-                    offset: 7,
-                    classification,
-                },
-            ];
-            let expected = match classification {
-                UtilityFailure::Invalid => LintKind::InvalidUtility,
-                UtilityFailure::Unknown => LintKind::UnknownUtility,
-            };
-            for diagnostic in &diagnostics {
-                assert_eq!(diagnostic.kind(), expected);
-                assert_eq!(diagnostic.code(), expected.name());
-            }
-            assert_ne!(diagnostics[0], diagnostics[1]);
-            assert_ne!(
-                diagnostics[1].to_lean_string(),
-                diagnostics[2].to_lean_string()
-            );
-        }
-    }
 
     /// Utility classification chooses the lint rule while source context preserves the operation.
     #[test]

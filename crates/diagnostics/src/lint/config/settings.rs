@@ -101,7 +101,7 @@ mod tests {
             "custom",
             "",
             "RequireRefAttachment",
-            "require-ref-attachment ",
+            "missing-ref-attachment ",
         ] {
             assert_eq!(LintKind::from_name(name), None);
             assert!(serde_json::from_value::<LintKind>(serde_json::json!(name)).is_err());
@@ -115,9 +115,9 @@ mod tests {
             serde_json::to_value(&settings).unwrap(),
             serde_json::from_str::<serde_json::Value>(
                 r#"{
-                "framework-import-mismatch": "warn",
-                "macro-argument-mutation": "deny",
-                "macro-execution-boundary": "deny",
+                "mismatched-framework-import": "warn",
+                "mutating-macro-argument": "deny",
+                "suspending-macro-argument": "deny",
                 "invalid-variant-input": "deny",
                 "invalid-animation-option": "deny",
                 "invalid-cva-config": "deny",
@@ -127,24 +127,24 @@ mod tests {
                 "invalid-keyframes-variant": "deny",
                 "invalid-ref-input": "deny",
                 "invalid-style-composition": "deny",
-                "runtime-condition-requires-native": "deny",
+                "runtime-condition-requires-css-if": "deny",
                 "unverified-style-base": "warn",
                 "invalid-style-input": "deny",
                 "invalid-view-transition-definition": "deny",
                 "invalid-view-transition-use": "deny",
                 "invalid-view-transition-variant": "deny",
-                "require-element-scope": "deny",
-                "require-view-transition-name": "warn",
-                "single-view-transition-name": "warn",
-                "single-view-transition-class": "warn",
-                "ambiguous-base-order": "warn",
-                "imported-base-interference": "warn",
-                "canonical-utilities": "warn",
-                "duplicate-utilities": "warn",
+                "document-scoped-selector": "deny",
+                "missing-view-transition-name": "warn",
+                "duplicate-view-transition-name": "warn",
+                "split-view-transition-class": "warn",
+                "ambiguous-style-base-order": "warn",
+                "interfering-imported-style-base": "warn",
+                "prefer-canonical-utilities": "warn",
+                "duplicate-utility": "warn",
                 "conflicting-utilities": "warn",
-                "valid-lint-suppressions": "warn",
-                "valid-anchor-scope": "warn",
-                "require-ref-attachment": "warn",
+                "invalid-lint-suppression": "warn",
+                "ineffective-anchor-scope": "warn",
+                "missing-ref-attachment": "warn",
                 "conflicting-provider-properties": "warn",
                 "invalid-utility": "warn",
                 "unknown-utility": "warn",
@@ -154,14 +154,14 @@ mod tests {
                 "no-restricted-utilities": "off",
                 "no-restricted-declarations": "off",
                 "no-important": "off",
-                "no-unused-lint-suppressions": "off",
+                "unused-lint-suppression": "off",
                 "prefer-direct-styling": "off",
                 "prefer-logical-properties": "off",
-                "length-units": "off",
+                "no-restricted-length-units": "off",
                 "no-restricted-theme-tokens": "off",
                 "no-arbitrary-breakpoints": "off",
                 "prefer-typed-relationships": "off",
-                "sort-utilities": "off"
+                "prefer-sorted-utilities": "off"
             }"#
             )
             .unwrap()
@@ -172,12 +172,12 @@ mod tests {
             LintSeverity::Off
         );
         assert_eq!(
-            settings.insert(LintConfig::RequireElementScope(LintSeverity::Off)),
-            Some(LintConfig::RequireElementScope(LintSeverity::Deny))
+            settings.insert(LintConfig::DocumentScopedSelector(LintSeverity::Off)),
+            Some(LintConfig::DocumentScopedSelector(LintSeverity::Deny))
         );
-        assert!(!settings.enabled_for_detection(LintKind::RequireElementScope));
+        assert!(!settings.enabled_for_detection(LintKind::DocumentScopedSelector));
         assert_eq!(
-            settings.reporting_severity(LintKind::RequireElementScope),
+            settings.reporting_severity(LintKind::DocumentScopedSelector),
             LintSeverity::Off
         );
         settings.insert(LintConfig::PreferTypedRelationships(LintSeverity::Deny));

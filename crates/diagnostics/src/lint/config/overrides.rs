@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintKind, LintSettings, LintSeverity,
-    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
-    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
+    LintConfig, LintKind, LintSettings, LintSeverity, RestrictedDeclarationsConfig,
+    RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
+    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
+    RestrictedUtilitiesOverride,
 };
 
 /// Project lint settings applied to compiler defaults.
@@ -27,33 +28,33 @@ pub struct LintOverrides {
     /// Reporting level for important declarations.
     pub no_important: Option<LintSeverity>,
     /// Reporting level for unknown suppression names and malformed directives.
-    pub valid_lint_suppressions: Option<LintSeverity>,
+    pub invalid_lint_suppression: Option<LintSeverity>,
     /// Reporting level for disable directives that suppress no enabled findings.
-    pub no_unused_lint_suppressions: Option<LintSeverity>,
+    pub unused_lint_suppression: Option<LintSeverity>,
     /// Whether variants must retain the element receiving the style.
     pub prefer_direct_styling: Option<LintSeverity>,
     /// Reporting level for repeated utility candidates.
-    pub duplicate_utilities: Option<LintSeverity>,
+    pub duplicate_utility: Option<LintSeverity>,
     /// Overlap policy for utilities supplied directly by one call.
     pub conflicting_utilities: Option<ConflictingUtilitiesOverride>,
     /// Reporting level for direction-dependent physical declarations.
     pub prefer_logical_properties: Option<LintSeverity>,
     /// Property-specific unit restrictions.
-    pub length_units: Option<LengthUnitsOverride>,
+    pub no_restricted_length_units: Option<RestrictedLengthUnitsOverride>,
     /// Theme token names forbidden at their direct use sites.
     pub no_restricted_theme_tokens: Option<RestrictedThemeTokensOverride>,
     /// Reporting level for viewport size conditions supplied as arbitrary values.
     pub no_arbitrary_breakpoints: Option<LintSeverity>,
     /// Field-wise canonical policy overrides.
-    pub canonical_utilities: Option<CanonicalUtilitiesOverride>,
+    pub prefer_canonical_utilities: Option<CanonicalUtilitiesOverride>,
     /// Optional unsorted-source diagnostic. It is disabled by default.
-    pub sort_utilities: Option<LintSeverity>,
-    /// Reporting level for `framework-import-mismatch`.
-    pub framework_import_mismatch: Option<LintSeverity>,
-    /// Reporting level for `macro-argument-mutation`.
-    pub macro_argument_mutation: Option<LintSeverity>,
-    /// Reporting level for `macro-execution-boundary`.
-    pub macro_execution_boundary: Option<LintSeverity>,
+    pub prefer_sorted_utilities: Option<LintSeverity>,
+    /// Reporting level for `mismatched-framework-import`.
+    pub mismatched_framework_import: Option<LintSeverity>,
+    /// Reporting level for `mutating-macro-argument`.
+    pub mutating_macro_argument: Option<LintSeverity>,
+    /// Reporting level for `suspending-macro-argument`.
+    pub suspending_macro_argument: Option<LintSeverity>,
     /// Reporting level for omitted rule groups with incompatible inputs.
     pub invalid_variant_input: Option<LintSeverity>,
     /// Reporting level for `invalid-style-input`.
@@ -80,30 +81,30 @@ pub struct LintOverrides {
     pub invalid_animation_option: Option<LintSeverity>,
     /// Reporting level for `invalid-style-composition`.
     pub invalid_style_composition: Option<LintSeverity>,
-    /// Reporting level for `runtime-condition-requires-native`.
-    pub runtime_condition_requires_native: Option<LintSeverity>,
+    /// Reporting level for `runtime-condition-requires-css-if`.
+    pub runtime_condition_requires_css_if: Option<LintSeverity>,
     /// Reporting level for `unverified-style-base`.
     pub unverified_style_base: Option<LintSeverity>,
-    /// Reporting level for `valid-anchor-scope`.
-    pub valid_anchor_scope: Option<LintSeverity>,
-    /// Reporting level for `require-ref-attachment`.
-    pub require_ref_attachment: Option<LintSeverity>,
+    /// Reporting level for `ineffective-anchor-scope`.
+    pub ineffective_anchor_scope: Option<LintSeverity>,
+    /// Reporting level for `missing-ref-attachment`.
+    pub missing_ref_attachment: Option<LintSeverity>,
     /// Reporting level for `conflicting-provider-properties`.
     pub conflicting_provider_properties: Option<LintSeverity>,
     /// Reporting level for `prefer-typed-relationships`.
     pub prefer_typed_relationships: Option<LintSeverity>,
-    /// Reporting level for `require-element-scope`.
-    pub require_element_scope: Option<LintSeverity>,
-    /// Reporting level for `require-view-transition-name`.
-    pub require_view_transition_name: Option<LintSeverity>,
-    /// Reporting level for `single-view-transition-name`.
-    pub single_view_transition_name: Option<LintSeverity>,
-    /// Reporting level for `single-view-transition-class`.
-    pub single_view_transition_class: Option<LintSeverity>,
-    /// Reporting level for `ambiguous-base-order`.
-    pub ambiguous_base_order: Option<LintSeverity>,
-    /// Reporting level for `imported-base-interference`.
-    pub imported_base_interference: Option<LintSeverity>,
+    /// Reporting level for `document-scoped-selector`.
+    pub document_scoped_selector: Option<LintSeverity>,
+    /// Reporting level for `missing-view-transition-name`.
+    pub missing_view_transition_name: Option<LintSeverity>,
+    /// Reporting level for `duplicate-view-transition-name`.
+    pub duplicate_view_transition_name: Option<LintSeverity>,
+    /// Reporting level for `split-view-transition-class`.
+    pub split_view_transition_class: Option<LintSeverity>,
+    /// Reporting level for `ambiguous-style-base-order`.
+    pub ambiguous_style_base_order: Option<LintSeverity>,
+    /// Reporting level for `interfering-imported-style-base`.
+    pub interfering_imported_style_base: Option<LintSeverity>,
     /// Reporting level for `invalid-utility`.
     pub invalid_utility: Option<LintSeverity>,
     /// Reporting level for `unknown-utility`.
@@ -129,10 +130,10 @@ impl LintOverrides {
             }
             settings.insert(LintConfig::ConflictingUtilities(config));
         }
-        if let Some(overrides) = &self.length_units {
-            let mut config = match settings.get(LintKind::LengthUnits) {
-                Some(LintConfig::LengthUnits(config)) => config.clone(),
-                _ => LengthUnitsConfig {
+        if let Some(overrides) = &self.no_restricted_length_units {
+            let mut config = match settings.get(LintKind::NoRestrictedLengthUnits) {
+                Some(LintConfig::NoRestrictedLengthUnits(config)) => config.clone(),
+                _ => RestrictedLengthUnitsConfig {
                     severity: LintSeverity::Warn,
                     rules: Vec::new(),
                 },
@@ -143,7 +144,7 @@ impl LintOverrides {
             if let Some(value) = &overrides.rules {
                 config.rules.clone_from(value);
             }
-            settings.insert(LintConfig::LengthUnits(config));
+            settings.insert(LintConfig::NoRestrictedLengthUnits(config));
         }
         if let Some(overrides) = &self.no_restricted_theme_tokens {
             let mut config = match settings.get(LintKind::NoRestrictedThemeTokens) {
@@ -161,9 +162,9 @@ impl LintOverrides {
             }
             settings.insert(LintConfig::NoRestrictedThemeTokens(config));
         }
-        if let Some(overrides) = &self.canonical_utilities {
-            let mut config = match settings.get(LintKind::CanonicalUtilities) {
-                Some(LintConfig::CanonicalUtilities(config)) => config.clone(),
+        if let Some(overrides) = &self.prefer_canonical_utilities {
+            let mut config = match settings.get(LintKind::PreferCanonicalUtilities) {
+                Some(LintConfig::PreferCanonicalUtilities(config)) => config.clone(),
                 _ => CanonicalUtilitiesConfig::default(),
             };
             if let Some(value) = overrides.severity {
@@ -175,10 +176,10 @@ impl LintOverrides {
             if let Some(value) = overrides.root_font_size {
                 config.root_font_size = value;
             }
-            settings.insert(LintConfig::CanonicalUtilities(config));
+            settings.insert(LintConfig::PreferCanonicalUtilities(config));
         }
-        if let Some(severity) = self.sort_utilities {
-            settings.insert(LintConfig::SortUtilities(severity));
+        if let Some(severity) = self.prefer_sorted_utilities {
+            settings.insert(LintConfig::PreferSortedUtilities(severity));
         }
         settings
     }
@@ -187,19 +188,22 @@ impl LintOverrides {
         self.resolve_input_reporting_levels(settings);
         for (kind, severity) in [
             (
-                LintKind::FrameworkImportMismatch,
-                self.framework_import_mismatch,
+                LintKind::MismatchedFrameworkImport,
+                self.mismatched_framework_import,
             ),
             (
-                LintKind::MacroArgumentMutation,
-                self.macro_argument_mutation,
+                LintKind::MutatingMacroArgument,
+                self.mutating_macro_argument,
             ),
             (
-                LintKind::MacroExecutionBoundary,
-                self.macro_execution_boundary,
+                LintKind::SuspendingMacroArgument,
+                self.suspending_macro_argument,
             ),
-            (LintKind::ValidAnchorScope, self.valid_anchor_scope),
-            (LintKind::RequireRefAttachment, self.require_ref_attachment),
+            (
+                LintKind::IneffectiveAnchorScope,
+                self.ineffective_anchor_scope,
+            ),
+            (LintKind::MissingRefAttachment, self.missing_ref_attachment),
             (
                 LintKind::ConflictingProviderProperties,
                 self.conflicting_provider_properties,
@@ -208,23 +212,29 @@ impl LintOverrides {
                 LintKind::PreferTypedRelationships,
                 self.prefer_typed_relationships,
             ),
-            (LintKind::RequireElementScope, self.require_element_scope),
             (
-                LintKind::RequireViewTransitionName,
-                self.require_view_transition_name,
+                LintKind::DocumentScopedSelector,
+                self.document_scoped_selector,
             ),
             (
-                LintKind::SingleViewTransitionName,
-                self.single_view_transition_name,
+                LintKind::MissingViewTransitionName,
+                self.missing_view_transition_name,
             ),
             (
-                LintKind::SingleViewTransitionClass,
-                self.single_view_transition_class,
+                LintKind::DuplicateViewTransitionName,
+                self.duplicate_view_transition_name,
             ),
-            (LintKind::AmbiguousBaseOrder, self.ambiguous_base_order),
             (
-                LintKind::ImportedBaseInterference,
-                self.imported_base_interference,
+                LintKind::SplitViewTransitionClass,
+                self.split_view_transition_class,
+            ),
+            (
+                LintKind::AmbiguousStyleBaseOrder,
+                self.ambiguous_style_base_order,
+            ),
+            (
+                LintKind::InterferingImportedStyleBase,
+                self.interfering_imported_style_base,
             ),
             (LintKind::InvalidUtility, self.invalid_utility),
             (LintKind::UnknownUtility, self.unknown_utility),
@@ -232,15 +242,15 @@ impl LintOverrides {
             (LintKind::NoClassProperty, self.no_class_property),
             (LintKind::NoImportant, self.no_important),
             (
-                LintKind::ValidLintSuppressions,
-                self.valid_lint_suppressions,
+                LintKind::InvalidLintSuppression,
+                self.invalid_lint_suppression,
             ),
             (
-                LintKind::NoUnusedLintSuppressions,
-                self.no_unused_lint_suppressions,
+                LintKind::UnusedLintSuppression,
+                self.unused_lint_suppression,
             ),
             (LintKind::PreferDirectStyling, self.prefer_direct_styling),
-            (LintKind::DuplicateUtilities, self.duplicate_utilities),
+            (LintKind::DuplicateUtility, self.duplicate_utility),
             (
                 LintKind::NoArbitraryBreakpoints,
                 self.no_arbitrary_breakpoints,
@@ -293,8 +303,8 @@ impl LintOverrides {
                 self.invalid_style_composition,
             ),
             (
-                LintKind::RuntimeConditionRequiresNative,
-                self.runtime_condition_requires_native,
+                LintKind::RuntimeConditionRequiresCssIf,
+                self.runtime_condition_requires_css_if,
             ),
             (LintKind::UnverifiedStyleBase, self.unverified_style_base),
         ] {

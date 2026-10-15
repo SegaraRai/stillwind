@@ -25,7 +25,7 @@ export async function createExamples() {
         unknownUtility: "deny",
         noArbitraryColors: "deny",
         noArbitraryBreakpoints: "deny",
-        canonicalUtilities: {
+        preferCanonicalUtilities: {
           severity: "warn",
         },
       },
@@ -108,7 +108,7 @@ export async function createExamples() {
       ["no-arbitrary-colors", "no-arbitrary-breakpoints"].includes(report.code),
     ),
     unordered,
-    canonical: diagnose(unordered).filter((report) => report.code === "canonical-utilities"),
+    canonical: diagnose(unordered).filter((report) => report.code === "prefer-canonical-utilities"),
     canonicalized,
     ordered,
     compiled,

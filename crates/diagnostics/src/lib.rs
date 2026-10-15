@@ -55,13 +55,13 @@ pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit
 pub use lint::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintDiagnostic,
-    LintDirective, LintDirectiveKind, LintDirectiveRules, LintFinding, LintKind, LintOverrides,
-    LintPreset, LintSettings, LintSeverity, RestrictedDeclarationRule,
-    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
-    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
-    RestrictedUtilityRule, RootFontSize, UtilityFailure, VariantInputErrorKind,
-    collect_lint_directives, filter_lint_findings, finish_lint_findings,
+    LintCategory, LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules,
+    LintFinding, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity,
+    RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
+    RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
+    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize, UtilityFailure,
+    VariantInputErrorKind, collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

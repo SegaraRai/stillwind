@@ -90,11 +90,11 @@ export const props = style({
   });
 
   test("provider attachment findings honor configured reporting levels", async () => {
-    const rule = "require-ref-attachment";
+    const rule = "missing-ref-attachment";
     for (const severity of ["warn", "deny", "off"]) {
       const output = await compile("export const props = style(menu.asAnchor());", theme, {
         lint: {
-          requireRefAttachment: severity,
+          missingRefAttachment: severity,
         },
       });
       expect(output.diagnostics).toStrictEqual([]);

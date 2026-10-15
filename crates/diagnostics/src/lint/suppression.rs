@@ -110,7 +110,7 @@ pub(crate) fn suppressing_directive(
     for (index, directive) in directives.iter().enumerate() {
         if matches!(
             finding.kind(),
-            LintKind::ValidLintSuppressions | LintKind::NoUnusedLintSuppressions
+            LintKind::InvalidLintSuppression | LintKind::UnusedLintSuppression
         ) && (offset == directive.offset
             || directive
                 .names
@@ -157,7 +157,7 @@ pub fn finish_lint_findings(
     }
     let directives = collect_lint_directives(source.text());
     let mut additional = Vec::new();
-    if settings.enabled_for_detection(LintKind::ValidLintSuppressions) {
+    if settings.enabled_for_detection(LintKind::InvalidLintSuppression) {
         for directive in &directives {
             if directive.kind == LintDirectiveKind::Invalid {
                 additional.push(LintFinding::new(
@@ -183,7 +183,7 @@ pub fn finish_lint_findings(
             }
         }
     }
-    if complete && settings.enabled_for_detection(LintKind::NoUnusedLintSuppressions) {
+    if complete && settings.enabled_for_detection(LintKind::UnusedLintSuppression) {
         let mut used = BTreeSet::new();
         let mut executed = BTreeSet::new();
         for finding in findings.iter() {
@@ -205,9 +205,9 @@ pub fn finish_lint_findings(
             let eligible = |kind: LintKind| {
                 !matches!(
                     kind,
-                    LintKind::ValidLintSuppressions
-                        | LintKind::NoUnusedLintSuppressions
-                        | LintKind::SortUtilities
+                    LintKind::InvalidLintSuppression
+                        | LintKind::UnusedLintSuppression
+                        | LintKind::PreferSortedUtilities
                 ) && settings.reporting_severity(kind) != LintSeverity::Off
                     && (settings.enabled_for_detection(kind) || executed.contains(&kind))
             };
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
         let directives = collect_lint_directives(
-            "'// swlint-disable fake'\n// swlint-disable-next-line require-ref-attachment,valid-anchor-scope -- reason\nx\n/* swlint-enable require-ref-attachment */",
+            "'// swlint-disable fake'\n// swlint-disable-next-line missing-ref-attachment,ineffective-anchor-scope -- reason\nx\n/* swlint-enable missing-ref-attachment */",
         );
         assert_eq!(directives.len(), 2);
         assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
@@ -383,7 +383,11 @@ mod tests {
         assert_eq!(
             directives[0].rules,
             LintDirectiveRules::Named(
-                [LintKind::RequireRefAttachment, LintKind::ValidAnchorScope].into()
+                [
+                    LintKind::MissingRefAttachment,
+                    LintKind::IneffectiveAnchorScope
+                ]
+                .into()
             )
         );
         assert_eq!(directives[1].kind, LintDirectiveKind::Enable);
@@ -413,11 +417,11 @@ mod tests {
             assert_eq!(findings.len(), 1);
         }
         let directives = collect_lint_directives(
-            "// swlint-disable unknown-rule,require-ref-attachment\n// swlint-enable unknown-rule,*",
+            "// swlint-disable unknown-rule,missing-ref-attachment\n// swlint-enable unknown-rule,*",
         );
         assert_eq!(
             directives[0].rules,
-            LintDirectiveRules::Named([LintKind::RequireRefAttachment].into())
+            LintDirectiveRules::Named([LintKind::MissingRefAttachment].into())
         );
         assert_eq!(directives[1].rules, LintDirectiveRules::All);
     }
@@ -428,7 +432,7 @@ mod tests {
             FileId(1),
             None,
             None,
-            "// swlint-disable-next-line require-ref-attachment\nx\ny",
+            "// swlint-disable-next-line missing-ref-attachment\nx\ny",
         )
         .unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
@@ -438,7 +442,7 @@ mod tests {
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
-                LintDiagnostic::AnchorScopeList { detail: "x".into() },
+                LintDiagnostic::IneffectiveAnchorScope { detail: "x".into() },
                 Span::new(FileId(1), x, x + 1),
             ),
             LintFinding::new(
@@ -449,7 +453,7 @@ mod tests {
         filter_lint_findings(&source, &mut findings);
         assert_eq!(
             findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
-            vec!["valid-anchor-scope", "require-ref-attachment"]
+            vec!["ineffective-anchor-scope", "missing-ref-attachment"]
         );
     }
 
@@ -457,23 +461,23 @@ mod tests {
     fn disable_enable_and_same_line_directives_have_bounded_effects() {
         for (text, expected) in [
             (
-                "// swlint-disable require-ref-attachment\nx\n// swlint-enable require-ref-attachment\ny",
+                "// swlint-disable missing-ref-attachment\nx\n// swlint-enable missing-ref-attachment\ny",
                 vec![
-                    "valid-anchor-scope",
-                    "require-ref-attachment",
-                    "valid-anchor-scope",
+                    "ineffective-anchor-scope",
+                    "missing-ref-attachment",
+                    "ineffective-anchor-scope",
                 ],
             ),
             (
                 "// swlint-disable *\nx\n// swlint-enable\ny",
-                vec!["require-ref-attachment", "valid-anchor-scope"],
+                vec!["missing-ref-attachment", "ineffective-anchor-scope"],
             ),
             (
-                "x // swlint-disable-line require-ref-attachment\ny",
+                "x // swlint-disable-line missing-ref-attachment\ny",
                 vec![
-                    "valid-anchor-scope",
-                    "require-ref-attachment",
-                    "valid-anchor-scope",
+                    "ineffective-anchor-scope",
+                    "missing-ref-attachment",
+                    "ineffective-anchor-scope",
                 ],
             ),
         ] {
@@ -482,12 +486,12 @@ mod tests {
                 .into_iter()
                 .flat_map(|c| {
                     let start = u32::try_from(text.find(c).unwrap()).unwrap();
-                    ["require-ref-attachment", "valid-anchor-scope"].map(|rule| {
+                    ["missing-ref-attachment", "ineffective-anchor-scope"].map(|rule| {
                         LintFinding::new(
-                            if rule == "require-ref-attachment" {
+                            if rule == "missing-ref-attachment" {
                                 LintDiagnostic::MissingRefAttachment { name: "x".into() }
                             } else {
-                                LintDiagnostic::AnchorScopeList { detail: "x".into() }
+                                LintDiagnostic::IneffectiveAnchorScope { detail: "x".into() }
                             },
                             Span::new(FileId(1), start, start + 1),
                         )
@@ -511,7 +515,7 @@ mod tests {
             FileId(1),
             None,
             None,
-            "// swlint-disable-next-line require-ref-attachment\nx\ny",
+            "// swlint-disable-next-line missing-ref-attachment\nx\ny",
         )
         .unwrap();
         let x = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
@@ -527,7 +531,7 @@ mod tests {
             message: None,
         });
         let retained = LintFinding::new(
-            LintDiagnostic::AnchorScopeList { detail: "a".into() },
+            LintDiagnostic::IneffectiveAnchorScope { detail: "a".into() },
             primary,
         );
         let mut findings = vec![suppressed, retained.clone()];
@@ -585,7 +589,7 @@ mod tests {
         let mut settings = LintSettings::with_defaults();
         settings.insert(LintConfig::NoImportant(LintSeverity::Warn));
         settings.insert(LintConfig::NoClassProperty(LintSeverity::Warn));
-        settings.insert(LintConfig::NoUnusedLintSuppressions(LintSeverity::Warn));
+        settings.insert(LintConfig::UnusedLintSuppression(LintSeverity::Warn));
         let offset = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();
         let mut findings = vec![LintFinding::new(
             LintDiagnostic::ImportantDeclaration {

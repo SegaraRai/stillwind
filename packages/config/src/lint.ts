@@ -20,11 +20,11 @@ export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
   /** Severity or exceptions for a narrower property overriding a shorthand. */
   "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
   /** Severity or ordered restrictions on nonzero CSS length units. */
-  "length-units"?: LintSeverity | LengthUnitsOptions;
+  "no-restricted-length-units"?: LintSeverity | LengthUnitsOptions;
   /** Severity or patterns restricting direct references to theme custom properties. */
   "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
   /** Severity or spacing-conversion settings for canonical utility replacements. */
-  "canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
+  "prefer-canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
 };
 
 /** A named, shareable lint configuration. Extended presets apply in order before rules. */
@@ -250,7 +250,7 @@ const ruleOptions = {
     severity: v.optional(severitySchema),
     allowShorthandOverrides: v.optional(v.boolean()),
   }),
-  "length-units": strictObject({
+  "no-restricted-length-units": strictObject({
     severity: v.optional(severitySchema),
     rules: v.optional(
       v.array(
@@ -273,7 +273,7 @@ const ruleOptions = {
     severity: v.optional(severitySchema),
     tokens: v.optional(v.array(tokenGlob)),
   }),
-  "canonical-utilities": strictObject({
+  "prefer-canonical-utilities": strictObject({
     severity: v.optional(severitySchema),
     pxToRem: v.optional(v.boolean()),
     rootFontSize: v.optional(

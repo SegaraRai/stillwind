@@ -39,15 +39,18 @@ The compiler classifies each problem by what it can still determine:
 | The source cannot be read: parse, source-map, or projection failures                                                                                     | Compilation error          |
 | The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection | Compilation error          |
 | The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                      | Omission and an input lint |
-| Output is valid but violates project rules: constraints, canonical spelling, or `require-element-scope`                                                  | Policy lint only           |
+| Output is valid but probably unintended or violates project rules: overlaps, constraints, canonical spelling, or `document-scoped-selector`              | Policy lint only           |
 | A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots               | Compilation error          |
 | The environment or configuration is invalid                                                                                                              | Compilation error          |
 
 CSS ordering of composition bases is an explicit exception to one-to-one lowering,
 because a derived call must follow its bases in the stylesheet.
 
-Unknown and malformed utilities and variants use `unknown-utility` and `invalid-utility`,
-wherever they appear. Other input lints use `invalid-*` rules, which default to `deny`.
+Input lints have the `input` category. Unknown and malformed utilities and variants use
+`unknown-utility` and `invalid-utility`, wherever they appear. Valid runtime conditions
+that the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if`.
+Other input lints use `invalid-*` rules. Input lints other than the two utility rules
+default to `deny`.
 
 An invalid CSS variant discards its complete conditioned subtree. Removing only the
 condition would apply its rules to elements that the author did not select. An empty
@@ -257,11 +260,11 @@ and the final props' key order. Conditions that carry values retain their select
 structure and remain in their execution scope.
 
 Direct assignments, updates, and `delete` produce `MacroArgumentMutation`
-(`macro-argument-mutation`) findings. `await`, `yield`, and dynamic imports produce
-`MacroExecutionBoundary` (`macro-execution-boundary`) findings. Selectors that
+(`mutating-macro-argument`) findings. `await`, `yield`, and dynamic imports produce
+`MacroExecutionBoundary` (`suspending-macro-argument`) findings. Selectors that
 refer to neither an element nor a declaration identity, such as `[:host]:` and
 `[::view-transition-old(*)]:`, produce `DocumentScopedSelector`
-(`require-element-scope`) findings. Their CSS applies whether the element exists
+(`document-scoped-selector`) findings. Their CSS applies whether the element exists
 or not; place document-wide rules in a stylesheet.
 
 These rules default to `deny` (error). CSS `@stillwind` settings can select `warn`
@@ -270,13 +273,13 @@ Transform output is retained even when lint findings exist.
 
 A view transition uses a class for identity and a name for its pairing key.
 A call without a name supplier produces `MissingViewTransitionName`
-(`require-view-transition-name`); a call with two or more produces
-`DuplicateViewTransitionName` (`single-view-transition-name`). Both default to
+(`missing-view-transition-name`); a call with two or more produces
+`DuplicateViewTransitionName` (`duplicate-view-transition-name`). Both default to
 `warn`. They do not inspect name values because other calls, stylesheets, and
 user inline styles are outside their view.
 
 If a composition base and the current call declare separate transition classes,
-the compiler reports `SplitViewTransitionClasses` (`single-view-transition-class`,
+the compiler reports `SplitViewTransitionClasses` (`split-view-transition-class`,
 default `warn`). `view-transition-class` is one property: the lists do not merge,
 and the derived list replaces the base list. Build hosts fail when findings with
 an effective `deny` policy remain.
@@ -488,7 +491,7 @@ not be used for these flags.
 
 A leading `!` negates a condition: `--if(!--enabled,20px,10px)` and
 `if(!--enabled):flex`. Any number of `!` is accepted, and an odd count negates the
-condition. The canonical spelling has at most one `!`, and `canonical-utilities`
+condition. The canonical spelling has at most one `!`, and `prefer-canonical-utilities`
 suggests it. Negated value conditions swap the branches in both strategies.
 **Negated variants require `useCssIf: true`**: swapping their branches would store
 `revert-rule` in a fallback helper, which cannot preserve that keyword's meaning.
@@ -497,7 +500,7 @@ Native mode also supports value comparisons: `if(--mode:compact):flex` and
 `--if(--mode:compact,20px,10px)` lower to `style(--mode:compact)` tests. Set
 `useCssIf: true`. Commas in comparison values must be inside a CSS function or
 quoted string. An empty comparison such as `--mode:` is the presence test `--mode`,
-because boolean conditions hold only a space or `initial`; `canonical-utilities`
+because boolean conditions hold only a space or `initial`; `prefer-canonical-utilities`
 suggests the presence test.
 Matching follows native CSS style-query semantics, including any `@property`
 registration. `if(!--mode:compact):flex` negates the comparison; comparisons can
@@ -512,7 +515,7 @@ the target instead.
 A candidate with an invalid runtime condition is omitted. Malformed conditions and
 `--if()` functions without three arguments report `invalid-utility`. With
 `useCssIf: false`, value comparisons, negated variants, and CSS-wide keywords stored
-in fallback helpers report `runtime-condition-requires-native`, which defaults to
+in fallback helpers report `runtime-condition-requires-css-if`, which defaults to
 `deny`. Malformed conditions in authored CSS remain compilation errors.
 
 Value conditionals can nest and appear inside expressions:
@@ -560,7 +563,7 @@ Fallback mode requires the branch used when the underlying property is true
 property token value. An invalid `var()` in that branch can select the false
 branch instead. CSS-wide values in that branch (`initial`, `inherit`, `unset`, `revert`,
 `revert-layer`, `revert-rule`) require native mode. A literal occurrence in a
-utility omits that utility and reports `runtime-condition-requires-native`; in authored
+utility omits that utility and reports `runtime-condition-requires-css-if`; in authored
 CSS, it is a compilation error. Indirect values that become CSS-wide keywords
 have the same limitation. Fallback substitution is not a general replacement
 for native `if()`'s branch evaluation semantics.

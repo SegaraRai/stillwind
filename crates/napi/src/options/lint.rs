@@ -7,50 +7,14 @@ use stillwind_diagnostics::LintOverrides;
 
 use super::{
     NativeArbitrarySpacingOptions, NativeCanonicalUtilitiesOptions,
-    NativeConflictingUtilitiesOptions, NativeLengthUnitsOptions,
-    NativeRestrictedDeclarationsOptions, NativeRestrictedThemeTokensOptions,
+    NativeConflictingUtilitiesOptions, NativeRestrictedDeclarationsOptions,
+    NativeRestrictedLengthUnitsOptions, NativeRestrictedThemeTokensOptions,
     NativeRestrictedUtilitiesOptions, lint_severity,
 };
 
 /// Lint settings applied to compiler defaults.
 #[napi(object)]
 pub struct NativeLintOptions {
-    /// Settings for `no-arbitrary-colors`.
-    pub no_arbitrary_colors: Option<String>,
-    /// Settings for `no-arbitrary-spacing`.
-    pub no_arbitrary_spacing: Option<NativeArbitrarySpacingOptions>,
-    /// Settings for `no-class-property`.
-    pub no_class_property: Option<String>,
-    /// Settings for `no-restricted-utilities`.
-    pub no_restricted_utilities: Option<NativeRestrictedUtilitiesOptions>,
-    /// Settings for `no-restricted-declarations`.
-    pub no_restricted_declarations: Option<NativeRestrictedDeclarationsOptions>,
-    /// Settings for `no-important`.
-    pub no_important: Option<String>,
-    /// Settings for `valid-lint-suppressions`.
-    pub valid_lint_suppressions: Option<String>,
-    /// Settings for `no-unused-lint-suppressions`.
-    pub no_unused_lint_suppressions: Option<String>,
-    /// Settings for `prefer-direct-styling`.
-    pub prefer_direct_styling: Option<String>,
-    /// Settings for `duplicate-utilities`.
-    pub duplicate_utilities: Option<String>,
-    /// Settings for `conflicting-utilities`.
-    pub conflicting_utilities: Option<NativeConflictingUtilitiesOptions>,
-    /// Settings for `prefer-logical-properties`.
-    pub prefer_logical_properties: Option<String>,
-    /// Settings for `length-units`.
-    pub length_units: Option<NativeLengthUnitsOptions>,
-    /// Settings for `no-restricted-theme-tokens`.
-    pub no_restricted_theme_tokens: Option<NativeRestrictedThemeTokensOptions>,
-    /// Settings for `no-arbitrary-breakpoints`.
-    pub no_arbitrary_breakpoints: Option<String>,
-    /// Settings for `framework-import-mismatch`.
-    pub framework_import_mismatch: Option<String>,
-    /// Settings for `macro-argument-mutation`.
-    pub macro_argument_mutation: Option<String>,
-    /// Settings for `macro-execution-boundary`.
-    pub macro_execution_boundary: Option<String>,
     /// Settings for `invalid-variant-input`.
     pub invalid_variant_input: Option<String>,
     /// Settings for `invalid-style-input`.
@@ -77,38 +41,74 @@ pub struct NativeLintOptions {
     pub invalid_animation_option: Option<String>,
     /// Settings for `invalid-style-composition`.
     pub invalid_style_composition: Option<String>,
-    /// Settings for `runtime-condition-requires-native`.
-    pub runtime_condition_requires_native: Option<String>,
-    /// Settings for `unverified-style-base`.
-    pub unverified_style_base: Option<String>,
-    /// Settings for `valid-anchor-scope`.
-    pub valid_anchor_scope: Option<String>,
-    /// Settings for `require-ref-attachment`.
-    pub require_ref_attachment: Option<String>,
-    /// Settings for `conflicting-provider-properties`.
-    pub conflicting_provider_properties: Option<String>,
-    /// Settings for `prefer-typed-relationships`.
-    pub prefer_typed_relationships: Option<String>,
-    /// Settings for `require-element-scope`.
-    pub require_element_scope: Option<String>,
-    /// Settings for `require-view-transition-name`.
-    pub require_view_transition_name: Option<String>,
-    /// Settings for `single-view-transition-name`.
-    pub single_view_transition_name: Option<String>,
-    /// Settings for `single-view-transition-class`.
-    pub single_view_transition_class: Option<String>,
-    /// Settings for `ambiguous-base-order`.
-    pub ambiguous_base_order: Option<String>,
-    /// Settings for `imported-base-interference`.
-    pub imported_base_interference: Option<String>,
+    /// Settings for `runtime-condition-requires-css-if`.
+    pub runtime_condition_requires_css_if: Option<String>,
     /// Settings for `invalid-utility`.
     pub invalid_utility: Option<String>,
     /// Settings for `unknown-utility`.
     pub unknown_utility: Option<String>,
-    /// Settings for `canonical-utilities`.
-    pub canonical_utilities: Option<NativeCanonicalUtilitiesOptions>,
-    /// Settings for `sort-utilities`.
-    pub sort_utilities: Option<String>,
+    /// Settings for `mutating-macro-argument`.
+    pub mutating_macro_argument: Option<String>,
+    /// Settings for `suspending-macro-argument`.
+    pub suspending_macro_argument: Option<String>,
+    /// Settings for `mismatched-framework-import`.
+    pub mismatched_framework_import: Option<String>,
+    /// Settings for `duplicate-utility`.
+    pub duplicate_utility: Option<String>,
+    /// Settings for `conflicting-utilities`.
+    pub conflicting_utilities: Option<NativeConflictingUtilitiesOptions>,
+    /// Settings for `conflicting-provider-properties`.
+    pub conflicting_provider_properties: Option<String>,
+    /// Settings for `unverified-style-base`.
+    pub unverified_style_base: Option<String>,
+    /// Settings for `ambiguous-style-base-order`.
+    pub ambiguous_style_base_order: Option<String>,
+    /// Settings for `interfering-imported-style-base`.
+    pub interfering_imported_style_base: Option<String>,
+    /// Settings for `missing-ref-attachment`.
+    pub missing_ref_attachment: Option<String>,
+    /// Settings for `document-scoped-selector`.
+    pub document_scoped_selector: Option<String>,
+    /// Settings for `missing-view-transition-name`.
+    pub missing_view_transition_name: Option<String>,
+    /// Settings for `duplicate-view-transition-name`.
+    pub duplicate_view_transition_name: Option<String>,
+    /// Settings for `split-view-transition-class`.
+    pub split_view_transition_class: Option<String>,
+    /// Settings for `ineffective-anchor-scope`.
+    pub ineffective_anchor_scope: Option<String>,
+    /// Settings for `no-arbitrary-colors`.
+    pub no_arbitrary_colors: Option<String>,
+    /// Settings for `no-arbitrary-spacing`.
+    pub no_arbitrary_spacing: Option<NativeArbitrarySpacingOptions>,
+    /// Settings for `no-class-property`.
+    pub no_class_property: Option<String>,
+    /// Settings for `no-restricted-utilities`.
+    pub no_restricted_utilities: Option<NativeRestrictedUtilitiesOptions>,
+    /// Settings for `no-restricted-declarations`.
+    pub no_restricted_declarations: Option<NativeRestrictedDeclarationsOptions>,
+    /// Settings for `no-important`.
+    pub no_important: Option<String>,
+    /// Settings for `no-restricted-length-units`.
+    pub no_restricted_length_units: Option<NativeRestrictedLengthUnitsOptions>,
+    /// Settings for `no-restricted-theme-tokens`.
+    pub no_restricted_theme_tokens: Option<NativeRestrictedThemeTokensOptions>,
+    /// Settings for `no-arbitrary-breakpoints`.
+    pub no_arbitrary_breakpoints: Option<String>,
+    /// Settings for `prefer-direct-styling`.
+    pub prefer_direct_styling: Option<String>,
+    /// Settings for `prefer-logical-properties`.
+    pub prefer_logical_properties: Option<String>,
+    /// Settings for `prefer-typed-relationships`.
+    pub prefer_typed_relationships: Option<String>,
+    /// Settings for `prefer-canonical-utilities`.
+    pub prefer_canonical_utilities: Option<NativeCanonicalUtilitiesOptions>,
+    /// Settings for `prefer-sorted-utilities`.
+    pub prefer_sorted_utilities: Option<String>,
+    /// Settings for `invalid-lint-suppression`.
+    pub invalid_lint_suppression: Option<String>,
+    /// Settings for `unused-lint-suppression`.
+    pub unused_lint_suppression: Option<String>,
 }
 
 impl TryFrom<NativeLintOptions> for LintOverrides {
@@ -117,75 +117,6 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
     #[allow(clippy::too_many_lines)]
     fn try_from(input: NativeLintOptions) -> napi::Result<Self> {
         Ok(Self {
-            no_arbitrary_colors: input
-                .no_arbitrary_colors
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            no_arbitrary_spacing: input
-                .no_arbitrary_spacing
-                .map(TryInto::try_into)
-                .transpose()?,
-            no_class_property: input
-                .no_class_property
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            no_restricted_utilities: input
-                .no_restricted_utilities
-                .map(TryInto::try_into)
-                .transpose()?,
-            no_restricted_declarations: input
-                .no_restricted_declarations
-                .map(TryInto::try_into)
-                .transpose()?,
-            no_important: input
-                .no_important
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            valid_lint_suppressions: input
-                .valid_lint_suppressions
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            no_unused_lint_suppressions: input
-                .no_unused_lint_suppressions
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            prefer_direct_styling: input
-                .prefer_direct_styling
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            duplicate_utilities: input
-                .duplicate_utilities
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            conflicting_utilities: input
-                .conflicting_utilities
-                .map(TryInto::try_into)
-                .transpose()?,
-            prefer_logical_properties: input
-                .prefer_logical_properties
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            length_units: input.length_units.map(TryInto::try_into).transpose()?,
-            no_restricted_theme_tokens: input
-                .no_restricted_theme_tokens
-                .map(TryInto::try_into)
-                .transpose()?,
-            no_arbitrary_breakpoints: input
-                .no_arbitrary_breakpoints
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            framework_import_mismatch: input
-                .framework_import_mismatch
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            macro_argument_mutation: input
-                .macro_argument_mutation
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            macro_execution_boundary: input
-                .macro_execution_boundary
-                .map(|value| lint_severity(&value))
-                .transpose()?,
             invalid_variant_input: input
                 .invalid_variant_input
                 .map(|value| lint_severity(&value))
@@ -238,52 +169,8 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .invalid_style_composition
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            runtime_condition_requires_native: input
-                .runtime_condition_requires_native
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            unverified_style_base: input
-                .unverified_style_base
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            valid_anchor_scope: input
-                .valid_anchor_scope
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            require_ref_attachment: input
-                .require_ref_attachment
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            conflicting_provider_properties: input
-                .conflicting_provider_properties
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            prefer_typed_relationships: input
-                .prefer_typed_relationships
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            require_element_scope: input
-                .require_element_scope
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            require_view_transition_name: input
-                .require_view_transition_name
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            single_view_transition_name: input
-                .single_view_transition_name
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            single_view_transition_class: input
-                .single_view_transition_class
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            ambiguous_base_order: input
-                .ambiguous_base_order
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            imported_base_interference: input
-                .imported_base_interference
+            runtime_condition_requires_css_if: input
+                .runtime_condition_requires_css_if
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_utility: input
@@ -294,12 +181,128 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .unknown_utility
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            canonical_utilities: input
-                .canonical_utilities
+            mutating_macro_argument: input
+                .mutating_macro_argument
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            suspending_macro_argument: input
+                .suspending_macro_argument
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            mismatched_framework_import: input
+                .mismatched_framework_import
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            duplicate_utility: input
+                .duplicate_utility
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            conflicting_utilities: input
+                .conflicting_utilities
                 .map(TryInto::try_into)
                 .transpose()?,
-            sort_utilities: input
-                .sort_utilities
+            conflicting_provider_properties: input
+                .conflicting_provider_properties
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            unverified_style_base: input
+                .unverified_style_base
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            ambiguous_style_base_order: input
+                .ambiguous_style_base_order
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            interfering_imported_style_base: input
+                .interfering_imported_style_base
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            missing_ref_attachment: input
+                .missing_ref_attachment
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            document_scoped_selector: input
+                .document_scoped_selector
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            missing_view_transition_name: input
+                .missing_view_transition_name
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            duplicate_view_transition_name: input
+                .duplicate_view_transition_name
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            split_view_transition_class: input
+                .split_view_transition_class
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            ineffective_anchor_scope: input
+                .ineffective_anchor_scope
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            no_arbitrary_colors: input
+                .no_arbitrary_colors
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            no_arbitrary_spacing: input
+                .no_arbitrary_spacing
+                .map(TryInto::try_into)
+                .transpose()?,
+            no_class_property: input
+                .no_class_property
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            no_restricted_utilities: input
+                .no_restricted_utilities
+                .map(TryInto::try_into)
+                .transpose()?,
+            no_restricted_declarations: input
+                .no_restricted_declarations
+                .map(TryInto::try_into)
+                .transpose()?,
+            no_important: input
+                .no_important
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            no_restricted_length_units: input
+                .no_restricted_length_units
+                .map(TryInto::try_into)
+                .transpose()?,
+            no_restricted_theme_tokens: input
+                .no_restricted_theme_tokens
+                .map(TryInto::try_into)
+                .transpose()?,
+            no_arbitrary_breakpoints: input
+                .no_arbitrary_breakpoints
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_direct_styling: input
+                .prefer_direct_styling
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_logical_properties: input
+                .prefer_logical_properties
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_typed_relationships: input
+                .prefer_typed_relationships
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_canonical_utilities: input
+                .prefer_canonical_utilities
+                .map(TryInto::try_into)
+                .transpose()?,
+            prefer_sorted_utilities: input
+                .prefer_sorted_utilities
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_lint_suppression: input
+                .invalid_lint_suppression
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            unused_lint_suppression: input
+                .unused_lint_suppression
                 .map(|value| lint_severity(&value))
                 .transpose()?,
         })

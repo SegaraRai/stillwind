@@ -488,13 +488,13 @@ fn macro_contract_findings_retain_output_even_for_empty_conditions() {
         result
             .lint_findings
             .iter()
-            .any(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
+            .any(|error| error.diagnostic == LintDiagnostic::MutatingMacroArgument)
     );
     assert_ne!(result.transforms, [] as [SourceTransform; 0]);
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::MacroArgumentMutation),
+            .reporting_severity(LintKind::MutatingMacroArgument),
         LintSeverity::Deny
     );
 }

@@ -85,7 +85,7 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
             let errors = parsed
                 .lint_findings
                 .iter()
-                .filter(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
+                .filter(|error| error.diagnostic == LintDiagnostic::MutatingMacroArgument)
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), 1, "{body}: {:?}", parsed.diagnostics);
             assert!(
@@ -94,7 +94,7 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
                     .unwrap()
                     .contains("state")
             );
-            assert_eq!(errors[0].code(), "macro-argument-mutation");
+            assert_eq!(errors[0].code(), "mutating-macro-argument");
         }
     }
 }
@@ -114,11 +114,11 @@ fn execution_boundaries_must_be_evaluated_outside_macros() {
         let errors = parsed
             .lint_findings
             .iter()
-            .filter(|error| error.diagnostic == LintDiagnostic::MacroExecutionBoundary)
+            .filter(|error| error.diagnostic == LintDiagnostic::SuspendingMacroArgument)
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{value}: {:?}", parsed.diagnostics);
         assert_eq!(source.slice(errors[0].labels[0].span).unwrap(), value);
-        assert_eq!(errors[0].code(), "macro-execution-boundary");
+        assert_eq!(errors[0].code(), "suspending-macro-argument");
     }
     let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; async function render() { const theme = useTheme(); const value = await read(); state++; return style({ '--x': value, class: theme }); }").unwrap();
     assert_eq!(
@@ -159,7 +159,7 @@ fn keyed_assets_and_macros_inside_function_bodies_are_validated() {
             )
             .lint_findings
             .iter()
-            .any(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
+            .any(|error| error.diagnostic == LintDiagnostic::MutatingMacroArgument)
         );
     }
 }

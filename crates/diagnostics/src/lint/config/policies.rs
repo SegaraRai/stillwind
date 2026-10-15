@@ -99,7 +99,7 @@ pub struct ConflictingUtilitiesOverride {
 /// One unit restriction selected by CSS property name.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct LengthUnitRule {
+pub struct RestrictedLengthUnitRule {
     /// Case-insensitive property globs supporting `*` and `?`.
     pub properties: Vec<LeanStr>,
     /// Length unit names compared without ASCII case; zero lengths are exempt.
@@ -108,21 +108,21 @@ pub struct LengthUnitRule {
 
 /// Property-specific unit restrictions in precedence order.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct LengthUnitsConfig {
+pub struct RestrictedLengthUnitsConfig {
     /// Reporting level of forbidden units.
     pub severity: LintSeverity,
     /// The last matching rule replaces earlier restrictions.
-    pub rules: Vec<LengthUnitRule>,
+    pub rules: Vec<RestrictedLengthUnitRule>,
 }
 
 /// Explicit fields overriding the length unit policy.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct LengthUnitsOverride {
+pub struct RestrictedLengthUnitsOverride {
     /// Omission uses the rule default.
     pub severity: Option<LintSeverity>,
     /// Omission preserves existing rules; a supplied list replaces them.
-    pub rules: Option<Vec<LengthUnitRule>>,
+    pub rules: Option<Vec<RestrictedLengthUnitRule>>,
 }
 
 /// Theme custom properties forbidden at direct use sites.

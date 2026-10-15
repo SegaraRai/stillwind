@@ -33,11 +33,11 @@ export default defineConfig({
       lint: {
         extends: [lintPresets.recommended],
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             pxToRem: true,
             rootFontSize: 16,
           },
-          "sort-utilities": "off",
+          "prefer-sorted-utilities": "off",
         },
       },
       sort: {

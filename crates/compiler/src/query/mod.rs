@@ -23,7 +23,7 @@ mod theme;
 
 pub use completion::{CompletionInput, CompletionItem};
 pub use input::CandidateContext;
-pub use resolution::{CandidateHover, CandidateResolution};
+pub use resolution::{CandidateFailure, CandidateHover, CandidateResolution};
 pub use state::{DesignSystemQuery, prepare_canonical_index};
 
 use context::QueryContext;

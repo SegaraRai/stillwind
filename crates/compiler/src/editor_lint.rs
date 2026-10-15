@@ -21,7 +21,7 @@ pub(crate) fn detect(
     query: &DesignSystemQuery,
 ) -> Vec<LintFinding> {
     let settings = query.lint_settings();
-    let canonical_enabled = settings.enabled_for_detection(LintKind::CanonicalUtilities);
+    let canonical_enabled = settings.enabled_for_detection(LintKind::PreferCanonicalUtilities);
     let restricted_enabled = settings.enabled_for_detection(LintKind::NoRestrictedUtilities);
     if !canonical_enabled && !restricted_enabled {
         return Vec::new();
@@ -66,7 +66,7 @@ pub(crate) fn detect(
                 .next_back()
                 .unwrap_or('"');
             let replacement = escape_literal(replacement, quote);
-            let mut finding = LintFinding::new(LintDiagnostic::CanonicalUtilities, span);
+            let mut finding = LintFinding::new(LintDiagnostic::NonCanonicalUtility, span);
             finding.actions.push(FixAction {
                 title: "Use canonical utility spelling".into(),
                 edits: vec![SourceEdit {

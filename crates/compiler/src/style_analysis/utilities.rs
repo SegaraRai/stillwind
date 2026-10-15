@@ -16,7 +16,7 @@ use super::{ResolvedStyle, SupplyKind, UseId};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let settings = &style.root.lint_settings;
-    let duplicate = settings.enabled_for_detection(LintKind::DuplicateUtilities);
+    let duplicate = settings.enabled_for_detection(LintKind::DuplicateUtility);
     let conflict = settings.enabled_for_detection(LintKind::ConflictingUtilities);
     if !duplicate && !conflict {
         return Vec::new();

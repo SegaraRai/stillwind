@@ -22,7 +22,7 @@ fn original_component_format_reports_import_mismatch_without_adapter_conflict() 
     assert_eq!(scan.lint_findings.len(), 1);
     assert_eq!(
         scan.lint_findings[0].diagnostic.code(),
-        "framework-import-mismatch"
+        "mismatched-framework-import"
     );
     assert_eq!(
         scan.source
@@ -42,7 +42,7 @@ fn contract_findings_map_to_original_framework_expression_spans() {
     let error = analysis
         .lint_findings
         .iter()
-        .find(|error| error.diagnostic == LintDiagnostic::MacroArgumentMutation)
+        .find(|error| error.diagnostic == LintDiagnostic::MutatingMacroArgument)
         .unwrap();
     assert_eq!(error.labels[0].span.file, original.id());
     assert_eq!(original.slice(error.labels[0].span).unwrap(), "状態++");

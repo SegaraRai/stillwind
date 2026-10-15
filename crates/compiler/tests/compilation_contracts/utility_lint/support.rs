@@ -22,7 +22,7 @@ pub(super) const VALUE_CSS: &str = "@theme inline { --color-primary:#123; --spac
 @custom-variant hover (&:hover);";
 
 pub(super) fn policy_options(mut lint: LintOverrides) -> CompilerOptions {
-    lint.canonical_utilities = Some(CanonicalUtilitiesOverride {
+    lint.prefer_canonical_utilities = Some(CanonicalUtilitiesOverride {
         severity: Some(LintSeverity::Off),
         ..CanonicalUtilitiesOverride::default()
     });

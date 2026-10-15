@@ -67,7 +67,7 @@ impl CallEmitter<'_> {
         };
         if !self
             .lint_settings
-            .enabled_for_detection(LintKind::RequireElementScope)
+            .enabled_for_detection(LintKind::DocumentScopedSelector)
         {
             return;
         }

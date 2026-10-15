@@ -101,9 +101,11 @@ that root produce a configuration error. Analysis continues to run every matchin
 project independently.
 
 A root in the configuration file is relative to its directory. An inline root is
-relative to the application root. Paths authored in the file retain their configured project root when an inline root changes. Inline CSS and tsconfig paths use the resulting project root. Resolved paths are absolute. Analysis scope settings do not filter the bundler's
-module graph. Build-specific settings such as Vite CSS emission stay in the
-integration configuration.
+relative to the application root. Paths authored in the file retain their configured
+project root when an inline root changes. Inline CSS and tsconfig paths use the
+resulting project root. Resolved paths are absolute. Analysis scope settings do not
+filter the bundler's module graph. Build-specific settings such as Vite CSS emission
+stay in the integration configuration.
 
 `@stillwind/config` owns the shared definitions, export evaluation, validation, and
 merge operation. `stillwind/config` re-exports that public API. `@stillwind/config/node`
@@ -116,7 +118,9 @@ Next and Turbopack pass configuration references to loaders; configuration callb
 stay in the file rather than being serialized into loader options. Inline naming
 callbacks remain unsupported by these loaders.
 
-Compiler policy belongs to `stillwind.config.ts`. Each project accepts all lint rules, generated identifier prefixes, and `utilityOrder: "authored" | "tailwind"`. CSS supplies theme tokens, utilities, variants, and output slots.
+Compiler policy belongs to `stillwind.config.ts`. Each project accepts all lint rules,
+generated identifier prefixes, and `utilityOrder: "authored" | "tailwind"`. CSS supplies
+theme tokens, utilities, variants, and output slots.
 
 ```ts
 import { defineConfig, lintPresets } from "stillwind/config";
@@ -138,9 +142,16 @@ export default defineConfig({
 });
 ```
 
-Reporting-only rules accept `"warn"`, `"deny"`, or `"off"`. Rules with detection options also accept an object containing `severity` and their options. Omitted fields retain inherited settings or use the rule's default options. Source suppression comments control findings and fixes. Explicit sorting uses `sort` targets independently of the `sort-utilities` reporting level.
+Reporting-only rules accept `"warn"`, `"deny"`, or `"off"`. Rules with detection options
+also accept an object containing `severity` and their options. Omitted fields retain
+inherited settings or use the rule's default options. Source suppression comments
+control findings and fixes. Explicit sorting uses `sort` targets independently of the
+`prefer-sorted-utilities` reporting level.
 
-Node and browser hosts share project selection, path resolution, validation, and defaults. Configuration errors identify the project and invalid field. Compiler settings can be validated without constructing an analysis scope. `automatic` controls document CSS delivery through build integrations. Vite's `emission` remains a Vite-specific option.
+Node and browser hosts share project selection, path resolution, validation, and
+defaults. Configuration errors identify the project and invalid field. Compiler settings
+can be validated without constructing an analysis scope. `automatic` controls document
+CSS delivery through build integrations. Vite's `emission` remains a Vite-specific option.
 
 ## Semantic and source services
 
@@ -150,7 +161,8 @@ The same service retains an incremental snapshot for subsequent declaration quer
 CSS has a separate resolver with the `style` condition.
 
 The checker project inherits the selected tsconfig and retains its declaration files.
-Prepared sources and framework globals become its other roots. The generated configuration clears inherited target include/exclude patterns.
+Prepared sources and framework globals become its other roots. The generated
+configuration clears inherited target include/exclude patterns.
 Unsaved buffers override reads, including dependencies outside the diagnostic scope,
 without becoming checker roots merely because they are open.
 
@@ -402,7 +414,7 @@ export default defineConfig({
       lint: {
         extends: [team, lintPresets.stylistic],
         rules: {
-          "sort-utilities": "off",
+          "prefer-sorted-utilities": "off",
         },
       },
     },
@@ -414,11 +426,17 @@ Omitting `lint` selects `recommended`. An explicit `lint: false` or `lint: {}` d
 rule. An explicit object with only `rules` enables only those rules. Compiler errors
 are reported independently of lint settings.
 
-`recommended` enables the standard correctness checks and canonical suggestions.
-`strict` reports all recommended checks as errors and also checks unused lint
-suppressions. `stylistic` enables `prefer-direct-styling`, `prefer-logical-properties`,
-`prefer-typed-relationships`, and `sort-utilities` as warnings. The stylistic preset
-adds no recommended checks. Project-specific restrictions remain off in these presets.
+Each rule has a category in `lintRules`: `input` reports input that lowers as empty or
+false, `contract` reports a violation of the macro contract, `hazard` reports valid output
+that is probably unintended, `restriction` reports a project-specific prohibition, `style`
+reports a preferred spelling, and `suppression` checks `swlint-*` directives.
+
+`recommended` enables every `input`, `contract`, and `hazard` rule, invalid suppression
+directives, and canonical suggestions. `strict` reports all recommended checks as errors
+and also checks unused lint suppressions. `stylistic` enables `prefer-direct-styling`,
+`prefer-logical-properties`, `prefer-typed-relationships`, and `prefer-sorted-utilities`
+as warnings. The stylistic preset adds no recommended checks. Project-specific
+restrictions remain off in these presets.
 
 A severity-only override preserves inherited rule options. An option object changes
 only supplied fields; undefined fields preserve previous values. Arrays replace the
@@ -437,11 +455,11 @@ of a project's `lint: false` enables only the override's rules and presets.
 `resolveLintConfig` returns a `rules` object with explicit severities and default
 options for every rule. Node and browser hosts use the same resolver, and native
 bindings receive the resulting rule settings. Explicit editor sorting remains available
-when `sort-utilities` is off.
+when `prefer-sorted-utilities` is off.
 
 ## Utility lint policies
 
-`duplicate-utilities` and `conflicting-utilities` default to `warn`. They compare
+`duplicate-utility` and `conflicting-utilities` default to `warn`. They compare
 utilities supplied directly to one `style()` call, including its arrays and
 variant wrappers. Comparisons require compatible source conditions and identical
 expanded CSS selector and at-rule contexts. Composed bases and ref providers use
@@ -463,7 +481,7 @@ lint: {
   rules: {
     "prefer-direct-styling": "warn",
     "prefer-logical-properties": "warn",
-    "length-units": {
+    "no-restricted-length-units": {
       rules: [
         {
           properties: ["*"],
@@ -513,8 +531,8 @@ lint: {
         },
       ],
     },
-    "valid-lint-suppressions": "warn",
-    "no-unused-lint-suppressions": "warn",
+    "invalid-lint-suppression": "warn",
+    "unused-lint-suppression": "warn",
   },
 }
 ```
@@ -566,13 +584,13 @@ text, so patterns can also match quoted strings and URL arguments.
 properties, and named utility bodies. These declaration policies share the utility
 emitter's resolved declarations and do not inspect unrelated global stylesheet rules.
 
-`valid-lint-suppressions` defaults to `warn`. It reports unknown rule names and
+`invalid-lint-suppression` defaults to `warn`. It reports unknown rule names and
 malformed `swlint-*` keywords at their source locations. Explanations after `--`
 are allowed. Unknown names never select other rules. A directive cannot suppress
 a validation finding about itself; other directives can suppress this rule.
 
-`no-unused-lint-suppressions` defaults to off. It reports each unused named rule in a disable comment,
-or one finding for an unused wildcard disable. Only enabled rules and rules with
+`unused-lint-suppression` defaults to off. It reports each unused named rule in a disable
+comment, or one finding for an unused wildcard disable. Only enabled rules and rules with
 reported findings participate. Suppression validation rules do not count as uses.
 Sorting is performed separately and does not participate in this check. Failed
 analysis skips unused checks. Project sessions combine source findings with current
@@ -593,8 +611,8 @@ including `text-align: left`, `float: right`, and asymmetric four-side shorthand
 Uniform four-side shorthands are allowed. The rule does not rewrite declarations
 because their meaning depends on writing mode.
 
-`length-units` uses complete property-name globs with `*` and `?`, ignoring ASCII
-case. The last matching rule replaces earlier restrictions. Parsed shorthands use
+`no-restricted-length-units` uses complete property-name globs with `*` and `?`, ignoring
+ASCII case. The last matching rule replaces earlier restrictions. Parsed shorthands use
 their component properties, which can override a restriction on the shorthand.
 Zero lengths, strings, and URLs are excluded. Known theme values are followed with
 a cycle and depth bound; unresolved runtime variables are skipped. Restrictions
@@ -621,7 +639,7 @@ per offending variant, even when it contains several utility literals.
 These policies provide diagnostics without automatic fixes. Canonical utility
 suggestions are omitted when their replacement violates an enabled policy. Source
 suppression uses the same rule names, for example
-`// swlint-disable-next-line duplicate-utilities`.
+`// swlint-disable-next-line duplicate-utility`.
 
 ## Editor sorting
 

@@ -14,7 +14,7 @@ test("compiler normalization applies defaults and retains lint options", () => {
     normalizeCompilerConfig({
       lint: {
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             rootFontSize: 20,
           },
           "unknown-utility": "deny",
@@ -26,7 +26,7 @@ test("compiler normalization applies defaults and retains lint options", () => {
     hashLength: 5,
     lint: {
       rules: {
-        "canonical-utilities": {
+        "prefer-canonical-utilities": {
           severity: "warn",
           pxToRem: true,
           rootFontSize: 20,
@@ -64,7 +64,7 @@ test("sorting targets are validated independently of lint reporting", () => {
   const config = {
     lint: {
       rules: {
-        "sort-utilities": "off",
+        "prefer-sorted-utilities": "off",
       },
     },
     sort: {

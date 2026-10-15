@@ -174,7 +174,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await replace(page, buffers, "Component.tsx", "p-4 rounded-md", "p-[16px] rounded-md");
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
-      .toContain("canonical-utilities");
+      .toContain("prefer-canonical-utilities");
     await replace(page, buffers, "Component.tsx", "p-[16px] rounded-md", "p-4 rounded-md");
     await replace(
       page,

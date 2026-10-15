@@ -9,8 +9,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_design_system::{
     DesignSystemRevision, UtilityResolutionError, builtin_property_definitions, resolve_variant,
 };
-use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_source::{FileId, ModuleId, Span};
+use stillwind_diagnostics::{CompileDiagnostic, UtilityFailure};
+use stillwind_source::ModuleId;
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use super::{DesignSystemQuery, QueryContext};
@@ -21,9 +21,21 @@ use crate::compiler::{
 use crate::identifiers::{ClassContext, DEFAULT_HASH_LENGTH, IdentifierContext, PreviewNames};
 use crate::{CssContribution, GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
 
+/// Reason a candidate query produced no usable preview.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CandidateFailure {
+    /// The candidate or one of its variants does not resolve. The field classifies the
+    /// candidate syntax.
+    Unresolved(UtilityFailure),
+    /// The candidate resolves, but its preview CSS cannot be rendered. Conditional
+    /// lowering under the configured `useCssIf` mode, identifier generation, and rule
+    /// splitting can fail.
+    Rendering(CompileDiagnostic),
+}
+
 /// Everything one candidate produces for an editor.
 ///
-/// Use `diagnostics` as the validity check. The rules are a candidate preview, without
+/// Use `failures` as the validity check. The rules are a candidate preview, without
 /// the document's theme and property-support closure.
 #[derive(Clone, Debug)]
 pub struct CandidateResolution {
@@ -38,10 +50,9 @@ pub struct CandidateResolution {
     pub required_properties: Vec<LeanStr>,
     /// Theme tokens the rendered CSS references.
     pub referenced_tokens: Vec<LeanStr>,
-    /// Resolution or generated-CSS failures in synthetic file 0. The primary range is
-    /// `0..min(candidate.len(), u32::MAX)` in UTF-8 bytes, not a host document
-    /// location.
-    pub diagnostics: Vec<LintFinding>,
+    /// Resolution and rendering failures, in detection order. Empty means that the
+    /// candidate is valid.
+    pub failures: Vec<CandidateFailure>,
 }
 
 /// Rendered CSS for a candidate that resolves.
@@ -62,9 +73,7 @@ impl DesignSystemQuery {
     /// candidate text alone, so the declarations a caller sees are the declarations the
     /// candidate would contribute, independent of any module. A candidate whose
     /// variants do not all resolve is reported as unresolved rather than previewed
-    /// partially. Failures are typed lint findings over synthetic file 0; hosts must
-    /// map their labels to the editor buffer before reporting or applying source
-    /// suppression.
+    /// partially. Failures describe the candidate text and carry no source location.
     ///
     /// # Errors
     ///
@@ -78,7 +87,7 @@ impl DesignSystemQuery {
 
     /// CSS for a candidate that resolves, `None` otherwise.
     ///
-    /// Diagnostics are deliberately not part of a hover result: an unresolved candidate
+    /// Failures are deliberately not part of a hover result: an unresolved candidate
     /// has no CSS to show.
     ///
     /// # Errors
@@ -91,7 +100,7 @@ impl DesignSystemQuery {
         let result = self
             .context
             .resolve_with_selector(candidate, Some("&"), false)?;
-        Ok(result.diagnostics.is_empty().then(|| CandidateHover {
+        Ok(result.failures.is_empty().then(|| CandidateHover {
             candidate: candidate.into(),
             css: result
                 .generated_rules
@@ -118,22 +127,20 @@ impl QueryContext {
     /// Rewrites contributions in place with merge barriers shared by this `candidate`.
     /// When `preview` is true, runtime conditionals are also lowered using this query's
     /// configured mode. `identifiers` supplies names consistently across the
-    /// contributions. Failed contributions are cleared and reported against `span`,
-    /// which addresses the synthetic candidate input. Successful contributions remain
-    /// even if another fails.
+    /// contributions. Failed contributions are cleared and their errors returned.
+    /// Successful contributions remain even if another fails.
     fn finalize_rules(
         &self,
         candidate: &str,
         contributions: &mut [CssContribution],
         identifiers: &IdentifierContext,
         preview: bool,
-        span: Span,
-    ) -> Vec<LintFinding> {
+    ) -> Vec<CandidateFailure> {
         let mut boundaries = RuleBoundaries::new(
             format_args!("preview\0{candidate}").to_lean_string(),
             identifiers,
         );
-        let mut diagnostics = Vec::new();
+        let mut failures = Vec::new();
         for contribution in contributions {
             let css = boundaries.render(&contribution.css).and_then(|css| {
                 if preview {
@@ -142,14 +149,15 @@ impl QueryContext {
                     Ok(css)
                 }
             });
-            if let Ok(css) = css {
-                contribution.css = (css).into();
-            } else {
-                contribution.css = LeanStr::new();
-                diagnostics.push(invalid_candidate_css(candidate, span, 0));
+            match css {
+                Ok(css) => contribution.css = (css).into(),
+                Err(error) => {
+                    contribution.css = LeanStr::new();
+                    failures.push(CandidateFailure::Rendering(error));
+                }
             }
         }
-        diagnostics
+        failures
     }
 
     pub(super) fn resolve_with_selector(
@@ -158,11 +166,6 @@ impl QueryContext {
         preview_selector: Option<&str>,
         include_referenced_tokens: bool,
     ) -> Result<CandidateResolution, UtilityResolutionError> {
-        let span = Span::new(
-            FileId(0),
-            0,
-            u32::try_from(candidate.len()).unwrap_or(u32::MAX),
-        );
         let selector =
             preview_selector.map_or_else(|| candidate_selector(candidate), LeanString::from);
         let selector = selector.as_str();
@@ -177,29 +180,24 @@ impl QueryContext {
             })
         });
         let mut contributions = Vec::new();
-        let mut diagnostics = if let Some(targets) = targets {
+        let mut failures = if let Some(targets) = targets {
             let identifiers = candidate_identifiers(preview_selector.is_some());
             let emission =
                 emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
-            let mut diagnostics = self.finalize_rules(
+            let mut failures = self.finalize_rules(
                 candidate,
                 &mut contributions,
                 &identifiers,
                 preview_selector.is_some(),
-                span,
             );
-            if emission.is_err() {
-                diagnostics.push(invalid_candidate_css(candidate, span, 0));
+            if let Err(error) = emission {
+                failures.push(CandidateFailure::Rendering(error));
             }
-            diagnostics
+            failures
         } else {
-            vec![LintFinding::new(
-                LintDiagnostic::UnresolvedCandidate {
-                    candidate: candidate.to_lean_str(),
-                    classification: unresolved_utility_kind(candidate),
-                },
-                span,
-            )]
+            vec![CandidateFailure::Unresolved(unresolved_utility_kind(
+                candidate,
+            ))]
         };
         let css: LeanString = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = if include_referenced_tokens {
@@ -240,7 +238,9 @@ impl QueryContext {
         let generated_rules = match ModuleCssArtifact::from_contributions(&contributions) {
             Ok(artifact) => artifact.rules,
             Err(offset) => {
-                diagnostics.push(invalid_candidate_css(candidate, span, offset));
+                failures.push(CandidateFailure::Rendering(
+                    CompileDiagnostic::InvalidGeneratedCss { offset },
+                ));
                 Vec::new()
             }
         };
@@ -250,7 +250,7 @@ impl QueryContext {
             generated_rules,
             required_properties,
             referenced_tokens,
-            diagnostics,
+            failures,
         })
     }
 }
@@ -287,20 +287,6 @@ fn candidate_identifiers(preview: bool) -> IdentifierContext {
     }
 }
 
-/// Reports invalid generated CSS at `span`, classified from the original `candidate`.
-/// `offset` is a UTF-8 byte offset within the failed CSS contribution. Zero also
-/// represents an emission failure without a parser location. It is not added to the
-/// synthetic candidate span.
-fn invalid_candidate_css(candidate: &str, span: Span, offset: usize) -> LintFinding {
-    LintFinding::new(
-        LintDiagnostic::InvalidCandidateCss {
-            offset,
-            classification: unresolved_utility_kind(candidate),
-        },
-        span,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -309,7 +295,7 @@ mod tests {
     use stillwind_diagnostics::UtilityFailure;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
-    use stillwind_source::{CssSourceName, ReplaceText, SourceFile};
+    use stillwind_source::{CssSourceName, FileId, ReplaceText, SourceFile};
     use stillwind_test_support::css_source;
 
     use super::super::CandidateContext;
@@ -329,7 +315,7 @@ mod tests {
         .unwrap();
         let query = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
         let resolved = query.resolve_candidate("hover:brand").unwrap();
-        assert_eq!(resolved.diagnostics, [] as [LintFinding; 0]);
+        assert_eq!(resolved.failures, []);
         assert_eq!(resolved.revision, snapshot.revision());
         let source = SourceFile::new(
             FileId(2),
@@ -382,28 +368,17 @@ mod tests {
             query
                 .resolve_candidate("this-does-not-exist")
                 .unwrap()
-                .diagnostics,
-            [] as [LintFinding; 0]
+                .failures,
+            []
         );
         for (candidate, classification) in [
             ("hover:[", UtilityFailure::Invalid),
             ("不存在", UtilityFailure::Unknown),
         ] {
-            let findings = query.resolve_candidate(candidate).unwrap().diagnostics;
             assert_eq!(
-                findings[0].diagnostic,
-                LintDiagnostic::UnresolvedCandidate {
-                    candidate: candidate.into(),
-                    classification
-                }
+                query.resolve_candidate(candidate).unwrap().failures,
+                [CandidateFailure::Unresolved(classification)]
             );
-            assert_eq!(
-                findings[0].to_lean_string(),
-                format_args!("unresolved candidate: {candidate}").to_lean_string()
-            );
-            assert_eq!(findings[0].labels[0].span.file, FileId(0));
-            assert_eq!(findings[0].labels[0].span.start.0, 0);
-            assert_eq!(findings[0].labels[0].span.end.0 as usize, candidate.len());
         }
         assert!(
             query
@@ -430,7 +405,7 @@ mod tests {
         .unwrap();
         let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
         let result = query.resolve_candidate("empty").unwrap();
-        assert_ne!(result.diagnostics, [] as [LintFinding; 0]);
+        assert_ne!(result.failures, []);
         assert_eq!(result.generated_rules, [] as [GeneratedRule; 0]);
     }
 }

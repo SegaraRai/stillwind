@@ -15,7 +15,7 @@ import { expect, test } from "vite-plus/test";
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const rule = "framework-import-mismatch";
+const rule = "mismatched-framework-import";
 const utilities = "@utility flex {display:flex;} @stillwind-slot utilities;";
 
 /** Returns native output after projecting source using the filename's input format. */
@@ -135,7 +135,7 @@ test("host options configure framework import warn, off, and deny with next-line
     for (const suppressed of [false, true]) {
       const loader = new NativeDesignSystemLoader({
         lint: {
-          frameworkImportMismatch: level,
+          mismatchedFrameworkImport: level,
         },
       });
       loader.provide(0, "framework-imports.css", utilities);
@@ -174,7 +174,7 @@ test("host options configure framework import warn, off, and deny with next-line
       expect(warnings.length).toBe(active ? 1 : 0);
       if (active) {
         expect(output!.lintFindings[0]!.rule).toBe(rule);
-        expect(warnings[0]!).toMatch(/framework-import-mismatch/);
+        expect(warnings[0]!).toMatch(/mismatched-framework-import/);
         expect(output!.reports).toContainEqual(
           expect.objectContaining({
             code: rule,

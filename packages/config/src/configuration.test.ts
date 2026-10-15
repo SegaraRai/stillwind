@@ -20,7 +20,7 @@ test("captured project settings own their data and share only provider functions
     },
     lint: {
       rules: {
-        "length-units": {
+        "no-restricted-length-units": {
           rules: [
             {
               properties: ["*"],
@@ -37,7 +37,7 @@ test("captured project settings own their data and share only provider functions
   const captured = captureProjectConfig(config);
   config.files[0] = "*.vue";
   config.sort.arrays = true;
-  config.lint.rules["length-units"].rules[0].disallow[0] = "rem";
+  config.lint.rules["no-restricted-length-units"].rules[0].disallow[0] = "rem";
   config.naming.utilityClass = () => "changed";
   expect(captured.files).toEqual(["*.tsx"]);
   expect(captured.sort).toEqual({
@@ -46,7 +46,7 @@ test("captured project settings own their data and share only provider functions
   expect(captured.naming?.utilityClass).toBe(naming);
   expect(captured.lint).toEqual({
     rules: {
-      "length-units": {
+      "no-restricted-length-units": {
         rules: [
           {
             properties: ["*"],
@@ -142,7 +142,7 @@ test.each([
     {
       lint: {
         rules: {
-          "length-units": {
+          "no-restricted-length-units": {
             rules: [
               {
                 properties: ["padding"],
@@ -153,7 +153,7 @@ test.each([
         },
       },
     },
-    "projects[0].lint.rules.length-units.rules[0].disallow",
+    "projects[0].lint.rules.no-restricted-length-units.rules[0].disallow",
   ],
   [
     {
@@ -204,13 +204,13 @@ test.each([
     {
       lint: {
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             rootFontSize: 0,
           },
         },
       },
     },
-    "projects[0].lint.rules.canonical-utilities.rootFontSize",
+    "projects[0].lint.rules.prefer-canonical-utilities.rootFontSize",
   ],
 ])("invalid settings identify their field: %j", (setting, location) => {
   expect(() =>

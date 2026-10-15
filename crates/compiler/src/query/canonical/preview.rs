@@ -96,7 +96,7 @@ impl QueryContext {
             return Ok(cached.clone());
         }
         let result = self.resolve_with_selector(raw, Some("&"), false)?;
-        let preview = result.diagnostics.is_empty().then(|| {
+        let preview = result.failures.is_empty().then(|| {
             let css: LeanString = result
                 .generated_rules
                 .iter()

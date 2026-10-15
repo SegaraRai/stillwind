@@ -25,15 +25,15 @@ pub fn check_style(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
 pub const fn is_style_analysis_lint(kind: LintKind) -> bool {
     matches!(
         kind,
-        LintKind::RequireRefAttachment
-            | LintKind::DuplicateUtilities
+        LintKind::MissingRefAttachment
+            | LintKind::DuplicateUtility
             | LintKind::ConflictingUtilities
             | LintKind::ConflictingProviderProperties
-            | LintKind::RequireViewTransitionName
-            | LintKind::SingleViewTransitionName
-            | LintKind::SingleViewTransitionClass
-            | LintKind::AmbiguousBaseOrder
-            | LintKind::ImportedBaseInterference
+            | LintKind::MissingViewTransitionName
+            | LintKind::DuplicateViewTransitionName
+            | LintKind::SplitViewTransitionClass
+            | LintKind::AmbiguousStyleBaseOrder
+            | LintKind::InterferingImportedStyleBase
     )
 }
 
@@ -54,15 +54,15 @@ mod tests {
             .filter(|kind| is_style_analysis_lint(*kind))
             .collect();
         let mut expected = vec![
-            LintKind::DuplicateUtilities,
+            LintKind::DuplicateUtility,
             LintKind::ConflictingUtilities,
-            LintKind::RequireRefAttachment,
+            LintKind::MissingRefAttachment,
             LintKind::ConflictingProviderProperties,
-            LintKind::RequireViewTransitionName,
-            LintKind::SingleViewTransitionName,
-            LintKind::SingleViewTransitionClass,
-            LintKind::AmbiguousBaseOrder,
-            LintKind::ImportedBaseInterference,
+            LintKind::MissingViewTransitionName,
+            LintKind::DuplicateViewTransitionName,
+            LintKind::SplitViewTransitionClass,
+            LintKind::AmbiguousStyleBaseOrder,
+            LintKind::InterferingImportedStyleBase,
         ];
         actual.sort();
         expected.sort();
@@ -111,8 +111,8 @@ mod tests {
         assert_eq!(
             findings.iter().map(LintFinding::kind).collect::<Vec<_>>(),
             vec![
-                LintKind::RequireRefAttachment,
-                LintKind::SingleViewTransitionName
+                LintKind::MissingRefAttachment,
+                LintKind::DuplicateViewTransitionName
             ]
         );
     }

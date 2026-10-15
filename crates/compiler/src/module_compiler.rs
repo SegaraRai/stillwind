@@ -115,7 +115,7 @@ impl ModuleCompiler {
         if !module.diagnostics.is_empty() || !module.integration_diagnostics.is_empty() {
             result
                 .lint_findings
-                .retain(|finding| finding.kind() != LintKind::NoUnusedLintSuppressions);
+                .retain(|finding| finding.kind() != LintKind::UnusedLintSuppression);
         }
         let mut diagnostics = module.diagnostics.clone();
         diagnostics.extend(result.diagnostics);

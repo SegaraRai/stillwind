@@ -269,7 +269,7 @@ impl<'a> MacroExtractor<'a> {
                         }) {
                             if self.lint {
                                 self.lint_findings.push(LintFinding::new(
-                                    LintDiagnostic::AnchorScopeList {
+                                    LintDiagnostic::IneffectiveAnchorScope {
                                         detail: "contains duplicate ref identities".into(),
                                     },
                                     self.source_span(element.span()),
@@ -282,7 +282,7 @@ impl<'a> MacroExtractor<'a> {
                 }
                 if self.lint && refs.is_empty() {
                     self.lint_findings.push(LintFinding::new(
-                        LintDiagnostic::AnchorScopeList {
+                        LintDiagnostic::IneffectiveAnchorScope {
                             detail: "is empty; no scope declaration is emitted".into(),
                         },
                         span,

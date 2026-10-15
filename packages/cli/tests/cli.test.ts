@@ -60,7 +60,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     const file = path.join(root, "entry.tsx");
     await writeFile(
       config,
-      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"canonical-utilities":"deny","sort-utilities":"deny"}}}]}',
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"prefer-canonical-utilities":"deny","prefer-sorted-utilities":"deny"}}}]}',
     );
     await writeFile(
       path.join(root, "root.css"),
@@ -89,7 +89,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     expect(await readFile(file, "utf8")).toBe(source);
     await writeFile(
       config,
-      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],lint:{extends:[lintPresets.recommended],rules:{"unknown-utility":"deny","sort-utilities":"deny"}}}]}',
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],lint:{extends:[lintPresets.recommended],rules:{"unknown-utility":"deny","prefer-sorted-utilities":"deny"}}}]}',
     );
     await writeFile(
       path.join(root, "root.css"),

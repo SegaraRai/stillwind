@@ -69,7 +69,7 @@ const c = style(a, b, 'text-brand');
     let findings = artifact
         .lint_findings
         .iter()
-        .filter(|finding| finding.code() == "ambiguous-base-order")
+        .filter(|finding| finding.code() == "ambiguous-style-base-order")
         .collect::<Vec<_>>();
     assert_eq!(findings.len(), 1, "{findings:?}");
     let message = findings[0].diagnostic.to_string();
@@ -85,7 +85,7 @@ fn suppression_directives_remove_the_findings() {
         r"import { style } from 'stillwind/react';
 const a = style('p-10');
 const b = style('p-4');
-// swlint-disable-next-line ambiguous-base-order
+// swlint-disable-next-line ambiguous-style-base-order
 const c = style(a, b, 'text-brand');
 ",
     ));
@@ -97,7 +97,7 @@ const c = style(a, b, 'text-brand');
         !artifact
             .lint_findings
             .iter()
-            .any(|finding| finding.code() == "ambiguous-base-order"),
+            .any(|finding| finding.code() == "ambiguous-style-base-order"),
         "suppression did not apply"
     );
 }
@@ -110,12 +110,12 @@ fn suppression_usage_is_recomputed_with_source_and_composition_findings() {
         SessionMode::Watch,
         CompilerOptions {
             lint: LintOverrides {
-                canonical_utilities: Some(CanonicalUtilitiesOverride {
+                prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
                     severity: Some(LintSeverity::Off),
                     ..Default::default()
                 }),
                 no_important: Some(LintSeverity::Warn),
-                no_unused_lint_suppressions: Some(LintSeverity::Warn),
+                unused_lint_suppression: Some(LintSeverity::Warn),
                 ..LintOverrides::default()
             },
             ..CompilerOptions::default()
@@ -124,7 +124,7 @@ fn suppression_usage_is_recomputed_with_source_and_composition_findings() {
     );
     let source = r"import { style } from 'stillwind/react';
 const a=style('p-10'); const b=style('p-4');
-// swlint-disable-next-line ambiguous-base-order
+// swlint-disable-next-line ambiguous-style-base-order
 const c=style(a,b,'text-brand');
 // swlint-disable-next-line no-important
 const d=style('[display:flex]!');

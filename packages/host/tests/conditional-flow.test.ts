@@ -141,7 +141,7 @@ test("conditional transition trees select only the active class and key", async 
       warnings,
     );
     expect(
-      !warnings.some((message) => message.includes("single-view-transition-name")),
+      !warnings.some((message) => message.includes("duplicate-view-transition-name")),
       warnings.join("\n"),
     ).toBeTruthy();
     expect(output.code!, expression).not.toMatch(/\.for\(/);
@@ -201,9 +201,9 @@ test("a separate name still conflicts with a conditional transition name", async
     ].join("\n"),
     warnings,
   );
-  expect(warnings.filter((message) => message.includes("single-view-transition-name")).length).toBe(
-    1,
-  );
+  expect(
+    warnings.filter((message) => message.includes("duplicate-view-transition-name")).length,
+  ).toBe(1);
   expect(
     warnings.some((message) => message.includes("2 view-transition-name sources")),
   ).toBeTruthy();
@@ -317,7 +317,7 @@ test("utility and transition names share branch exclusivity for linting", async 
     warnings,
   );
   expect(
-    !warnings.some((message) => message.includes("single-view-transition-name")),
+    !warnings.some((message) => message.includes("duplicate-view-transition-name")),
     warnings.join("\n"),
   ).toBeTruthy();
 });
@@ -540,8 +540,8 @@ test("pure folding and empty-branch removal preserve materialized values", async
 
 test("macro mutations and execution boundaries preserve output and denied lint reports", async () => {
   for (const [expression, code] of [
-    ["value++", "macro-argument-mutation"],
-    ["(import('module'), 1)", "macro-execution-boundary"],
+    ["value++", "mutating-macro-argument"],
+    ["(import('module'), 1)", "suspending-macro-argument"],
   ]) {
     const warnings: string[] = [];
     const output = await compile(

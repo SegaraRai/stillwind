@@ -121,7 +121,7 @@ export function registerBindingContract(bindingSpecifier: string) {
     const loader = new NativeDesignSystemLoader({
       lint: {
         noImportant: "warn",
-        noUnusedLintSuppressions: "warn",
+        unusedLintSuppression: "warn",
       },
     });
     loader.provide(0, "root.css", "@stillwind-slot utilities;", sourceUri("root.css"));
@@ -149,10 +149,10 @@ export const valid=style('[display:block]');`,
       expect.arrayContaining(["SW30001", "unknown-utility"]),
     );
     expect(reports.map((report: { code: string }) => report.code)).toContain(
-      "valid-lint-suppressions",
+      "invalid-lint-suppression",
     );
     expect(reports.map((report: { code: string }) => report.code)).not.toContain(
-      "no-unused-lint-suppressions",
+      "unused-lint-suppression",
     );
     expect(session.diagnosticBatches()).toEqual([]);
     const output = session.compile([source]).modules[0];
@@ -396,7 +396,7 @@ export const valid=style('[display:block]');`,
     ];
     for (const output of outputs) {
       expect(output.diagnostics).toStrictEqual([]);
-      expect(codes(output)).toStrictEqual(["ambiguous-base-order"]);
+      expect(codes(output)).toStrictEqual(["ambiguous-style-base-order"]);
     }
     const baseCode = "import {style} from 'stillwind/react'; export const base=style('pad');";
     const middleCode =
@@ -449,7 +449,7 @@ export const valid=style('[display:block]');`,
               module.moduleId === app.moduleId,
           ),
         ),
-      ).toStrictEqual(["imported-base-interference"]);
+      ).toStrictEqual(["interfering-imported-style-base"]);
     }
     expect(
       JSON.stringify(
@@ -459,7 +459,7 @@ export const valid=style('[display:block]');`,
             (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
           ),
       ),
-    ).toContain("imported-base-interference");
+    ).toContain("interfering-imported-style-base");
     expect(
       session.compile([prepared(`${baseCode}}`, base.moduleId)]).modules[0].diagnostics,
     ).not.toStrictEqual([]);
@@ -471,7 +471,7 @@ export const valid=style('[display:block]');`,
             (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
           ),
       ),
-    ).not.toContain("imported-base-interference");
+    ).not.toContain("interfering-imported-style-base");
     expect(session.compile([base]).modules[0].diagnostics).toStrictEqual([]);
     expect(
       JSON.stringify(
@@ -481,7 +481,7 @@ export const valid=style('[display:block]');`,
             (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
           ),
       ),
-    ).toContain("imported-base-interference");
+    ).toContain("interfering-imported-style-base");
     expect(
       session.compile([prepared(baseCode.replace("'pad'", "'ink'"), base.moduleId)]).modules[0]
         .diagnostics,
@@ -491,7 +491,7 @@ export const valid=style('[display:block]');`,
       (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
     );
     expect(appBatch).toBeDefined();
-    expect(JSON.stringify(appBatch)).not.toContain("imported-base-interference");
+    expect(JSON.stringify(appBatch)).not.toContain("interfering-imported-style-base");
     expect(session.remove(base.moduleId)).toBe(true);
     expect(
       JSON.stringify(
@@ -501,7 +501,7 @@ export const valid=style('[display:block]');`,
             (batch: import("../binding.js").NativeDiagnosticBatch) => batch.module === app.moduleId,
           ),
       ),
-    ).not.toContain("imported-base-interference");
+    ).not.toContain("interfering-imported-style-base");
   });
 
   test("minifyCss exposes final CSS processing and separate source maps", async () => {
@@ -664,7 +664,7 @@ export const valid=style('[display:block]');`,
       expect(output.diagnostics).toStrictEqual([]);
       expect(output.lintSettings["unknown-utility"]).toBe(severity);
       expect(output.lintSettings["invalid-utility"]).toBe(severity);
-      expect(output.lintSettings["macro-argument-mutation"]).toBe("deny");
+      expect(output.lintSettings["mutating-macro-argument"]).toBe("deny");
       expect(Object.hasOwn(output.lintSettings, "typo")).toBe(false);
       expect(output.lintFindings.length).toBe(severity === "off" ? 0 : 2);
       if (severity !== "off") {
@@ -799,8 +799,8 @@ export const invalidSuppression=style('paint-brand');`;
             },
           ],
         },
-        noUnusedLintSuppressions: "warn",
-        canonicalUtilities: {
+        unusedLintSuppression: "warn",
+        preferCanonicalUtilities: {
           severity: "off",
         },
       },
@@ -812,8 +812,8 @@ export const invalidSuppression=style('paint-brand');`;
       "no-restricted-utilities",
       "no-restricted-declarations",
       "no-important",
-      "no-unused-lint-suppressions",
-      "valid-lint-suppressions",
+      "unused-lint-suppression",
+      "invalid-lint-suppression",
     ].sort();
     const output = compileSource(oneShotInput(source, "source-policies.tsx", css), options);
     expect(output.diagnostics).toEqual([]);
@@ -875,9 +875,9 @@ export const policies=style('child:[padding-left:2px] text-red-500');`;
     const options: import("../binding.js").NativeCompilerOptions = {
       lint: {
         preferDirectStyling: "warn",
-        duplicateUtilities: "deny",
+        duplicateUtility: "deny",
         preferLogicalProperties: "warn",
-        lengthUnits: {
+        noRestrictedLengthUnits: {
           rules: [
             {
               properties: ["padding*"],
@@ -891,18 +891,18 @@ export const policies=style('child:[padding-left:2px] text-red-500');`;
       },
     };
     const expected = [
-      "duplicate-utilities",
+      "duplicate-utility",
       "conflicting-utilities",
       "prefer-direct-styling",
       "prefer-logical-properties",
-      "length-units",
+      "no-restricted-length-units",
       "no-restricted-theme-tokens",
     ].sort();
     const output = compileSource(oneShotInput(source, "policies.tsx", css), options);
     expect(output.diagnostics).toEqual([]);
     expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(expected);
     expect(
-      output.reports.find((report: { code: string }) => report.code === "duplicate-utilities")
+      output.reports.find((report: { code: string }) => report.code === "duplicate-utility")
         .severity,
     ).toBe("error");
     const loader = new NativeDesignSystemLoader(options);
@@ -1101,7 +1101,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         },
       },
       {
-        lengthUnits: {
+        noRestrictedLengthUnits: {
           rules: [
             {
               properties: ["padding"],

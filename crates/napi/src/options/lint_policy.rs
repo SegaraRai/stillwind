@@ -5,9 +5,9 @@ use napi_derive::napi;
 
 use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
-    LengthUnitRule, LengthUnitsOverride, LintSeverity, RestrictedDeclarationRule,
-    RestrictedDeclarationsOverride, RestrictedThemeTokensOverride, RestrictedUtilitiesOverride,
-    RestrictedUtilityRule, RootFontSize,
+    LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
+    RestrictedLengthUnitRule, RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
 };
 
 /// Canonical utility options. All omitted fields preserve the previous setting.
@@ -68,7 +68,7 @@ impl TryFrom<NativeConflictingUtilitiesOptions> for ConflictingUtilitiesOverride
 
 /// One property-specific length restriction; the last matching rule wins.
 #[napi(object)]
-pub struct NativeLengthUnitRule {
+pub struct NativeRestrictedLengthUnitRule {
     /// Complete CSS property globs using `*` and `?`.
     pub properties: Vec<String>,
     /// Forbidden CSS length unit names.
@@ -77,17 +77,17 @@ pub struct NativeLengthUnitRule {
 
 /// Length restrictions applied at utility use sites.
 #[napi(object)]
-pub struct NativeLengthUnitsOptions {
+pub struct NativeRestrictedLengthUnitsOptions {
     /// Reporting severity; omission uses the rule default.
     pub severity: Option<String>,
     /// A supplied list replaces the existing restrictions.
-    pub rules: Option<Vec<NativeLengthUnitRule>>,
+    pub rules: Option<Vec<NativeRestrictedLengthUnitRule>>,
 }
 
-impl TryFrom<NativeLengthUnitsOptions> for LengthUnitsOverride {
+impl TryFrom<NativeRestrictedLengthUnitsOptions> for RestrictedLengthUnitsOverride {
     type Error = Error;
 
-    fn try_from(value: NativeLengthUnitsOptions) -> napi::Result<Self> {
+    fn try_from(value: NativeRestrictedLengthUnitsOptions) -> napi::Result<Self> {
         Ok(Self {
             severity: value
                 .severity
@@ -96,7 +96,7 @@ impl TryFrom<NativeLengthUnitsOptions> for LengthUnitsOverride {
             rules: value.rules.map(|rules| {
                 rules
                     .into_iter()
-                    .map(|rule| LengthUnitRule {
+                    .map(|rule| RestrictedLengthUnitRule {
                         properties: (rule.properties).into_iter().map(Into::into).collect(),
                         disallow: (rule.disallow).into_iter().map(Into::into).collect(),
                     })

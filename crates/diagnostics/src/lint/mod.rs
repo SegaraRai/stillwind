@@ -17,11 +17,11 @@ mod suppression;
 pub use config::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LengthUnitRule, LengthUnitsConfig, LengthUnitsOverride, LintConfig, LintKind, LintOverrides,
-    LintPreset, LintSettings, LintSeverity, RestrictedDeclarationRule,
-    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedThemeTokensConfig,
-    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
-    RestrictedUtilityRule, RootFontSize,
+    LintCategory, LintConfig, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity,
+    RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
+    RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
+    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
 };
 pub use diagnostic::{LintDiagnostic, UtilityFailure, VariantInputErrorKind};
 pub use finding::LintFinding;

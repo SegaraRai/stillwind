@@ -150,7 +150,7 @@ test("sort false disables explicit and lint sorting while preserving other lint 
     expect(
       graph.batches
         .flatMap((batch) => batch.reports)
-        .some((report) => report.code === "sort-utilities"),
+        .some((report) => report.code === "prefer-sorted-utilities"),
     ).toBe(false);
     expect(
       (await current.query("/workspace/entry.tsx", {
@@ -173,15 +173,17 @@ test("canonical lint uses native policy, suppression, exact escaped ranges, and 
   const source = String.raw`import {style} from "stillwind/react";
 // 日本語 🦀
 const card = style("p-[16px] flex block border-[2px]");
-// swlint-disable-next-line canonical-utilities
+// swlint-disable-next-line prefer-canonical-utilities
 const ignored = style("p-[16px]");
 const escaped = style("p-\u005b16px\u005d");`;
   const current = project(source);
   try {
     const graph = await current.analyze("/workspace/entry.tsx");
     const reports = graph.batches.flatMap((batch) => batch.reports);
-    expect(reports.filter((report) => report.code === "canonical-utilities")).toHaveLength(3);
-    expect(reports.some((report) => report.code === "sort-utilities")).toBe(false);
+    expect(reports.filter((report) => report.code === "prefer-canonical-utilities")).toHaveLength(
+      3,
+    );
+    expect(reports.some((report) => report.code === "prefer-sorted-utilities")).toBe(false);
     const fixes = (await current.query("/workspace/entry.tsx", {
       kind: "fixes",
     }))!.edits!;
@@ -221,11 +223,11 @@ test("project severity supports explicit conversion options and explicit sorting
       lint: {
         extends: [lintPresets.recommended],
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             pxToRem: false,
             severity: "deny",
           },
-          "sort-utilities": "off",
+          "prefer-sorted-utilities": "off",
         },
       },
     },
@@ -336,7 +338,7 @@ const value = style([
     lint: {
       extends: [lintPresets.recommended],
       rules: {
-        "sort-utilities": "warn",
+        "prefer-sorted-utilities": "warn",
       },
     },
   });
@@ -670,13 +672,13 @@ test("argument grouping preserves base and utility order regardless of their gen
 
 test("suppression keeps grouping fixes inside approved ranges while explicit sorting remains available", async () => {
   const source = `import {style} from "stillwind/react"; const base=style("block"); const ref=style.ref();
-// swlint-disable-next-line sort-utilities
+// swlint-disable-next-line prefer-sorted-utilities
 const ignored=style(["flex",base,ref]);
 const active=style(["flex",base,ref]);`;
   const current = project(source, {
     lint: {
       extends: [lintPresets.recommended],
-      rules: { "sort-utilities": "warn" },
+      rules: { "prefer-sorted-utilities": "warn" },
     },
   });
   try {

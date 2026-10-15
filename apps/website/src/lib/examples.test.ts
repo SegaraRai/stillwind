@@ -22,7 +22,10 @@ it("builds the displayed findings, canonical utilities, and CSS with the compile
   expect(examples.ordered.split(" ")).toContain("px-4");
   expect(examples.compiled).toBe(examples.ordered);
   expect(examples.canonical).toHaveLength(1);
-  expect(examples.canonical[0]).toMatchObject({ code: "canonical-utilities", severity: "warning" });
+  expect(examples.canonical[0]).toMatchObject({
+    code: "prefer-canonical-utilities",
+    severity: "warning",
+  });
   expect(examples.unordered.split(" ")[examples.canonical[0]!.utilityIndex]).toBe("px-[16px]");
   expect(examples.canonicalized).toBe("py-2 text-paper px-4 bg-ink rounded-md");
   expect(examples.css).toContain("padding-inline:");

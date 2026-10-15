@@ -29,12 +29,12 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
                 result
                     .lint_findings
                     .iter()
-                    .any(|finding| finding.diagnostic == LintDiagnostic::MacroExecutionBoundary)
+                    .any(|finding| finding.diagnostic == LintDiagnostic::SuspendingMacroArgument)
             );
             assert_eq!(
                 result
                     .lint_settings
-                    .reporting_severity(LintKind::MacroExecutionBoundary),
+                    .reporting_severity(LintKind::SuspendingMacroArgument),
                 LintSeverity::Deny
             );
             let code = result.apply_to_source(&source).unwrap();
@@ -62,7 +62,7 @@ fn contract_severity_and_suppression_leave_transforms_available() {
         for suppressed in [false, true] {
             let source = SourceFile::new(FileId(1), None, None, format!(
                 "import {{style}} from 'stillwind/react';\n{}const x = style({{'--x': count++}});",
-                if suppressed { "// swlint-disable-next-line macro-argument-mutation\n" } else { "" }
+                if suppressed { "// swlint-disable-next-line mutating-macro-argument\n" } else { "" }
             )).unwrap();
             let css = SourceFile::new(FileId(2), None, None, "@stillwind-slot utilities;").unwrap();
             let result = Compiler::compile_source(
@@ -75,7 +75,7 @@ fn contract_severity_and_suppression_leave_transforms_available() {
                 &CssSourceName::from("stillwind.css"),
                 &CompilerOptions {
                     lint: LintOverrides {
-                        macro_argument_mutation: Some(LintSeverity::parse(level).unwrap()),
+                        mutating_macro_argument: Some(LintSeverity::parse(level).unwrap()),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -86,13 +86,13 @@ fn contract_severity_and_suppression_leave_transforms_available() {
             assert_eq!(
                 result
                     .lint_settings
-                    .reporting_severity(LintKind::MacroArgumentMutation)
+                    .reporting_severity(LintKind::MutatingMacroArgument)
                     .as_str(),
                 level
             );
             assert_eq!(result.lint_findings.is_empty(), suppressed);
             let serialized = serde_json::to_value(&result).unwrap();
-            assert_eq!(serialized["lintSettings"]["macro-argument-mutation"], level);
+            assert_eq!(serialized["lintSettings"]["mutating-macro-argument"], level);
         }
     }
 }

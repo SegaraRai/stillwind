@@ -299,7 +299,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
     for import in &parsed.module.imports.macros {
         if lint && !allowed.is_empty() && !allowed.contains(&import.adapter) {
             parsed.lint_findings.push(LintFinding::new(
-                LintDiagnostic::FrameworkImportMismatch {
+                LintDiagnostic::MismatchedFrameworkImport {
                     import: import.adapter.spec().macro_import.into(),
                     source_format: input.document().format().description().into(),
                     expected: (allowed

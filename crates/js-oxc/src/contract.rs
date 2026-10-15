@@ -102,15 +102,15 @@ impl<'a> Visit<'a> for Violations {
         match expression {
             Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_) => {}
             Expression::AssignmentExpression(_) | Expression::UpdateExpression(_) => {
-                self.report(expression.span(), LintDiagnostic::MacroArgumentMutation);
+                self.report(expression.span(), LintDiagnostic::MutatingMacroArgument);
             }
             Expression::UnaryExpression(unary) if unary.operator.is_delete() => {
-                self.report(expression.span(), LintDiagnostic::MacroArgumentMutation);
+                self.report(expression.span(), LintDiagnostic::MutatingMacroArgument);
             }
             Expression::AwaitExpression(_)
             | Expression::YieldExpression(_)
             | Expression::ImportExpression(_) => {
-                self.report(expression.span(), LintDiagnostic::MacroExecutionBoundary);
+                self.report(expression.span(), LintDiagnostic::SuspendingMacroArgument);
             }
             _ => walk::walk_expression(self, expression),
         }

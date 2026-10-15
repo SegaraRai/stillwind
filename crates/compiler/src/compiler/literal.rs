@@ -67,7 +67,7 @@ impl LiteralContribution {
     /// malformed capture of a CSS-registered runtime condition or a malformed `--if()`
     /// function is omitted as an invalid utility. With `use_css_if` false, a runtime
     /// condition that the fallback strategy cannot represent omits its candidate and
-    /// reports `runtime-condition-requires-native`. A malformed utility requirement in
+    /// reports `runtime-condition-requires-css-if`. A malformed utility requirement in
     /// the design system appends a fatal diagnostic, and callers must discard the
     /// compilation if diagnostics are present.
     pub(super) fn resolve(
@@ -108,7 +108,7 @@ impl LiteralContribution {
                 && is_tailwind_relationship_candidate(&raw, theme)
             {
                 lint_findings.push(LintFinding::new(
-                    LintDiagnostic::PreferTypedRelationships {
+                    LintDiagnostic::TailwindRelationshipUtility {
                         utility: (raw.clone()),
                     },
                     utility.span,
@@ -126,7 +126,7 @@ impl LiteralContribution {
                         format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
                     contribution.canonical.push_str(&canonical_candidate);
                     contribution.canonical.push('\0');
-                    if lint_settings.enabled_for_detection(LintKind::RequireElementScope)
+                    if lint_settings.enabled_for_detection(LintKind::DocumentScopedSelector)
                         && let Some(candidate) = parse_candidate(&utility.value.raw)
                         && let Some(selector) = candidate
                             .variants
@@ -213,7 +213,7 @@ fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {
 /// `utility` is the authored spelling reported by the lint. A conditional variant whose
 /// capture is malformed and an invalid `--if()` function select `invalid-utility`. With
 /// `use_css_if` false, a condition that the fallback strategy cannot represent selects
-/// `runtime-condition-requires-native`. Returns `None` when the candidate can be
+/// `runtime-condition-requires-css-if`. Returns `None` when the candidate can be
 /// lowered or does not parse.
 fn runtime_condition_lint(
     raw: &str,
@@ -254,7 +254,7 @@ fn runtime_condition_lint(
         Ok(()) => None,
         Err(UnsupportedCondition::Syntax) => Some(invalid()),
         Err(UnsupportedCondition::RequiresNative(detail)) => {
-            Some(LintDiagnostic::RuntimeConditionRequiresNative {
+            Some(LintDiagnostic::RuntimeConditionRequiresCssIf {
                 utility: utility.to_lean_str(),
                 detail: detail.to_lean_str(),
             })

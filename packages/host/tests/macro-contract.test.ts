@@ -10,7 +10,7 @@ test("macro contract lint retains its severity without rejecting compilation", a
   for (const level of [undefined, "warn", "off", "deny"] as const) {
     const loader = new NativeDesignSystemLoader({
       lint: {
-        macroArgumentMutation: level,
+        mutatingMacroArgument: level,
       },
     });
     loader.provide(0, "theme.css", "@stillwind-slot utilities;");
@@ -50,7 +50,7 @@ test("macro contract lint retains its severity without rejecting compilation", a
       if (level !== "off") {
         expect(output?.reports).toContainEqual(
           expect.objectContaining({
-            code: "macro-argument-mutation",
+            code: "mutating-macro-argument",
             severity: level === "warn" ? "warning" : "error",
           }),
         );

@@ -276,7 +276,7 @@ export function registerEditorContract(specifier: string): void {
     expect(
       load({
         lint: {
-          lengthUnits: {
+          noRestrictedLengthUnits: {
             rules: [
               {
                 properties: ["padding*"],
@@ -389,7 +389,7 @@ export function registerEditorContract(specifier: string): void {
     const { NativeDesignSystemLoader, NativeProjectSession, fingerprint } = await import(specifier);
     const loader = new NativeDesignSystemLoader({
       lint: {
-        canonicalUtilities: {
+        preferCanonicalUtilities: {
           rootFontSize: 20.5,
           severity: "deny",
         },
@@ -434,7 +434,7 @@ export function registerEditorContract(specifier: string): void {
     expect(query.completeCandidate("bg-[var(--color-br")).toContain("bg-[var(--color-brand)]");
     const code = String.raw`import {style} from 'stillwind/react';
 const 日本語='🦀'; const card=style('p-\u005b20.5px\u005d');
-// swlint-disable-next-line canonical-utilities
+// swlint-disable-next-line prefer-canonical-utilities
 const ignored=style('p-[20.5px]');`;
     const session = new NativeProjectSession(loader, false);
     const input = {
@@ -453,7 +453,7 @@ const ignored=style('p-[20.5px]');`;
     };
     const reports = session
       .diagnose([input])[0]
-      .reports.filter((report: { code: string }) => report.code === "canonical-utilities");
+      .reports.filter((report: { code: string }) => report.code === "prefer-canonical-utilities");
     expect(reports).toHaveLength(1);
     expect(reports[0]).toMatchObject({
       severity: "error",
@@ -468,7 +468,7 @@ const ignored=style('p-[20.5px]');`;
     const compiled = session
       .compile([input])
       .modules[0].reports.filter(
-        (report: { code: string }) => report.code === "canonical-utilities",
+        (report: { code: string }) => report.code === "prefer-canonical-utilities",
       );
     expect(compiled).toEqual(reports);
   });

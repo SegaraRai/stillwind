@@ -86,7 +86,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     });
     if loses_class {
         findings.push(LintFinding::new(
-            LintDiagnostic::SplitViewTransitionClasses,
+            LintDiagnostic::SplitViewTransitionClass,
             style.root.span,
         ));
     }
@@ -235,7 +235,7 @@ mod tests {
         let mut resolver = StyleResolver::new([&root]);
         assert_eq!(
             check(&resolver.resolve(root.identity()).unwrap())[0].kind(),
-            LintKind::RequireViewTransitionName
+            LintKind::MissingViewTransitionName
         );
         let root = f::effects(
             "root",
@@ -262,7 +262,7 @@ mod tests {
         let mut resolver = StyleResolver::new([&root]);
         assert_eq!(
             check(&resolver.resolve(root.identity()).unwrap())[0].kind(),
-            LintKind::RequireViewTransitionName
+            LintKind::MissingViewTransitionName
         );
         let root = f::effects("root", StyleEffect::All(vec![participant.clone(), unknown]));
         let mut resolver = StyleResolver::new([&root]);
@@ -359,7 +359,7 @@ mod tests {
             assert_eq!(
                 findings
                     .iter()
-                    .any(|f| f.kind() == LintKind::SingleViewTransitionClass),
+                    .any(|f| f.kind() == LintKind::SplitViewTransitionClass),
                 loses
             );
         }

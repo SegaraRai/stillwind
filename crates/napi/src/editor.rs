@@ -134,7 +134,7 @@ impl NativeEditorQuery {
             let span = Span::new(source.id(), edit.start, edit.end);
             let range = SourceRange::from_span(&registry, span)
                 .map_err(|error| Error::from_reason(error.to_string()))?;
-            let mut finding = LintFinding::new(LintDiagnostic::SortUtilities, span);
+            let mut finding = LintFinding::new(LintDiagnostic::UnsortedUtilities, span);
             finding.actions.push(FixAction {
                 title: "Sort Stillwind utilities".into(),
                 edits: vec![SourceEdit {
@@ -176,8 +176,8 @@ impl NativeEditorQuery {
         rule: String,
     ) -> napi::Result<bool> {
         let diagnostic = match rule.as_str() {
-            "canonical-utilities" => LintDiagnostic::CanonicalUtilities,
-            "sort-utilities" => LintDiagnostic::SortUtilities,
+            "prefer-canonical-utilities" => LintDiagnostic::NonCanonicalUtility,
+            "prefer-sorted-utilities" => LintDiagnostic::UnsortedUtilities,
             _ => return Err(Error::from_reason("unknown editor lint rule")),
         };
         if start > end || usize::try_from(end).unwrap_or(usize::MAX) > source.len() {

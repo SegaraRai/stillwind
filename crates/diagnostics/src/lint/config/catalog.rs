@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig,
-    LengthUnitsConfig, RestrictedDeclarationsConfig, RestrictedThemeTokensConfig,
+    RestrictedDeclarationsConfig, RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig,
     RestrictedUtilitiesConfig, RootFontSize,
 };
 
@@ -41,56 +41,93 @@ impl LintSeverity {
     }
 }
 
+/// Kind of problem a lint rule reports, which tells the reader how to respond.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LintCategory {
+    /// Input whose contribution lowers as empty or whose condition lowers as false.
+    Input,
+    /// A violation of the macro value-expression or import contract. Output is unchanged.
+    Contract,
+    /// Valid output that probably differs from what the author intended.
+    Hazard,
+    /// A project-specific prohibition. Built-in presets leave these rules off.
+    Restriction,
+    /// A preferred spelling or structure for equivalent output.
+    Style,
+    /// A malformed or ineffective `swlint-*` suppression directive.
+    Suppression,
+}
+
+impl LintCategory {
+    /// Returns the lowercase spelling used by configuration catalogs.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Input => "input",
+            Self::Contract => "contract",
+            Self::Hazard => "hazard",
+            Self::Restriction => "restriction",
+            Self::Style => "style",
+            Self::Suppression => "suppression",
+        }
+    }
+}
+
 macro_rules! define_lint_rules {
-    ($( $variant:ident => $name:literal, )+) => {
+    ($( $category:ident { $( $variant:ident => $name:literal, )+ } )+) => {
         /// A lint rule identified by one stable configuration and suppression name.
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
         pub enum LintKind {
-            $(
+            $($(
                 #[doc = concat!("The `", $name, "` rule.")]
                 #[serde(rename = $name)]
                 $variant,
-            )+
+            )+)+
         }
 
         impl LintKind {
             /// Every supported lint rule, in declaration order.
-            pub const ALL: &'static [Self] = &[$(Self::$variant,)+];
+            pub const ALL: &'static [Self] = &[$($(Self::$variant,)+)+];
 
             /// Returns the stable configuration, suppression, and host-protocol name.
             pub const fn name(self) -> &'static str {
-                match self { $(Self::$variant => $name,)+ }
+                match self { $($(Self::$variant => $name,)+)+ }
+            }
+
+            /// Returns the kind of problem this rule reports.
+            pub const fn category(self) -> LintCategory {
+                match self { $($(Self::$variant => LintCategory::$category,)+)+ }
             }
 
             /// Parses an exact rule name; unknown names return `None`.
             pub fn from_name(name: &str) -> Option<Self> {
-                match name { $($name => Some(Self::$variant),)+ _ => None }
+                match name { $($($name => Some(Self::$variant),)+)+ _ => None }
             }
         }
 
         /// Configuration for one lint rule, including its reporting severity.
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub enum LintConfig {
-            $(
+            $($(
                 #[doc = concat!("Configuration for `", $name, "`.")]
                 $variant(#[doc = "Settings for detection and reporting of this rule."] lint_config_type!($variant)),
-            )+
+            )+)+
         }
 
         impl LintConfig {
             /// Constructs the setting variant corresponding to `kind` with `severity`.
             pub const fn new(kind: LintKind, severity: LintSeverity) -> Self {
-                match kind { $(LintKind::$variant => Self::$variant(lint_config_value!($variant, severity)),)+ }
+                match kind { $($(LintKind::$variant => Self::$variant(lint_config_value!($variant, severity)),)+)+ }
             }
 
             /// Returns the rule this setting configures.
             pub const fn kind(&self) -> LintKind {
-                match self { $(Self::$variant(_) => LintKind::$variant,)+ }
+                match self { $($(Self::$variant(_) => LintKind::$variant,)+)+ }
             }
 
             /// Returns the configured reporting severity.
             pub const fn severity(&self) -> LintSeverity {
-                match self { $(Self::$variant(config) => lint_config_severity!($variant, config),)+ }
+                match self { $($(Self::$variant(config) => lint_config_severity!($variant, config),)+)+ }
             }
         }
     };
@@ -109,13 +146,13 @@ macro_rules! lint_config_type {
     (ConflictingUtilities) => {
         ConflictingUtilitiesConfig
     };
-    (LengthUnits) => {
-        LengthUnitsConfig
+    (NoRestrictedLengthUnits) => {
+        RestrictedLengthUnitsConfig
     };
     (NoRestrictedThemeTokens) => {
         RestrictedThemeTokensConfig
     };
-    (CanonicalUtilities) => {
+    (PreferCanonicalUtilities) => {
         CanonicalUtilitiesConfig
     };
     ($variant:ident) => {
@@ -148,8 +185,8 @@ macro_rules! lint_config_value {
             allow_shorthand_overrides: false,
         }
     };
-    (LengthUnits, $severity:expr) => {
-        LengthUnitsConfig {
+    (NoRestrictedLengthUnits, $severity:expr) => {
+        RestrictedLengthUnitsConfig {
             severity: $severity,
             rules: Vec::new(),
         }
@@ -160,7 +197,7 @@ macro_rules! lint_config_value {
             tokens: Vec::new(),
         }
     };
-    (CanonicalUtilities, $severity:expr) => {
+    (PreferCanonicalUtilities, $severity:expr) => {
         CanonicalUtilitiesConfig {
             severity: $severity,
             px_to_rem: true,
@@ -185,13 +222,13 @@ macro_rules! lint_config_severity {
     (ConflictingUtilities, $config:expr) => {
         $config.severity
     };
-    (LengthUnits, $config:expr) => {
+    (NoRestrictedLengthUnits, $config:expr) => {
         $config.severity
     };
     (NoRestrictedThemeTokens, $config:expr) => {
         $config.severity
     };
-    (CanonicalUtilities, $config:expr) => {
+    (PreferCanonicalUtilities, $config:expr) => {
         $config.severity
     };
     ($variant:ident, $config:expr) => {
@@ -200,51 +237,63 @@ macro_rules! lint_config_severity {
 }
 
 define_lint_rules! {
-    NoArbitraryColors => "no-arbitrary-colors",
-    NoArbitrarySpacing => "no-arbitrary-spacing",
-    NoClassProperty => "no-class-property",
-    NoRestrictedUtilities => "no-restricted-utilities",
-    NoRestrictedDeclarations => "no-restricted-declarations",
-    NoImportant => "no-important",
-    ValidLintSuppressions => "valid-lint-suppressions",
-    NoUnusedLintSuppressions => "no-unused-lint-suppressions",
-    PreferDirectStyling => "prefer-direct-styling",
-    DuplicateUtilities => "duplicate-utilities",
-    ConflictingUtilities => "conflicting-utilities",
-    PreferLogicalProperties => "prefer-logical-properties",
-    LengthUnits => "length-units",
-    NoRestrictedThemeTokens => "no-restricted-theme-tokens",
-    NoArbitraryBreakpoints => "no-arbitrary-breakpoints",
-    FrameworkImportMismatch => "framework-import-mismatch",
-    MacroArgumentMutation => "macro-argument-mutation",
-    MacroExecutionBoundary => "macro-execution-boundary",
-    InvalidVariantInput => "invalid-variant-input",
-    InvalidStyleInput => "invalid-style-input",
-    InvalidCvaConfig => "invalid-cva-config",
-    InvalidCvaInput => "invalid-cva-input",
-    InvalidKeyframesUse => "invalid-keyframes-use",
-    InvalidKeyframesDefinition => "invalid-keyframes-definition",
-    InvalidKeyframesVariant => "invalid-keyframes-variant",
-    InvalidViewTransitionUse => "invalid-view-transition-use",
-    InvalidViewTransitionDefinition => "invalid-view-transition-definition",
-    InvalidViewTransitionVariant => "invalid-view-transition-variant",
-    InvalidRefInput => "invalid-ref-input",
-    InvalidAnimationOption => "invalid-animation-option",
-    InvalidStyleComposition => "invalid-style-composition",
-    RuntimeConditionRequiresNative => "runtime-condition-requires-native",
-    UnverifiedStyleBase => "unverified-style-base",
-    ValidAnchorScope => "valid-anchor-scope",
-    RequireRefAttachment => "require-ref-attachment",
-    ConflictingProviderProperties => "conflicting-provider-properties",
-    PreferTypedRelationships => "prefer-typed-relationships",
-    RequireElementScope => "require-element-scope",
-    RequireViewTransitionName => "require-view-transition-name",
-    SingleViewTransitionName => "single-view-transition-name",
-    SingleViewTransitionClass => "single-view-transition-class",
-    AmbiguousBaseOrder => "ambiguous-base-order",
-    ImportedBaseInterference => "imported-base-interference",
-    InvalidUtility => "invalid-utility",
-    UnknownUtility => "unknown-utility",
-    CanonicalUtilities => "canonical-utilities",
-    SortUtilities => "sort-utilities",
+    Input {
+        InvalidVariantInput => "invalid-variant-input",
+        InvalidStyleInput => "invalid-style-input",
+        InvalidCvaConfig => "invalid-cva-config",
+        InvalidCvaInput => "invalid-cva-input",
+        InvalidKeyframesUse => "invalid-keyframes-use",
+        InvalidKeyframesDefinition => "invalid-keyframes-definition",
+        InvalidKeyframesVariant => "invalid-keyframes-variant",
+        InvalidViewTransitionUse => "invalid-view-transition-use",
+        InvalidViewTransitionDefinition => "invalid-view-transition-definition",
+        InvalidViewTransitionVariant => "invalid-view-transition-variant",
+        InvalidRefInput => "invalid-ref-input",
+        InvalidAnimationOption => "invalid-animation-option",
+        InvalidStyleComposition => "invalid-style-composition",
+        RuntimeConditionRequiresCssIf => "runtime-condition-requires-css-if",
+        InvalidUtility => "invalid-utility",
+        UnknownUtility => "unknown-utility",
+    }
+    Contract {
+        MutatingMacroArgument => "mutating-macro-argument",
+        SuspendingMacroArgument => "suspending-macro-argument",
+        MismatchedFrameworkImport => "mismatched-framework-import",
+    }
+    Hazard {
+        DuplicateUtility => "duplicate-utility",
+        ConflictingUtilities => "conflicting-utilities",
+        ConflictingProviderProperties => "conflicting-provider-properties",
+        UnverifiedStyleBase => "unverified-style-base",
+        AmbiguousStyleBaseOrder => "ambiguous-style-base-order",
+        InterferingImportedStyleBase => "interfering-imported-style-base",
+        MissingRefAttachment => "missing-ref-attachment",
+        DocumentScopedSelector => "document-scoped-selector",
+        MissingViewTransitionName => "missing-view-transition-name",
+        DuplicateViewTransitionName => "duplicate-view-transition-name",
+        SplitViewTransitionClass => "split-view-transition-class",
+        IneffectiveAnchorScope => "ineffective-anchor-scope",
+    }
+    Restriction {
+        NoArbitraryColors => "no-arbitrary-colors",
+        NoArbitrarySpacing => "no-arbitrary-spacing",
+        NoClassProperty => "no-class-property",
+        NoRestrictedUtilities => "no-restricted-utilities",
+        NoRestrictedDeclarations => "no-restricted-declarations",
+        NoImportant => "no-important",
+        NoRestrictedLengthUnits => "no-restricted-length-units",
+        NoRestrictedThemeTokens => "no-restricted-theme-tokens",
+        NoArbitraryBreakpoints => "no-arbitrary-breakpoints",
+    }
+    Style {
+        PreferDirectStyling => "prefer-direct-styling",
+        PreferLogicalProperties => "prefer-logical-properties",
+        PreferTypedRelationships => "prefer-typed-relationships",
+        PreferCanonicalUtilities => "prefer-canonical-utilities",
+        PreferSortedUtilities => "prefer-sorted-utilities",
+    }
+    Suppression {
+        InvalidLintSuppression => "invalid-lint-suppression",
+        UnusedLintSuppression => "unused-lint-suppression",
+    }
 }

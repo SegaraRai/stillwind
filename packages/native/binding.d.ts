@@ -1017,60 +1017,8 @@ export interface NativeLayerContext {
   namespace: string
 }
 
-/** One property-specific length restriction; the last matching rule wins. */
-export interface NativeLengthUnitRule {
-  /** Complete CSS property globs using `*` and `?`. */
-  properties: Array<string>
-  /** Forbidden CSS length unit names. */
-  disallow: Array<string>
-}
-
-/** Length restrictions applied at utility use sites. */
-export interface NativeLengthUnitsOptions {
-  /** Reporting severity; omission uses the rule default. */
-  severity?: string
-  /** A supplied list replaces the existing restrictions. */
-  rules?: Array<NativeLengthUnitRule>
-}
-
 /** Lint settings applied to compiler defaults. */
 export interface NativeLintOptions {
-  /** Settings for `no-arbitrary-colors`. */
-  noArbitraryColors?: string
-  /** Settings for `no-arbitrary-spacing`. */
-  noArbitrarySpacing?: NativeArbitrarySpacingOptions
-  /** Settings for `no-class-property`. */
-  noClassProperty?: string
-  /** Settings for `no-restricted-utilities`. */
-  noRestrictedUtilities?: NativeRestrictedUtilitiesOptions
-  /** Settings for `no-restricted-declarations`. */
-  noRestrictedDeclarations?: NativeRestrictedDeclarationsOptions
-  /** Settings for `no-important`. */
-  noImportant?: string
-  /** Settings for `valid-lint-suppressions`. */
-  validLintSuppressions?: string
-  /** Settings for `no-unused-lint-suppressions`. */
-  noUnusedLintSuppressions?: string
-  /** Settings for `prefer-direct-styling`. */
-  preferDirectStyling?: string
-  /** Settings for `duplicate-utilities`. */
-  duplicateUtilities?: string
-  /** Settings for `conflicting-utilities`. */
-  conflictingUtilities?: NativeConflictingUtilitiesOptions
-  /** Settings for `prefer-logical-properties`. */
-  preferLogicalProperties?: string
-  /** Settings for `length-units`. */
-  lengthUnits?: NativeLengthUnitsOptions
-  /** Settings for `no-restricted-theme-tokens`. */
-  noRestrictedThemeTokens?: NativeRestrictedThemeTokensOptions
-  /** Settings for `no-arbitrary-breakpoints`. */
-  noArbitraryBreakpoints?: string
-  /** Settings for `framework-import-mismatch`. */
-  frameworkImportMismatch?: string
-  /** Settings for `macro-argument-mutation`. */
-  macroArgumentMutation?: string
-  /** Settings for `macro-execution-boundary`. */
-  macroExecutionBoundary?: string
   /** Settings for `invalid-variant-input`. */
   invalidVariantInput?: string
   /** Settings for `invalid-style-input`. */
@@ -1097,38 +1045,74 @@ export interface NativeLintOptions {
   invalidAnimationOption?: string
   /** Settings for `invalid-style-composition`. */
   invalidStyleComposition?: string
-  /** Settings for `runtime-condition-requires-native`. */
-  runtimeConditionRequiresNative?: string
-  /** Settings for `unverified-style-base`. */
-  unverifiedStyleBase?: string
-  /** Settings for `valid-anchor-scope`. */
-  validAnchorScope?: string
-  /** Settings for `require-ref-attachment`. */
-  requireRefAttachment?: string
-  /** Settings for `conflicting-provider-properties`. */
-  conflictingProviderProperties?: string
-  /** Settings for `prefer-typed-relationships`. */
-  preferTypedRelationships?: string
-  /** Settings for `require-element-scope`. */
-  requireElementScope?: string
-  /** Settings for `require-view-transition-name`. */
-  requireViewTransitionName?: string
-  /** Settings for `single-view-transition-name`. */
-  singleViewTransitionName?: string
-  /** Settings for `single-view-transition-class`. */
-  singleViewTransitionClass?: string
-  /** Settings for `ambiguous-base-order`. */
-  ambiguousBaseOrder?: string
-  /** Settings for `imported-base-interference`. */
-  importedBaseInterference?: string
+  /** Settings for `runtime-condition-requires-css-if`. */
+  runtimeConditionRequiresCssIf?: string
   /** Settings for `invalid-utility`. */
   invalidUtility?: string
   /** Settings for `unknown-utility`. */
   unknownUtility?: string
-  /** Settings for `canonical-utilities`. */
-  canonicalUtilities?: NativeCanonicalUtilitiesOptions
-  /** Settings for `sort-utilities`. */
-  sortUtilities?: string
+  /** Settings for `mutating-macro-argument`. */
+  mutatingMacroArgument?: string
+  /** Settings for `suspending-macro-argument`. */
+  suspendingMacroArgument?: string
+  /** Settings for `mismatched-framework-import`. */
+  mismatchedFrameworkImport?: string
+  /** Settings for `duplicate-utility`. */
+  duplicateUtility?: string
+  /** Settings for `conflicting-utilities`. */
+  conflictingUtilities?: NativeConflictingUtilitiesOptions
+  /** Settings for `conflicting-provider-properties`. */
+  conflictingProviderProperties?: string
+  /** Settings for `unverified-style-base`. */
+  unverifiedStyleBase?: string
+  /** Settings for `ambiguous-style-base-order`. */
+  ambiguousStyleBaseOrder?: string
+  /** Settings for `interfering-imported-style-base`. */
+  interferingImportedStyleBase?: string
+  /** Settings for `missing-ref-attachment`. */
+  missingRefAttachment?: string
+  /** Settings for `document-scoped-selector`. */
+  documentScopedSelector?: string
+  /** Settings for `missing-view-transition-name`. */
+  missingViewTransitionName?: string
+  /** Settings for `duplicate-view-transition-name`. */
+  duplicateViewTransitionName?: string
+  /** Settings for `split-view-transition-class`. */
+  splitViewTransitionClass?: string
+  /** Settings for `ineffective-anchor-scope`. */
+  ineffectiveAnchorScope?: string
+  /** Settings for `no-arbitrary-colors`. */
+  noArbitraryColors?: string
+  /** Settings for `no-arbitrary-spacing`. */
+  noArbitrarySpacing?: NativeArbitrarySpacingOptions
+  /** Settings for `no-class-property`. */
+  noClassProperty?: string
+  /** Settings for `no-restricted-utilities`. */
+  noRestrictedUtilities?: NativeRestrictedUtilitiesOptions
+  /** Settings for `no-restricted-declarations`. */
+  noRestrictedDeclarations?: NativeRestrictedDeclarationsOptions
+  /** Settings for `no-important`. */
+  noImportant?: string
+  /** Settings for `no-restricted-length-units`. */
+  noRestrictedLengthUnits?: NativeRestrictedLengthUnitsOptions
+  /** Settings for `no-restricted-theme-tokens`. */
+  noRestrictedThemeTokens?: NativeRestrictedThemeTokensOptions
+  /** Settings for `no-arbitrary-breakpoints`. */
+  noArbitraryBreakpoints?: string
+  /** Settings for `prefer-direct-styling`. */
+  preferDirectStyling?: string
+  /** Settings for `prefer-logical-properties`. */
+  preferLogicalProperties?: string
+  /** Settings for `prefer-typed-relationships`. */
+  preferTypedRelationships?: string
+  /** Settings for `prefer-canonical-utilities`. */
+  preferCanonicalUtilities?: NativeCanonicalUtilitiesOptions
+  /** Settings for `prefer-sorted-utilities`. */
+  preferSortedUtilities?: string
+  /** Settings for `invalid-lint-suppression`. */
+  invalidLintSuppression?: string
+  /** Settings for `unused-lint-suppression`. */
+  unusedLintSuppression?: string
 }
 
 /** The fields of a projection's custom-ident request. */
@@ -1301,6 +1285,22 @@ export interface NativeRestrictedDeclarationsOptions {
   severity?: string
   /** A supplied list replaces declaration restrictions. */
   rules?: Array<NativeRestrictedDeclarationRule>
+}
+
+/** One property-specific length restriction; the last matching rule wins. */
+export interface NativeRestrictedLengthUnitRule {
+  /** Complete CSS property globs using `*` and `?`. */
+  properties: Array<string>
+  /** Forbidden CSS length unit names. */
+  disallow: Array<string>
+}
+
+/** Length restrictions applied at utility use sites. */
+export interface NativeRestrictedLengthUnitsOptions {
+  /** Reporting severity; omission uses the rule default. */
+  severity?: string
+  /** A supplied list replaces the existing restrictions. */
+  rules?: Array<NativeRestrictedLengthUnitRule>
 }
 
 /** Forbidden direct theme token names. */

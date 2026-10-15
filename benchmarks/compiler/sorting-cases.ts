@@ -9,7 +9,7 @@ const css = resolveFixtureCss('@import "stillwind"; @theme { --color-brand:red; 
 export function loadSortingDesignSystem(mode: "authored" | "tailwind"): NativeDesignSystemLoader {
   const loader = new NativeDesignSystemLoader({
     lint: {
-      canonicalUtilities: {
+      preferCanonicalUtilities: {
         severity: "off",
       },
     },

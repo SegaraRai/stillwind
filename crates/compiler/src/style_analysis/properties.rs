@@ -28,7 +28,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             if !attached
                 && !style.unknown_can_coexist(current)
                 && reported.insert((
-                    LintKind::RequireRefAttachment,
+                    LintKind::MissingRefAttachment,
                     current.supply.site.clone(),
                     current.supply.site.clone(),
                 ))
@@ -110,7 +110,7 @@ fn check_interference(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             if ac == bc
                 && let Some(diagnostic) = base_interference(style, previous, current, properties)
                 && reported.insert((
-                    LintKind::AmbiguousBaseOrder,
+                    LintKind::AmbiguousStyleBaseOrder,
                     previous.supply.site.clone(),
                     current.supply.site.clone(),
                 ))
@@ -237,7 +237,7 @@ fn base_interference(
         return [&previous, &current]
             .iter()
             .any(|s| s.base.is_some() && s.owner.module_id() != style.root.identity.module_id())
-            .then(|| LintDiagnostic::ImportedBaseInterference {
+            .then(|| LintDiagnostic::InterferingImportedStyleBase {
                 module: imported_module(style, previous, current),
                 properties: (properties).into(),
             });
@@ -246,12 +246,12 @@ fn base_interference(
         return None;
     }
     Some(if imported_interference(style, previous, current) {
-        LintDiagnostic::ImportedBaseInterference {
+        LintDiagnostic::InterferingImportedStyleBase {
             module: imported_module(style, previous, current),
             properties: (properties).into(),
         }
     } else {
-        LintDiagnostic::AmbiguousBaseOrder {
+        LintDiagnostic::AmbiguousStyleBaseOrder {
             properties: (properties).into(),
         }
     })
@@ -318,7 +318,7 @@ mod tests {
         let mut resolver = StyleResolver::new([&base, &root]);
         let findings = check(&resolver.resolve(root.identity()).unwrap());
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].kind(), LintKind::RequireRefAttachment);
+        assert_eq!(findings[0].kind(), LintKind::MissingRefAttachment);
         assert_eq!(findings[0].info.labels[0].span, root.span);
         let attached = f::effects(
             "root",
@@ -389,7 +389,7 @@ mod tests {
             findings.iter().map(LintFinding::kind).collect::<Vec<_>>(),
             vec![
                 LintKind::ConflictingProviderProperties,
-                LintKind::ImportedBaseInterference
+                LintKind::InterferingImportedStyleBase
             ]
         );
         let provider = &findings[0];
@@ -494,7 +494,7 @@ mod tests {
         let mut resolver = StyleResolver::new([&left, &right, &root]);
         assert_eq!(
             check_interference(&resolver.resolve(root.identity()).unwrap())[0].kind(),
-            LintKind::AmbiguousBaseOrder
+            LintKind::AmbiguousStyleBaseOrder
         );
         let ordered = local_style(
             30,
@@ -519,7 +519,7 @@ mod tests {
         let mut resolver = StyleResolver::new([&left, &imported, &imported_root]);
         let findings = check_interference(&resolver.resolve(imported_root.identity()).unwrap());
         assert!(
-            matches!(&findings[0].diagnostic, LintDiagnostic::ImportedBaseInterference { module, .. } if module == &ModuleId::from("imported"))
+            matches!(&findings[0].diagnostic, LintDiagnostic::InterferingImportedStyleBase { module, .. } if module == &ModuleId::from("imported"))
         );
     }
 

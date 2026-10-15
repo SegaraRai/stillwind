@@ -104,8 +104,9 @@ fn check_length_units(
     reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
     findings: &mut Vec<LintFinding>,
 ) {
-    if settings.enabled_for_detection(LintKind::LengthUnits)
-        && let Some(LintConfig::LengthUnits(config)) = settings.get(LintKind::LengthUnits)
+    if settings.enabled_for_detection(LintKind::NoRestrictedLengthUnits)
+        && let Some(LintConfig::NoRestrictedLengthUnits(config)) =
+            settings.get(LintKind::NoRestrictedLengthUnits)
     {
         let domains = property_value_domains(property, value);
         for (domain, value) in &domains {
@@ -143,9 +144,13 @@ fn check_length_units(
                     .iter()
                     .any(|forbidden| forbidden.eq_ignore_ascii_case(unit))
             }) {
-                if reported.insert((LintKind::LengthUnits, domain.clone(), (unit.clone()).into())) {
+                if reported.insert((
+                    LintKind::NoRestrictedLengthUnits,
+                    domain.clone(),
+                    (unit.clone()).into(),
+                )) {
                     let mut finding = LintFinding::new(
-                        LintDiagnostic::ForbiddenLengthUnit {
+                        LintDiagnostic::RestrictedLengthUnit {
                             property: (domain.clone()).into(),
                             unit,
                         },
@@ -526,7 +531,7 @@ pub(crate) fn candidate_allowed(raw: &str, theme: &ThemeIndex, settings: &LintSe
         LintKind::NoRestrictedDeclarations,
         LintKind::PreferDirectStyling,
         LintKind::PreferLogicalProperties,
-        LintKind::LengthUnits,
+        LintKind::NoRestrictedLengthUnits,
         LintKind::NoRestrictedThemeTokens,
         LintKind::NoArbitraryBreakpoints,
     ]

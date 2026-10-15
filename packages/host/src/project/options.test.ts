@@ -56,12 +56,12 @@ test("utility policies retain their fields at the native boundary", () => {
     lint: {
       rules: {
         "prefer-direct-styling": "warn",
-        "duplicate-utilities": "deny",
+        "duplicate-utility": "deny",
         "conflicting-utilities": {
           allowShorthandOverrides: true,
         },
         "prefer-logical-properties": "off",
-        "length-units": {
+        "no-restricted-length-units": {
           rules: [
             {
               properties: ["padding*"],
@@ -78,12 +78,12 @@ test("utility policies retain their fields at the native boundary", () => {
   });
   expect(options.lint).toMatchObject({
     preferDirectStyling: "warn",
-    duplicateUtilities: "deny",
+    duplicateUtility: "deny",
     conflictingUtilities: {
       allowShorthandOverrides: true,
     },
     preferLogicalProperties: "off",
-    lengthUnits: {
+    noRestrictedLengthUnits: {
       rules: [
         {
           properties: ["padding*"],
@@ -101,7 +101,7 @@ test("utility policies retain their fields at the native boundary", () => {
       lint: {
         rules: {
           "conflicting-utilities": "off",
-          "length-units": "warn",
+          "no-restricted-length-units": "warn",
         },
       },
     }).lint,
@@ -109,7 +109,7 @@ test("utility policies retain their fields at the native boundary", () => {
     conflictingUtilities: {
       severity: "off",
     },
-    lengthUnits: {
+    noRestrictedLengthUnits: {
       severity: "warn",
     },
   });
@@ -124,8 +124,8 @@ test("source restriction options retain native names and list replacements", () 
           "no-arbitrary-spacing": "warn",
           "no-class-property": "off",
           "no-important": "deny",
-          "valid-lint-suppressions": "warn",
-          "no-unused-lint-suppressions": "warn",
+          "invalid-lint-suppression": "warn",
+          "unused-lint-suppression": "warn",
           "no-restricted-utilities": {
             utilities: [
               {
@@ -152,8 +152,8 @@ test("source restriction options retain native names and list replacements", () 
     },
     noClassProperty: "off",
     noImportant: "deny",
-    validLintSuppressions: "warn",
-    noUnusedLintSuppressions: "warn",
+    invalidLintSuppression: "warn",
+    unusedLintSuppression: "warn",
     noRestrictedUtilities: {
       utilities: [
         {

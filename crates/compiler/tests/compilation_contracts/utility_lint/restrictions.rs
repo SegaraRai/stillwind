@@ -392,6 +392,6 @@ fn canonical_suggestions_do_not_introduce_restricted_utility_names() {
     };
     assert!(
         !kinds("const x=style('paint-[#123]');", VALUE_CSS, &options)
-            .contains(&LintKind::CanonicalUtilities)
+            .contains(&LintKind::PreferCanonicalUtilities)
     );
 }

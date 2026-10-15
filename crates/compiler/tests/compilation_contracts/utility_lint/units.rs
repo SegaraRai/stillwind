@@ -6,18 +6,18 @@ use super::*;
 fn unit_domains_follow_tokens_shorthands_and_last_matching_rules() {
     let options = CompilerOptions {
         lint: LintOverrides {
-            length_units: Some(LengthUnitsOverride {
+            no_restricted_length_units: Some(RestrictedLengthUnitsOverride {
                 rules: Some(vec![
-                    LengthUnitRule {
+                    RestrictedLengthUnitRule {
                         properties: vec!["padding*".into()],
                         disallow: vec!["px".into()],
                     },
-                    LengthUnitRule {
+                    RestrictedLengthUnitRule {
                         properties: vec!["border-*-width".into()],
                         disallow: vec!["rem".into()],
                     },
                 ]),
-                ..LengthUnitsOverride::default()
+                ..RestrictedLengthUnitsOverride::default()
             }),
             ..LintOverrides::default()
         },
@@ -30,7 +30,7 @@ fn unit_domains_follow_tokens_shorthands_and_last_matching_rules() {
         "const x=style('[border:1rem_solid_red]');",
     ] {
         assert!(
-            kinds(code, theme, &options).contains(&LintKind::LengthUnits),
+            kinds(code, theme, &options).contains(&LintKind::NoRestrictedLengthUnits),
             "{code}"
         );
     }
@@ -42,7 +42,7 @@ fn unit_domains_follow_tokens_shorthands_and_last_matching_rules() {
         assert!(
             kinds(code, theme, &options)
                 .iter()
-                .all(|kind| *kind != LintKind::LengthUnits),
+                .all(|kind| *kind != LintKind::NoRestrictedLengthUnits),
             "{code}"
         );
     }
@@ -52,18 +52,18 @@ fn unit_domains_follow_tokens_shorthands_and_last_matching_rules() {
 fn unit_exceptions_override_broad_rules_for_shorthand_components() {
     let options = CompilerOptions {
         lint: LintOverrides {
-            length_units: Some(LengthUnitsOverride {
+            no_restricted_length_units: Some(RestrictedLengthUnitsOverride {
                 rules: Some(vec![
-                    LengthUnitRule {
+                    RestrictedLengthUnitRule {
                         properties: vec!["*".into()],
                         disallow: vec!["px".into()],
                     },
-                    LengthUnitRule {
+                    RestrictedLengthUnitRule {
                         properties: vec!["border-*-width".into()],
                         disallow: vec!["rem".into()],
                     },
                 ]),
-                ..LengthUnitsOverride::default()
+                ..RestrictedLengthUnitsOverride::default()
             }),
             ..LintOverrides::default()
         },
@@ -75,7 +75,7 @@ fn unit_exceptions_override_broad_rules_for_shorthand_components() {
     );
     assert!(
         kinds("const x=style('[border:1rem_solid_red]');", "", &options)
-            .contains(&LintKind::LengthUnits)
+            .contains(&LintKind::NoRestrictedLengthUnits)
     );
 }
 

@@ -7,10 +7,7 @@ use super::*;
 #[test]
 fn utility_pairs_respect_css_contexts_source_choices_and_shorthand_policy() {
     for (code, expected) in [
-        (
-            "const x=style('p2 p2');",
-            Some(LintKind::DuplicateUtilities),
-        ),
+        ("const x=style('p2 p2');", Some(LintKind::DuplicateUtility)),
         (
             "const x=style('p2', ['p4']);",
             Some(LintKind::ConflictingUtilities),
@@ -28,7 +25,7 @@ fn utility_pairs_respect_css_contexts_source_choices_and_shorthand_policy() {
         ("const x=style(flag?'p2':'p4');", None),
         (
             "const x=style('hover:p2',{'hover:':'p2'});",
-            Some(LintKind::DuplicateUtilities),
+            Some(LintKind::DuplicateUtility),
         ),
     ] {
         assert_eq!(
@@ -83,7 +80,7 @@ fn shared_composition_declarations_and_one_candidate_expansion_do_not_compete() 
             .iter()
             .map(LintFinding::kind)
             .collect::<Vec<_>>(),
-        [LintKind::DuplicateUtilities]
+        [LintKind::DuplicateUtility]
     );
 }
 
@@ -102,7 +99,7 @@ fn duplicate_locations_map_escaped_source_and_suppression() {
     );
     assert_eq!(
         kinds(
-            "\n// swlint-disable-next-line duplicate-utilities\nconst x=style('p2 p2');",
+            "\n// swlint-disable-next-line duplicate-utility\nconst x=style('p2 p2');",
             CSS,
             &CompilerOptions::default()
         ),
@@ -114,7 +111,7 @@ fn duplicate_locations_map_escaped_source_and_suppression() {
 fn suppression_usage_includes_findings_detected_after_source_analysis() {
     let options = policy_options(LintOverrides {
         no_arbitrary_colors: Some(LintSeverity::Warn),
-        no_unused_lint_suppressions: Some(LintSeverity::Warn),
+        unused_lint_suppression: Some(LintSeverity::Warn),
         ..LintOverrides::default()
     });
     let used = "\n// swlint-disable-next-line no-arbitrary-colors\nconst x=style('paint-[#abc]');";
@@ -123,16 +120,16 @@ fn suppression_usage_includes_findings_detected_after_source_analysis() {
         "\n// swlint-disable-next-line no-arbitrary-colors\nconst x=style('paint-primary');";
     assert_eq!(
         kinds(unused, VALUE_CSS, &options),
-        [LintKind::NoUnusedLintSuppressions]
+        [LintKind::UnusedLintSuppression]
     );
     let invalid = "\n// swlint-disable-next-line invalid-rule\nconst x=style('paint-primary');";
     assert_eq!(
         kinds(invalid, VALUE_CSS, &options),
-        [LintKind::ValidLintSuppressions]
+        [LintKind::InvalidLintSuppression]
     );
     let off = policy_options(LintOverrides {
         no_arbitrary_colors: Some(LintSeverity::Off),
-        no_unused_lint_suppressions: Some(LintSeverity::Warn),
+        unused_lint_suppression: Some(LintSeverity::Warn),
         ..LintOverrides::default()
     });
     assert_eq!(kinds(unused, VALUE_CSS, &off), [] as [LintKind; 0]);

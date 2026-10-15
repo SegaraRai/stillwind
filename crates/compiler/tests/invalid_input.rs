@@ -115,7 +115,7 @@ fn unsupported_operands_preserve_supported_siblings_at_every_reporting_level() {
                 result
                     .lint_findings
                     .iter()
-                    .filter(|finding| finding.kind() != LintKind::RequireRefAttachment)
+                    .filter(|finding| finding.kind() != LintKind::MissingRefAttachment)
                     .all(
                         |finding| result.lint_settings.reporting_severity(finding.kind())
                             == severity
@@ -494,7 +494,7 @@ fn invalid_options_lower_as_omitted_arguments() {
         let input_lints = result
             .lint_findings
             .iter()
-            .filter(|finding| finding.kind() != LintKind::RequireRefAttachment)
+            .filter(|finding| finding.kind() != LintKind::MissingRefAttachment)
             .count();
         assert_eq!(input_lints, 1, "{input}: {:#?}", result.lint_findings);
         assert!(result.css.contains(expected), "{input}: {}", result.css);

@@ -13,7 +13,7 @@ pub(super) use lint_policy::NativeCanonicalUtilitiesOptions;
 
 use lint::NativeLintOptions;
 use lint_policy::{
-    NativeArbitrarySpacingOptions, NativeConflictingUtilitiesOptions, NativeLengthUnitsOptions,
-    NativeRestrictedDeclarationsOptions, NativeRestrictedThemeTokensOptions,
-    NativeRestrictedUtilitiesOptions, lint_severity,
+    NativeArbitrarySpacingOptions, NativeConflictingUtilitiesOptions,
+    NativeRestrictedDeclarationsOptions, NativeRestrictedLengthUnitsOptions,
+    NativeRestrictedThemeTokensOptions, NativeRestrictedUtilitiesOptions, lint_severity,
 };

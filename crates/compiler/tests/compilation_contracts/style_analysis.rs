@@ -19,7 +19,11 @@ fn inherited_properties_and_conditional_classes_preserve_interference() {
         "const a=style('pad',flag&&'color'); const b=style('pad2'); const x=style(a,b);",
         "const a=style('pad'); const middle=style(a); const b=style('pad2'); const x=style(middle,b);",
     ] {
-        assert_eq!(findings(code), vec![LintKind::AmbiguousBaseOrder], "{code}");
+        assert_eq!(
+            findings(code),
+            vec![LintKind::AmbiguousStyleBaseOrder],
+            "{code}"
+        );
     }
 }
 
@@ -45,11 +49,11 @@ fn attachments_are_resolved_from_bases_instead_of_assumed() {
         findings(
             "const r=style.ref(); const a=style('color'); const x=style(a,r.asContainer('size'));"
         ),
-        vec![LintKind::RequireRefAttachment]
+        vec![LintKind::MissingRefAttachment]
     );
     assert_eq!(
         findings("const r=style.ref(); const x=style(flag?r:r.asContainer('size'));"),
-        vec![LintKind::RequireRefAttachment]
+        vec![LintKind::MissingRefAttachment]
     );
 }
 
@@ -75,7 +79,7 @@ fn transition_names_follow_the_target_and_transitive_bases() {
         findings(
             "const vt=style.viewTransition({old:'color'}); const x=style(vt,{'[&>span]:':'[view-transition-name:hero]'});"
         ),
-        vec![LintKind::RequireViewTransitionName]
+        vec![LintKind::MissingViewTransitionName]
     );
     assert_eq!(
         findings(
@@ -87,7 +91,7 @@ fn transition_names_follow_the_target_and_transitive_bases() {
         findings(
             "const vt=style.viewTransition({old:'color'}); const a=style(vt.for('a')); const x=style(a,vt.for('b'));"
         ),
-        vec![LintKind::SingleViewTransitionName]
+        vec![LintKind::DuplicateViewTransitionName]
     );
 }
 
@@ -96,12 +100,12 @@ fn transition_class_replacement_sees_transitive_inheritance() {
     let kinds = findings(
         "const a=style.viewTransition({old:'color'}); const b=style.viewTransition({old:'color'}); const base=style(a.for('a')); const middle=style(base); const x=style(middle,b);",
     );
-    assert_eq!(kinds, vec![LintKind::SingleViewTransitionClass]);
+    assert_eq!(kinds, vec![LintKind::SplitViewTransitionClass]);
     assert_eq!(
         findings(
             "const a=style.viewTransition({old:'color'}); const base=style(a.for('a')); const x=style(base,flag&&a);"
         ),
-        vec![LintKind::SingleViewTransitionClass]
+        vec![LintKind::SplitViewTransitionClass]
     );
     assert_eq!(
         findings(
@@ -134,7 +138,7 @@ fn expanded_selector_and_at_rule_contexts_control_base_interference() {
             result
                 .lint_findings
                 .iter()
-                .any(|f| f.kind() == LintKind::AmbiguousBaseOrder),
+                .any(|f| f.kind() == LintKind::AmbiguousStyleBaseOrder),
             conflict,
             "{a}, {b}: {:?}",
             result.lint_findings
@@ -149,7 +153,7 @@ fn independent_name_uses_are_counted_and_choices_stay_exclusive() {
             "const vt=style.viewTransition({old:'color'}); const x=style(vt,'[view-transition-name:a] [view-transition-name:b]');"
         ),
         vec![
-            LintKind::SingleViewTransitionName,
+            LintKind::DuplicateViewTransitionName,
             LintKind::ConflictingUtilities
         ]
     );

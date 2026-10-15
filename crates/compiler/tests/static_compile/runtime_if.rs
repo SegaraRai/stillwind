@@ -32,13 +32,13 @@ fn assert_invalid_capture(result: &CompileResult, candidate: &str) {
 }
 
 /// Asserts that the fallback strategy cannot lower `candidate`, which is omitted with a
-/// `runtime-condition-requires-native` lint.
+/// `runtime-condition-requires-css-if` lint.
 fn assert_requires_native(result: &CompileResult, candidate: &str) {
     assert_eq!(result.diagnostics, [] as [CompileError; 0], "{candidate}");
     assert!(
         result.lint_findings.iter().any(|finding| matches!(
             finding.diagnostic,
-            LintDiagnostic::RuntimeConditionRequiresNative { .. }
+            LintDiagnostic::RuntimeConditionRequiresCssIf { .. }
         )),
         "{candidate}: {:?}",
         result.lint_findings

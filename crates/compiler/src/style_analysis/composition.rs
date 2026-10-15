@@ -437,7 +437,7 @@ mod tests {
         assert!(
             findings
                 .iter()
-                .any(|f| f.kind() == LintKind::SingleViewTransitionName)
+                .any(|f| f.kind() == LintKind::DuplicateViewTransitionName)
         );
     }
 
@@ -489,7 +489,7 @@ mod tests {
                 .iter()
                 .map(LintFinding::kind)
                 .collect::<Vec<_>>(),
-            vec![LintKind::RequireRefAttachment]
+            vec![LintKind::MissingRefAttachment]
         );
         let root = effects(
             "root",

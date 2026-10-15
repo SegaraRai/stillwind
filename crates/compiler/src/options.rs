@@ -186,7 +186,7 @@ pub(crate) fn validate_lint_settings(settings: &LintSettings) -> Result<(), Comp
             {
                 Some("tokens must contain nonempty custom-property name patterns starting with --")
             }
-            LintConfig::LengthUnits(config)
+            LintConfig::NoRestrictedLengthUnits(config)
                 if config.rules.iter().any(|rule| {
                     rule.properties.is_empty()
                         || rule

@@ -402,7 +402,7 @@ mod tests {
         let source = document(
             &mut sources,
             "untitled:lint",
-            "// swlint-disable-next-line require-ref-attachment\nx",
+            "// swlint-disable-next-line missing-ref-attachment\nx",
         );
         let start = u32::try_from(source.text().len() - 1).unwrap();
         let finding = || {
@@ -411,7 +411,7 @@ mod tests {
                 range(&sources, &source, start, start + 1),
             )
         };
-        let kind = LintKind::RequireRefAttachment;
+        let kind = LintKind::MissingRefAttachment;
         let mut reporter = Reporter::new(LintSettings::with_defaults());
         reporter.report(&finding()).unwrap();
         assert_eq!(reporter.finish().diagnostics, [] as [ResolvedDiagnostic; 0]);

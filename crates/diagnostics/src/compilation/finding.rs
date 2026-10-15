@@ -142,7 +142,7 @@ mod tests {
         let json = serde_json::to_string(&finding).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(value["info"]["labels"].as_array().unwrap().len(), 1);
-        assert_eq!(finding.code(), "require-ref-attachment");
+        assert_eq!(finding.code(), "missing-ref-attachment");
         assert_eq!(value["diagnostic"]["missingRefAttachment"]["name"], "対象");
         assert!(value.get("kind").is_none());
         assert_eq!(

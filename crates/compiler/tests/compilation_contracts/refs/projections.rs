@@ -192,7 +192,7 @@ fn scope_lists_warn_for_empty_and_duplicate_identities() {
         result
             .lint_findings
             .iter()
-            .filter(|f| matches!(f.diagnostic, LintDiagnostic::AnchorScopeList { .. }))
+            .filter(|f| matches!(f.diagnostic, LintDiagnostic::IneffectiveAnchorScope { .. }))
             .count(),
         2
     );

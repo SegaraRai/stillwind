@@ -157,7 +157,7 @@ impl DesignSystemQuery {
         })
     }
 
-    /// Checks decoded `text` under its role. Ordinary utilities require diagnostic-free
+    /// Checks decoded `text` under its role. Ordinary utilities require failure-free
     /// resolution; declaration roles require a successful preview. No source state
     /// changes.
     ///
@@ -170,7 +170,7 @@ impl DesignSystemQuery {
         context: CandidateContext,
     ) -> Result<bool, UtilityResolutionError> {
         if context == CandidateContext::Utility {
-            return Ok(self.resolve_candidate(text)?.diagnostics.is_empty());
+            return Ok(self.resolve_candidate(text)?.failures.is_empty());
         }
 
         self.preview_candidate(text, context)

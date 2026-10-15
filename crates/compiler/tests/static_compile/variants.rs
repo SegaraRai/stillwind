@@ -120,7 +120,7 @@ fn can_forbid_tailwind_relationship_compatibility_with_a_lint_rule() {
             .iter()
             .filter(|finding| matches!(
                 finding.diagnostic,
-                LintDiagnostic::PreferTypedRelationships { .. }
+                LintDiagnostic::TailwindRelationshipUtility { .. }
             ))
             .count(),
         2
@@ -166,7 +166,7 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::RequireElementScope),
+            .reporting_severity(LintKind::DocumentScopedSelector),
         LintSeverity::Deny
     );
     assert!(
@@ -197,7 +197,7 @@ fn host_settings_can_disable_the_element_scope_rule() {
         &CssSourceName::from("stillwind.css"),
         &CompilerOptions {
             lint: LintOverrides {
-                require_element_scope: Some(LintSeverity::Off),
+                document_scoped_selector: Some(LintSeverity::Off),
                 ..Default::default()
             },
             ..Default::default()
@@ -212,7 +212,7 @@ fn host_settings_can_disable_the_element_scope_rule() {
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::RequireElementScope),
+            .reporting_severity(LintKind::DocumentScopedSelector),
         LintSeverity::Off
     );
 }
@@ -270,13 +270,13 @@ export const doubled = style("block", title.for("hero"), "[view-transition-name:
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::RequireViewTransitionName),
+            .reporting_severity(LintKind::MissingViewTransitionName),
         LintSeverity::Warn
     );
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::SingleViewTransitionName),
+            .reporting_severity(LintKind::DuplicateViewTransitionName),
         LintSeverity::Warn
     );
 }

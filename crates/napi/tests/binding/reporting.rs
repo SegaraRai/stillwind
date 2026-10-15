@@ -13,16 +13,16 @@ fn lint_severities_keep_their_host_protocol_spellings() {
             ),
             &CompilerOptions {
                 lint: LintOverrides {
-                    valid_anchor_scope: Some(LintSeverity::parse(severity).unwrap()),
+                    ineffective_anchor_scope: Some(LintSeverity::parse(severity).unwrap()),
                     ..Default::default()
                 },
                 ..Default::default()
             },
         )
         .unwrap();
-        assert_eq!(output.lint_settings["valid-anchor-scope"], severity);
+        assert_eq!(output.lint_settings["ineffective-anchor-scope"], severity);
         let json = serde_json::to_value(output).unwrap();
-        assert_eq!(json["lintSettings"]["valid-anchor-scope"], severity);
+        assert_eq!(json["lintSettings"]["ineffective-anchor-scope"], severity);
     }
 }
 

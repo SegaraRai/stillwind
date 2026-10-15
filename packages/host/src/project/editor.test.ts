@@ -190,9 +190,9 @@ test("default error contracts retain editable output and previous success", asyn
   expect(result.previousSuccess?.version).toBe(1);
   expect(result.output?.diagnostics.length).toBe(0);
   expect(result.output?.code).toBeTruthy();
-  expect(result.output?.lintSettings["macro-argument-mutation"]).toBe("deny");
+  expect(result.output?.lintSettings["mutating-macro-argument"]).toBe("deny");
   expect(
-    result.output?.lintFindings.some((finding) => finding.rule === "macro-argument-mutation"),
+    result.output?.lintFindings.some((finding) => finding.rule === "mutating-macro-argument"),
   ).toBeTruthy();
 });
 
@@ -206,9 +206,9 @@ test("independent bases that share a property are reported", async () => {
   });
   const result = await editor.analyze(entry);
   expect(result.status, result.error ?? JSON.stringify(result.output?.diagnostics)).toBe("success");
-  expect(result.output?.lintSettings["ambiguous-base-order"]).toBe("warn");
+  expect(result.output?.lintSettings["ambiguous-style-base-order"]).toBe("warn");
   expect(
-    result.output?.lintFindings.some((finding) => finding.rule === "ambiguous-base-order"),
+    result.output?.lintFindings.some((finding) => finding.rule === "ambiguous-style-base-order"),
     JSON.stringify(result.output?.lintFindings),
   ).toBeTruthy();
 });

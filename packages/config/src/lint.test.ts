@@ -18,20 +18,20 @@ test("omission selects recommended and explicit configurations enable only their
   });
   expect(resolveLintConfig()).toEqual(recommended);
   expect(recommended.rules["unknown-utility"]).toBe("warn");
-  expect(recommended.rules["macro-argument-mutation"]).toBe("deny");
+  expect(recommended.rules["mutating-macro-argument"]).toBe("deny");
   for (const setting of Object.values(resolveLintConfig({}).rules)) {
     expect(typeof setting === "string" ? setting : setting.severity).toBe("off");
   }
   const explicit = resolveLintConfig({
     rules: {
-      "sort-utilities": "warn",
-      "canonical-utilities": {
+      "prefer-sorted-utilities": "warn",
+      "prefer-canonical-utilities": {
         rootFontSize: 20,
       },
     },
   });
-  expect(explicit.rules["sort-utilities"]).toBe("warn");
-  expect(explicit.rules["canonical-utilities"]).toEqual({
+  expect(explicit.rules["prefer-sorted-utilities"]).toBe("warn");
+  expect(explicit.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
     pxToRem: true,
     rootFontSize: 20,
@@ -61,7 +61,7 @@ test("false disables inherited lint and object overrides enable only their own r
     }),
   );
   expect(enabled.rules["unknown-utility"]).toBe("deny");
-  expect(enabled.rules["macro-argument-mutation"]).toBe("off");
+  expect(enabled.rules["mutating-macro-argument"]).toBe("off");
 });
 
 test("strict denies recommended checks and stylistic adds independent conventions", () => {
@@ -76,12 +76,12 @@ test("strict denies recommended checks and stylistic adds independent convention
       expect(typeof actual === "string" ? actual : actual.severity).toBe("deny");
     }
   }
-  expect(strict["no-unused-lint-suppressions"]).toBe("deny");
+  expect(strict["unused-lint-suppression"]).toBe("deny");
   expect(strict["no-arbitrary-colors"]).toBe("off");
   const stylistic = resolveLintConfig({
     extends: [lintPresets.stylistic],
   }).rules;
-  expect(stylistic["sort-utilities"]).toBe("warn");
+  expect(stylistic["prefer-sorted-utilities"]).toBe("warn");
   expect(stylistic["unknown-utility"]).toBe("off");
 });
 
@@ -89,7 +89,7 @@ test("nested presets apply in order while severity changes preserve options and 
   const policy = {
     name: "company/policy",
     rules: {
-      "canonical-utilities": {
+      "prefer-canonical-utilities": {
         severity: "warn",
         pxToRem: false,
         rootFontSize: 20,
@@ -102,12 +102,12 @@ test("nested presets apply in order while severity changes preserve options and 
   } as const satisfies LintPreset;
   const strict: LintPreset = {
     extends: [policy],
-    rules: { "canonical-utilities": "deny" },
+    rules: { "prefer-canonical-utilities": "deny" },
   };
   const config: LintPreset = {
     extends: [policy, strict],
     rules: {
-      "canonical-utilities": {
+      "prefer-canonical-utilities": {
         pxToRem: undefined,
       },
       "no-restricted-theme-tokens": {
@@ -118,7 +118,7 @@ test("nested presets apply in order while severity changes preserve options and 
   };
   const before = structuredClone(config);
   const resolved = resolveLintConfig(config);
-  expect(resolved.rules["canonical-utilities"]).toEqual({
+  expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
     rootFontSize: 20,
@@ -131,8 +131,8 @@ test("nested presets apply in order while severity changes preserve options and 
   expect(
     resolveLintConfig({
       extends: [policy],
-      rules: { "canonical-utilities": "off" },
-    }).rules["canonical-utilities"],
+      rules: { "prefer-canonical-utilities": "off" },
+    }).rules["prefer-canonical-utilities"],
   ).toEqual({
     severity: "off",
     pxToRem: false,
@@ -154,7 +154,7 @@ test("nested presets apply in order while severity changes preserve options and 
 test("inline overrides replace preset lists and retain inherited rule fields", () => {
   const policy: LintPreset = {
     rules: {
-      "canonical-utilities": {
+      "prefer-canonical-utilities": {
         pxToRem: false,
         rootFontSize: 20,
       },
@@ -163,13 +163,13 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
   };
   const project: LintPreset = {
     extends: [policy],
-    rules: { "canonical-utilities": "warn" },
+    rules: { "prefer-canonical-utilities": "warn" },
   };
   const override: LintPreset = {
-    rules: { "canonical-utilities": "deny" },
+    rules: { "prefer-canonical-utilities": "deny" },
   };
   const resolved = resolveLintConfig(mergeLintConfig(project, override));
-  expect(resolved.rules["canonical-utilities"]).toEqual({
+  expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
     rootFontSize: 20,
@@ -181,7 +181,7 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
     }),
   );
   expect(replaced.rules["unknown-utility"]).toBe("off");
-  expect(replaced.rules["canonical-utilities"]).toEqual({
+  expect(replaced.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
     pxToRem: true,
     rootFontSize: 16,
@@ -226,7 +226,7 @@ test("preset errors identify the name and path, and cycles do not reject shared 
       {
         name: "company/broken",
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             rootFontSize: 0,
           },
         },
@@ -234,7 +234,7 @@ test("preset errors identify the name and path, and cycles do not reject shared 
     ],
   };
   expect(() => resolveLintConfig(invalid)).toThrow(
-    "config.lint.extends[0] (company/broken).rules.canonical-utilities.rootFontSize",
+    "config.lint.extends[0] (company/broken).rules.prefer-canonical-utilities.rootFontSize",
   );
   const cycle: {
     /** Display name included in the cycle's configuration error path. */
@@ -289,12 +289,12 @@ test("every catalog rule accepts reporting levels", () => {
 test("utility policies accept typed options and reject malformed restrictions", () => {
   const lint: LintRules = {
     "prefer-direct-styling": "off",
-    "duplicate-utilities": "deny",
+    "duplicate-utility": "deny",
     "conflicting-utilities": {
       allowShorthandOverrides: true,
     },
     "prefer-logical-properties": "warn",
-    "length-units": {
+    "no-restricted-length-units": {
       rules: [
         {
           properties: ["padding*"],
@@ -311,8 +311,8 @@ test("utility policies accept typed options and reject malformed restrictions", 
   expect(() => validateLintConfig(config, "config.lint", false)).not.toThrow();
   for (const lint of [
     { "conflicting-utilities": { allowShorthandOverrides: "true" } },
-    { "length-units": { rules: [{ properties: [], disallow: ["px"] }] } },
-    { "length-units": { rules: [{ properties: ["padding"], disallow: [16] }] } },
+    { "no-restricted-length-units": { rules: [{ properties: [], disallow: ["px"] }] } },
+    { "no-restricted-length-units": { rules: [{ properties: ["padding"], disallow: [16] }] } },
     { "no-restricted-theme-tokens": { tokens: ["spacing-*"] } },
     { "no-restricted-theme-tokens": { tokens: ["--"] } },
     { "no-arbitrary-breakpoints": { severity: "warn" } },
@@ -325,11 +325,11 @@ test("utility policies accept typed options and reject malformed restrictions", 
 test("canonical conversion options and sorting levels are validated", () => {
   const config = {
     rules: {
-      "canonical-utilities": {
+      "prefer-canonical-utilities": {
         rootFontSize: 20.5,
         pxToRem: false,
       },
-      "sort-utilities": "off",
+      "prefer-sorted-utilities": "off",
     },
   };
   expect(() => validateLintConfig(config, "config.lint", false)).not.toThrow();
@@ -338,7 +338,7 @@ test("canonical conversion options and sorting levels are validated", () => {
       validateLintConfig(
         {
           rules: {
-            "canonical-utilities": {
+            "prefer-canonical-utilities": {
               rootFontSize,
             },
           },
@@ -352,7 +352,7 @@ test("canonical conversion options and sorting levels are validated", () => {
     validateLintConfig(
       {
         rules: {
-          "sort-utilities": ["warn"],
+          "prefer-sorted-utilities": ["warn"],
         },
       },
       "config.lint",
@@ -363,8 +363,8 @@ test("canonical conversion options and sorting levels are validated", () => {
     validateLintConfig(
       {
         rules: {
-          "canonical-utilities": undefined,
-          "sort-utilities": undefined,
+          "prefer-canonical-utilities": undefined,
+          "prefer-sorted-utilities": undefined,
         },
       },
       "config.lint",
@@ -379,8 +379,8 @@ test("source restrictions accept typed options and reject malformed restrictions
     "no-arbitrary-spacing": { properties: ["width", "inset-*"] },
     "no-class-property": "deny",
     "no-important": "warn",
-    "valid-lint-suppressions": "warn",
-    "no-unused-lint-suppressions": "warn",
+    "invalid-lint-suppression": "warn",
+    "unused-lint-suppression": "warn",
     "no-restricted-utilities": {
       utilities: [
         {

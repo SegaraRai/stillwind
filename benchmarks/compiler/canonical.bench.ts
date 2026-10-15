@@ -125,7 +125,7 @@ for (const independent of [true, false]) {
       expect(reports!).toHaveLength(1);
       expect(reports![0].reports.map((report) => report.code)).toEqual(
         Array.from({ length: independent ? 0 : (100 * 99) / 2 }, () =>
-          unique ? "conflicting-utilities" : "duplicate-utilities",
+          unique ? "conflicting-utilities" : "duplicate-utility",
         ),
       );
     });

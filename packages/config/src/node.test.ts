@@ -105,7 +105,7 @@ test("Node and browser compose imported presets and keep project defaults throug
   const policy = {
     extends: [lintPresets.recommended],
     rules: {
-      "canonical-utilities": {
+      "prefer-canonical-utilities": {
         severity: "warn",
         rootFontSize: 20,
         pxToRem: false,
@@ -117,7 +117,7 @@ test("Node and browser compose imported presets and keep project defaults throug
     configFile,
     'import policy from "./policy.ts"; export default { projects: [{css:"theme.css",files:["*.tsx"],lint:{extends:[policy]}}] };',
   );
-  const inline = { lint: { rules: { "canonical-utilities": "deny" } } } as const;
+  const inline = { lint: { rules: { "prefer-canonical-utilities": "deny" } } } as const;
   const node = await resolveIntegrationConfig(inline, root);
   expect(node.dependencies).toContain(presetFile);
   const browser = await resolveBrowserConfig(
@@ -139,7 +139,7 @@ test("Node and browser compose imported presets and keep project defaults throug
     inline,
   );
   expect(browser.config.lint).toEqual(node.config.lint);
-  expect(node.config.lint.rules["canonical-utilities"]).toEqual({
+  expect(node.config.lint.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     rootFontSize: 20,
     pxToRem: false,
@@ -360,7 +360,7 @@ test("Node and browser preserve disabling and reenable explicit lint and sort op
     );
     expect(node.config.sort).toEqual(sort);
     expect(node.config.lint.rules["unknown-utility"]).toBe(unknownUtility);
-    expect(node.config.lint.rules["macro-argument-mutation"]).toBe("off");
+    expect(node.config.lint.rules["mutating-macro-argument"]).toBe("off");
     expect(browser.config.sort).toEqual(node.config.sort);
     expect(browser.config.lint).toEqual(node.config.lint);
   }

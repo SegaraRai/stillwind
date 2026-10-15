@@ -2,7 +2,7 @@
 
 `prettier-plugin-stillwind` sorts recognized Stillwind inputs before Prettier formats a document.
 The plugin uses the nearest `stillwind.config.ts` above the file, including its project scopes,
-theme CSS, and `sort` options. Sorting runs independently of the `sort-utilities` lint severity.
+theme CSS, and `sort` options. Sorting runs independently of the `prefer-sorted-utilities` lint severity.
 Lint suppression comments control lint diagnostics and fixes; explicit formatting still sorts.
 
 Install the plugin alongside Prettier 3.7 or newer:

@@ -22,7 +22,7 @@ defineConfig({
       lint: {
         extends: [lintPresets.recommended, lintPresets.stylistic],
         rules: {
-          "canonical-utilities": {
+          "prefer-canonical-utilities": {
             rootFontSize: 20,
           },
         },
@@ -46,7 +46,7 @@ const team = {
   name: "team/policy",
   extends: [lintPresets.strict],
   rules: {
-    "length-units": {
+    "no-restricted-length-units": {
       rules: [
         {
           properties: ["padding*"],

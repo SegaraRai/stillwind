@@ -32,8 +32,11 @@ pub(super) struct QueryContext {
 impl QueryContext {
     pub(super) fn new(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         let options = options.resolved(&design_system);
-        let canonical_policy = match options.lint_settings().get(LintKind::CanonicalUtilities) {
-            Some(LintConfig::CanonicalUtilities(config)) => config.clone(),
+        let canonical_policy = match options
+            .lint_settings()
+            .get(LintKind::PreferCanonicalUtilities)
+        {
+            Some(LintConfig::PreferCanonicalUtilities(config)) => config.clone(),
             _ => CanonicalUtilitiesConfig::default(),
         };
         Self {

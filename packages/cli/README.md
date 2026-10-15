@@ -30,7 +30,7 @@ stillwind fmt --check && vp fmt --check
 ```
 
 `lint` only reports findings. `lint --fix` applies the existing automatic fixes, including sorting
-when the effective `sort-utilities` severity enables it. Lint suppression remains effective.
+when the effective `prefer-sorted-utilities` severity enables it. Lint suppression remains effective.
 Fixes run against buffers until they converge, with a ten-pass limit. Findings and the exit code
 describe the final buffers. All selected buffers are visible to dependency analysis in each pass.
 

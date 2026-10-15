@@ -245,13 +245,13 @@ export const kept = style(block, base.for("hero"));"#,
     let findings = result
         .lint_findings
         .iter()
-        .filter(|finding| finding.diagnostic == LintDiagnostic::SplitViewTransitionClasses)
+        .filter(|finding| finding.diagnostic == LintDiagnostic::SplitViewTransitionClass)
         .collect::<Vec<_>>();
     assert_eq!(findings.len(), 1, "{:#?}", result.lint_findings);
     assert_eq!(
         result
             .lint_settings
-            .reporting_severity(LintKind::SingleViewTransitionClass),
+            .reporting_severity(LintKind::SplitViewTransitionClass),
         LintSeverity::Warn
     );
     assert_eq!(
