@@ -110,9 +110,18 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       'style(card, "p-4 rounded-md")',
       'style(card, style("p-4 rounded-md"))',
     );
+    await page.getByRole("button", { name: /^Diagnostics/ }).click();
     await expect
-      .poll(() => page.locator(".runtime-error").innerText(), { timeout: 30_000 })
+      .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("nested style() calls are not supported");
+    await expect
+      .poll(
+        () => frame.locator("main").evaluate((element) => getComputedStyle(element).paddingTop),
+        { timeout: 30_000 },
+      )
+      .toBe("0px");
+    await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
+    expect(await page.locator(".runtime-error").count()).toBe(0);
     await replace(
       page,
       buffers,
@@ -120,7 +129,23 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       'style(card, style("p-4 rounded-md"))',
       'style(card, "p-4 rounded-md")',
     );
+    await expect
+      .poll(
+        () => frame.locator("main").evaluate((element) => getComputedStyle(element).paddingTop),
+        { timeout: 30_000 },
+      )
+      .toBe("16px");
+    const component = buffers.get("/workspace/Component.tsx")!;
+    const invalidComponent = component + '\nconst broken = "unterminated;';
+    await replace(page, buffers, "Component.tsx", component, invalidComponent);
+    await page.getByRole("status").filter({ hasText: "Build error" }).waitFor();
+    await expect
+      .poll(() => page.locator(".runtime-error").innerText(), { timeout: 30_000 })
+      .toContain("JavaScript parse error");
+    expect(await frame.getByRole("button").innerText()).toBe("Count: 1");
+    await replace(page, buffers, "Component.tsx", invalidComponent, component);
     await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
+    expect(await page.locator(".runtime-error").count()).toBe(0);
     expect(await frame.getByRole("button").innerText()).toBe("Count: 1");
     const config = buffers.get("/workspace/stillwind.config.ts")!;
     await replace(

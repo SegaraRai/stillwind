@@ -51,15 +51,6 @@ warnings without treating valid cross-component pairing as a collision.
 
 Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_transition.rs).
 
-## Browser build errors
-
-The static Playground reports a nested `style()` call in Diagnostics but emits
-partial code and keeps the preview in the Ready state. Investigate why its module
-graph remains complete. The build-error assertion in
-`vp run @stillwind-internal/e2e-play#test:e2e` reproduces this behavior.
-
-Source: [static Playground acceptance](../e2e/play/src/static.test.ts).
-
 ## Measurement coverage
 
 `TypeScriptFactsService` enables checker timing collection but exposes only
