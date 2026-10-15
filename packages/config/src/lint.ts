@@ -121,8 +121,6 @@ export type CanonicalUtilitiesOptions = {
   severity?: LintSeverity;
   /** Converts pixel spacing to rem when the active spacing scale uses rem. Defaults to true. */
   pxToRem?: boolean;
-  /** Positive finite number of pixels per rem. Defaults to 16. Used only for spacing conversion. */
-  rootFontSize?: number;
 };
 
 /**
@@ -276,13 +274,6 @@ const ruleOptions = {
   "prefer-canonical-utilities": strictObject({
     severity: v.optional(severitySchema),
     pxToRem: v.optional(v.boolean()),
-    rootFontSize: v.optional(
-      v.pipe(
-        v.number(),
-        v.finite(),
-        v.check((value) => value > 0, "must be positive and finite"),
-      ),
-    ),
   }),
 } satisfies Record<Exclude<LintRule, SimpleLintRule>, v.GenericSchema>;
 

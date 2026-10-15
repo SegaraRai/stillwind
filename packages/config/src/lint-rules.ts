@@ -290,9 +290,8 @@ export const lintRules = {
     defaults: {
       severity: "warn",
       pxToRem: true,
-      rootFontSize: 16,
     },
-    options: ["severity", "pxToRem", "rootFontSize"],
+    options: ["severity", "pxToRem"],
   },
   "prefer-sorted-utilities": {
     category: "style",

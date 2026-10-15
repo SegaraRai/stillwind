@@ -23,7 +23,7 @@ pub use policies::{
     RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
 pub use presets::LintPreset;
 pub use settings::LintSettings;

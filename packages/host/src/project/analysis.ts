@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { BaseConfig } from "@stillwind/config";
+import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import {
   NativeProjectSession,
   type BindingReport,
@@ -33,8 +33,13 @@ export interface AnalysisHost extends CompilerHost {
   supports(id: string): boolean;
   /** Absolute project directory used for identities and CSS paths. */
   root: string;
-  /** Compiler settings fixed for this host's lifetime. Relative CSS and tsconfig paths use root. */
-  config: BaseConfig;
+  /**
+   * Compiler and preview settings fixed for this host's lifetime. Relative CSS and tsconfig paths
+   * use root.
+   */
+  config: BaseConfig & {
+    preview?: PreviewOptions;
+  };
   /** CSS resolution and reads using the same captured document buffers as source loading. */
   css: CssHost;
   /** Fixed TypeScript settings selected when this host opens. */

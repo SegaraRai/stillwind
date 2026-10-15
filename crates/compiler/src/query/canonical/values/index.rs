@@ -82,15 +82,16 @@ impl ThemeValueIndex {
         query: &QueryContext,
         original: &CanonicalPreview,
     ) -> Vec<LeanStr> {
-        let options = query.canonical_options();
         let scale = query.spacing_scale();
         let mut labels = Vec::new();
         for (normalization, signatures) in &self.groups {
-            if let Some(signature) =
-                original.signature(scale.as_deref(), &normalization.properties, &options)
-                && let Some(names) = signatures
-                    .signatures
-                    .get(&(signature, original.required_properties.clone()))
+            if let Some(signature) = original.signature(
+                scale.as_deref(),
+                &normalization.properties,
+                query.options.root_font_size,
+            ) && let Some(names) = signatures
+                .signatures
+                .get(&(signature, original.required_properties.clone()))
             {
                 labels.extend(names.iter().cloned());
             }
@@ -248,7 +249,7 @@ impl<'a> ValuePreparation<'a> {
                             css,
                             self.scale.as_deref(),
                             &normalization.properties,
-                            &self.options,
+                            self.query.options.root_font_size,
                         )
                     })
                     .clone()

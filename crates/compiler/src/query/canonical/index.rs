@@ -93,7 +93,11 @@ impl CanonicalIndex {
         let options = query.canonical_options();
         let scale = query.spacing_scale();
         let normalization = policy(&preview.css, &options, scale.as_deref());
-        let signature = preview.signature(scale.as_deref(), &normalization.properties, &options);
+        let signature = preview.signature(
+            scale.as_deref(),
+            &normalization.properties,
+            query.options.root_font_size,
+        );
         if let Some(css) = signature {
             self.policies
                 .entry(normalization)
@@ -149,17 +153,17 @@ impl CanonicalIndex {
         query: &QueryContext,
         original: &CanonicalPreview,
     ) -> Vec<LeanStr> {
-        let options = query.canonical_options();
         let scale = query.spacing_scale();
         let mut records = self.values.matching(query, original);
         for (normalization, signatures) in &self.policies {
-            if let Some(css) =
-                original.signature(scale.as_deref(), &normalization.properties, &options)
-                && let Some(matches) = signatures.get(&Signature {
-                    css,
-                    required: original.required_properties.clone(),
-                })
-            {
+            if let Some(css) = original.signature(
+                scale.as_deref(),
+                &normalization.properties,
+                query.options.root_font_size,
+            ) && let Some(matches) = signatures.get(&Signature {
+                css,
+                required: original.required_properties.clone(),
+            }) {
                 records.extend(matches.iter().cloned());
             }
         }

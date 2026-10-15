@@ -390,10 +390,10 @@ export function registerEditorContract(specifier: string): void {
     const loader = new NativeDesignSystemLoader({
       lint: {
         preferCanonicalUtilities: {
-          rootFontSize: 20.5,
           severity: "deny",
         },
       },
+      rootFontSize: 20.5,
     });
     loader.provide(
       0,
@@ -411,7 +411,6 @@ export function registerEditorContract(specifier: string): void {
     const query = loader.editorQuery();
     expect(query.canonicalOptions()).toMatchObject({
       severity: "deny",
-      rootFontSize: 20.5,
       pxToRem: true,
     });
     expect(query.canonicalCandidate("p-[20.5px]")).toBe("p-4");
@@ -420,6 +419,22 @@ export function registerEditorContract(specifier: string): void {
       "& {\n  color: red;\n\n  &:hover {\n    color: #00f;\n  }\n}\n",
     );
     expect(() => query.formatCss("&{color red}")).toThrow(/CSS parse failed/);
+    expect(
+      query.formatCss("&{padding:calc(var(--spacing) * 4);color:var(--color-brand)}", {}),
+    ).toBe(
+      "& {\n  padding: calc(var(--spacing) * 4) /* 1rem = 20.5px */;\n  color: var(--color-brand) /* red = #ff0000 */;\n}\n",
+    );
+    expect(
+      query.formatCss("&{padding:calc(var(--spacing) * 4)}", {
+        themeValues: false,
+        colorEquivalents: false,
+      }),
+    ).toBe("& {\n  padding: calc(var(--spacing) * 4);\n}\n");
+    expect(() =>
+      query.formatCss("&{color:red}", {
+        colorEquivalents: true as unknown as false,
+      }),
+    ).toThrow("colorEquivalents");
     expect(query.completeCandidate("bg-br")).toContain("bg-brand");
     expect(query.completeCandidate("bg-(--color-br")).toContain("bg-(--color-brand)");
     expect(query.colorRgba("oklch(60% 0 0)")).toHaveLength(4);

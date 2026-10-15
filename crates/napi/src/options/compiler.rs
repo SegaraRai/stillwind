@@ -3,7 +3,7 @@
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::CompilerOptions;
+use stillwind_compiler::{CompilerOptions, RootFontSize};
 use stillwind_design_system::UtilityOrderMode;
 
 use super::NativeLintOptions;
@@ -32,6 +32,8 @@ pub struct NativeCompilerOptions {
     /// Number of base-36 digits a built-in generated name keeps from its request hash.
     /// Defaults to 5. Values from 1 to 50 are accepted.
     pub hash_length: Option<u32>,
+    /// Positive finite pixels per rem in the documents that use the CSS. Defaults to 16.
+    pub root_font_size: Option<f64>,
 }
 
 impl TryFrom<NativeCompilerOptions> for CompilerOptions {
@@ -71,6 +73,15 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
             hash_length: input.hash_length.map_or(defaults.hash_length, |length| {
                 usize::try_from(length).unwrap_or(usize::MAX)
             }),
+            root_font_size: input
+                .root_font_size
+                .map(|value| {
+                    RootFontSize::new(value).ok_or_else(|| {
+                        Error::from_reason("rootFontSize must be positive and finite")
+                    })
+                })
+                .transpose()?
+                .unwrap_or(defaults.root_font_size),
         };
         options
             .validate()

@@ -21,7 +21,7 @@ pub use config::{
     RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
 pub use diagnostic::{LintDiagnostic, UtilityFailure, VariantInputErrorKind};
 pub use finding::LintFinding;

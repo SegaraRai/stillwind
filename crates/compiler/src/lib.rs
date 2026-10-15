@@ -75,10 +75,11 @@ pub use identifiers::{
 pub use imports::plan_macro_import_removals;
 pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
-pub use options::CompilerOptions;
+pub use options::{CompilerOptions, RootFontSize};
 pub use query::{
-    CandidateContext, CandidateFailure, CandidateHover, CandidateResolution, CompletionInput,
-    CompletionItem, DesignSystemQuery, prepare_canonical_index,
+    CandidateContext, CandidateFailure, CandidateHover, CandidateResolution, ColorEquivalents,
+    CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations,
+    prepare_canonical_index,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

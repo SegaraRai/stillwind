@@ -8,11 +8,14 @@
 //!
 //! `parser` reads numeric expressions and enforces the nesting limit. `expression`
 //! owns the tree and its printer. `folding` finds `calc()` calls, evaluates compatible
-//! terms, and leaves unsupported expressions unchanged.
+//! terms, and leaves unsupported expressions unchanged. `evaluation` computes one
+//! inexact number for editor displays, including divisions that folding keeps.
 
+mod evaluation;
 mod expression;
 mod folding;
 mod parser;
 
+pub use evaluation::evaluate_numeric;
 pub use folding::{fold_calc_expressions, format_numeric_zero, value_nesting_overflow};
 pub use parser::MAX_VALUE_NESTING;

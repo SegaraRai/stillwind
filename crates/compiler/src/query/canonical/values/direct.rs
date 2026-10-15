@@ -382,7 +382,7 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
     {
         values.push(convert_pixel_dimensions(
             value,
-            options.root_font_size.get(),
+            query.options.root_font_size.get(),
         ));
     }
     values

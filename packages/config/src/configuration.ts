@@ -37,6 +37,28 @@ export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
   projection?: ProjectionProvider;
   /** False skips checker queries while retaining locally determined diagnostics. */
   typeFacts?: false;
+  /** Comments that editor previews add after values. Omission uses the defaults of each field. */
+  preview?: PreviewOptions;
+}
+
+/** Selects the comments that editor previews add after CSS values. */
+export interface PreviewOptions {
+  /**
+   * Adds the resolved value after each theme `var()` and after each `calc()` that evaluates to one
+   * value. Defaults to true.
+   */
+  themeValues?: boolean;
+  /**
+   * Adds pixel equivalents for rem values, using the project's rootFontSize. Media and container
+   * queries use 16 pixels per rem. Defaults to true.
+   */
+  pixelEquivalents?: boolean;
+  /**
+   * Adds hexadecimal sRGB equivalents for colors. "exact" skips colors outside the sRGB gamut.
+   * "approximate" maps those colors into the gamut and marks the result with `≈`. False adds no
+   * color comments. Defaults to "approximate".
+   */
+  colorEquivalents?: "approximate" | "exact" | false;
 }
 
 type Captured<T> = T extends (...arguments_: never[]) => unknown
@@ -219,6 +241,15 @@ const projectSchema = strictObject({
   files: nonemptyStringList,
   exclude: v.optional(nonemptyStrings),
   typeFacts: v.optional(v.literal(false)),
+  preview: v.optional(
+    strictObject({
+      themeValues: v.optional(v.boolean()),
+      pixelEquivalents: v.optional(v.boolean()),
+      colorEquivalents: v.optional(
+        v.union([v.picklist(["approximate", "exact"]), v.literal(false)]),
+      ),
+    }),
+  ),
   sources: v.optional(
     v.pipe(
       v.custom<Record<string, unknown>>(object, "must be an object"),

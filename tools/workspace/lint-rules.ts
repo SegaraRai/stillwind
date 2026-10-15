@@ -35,10 +35,6 @@ const optionTypes: Record<string, string> = Object.fromEntries(
 const camel = (value: string) =>
   value.replace(/[-_]([a-z])/g, (_, letter: string) => letter.toUpperCase());
 const defaultSource = catalogSource.split("macro_rules! lint_config_value {")[1];
-const rootFontSizeDefault = Number(/DEFAULT: Self = Self\(([\d.]+)\)/.exec(policySource)?.[1]);
-if (!Number.isFinite(rootFontSizeDefault) || rootFontSizeDefault <= 0) {
-  throw new Error("Cannot read the default root font size from the Rust lint policies");
-}
 const categories: Record<string, string> = Object.fromEntries(
   [...catalog.matchAll(/^ {4}(\w+) \{([^}]*)\}/gm)].flatMap(([, category, entries]) =>
     [...entries.matchAll(/(\w+) => "/g)].map(([, variant]) => [variant, category.toLowerCase()]),
@@ -60,16 +56,10 @@ const rules = [...catalog.matchAll(/(\w+) => "([\w-]+)",/g)].map(([, variant, na
           ...defaultSource
             .split(`(${variant}, $severity:expr) => {`)[1]
             .split("\n    };")[0]
-            .matchAll(/(\w+): (\$severity|Vec::new\(\)|RootFontSize::DEFAULT|true|false),/g),
+            .matchAll(/(\w+): (\$severity|Vec::new\(\)|true|false),/g),
         ].map(([, field, value]) => [
           camel(field),
-          value === "$severity"
-            ? "warn"
-            : value === "Vec::new()"
-              ? []
-              : value === "RootFontSize::DEFAULT"
-                ? rootFontSizeDefault
-                : value === "true",
+          value === "$severity" ? "warn" : value === "Vec::new()" ? [] : value === "true",
         ]),
       )
     : undefined;

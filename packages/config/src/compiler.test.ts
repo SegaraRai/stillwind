@@ -15,7 +15,7 @@ test("compiler normalization applies defaults and retains lint options", () => {
       lint: {
         rules: {
           "prefer-canonical-utilities": {
-            rootFontSize: 20,
+            pxToRem: false,
           },
           "unknown-utility": "deny",
         },
@@ -24,17 +24,32 @@ test("compiler normalization applies defaults and retains lint options", () => {
   ).toMatchObject({
     utilityOrder: "authored",
     hashLength: 5,
+    rootFontSize: 16,
     lint: {
       rules: {
         "prefer-canonical-utilities": {
           severity: "warn",
-          pxToRem: true,
-          rootFontSize: 20,
+          pxToRem: false,
         },
         "unknown-utility": "deny",
       },
     },
   });
+});
+
+test("root font size accepts positive finite numbers", () => {
+  expect(
+    normalizeCompilerConfig({
+      rootFontSize: 20.5,
+    }).rootFontSize,
+  ).toBe(20.5);
+  for (const rootFontSize of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "16"]) {
+    expect(() =>
+      validateCompilerConfig({
+        rootFontSize,
+      }),
+    ).toThrow("config.rootFontSize");
+  }
 });
 
 test("false disables all sorting targets and remains disabled after normalization", () => {

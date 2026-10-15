@@ -20,6 +20,7 @@ export {
   validateConfig,
   type AnalysisProjectConfig,
   type CapturedProjectConfig,
+  type PreviewOptions,
   type ProjectionProvider,
   type SourceProvider,
   type SourceProviderContext,

@@ -58,8 +58,8 @@ pub use blocks::{
     strip_css_comments, take_property_requirements, unterminated_block,
 };
 pub use colors::{
-    color_rgba, color_with_alpha_fallback, css_color_values, shadow_with_color_fallback,
-    shadow_with_color_override,
+    HexColor, color_hex, color_rgba, color_with_alpha_fallback, css_color_values,
+    shadow_with_color_fallback, shadow_with_color_override,
 };
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
@@ -75,7 +75,8 @@ pub use functions::{
     split_css_function_arguments,
 };
 pub use math::{
-    MAX_VALUE_NESTING, fold_calc_expressions, format_numeric_zero, value_nesting_overflow,
+    MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero,
+    value_nesting_overflow,
 };
 pub use output::{CssOutputNode, CssOutputTemplate};
 pub use resources::{CssUrl, relative_css_urls};

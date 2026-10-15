@@ -71,9 +71,15 @@ export declare class NativeEditorQuery {
   previewCandidate(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
   /**
    * Returns a complete CSS preview with line breaks and two-space indentation.
-   * Nesting and fallback declarations are retained. Invalid CSS returns an error.
+   * Nesting and fallback declarations are retained. When `preview` is supplied, the
+   * result also contains its comments with resolved values; omitted fields use their
+   * defaults. Omitted `preview` adds no comments.
+   *
+   * # Errors
+   *
+   * Returns an error for invalid CSS or an invalid `colorEquivalents` value.
    */
-  formatCss(css: string): string
+  formatCss(css: string, preview?: NativePreviewOptions | undefined | null): string
   /**
    * Completes decoded `prefix` text using the registries and variant constraints of
    * `context`. The prefix is one partial candidate including any preceding variants;
@@ -572,8 +578,6 @@ export interface NativeCanonicalUtilitiesOptions {
   severity?: string
   /** Allows pixel spacing to use the active rem scale. Defaults to true. */
   pxToRem?: boolean
-  /** Positive finite pixels per rem. Defaults to 16. */
-  rootFontSize?: number
 }
 
 /** A validated generated reference that needs a global helper binding. */
@@ -652,6 +656,8 @@ export interface NativeCompilerOptions {
    * Defaults to 5. Values from 1 to 50 are accepted.
    */
   hashLength?: number
+  /** Positive finite pixels per rem in the documents that use the CSS. Defaults to 16. */
+  rootFontSize?: number
 }
 
 /** Host metadata and source texts for a standalone compilation. */
@@ -1242,6 +1248,19 @@ export type NativePreparedSource =
     framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
   moduleCssImport?: string }
+
+/** Comments that formatted previews add after values. Omitted fields use their defaults. */
+export interface NativePreviewOptions {
+  /**
+   * Adds resolved values after theme `var()` references and single-value `calc()`
+   * expressions. Defaults to true.
+   */
+  themeValues?: boolean
+  /** Adds pixel equivalents for rem values. Defaults to true. */
+  pixelEquivalents?: boolean
+  /** `approximate`, `exact`, or false. Defaults to `approximate`. */
+  colorEquivalents?: 'approximate' | 'exact' | false
+}
 
 /** Projection map in either supported encoding. */
 export type NativeProjectionMap =

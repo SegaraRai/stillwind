@@ -10,7 +10,7 @@
 //! consumer that recognizes one must not match the other.
 
 use lean_string::{LeanStr, ToLeanStr};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de};
 
 use stillwind_css::is_length_unit;
 use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
@@ -35,14 +35,16 @@ pub struct CompilerOptions {
     pub prefix: LeanStr,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
     pub tailwind_prefix: LeanStr,
-    /// Strategy for ordering resolved utilities. Defaults to authored definition positions.
+    /// Strategy for ordering resolved utilities. Defaults to authored definition
+    /// positions.
     pub utility_order: UtilityOrderMode,
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
     pub class_namespace: LeanStr,
     /// Emit native CSS `if()` for experimental value and variant conditions.
     /// False (default) uses custom-property fallbacks; all conditional variants need
-    /// `revert-rule`. Value comparisons, negated variants, and CSS-wide helper branches require true.
+    /// `revert-rule`. Value comparisons, negated variants, and CSS-wide helper branches
+    /// require true.
     pub use_css_if: bool,
     /// Revision of the identifier generators a host supplies for this compilation.
     ///
@@ -58,6 +60,9 @@ pub struct CompilerOptions {
     /// generated markup, while a longer one leaves more room before two declarations
     /// can collide, so a host that generates many names raises it.
     pub hash_length: usize,
+    /// Pixels per rem in the documents that use the generated CSS. Canonical lint
+    /// converts pixel spacing with it, and editor previews annotate rem values with it.
+    pub root_font_size: RootFontSize,
 }
 
 impl Default for CompilerOptions {
@@ -71,6 +76,7 @@ impl Default for CompilerOptions {
             use_css_if: false,
             naming_revision: LeanStr::new(),
             hash_length: DEFAULT_HASH_LENGTH,
+            root_font_size: RootFontSize::DEFAULT,
         }
     }
 }
@@ -141,6 +147,43 @@ impl CompilerOptions {
             .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
             .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
             .into()
+    }
+}
+
+/// Positive finite number of CSS pixels per rem.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct RootFontSize(f64);
+
+impl RootFontSize {
+    /// The initial font size of browsers, 16 pixels per rem.
+    pub const DEFAULT: Self = Self(16.0);
+
+    /// Returns `None` for zero, negative, or nonfinite values.
+    #[must_use]
+    pub fn new(value: f64) -> Option<Self> {
+        (value.is_finite() && value > 0.0).then_some(Self(value))
+    }
+
+    /// Returns the validated number of pixels per rem.
+    #[must_use]
+    pub const fn get(self) -> f64 {
+        self.0
+    }
+}
+
+impl Eq for RootFontSize {}
+
+impl Default for RootFontSize {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl<'de> Deserialize<'de> for RootFontSize {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::new(f64::deserialize(deserializer)?)
+            .ok_or_else(|| de::Error::custom("rootFontSize must be positive and finite"))
     }
 }
 

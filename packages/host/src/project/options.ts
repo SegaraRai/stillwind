@@ -44,5 +44,6 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
     useCssIf: resolved.useCssIf,
     namingRevision: resolved.namingRevision,
     hashLength: resolved.hashLength,
+    rootFontSize: resolved.rootFontSize,
   };
 }

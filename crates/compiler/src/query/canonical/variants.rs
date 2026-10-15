@@ -40,7 +40,7 @@ impl VariantIndex {
             }
             if let Ok(Some(preview)) = query.canonical_preview(&raw)
                 && let Some(signature) =
-                    preview.signature(None, &BTreeSet::new(), &query.canonical_options())
+                    preview.signature(None, &BTreeSet::new(), query.options.root_font_size)
             {
                 index
                     .signatures
@@ -72,7 +72,7 @@ impl VariantIndex {
         if let Ok(Some(preview)) =
             query.canonical_preview(&format_args!("{variant}:{PROBE}").to_lean_string())
             && let Some(signature) =
-                preview.signature(None, &BTreeSet::new(), &query.canonical_options())
+                preview.signature(None, &BTreeSet::new(), query.options.root_font_size)
             && let Some(matches) = self.signatures.get(&signature)
         {
             names.extend(matches.iter().cloned());

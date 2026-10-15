@@ -16,6 +16,11 @@ defineConfig({
       files: ["**/*.tsx"],
       tsconfig: "tsconfig.app.json",
       sort: false,
+      rootFontSize: 20,
+      preview: {
+        themeValues: false,
+        colorEquivalents: "exact",
+      },
       sources: {
         kind: "filesystem",
       },
@@ -23,7 +28,7 @@ defineConfig({
         extends: [lintPresets.recommended, lintPresets.stylistic],
         rules: {
           "prefer-canonical-utilities": {
-            rootFontSize: 20,
+            pxToRem: false,
           },
         },
       },

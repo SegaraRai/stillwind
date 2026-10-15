@@ -173,9 +173,6 @@ impl LintOverrides {
             if let Some(value) = overrides.px_to_rem {
                 config.px_to_rem = value;
             }
-            if let Some(value) = overrides.root_font_size {
-                config.root_font_size = value;
-            }
             settings.insert(LintConfig::PreferCanonicalUtilities(config));
         }
         if let Some(severity) = self.prefer_sorted_utilities {

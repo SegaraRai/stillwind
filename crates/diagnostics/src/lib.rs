@@ -60,8 +60,8 @@ pub use lint::{
     RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize, UtilityFailure,
-    VariantInputErrorKind, collect_lint_directives, filter_lint_findings, finish_lint_findings,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, UtilityFailure, VariantInputErrorKind,
+    collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

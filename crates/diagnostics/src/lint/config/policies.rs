@@ -5,34 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use super::LintSeverity;
 
-/// Positive finite number of CSS pixels per rem, used only when spacing uses rem.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
-#[serde(transparent)]
-pub struct RootFontSize(f64);
-
-impl RootFontSize {
-    pub(super) const DEFAULT: Self = Self(16.0);
-
-    /// Returns `None` for zero, negative, or nonfinite values.
-    pub fn new(value: f64) -> Option<Self> {
-        (value.is_finite() && value > 0.0).then_some(Self(value))
-    }
-
-    /// Returns the validated number of pixels per rem.
-    pub const fn get(self) -> f64 {
-        self.0
-    }
-}
-
-impl Eq for RootFontSize {}
-
-impl<'de> Deserialize<'de> for RootFontSize {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Self::new(f64::deserialize(deserializer)?)
-            .ok_or_else(|| serde::de::Error::custom("rootFontSize must be positive and finite"))
-    }
-}
-
 /// Effective canonical lint policy after compiler defaults and project settings.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,8 +13,6 @@ pub struct CanonicalUtilitiesConfig {
     pub severity: LintSeverity,
     /// Enables conversion of pixel spacing when the active spacing scale uses rem.
     pub px_to_rem: bool,
-    /// Pixels per rem used by spacing conversion. Other utility domains retain their units.
-    pub root_font_size: RootFontSize,
 }
 
 impl Default for CanonicalUtilitiesConfig {
@@ -50,7 +20,6 @@ impl Default for CanonicalUtilitiesConfig {
         Self {
             severity: LintSeverity::Warn,
             px_to_rem: true,
-            root_font_size: RootFontSize::DEFAULT,
         }
     }
 }
@@ -63,8 +32,6 @@ pub struct CanonicalUtilitiesOverride {
     pub severity: Option<LintSeverity>,
     /// Omission keeps the default conversion policy.
     pub px_to_rem: Option<bool>,
-    /// Omission keeps the default 16 pixels per rem.
-    pub root_font_size: Option<RootFontSize>,
 }
 
 /// Effective policy for declarations that compete within a style call.

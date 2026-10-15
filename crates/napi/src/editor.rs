@@ -4,9 +4,13 @@ use std::collections::BTreeMap;
 
 use lean_string::LeanStr;
 use napi::Error;
+use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 
-use stillwind_compiler::{CandidateContext, CompilerOptions, CompletionInput, DesignSystemQuery};
+use stillwind_compiler::{
+    CandidateContext, ColorEquivalents, CompilerOptions, CompletionInput, DesignSystemQuery,
+    PreviewAnnotations,
+};
 use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
@@ -17,6 +21,46 @@ use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::{BindingReport, NativeText};
+
+/// Comments that formatted previews add after values. Omitted fields use their defaults.
+#[napi(object)]
+pub struct NativePreviewOptions {
+    /// Adds resolved values after theme `var()` references and single-value `calc()`
+    /// expressions. Defaults to true.
+    pub theme_values: Option<bool>,
+    /// Adds pixel equivalents for rem values. Defaults to true.
+    pub pixel_equivalents: Option<bool>,
+    /// `approximate`, `exact`, or false. Defaults to `approximate`.
+    #[napi(ts_type = "'approximate' | 'exact' | false")]
+    pub color_equivalents: Option<Either<String, bool>>,
+}
+
+impl TryFrom<NativePreviewOptions> for PreviewAnnotations {
+    type Error = Error;
+
+    fn try_from(value: NativePreviewOptions) -> napi::Result<Self> {
+        let defaults = Self::default();
+        Ok(Self {
+            theme_values: value.theme_values.unwrap_or(defaults.theme_values),
+            pixel_equivalents: value
+                .pixel_equivalents
+                .unwrap_or(defaults.pixel_equivalents),
+            color_equivalents: match value.color_equivalents {
+                None => defaults.color_equivalents,
+                Some(Either::A(policy)) if policy == "approximate" => {
+                    Some(ColorEquivalents::Approximate)
+                }
+                Some(Either::A(policy)) if policy == "exact" => Some(ColorEquivalents::Exact),
+                Some(Either::B(false)) => None,
+                Some(_) => {
+                    return Err(Error::from_reason(
+                        "colorEquivalents must be approximate, exact, or false",
+                    ));
+                }
+            },
+        })
+    }
+}
 
 /// Selects the compiler contract of a candidate's source position.
 /// Option roles use the animation-option registry and its property mappings. Frame and
@@ -111,7 +155,6 @@ impl NativeEditorQuery {
         NativeCanonicalUtilitiesOptions {
             severity: Some(options.severity.as_str().into()),
             px_to_rem: Some(options.px_to_rem),
-            root_font_size: Some(options.root_font_size.get()),
         }
     }
 
@@ -218,13 +261,27 @@ impl NativeEditorQuery {
     }
 
     /// Returns a complete CSS preview with line breaks and two-space indentation.
-    /// Nesting and fallback declarations are retained. Invalid CSS returns an error.
+    /// Nesting and fallback declarations are retained. When `preview` is supplied, the
+    /// result also contains its comments with resolved values; omitted fields use their
+    /// defaults. Omitted `preview` adds no comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid CSS or an invalid `colorEquivalents` value.
     #[napi(ts_return_type = "string")]
-    #[allow(clippy::unused_self)] // Formatting shares the editor query transport.
-    pub fn format_css(&self, css: String) -> napi::Result<NativeText> {
-        format_css(&css)
-            .map(Into::into)
-            .map_err(|error| Error::from_reason(error.to_string()))
+    pub fn format_css(
+        &self,
+        css: String,
+        preview: Option<NativePreviewOptions>,
+    ) -> napi::Result<NativeText> {
+        let formatted = format_css(&css).map_err(|error| Error::from_reason(error.to_string()))?;
+        Ok(match preview {
+            Some(preview) => self
+                .query
+                .annotate_preview(&formatted, preview.try_into()?)
+                .into(),
+            None => formatted.into(),
+        })
     }
 
     /// Completes decoded `prefix` text using the registries and variant constraints of

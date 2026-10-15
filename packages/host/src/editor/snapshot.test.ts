@@ -253,6 +253,37 @@ test("project severity supports explicit conversion options and explicit sorting
   }
 });
 
+test("hover previews add the configured comments using the project root font size", async () => {
+  const source = 'import {style} from "stillwind/react"; const card = style("p-4 bg-bright");';
+  const annotated = project(source, {
+    rootFontSize: 20,
+  });
+  const plain = project(source, {
+    preview: {
+      themeValues: false,
+      pixelEquivalents: false,
+      colorEquivalents: false,
+    },
+  });
+  const hover = async (current: BrowserProject, candidate: string) =>
+    (await current.query("/workspace/entry.tsx", {
+      kind: "hover",
+      offset: source.indexOf(candidate),
+    }))!.hover?.css;
+  try {
+    expect(await hover(annotated, "p-4")).toContain(
+      "padding: calc(var(--spacing) * 4) /* 1rem = 20px */;",
+    );
+    expect(await hover(annotated, "bg-bright")).toContain(
+      "background-color: var(--color-bright) /* red = #ff0000 */;",
+    );
+    expect(await hover(plain, "p-4")).not.toContain("/*");
+  } finally {
+    await annotated.close();
+    await plain.close();
+  }
+});
+
 test("hover uses emitted selectors, bound identities, and candidate variants; completions include both catalogs", async () => {
   const source =
     'import {style} from "stillwind/react"; const card = style("hover:bg-brand block"); const alias = card; console.log(alias); const other = "bg-brand";';

@@ -55,7 +55,7 @@ impl QueryContext {
             format_args!(
                 "canonical-index/v1\0{}\0{}\0{}\0{}",
                 self.canonical_policy.px_to_rem,
-                self.canonical_policy.root_font_size.get().to_bits(),
+                self.options.root_font_size.get().to_bits(),
                 self.options.prefix,
                 self.options.tailwind_prefix
             )

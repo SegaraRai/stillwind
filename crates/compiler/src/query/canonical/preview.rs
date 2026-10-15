@@ -8,11 +8,10 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{CssMinifyOptions, CssRule, Declaration, fold_calc_expressions, minify_css};
 use stillwind_design_system::UtilityResolutionError;
-use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
 
-use crate::GeneratedRule;
 use crate::query::QueryContext;
+use crate::{GeneratedRule, RootFontSize};
 
 /// Spacing transformations that affect equality within one query's fixed lint policy.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -34,13 +33,13 @@ pub(in crate::query) struct CanonicalPreview {
 }
 
 impl CanonicalPreview {
-    /// Normalizes this preview using its owning query's fixed scale and lint options.
+    /// Normalizes this preview using its owning query's fixed scale and root font size.
     /// Only `properties` and the presence of `scale` may vary between calls.
     pub(super) fn signature(
         &self,
         scale: Option<&str>,
         properties: &BTreeSet<LeanStr>,
-        options: &CanonicalUtilitiesConfig,
+        root_font_size: RootFontSize,
     ) -> Option<LeanStr> {
         let key = Normalization {
             resolve_scale: scale.is_some(),
@@ -57,7 +56,7 @@ impl CanonicalPreview {
         let result = self
             .resolved_css
             .as_deref()
-            .and_then(|css| normalized_signature(css, scale, properties, options));
+            .and_then(|css| normalized_signature(css, scale, properties, root_font_size));
         self.signatures
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -71,15 +70,14 @@ pub(super) fn normalized_signature(
     css: &str,
     scale: Option<&str>,
     properties: &BTreeSet<LeanStr>,
-    options: &CanonicalUtilitiesConfig,
+    root_font_size: RootFontSize,
 ) -> Option<LeanStr> {
     let mut normalized = css.to_lean_string();
     if let Some(scale) = scale {
         normalized = normalized.replace_text("var(--spacing)", scale);
     }
     if !properties.is_empty() {
-        normalized =
-            convert_spacing_declarations(&normalized, properties, options.root_font_size.get(), 0);
+        normalized = convert_spacing_declarations(&normalized, properties, root_font_size.get(), 0);
     }
     normalized = fold_calc_expressions(&normalized, None);
     minify_css(&normalized, &CssMinifyOptions::default())

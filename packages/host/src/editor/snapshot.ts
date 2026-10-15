@@ -1,4 +1,9 @@
-import type { BaseConfig, LintSeverity, UtilitySortOptions } from "@stillwind/config";
+import type {
+  BaseConfig,
+  LintSeverity,
+  PreviewOptions,
+  UtilitySortOptions,
+} from "@stillwind/config";
 import {
   fingerprint,
   type BindingEdit,
@@ -153,6 +158,8 @@ export class EditorSnapshot {
   readonly #sort: Readonly<UtilitySortOptions> | false;
   /** Effective prefer-sorted-utilities severity. Off skips its diagnostics and sorting in fixes. */
   readonly #sortSeverity: LintSeverity;
+  /** Comments added to formatted CSS previews. Omitted fields use native defaults. */
+  readonly #annotations: PreviewOptions;
   /** Sorting reports cached by full compiler module identity, including empty results. */
   readonly #reports = new Map<string, BindingReport[]>();
 
@@ -164,14 +171,17 @@ export class EditorSnapshot {
    * @param graph - Original sources, demanded dependencies, emitted CSS, and lint reports.
    * @param session - Session that compiled the graph and recognizes its producer identities.
    * @param loader - Completed design system with the same compiler options as the session.
-   * @param config - Sorting targets to capture. Effective lint policy comes from the loader.
+   * @param config - Sorting targets and preview comments to capture. Effective lint policy comes
+   * from the loader.
    * @throws If source transport, a projection map, or an original UTF-8 boundary is invalid.
    */
   constructor(
     graph: ModuleAnalysis,
     session: NativeProjectSession,
     loader: NativeDesignSystemLoader,
-    config: BaseConfig,
+    config: BaseConfig & {
+      preview?: PreviewOptions;
+    },
   ) {
     const inputs = structuredClone({
       sources: graph.sources,
@@ -192,6 +202,9 @@ export class EditorSnapshot {
             attributes: config.sort?.attributes ?? false,
           };
     this.#sortSeverity = (css["prefer-sorted-utilities"] as LintSeverity) ?? "off";
+    this.#annotations = {
+      ...config.preview,
+    };
     this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
   }
 
@@ -286,7 +299,7 @@ export class EditorSnapshot {
         result.hover = {
           start: 0,
           end: 0,
-          css: this.#query.formatCss(css),
+          css: this.#query.formatCss(css, this.#annotations),
         };
       }
       return result;
@@ -354,7 +367,7 @@ export class EditorSnapshot {
           result.hover = {
             start: token.start,
             end: token.end,
-            css: this.#query.formatCss(css),
+            css: this.#query.formatCss(css, this.#annotations),
           };
         }
       } else {
@@ -430,7 +443,7 @@ export class EditorSnapshot {
           ? {
               start: range[0],
               end: range[1],
-              css: this.#query.formatCss(preview.css),
+              css: this.#query.formatCss(preview.css, this.#annotations),
               ...(preview.runtimeNames.length ? { runtimeNames: preview.runtimeNames } : {}),
             }
           : undefined;
@@ -455,7 +468,7 @@ export class EditorSnapshot {
       ? {
           start: reference.range[0],
           end: reference.range[1],
-          css: this.#query.formatCss(reference.preview.css),
+          css: this.#query.formatCss(reference.preview.css, this.#annotations),
           ...(reference.preview.runtimeNames.length
             ? {
                 runtimeNames: reference.preview.runtimeNames,

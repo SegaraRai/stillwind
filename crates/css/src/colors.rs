@@ -1,8 +1,9 @@
 //! CSS color conversion, declaration colors, and rewriting for shadow utilities.
 //!
-//! Lightning CSS supplies color and shadow parsing. [`color_rgba`] resolves concrete
-//! colors for editor displays, and [`css_color_values`] collects them from declarations.
-//! Shadow rewriting preserves custom-property overrides and relative-color fallbacks.
+//! Lightning CSS supplies color and shadow parsing. [`color_rgba`] and [`color_hex`]
+//! resolve concrete colors for editor displays, and [`css_color_values`] collects them
+//! from declarations. Shadow rewriting preserves custom-property overrides and
+//! relative-color fallbacks.
 //!
 //! Authored text is preserved where it matters: a shadow whose color is written last
 //! keeps its exact spelling inside the fallback, so precision the author wrote is not
@@ -12,7 +13,7 @@ use lean_string::{LeanString, ToLeanString};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::properties::box_shadow::BoxShadow;
 use lightningcss::traits::{Parse, ToCss};
-use lightningcss::values::color::CssColor;
+use lightningcss::values::color::{CssColor, SRGB};
 
 use stillwind_source::JoinText;
 
@@ -175,6 +176,39 @@ pub fn color_rgba(value: &str) -> Option<[f64; 4]> {
     Some([color.red, color.green, color.blue, color.alpha].map(|value| f64::from(value) / 255.0))
 }
 
+/// A fully determined CSS color serialized as hexadecimal sRGB.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HexColor {
+    /// Lowercase `#rrggbb`, or `#rrggbbaa` when the color is not fully opaque.
+    pub hex: LeanString,
+    /// False when the source color lies outside the sRGB gamut. The hex value then
+    /// contains the CSS Color 4 gamut-mapped color, which [`color_rgba`] also returns.
+    pub in_gamut: bool,
+}
+
+/// Converts a fully determined CSS color to hexadecimal sRGB.
+/// Returns `None` for contextual colors, invalid values, or unsupported conversions.
+#[must_use]
+pub fn color_hex(value: &str) -> Option<HexColor> {
+    // Components within half of one 8-bit step serialize to the same hex digits as the
+    // exact color, so they count as inside the gamut.
+    const TOLERANCE: f32 = 0.5 / 255.0;
+    let color = CssColor::parse_string(value).ok()?;
+    let srgb = SRGB::try_from(&color).ok()?;
+    let in_gamut = [srgb.r, srgb.g, srgb.b]
+        .iter()
+        .all(|component| (-TOLERANCE..=1.0 + TOLERANCE).contains(component));
+    let CssColor::RGBA(rgba) = color.to_rgb().ok()? else {
+        return None;
+    };
+    let mut hex =
+        format_args!("#{:02x}{:02x}{:02x}", rgba.red, rgba.green, rgba.blue).to_lean_string();
+    if rgba.alpha != u8::MAX {
+        hex.push_str(&format_args!("{:02x}", rgba.alpha).to_lean_string());
+    }
+    Some(HexColor { hex, in_gamut })
+}
+
 /// Returns concrete sRGB colors from flat declarations and nested style rules.
 /// The caller resolves theme variables first. Contextual colors and opaque values are skipped.
 #[must_use]
@@ -259,6 +293,38 @@ pub(super) fn is_css_string(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hex_colors_report_whether_gamut_mapping_was_needed() {
+        assert_eq!(
+            color_hex("oklch(63.7% 0.237 25.331)"),
+            Some(HexColor {
+                hex: "#fb2c36".into(),
+                in_gamut: true,
+            })
+        );
+        assert_eq!(
+            color_hex("rgb(255 0 0 / 50%)"),
+            Some(HexColor {
+                hex: "#ff000080".into(),
+                in_gamut: true,
+            })
+        );
+        // The mapped hex matches the gamut-mapped components that color swatches use.
+        assert_eq!(
+            color_hex("oklch(72.3% 0.219 149.579)"),
+            Some(HexColor {
+                hex: "#00c758".into(),
+                in_gamut: false,
+            })
+        );
+        assert_eq!(
+            color_rgba("oklch(72.3% 0.219 149.579)"),
+            Some([0.0, 199.0 / 255.0, 88.0 / 255.0, 1.0])
+        );
+        assert_eq!(color_hex("currentColor"), None);
+        assert_eq!(color_hex("1rem"), None);
+    }
 
     #[test]
     fn declaration_colors_include_custom_properties_and_skip_contextual_values() {

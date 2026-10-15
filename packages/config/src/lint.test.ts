@@ -26,15 +26,14 @@ test("omission selects recommended and explicit configurations enable only their
     rules: {
       "prefer-sorted-utilities": "warn",
       "prefer-canonical-utilities": {
-        rootFontSize: 20,
+        pxToRem: false,
       },
     },
   });
   expect(explicit.rules["prefer-sorted-utilities"]).toBe("warn");
   expect(explicit.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
-    pxToRem: true,
-    rootFontSize: 20,
+    pxToRem: false,
   });
   expect(explicit.rules["unknown-utility"]).toBe("off");
   expect(
@@ -92,7 +91,6 @@ test("nested presets apply in order while severity changes preserve options and 
       "prefer-canonical-utilities": {
         severity: "warn",
         pxToRem: false,
-        rootFontSize: 20,
       },
       "no-restricted-theme-tokens": {
         severity: "warn",
@@ -121,7 +119,6 @@ test("nested presets apply in order while severity changes preserve options and 
   expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
-    rootFontSize: 20,
   });
   expect(resolved.rules["no-restricted-theme-tokens"]).toEqual({
     severity: "deny",
@@ -136,7 +133,6 @@ test("nested presets apply in order while severity changes preserve options and 
   ).toEqual({
     severity: "off",
     pxToRem: false,
-    rootFontSize: 20,
   });
   expect(
     resolveLintConfig({
@@ -156,7 +152,6 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
     rules: {
       "prefer-canonical-utilities": {
         pxToRem: false,
-        rootFontSize: 20,
       },
       "unknown-utility": "deny",
     },
@@ -172,7 +167,6 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
   expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
-    rootFontSize: 20,
   });
   expect(resolved.rules["unknown-utility"]).toBe("deny");
   const replaced = resolveLintConfig(
@@ -184,7 +178,6 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
   expect(replaced.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
     pxToRem: true,
-    rootFontSize: 16,
   });
   expect(resolveLintConfig(mergeLintConfig(undefined, override)).rules["unknown-utility"]).toBe(
     "warn",
@@ -227,14 +220,14 @@ test("preset errors identify the name and path, and cycles do not reject shared 
         name: "company/broken",
         rules: {
           "prefer-canonical-utilities": {
-            rootFontSize: 0,
+            pxToRem: "yes",
           },
         },
       },
     ],
   };
-  expect(() => resolveLintConfig(invalid)).toThrow(
-    "config.lint.extends[0] (company/broken).rules.prefer-canonical-utilities.rootFontSize",
+  expect(() => resolveLintConfig(invalid as unknown as LintPreset)).toThrow(
+    "config.lint.extends[0] (company/broken).rules.prefer-canonical-utilities.pxToRem",
   );
   const cycle: {
     /** Display name included in the cycle's configuration error path. */
@@ -326,21 +319,23 @@ test("canonical conversion options and sorting levels are validated", () => {
   const config = {
     rules: {
       "prefer-canonical-utilities": {
-        rootFontSize: 20.5,
         pxToRem: false,
       },
       "prefer-sorted-utilities": "off",
     },
   };
   expect(() => validateLintConfig(config, "config.lint", false)).not.toThrow();
-  for (const rootFontSize of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, "16"]) {
+  for (const options of [
+    {
+      pxToRem: "true",
+    },
+    { pxToRem: 1 },
+  ]) {
     expect(() =>
       validateLintConfig(
         {
           rules: {
-            "prefer-canonical-utilities": {
-              rootFontSize,
-            },
+            "prefer-canonical-utilities": options,
           },
         },
         "config.lint",

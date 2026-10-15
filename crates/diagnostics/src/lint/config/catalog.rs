@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig,
     RestrictedDeclarationsConfig, RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig,
-    RestrictedUtilitiesConfig, RootFontSize,
+    RestrictedUtilitiesConfig,
 };
 
 /// Configured reporting level of a lint finding.
@@ -201,7 +201,6 @@ macro_rules! lint_config_value {
         CanonicalUtilitiesConfig {
             severity: $severity,
             px_to_rem: true,
-            root_font_size: RootFontSize::DEFAULT,
         }
     };
     ($variant:ident, $severity:expr) => {

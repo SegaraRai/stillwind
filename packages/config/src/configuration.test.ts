@@ -205,12 +205,26 @@ test.each([
       lint: {
         rules: {
           "prefer-canonical-utilities": {
-            rootFontSize: 0,
+            pxToRem: "yes",
           },
         },
       },
     },
-    "projects[0].lint.rules.prefer-canonical-utilities.rootFontSize",
+    "projects[0].lint.rules.prefer-canonical-utilities.pxToRem",
+  ],
+  [
+    {
+      rootFontSize: 0,
+    },
+    "projects[0].rootFontSize",
+  ],
+  [
+    {
+      preview: {
+        colorEquivalents: true,
+      },
+    },
+    "projects[0].preview.colorEquivalents",
   ],
 ])("invalid settings identify their field: %j", (setting, location) => {
   expect(() =>

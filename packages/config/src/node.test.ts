@@ -107,7 +107,6 @@ test("Node and browser compose imported presets and keep project defaults throug
     rules: {
       "prefer-canonical-utilities": {
         severity: "warn",
-        rootFontSize: 20,
         pxToRem: false,
       },
     },
@@ -141,7 +140,6 @@ test("Node and browser compose imported presets and keep project defaults throug
   expect(browser.config.lint).toEqual(node.config.lint);
   expect(node.config.lint.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
-    rootFontSize: 20,
     pxToRem: false,
   });
   const replaced = await resolveIntegrationConfig(

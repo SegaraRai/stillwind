@@ -100,6 +100,13 @@ export interface BaseConfig {
    * Integer values from 1 to 50 are accepted. Raising it lowers the chance of a collision.
    */
   hashLength?: number;
+  /**
+   * Positive finite number of pixels per rem in the documents that use the CSS. Defaults to 16.
+   * Canonical lint converts pixel spacing with it, and editor previews annotate rem values with it.
+   * Media and container query annotations always use 16 because browsers evaluate rem there
+   * against the initial font size.
+   */
+  rootFontSize?: number;
 }
 
 /** Compiler and document CSS delivery settings shared by build adapters. */
@@ -133,6 +140,13 @@ export const compilerEntries = {
   useCssIf: v.optional(v.boolean()),
   namingRevision: v.optional(v.string()),
   hashLength: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50))),
+  rootFontSize: v.optional(
+    v.pipe(
+      v.number(),
+      v.finite(),
+      v.check((value) => value > 0, "must be positive and finite"),
+    ),
+  ),
   sort: v.optional(v.lazy((value) => (value === false ? v.literal(false) : sortOptionsSchema))),
   naming: v.optional(
     strictObject({
@@ -204,6 +218,8 @@ export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   namingRevision: string;
   /** Number of base-36 digits in generated hashes, between 1 and 50 inclusive. Defaults to 5. */
   hashLength: number;
+  /** Positive finite number of pixels per rem. Defaults to 16. */
+  rootFontSize: number;
   /** Explicit flags for every sorting target. A disabled sort setting makes every flag false. */
   sort: Required<UtilitySortOptions>;
   /** Expanded lint settings with a severity and default detection options for every rule. */
@@ -245,6 +261,7 @@ export function normalizeCompilerConfig(
     useCssIf: config.useCssIf ?? false,
     namingRevision: config.namingRevision ?? "",
     hashLength: config.hashLength ?? 5,
+    rootFontSize: config.rootFontSize ?? 16,
     automatic: automatic ?? true,
     sort:
       config.sort === false

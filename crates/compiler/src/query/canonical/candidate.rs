@@ -148,9 +148,10 @@ impl DesignSystemQuery {
             if conversion {
                 spacing_properties(&preview.css, &mut properties, 0);
             }
-            let signature = original.signature(scale.as_deref(), &properties, &options);
+            let root = self.context.options.root_font_size;
+            let signature = original.signature(scale.as_deref(), &properties, root);
             if signature.is_some()
-                && preview.signature(scale.as_deref(), &properties, &options) == signature
+                && preview.signature(scale.as_deref(), &properties, root) == signature
             {
                 return Ok(Some(replacement));
             }
@@ -189,7 +190,7 @@ impl DesignSystemQuery {
                     && scale_unit == SpacingUnit::Rem
                     && options.px_to_rem
                 {
-                    Some(number / options.root_font_size.get())
+                    Some(number / self.context.options.root_font_size.get())
                 } else {
                     None
                 };
@@ -281,8 +282,9 @@ impl DesignSystemQuery {
             return Ok(None);
         }
         let properties = BTreeSet::new();
-        let options = self.canonical_options();
-        let Some(signature) = original.signature(None, &properties, &options) else {
+        let Some(signature) =
+            original.signature(None, &properties, self.context.options.root_font_size)
+        else {
             return Ok(None);
         };
         for variant in &candidate.variants {
@@ -306,7 +308,10 @@ impl DesignSystemQuery {
                 }
                 if let Some(preview) = self.context.canonical_preview(&replacement)?
                     && preview.required_properties == original.required_properties
-                    && preview.signature(None, &properties, &options).as_ref() == Some(&signature)
+                    && preview
+                        .signature(None, &properties, self.context.options.root_font_size)
+                        .as_ref()
+                        == Some(&signature)
                 {
                     return Ok(Some((replacement).into()));
                 }
@@ -404,16 +409,14 @@ mod tests {
     use lean_string::ToLeanStr;
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-    use stillwind_diagnostics::{
-        CanonicalUtilitiesOverride, LintOverrides, LintSeverity, RootFontSize,
-    };
+    use stillwind_diagnostics::{CanonicalUtilitiesOverride, LintOverrides, LintSeverity};
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css_source;
 
     use super::super::preview::convert_pixel_dimensions;
     use super::index::{policy, rank};
     use crate::query::QueryContext;
-    use crate::{CompilerOptions, DesignSystemQuery, prepare_canonical_index};
+    use crate::{CompilerOptions, DesignSystemQuery, RootFontSize, prepare_canonical_index};
 
     fn make_query(css_text: &str, options: CompilerOptions) -> DesignSystemQuery {
         let source = css_source(FileId(1), css_text).unwrap();
@@ -501,13 +504,7 @@ mod tests {
         let query = make_query(
             "@import 'stillwind'; @theme { --spacing: .25rem; }",
             CompilerOptions {
-                lint: LintOverrides {
-                    prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
-                        root_font_size: RootFontSize::new(20.5),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
+                root_font_size: RootFontSize::new(20.5).unwrap(),
                 ..Default::default()
             },
         );
@@ -869,12 +866,18 @@ mod tests {
                 }
                 let preview = query.context.canonical_preview(&replacement).unwrap()?;
                 let normalization = policy(&preview.css, &options, scale.as_deref());
-                let signature =
-                    original.signature(scale.as_deref(), &normalization.properties, &options);
+                let signature = original.signature(
+                    scale.as_deref(),
+                    &normalization.properties,
+                    query.context.options.root_font_size,
+                );
                 (signature.is_some()
                     && preview.required_properties == original.required_properties
-                    && preview.signature(scale.as_deref(), &normalization.properties, &options)
-                        == signature)
+                    && preview.signature(
+                        scale.as_deref(),
+                        &normalization.properties,
+                        query.context.options.root_font_size,
+                    ) == signature)
                     .then_some(replacement)
             });
             assert_eq!(query.canonical_candidate(&raw).unwrap(), expected, "{raw}");

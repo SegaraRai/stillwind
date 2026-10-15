@@ -7,7 +7,7 @@ use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
     LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, RootFontSize,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
 
 /// Canonical utility options. All omitted fields preserve the previous setting.
@@ -17,8 +17,6 @@ pub struct NativeCanonicalUtilitiesOptions {
     pub severity: Option<String>,
     /// Allows pixel spacing to use the active rem scale. Defaults to true.
     pub px_to_rem: Option<bool>,
-    /// Positive finite pixels per rem. Defaults to 16.
-    pub root_font_size: Option<f64>,
 }
 
 impl TryFrom<NativeCanonicalUtilitiesOptions> for CanonicalUtilitiesOverride {
@@ -31,14 +29,6 @@ impl TryFrom<NativeCanonicalUtilitiesOptions> for CanonicalUtilitiesOverride {
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             px_to_rem: value.px_to_rem,
-            root_font_size: value
-                .root_font_size
-                .map(|value| {
-                    RootFontSize::new(value).ok_or_else(|| {
-                        Error::from_reason("rootFontSize must be positive and finite")
-                    })
-                })
-                .transpose()?,
         })
     }
 }
