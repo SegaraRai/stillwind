@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
 use stillwind_source::{JoinText, ReplaceText, Span};
 
@@ -272,7 +272,7 @@ impl<'a> RuntimeBindings<'a> {
             } else {
                 // A selected anchor must have contained a successfully lowered macro.
                 return Err(CompileError::new(
-                    CompileDiagnostic::MissingRuntimeAnchor { span },
+                    CompileDiagnostic::MissingAnchorEdit { span },
                     span,
                 ));
             }
@@ -280,7 +280,7 @@ impl<'a> RuntimeBindings<'a> {
         for &span in &module.ir.imports.module_css {
             module.source.slice(span).map_err(|error| {
                 CompileError::new(
-                    CompileDiagnostic::import_source_failure(&error),
+                    CompileDiagnostic::source_failure(&error, SourceFailureContext::MacroImport),
                     module.source.full_span(),
                 )
             })?;
@@ -288,7 +288,7 @@ impl<'a> RuntimeBindings<'a> {
                 CompileError::new(CompileDiagnostic::MissingModuleCssTarget { span }, span)
             })?;
             let quoted = serde_json::to_string(target).map_err(|_| {
-                CompileError::new(CompileDiagnostic::InvalidImportMetadata { span }, span)
+                CompileError::new(CompileDiagnostic::InvalidMacroImportMetadata { span }, span)
             })?;
             edits.push(SourceTransform {
                 call_span: span,
@@ -316,7 +316,7 @@ impl<'a> RuntimeBindings<'a> {
                 .find(|edit| edit.call_span == anchor)
                 .ok_or_else(|| {
                     CompileError::new(
-                        CompileDiagnostic::MissingRuntimeAnchor { span: anchor },
+                        CompileDiagnostic::MissingAnchorEdit { span: anchor },
                         anchor,
                     )
                 })?;
@@ -324,7 +324,7 @@ impl<'a> RuntimeBindings<'a> {
                 edit.replacement.push_str("\nimport ");
                 let quoted = serde_json::to_string(specifier).map_err(|_| {
                     CompileError::new(
-                        CompileDiagnostic::InvalidImportMetadata { span: anchor },
+                        CompileDiagnostic::InvalidMacroImportMetadata { span: anchor },
                         anchor,
                     )
                 })?;
@@ -343,9 +343,10 @@ fn contains(outer: Span, inner: Span) -> bool {
 
 /// Finds the macro import statement that owns `at`'s import realm.
 ///
-/// Follows parent realms when a realm contains no macro import. Returns a missing
-/// runtime anchor diagnostic when no editable region contains `at` or no realm in its
-/// chain contains a macro import.
+/// Follows parent realms when a realm contains no macro import. Returns
+/// [`CompileDiagnostic::EditOutsideEditableRegion`] when no editable region contains
+/// `at`, and [`CompileDiagnostic::MissingRuntimeAnchor`] when no realm in its chain
+/// contains a macro import.
 fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileError> {
     let Some(projection) = module.input.projection() else {
         return if module.ir.imports.macros.is_empty() {
@@ -358,7 +359,10 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
         };
     };
     let region = projection_region(module, at)?.ok_or_else(|| {
-        CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
+        CompileError::new(
+            CompileDiagnostic::EditOutsideEditableRegion { span: at },
+            at,
+        )
     })?;
     for realm in projection.realm_chain(region.import_realm) {
         if let Some(anchor) = module
@@ -381,8 +385,8 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
 ///
 /// # Errors
 ///
-/// Returns a missing runtime anchor diagnostic when projected input has no region
-/// containing `at`.
+/// Returns [`CompileDiagnostic::EditOutsideEditableRegion`] when projected input has no
+/// region containing `at`.
 fn projection_region(
     module: &ModuleAnalysis,
     at: Span,
@@ -395,7 +399,10 @@ fn projection_region(
         .iter()
         .find(|region| contains(region.source, at))
         .ok_or_else(|| {
-            CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
+            CompileError::new(
+                CompileDiagnostic::EditOutsideEditableRegion { span: at },
+                at,
+            )
         })?;
     Ok(Some(region))
 }
@@ -413,8 +420,9 @@ fn projection_region(
 ///
 /// # Errors
 ///
-/// Returns a missing runtime anchor diagnostic when no region contains an edit. Returns
-/// invalid metadata when a quoted region is not delimited by its recorded quote.
+/// Returns [`CompileDiagnostic::EditOutsideEditableRegion`] when no region contains an
+/// edit. Returns [`CompileDiagnostic::AttributeQuoteMismatch`] when a quoted region is
+/// not delimited by its recorded quote.
 /// Earlier edits may already be encoded; the caller discards the plan on failure.
 ///
 /// # Panics
@@ -450,7 +458,7 @@ pub(crate) fn encode_projected_edits(
             || text.get(end) != Some(&(character as u8))
         {
             return Err(CompileError::new(
-                CompileDiagnostic::InvalidImportMetadata {
+                CompileDiagnostic::AttributeQuoteMismatch {
                     span: region.source,
                 },
                 region.source,
@@ -655,7 +663,7 @@ mod runtime_anchor_tests {
         assert!(matches!(
             runtime_anchor(&single, single.ir.style_calls[0].span),
             Err(CompileError {
-                diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
+                diagnostic: CompileDiagnostic::EditOutsideEditableRegion { .. },
                 ..
             })
         ));

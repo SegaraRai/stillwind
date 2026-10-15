@@ -28,7 +28,7 @@ test("failed CSS loading retains structured diagnostics in the analysis result",
       status: "incomplete",
       reports: [
         {
-          code: "SW08026",
+          code: "SW13002",
           primary: {
             location: {
               uri: pathToFileURL(css).href,

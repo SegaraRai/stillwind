@@ -73,11 +73,14 @@ mod tests {
 
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
-        let conflict = CompileDiagnostic::FrameworkConflict;
+        let conflict = CompileDiagnostic::FrameworkConstraintConflict;
         let mixed = CompileDiagnostic::MixedFrameworks;
         let parse = CompileDiagnostic::JavaScriptParse;
         assert_ne!(conflict, mixed);
-        assert_eq!(conflict.code(), CompileErrorCode::FrameworkConflict);
+        assert_eq!(
+            conflict.code(),
+            CompileErrorCode::FrameworkConstraintConflict
+        );
         assert_ne!(mixed.code(), conflict.code());
         assert_ne!(parse.code(), conflict.code());
         assert_eq!(
@@ -152,10 +155,10 @@ mod tests {
     fn generator_failures_report_their_family_and_message() {
         let span = Span::new(FileId(7), 4, 12);
         let error = CompileError::new(
-            CompileDiagnostic::IdentifierGenerationFailed(
-                "keyframes".into(),
-                "no name for this declaration".into(),
-            ),
+            CompileDiagnostic::IdentifierGenerationFailed {
+                family: "keyframes".into(),
+                detail: "no name for this declaration".into(),
+            },
             span,
         );
         assert_eq!(error.code(), CompileErrorCode::IdentifierGenerationFailed);

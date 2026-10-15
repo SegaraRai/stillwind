@@ -312,7 +312,7 @@ fn release_mode_fails_on_a_rejected_name() {
     let failure = context.class_name(&class_context("0:flex")).unwrap_err();
     assert!(matches!(
         failure,
-        CompileDiagnostic::IdentifierGenerationFailed(..)
+        CompileDiagnostic::IdentifierGenerationFailed { .. }
     ));
     assert!(context.drain_rejected().is_empty());
 }

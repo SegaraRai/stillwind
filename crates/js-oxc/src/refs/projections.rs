@@ -7,7 +7,7 @@
 use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{
     AnchorScope, ClassExpression, ContainerType, RefDefinition, RefProjection, RuleExpression,
     StyleInput,
@@ -98,7 +98,9 @@ impl<'a> MacroExtractor<'a> {
                 receiver,
                 failure,
                 LintDiagnostic::InvalidRefProjection,
-                CompileDiagnostic::RefProjectionFactsRequired,
+                CompileDiagnostic::CheckerFactsRequired {
+                    subject: CheckerFactsSubject::RefProjection,
+                },
             );
             return None;
         }
@@ -126,7 +128,9 @@ impl<'a> MacroExtractor<'a> {
                     receiver,
                     failure,
                     LintDiagnostic::InvalidRefProjection,
-                    CompileDiagnostic::RefProjectionFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::RefProjection,
+                    },
                 );
                 return None;
             }
@@ -242,7 +246,9 @@ impl<'a> MacroExtractor<'a> {
                                     expression,
                                     failure,
                                     LintDiagnostic::InvalidAnchorScope,
-                                    CompileDiagnostic::RefProjectionFactsRequired,
+                                    CompileDiagnostic::CheckerFactsRequired {
+                                        subject: CheckerFactsSubject::RefProjection,
+                                    },
                                 );
                             } else {
                                 self.lint_findings.push(LintFinding::new(

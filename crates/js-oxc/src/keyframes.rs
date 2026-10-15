@@ -12,7 +12,9 @@ use oxc::ast::ast::{
 };
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{
+    CheckerFactsSubject, CompileDiagnostic, CompileError, LintDiagnostic, LintFinding,
+};
 use stillwind_ir::{
     AssetReference, ClassExpression, KeyframesBody, KeyframesBranch, KeyframesDefinition,
     KeyframesFrame, RuleExpression, StyleVariant,
@@ -110,7 +112,9 @@ impl<'a> MacroExtractor<'a> {
             Err(ResolutionFailure::MissingFacts) => {
                 self.consumed_use_spans.insert(LocalSpan::from(call.span));
                 self.diagnostics.push(CompileError::new(
-                    CompileDiagnostic::KeyframesFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::KeyframesReceiver,
+                    },
                     self.source_span(call.callee.span()),
                 ));
                 return None;
@@ -160,7 +164,9 @@ impl<'a> MacroExtractor<'a> {
                     receiver,
                     failure,
                     LintDiagnostic::InvalidKeyframesReceiver,
-                    CompileDiagnostic::KeyframesFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::KeyframesReceiver,
+                    },
                 );
                 return None;
             }

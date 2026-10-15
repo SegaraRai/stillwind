@@ -10,7 +10,7 @@
 
 use lean_string::LeanString;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_ir::ModuleImports;
 use stillwind_source::{SourceFile, Span};
 
@@ -37,7 +37,7 @@ pub fn plan_macro_import_removals(
     for import in &imports.macros {
         let declaration = source.slice(import.span).map_err(|error| {
             CompileError::new(
-                CompileDiagnostic::import_source_failure(&error),
+                CompileDiagnostic::source_failure(&error, SourceFailureContext::MacroImport),
                 source.full_span(),
             )
         })?;
@@ -46,7 +46,7 @@ pub fn plan_macro_import_removals(
         for specifier in &import.specifiers {
             source.slice(specifier.span).map_err(|error| {
                 CompileError::new(
-                    CompileDiagnostic::import_source_failure(&error),
+                    CompileDiagnostic::source_failure(&error, SourceFailureContext::MacroImport),
                     source.full_span(),
                 )
             })?;
@@ -57,7 +57,7 @@ pub fn plan_macro_import_removals(
         }
         if !valid {
             return Err(CompileError::new(
-                CompileDiagnostic::InvalidImportMetadata { span: import.span },
+                CompileDiagnostic::InvalidMacroImportMetadata { span: import.span },
                 import.span,
             ));
         }

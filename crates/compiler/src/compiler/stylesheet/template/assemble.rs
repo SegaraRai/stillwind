@@ -92,14 +92,14 @@ pub(crate) fn render_mapped(
     if !properties.registrations.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::Properties)
     {
-        return Err(CompileDiagnostic::MissingPropertySlot {
+        return Err(CompileDiagnostic::MissingSupportSlot {
             slot: "properties".into(),
         });
     }
     if !properties.initials.is_empty()
         && !has_slot(&template.nodes, &CssOutputNode::PropertyInitials)
     {
-        return Err(CompileDiagnostic::MissingPropertySlot {
+        return Err(CompileDiagnostic::MissingSupportSlot {
             slot: "property-initials".into(),
         });
     }
@@ -117,7 +117,7 @@ pub(crate) fn render_mapped(
         ),
     ] {
         if needed && !has_slot(&template.nodes, &slot) {
-            return Err(CompileDiagnostic::MissingPropertySlot { slot: name.into() });
+            return Err(CompileDiagnostic::MissingSupportSlot { slot: name.into() });
         }
     }
     let (css, slots) = emit(

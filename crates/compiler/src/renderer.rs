@@ -342,7 +342,7 @@ mod tests {
             .unwrap_err();
         assert!(matches!(
             error.diagnostic,
-            CompileDiagnostic::IdentifierGenerationFailed(..)
+            CompileDiagnostic::IdentifierGenerationFailed { .. }
         ));
         assert_eq!(error.rejected_names, [] as [RejectedIdentifier; 0]);
     }
@@ -369,7 +369,9 @@ mod tests {
                 .unwrap_err();
             assert_eq!(
                 error.diagnostic,
-                CompileDiagnostic::InvalidPropertyRequirement
+                CompileDiagnostic::UnknownRequiredProperty {
+                    name: "--unknown-registration".into()
+                }
             );
         }
     }

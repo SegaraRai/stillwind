@@ -85,9 +85,8 @@ export const invalid=${expression};`;
       );
       const output = result.modules.find((entry) => entry.moduleId === "consumption-consumer.ts");
       expect(output).toBeTruthy();
-      const code = expression.startsWith("frames(") ? "SW04002" : "SW01011";
       expect(
-        output!.diagnostics.some((error) => error.code === code),
+        output!.diagnostics.some((error) => error.code === "SW10004"),
         `${expression}: ${JSON.stringify(output!.diagnostics)}`,
       ).toBeTruthy();
     }

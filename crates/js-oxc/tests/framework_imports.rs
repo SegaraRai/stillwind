@@ -136,7 +136,7 @@ fn explicit_adapter_conflicts_and_mixed_macros_remain_fatal() {
         let scan = OxcSourceAnalyzer.scan_input(source);
         assert_eq!(
             scan.diagnostics[0].diagnostic,
-            CompileDiagnostic::FrameworkConflict
+            CompileDiagnostic::FrameworkConstraintConflict
         );
         assert_eq!(scan.lint_findings, []);
     }

@@ -154,7 +154,7 @@ import { base } from "./entry";
 export const middle = style(base, "green");
 `,
     }),
-  ).rejects.toThrow(/SW06003/);
+  ).rejects.toThrow(/SW11002/);
 });
 
 test("retains mutable candidates through exports and factories", async () => {
@@ -355,7 +355,7 @@ test("omits unsupported bases and retains fatal macro uses outside supported inp
     ]),
   });
   for (const [body, error] of [
-    ['const props = style({ "data-x": style("red") });', /SW11010/],
+    ['const props = style({ "data-x": style("red") });', /SW10005/],
   ] as const) {
     await expect(
       compile({
@@ -478,7 +478,7 @@ const props = style(selected, "blue");
       },
       "entry.js",
     ),
-  ).rejects.toThrow(/SW12004/);
+  ).rejects.toThrow(/SW12001/);
 });
 
 test("checker identity insertion accepts empty commented calls and trailing commas", async () => {

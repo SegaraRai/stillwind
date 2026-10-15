@@ -434,14 +434,14 @@ function generationNeedsFacts(
 }
 
 /**
- * Keeps source failures while omitting identity lowering errors in unverified ranges.
+ * Keeps source failures while omitting missing checker facts errors in unverified ranges.
  * @param reports - Reports with original UTF-8 locations.
  * @param ranges - Unverified original UTF-8 ranges for the same module.
  * @returns A filtered array in report order. Other diagnostic codes remain unchanged.
  */
 function verifiedReports(reports: BindingReport[], ranges: UnverifiedRange[]): BindingReport[] {
   return reports.filter((report) => {
-    if (!identityDiagnosticCodes.has(report.code)) {
+    if (report.code !== checkerFactsRequiredCode) {
       return true;
     }
     const { start, end } = report.primary.location;
@@ -449,7 +449,8 @@ function verifiedReports(reports: BindingReport[], ranges: UnverifiedRange[]): B
   });
 }
 
-const identityDiagnosticCodes = new Set(["SW01016", "SW03001", "SW03010", "SW04014", "SW05010"]);
+/** `CompileDiagnostic::CheckerFactsRequired`, which unverified semantic ranges can cause. */
+const checkerFactsRequiredCode = "SW30001";
 
 /**
  * Tests whether a diagnostic or probe overlaps an unavailable semantic range.
@@ -542,14 +543,15 @@ function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): vo
  * Projects a report's primary label into the diagnostic shape returned by compilation.
  *
  * @param report - Structured compiler report.
- * @returns Primary location and scope, diagnostic code, message, and notes. Related labels and
- * severity remain in the report.
+ * @returns Primary location and scope, diagnostic code and class, message, and notes. Related
+ * labels and severity remain in the report.
  */
 function reportDiagnostic(report: BindingReport): BindingDiagnostic {
   return {
     ...report.primary.location,
     scope: report.primary.scope,
     code: report.code,
+    ...(report.class && { class: report.class }),
     message: report.message,
     notes: report.notes,
   };

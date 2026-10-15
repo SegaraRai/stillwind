@@ -128,7 +128,7 @@ export class SourceRewriter {
       );
     }
     const syntaxErrors = results.flatMap(({ result }) =>
-      result.reports.filter((report) => ["SW01012", "SW01013"].includes(report.code)),
+      result.reports.filter((report) => ["SW10001", "SW10002"].includes(report.code)),
     );
     if (syntaxErrors.length) {
       throw new RewriteFailure(

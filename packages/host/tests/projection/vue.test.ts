@@ -480,7 +480,7 @@ const __stillwindCheckerHelper\\u0030=0, __stillwindCheckerHelper1=0;`,
       test(`${name} prevents macro import removal`, async () => {
         const prepared = await project(component(`${macroImport} ${script}`, template));
         const output = compileProject([prepared], stylesheet);
-        expect(output.modules[0].diagnostics.map(({ code }) => code)).toContain("SW11010");
+        expect(output.modules[0].diagnostics.map(({ code }) => code)).toContain("SW10005");
       });
     }
   });

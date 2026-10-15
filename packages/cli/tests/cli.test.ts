@@ -204,7 +204,7 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
         diagnostics: [
           {
             report: {
-              code: "SW08026",
+              code: "SW13002",
               severity: "error",
               primary: {
                 location: {
@@ -223,7 +223,7 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
       expect(path.normalize(result.failures[0].file ?? "")).toBe(path.join(root, "entry.tsx"));
     }
     const cssText = await run(root, ["lint", "--color", "never"]);
-    expect(cssText.stderr).toContain("root.css:1:1: error SW08026");
+    expect(cssText.stderr).toContain("root.css:1:1: error SW13002");
     expect(cssText.stderr).toContain("1 | @theme {");
   } finally {
     await rm(root, { recursive: true, force: true });

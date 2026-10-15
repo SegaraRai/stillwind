@@ -5,8 +5,8 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 use stillwind_source::{SourceRegistry, SourceRegistryError};
 
 use crate::{
-    CompileDiagnostic, CompileError, DiagnosticInfo, FixAction, LabelScope, LintDiagnostic,
-    LintFinding, SourceRange,
+    CompileDiagnostic, CompileError, CompileErrorClass, DiagnosticInfo, FixAction, LabelScope,
+    LintDiagnostic, LintFinding, SourceRange,
 };
 
 /// Typed cause of a completed, source-located public diagnostic.
@@ -23,6 +23,13 @@ impl DiagnosticCause {
         match self {
             Self::Compile(diagnostic) => diagnostic.code().as_str(),
             Self::Lint(kind) => kind.code(),
+        }
+    }
+
+    pub(super) const fn class(&self) -> Option<CompileErrorClass> {
+        match self {
+            Self::Compile(diagnostic) => Some(diagnostic.code().class()),
+            Self::Lint(_) => None,
         }
     }
 

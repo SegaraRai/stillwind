@@ -226,7 +226,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
   quoted!.attributeQuote = "single";
   const wrongQuote = compile(input);
   expect(wrongQuote.code).toBe(null);
-  expect(wrongQuote.diagnostics[0]?.code).toBe("SW11008");
+  expect(wrongQuote.diagnostics[0]?.code).toBe("SW31011");
   const leaked = await prepareSource({
     resolverId: "/src/Bad.vue",
     checkerFileName: "/src/Bad.vue",
@@ -241,7 +241,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
   });
   const leftover = compile(leaked);
   expect(leftover.code).toBe(null);
-  expect(leftover.diagnostics[0]?.code).toBe("SW11010");
+  expect(leftover.diagnostics[0]?.code).toBe("SW10005");
   const missingTarget = await prepareSource({
     resolverId: "/src/Bad.vue",
     checkerFileName: "/src/Bad.vue",
@@ -259,7 +259,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
   });
   const noVirtualModule = compile(missingTarget);
   expect(noVirtualModule.code).toBe(null);
-  expect(noVirtualModule.diagnostics[0]?.code).toBe("SW11009");
+  expect(noVirtualModule.diagnostics[0]?.code).toBe("SW33010");
   expect(noVirtualModule.diagnostics[0]!.message).toMatch(/host-allocated virtual module/);
 });
 

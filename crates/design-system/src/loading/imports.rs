@@ -41,7 +41,7 @@ pub(super) struct Import {
 /// # Errors
 ///
 /// Returns [`CompileDiagnostic::InvalidImportBlock`] for an unbalanced block, and the
-/// [`CompileDiagnostic::InvalidImportSpecifier`] for an invalid import target, and
+/// [`CompileDiagnostic::InvalidCssImportSpecifier`] for an invalid import target, and
 /// modifier errors from [`import_wrappers`]. Offsets refer to `css`; this layer does
 /// not attach source labels or names.
 pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
@@ -64,10 +64,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
                     while nested.next_including_whitespace_and_comments().is_ok() {}
                     Ok::<_, ParseError<()>>(())
                 })
-                .map_err(|error| CompileDiagnostic::InvalidImportBlock {
-                    offset: start,
-                    detail: format_args!("{:?}", error.kind).to_lean_str(),
-                })?;
+                .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
             continue;
         }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
@@ -75,7 +72,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
         }
         let specifier = parser
             .expect_url_or_string()
-            .map_err(|error| CompileDiagnostic::InvalidImportSpecifier {
+            .map_err(|error| CompileDiagnostic::InvalidCssImportSpecifier {
                 offset: start,
                 detail: error.kind.to_lean_str(),
             })?
@@ -114,10 +111,10 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
 ///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidImportModifierOrder`] for a misplaced or repeated
-/// modifier, [`CompileDiagnostic::UnsupportedImportModifier`] for a modifier that would
+/// Returns [`CompileDiagnostic::InvalidCssImportModifierOrder`] for a misplaced or repeated
+/// modifier, [`CompileDiagnostic::UnsupportedCssImportModifier`] for a modifier that would
 /// change how the imported file is interpreted in its own right, and
-/// [`CompileDiagnostic::InvalidImportModifiers`] or [`CompileDiagnostic::InvalidImportModifierBlock`]
+/// [`CompileDiagnostic::InvalidCssImportModifiers`] or [`CompileDiagnostic::InvalidCssImportModifierBlock`]
 /// when a modifier cannot be tokenized or its block is malformed.
 fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, CompileDiagnostic> {
     let mut parser = Parser::new(tail);
@@ -127,13 +124,13 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
         let state = parser.state();
         match parser
             .next()
-            .map_err(|error| CompileDiagnostic::InvalidImportModifiers {
+            .map_err(|error| CompileDiagnostic::InvalidCssImportModifiers {
                 offset: base_offset + state.position().byte_index(),
                 detail: error.kind.to_lean_str(),
             })? {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 if !wrappers.is_empty() {
-                    return Err(CompileDiagnostic::InvalidImportModifierOrder {
+                    return Err(CompileDiagnostic::InvalidCssImportModifierOrder {
                         offset: base_offset + state.position().byte_index(),
                     });
                 }
@@ -144,7 +141,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
             {
                 let layer = name.eq_ignore_ascii_case("layer");
                 if (layer && !wrappers.is_empty()) || (!layer && supports_seen) {
-                    return Err(CompileDiagnostic::InvalidImportModifierOrder {
+                    return Err(CompileDiagnostic::InvalidCssImportModifierOrder {
                         offset: base_offset + state.position().byte_index(),
                     });
                 }
@@ -164,7 +161,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
                         }
                         Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_lean_string())
                     })
-                    .map_err(|error| CompileDiagnostic::InvalidImportModifierBlock {
+                    .map_err(|error| CompileDiagnostic::InvalidCssImportModifierBlock {
                         offset: base_offset + state.position().byte_index(),
                         detail: format_args!("{:?}", error.kind).to_lean_str(),
                     })?;
@@ -190,7 +187,7 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
                     .iter()
                     .any(|modifier| name.eq_ignore_ascii_case(modifier)) =>
             {
-                return Err(CompileDiagnostic::UnsupportedImportModifier {
+                return Err(CompileDiagnostic::UnsupportedCssImportModifier {
                     offset: base_offset + state.position().byte_index(),
                     modifier: name.to_lean_str(),
                 });
@@ -222,7 +219,7 @@ mod tests {
         assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
         assert!(matches!(
             imports("@import 42;"),
-            Err(CompileDiagnostic::InvalidImportSpecifier { .. })
+            Err(CompileDiagnostic::InvalidCssImportSpecifier { .. })
         ));
     }
 
@@ -276,7 +273,7 @@ mod tests {
         for unsupported in ["prefix(tw)", "reference", "source(none)"] {
             assert!(matches!(
                 import_wrappers(unsupported, 0),
-                Err(CompileDiagnostic::UnsupportedImportModifier { .. })
+                Err(CompileDiagnostic::UnsupportedCssImportModifier { .. })
             ));
         }
         let framework = imports("@import 'stillwind' supports(display:grid);").unwrap();

@@ -72,18 +72,17 @@ const other = style(identity(flag ? a : b));
 ```
 
 Declaring `let selected = a` and then assigning `b` makes their hidden identities
-incompatible. The checker diagnostic is reported as `SW12004` in original
-coordinates. If required candidates cannot be recovered from `any`, `unknown`,
-`StyleResult<string>`, or function parameters that erase identity, compilation
-fails with `SW12005` or a native unresolved-value diagnostic. Lost type information
-does not permit selecting a candidate and reporting success. Ordinary utility
-conditions use Rust's structural lowering. Stillwind does not report every
-TypeScript diagnostic as a general type checker would.
+incompatible. The checker diagnostic is reported as `SW12001` in original coordinates.
+If required candidates cannot be recovered from `any`, `unknown`, `StyleResult<string>`,
+or function parameters that erase identity, compilation fails with `SW12002` or a native
+unresolved-value diagnostic. Lost type information does not permit selecting a candidate
+and reporting success. Ordinary utility conditions use Rust's structural lowering.
+Stillwind does not report every TypeScript diagnostic as a general type checker would.
 
-A converter rejecting original syntax produces `SW01013`; failure to parse
-converted code produces `SW10007`. Map inconsistencies and missing mappings for
-required expressions or declarations produce distinct `SW10001` through
-`SW10003` diagnostics. Missing required checker AST produces `SW12003`, which
+A converter rejecting original syntax produces `SW10002`; failure to parse
+converted code produces `SW31004`. Map inconsistencies and missing mappings for
+required expressions or declarations produce distinct `SW31001` through
+`SW31003` diagnostics. Missing required checker AST produces `SW30004`, which
 is distinct from missing type facts.
 
 `scanSource` returns validated `ready` results or `failed` results with diagnostics.

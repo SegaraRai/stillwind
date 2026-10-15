@@ -83,8 +83,8 @@ in the receiving framework's class prop. A base with attributes or inline style 
 class and loses the rest. A base from another framework contributes no class and has no
 CSS ordering dependency. Both cases report `invalid-style-composition` at the operand,
 including when only one candidate base is incompatible.
-Style dependency cycles produce `SW06002`; cycles in CSS module placement produce
-`SW06003`. Neither cycle can be suppressed because it prevents a valid output order.
+Style dependency cycles produce `SW11001`; cycles in CSS module placement produce
+`SW11002`. Neither cycle can be suppressed because it prevents a valid output order.
 
 ### Checker facts
 
@@ -112,10 +112,10 @@ Consume the following syntax directly at its supported input position in `style(
   supported utility-template interpolations.
 
 Attribute values and arguments to arbitrary functions cannot consume these uses,
-even inside `style()`. Unconsumed keyframes calls produce `SW04002`; other
-unconsumed projections and ref variants produce `SW01011`. Validation uses resolved
-bindings and checker receiver information. Public use types describe accepted
-input syntax; they do not guarantee independently usable runtime values.
+even inside `style()`. Unconsumed keyframes calls, projections, and ref variants
+produce `SW10004`. Validation uses resolved bindings and checker receiver information.
+Public use types describe accepted input syntax; they do not guarantee independently
+usable runtime values.
 
 ```ts
 const transition = style.viewTransition({ old: "opacity-0" });

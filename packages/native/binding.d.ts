@@ -293,8 +293,10 @@ export interface BindingAction {
 export interface BindingDiagnostic {
   /** Whether the producer identified a range or only the document. */
   scope: 'range' | 'document'
-  /** Stable diagnostic code, such as `SW01012`. */
+  /** Stable diagnostic code, such as `SW01001`. */
   code: string
+  /** Party that must act on this error. */
+  class?: 'authoring' | 'configuration' | 'host' | 'internal'
   /** Rendered message. */
   message: string
   /** Exact source document identity. */
@@ -439,6 +441,8 @@ export interface BindingRejectedIdentifier {
 export interface BindingReport {
   /** Stable compiler code or lint rule. */
   code: string
+  /** Party that must act on a compilation error. Lint findings omit it. */
+  class?: 'authoring' | 'configuration' | 'host' | 'internal'
   /** Human-readable cause. */
   message: string
   /** Effective `error` or `warning` level after lint policy. */

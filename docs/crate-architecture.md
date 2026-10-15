@@ -54,10 +54,14 @@ Compiler tests may use the Oxc frontend as a dev dependency.
 owns each fatal message and its payload, and `CompileError` attaches source details.
 `CompileErrorCode` corresponds to one diagnostic variant and exposes its unique
 `SWnnmmm` code through `as_str()`. Internal consumers compare typed variants; external
-reports serialize code strings. Source failure context retains the operation and does
-not change the diagnostic identity. `LintDiagnostic` owns the message template and concrete
-values for a detected lint, and `LintFinding` attaches its source details.
-Different message templates have different diagnostic variants.
+reports serialize code strings. Each `CompileErrorClass` reserves a range of code
+categories: `configuration` uses 01-09, `authoring` uses 10-29, `host` uses 30-49, and
+`internal` uses 90-99. Reports include this class so a host can tell whether the user,
+the host, or the compiler must change. The module documentation of `compilation::code`
+lists the categories. Source failure context retains the operation and does not change
+the diagnostic identity. `LintDiagnostic` owns the message template and concrete values
+for a detected lint, and `LintFinding` attaches its source details. Different message
+templates have different diagnostic variants.
 
 `LintKind` identifies one lint rule and corresponds to one stable name accepted by project
 configuration and `swlint-*` directives. `LintDiagnostic::kind()` selects that rule;
@@ -67,21 +71,23 @@ for each `LintKind`. `LintSettings` stores at most one setting for each rule and
 keys from disagreeing with their setting variants. Unconfigured rules do not enable
 configured detection, but a producer can still detect them; reporting then uses `warn`.
 
-Project configuration validates rule names and settings before loading resources. Effective settings
-serialize to the host protocol as a map of rule names to severities.
+Project configuration validates rule names and settings before loading resources.
+Effective settings serialize to the host protocol as a map of rule names to severities.
 
 Wrappers retain ordered labels and notes, plus an optional source name for compilation
-error display. The first label is the primary location and controls suppression. Only lint findings can be suppressed. Detection creates
-the appropriate diagnostic directly: reporting codes do not decide whether an issue is
-fatal. Candidate queries attach synthetic spans over the supplied candidate text.
+error display. The first label is the primary location and controls suppression. Only
+lint findings can be suppressed. Detection creates the appropriate diagnostic directly:
+reporting codes do not decide whether an issue is fatal. Candidate queries attach
+synthetic spans over the supplied candidate text.
 
 The diagnostics crate depends only on `source` within the workspace. Producers return
 shared compilation kinds directly and attach a `CompileError` once a source location
 is available. Loader protocol errors remain beside the loader;
 only protocol and external source/parser failures require boundary conversion.
-Fact-provider failures carry a typed kind through `semantic` to module compilation. Oxc's open-ended parser reports use the fixed `JavaScriptParse` summary
-and retain the external explanation in notes. CSS parser and projection validator
-details are parameters of their respective, explicitly named message templates.
+Fact-provider failures carry a typed kind through `semantic` to module compilation.
+Oxc's open-ended parser reports use the fixed `JavaScriptParse` summary and retain the
+external explanation in notes. CSS parser and projection validator details are
+parameters of their respective, explicitly named message templates.
 
 CLI and Node transports format kinds at the boundary and keep their existing
 `code`/`rule`, `message`, location, and `notes` fields. Rust serialization preserves
@@ -104,7 +110,8 @@ can be exchanged independently of the module's extracted style operations.
 ## Definition settings and generation settings
 
 `DesignSystemOptions` contains property prefixes and utility ordering. A snapshot
-captures those host settings, theme definitions, registries, source provenance, and fingerprints.
+captures those host settings, theme definitions, registries, source provenance, and
+fingerprints.
 
 `CompilerOptions` contains host defaults plus class namespace, application
 namespace, and generation policy. `design_system()` projects the loader inputs;

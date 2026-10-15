@@ -243,10 +243,10 @@ fn unclaimed_keyframes_uses_report_diagnostics() {
             ScriptModuleKind::Unambiguous,
         );
         assert!(
-            parsed
-                .diagnostics
-                .iter()
-                .any(|error| error.diagnostic == CompileDiagnostic::KeyframesUseNotAClassInput),
+            parsed.diagnostics.iter().any(|error| error.diagnostic
+                == CompileDiagnostic::UnconsumedMacroUse {
+                    syntax: "keyframes use".into()
+                }),
             "{body}: {:?}",
             parsed.diagnostics
         );

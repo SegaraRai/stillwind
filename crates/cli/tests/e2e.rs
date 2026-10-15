@@ -123,7 +123,7 @@ fn cli_reports_css_failure_with_source_range() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("stillwind-cli:theme:1:1-1:9: SW08026")
+        String::from_utf8_lossy(&output.stderr).contains("stillwind-cli:theme:1:1-1:9: SW13002")
     );
 }
 

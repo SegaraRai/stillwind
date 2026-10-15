@@ -258,6 +258,7 @@ fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
         }
         .into(),
         code: (diagnostic.code.clone()).into(),
+        class: diagnostic.class.map(|class| class.as_str().into()),
         message: (diagnostic.message.clone()).into(),
         uri: location.uri.clone().into(),
         revision: (location.revision.clone()).into(),
@@ -275,7 +276,7 @@ fn binding_diagnostic(diagnostic: &ResolvedDiagnostic) -> BindingDiagnostic {
 
 fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
     match error {
-        TransformError::CompilationFailed => CompileDiagnostic::InvalidTransformState,
+        TransformError::CompilationFailed => CompileDiagnostic::TransformAfterFailedCompilation,
         TransformError::InvalidSpan(source) => {
             CompileDiagnostic::source_failure(source, SourceFailureContext::Transform)
         }
@@ -289,7 +290,7 @@ fn transform_failure_kind(error: &TransformError) -> CompileDiagnostic {
             span: *span,
             previous_start: *previous_start,
         },
-        TransformError::TooLarge => CompileDiagnostic::InvalidTransformSize,
+        TransformError::TooLarge => CompileDiagnostic::RenderedSourceTooLarge,
     }
 }
 
@@ -378,12 +379,12 @@ mod tests {
         assert!(output.code.is_none());
         assert_eq!(output.css, "");
         assert_eq!(output.diagnostics.len(), 1);
-        assert_eq!(output.diagnostics[0].code, "SW09004");
+        assert_eq!(output.diagnostics[0].code, "SW33004");
         assert!(output.diagnostics[0].message.contains("expected FileId("));
 
         let mut result = CompileResult::default();
         result.diagnostics.push(CompileError::new(
-            CompileDiagnostic::FrameworkConflict,
+            CompileDiagnostic::FrameworkConstraintConflict,
             Span::new(FileId(3), 0, 1),
         ));
         assert!(matches!(

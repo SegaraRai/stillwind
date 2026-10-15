@@ -133,7 +133,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
       expect.fail("expected a compilation failure");
     }
     const report = error.batches[0].reports[0];
-    expect(report.code).toBe("SW12004");
+    expect(report.code).toBe("SW12001");
     expect(error.batches[0].module).toBe(entry);
     expect(
       Buffer.from(files[entry])
@@ -152,7 +152,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     const result = await compile();
     expect(result?.composition.length).toBe(2);
     files[entry] = wrap(ext, script.replace("typeof a|typeof b", "any"));
-    await expect(compile()).rejects.toThrow(/SW12005/);
+    await expect(compile()).rejects.toThrow(/SW12002/);
   });
 }
 
@@ -319,7 +319,7 @@ import {style} from 'stillwind/vue';const a=style('red'),b=style('green');let se
   expect(result).toBeTruthy();
   expect(result!.code).toBe(null);
   const error = result!.diagnostics[0];
-  expect(error.code).toBe("SW12004");
+  expect(error.code).toBe("SW12001");
   expect(source.slice(error.startUtf16, error.endUtf16)).toBe("selected");
   expect(Buffer.from(source).subarray(error.start, error.end).toString()).toBe("selected");
   expect(error.startLine).toBe(2);

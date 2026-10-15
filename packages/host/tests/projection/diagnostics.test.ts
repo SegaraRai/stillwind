@@ -62,19 +62,19 @@ for (const { format, broken, code, converter } of [
   {
     format: "vue",
     broken: "<template><div></template>",
-    code: "SW01013",
+    code: "SW10002",
     converter: "@vue/language-core",
   },
   {
     format: "svelte",
     broken: "<!-- 日本語 🧭 -->\r\n<div>{</div>",
-    code: "SW01013",
+    code: "SW10002",
     converter: "svelte2tsx",
   },
   {
     format: "astro",
     broken: "<script>const identity=<T>(value:T)=>value;</script>",
-    code: "SW10007",
+    code: "SW31004",
     converter: "@astrojs/compiler",
   },
 ]) {
@@ -133,7 +133,7 @@ test("a failed dependency reports its own revision and remains watched for recov
   const output = await compile("collect");
   expect(output?.moduleId).toBe(entry);
   expect(output?.reports[0]).toMatchObject({
-    code: "SW01013",
+    code: "SW10002",
     primary: {
       location: {
         uri: fileModuleDescriptor(root, path.join(root, "Broken.vue")).document.uri,

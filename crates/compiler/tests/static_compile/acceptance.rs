@@ -6,7 +6,7 @@
 //! attachments preserve their runtime selection.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -179,7 +179,9 @@ export const props = style(selected);"#,
     );
     assert_eq!(
         result.diagnostics[0].diagnostic,
-        CompileDiagnostic::StyleInputFactsRequired
+        CompileDiagnostic::CheckerFactsRequired {
+            subject: CheckerFactsSubject::StyleInput
+        }
     );
 }
 
@@ -211,6 +213,8 @@ export const container = style(selected.asContainer("inline-size"));"#,
     );
     assert_eq!(
         result.diagnostics[0].diagnostic,
-        CompileDiagnostic::RefProjectionFactsRequired
+        CompileDiagnostic::CheckerFactsRequired {
+            subject: CheckerFactsSubject::RefProjection
+        }
     );
 }

@@ -201,7 +201,7 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
         module: prepared.moduleId,
         reports: [
           {
-            code: "SW10007",
+            code: "SW31004",
             primary: {
               location: {
                 uri: prepared.document.uri,

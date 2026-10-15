@@ -6,7 +6,8 @@ use support::{analysis, brand_snapshot};
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_diagnostics::{
-    CanonicalUtilitiesOverride, CompileDiagnostic, LintDiagnostic, LintOverrides, LintSeverity,
+    CanonicalUtilitiesOverride, CheckerFactsSubject, CompileDiagnostic, LintDiagnostic,
+    LintOverrides, LintSeverity,
 };
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{ModuleId, SourceRegistry};
@@ -40,10 +41,10 @@ export const derived = style(base, 'p-4');
 ",
     ));
     assert!(
-        update
-            .diagnostics
-            .iter()
-            .any(|error| error.diagnostic == CompileDiagnostic::StyleInputFactsRequired),
+        update.diagnostics.iter().any(|error| error.diagnostic
+            == CompileDiagnostic::CheckerFactsRequired {
+                subject: CheckerFactsSubject::StyleInput
+            }),
         "expected a facts requirement, got {:?}",
         update.diagnostics
     );

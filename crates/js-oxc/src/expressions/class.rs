@@ -9,7 +9,7 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{
     AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
     RuleExpression, StyleInput, StyleVariant,
@@ -119,7 +119,9 @@ impl<'a> MacroExtractor<'a> {
                     expression,
                     failure,
                     LintDiagnostic::InvalidStyleInput,
-                    CompileDiagnostic::StyleInputFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::StyleInput,
+                    },
                 );
                 None
             }
@@ -177,7 +179,9 @@ impl<'a> MacroExtractor<'a> {
                     expression,
                     failure,
                     LintDiagnostic::InvalidStyleInput,
-                    CompileDiagnostic::StyleInputFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::StyleInput,
+                    },
                 );
                 None
             }

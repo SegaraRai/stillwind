@@ -363,11 +363,9 @@ impl IdentifierContext {
         else {
             return Ok(original);
         };
-        T::new(&name).map_err(|error| {
-            CompileDiagnostic::IdentifierGenerationFailed(
-                request.kind().as_str().into(),
-                error.to_string().into(),
-            )
+        T::new(&name).map_err(|error| CompileDiagnostic::IdentifierGenerationFailed {
+            family: request.kind().as_str().into(),
+            detail: error.to_string().into(),
         })
     }
 
@@ -398,12 +396,12 @@ impl IdentifierContext {
         match generated {
             // A host name arrives as a name its own family already built, so cleaning
             // it again only proves the family's rule is idempotent.
-            Ok(name) => T::new(&name).map_err(|error| {
-                CompileDiagnostic::IdentifierGenerationFailed(
-                    request.kind().as_str().into(),
-                    error.to_string().into(),
-                )
-            }),
+            Ok(name) => {
+                T::new(&name).map_err(|error| CompileDiagnostic::IdentifierGenerationFailed {
+                    family: request.kind().as_str().into(),
+                    detail: error.to_string().into(),
+                })
+            }
             Err(reason) => self.reject(request, hash, (reason).into()),
         }
     }
@@ -420,11 +418,9 @@ impl IdentifierContext {
         reason: LeanString,
     ) -> Result<T, CompileDiagnostic> {
         let kind = request.kind();
-        let failure = |detail: LeanString| {
-            CompileDiagnostic::IdentifierGenerationFailed(
-                kind.as_str().into(),
-                detail.as_str().into(),
-            )
+        let failure = |detail: LeanString| CompileDiagnostic::IdentifierGenerationFailed {
+            family: kind.as_str().into(),
+            detail: detail.as_str().into(),
         };
         if self.mode == IdentifierMode::Release {
             return Err(failure(reason));

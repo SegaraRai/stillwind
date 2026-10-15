@@ -19,7 +19,7 @@ fn parse_failures_keep_source_span_and_typed_cause() {
     assert!(matches!(
         &error,
         DesignSystemLoadError::Compilation(CompileError {
-            diagnostic: CompileDiagnostic::InvalidImportSpecifier { offset: 0, .. },
+            diagnostic: CompileDiagnostic::InvalidCssImportSpecifier { offset: 0, .. },
             ..
         })
     ));

@@ -8,7 +8,7 @@ use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{CallExpression, ChainElement, Expression};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleInput, StyleVariant};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
@@ -132,7 +132,9 @@ impl<'a> MacroExtractor<'a> {
                     receiver,
                     failure,
                     LintDiagnostic::InvalidRefVariantReceiver,
-                    CompileDiagnostic::RefFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::Ref,
+                    },
                 );
                 return None;
             }
@@ -285,7 +287,9 @@ impl<'a> MacroExtractor<'a> {
                     reference,
                     failure,
                     LintDiagnostic::NonRefVariantReceiver,
-                    CompileDiagnostic::RefFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::Ref,
+                    },
                 );
                 return None;
             }
@@ -371,7 +375,7 @@ mod tests {
 
     use lean_string::ToLeanStr;
 
-    use stillwind_diagnostics::{CompileDiagnostic, LintKind};
+    use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintKind};
     use stillwind_ir::{
         ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
         StyleVariant,
@@ -574,10 +578,10 @@ mod tests {
         }
         let (_, parsed) = parse_variant_input("{[target[`a${'t'}`]()]: 'flex'}");
         assert!(
-            parsed
-                .diagnostics
-                .iter()
-                .any(|error| error.diagnostic == CompileDiagnostic::RefFactsRequired),
+            parsed.diagnostics.iter().any(|error| error.diagnostic
+                == CompileDiagnostic::CheckerFactsRequired {
+                    subject: CheckerFactsSubject::Ref
+                }),
             "{parsed:#?}"
         );
     }

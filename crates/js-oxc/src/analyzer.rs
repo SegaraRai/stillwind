@@ -291,7 +291,8 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
 /// Checks macro imports against the original format and selects the output adapter.
 ///
 /// Format mismatches append advisory findings at import literals. An explicit adapter
-/// that contradicts the macro import appends `CompileDiagnostic::FrameworkConflict`; otherwise it overrides the
+/// that contradicts the macro import appends
+/// [`CompileDiagnostic::FrameworkConstraintConflict`]; otherwise it overrides the
 /// default adapter. Component formats supply the default when no macro is imported.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bool) {
     let allowed = input.document().format().adapters();
@@ -320,7 +321,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
             .is_some_and(|selected| selected != framework)
         {
             parsed.diagnostics.push(CompileError::new(
-                CompileDiagnostic::FrameworkConflict,
+                CompileDiagnostic::FrameworkConstraintConflict,
                 input.document().file().full_span(),
             ));
         } else {

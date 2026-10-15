@@ -33,6 +33,10 @@ pub struct BindingReport {
     /// Stable compiler code or lint rule.
     #[napi(ts_type = "string")]
     pub code: NativeText,
+    /// Party that must act on a compilation error. Lint findings omit it.
+    #[napi(ts_type = "'authoring' | 'configuration' | 'host' | 'internal'")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<NativeText>,
     /// Human-readable cause.
     #[napi(ts_type = "string")]
     pub message: NativeText,
@@ -54,6 +58,7 @@ impl From<ResolvedDiagnostic> for BindingReport {
     fn from(value: ResolvedDiagnostic) -> Self {
         Self {
             code: (value.code).into(),
+            class: value.class.map(|class| class.as_str().into()),
             message: (value.message).into(),
             severity: match value.severity {
                 DiagnosticSeverity::Error => "error",
@@ -193,9 +198,13 @@ pub struct BindingDiagnostic {
     /// Whether the producer identified a range or only the document.
     #[napi(ts_type = "'range' | 'document'")]
     pub scope: NativeText,
-    /// Stable diagnostic code, such as `SW01012`.
+    /// Stable diagnostic code, such as `SW01001`.
     #[napi(ts_type = "string")]
     pub code: NativeText,
+    /// Party that must act on this error.
+    #[napi(ts_type = "'authoring' | 'configuration' | 'host' | 'internal'")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub class: Option<NativeText>,
     /// Rendered message.
     #[napi(ts_type = "string")]
     pub message: NativeText,

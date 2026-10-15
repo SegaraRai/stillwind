@@ -263,7 +263,7 @@ const __stillwindCheckerHelper\\u0030=0,__stillwindCheckerHelper1=0;`,
           module: prepared.moduleId,
           reports: [
             {
-              code: "SW10002",
+              code: "SW31002",
               primary: {
                 scope: "document",
                 location: {

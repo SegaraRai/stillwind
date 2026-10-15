@@ -811,9 +811,9 @@ mod add_ref_tests {
         assert!(
             matches!(
                 &diagnostics[0].diagnostic,
-                CompileDiagnostic::IdentifierGenerationFailed(family, message)
+                CompileDiagnostic::IdentifierGenerationFailed { family, detail }
                     if family.as_ref() == "ref-marker"
-                        && message.as_ref() == "no marker for this ref"
+                        && detail.as_ref() == "no marker for this ref"
             ),
             "{:?}",
             diagnostics[0].diagnostic

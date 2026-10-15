@@ -376,7 +376,7 @@ fn registrations_require_a_destination_instead_of_implicit_tail_output() {
             &CompilerOptions::default(),
             true
         ),
-        Err(CompileDiagnostic::MissingPropertySlot { slot }) if slot == "properties"
+        Err(CompileDiagnostic::MissingSupportSlot { slot }) if slot == "properties"
     ));
 }
 
@@ -462,7 +462,7 @@ fn registration_destinations_are_checked_before_theme_lowering() {
     let utility = ".x{color:var(--brand);width:var(--length)}";
     assert!(matches!(render(theme.output_template(), &theme, utility,
         &CompilerOptions::default(), false),
-        Err(CompileDiagnostic::MissingPropertySlot { slot }) if slot == "properties"));
+        Err(CompileDiagnostic::MissingSupportSlot { slot }) if slot == "properties"));
     let mut template = theme.output_template().clone();
     template
         .nodes

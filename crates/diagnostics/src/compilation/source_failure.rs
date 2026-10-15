@@ -22,27 +22,11 @@ pub enum SourceFailureContext {
     Frontend,
     /// Source-transform rendering.
     Transform,
+    /// Macro import removal and runtime import insertion.
+    MacroImport,
 }
 
 impl CompileDiagnostic {
-    /// Preserves source-failure fields in an import-edit cause.
-    /// The caller attaches a valid reporting span separately; rejected coordinates
-    /// may be invalid.
-    pub fn import_source_failure(error: &SourceError) -> Self {
-        match *error {
-            SourceError::InternalSourceMap => Self::ImportSourceInternalMap,
-            SourceError::TooLarge(value) => Self::ImportSourceTooLarge { value },
-            SourceError::InvalidRange { start, end } => {
-                Self::ImportSourceInvalidRange { start, end }
-            }
-            SourceError::WrongFile { expected, actual } => {
-                Self::ImportSourceWrongFile { expected, actual }
-            }
-            SourceError::InvalidSpan(span) => Self::ImportSourceInvalidSpan { span },
-            SourceError::InvalidOffset(offset) => Self::ImportSourceInvalidOffset { offset },
-        }
-    }
-
     /// Preserves source-failure fields and the operation supplied by `context`.
     /// This does not validate coordinates or attach a primary reporting location.
     pub fn source_failure(error: &SourceError, context: SourceFailureContext) -> Self {
@@ -152,12 +136,12 @@ mod tests {
                 SourceFailureContext::Emission,
                 SourceFailureContext::Frontend,
                 SourceFailureContext::Transform,
+                SourceFailureContext::MacroImport,
             ] {
                 let other = CompileDiagnostic::source_failure(failure, context);
                 assert!(!other.is_projection_failure());
                 assert_eq!(other.code(), projection.code());
             }
-            assert!(!CompileDiagnostic::import_source_failure(failure).is_projection_failure());
         }
         assert!(
             CompileDiagnostic::from(ProjectionError::Map("invalid map".into()))

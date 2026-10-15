@@ -35,8 +35,8 @@ fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
         "customProperty"
     );
     assert_eq!(
-        serde_json::to_value(CompileDiagnostic::FrameworkConflict).unwrap(),
-        "frameworkConflict"
+        serde_json::to_value(CompileDiagnostic::FrameworkConstraintConflict).unwrap(),
+        "frameworkConstraintConflict"
     );
 }
 
@@ -148,7 +148,9 @@ export const child = style({ [menu`hover:`]: "text-white" });"#,
 
     let value: serde_json::Value = serde_json::to_value(&output).unwrap();
     assert_eq!(value["modules"].as_array().unwrap().len(), 2);
-    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SW03001");
+    assert_eq!(value["modules"][1]["diagnostics"][0]["code"], "SW30001");
+    assert_eq!(value["modules"][1]["diagnostics"][0]["class"], "host");
+    assert_eq!(value["modules"][1]["reports"][0]["class"], "host");
 }
 
 #[test]

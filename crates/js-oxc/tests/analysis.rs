@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic};
+use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
@@ -68,9 +68,11 @@ fn checked_non_assets_and_wrong_families_are_distinct_from_unverified_values() {
             assert!(
                 parsed.diagnostics.iter().all(|error| matches!(
                     error.diagnostic,
-                    CompileDiagnostic::RefFactsRequired
-                        | CompileDiagnostic::RefProjectionFactsRequired
-                        | CompileDiagnostic::StyleInputFactsRequired
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::Ref
+                            | CheckerFactsSubject::RefProjection
+                            | CheckerFactsSubject::StyleInput
+                    }
                 )),
                 "{parsed:#?}"
             );
@@ -199,7 +201,9 @@ fn raw_ref_factories_work_as_scopes_when_the_checker_proves_their_identities() {
         assert!(
             local.diagnostics.iter().any(|error| matches!(
                 error.diagnostic,
-                CompileDiagnostic::RefFactsRequired | CompileDiagnostic::RefProjectionFactsRequired
+                CompileDiagnostic::CheckerFactsRequired {
+                    subject: CheckerFactsSubject::Ref | CheckerFactsSubject::RefProjection
+                }
             )),
             "{local:#?}"
         );

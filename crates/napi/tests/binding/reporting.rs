@@ -54,4 +54,5 @@ fn serializes_editor_positions_for_diagnostics() {
         diagnostic["revision"]
     );
     assert!(report["actions"].is_array());
+    assert!(report.get("class").is_none());
 }

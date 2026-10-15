@@ -146,7 +146,7 @@ export const valid=style('[display:block]');`,
     };
     const reports = session.diagnose([source])[0].reports;
     expect(reports.map((report: { code: string }) => report.code)).toEqual(
-      expect.arrayContaining(["SW01016", "unknown-utility"]),
+      expect.arrayContaining(["SW30001", "unknown-utility"]),
     );
     expect(reports.map((report: { code: string }) => report.code)).toContain(
       "valid-lint-suppressions",
@@ -198,7 +198,7 @@ export const valid=style('[display:block]');`,
         module: "broken.vue",
         reports: [
           {
-            code: "SW10007",
+            code: "SW31004",
             primary: {
               scope: "document",
               location: {
@@ -231,7 +231,7 @@ export const valid=style('[display:block]');`,
       batch: {
         reports: [
           {
-            code: "SW10001",
+            code: "SW31001",
             primary: {
               scope: "document",
             },
@@ -253,7 +253,7 @@ export const valid=style('[display:block]');`,
       batch: {
         reports: [
           {
-            code: "SW10002",
+            code: "SW31002",
             primary: {
               scope: "document",
             },
@@ -300,7 +300,7 @@ export const valid=style('[display:block]');`,
       },
     });
     expect(batch.reports[0]).toMatchObject({
-      code: "SW12003",
+      code: "SW30004",
       primary: {
         scope: "range",
         location: {
@@ -315,7 +315,7 @@ export const valid=style('[display:block]');`,
     expect(session.css().css).toBe(before);
     const replacement = session.newLoader();
     replacement.provide(0, "root", css, sourceUri("root"));
-    expect(() => session.reload(replacement)).toThrow(/SW12003/);
+    expect(() => session.reload(replacement)).toThrow(/SW30004/);
     expect(session.diagnosticBatches()).toEqual([batch]);
     expect(session.css().css).toBe(before);
     const surrogate = source.indexOf("🧭") + 1;
@@ -348,7 +348,7 @@ export const valid=style('[display:block]');`,
       batch: {
         reports: [
           {
-            code: "SW01012",
+            code: "SW10001",
           },
         ],
       },
@@ -1615,7 +1615,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
     ).toThrow(/@stillwind-slot/);
     expect(() => renderStylesheet(result.modules[0].css, css)).toThrow(/@stillwind-slot/);
     const standalone = compileSource(oneShotInput(source, "button.tsx", css));
-    expect(standalone.diagnostics[0].code).toBe("SW08002");
+    expect(standalone.diagnostics[0].code).toBe("SW14005");
     expect(standalone.diagnostics[0].start).toBe(0);
     expect(standalone.diagnostics[0].end).toBe(Buffer.byteLength(source));
     expect(standalone.code).toBe(null);
@@ -1742,7 +1742,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         },
       },
     ]).modules[0];
-    expect(outsideRegions.diagnostics[0].code).toBe("SW11007");
+    expect(outsideRegions.diagnostics[0].code).toBe("SW31010");
     expect(session.css().css).toBe(css);
     const invalid = {
       ...input,
@@ -1755,7 +1755,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       },
     };
     const failed = session.compile([invalid]).modules[0];
-    expect(failed.diagnostics[0].code).toBe("SW10002");
+    expect(failed.diagnostics[0].code).toBe("SW31002");
     expect(session.css().css).toBe(css);
     const recovered = session.compile([input]).modules[0];
     expect(recovered.diagnostics).toStrictEqual([]);
@@ -1984,7 +1984,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
         message: expect.stringContaining("unterminated CSS block"),
         reports: [
           {
-            code: "SW08026",
+            code: "SW13002",
             severity: "error",
             primary: {
               scope: "range",
@@ -2047,7 +2047,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
       sourceUri("theme"),
     );
     expect(() => session.reload(invalid)).toThrow(
-      /CSS reload compilation failed.*motion\.tsx.*SW08006.*invalid property requirement/s,
+      /CSS reload compilation failed.*motion\.tsx.*SW14008.*invalid property requirement/s,
     );
     expect(session.diagnosticBatches()[0].reports[0].primary.location.uri).toBe(
       sourceUri("motion.tsx"),
@@ -2109,7 +2109,7 @@ const e=style('max-(--spacing-ref-\\\\73mall):flex');`,
           rejected.diagnostics.map(
             (finding: import("../binding.js").BindingDiagnostic) => finding.code,
           ),
-        ).toContain("SW03010");
+        ).toContain("SW30001");
         expect(rejected.code).toBeNull();
       }
       expect(() =>

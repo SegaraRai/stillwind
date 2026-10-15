@@ -97,12 +97,12 @@ impl<'a> SupportSelection<'a> {
             used.push_str(&frames.css);
         }
         let builtin = builtin_property_definitions(theme);
-        if explicit.iter().any(|name| {
+        if let Some(name) = explicit.iter().find(|name| {
             !builtin.iter().chain(theme.properties()).any(|property| {
-                property.name == *name || options.rewrite_generated(&property.name) == *name
+                property.name == **name || options.rewrite_generated(&property.name) == **name
             })
         }) {
-            return Err(CompileDiagnostic::InvalidPropertyRequirement);
+            return Err(CompileDiagnostic::UnknownRequiredProperty { name: name.clone() });
         }
         let required = theme.tokens_required_by(&used, false, builtin_omit_token_prefixes(theme));
         let tokens = theme
@@ -146,13 +146,14 @@ impl<'a> SupportSelection<'a> {
                 used.push_str(&extract_authored_keyframes(keyframes, &animations));
             }
         }
-        let mut property_usage =
-            custom_property_usage(&used).map_err(|error| CompileDiagnostic::PropertyUsage {
+        let mut property_usage = custom_property_usage(&used).map_err(|error| {
+            CompileDiagnostic::PropertyUsageParse {
                 detail: error.0.to_lean_str(),
-            })?;
+            }
+        })?;
         property_usage
             .add_declarations(&declarations)
-            .map_err(|error| CompileDiagnostic::PropertyUsage {
+            .map_err(|error| CompileDiagnostic::PropertyUsageParse {
                 detail: error.0.to_lean_str(),
             })?;
         let properties = render_used_properties(theme, &property_usage, options, &explicit);

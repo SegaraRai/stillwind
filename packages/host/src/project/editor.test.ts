@@ -86,7 +86,7 @@ test("component conversion failures retain reports and the previous successful p
   const failed = await editor.analyze(id);
   expect(failed.status).toBe("partial");
   expect(failed.error).toBeUndefined();
-  expect(failed.output?.reports[0].code).toBe("SW01013");
+  expect(failed.output?.reports[0].code).toBe("SW10002");
   expect(failed.previousSuccess?.version).toBe(1);
   editor.update({ id, version: 3, source });
   const recovered = await editor.analyze(id);

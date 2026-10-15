@@ -6,7 +6,9 @@
 //! stylesheet, and that unsupported forms report their diagnostics.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, SourceTransform};
-use stillwind_diagnostics::{CompileDiagnostic, LintDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{
+    CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, VariantInputErrorKind,
+};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -256,10 +258,10 @@ fn unsupported_forms_are_omitted_only_when_resolution_is_complete() {
             );
         } else {
             assert!(
-                result
-                    .diagnostics
-                    .iter()
-                    .any(|error| error.diagnostic == CompileDiagnostic::StyleInputFactsRequired),
+                result.diagnostics.iter().any(|error| error.diagnostic
+                    == CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::StyleInput
+                    }),
                 "{result:#?}"
             );
             assert_eq!(result.transforms, [] as [SourceTransform; 0]);

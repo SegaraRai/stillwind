@@ -93,7 +93,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     input["projection"]["editableRegions"] = serde_json::json!([]);
     let missing = compile(&input);
     assert!(missing["modules"][0]["code"].is_null());
-    assert_eq!(missing["modules"][0]["diagnostics"][0]["code"], "SW11007");
+    assert_eq!(missing["modules"][0]["diagnostics"][0]["code"], "SW31010");
 }
 
 #[test]

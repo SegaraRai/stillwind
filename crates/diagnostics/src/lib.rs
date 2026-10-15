@@ -47,7 +47,10 @@ mod label;
 mod lint;
 mod report;
 
-pub use compilation::{CompileDiagnostic, CompileError, CompileErrorCode, SourceFailureContext};
+pub use compilation::{
+    CheckerFactsSubject, CompileDiagnostic, CompileError, CompileErrorClass, CompileErrorCode,
+    SourceFailureContext,
+};
 pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit, SourceRange};
 pub use lint::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,

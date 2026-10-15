@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Position, SourceUri};
 
-use crate::LabelScope;
+use crate::{CompileErrorClass, LabelScope};
 
 /// Severity after lint policy is applied.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -80,6 +80,9 @@ pub struct ResolvedAction {
 pub struct ResolvedDiagnostic {
     /// Stable reporting code or lint rule name.
     pub code: LeanStr,
+    /// Party that must act on a compilation error. Lint findings have no class.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class: Option<CompileErrorClass>,
     /// Human-readable cause.
     pub message: LeanStr,
     /// Effective reporting level.

@@ -144,6 +144,7 @@ impl Reporter {
         };
         let resolved = ResolvedDiagnostic {
             code: diagnostic.cause.code().to_lean_str(),
+            class: diagnostic.cause.class(),
             message: (diagnostic.cause.message()).into(),
             severity,
             primary,
@@ -320,7 +321,7 @@ mod tests {
         assert_eq!(report.primary.location.end_utf16, 11);
         assert_eq!(
             report.display_text(),
-            "untitled:component: SW10008: cannot prepare the component projection: ambiguous generated copies"
+            "untitled:component: SW31005: cannot prepare the component projection: ambiguous generated copies"
         );
         let mut invalid = LocatedDiagnostic::new(
             DiagnosticCause::Compile(CompileDiagnostic::JavaScriptParse),
@@ -570,7 +571,7 @@ mod tests {
         let mut first_project = SourceRegistry::default();
         let source = document(&mut first_project, "untitled:first", "abc");
         let error = CompileError::new(
-            CompileDiagnostic::FrameworkConflict,
+            CompileDiagnostic::FrameworkConstraintConflict,
             Span::new(source.id(), 1, 2),
         );
         let located = LocatedDiagnostic::from_compile(&error, &first_project).unwrap();
@@ -589,7 +590,7 @@ mod tests {
         );
         let generated = first_project.register(None, None, "abc").unwrap();
         let error = CompileError::new(
-            CompileDiagnostic::FrameworkConflict,
+            CompileDiagnostic::FrameworkConstraintConflict,
             Span::new(generated.id(), 0, 1),
         );
         assert!(

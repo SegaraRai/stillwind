@@ -47,7 +47,9 @@ impl<'a> MacroExtractor<'a> {
         }
         if self.use_receiver_is(&call.callee, AssetKind::Keyframes) {
             self.diagnostics.push(CompileError::new(
-                CompileDiagnostic::KeyframesUseNotAClassInput,
+                CompileDiagnostic::UnconsumedMacroUse {
+                    syntax: "keyframes use".into(),
+                },
                 self.source_span(call.span),
             ));
         } else if self.use_receiver_is(&call.callee, AssetKind::Ref) {

@@ -259,16 +259,11 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
                 ScriptLanguage::Ts,
                 ScriptModuleKind::Unambiguous,
             );
-            let expected = if expression.starts_with("k(") {
-                CompileErrorCode::KeyframesUseNotAClassInput
-            } else {
-                CompileErrorCode::UnconsumedMacroUse
-            };
             assert!(
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|error| error.diagnostic.code() == expected),
+                    .any(|error| error.diagnostic.code() == CompileErrorCode::UnconsumedMacroUse),
                 "{usage}: {:?}",
                 parsed.diagnostics
             );

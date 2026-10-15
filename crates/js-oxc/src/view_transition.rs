@@ -14,7 +14,8 @@ use oxc::ast::ast::{CallExpression, Expression, ObjectPropertyKind, PropertyKind
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, SourceFailureContext,
+    CheckerFactsSubject, CompileDiagnostic, CompileError, LintDiagnostic, LintFinding,
+    SourceFailureContext,
 };
 use stillwind_ir::{
     AssetReference, RuleExpression, StyleInput, ViewTransitionDefinition, ViewTransitionKey,
@@ -79,7 +80,9 @@ impl<'a> MacroExtractor<'a> {
                 &member.object,
                 failure,
                 LintDiagnostic::InvalidViewTransitionReceiver,
-                CompileDiagnostic::ViewTransitionFactsRequired,
+                CompileDiagnostic::CheckerFactsRequired {
+                    subject: CheckerFactsSubject::ViewTransitionReceiver,
+                },
             );
             return None;
         }
@@ -124,7 +127,9 @@ impl<'a> MacroExtractor<'a> {
                     receiver,
                     failure,
                     LintDiagnostic::InvalidViewTransitionReceiver,
-                    CompileDiagnostic::ViewTransitionFactsRequired,
+                    CompileDiagnostic::CheckerFactsRequired {
+                        subject: CheckerFactsSubject::ViewTransitionReceiver,
+                    },
                 );
                 return None;
             }

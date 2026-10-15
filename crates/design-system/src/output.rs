@@ -101,7 +101,7 @@ fn consume_block(
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(())
                     })
-                    .map_err(|_| CompileDiagnostic::InvalidCssOutputBlock {
+                    .map_err(|_| CompileDiagnostic::InvalidCssBlock {
                         offset: base + position,
                     })?;
                 return Ok(Some((position, parser.position().byte_index() - 1)));
@@ -163,20 +163,23 @@ fn parse_nodes(
         let end = parser.position().byte_index();
         let origin = Some(Span::new(
             FileId(0),
-            u32::try_from(base + start).map_err(|_| CompileDiagnostic::InvalidCssOutputBlock {
+            u32::try_from(base + start).map_err(|_| CompileDiagnostic::CssOffsetTooLarge {
                 offset: base + start,
             })?,
             u32::try_from(base + end)
-                .map_err(|_| CompileDiagnostic::InvalidCssOutputBlock { offset: base + end })?,
+                .map_err(|_| CompileDiagnostic::CssOffsetTooLarge { offset: base + end })?,
         ));
         match (name.as_deref(), block) {
             (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder {
                 css: css[start..end].into(),
                 origin,
             }),
-            (Some("stillwind-slot"), Some(_)) | (Some("theme"), None) => {
-                return Err(CompileDiagnostic::InvalidCssOutputBlock {
+            (Some(directive @ ("stillwind-slot" | "theme")), block)
+                if (directive == "theme") != block.is_some() =>
+            {
+                return Err(CompileDiagnostic::InvalidDirectiveForm {
                     offset: base + start,
+                    directive: directive.into(),
                 });
             }
             (Some("stillwind-slot"), None) => {
@@ -259,7 +262,7 @@ fn parse_nodes(
                                 | CssOutputNode::PropertyInitials
                         )
                     }) {
-                        return Err(CompileDiagnostic::InvalidCssOutputBlock {
+                        return Err(CompileDiagnostic::InvalidSlotStyleRule {
                             offset: base + start,
                         });
                     }
@@ -408,8 +411,8 @@ mod tests {
                 if offset == 0 && slot == "unknown"
         ));
         for (css, expected) in [
-            ("@stillwind-slot theme {}", "InvalidCssOutputBlock"),
-            ("@theme ;", "InvalidCssOutputBlock"),
+            ("@stillwind-slot theme {}", "InvalidDirectiveForm"),
+            ("@theme ;", "InvalidDirectiveForm"),
             (
                 "@media print { @theme { --a: 1; } }",
                 "ConditionalDefinition",
