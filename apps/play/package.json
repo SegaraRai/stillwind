@@ -29,7 +29,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/vscode-extension": "workspace:*",
     "esbuild-wasm": "^0.28.2",
-    "pathe": "^2.0.3",
+    "pathe": "catalog:",
     "prettier": "^3.9.10",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

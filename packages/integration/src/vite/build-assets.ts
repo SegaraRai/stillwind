@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { posix } from "node:path";
 
-import { transform as transformCss } from "esbuild";
 import type { Rollup } from "vite";
 
+import { minifyStylesheet } from "./css-minify.ts";
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import type { StylesheetResource } from "./resources.ts";
@@ -70,28 +70,20 @@ export async function emitBuildResources(
 export async function emitBuildCss(
   project: {
     /** Effective minification policy and emitted asset directory for the environment. */
-    settings: Pick<ViteProject["settings"], "minifyCss" | "assetsDirectory">;
+    settings: Pick<ViteProject["settings"], "minifyCss" | "cssTargets" | "assetsDirectory">;
     /** Rewrites source-map identities for publicly emitted CSS. */
     publicSourceMap: ViteProject["publicSourceMap"];
   },
   name: string | undefined,
-  context: Pick<Rollup.PluginContext, "emitFile">,
+  context: Pick<Rollup.PluginContext, "emitFile" | "warn">,
   text: string,
   sourceMap?: string,
 ): Promise<string> {
   const { settings, publicSourceMap } = project;
   if (settings.minifyCss) {
-    const input = sourceMap
-      ? `${text}\n/*# sourceMappingURL=data:application/json;base64,${Buffer.from(sourceMap).toString("base64")} */`
-      : text;
-    const result = await transformCss(input, {
-      loader: "css",
-      minify: true,
-      sourcemap: sourceMap ? "external" : false,
-      sourcefile: "stillwind.css",
-    });
-    text = result.code;
-    sourceMap = result.map || undefined;
+    const result = minifyStylesheet(text, settings, context, sourceMap);
+    text = result.css;
+    sourceMap = result.sourceMap ?? undefined;
   }
   const hash = createHash("sha256").update(text).digest("hex").slice(0, 16);
   if (sourceMap) {

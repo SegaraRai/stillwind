@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { BaseConfig } from "@stillwind/config";
-import { createServer, type ViteDevServer } from "vite";
+import { createServer, type InlineConfig, type ViteDevServer } from "vite";
 import { expect, onTestFinished } from "vite-plus/test";
 
 import { createVitePlugins } from "../../src/vite/plugin.ts";
@@ -18,6 +18,7 @@ export const props = style('red');
 export async function createTestServer(
   config: BaseConfig = {},
   css = "@utility red{color:red} @stillwind-slot utilities;",
+  vite: Pick<InlineConfig, "build" | "environments"> = {},
 ) {
   const root = await mkdtemp(path.join(packageRoot, ".test-security-"));
   let server: ViteDevServer | undefined = undefined;
@@ -35,6 +36,7 @@ export async function createTestServer(
   });
   const plugin = createVitePlugins(project);
   server = await createServer({
+    ...vite,
     configFile: false,
     root,
     appType: "custom",

@@ -1,5 +1,9 @@
 pnpm-lock.yaml
+
+apps/fixtures-viewer/public/fixtures.json
+
 fixtures/tailwind-v4/cases/*.md
 fixtures/tailwind-v4/catalog/*.md
 fixtures/projects/*/expected/**
-apps/fixtures-viewer/public/fixtures.json
+
+packages/integration/tests/vite/fixtures/css-targets/expected/**

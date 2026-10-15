@@ -34,7 +34,7 @@
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
-    "esbuild": "^0.28.2",
+    "rolldown": "catalog:",
     "stillwind": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

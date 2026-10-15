@@ -6,6 +6,25 @@ The adapter owns separate design systems and semantic state for each Vite enviro
 Development restarts create a new project for the server. Closing one environment
 keeps the other environments available.
 
+## Browser targets and minification
+
+When Stillwind's `target` is omitted, the adapter inherits the resolved client
+`build.cssTarget`. Vite defaults this setting to `build.target`. An inline Stillwind
+target overrides the selected project's target, and both override the Vite default.
+An explicit `target: []` disables inheritance and retains generated color fallbacks.
+Client and SSR compilation share this browser target; SSR Node targets do not replace it.
+
+Automatic inheritance accepts browser names followed by versions, such as
+`["chrome111", "safari17"]`. Disabled targets, JavaScript levels such as `es2022` or
+`esnext`, and lists containing unsupported entries retain unspecified Stillwind targets.
+Analysis and formatting hosts continue to read their own Stillwind configuration.
+
+Production CSS assets and CSS values use Stillwind's native Lightning CSS minifier
+with the effective Stillwind target. Set `build.cssMinify: false` to disable this
+step. Vite's minifier engine selection continues to control Vite-owned CSS.
+Minification can also lower syntax and add prefixes for the selected browsers.
+Each version component must be at most 255 when minification is enabled.
+
 ## CSS emission
 
 Development publishes versioned CSS plans to one retained style element. The runtime
@@ -83,6 +102,7 @@ the React plugin.
 `vp run @stillwind/integration#test:vite` checks compilation, environment isolation, resources,
 source maps and explicit values. `vp run @stillwind/integration#test:frameworks` builds with
 the official Vue, Svelte and Astro integrations.
+`vp run @stillwind/integration#generate:fixtures:vite` regenerates the CSS target fixtures.
 
 In `e2e/css`, run `vp run test:e2e` with installed Chrome.
 It compares computed styles across development, single/split builds, minification,

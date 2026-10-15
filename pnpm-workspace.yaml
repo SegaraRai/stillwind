@@ -23,14 +23,17 @@ patchedDependencies:
 
 catalogs:
   default:
-    "@types/node": ^26.6.5
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
+    "@rolldown/browser": ^1.2.14
+    "@types/node": ^26.6.5
     "@vitest/browser-playwright": 5.0.4
     "@vitest/ui": 5.0.4
     "@webref/css": 8.7.6
-    playwright: ^1.64.0
+    pathe: ^2.0.3
+    playwright: ^1.64.1
+    rolldown: ^1.2.14
     tailwindcss: 4.3.3
     typescript: ^6.0.3
     vite: npm:@voidzero-dev/vite-plus-core@1.2.0

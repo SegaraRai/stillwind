@@ -63,7 +63,8 @@ export interface BaseConfig {
   utilityOrder?: "authored" | "tailwind";
   /**
    * Minimum browser versions, such as ["chrome111", "firefox113", "safari17"].
-   * A single string is accepted. Omission or an empty list keeps color fallbacks.
+   * A single string is accepted. An empty list keeps color fallbacks.
+   * Omission uses adapter defaults, or keeps fallbacks when the host supplies none.
    * Removes generated compatibility branches only when every target supports the value.
    */
   target?: string | readonly string[];

@@ -2,8 +2,6 @@ import { cp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/p
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { build } from "esbuild";
-
 import { extensionManifest } from "./src/manifest.ts";
 
 const root = import.meta.dirname;
@@ -13,41 +11,18 @@ const require = createRequire(import.meta.url);
 const packaging =
   process.argv.includes("--package-web") || process.argv.includes("--package-desktop");
 if (!packaging) {
-  await clean(output);
   await mkdir(browser, { recursive: true });
-  await build({
-    entryPoints: [path.join(root, "src/browser.ts")],
-    outfile: path.join(browser, "extension.js"),
-    bundle: true,
-    format: "cjs",
-    platform: "browser",
-    external: ["vscode"],
-    sourcemap: true,
-  });
-  await build({
-    entryPoints: [path.join(root, "src/server/browser.ts")],
-    outfile: path.join(browser, "server-module.js"),
-    bundle: true,
-    format: "esm",
-    platform: "browser",
-    target: "esnext",
-    sourcemap: true,
-  });
   await cp(path.join(root, "src/server/bootstrap.js"), path.join(browser, "server.js"));
   const native = path.resolve(root, "../native/npm/wasm32-wasi");
-  await build({
-    entryPoints: [path.join(native, "wasi-worker-browser.mjs")],
-    outfile: path.join(browser, "@stillwind/native-wasm32-wasi/wasi-worker-browser.mjs"),
-    bundle: true,
-    format: "esm",
-    platform: "browser",
-    target: "esnext",
-  });
   await cp(
     path.join(native, "stillwind_native.wasm32-wasi.wasm"),
     path.join(browser, "stillwind_native.wasm32-wasi.wasm"),
   );
-  await cp(require.resolve("esbuild-wasm/esbuild.wasm"), path.join(browser, "esbuild.wasm"));
+  const rolldownBrowser = path.dirname(require.resolve("@rolldown/browser"));
+  await cp(
+    path.join(rolldownBrowser, "rolldown-binding.wasm32-wasi.wasm"),
+    path.join(browser, "rolldown-binding.wasm32-wasi.wasm"),
+  );
   const library = path.resolve(root, "../host/node_modules/typescript-6/lib");
   const libraries: [string, string][] = await Promise.all(
     (await readdir(library))
@@ -80,24 +55,6 @@ if (!packaging) {
   );
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
   await cp(path.join(root, "LICENSE"), path.join(output, "LICENSE"));
-  await build({
-    entryPoints: [path.join(root, "src/node.ts")],
-    outfile: path.join(output, "dist/node/extension.cjs"),
-    bundle: true,
-    format: "cjs",
-    platform: "node",
-    external: ["vscode"],
-    sourcemap: true,
-  });
-  await build({
-    entryPoints: [path.join(root, "src/server/node.ts")],
-    outfile: path.join(output, "dist/node/server.js"),
-    bundle: true,
-    format: "esm",
-    platform: "node",
-    packages: "external",
-  });
-
   await writeFile(path.join(output, "dist/node/package.json"), JSON.stringify({ type: "module" }));
 }
 

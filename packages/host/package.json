@@ -34,7 +34,7 @@
     "@stillwind/projection": "workspace:*",
     "minimatch": "^10.2.6",
     "oxc-resolver": "11.24.2",
-    "pathe": "^2.0.3",
+    "pathe": "catalog:",
     "tinyglobby": "^0.2.17",
     "typescript-6": "npm:typescript@^6.0.3",
     "typescript-7": "npm:typescript@^7.0.2"
@@ -43,7 +43,7 @@
     "@astrojs/compiler": "4.0.0",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
-    "@vue/compiler-sfc": "^3.5.43",
+    "@vue/compiler-sfc": "^3.5.44",
     "stillwind": "workspace:*",
     "svelte": "^5.57.2",
     "typescript": "catalog:",

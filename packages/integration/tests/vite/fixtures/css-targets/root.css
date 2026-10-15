@@ -1,0 +1,35 @@
+@theme {
+  --color-brand: red;
+}
+
+:root,
+:host {
+  @stillwind-slot theme;
+}
+
+.authored {
+  color: rgba(255, 0, 0, 0.5);
+  &:hover {
+    color: blue;
+  }
+}
+
+@supports (not (-webkit-appearance: -apple-pay-button)) or (contain-intrinsic-size: 1px) {
+  .safari-guard {
+    color: color-mix(in oklab, currentcolor 50%, transparent);
+  }
+}
+
+@utility tone {
+  color: --compat-color(var(--color-brand), 50%);
+}
+
+@utility current {
+  background-color: --compat-color(currentcolor, 50%);
+}
+
+@utility picture {
+  background-image: url("./icon.svg");
+}
+
+@stillwind-slot utilities;

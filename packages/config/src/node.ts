@@ -4,15 +4,15 @@
  * Consumers retaining compiler state use the returned dependency paths for change tracking.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { build } from "esbuild";
 import { createJiti } from "jiti";
+import { rolldown } from "rolldown";
 
-import type { NormalizedCompilerConfig } from "./compiler.ts";
+import type { BaseConfig, NormalizedCompilerConfig } from "./compiler.ts";
 import {
   resolveConfig,
   type AnalysisProjectConfig,
@@ -79,86 +79,102 @@ export async function loadConfiguration(file: string): Promise<LoadedConfigurati
   file = path.resolve(file);
 
   const dependencies = new Set([file]);
-  const bundled = await build({
-    entryPoints: [file],
-    absWorkingDir: path.dirname(file),
-    bundle: true,
-    write: false,
-    metafile: true,
+  const bundle = await rolldown({
+    input: file,
+    cwd: path.dirname(file),
     platform: "node",
-    format: "esm",
-    target: "node22",
     logLevel: "silent",
-    define: {
-      "import.meta.url": "__stillwind_config_url",
-      "import.meta.filename": "__stillwind_config_filename",
-      "import.meta.dirname": "__stillwind_config_dirname",
-      __filename: "__stillwind_config_filename",
-      __dirname: "__stillwind_config_dirname",
+    treeshake: false,
+    transform: {
+      target: "node22",
+      define: {
+        "import.meta.url": "__stillwind_config_url",
+        "import.meta.filename": "__stillwind_config_filename",
+        "import.meta.dirname": "__stillwind_config_dirname",
+        __filename: "__stillwind_config_filename",
+        __dirname: "__stillwind_config_dirname",
+      },
     },
     plugins: [
       {
         name: "stillwind-configuration",
         /**
-         * Registers module resolution tracking and per-file Node location values for bundled code.
-         * @param builder - esbuild plugin operations. Callbacks add resolved external paths to
-         * dependencies and inject each local file's URL, filename, and directory.
+         * Resolves external packages from their importer and records their paths for watching.
+         * @param id - Import request before resolution.
+         * @param importer - Importing file, or undefined for the entry.
+         * @param options - Import kind used to select package export conditions.
+         * @returns An external module URL or require path, or undefined for bundled local sources.
+         * @throws If a package cannot be resolved.
          */
-        setup(builder) {
-          builder.onResolve({ filter: /.*/ }, async (args) => {
-            if (
-              args.pluginData === "resolved" ||
-              args.kind === "entry-point" ||
-              args.path.startsWith(".") ||
-              path.isAbsolute(args.path)
-            ) {
-              return;
-            }
-            if (isBuiltin(args.path)) {
-              return {
-                path: args.path,
-                external: true,
-              };
-            }
-            const resolved = await builder.resolve(args.path, {
-              resolveDir: args.resolveDir,
-              kind: args.kind,
-              pluginData: "resolved",
-            });
-            if (resolved.errors.length) {
-              return {
-                errors: resolved.errors,
-              };
-            }
-            dependencies.add(resolved.path);
+        async resolveId(id, importer, options) {
+          if (!importer || id.startsWith(".") || path.isAbsolute(id)) {
+            return;
+          }
+          if (isBuiltin(id)) {
             return {
-              path: pathToFileURL(resolved.path).href,
+              id,
               external: true,
             };
+          }
+          const resolved = await this.resolve(id, importer, {
+            skipSelf: true,
+            kind: options.kind,
           });
-          builder.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, (args) => ({
-            loader: args.path.endsWith("x")
-              ? /\.[cm]?tsx$/.test(args.path)
-                ? "tsx"
-                : "jsx"
-              : /\.[cm]?ts$/.test(args.path)
-                ? "ts"
-                : "js",
-            contents: `const __stillwind_config_url = ${JSON.stringify(pathToFileURL(args.path).href)};
-const __stillwind_config_filename = ${JSON.stringify(args.path)};
-const __stillwind_config_dirname = ${JSON.stringify(path.dirname(args.path))};
-${readFileSync(args.path, "utf8")}`,
-          }));
+          if (!resolved) {
+            throw new Error(`Cannot resolve configuration import ${id} from ${importer}`);
+          }
+          dependencies.add(resolved.id);
+          return {
+            id: options.kind === "require-call" ? resolved.id : pathToFileURL(resolved.id).href,
+            external: "absolute",
+          };
+        },
+        transform: {
+          filter: {
+            id: /\.[cm]?[jt]sx?$/,
+          },
+          /**
+           * Keeps file location expressions relative to each original source.
+           * @param code - Local configuration source.
+           * @param id - Absolute source path.
+           * @returns Source with its file location constants before ordinary syntax lowering.
+           */
+          handler(code, id) {
+            return `const __stillwind_config_url = ${JSON.stringify(pathToFileURL(id).href)};
+const __stillwind_config_filename = ${JSON.stringify(id)};
+const __stillwind_config_dirname = ${JSON.stringify(path.dirname(id))};
+${code}`;
+          },
         },
       },
     ],
   });
-  for (const input of Object.keys(bundled.metafile.inputs)) {
-    dependencies.add(path.resolve(path.dirname(file), input));
+
+  let code: string;
+  try {
+    const result = await bundle.generate({
+      format: "esm",
+      codeSplitting: false,
+    });
+    const entry = result.output.find((output) => output.type === "chunk" && output.isEntry);
+    if (entry?.type !== "chunk") {
+      throw new Error(`Configuration bundle has no entry: ${file}`);
+    }
+    for (const id of entry.moduleIds) {
+      if (!id.startsWith("\0")) {
+        dependencies.add(id);
+      }
+    }
+    code = entry.code;
+  } finally {
+    await bundle.close();
   }
 
-  const jiti = createJiti(pathToFileURL(file).href, { fsCache: false, moduleCache: false });
-  const value = await jiti.evalModule(bundled.outputFiles[0].text, {
+  const jiti = createJiti(pathToFileURL(file).href, {
+    fsCache: false,
+    moduleCache: false,
+  });
+  const value = await jiti.evalModule(code, {
     filename: file.replaceAll("\\", "/"),
     async: true,
     forceTranspile: true,
@@ -204,6 +220,7 @@ export function resolveProjectConfig(
  * uses applicationRoot. A configured root uses the configuration file's directory.
  * @param applicationRoot - Build directory used for discovery and relative inline paths.
  * Relative paths use the process working directory.
+ * @param defaults - Browser targets used when the selected project and inline settings omit target.
  * @returns Validated compiler settings with an absolute root and paths to watch. When discovery
  * finds no file, inline settings must supply a CSS entrypoint.
  * @throws If an explicit file is missing, project selection is ambiguous or unsuccessful,
@@ -212,6 +229,7 @@ export function resolveProjectConfig(
 export async function resolveIntegrationConfig(
   inline: InlineConfig,
   applicationRoot: string,
+  defaults: Pick<BaseConfig, "target"> = {},
 ): Promise<ResolvedIntegrationConfig> {
   applicationRoot = path.resolve(applicationRoot);
 
@@ -238,13 +256,14 @@ export async function resolveIntegrationConfig(
   }
 
   const selected = projects ? selectProject(projects, applicationRoot, inline, path) : undefined;
+  const base = selected
+    ? compilerConfig(selected)
+    : {
+        root: applicationRoot,
+        lint: inline.lint,
+      };
   const config = resolveCompilerSettings(
-    selected
-      ? compilerConfig(selected)
-      : {
-          root: applicationRoot,
-          lint: inline.lint,
-        },
+    { ...base, target: base.target ?? defaults.target },
     inline,
     applicationRoot,
     path,

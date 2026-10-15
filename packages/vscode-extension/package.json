@@ -22,13 +22,13 @@
     "access": "public"
   },
   "dependencies": {
+    "@rolldown/browser": "catalog:",
     "@stillwind/analysis": "workspace:*",
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/language-server": "workspace:*",
     "@stillwind/native": "workspace:*",
-    "esbuild-wasm": "^0.28.2",
-    "pathe": "^2.0.3",
+    "pathe": "catalog:",
     "vscode-languageclient": "^10.1.2",
     "vscode-languageserver": "^10.1.2"
   },
@@ -37,7 +37,8 @@
     "@types/node": "catalog:",
     "@types/vscode": "latest",
     "@vscode/vsce": "^4.0.0",
-    "esbuild": "^0.28.2",
+    "playwright": "catalog:",
+    "rolldown": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { cleanModuleId, decodeCssSourceMap } from "@stillwind/host";
-import { transform as transformCss } from "esbuild";
 import type { Plugin } from "vite";
 
+import { minifyStylesheet } from "./css-minify.ts";
 import { readableFile } from "./file-access.ts";
 import {
   fragmentPrefix,
@@ -213,7 +213,7 @@ if (import.meta.hot) {
         }
         let css = entry.css;
         if (!settings.watching && settings.minifyCss) {
-          css = (await transformCss(css, { loader: "css", minify: true })).code;
+          css = minifyStylesheet(css, settings, this).css;
         }
         const resources = [...entry.resources];
         for (const [, resource] of resources) {

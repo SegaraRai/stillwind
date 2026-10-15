@@ -55,7 +55,11 @@ export default defineConfig(({ mode }) => ({
             "packages/native/vite.config.ts",
           ]
         : mode === "browser"
-          ? ["e2e/css/vite.browser.config.ts", "tools/tailwind-compat/vite.browser.config.ts"]
+          ? [
+              "e2e/css/vite.browser.config.ts",
+              "packages/vscode-extension/vite.config.ts",
+              "tools/tailwind-compat/vite.browser.config.ts",
+            ]
           : [
               "apps/logo-editor/vite.config.ts",
               "apps/play/vite.config.ts",
@@ -302,7 +306,7 @@ export default defineConfig(({ mode }) => ({
       "test:browser": {
         command: "vp test --run --mode browser",
         cache: false,
-        dependsOn: ["@stillwind/native#collect:local"],
+        dependsOn: ["@stillwind/native#collect:local", "@stillwind/vscode-extension#build"],
       },
       "test:wasm": {
         command: "vp test --run --mode wasm",

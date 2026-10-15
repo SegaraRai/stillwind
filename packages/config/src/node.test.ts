@@ -34,6 +34,34 @@ async function fixture() {
   };
 }
 
+test("adapter targets are defaults below project and inline targets, including empty lists", async () => {
+  const { root, write } = await fixture();
+  const defaults = { target: ["chrome120", "safari17"] };
+  const inline = { css: "theme.css", configFile: false } as const;
+  expect((await resolveIntegrationConfig(inline, root, defaults)).config.target).toEqual(
+    defaults.target,
+  );
+  expect(
+    (await resolveIntegrationConfig({ ...inline, target: [] }, root, defaults)).config.target,
+  ).toEqual([]);
+
+  await write([{ css: "theme.css", files: ["*.ts"] }]);
+  expect((await resolveIntegrationConfig({}, root, defaults)).config.target).toEqual(
+    defaults.target,
+  );
+  for (const target of [[], ["safari16.4"]]) {
+    await write([{ css: "theme.css", files: ["*.ts"], target }]);
+    expect((await resolveIntegrationConfig({}, root, defaults)).config.target).toEqual(target);
+    expect(
+      (await resolveIntegrationConfig({ target: "firefox120" }, root, defaults)).config.target,
+    ).toEqual(["firefox120"]);
+    expect((await resolveIntegrationConfig({ target: [] }, root, defaults)).config.target).toEqual(
+      [],
+    );
+  }
+  expect(defaults.target).toEqual(["chrome120", "safari17"]);
+});
+
 test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
   "%s configuration is discovered, evaluated, and reloaded with its imports",
   async (extension) => {
@@ -651,3 +679,48 @@ export default {projects:[{root,css:'theme.css',files:['*.tsx']}]};`,
   );
   expect((await loadConfiguration(configFile)).config.projects[0].root).toBe(helperRoot);
 });
+
+test.each(["mts", "cts"])(
+  "%s configuration resolves and watches the selected package export",
+  async (extension) => {
+    const { root } = await fixture();
+    const directory = path.join(root, "node_modules/preset");
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      path.join(directory, "package.json"),
+      JSON.stringify({
+        type: "module",
+        exports: {
+          import: "./import.js",
+          require: "./require.cjs",
+        },
+      }),
+    );
+    const settings = (css: string) =>
+      JSON.stringify({
+        projects: [
+          {
+            css,
+            files: ["*.tsx"],
+          },
+        ],
+      });
+    await writeFile(path.join(directory, "import.js"), `export default ${settings("import.css")};`);
+    await writeFile(
+      path.join(directory, "require.cjs"),
+      `module.exports = ${settings("require.css")};`,
+    );
+    const file = path.join(root, `stillwind.config.${extension}`);
+    await writeFile(
+      file,
+      extension === "mts"
+        ? 'import settings from "preset"; export default settings;'
+        : 'module.exports = require("preset");',
+    );
+    const result = await loadConfiguration(file);
+    expect(result.config.projects[0].css).toBe(extension === "mts" ? "import.css" : "require.css");
+    expect(result.dependencies).toContain(
+      path.join(directory, extension === "mts" ? "import.js" : "require.cjs"),
+    );
+  },
+);

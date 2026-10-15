@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { transform } from "esbuild";
+import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import type { Rollup } from "vite";
 import { expect, onTestFinished, test, vi } from "vite-plus/test";
 
@@ -54,19 +54,7 @@ test.each([false, true])(
     const publicSourceMap = vi.fn((_name, map) =>
       browserSourceMap(map, () => "stillwind-source:opaque"),
     );
-    const expectedCss = minifyCss
-      ? (
-          await transform(
-            `${text}\n/*# sourceMappingURL=data:application/json;base64,${Buffer.from(sourceMap).toString("base64")} */`,
-            {
-              loader: "css",
-              minify: true,
-              sourcemap: "external",
-              sourcefile: "stillwind.css",
-            },
-          )
-        ).code
-      : text;
+    const expectedCss = minifyCss ? ".x{color:red}" : text;
     const hash = createHash("sha256").update(expectedCss).digest("hex").slice(0, 16);
 
     const reference = await emitBuildCss(
@@ -92,6 +80,17 @@ test.each([false, true])(
       source: `${expectedCss}\n/*# sourceMappingURL=stillwind-${hash}.css.map */`,
     });
     expect(publicSourceMap).toHaveBeenCalledWith("ssr", expect.any(String));
+    const mapAsset = emitted[0];
+    if (!("source" in mapAsset)) {
+      expect.fail("Expected an emitted CSS source map");
+    }
+    expect(
+      originalPositionFor(new TraceMap(String(mapAsset.source)), { line: 1, column: 3 }),
+    ).toMatchObject({
+      source: "stillwind-source:opaque",
+      line: 1,
+      column: 0,
+    });
     expect(JSON.stringify(emitted)).not.toMatch(/PRIVATE_SOURCE|file:|sourcesContent/);
   },
 );
@@ -102,7 +101,7 @@ test.each([false, true])(
  */
 function assetContext() {
   const emitted: Rollup.EmittedFile[] = [];
-  const context: Pick<Rollup.PluginContext, "emitFile" | "getFileName"> = {
+  const context: Pick<Rollup.PluginContext, "emitFile" | "getFileName" | "warn"> = {
     /**
      * Records an asset and returns a deterministic reference for filename assertions.
      * @param asset - Emission descriptor retained in the recorded array.
@@ -113,6 +112,7 @@ function assetContext() {
       return asset.fileName ?? `asset-${emitted.length}`;
     },
     getFileName: (reference) => reference,
+    warn: (warning) => expect.fail(typeof warning === "string" ? warning : JSON.stringify(warning)),
   };
   return { context, emitted };
 }

@@ -56,8 +56,10 @@ export default defineConfig({
 
 Project lint rules override the selected presets. Source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
 
-The Web extension requires cross-origin isolation: serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Browser configuration can import browser-compatible modules. Imports of Node built-ins fail during configuration evaluation.
+The Web extension requires cross-origin isolation: serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Browser configuration can import browser-compatible modules. Rolldown bundles configuration from the captured workspace before evaluation. Imports of Node built-ins fail during configuration evaluation.
 
 The Web bundle includes TypeScript standard libraries and fallback Stillwind CSS, declarations, and configuration helpers. Installed workspace packages take precedence. Other dependencies must be readable through the workspace filesystem. Component projections require a custom source or projection provider; the default browser provider handles JS, JSX, TS, and TSX.
 
-Run `vp run package:web` to create the Web VSIX. Run `vp run package:desktop` to create a VSIX for the current operating system and architecture. Both commands use the shared manifest and extension sources; neither publishes to a marketplace.
+Run `vp run build` to bundle the extension and its workers with Vite+ Pack and copy the WASM runtimes and libraries. Run `vp run package:web` to create the Web VSIX. Run `vp run package:desktop` to create a VSIX for the current operating system and architecture. Both packaging commands use the shared manifest and extension sources; neither publishes to a marketplace.
+
+Run `vp run test:browser` to check configuration bundling with the packaged WASM runtime in Chrome. Run `vp run test:package` to check the standalone Desktop server.

@@ -1,7 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { fixturePath } from "./workspace.ts";
 
 const [driver, mode, rootArgument, portArgument] = process.argv.slice(2);
 const root = resolve(rootArgument || process.cwd());
@@ -50,9 +53,6 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
       await instance.preview();
     }
   } else if (mode === "serve") {
-    const { createServer } = await import("node:http");
-    const { readFile } = await import("node:fs/promises");
-    const { fixturePath } = await import("./workspace.ts");
     createServer(async (request, response) => {
       try {
         const pathname = decodeURIComponent(

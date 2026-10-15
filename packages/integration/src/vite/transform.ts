@@ -96,7 +96,7 @@ export function transformHooks(
           return;
         }
         const projections = new Map<string, string>();
-        for (const specifier of await projectionImports(code, id, this)) {
+        for (const specifier of await projectionImports(code, id)) {
           const source = await this.resolve(specifier.slice(0, -"?stillwind.css".length), id, {
             skipSelf: true,
             custom: {

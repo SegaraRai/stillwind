@@ -6,9 +6,8 @@
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
 import { loadBrowserConfig } from "@stillwind/config/browser";
-import { resolveVirtualModule, virtualPath } from "@stillwind/host/browser";
+import { virtualPath } from "@stillwind/host/browser";
 import { createLanguageServer } from "@stillwind/language-server";
-import * as esbuild from "esbuild-wasm";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -25,7 +24,6 @@ const connection = createConnection(
 );
 
 let workspaces: BrowserAnalysisWorkspace[] = [];
-let initialization: Promise<void> | undefined;
 let initial = true;
 /** Counts workspace openings so compile requests can reject snapshots captured before a reload. */
 let generation = 0;
@@ -69,61 +67,10 @@ const server = createLanguageServer(connection, {
           {
             exists: (id) => files.has(id),
             evaluate: async (id) => {
-              initialization ??= esbuild.initialize({
-                wasmURL: new URL("./esbuild.wasm", import.meta.url).href,
-                worker: false,
-              });
-              await initialization;
-              const result = await esbuild.build({
-                entryPoints: [id],
-                bundle: true,
-                write: false,
-                format: "esm",
-                platform: "browser",
-                target: "esnext",
-                plugins: [
-                  {
-                    name: "virtual-configuration",
-                    /**
-                     * Resolves configuration imports and loads source from the captured inventory.
-                     *
-                     * @param build - esbuild registration API. Resolution rejects Node and missing imports.
-                     */
-                    setup(build) {
-                      build.onResolve({ filter: /.*/ }, (args) => {
-                        if (args.path.startsWith("node:")) {
-                          throw new Error(
-                            `Node module is unavailable in browser configuration: ${args.path}`,
-                          );
-                        }
-                        const file =
-                          args.kind === "entry-point"
-                            ? args.path
-                            : resolveVirtualModule(files, args.path, args.importer);
-                        if (!file) {
-                          throw new Error(`Cannot resolve configuration import ${args.path}`);
-                        }
-                        return {
-                          path: file,
-                          namespace: "workspace",
-                        };
-                      });
-                      build.onLoad(
-                        {
-                          filter: /.*/,
-                          namespace: "workspace",
-                        },
-                        (args) => ({
-                          contents: files.get(args.path),
-                          loader: args.path.endsWith(".json") ? "json" : "ts",
-                        }),
-                      );
-                    },
-                  },
-                ],
-              });
+              const { bundleConfiguration } = await import("./configuration.ts");
+              const code = await bundleConfiguration(files, id);
               const url = URL.createObjectURL(
-                new Blob([result.outputFiles![0].text], {
+                new Blob([code], {
                   type: "text/javascript",
                 }),
               );

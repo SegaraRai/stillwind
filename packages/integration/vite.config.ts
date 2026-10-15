@@ -1,4 +1,4 @@
-import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
+import { fixtureCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -78,6 +78,20 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "generate:fixtures:vite": {
+        command: "node tests/vite/css-target-fixture.ts",
+        cache: {
+          ...fixtureCache,
+          input: [
+            ...fixtureCache.input,
+            {
+              pattern: "!packages/integration/tests/vite/fixtures/css-targets/expected/**",
+              base: "workspace",
+            },
+          ],
+        },
+        dependsOn: ["build"],
+      },
       "dev:frameworks": {
         command: "node tests/vite/framework-dev.ts",
         cache: false,

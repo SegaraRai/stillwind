@@ -5,12 +5,14 @@ import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
 import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
+import type { NativeCssMinifyOptions } from "@stillwind/native";
 import type { Environment, InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
 import type { BuildOutput } from "./build.ts";
 import type { CompileContext, ProducerTransform } from "./compile.ts";
+import { inheritCssTarget, minifyTargets } from "./css-targets.ts";
 import type { CssContext } from "./design-system.ts";
 import { ViteEnvironment, type CssSnapshot } from "./environment.ts";
 import type { StylesheetPlan } from "./stylesheet.ts";
@@ -58,6 +60,8 @@ export interface ProjectSettings {
    * false.
    */
   minifyCss: boolean;
+  /** Browser versions for final CSS processing. Omission preserves unspecified compiler targets. */
+  cssTargets?: NativeCssMinifyOptions["targets"];
 }
 
 /**
@@ -340,7 +344,10 @@ export function createViteProject(
     if (emission !== undefined && emission !== "single" && emission !== "split") {
       throw new Error("config.emission: must be single or split");
     }
-    const resolved = await resolveIntegrationConfig(inline, applicationRoot() ?? viteConfig.root);
+    const cssTarget = viteConfig.environments.client?.build.cssTarget ?? viteConfig.build.cssTarget;
+    const resolved = await resolveIntegrationConfig(inline, applicationRoot() ?? viteConfig.root, {
+      target: inheritCssTarget(cssTarget),
+    });
     for (const state of environments.values()) {
       state.close();
     }
@@ -364,6 +371,7 @@ export function createViteProject(
     settings.sourceMaps = Boolean(viteConfig.build.sourcemap);
     settings.devSourceMaps = Boolean(viteConfig.css.devSourcemap);
     settings.minifyCss = viteConfig.build.cssMinify !== false;
+    settings.cssTargets = settings.minifyCss ? minifyTargets(config.target) : undefined;
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
   };

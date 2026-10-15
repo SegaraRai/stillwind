@@ -1,7 +1,7 @@
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { SourceMap } from "@jridgewell/remapping";
 import type { SourceMapInput } from "@jridgewell/trace-mapping";
-import type { UpstreamSourceMap } from "@stillwind/host";
+import { composeFrameworkSourceMap, type UpstreamSourceMap } from "@stillwind/host";
 import type { NativeStylesheetPlan } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
@@ -88,7 +88,7 @@ export function loaderCompletion(context: Pick<LoaderContext<unknown>, "async">)
  * @param source - Framework output forwarded unchanged.
  * @param inputMap - Framework map, when available.
  * @param additionalData - Additional loader data forwarded unchanged.
- * @returns Undefined after scheduling or completing the asynchronous callback.
+ * @returns Undefined after completing the loader callback.
  */
 export default function webpackSourceMapLoader(
   this: SourceTransformContext<unknown>,
@@ -117,16 +117,10 @@ export default function webpackSourceMapLoader(
     return callback(null, source, inputMap, additionalData);
   }
 
-  void import("@stillwind/host").then((host) => {
-    try {
-      const map = host.composeFrameworkSourceMap(
-        inputMap,
-        JSON.stringify(transform.map),
-        transform.code,
-      );
-      callback(null, source, map, additionalData);
-    } catch (error) {
-      callback(error);
-    }
-  }, callback);
+  try {
+    const map = composeFrameworkSourceMap(inputMap, JSON.stringify(transform.map), transform.code);
+    callback(null, source, map, additionalData);
+  } catch (error) {
+    callback(error);
+  }
 }
