@@ -509,3 +509,197 @@ border-(--x) border-[var(--x)] from-(--x) via-(--x) to-(--x) text-(--x) text-[va
   }
 }
 ```
+
+## `candidate.arbitrary-value-functions-and-typed-variables`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+p-[calc(1rem+2px)] m-[calc(100%-2*var(--x))] bg-[theme(--color-red-500)] w-[theme(--spacing)] bg-red-500/[50%] font-[family-name:var(--x)] outline-(length:--x) outline-(--x) outline-[3px] ring-(length:--x) ring-(--x) ring-[3px] decoration-(length:--x) decoration-(--x) decoration-[3px] rotate-(--x) -rotate-(--x) rotate-[45deg] duration-(--x) duration-[2s]
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer theme {
+  :root, :host {
+    --color-red-500: oklch(63.7% 0.237 25.331);
+  }
+}
+@layer utilities {
+  .m-\[calc\(100\%-2\*var\(--x\)\)\] {
+    margin: calc(100% - 2 * var(--x));
+  }
+  .w-\[theme\(--spacing\)\] {
+    width: 0.25rem;
+  }
+  .-rotate-\(--x\) {
+    rotate: calc(var(--x) * -1);
+  }
+  .rotate-\(--x\) {
+    rotate: var(--x);
+  }
+  .rotate-\[45deg\] {
+    rotate: 45deg;
+  }
+  .bg-\[theme\(--color-red-500\)\] {
+    background-color: oklch(63.7% 0.237 25.331);
+  }
+  .bg-red-500\/\[50\%\] {
+    background-color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
+    }
+  }
+  .p-\[calc\(1rem\+2px\)\] {
+    padding: calc(1rem + 2px);
+  }
+  .font-\[family-name\:var\(--x\)\] {
+    font-family: var(--x);
+  }
+  .decoration-\(--x\) {
+    text-decoration-color: var(--x);
+  }
+  .decoration-\(length\:--x\) {
+    text-decoration-thickness: var(--x);
+  }
+  .decoration-\[3px\] {
+    text-decoration-thickness: 3px;
+  }
+  .ring-\(length\:--x\) {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(var(--x) + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .ring-\[3px\] {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .ring-\(--x\) {
+    --tw-ring-color: var(--x);
+  }
+  .outline-\(length\:--x\) {
+    outline-style: var(--tw-outline-style);
+    outline-width: var(--x);
+  }
+  .outline-\[3px\] {
+    outline-style: var(--tw-outline-style);
+    outline-width: 3px;
+  }
+  .outline-\(--x\) {
+    outline-color: var(--x);
+  }
+  .duration-\(--x\) {
+    --tw-duration: var(--x);
+    transition-duration: var(--x);
+  }
+  .duration-\[2s\] {
+    --tw-duration: 2s;
+    transition-duration: 2s;
+  }
+}
+@property --tw-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-inset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-shadow-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-shadow-alpha {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+@property --tw-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-inset-ring-color {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-inset-ring-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-ring-inset {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ring-offset-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --tw-ring-offset-color {
+  syntax: "*";
+  inherits: false;
+  initial-value: #fff;
+}
+@property --tw-ring-offset-shadow {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0 0 #0000;
+}
+@property --tw-outline-style {
+  syntax: "*";
+  inherits: false;
+  initial-value: solid;
+}
+@property --tw-duration {
+  syntax: "*";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-shadow: 0 0 #0000;
+      --tw-shadow-color: initial;
+      --tw-shadow-alpha: 100%;
+      --tw-inset-shadow: 0 0 #0000;
+      --tw-inset-shadow-color: initial;
+      --tw-inset-shadow-alpha: 100%;
+      --tw-ring-color: initial;
+      --tw-ring-shadow: 0 0 #0000;
+      --tw-inset-ring-color: initial;
+      --tw-inset-ring-shadow: 0 0 #0000;
+      --tw-ring-inset: initial;
+      --tw-ring-offset-width: 0px;
+      --tw-ring-offset-color: #fff;
+      --tw-ring-offset-shadow: 0 0 #0000;
+      --tw-outline-style: solid;
+      --tw-duration: initial;
+    }
+  }
+}
+```

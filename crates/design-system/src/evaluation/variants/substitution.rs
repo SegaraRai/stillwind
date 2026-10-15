@@ -136,6 +136,21 @@ fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplicatio
     resolve_variant_body(&body.replace_text(":--value()", fragment))
 }
 
+/// Folds a relative selector, such as `>img`, into the definition body.
+///
+/// Every `:--value()` slot must be the complete argument of `:has()`, because CSS
+/// accepts a relative selector only there. Other bodies return `None`.
+pub(in crate::evaluation) fn apply_relative_selector(
+    body: &str,
+    selector: &str,
+) -> Option<VariantApplication> {
+    let slots = body.matches(":--value()").count();
+    if slots == 0 || body.matches(":has(:--value())").count() != slots {
+        return None;
+    }
+    resolve_variant_body(&body.replace_text(":--value()", selector))
+}
+
 /// Attaches a media condition to a selector application.
 ///
 /// A condition can only wrap an application that already has a selector; the compound

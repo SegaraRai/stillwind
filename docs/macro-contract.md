@@ -689,6 +689,26 @@ color. `theme(--name, fallback)` uses the fallback when the token is not active.
 A candidate whose `theme()` call names an inactive token without a fallback, or
 names something other than a custom property, is unresolved.
 
+Inside a math function such as `calc()` or `min()`, the compiler adds the spaces that
+CSS requires around binary operators, as Tailwind does: `p-[calc(1rem+2px)]` sets
+`padding: calc(1rem + 2px)`. An operator that starts an argument or follows another
+operator is a sign and stays unchanged.
+
+An arbitrary opacity modifier can be a percentage from `0%` to `100%`, so
+`bg-red-500/[50%]` is the same as `bg-red-500/50`. Other percentages are unresolved,
+because `color-mix()` rejects them.
+
+An arbitrary gradient value, such as `bg-linear-[to_right]` or `bg-radial-(--x)`, sets
+`--tw-gradient-position`. The color stop utilities insert that position before their
+stops. Without color stop utilities, the value must be the complete argument list, as
+in `bg-linear-[to_right,red,blue]`.
+
+In a variant that takes another variant, such as `group-*` or `has-*`, an arbitrary
+selector without `&` tests the element that the outer variant names: `group-[.open]`
+applies inside an element that has both `.group` and `.open`. A selector that starts
+with a combinator, such as `has-[>img]`, is relative. Only `has-*` accepts it, because
+CSS accepts a relative selector only in `:has()`.
+
 Variant values must not contain `var()`, because media queries, container queries,
 and selectors cannot evaluate it. `min-(--x)`, `max-[var(--x)]`, and `@min-(--x)`
 are therefore unresolved.

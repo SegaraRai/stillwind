@@ -28,8 +28,9 @@ use super::body::resolve_variant_body;
 use super::negation::negate;
 use super::order::variant_sort_namespace;
 use super::substitution::{
-    apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
-    substitute_quoted_variant_value, substitute_typed_modifier, substitute_variant_capture,
+    apply_nested_variant, apply_relative_selector, registered_variant_candidates,
+    resolve_variant_css_placeholders, substitute_quoted_variant_value, substitute_typed_modifier,
+    substitute_variant_capture,
 };
 use crate::evaluation::EvaluationContext;
 use crate::{BuiltinVariantValueType, CustomVariant, RuntimeCondition, ThemeIndex};
@@ -204,18 +205,23 @@ pub struct VariantDeclaration {
 /// Resolves one variant against the theme.
 ///
 /// Arbitrary selectors become selector templates; arbitrary at-rules use the
-/// same structural body resolver as named definitions. A named variant is matched
-/// against project definitions first and built-ins second, and only its first matching
-/// candidate is used. A CSS definition with `[if-condition]` and the
-/// `builtin-if-variant` intrinsic produces a `Conditional` application; its public
-/// spelling comes only from the registered pattern. A `[variant]` definition with the
-/// `builtin-not-variant` intrinsic produces the negation of its inner variant. Invalid
-/// captures, inner variants without a negated form, and unmatched variants return
-/// `None`.
+/// same structural body resolver as named definitions. A relative selector such as
+/// `[>img]` returns `None`, because only a `:has()` slot gives it an anchor element. A
+/// named variant is matched against project definitions first and built-ins second, and
+/// only its first matching candidate is used. A CSS definition with `[if-condition]`
+/// and the `builtin-if-variant` intrinsic produces a `Conditional` application; its
+/// public spelling comes only from the registered pattern. A `[variant]` definition
+/// with the `builtin-not-variant` intrinsic produces the negation of its inner variant.
+/// Invalid captures, inner variants without a negated form, and unmatched variants
+/// return `None`.
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
-        return selector_or_at_rule_application(&decode_variant_template(value));
+        let value = decode_variant_template(value);
+        if is_relative_selector(&value) {
+            return None;
+        }
+        return selector_or_at_rule_application(&value);
     }
     let VariantKind::Named(value) = &variant.kind else {
         return None;
@@ -474,6 +480,9 @@ fn resolve_typed_variant(
         BuiltinVariantValueType::IfCondition => None,
         BuiltinVariantValueType::Variant => {
             let inner = parse_nested_variant(capture);
+            if let Some(selector) = relative_selector(&inner) {
+                return apply_relative_selector(&body, selector);
+            }
             let application = resolve_variant(&inner, theme)?;
             if has_intrinsic_body(custom, "builtin-not-variant") {
                 return custom
@@ -577,8 +586,28 @@ fn supports_feature_test(value: LeanString) -> LeanString {
     }
 }
 
+/// Returns the selector of an arbitrary variant that starts with a combinator, such as
+/// `>img` or `+ .item`.
+///
+/// Such a selector is relative to an anchor element that the variant does not name.
+pub(in crate::evaluation) fn relative_selector(variant: &Variant) -> Option<&str> {
+    match &variant.kind {
+        VariantKind::Arbitrary(value) if is_relative_selector(value) => Some(value.trim()),
+        _ => None,
+    }
+}
+
+/// True when `value` starts with the combinator of a relative selector.
+fn is_relative_selector(value: &str) -> bool {
+    value.trim_start().starts_with(['>', '+', '~'])
+}
+
 /// Builds a synthetic nested variant from capture text, keeping the raw spelling so an
 /// inner resolution can report the text the author wrote.
+///
+/// An arbitrary selector without `&` tests the element that the outer variant names, as
+/// in Tailwind: `group-[.open]` receives `&:is(.open)`. At-rules and relative selectors
+/// such as `>img` are kept as written.
 pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
     let raw = value.into();
     let kind = value
@@ -586,7 +615,14 @@ pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
         .and_then(|value| value.strip_suffix(']'))
         .map_or_else(
             || VariantKind::Named(value.into()),
-            |value| VariantKind::Arbitrary(decode_arbitrary(value).into()),
+            |value| {
+                let value = decode_arbitrary(value);
+                if value.starts_with('@') || value.contains('&') || is_relative_selector(&value) {
+                    VariantKind::Arbitrary(value.into())
+                } else {
+                    VariantKind::Arbitrary(format_args!("&:is({value})").to_lean_str())
+                }
+            },
         );
     Variant { kind, raw }
 }

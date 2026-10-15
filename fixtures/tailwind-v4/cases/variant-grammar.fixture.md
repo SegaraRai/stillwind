@@ -336,3 +336,46 @@ supports-grid:flex supports-display:flex supports-backdrop-filter:flex supports-
   }
 }
 ```
+
+## `variants.breakpoint-functions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+min-[calc(100px+1rem)]:flex max-[calc(100px-1rem)]:flex min-[theme(--breakpoint-md)]:flex @min-[calc(10px+1rem)]:flex
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  @media (width < calc(100px - 1rem)) {
+    .max-\[calc\(100px-1rem\)\]\:flex {
+      display: flex;
+    }
+  }
+  @media (width >= calc(100px + 1rem)) {
+    .min-\[calc\(100px\+1rem\)\]\:flex {
+      display: flex;
+    }
+  }
+  @media (width >= 48rem) {
+    .min-\[theme\(--breakpoint-md\)\]\:flex {
+      display: flex;
+    }
+  }
+  @container (width >= calc(10px + 1rem)) {
+    .\@min-\[calc\(10px\+1rem\)\]\:flex {
+      display: flex;
+    }
+  }
+}
+```

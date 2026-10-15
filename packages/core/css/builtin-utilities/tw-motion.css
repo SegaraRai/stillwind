@@ -175,6 +175,11 @@
   transition-duration: calc(--value(integer) * 1ms);
 }
 
+@stillwind-utility duration-* {
+  --tw-duration: --value([time]);
+  transition-duration: --value([time]);
+}
+
 @stillwind-arbitrary-property --tw-ease;
 
 @stillwind-utility ease-initial {

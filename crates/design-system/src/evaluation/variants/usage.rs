@@ -14,7 +14,7 @@ use stillwind_syntax::{Variant, VariantKind};
 use super::super::values::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{
-    VariantApplication, parse_nested_variant, resolve_named_variant_with,
+    VariantApplication, parse_nested_variant, relative_selector, resolve_named_variant_with,
     resolve_registered_variant_candidate, resolve_variant, split_typed_capture,
 };
 use super::substitution::{
@@ -92,9 +92,12 @@ pub fn resolve_variant_with_usage(
         let mut media_values = Vec::new();
         if custom.value_type == Some(BuiltinVariantValueType::Variant) {
             let inner = parse_nested_variant(split_typed_capture(custom, capture?).0);
-            let resolved = resolve_variant_with_usage(&inner, theme)?;
-            tokens.extend(resolved.tokens);
-            media_values.extend(resolved.media_values);
+            // A relative selector resolves only inside its definition and uses no tokens.
+            if relative_selector(&inner).is_none() {
+                let resolved = resolve_variant_with_usage(&inner, theme)?;
+                tokens.extend(resolved.tokens);
+                media_values.extend(resolved.media_values);
+            }
         }
         if custom.value_type.is_none() {
             let authored = substitute_variant_capture(&custom.body, capture)?;

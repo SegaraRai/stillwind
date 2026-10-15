@@ -813,6 +813,16 @@
   outline-color: --value(--color-*, current, inherit, transparent);
 }
 
+/*
+An untyped variable selects the earliest registered branch that accepts it. Keep this
+width branch after the outline color branches so `outline-(--x)` sets the color, as in
+Tailwind.
+*/
+@stillwind-utility outline-* {
+  outline-style: var(--tw-outline-style);
+  outline-width: --value([line-width]);
+}
+
 @stillwind-utility outline-dashed {
   --tw-outline-style: dashed;
   outline-style: dashed;

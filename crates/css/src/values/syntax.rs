@@ -41,6 +41,19 @@ pub(super) fn gradient_arguments(function: &str, value: &str) -> bool {
     Image::parse_string(&format_args!("{function}({value})").to_lean_string()).is_ok()
 }
 
+/// True when `value` followed by two more color stops parses as the argument list of
+/// the gradient `function`.
+///
+/// This accepts a gradient line, shape, or position without color stops, such as
+/// `to right` or `at center`, and it also accepts a complete argument list.
+pub(super) fn gradient_position(function: &str, value: &str) -> bool {
+    !value.trim().is_empty()
+        && gradient_arguments(
+            function,
+            &format_args!("{value}, red, blue").to_lean_string(),
+        )
+}
+
 /// True for the primitive `content` productions Stillwind supports: the keywords, a CSS
 /// string, `attr()`, `counter()`, `counters()`, `leader()`, `element()`, or an image.
 ///

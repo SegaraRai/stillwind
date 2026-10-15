@@ -194,3 +194,42 @@ bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 bg-cover bg-cent
   }
 }
 ```
+
+## `backgrounds.gradient-arbitrary-positions`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+bg-linear-(--x) bg-linear-[to_right,red,blue] bg-conic-(--x) bg-radial-[at_center]
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  .bg-conic-\(--x\) {
+    --tw-gradient-position: var(--x);
+    background-image: conic-gradient(var(--tw-gradient-stops,var(--x)));
+  }
+  .bg-linear-\(--x\) {
+    --tw-gradient-position: var(--x);
+    background-image: linear-gradient(var(--tw-gradient-stops,var(--x)));
+  }
+  .bg-linear-\[to_right\,red\,blue\] {
+    --tw-gradient-position: to right,red,blue;
+    background-image: linear-gradient(var(--tw-gradient-stops,to right,red,blue));
+  }
+  .bg-radial-\[at_center\] {
+    --tw-gradient-position: at center;
+    background-image: radial-gradient(var(--tw-gradient-stops,at center));
+  }
+}
+```

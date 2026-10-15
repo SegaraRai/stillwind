@@ -251,6 +251,14 @@
   rotate: calc(--value(integer) * 1deg * -1);
 }
 
+@stillwind-utility rotate-* {
+  rotate: --value([angle]);
+}
+
+@stillwind-utility -rotate-* {
+  rotate: calc(--value([angle]) * -1);
+}
+
 @stillwind-arbitrary-property --tw-rotate-x;
 
 @stillwind-utility rotate-x-* {

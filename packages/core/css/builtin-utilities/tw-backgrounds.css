@@ -267,6 +267,26 @@
   background-image: linear-gradient(var(--tw-gradient-stops));
 }
 
+/*
+An arbitrary gradient value sets the position that color stop utilities insert before
+their stops. Without color stop utilities, the value is the complete argument list, so
+`bg-linear-[to_right,red,blue]` draws its own gradient.
+*/
+@stillwind-utility bg-linear-* {
+  --tw-gradient-position: --value([linear-gradient-position]);
+  background-image: linear-gradient(var(--tw-gradient-stops, --value([linear-gradient-position])));
+}
+
+@stillwind-utility bg-radial-* {
+  --tw-gradient-position: --value([radial-gradient-position]);
+  background-image: radial-gradient(var(--tw-gradient-stops, --value([radial-gradient-position])));
+}
+
+@stillwind-utility bg-conic-* {
+  --tw-gradient-position: --value([conic-gradient-position]);
+  background-image: conic-gradient(var(--tw-gradient-stops, --value([conic-gradient-position])));
+}
+
 @stillwind-arbitrary-property --tw-gradient-via-stops;
 
 @stillwind-utility via-none {

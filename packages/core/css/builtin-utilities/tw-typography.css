@@ -672,6 +672,10 @@ Tailwind.
   text-decoration-thickness: calc(--value(integer) * 1px);
 }
 
+@stillwind-utility decoration-* {
+  text-decoration-thickness: --value([length-percentage]);
+}
+
 @stillwind-utility underline-offset-0 {
   text-underline-offset: 0px;
 }

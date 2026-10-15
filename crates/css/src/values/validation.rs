@@ -27,8 +27,8 @@ use lightningcss::values::url::Url;
 
 use super::domain::is_css_wide_keyword;
 use super::syntax::{
-    contains_custom_property_reference, content_value, gradient_arguments, property_value,
-    transform_function_arguments,
+    contains_custom_property_reference, content_value, gradient_arguments, gradient_position,
+    property_value, transform_function_arguments,
 };
 
 /// A CSS value type accepted by a typed `--value([type])` domain.
@@ -89,6 +89,15 @@ pub enum ValueType {
     RadialGradientArguments,
     /// `conic-gradient-arguments`: the argument list of `conic-gradient()`.
     ConicGradientArguments,
+    /// `linear-gradient-position`: the arguments of `linear-gradient()` that come
+    /// before additional color stops, such as `to right` or `45deg, red`.
+    LinearGradientPosition,
+    /// `radial-gradient-position`: the arguments of `radial-gradient()` that come
+    /// before additional color stops, such as `at center`.
+    RadialGradientPosition,
+    /// `conic-gradient-position`: the arguments of `conic-gradient()` that come
+    /// before additional color stops, such as `from 45deg`.
+    ConicGradientPosition,
     /// `skew-arguments`: the argument list of `skew()`.
     SkewArguments,
     /// `skew-x-arguments`: the argument list of `skewX()`.
@@ -97,7 +106,7 @@ pub enum ValueType {
     SkewYArguments,
     /// `animation`: an animation shorthand value, including comma-separated animations.
     Animation,
-    /// `font-family`: a font family list.
+    /// `font-family` or Tailwind's `family-name`: a font family list.
     FontFamily,
     /// `font-size`: `<font-size>`.
     FontSize,
@@ -167,13 +176,16 @@ impl ValueType {
             "shadow" => Some(Self::Shadow),
             "content" => Some(Self::Content),
             "linear-gradient-arguments" => Some(Self::LinearGradientArguments),
+            "linear-gradient-position" => Some(Self::LinearGradientPosition),
             "radial-gradient-arguments" => Some(Self::RadialGradientArguments),
+            "radial-gradient-position" => Some(Self::RadialGradientPosition),
             "conic-gradient-arguments" => Some(Self::ConicGradientArguments),
+            "conic-gradient-position" => Some(Self::ConicGradientPosition),
             "skew-arguments" => Some(Self::SkewArguments),
             "skew-x-arguments" => Some(Self::SkewXArguments),
             "skew-y-arguments" => Some(Self::SkewYArguments),
             "animation" => Some(Self::Animation),
-            "font-family" => Some(Self::FontFamily),
+            "font-family" | "family-name" => Some(Self::FontFamily),
             "font-size" => Some(Self::FontSize),
             "font-weight" => Some(Self::FontWeight),
             "vertical-align" => Some(Self::VerticalAlign),
@@ -238,8 +250,11 @@ impl ValueType {
             Self::Shadow
             | Self::Content
             | Self::LinearGradientArguments
+            | Self::LinearGradientPosition
             | Self::RadialGradientArguments
+            | Self::RadialGradientPosition
             | Self::ConicGradientArguments
+            | Self::ConicGradientPosition
             | Self::SkewArguments
             | Self::SkewXArguments
             | Self::SkewYArguments
@@ -317,8 +332,11 @@ impl ValueType {
             // and rejects bare identifiers.
             Self::Content => content_value(value),
             Self::LinearGradientArguments => gradient_arguments("linear-gradient", value),
+            Self::LinearGradientPosition => gradient_position("linear-gradient", value),
             Self::RadialGradientArguments => gradient_arguments("radial-gradient", value),
+            Self::RadialGradientPosition => gradient_position("radial-gradient", value),
             Self::ConicGradientArguments => gradient_arguments("conic-gradient", value),
+            Self::ConicGradientPosition => gradient_position("conic-gradient", value),
             Self::SkewArguments => transform_function_arguments("skew", value),
             Self::SkewXArguments => transform_function_arguments("skewX", value),
             Self::SkewYArguments => transform_function_arguments("skewY", value),
@@ -402,16 +420,19 @@ mod tests {
                 "45deg, red, blue",
                 "red / blue",
             ),
+            (ValueType::LinearGradientPosition, "to right", "red / blue"),
             (
                 ValueType::RadialGradientArguments,
                 "at 20% 30%, red, blue",
                 "red / blue",
             ),
+            (ValueType::RadialGradientPosition, "at center", "at red"),
             (
                 ValueType::ConicGradientArguments,
                 "from 45deg, red, blue",
                 "red / blue",
             ),
+            (ValueType::ConicGradientPosition, "from 45deg", "from red"),
             (ValueType::SkewArguments, "15deg", "red"),
             (ValueType::SkewXArguments, "15deg", "red"),
             (ValueType::SkewYArguments, "15deg", "red"),
@@ -445,6 +466,10 @@ mod tests {
             Some(ValueType::LengthPercentage)
         );
         assert_eq!(ValueType::from_hint("unknown"), None);
+        assert_eq!(
+            ValueType::from_hint("family-name"),
+            Some(ValueType::FontFamily)
+        );
         assert!(ValueType::Integer.accepts("initial"));
         assert!(ValueType::Length.accepts("calc(var(--gutter) * 2)"));
         assert!(!ValueType::Length.accepts("var(gutter)"));

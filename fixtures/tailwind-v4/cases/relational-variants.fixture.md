@@ -219,3 +219,57 @@ Stillwind rejects negations of selectors that style another element. Tailwind em
 
 Both compilers reject `not-before`, `not-placeholder`, `not-file`, and `not-starting`,
 because their variants contain pseudo-elements, declarations, or `@starting-style`.
+
+## `variants.arbitrary-relational-selectors`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+group group-[.is-open]:flex group-[:hover]:flex group-[.x]/menu:flex peer peer-[.x]:flex has-[>img]:flex has-[+.x]:flex has-[.x]:flex in-[.x]:flex not-[.x]:flex
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  .not-\[\.x\]\:flex:not(:is(.x)) {
+    display: flex;
+  }
+  .group-\[\.is-open\]\:flex:is(:where(.group):is(.is-open) *) {
+    display: flex;
+  }
+  .group-\[\.x\]\/menu\:flex:is(:where(.group\/menu):is(.x) *) {
+    display: flex;
+  }
+  .group-\[\:hover\]\:flex:is(:where(.group):is(:hover) *) {
+    display: flex;
+  }
+  .peer-\[\.x\]\:flex:is(:where(.peer):is(.x) ~ *) {
+    display: flex;
+  }
+  :where(:is(.x)) .in-\[\.x\]\:flex {
+    display: flex;
+  }
+  .has-\[\.x\]\:flex:has(:is(.x)) {
+    display: flex;
+  }
+  .has-\[\+\.x\]\:flex:has( + .x) {
+    display: flex;
+  }
+  .has-\[\>img\]\:flex:has( > img) {
+    display: flex;
+  }
+}
+```
+
+A relative selector such as `>img` resolves only in `has-*`, because CSS accepts a
+relative selector only in `:has()`. Tailwind emits `in-[>img]` as `:where(>img) &`,
+which is invalid CSS, so Stillwind rejects it and this case does not compare it.

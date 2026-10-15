@@ -210,6 +210,44 @@ fn negates_resolved_variants_and_passes_modifiers_to_inner_variants() {
 }
 
 #[test]
+fn inner_arbitrary_selectors_without_subject_test_the_named_element() {
+    let theme = theme();
+    let resolve =
+        |candidate: &str| resolve_variant(&parse_candidate(candidate).unwrap().variants[0], &theme);
+    let template = |selector: &str| VariantApplication::SelectorTemplate(selector.to_lean_str());
+
+    for (candidate, expected) in [
+        (
+            "group-[.is-open]:flex",
+            template("&:is(:where(.group):is(.is-open) *)"),
+        ),
+        (
+            "peer-[:hover]/menu:flex",
+            template(r"&:is(:where(.peer\/menu):is(:hover) ~ *)"),
+        ),
+        ("has-[.x]:flex", template("&:has(:is(.x))")),
+        ("has-[>img]:flex", template("&:has(>img)")),
+        ("has-[~_.x]:flex", template("&:has(~ .x)")),
+        ("in-[.x]:flex", template(":where(:is(.x)) &")),
+        (
+            "group-[&.is-open]:flex",
+            template("&:is(:where(.group).is-open *)"),
+        ),
+    ] {
+        assert_eq!(resolve(candidate), Some(expected), "{candidate}");
+    }
+    // A relative selector needs the anchor element that only `:has()` provides.
+    for candidate in [
+        "[>img]:flex",
+        "in-[>img]:flex",
+        "group-[>img]:flex",
+        "not-[>img]:flex",
+    ] {
+        assert_eq!(resolve(candidate), None, "{candidate}");
+    }
+}
+
+#[test]
 fn reports_selectors_that_repeat_the_styled_element() {
     let theme = theme();
     let repeated = |candidate: &str| {
