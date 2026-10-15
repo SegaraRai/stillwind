@@ -72,7 +72,7 @@ pub(super) enum VariantStep<'a> {
     ),
     /// A CSS `@supports` wrapper.
     Supports(
-        /// Support condition without `@supports` or braces; the renderer adds outer parentheses.
+        /// Support condition without `@supports` or braces, including its outer parentheses.
         &'a str,
     ),
     /// A CSS `@starting-style` wrapper with no prelude.
@@ -182,7 +182,7 @@ pub(super) fn document_scoped_selector(
 pub(crate) enum OptionCondition {
     /// `@media <condition>`
     Media(LeanStr),
-    /// `@supports (<condition>)`
+    /// `@supports <condition>`
     Supports(LeanStr),
 }
 
@@ -204,7 +204,7 @@ impl OptionCondition {
         match self {
             Self::Media(condition) => format_args!("@media {condition}{{{rule}}}").to_lean_string(),
             Self::Supports(condition) => {
-                format_args!("@supports ({condition}){{{rule}}}").to_lean_string()
+                format_args!("@supports {condition}{{{rule}}}").to_lean_string()
             }
         }
     }
@@ -288,7 +288,7 @@ mod tests {
     fn sequential_wrappers_retain_every_condition_and_alternative() {
         let applications = [VariantApplication::Sequence(vec![
             VariantApplication::Container("panel (width > 1px)".into()),
-            VariantApplication::Supports("display:grid".into()),
+            VariantApplication::Supports("(display:grid)".into()),
             VariantApplication::Compound(vec![
                 VariantApplication::SelectorTemplate("&:hover".into()),
                 VariantApplication::SelectorTemplate("&:focus".into()),

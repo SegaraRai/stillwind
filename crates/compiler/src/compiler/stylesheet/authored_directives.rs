@@ -272,7 +272,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
                             gates,
                         )),
                         VariantStep::Supports(condition) => Ok((
-                            format_args!("@supports ({condition}){{{body}}}").to_lean_string(),
+                            format_args!("@supports {condition}{{{body}}}").to_lean_string(),
                             gates,
                         )),
                         VariantStep::Conditional(condition) => {

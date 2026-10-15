@@ -141,9 +141,36 @@ pub fn instantiate_selector(template: &str, parent: &str) -> LeanString {
     output
 }
 
+/// Rewrites a selector template as a selector that a functional pseudo-class such as
+/// `:not()` evaluates against the subject itself.
+///
+/// Each nesting token becomes the universal selector `*`. The `*` is omitted when a
+/// class, ID, attribute, or pseudo-class selector follows directly in the same
+/// compound, so `&:hover` becomes `:hover` and `& .item` becomes `* .item`. Strings,
+/// comments, escaped identifiers and attribute values remain literal.
+pub fn subject_as_universal(template: &str) -> LeanString {
+    let mut positions = Vec::new();
+    collect(&mut Parser::new(template), &mut positions);
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    for position in positions {
+        output.push_str(&template[cursor..position]);
+        if !matches!(
+            template.as_bytes().get(position + 1),
+            Some(b':' | b'.' | b'#' | b'[')
+        ) {
+            output.push('*');
+        }
+        cursor = position + 1;
+    }
+    output.push_str(&template[cursor..]);
+    output
+}
+
 /// Adds `condition` to the final element compound of each selector branch.
-/// The caller must supply a valid selector and a compound selector fragment such
-/// as `:is(.scope *)`. The fragment is inserted before the final compound's first
+///
+/// The caller must supply a valid selector and a compound selector fragment such as
+/// `:is(.scope *)`. The fragment is inserted before the final compound's first
 /// pseudo-element, so the condition tests its originating element. Selector lists,
 /// whitespace, comments and literal text are preserved.
 pub fn append_element_condition(selector: &str, condition: &str) -> LeanString {
@@ -366,6 +393,20 @@ mod tests {
             instantiate_selector("& + &", r#"[data-value="&"]"#),
             r#"[data-value="&"] + [data-value="&"]"#
         );
+    }
+
+    #[test]
+    fn subject_becomes_universal_only_where_the_compound_needs_a_type() {
+        for (template, expected) in [
+            ("&:hover", ":hover"),
+            ("& .item", "* .item"),
+            (".group &", ".group *"),
+            ("&", "*"),
+            ("&.on, &[open], &#id", ".on, [open], #id"),
+            (r#":is(&)[data-x="&"] .\&"#, r#":is(*)[data-x="&"] .\&"#),
+        ] {
+            assert_eq!(subject_as_universal(template), expected, "{template}");
+        }
     }
 
     #[test]

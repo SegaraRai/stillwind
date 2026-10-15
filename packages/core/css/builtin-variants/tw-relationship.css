@@ -13,19 +13,7 @@
 }
 
 @stillwind-variant not-* (value: [variant], group: not) {
-  &:not(:--value()) {
-    @slot;
-  }
-}
-
-@stillwind-variant not-hover (group: not) {
-  &:not(:hover) {
-    @slot;
-  }
-
-  @media not (hover: hover) {
-    @slot;
-  }
+  @stillwind-intrinsic builtin-not-variant;
 }
 
 @stillwind-variant group-* (value: [variant]) {

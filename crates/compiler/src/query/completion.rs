@@ -486,6 +486,31 @@ mod tests {
             );
             assert!(items.windows(2).all(|pair| pair[0].label < pair[1].label));
         }
+        for (prefix, offered, omitted) in [
+            ("not-s", "not-sm:", "not-starting:"),
+            ("not-", "not-print:", "not-group-print:"),
+            ("not-pl", "not-placeholder-shown:", "not-placeholder:"),
+            ("group-", "group-required:", "group-sm:"),
+            ("has-", "has-required:", "has-print:"),
+        ] {
+            let labels: Vec<_> = query
+                .complete_candidate(CompletionInput {
+                    prefix: prefix.into(),
+                    context: CandidateContext::Utility,
+                })
+                .unwrap()
+                .into_iter()
+                .map(|item| item.label)
+                .collect();
+            assert!(
+                labels.iter().any(|label| label == offered),
+                "{prefix}: {labels:?}"
+            );
+            assert!(
+                labels.iter().all(|label| label != omitted),
+                "{prefix}: {labels:?}"
+            );
+        }
         assert!(
             query
                 .complete_candidate(CompletionInput {

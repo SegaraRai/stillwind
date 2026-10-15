@@ -563,14 +563,14 @@ mod reference_path_tests {
         let marker = RefMarker::new("menu").unwrap();
         let path = [
             VariantStep::Media("(min-width: 40rem)"),
-            VariantStep::Supports("display:grid"),
+            VariantStep::Supports("(display:grid)"),
         ];
         let predicate = reference_path(&marker, &path, false).unwrap();
         assert_eq!(
             predicate.conditions,
             [
                 VariantApplication::Media("(min-width: 40rem)".into()),
-                VariantApplication::Supports("display:grid".into())
+                VariantApplication::Supports("(display:grid)".into())
             ]
         );
         assert!(

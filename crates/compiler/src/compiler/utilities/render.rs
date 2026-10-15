@@ -212,7 +212,7 @@ fn render_utility_steps(
         };
     }
     for condition in supports.into_iter().rev() {
-        rule = format_args!("@supports ({condition}){{{rule}}}").to_lean_string();
+        rule = format_args!("@supports {condition}{{{rule}}}").to_lean_string();
     }
     for condition in media.into_iter().rev() {
         rule = format_args!("@media {condition}{{{rule}}}").to_lean_string();
@@ -324,7 +324,7 @@ mod render_step_tests {
         let context = identifiers();
         let steps = [
             VariantStep::Media("(min-width: 40rem)"),
-            VariantStep::Supports("display:grid"),
+            VariantStep::Supports("(display:grid)"),
             VariantStep::Container("(width > 10px)"),
             VariantStep::StartingStyle,
         ];

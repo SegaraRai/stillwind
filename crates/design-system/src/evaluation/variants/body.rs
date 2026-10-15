@@ -47,13 +47,9 @@ pub(in crate::evaluation) fn resolve_variant_body(body: &str) -> Option<VariantA
             "@container" if !condition.is_empty() => {
                 VariantApplication::Container(condition.to_lean_str())
             }
-            "@supports" if !condition.is_empty() => VariantApplication::Supports(
-                condition
-                    .strip_prefix('(')
-                    .and_then(|value| value.strip_suffix(')'))
-                    .unwrap_or(condition)
-                    .to_lean_str(),
-            ),
+            "@supports" if !condition.is_empty() => {
+                VariantApplication::Supports(condition.to_lean_str())
+            }
             "@starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
             _ => return None,
         };
@@ -238,7 +234,7 @@ mod tests {
         );
         assert_eq!(
             resolve_variant_body("@supports (display:grid) { @slot; }"),
-            Some(VariantApplication::Supports("display:grid".into()))
+            Some(VariantApplication::Supports("(display:grid)".into()))
         );
         assert_eq!(resolve_variant_body("&:hover {color:red;}"), None);
         assert!(split_variant_blocks("& { @slot; }").is_some());

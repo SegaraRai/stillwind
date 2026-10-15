@@ -613,3 +613,37 @@ instead, and an absent registration does not make `if(...)` a built-in name in
 Rust. Literal prefix and suffix text surround the single unescaped `*`; escaped
 asterisks are literal. Ordinary CSS overrides keep their normal registry precedence.
 `--if(...)` remains a compiler-defined value function, independent of variant registration.
+
+## Variant negation
+
+`not-*` applies a utility where its inner variant does not apply. The package registers
+it with a compiler intrinsic, and the definition must not declare a modifier:
+
+```css
+@stillwind-variant not-* (value: [variant], group: not) {
+  @stillwind-intrinsic builtin-not-variant;
+}
+```
+
+The compiler negates the resolved inner variant, so selector variants and media,
+support, and container conditions can all be negated: `not-sm`, `not-print`,
+`not-supports-[display:grid]`, and `not-@md` each produce the opposite condition. A variant with several rule blocks matches when any block matches, so its
+negation requires every negated block. Nested conditions such as the media query and
+selector of `hover` are negated as alternatives. Negated selectors use `:not()`, and
+`&` inside them refers to the styled element. A negation with more than 32 alternatives
+is unresolved.
+
+Variants that contain pseudo-elements, declarations, or `@starting-style` have no
+negation, so `not-before`, `not-placeholder`, `not-file`, and `not-starting` are
+unresolved. A selector whose `&` is not the final compound of every complex selector
+styles another element, so its negation is also unresolved: `not-*`, `not-**`, and
+`not-[&_.foo]` are rejected, but `not-[.foo_&]`, `not-group-hover`, and `not-has-checked`
+resolve.
+
+Stillwind also resolves negations that Tailwind rejects or emits as invalid CSS:
+negated negations such as `not-not-hover`, variants with several rule blocks,
+media query lists, and combined conditions such as `(a) and (b)`.
+
+A `[variant]` definition without a `modifier:` declaration passes a modifier to its inner
+variant. `not-group-hover/menu`, `has-group-hover/menu`, and `in-group-hover/menu`
+therefore test the `group/menu` element.

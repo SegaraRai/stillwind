@@ -25,6 +25,7 @@ use super::super::builtins::builtin_variants;
 use super::super::builtins::{builtin_marker_utilities, builtin_relationship_patterns};
 use super::super::values::decode_arbitrary;
 use super::body::resolve_variant_body;
+use super::negation::negate;
 use super::order::variant_sort_namespace;
 use super::substitution::{
     apply_nested_variant, registered_variant_candidates, resolve_variant_css_placeholders,
@@ -84,7 +85,11 @@ pub enum VariantApplication {
     /// A container condition that wraps the utility without changing its selector.
     Container(LeanStr),
     /// A support condition that wraps the utility without changing its selector.
-    Supports(LeanStr),
+    Supports(
+        /// Complete `@supports` prelude, such as `(display:grid)` or
+        /// `not (display:grid)`.
+        LeanStr,
+    ),
     /// The starting-style at-rule, which the emitter applies around the rule.
     StartingStyle,
 }
@@ -107,12 +112,13 @@ impl VariantApplication {
     }
 }
 
-/// Returns the selector of the first selector-bearing application that does not reference
-/// the subject element, if one exists.
+/// Returns the selector of the first selector-bearing application that does not
+/// reference the subject element, if one exists.
 ///
-/// A rule whose selector never mentions its subject is live wherever the stylesheet loads, so
-/// a host can reject such input where the rule must stay scoped to the element that produced
-/// it. Conditions, runtime conditions, and selectors that keep the subject are not reported.
+/// A rule whose selector never mentions its subject is live wherever the stylesheet
+/// loads, so a host can reject such input where the rule must stay scoped to the
+/// element that produced it. Conditions, runtime conditions, and selectors that keep
+/// the subject are not reported.
 #[must_use]
 pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str> {
     match application {
@@ -147,19 +153,18 @@ pub struct VariantDeclaration {
 /// Resolves one variant against the theme.
 ///
 /// Arbitrary selectors become selector templates; arbitrary at-rules use the
-/// same structural body resolver as named definitions. A named variant is matched against project
-/// definitions first and built-ins second, and only its first matching candidate is
-/// used. A CSS definition with `[if-condition]` and the `builtin-if-variant`
-/// intrinsic produces a `Conditional` application; its public spelling comes only
-/// from the registered pattern. Invalid captures and unmatched variants return `None`.
+/// same structural body resolver as named definitions. A named variant is matched
+/// against project definitions first and built-ins second, and only its first matching
+/// candidate is used. A CSS definition with `[if-condition]` and the
+/// `builtin-if-variant` intrinsic produces a `Conditional` application; its public
+/// spelling comes only from the registered pattern. A `[variant]` definition with the
+/// `builtin-not-variant` intrinsic produces the negation of its inner variant. Invalid
+/// captures, inner variants without a negated form, and unmatched variants return
+/// `None`.
 #[must_use]
 pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantApplication> {
     if let VariantKind::Arbitrary(value) = &variant.kind {
-        let value = decode_variant_template(value);
-        if value.starts_with('@') {
-            return resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string());
-        }
-        return Some(VariantApplication::SelectorTemplate((value).into()));
+        return selector_or_at_rule_application(&decode_variant_template(value));
     }
     let VariantKind::Named(value) = &variant.kind else {
         return None;
@@ -167,6 +172,18 @@ pub fn resolve_variant(variant: &Variant, theme: &ThemeIndex) -> Option<VariantA
     resolve_named_variant_with(value, theme, |custom, capture, concrete| {
         resolve_registered_variant_candidate(custom, capture, concrete, theme)
     })
+}
+
+/// Resolves the text of an arbitrary variant or a `@custom-variant name (...)`
+/// shorthand.
+///
+/// Text that starts with `@` is an at-rule prelude and resolves like a body that wraps
+/// the slot in that at-rule. Other text is a selector template.
+fn selector_or_at_rule_application(value: &str) -> Option<VariantApplication> {
+    if value.starts_with('@') {
+        return resolve_variant_body(&format_args!("{value} {{ @slot; }}").to_lean_string());
+    }
+    Some(VariantApplication::SelectorTemplate(value.into()))
 }
 
 /// Visits definitions in resolution order, including the registry's bare token form.
@@ -296,10 +313,11 @@ pub fn compatibility_marker_class(raw: &str, theme: &ThemeIndex) -> Option<LeanS
     }
 }
 
-/// Identifies a named variant for runtime-condition diagnostics using CSS registrations.
-/// A successfully resolved definition takes precedence, returning true only for a
-/// conditional application. Otherwise, a matching `[if-condition]` registration with
-/// the known intrinsic returns true even when its nonempty capture is malformed.
+/// Identifies a named variant for runtime-condition diagnostics using CSS
+/// registrations. A successfully resolved definition takes precedence, returning true
+/// only for a conditional application. Otherwise, a matching `[if-condition]`
+/// registration with the known intrinsic returns true even when its nonempty capture is
+/// malformed.
 pub fn is_condition_variant(value: &str, theme: &ThemeIndex) -> bool {
     if let Some(application) = resolve_registered_variant(value, theme) {
         return matches!(application, VariantApplication::Conditional(_));
@@ -312,15 +330,15 @@ pub fn is_condition_variant(value: &str, theme: &ThemeIndex) -> bool {
         ))
         .any(|(custom, _)| {
             custom.value_type == Some(BuiltinVariantValueType::IfCondition)
-                && is_conditional_intrinsic(custom)
+                && has_intrinsic_body(custom, "builtin-if-variant")
         })
 }
 
-/// Recognizes the complete compiler intrinsic body (`@stillwind-intrinsic builtin-if-variant;`).
-fn is_conditional_intrinsic(custom: &CustomVariant) -> bool {
+/// Recognizes a body that consists only of `@stillwind-intrinsic <intrinsic>;`.
+fn has_intrinsic_body(custom: &CustomVariant, intrinsic: &str) -> bool {
     let mut parser = Parser::new(&custom.body);
     matches!(parser.next(), Ok(Token::AtKeyword(name)) if name.as_ref() == "stillwind-intrinsic")
-        && matches!(parser.next(), Ok(Token::Ident(name)) if name.as_ref() == "builtin-if-variant")
+        && matches!(parser.next(), Ok(Token::Ident(name)) if name.as_ref() == intrinsic)
         && matches!(parser.next(), Ok(Token::Semicolon))
         && parser.is_exhausted()
 }
@@ -349,8 +367,9 @@ fn resolve_registered_variant_from(
 /// Resolves one definition for a concrete capture.
 ///
 /// A typed definition delegates to [`resolve_typed_variant`]; otherwise the body is
-/// filled in and classified, falling back to the definition's selector shorthand when
-/// the body cannot produce an application.
+/// filled in and classified, falling back to the definition's shorthand when the body
+/// cannot produce an application. A shorthand that starts with `@`, such as
+/// `(@media print)`, is an at-rule; any other shorthand is a selector template.
 pub(in crate::evaluation) fn resolve_registered_variant_candidate(
     custom: &CustomVariant,
     capture: Option<&str>,
@@ -368,22 +387,23 @@ pub(in crate::evaluation) fn resolve_registered_variant_candidate(
         &EvaluationContext::untracked(theme),
     )?;
     resolve_variant_body(&body).or_else(|| {
-        substitute_variant_capture(&custom.selector, capture)
-            .map(|value| VariantApplication::SelectorTemplate(value.into()))
+        selector_or_at_rule_application(&substitute_variant_capture(&custom.selector, capture)?)
     })
 }
 
 /// Resolves a definition that declared a value type, which decides how the capture
 /// becomes CSS.
 ///
-/// A variant-stack capture is resolved recursively and applied to the body; aria and
-/// data captures become attribute selectors; `nth` and support conditions are validated
-/// by CSS itself before substitution. A modifier is serialized through the declared
-/// modifier type, so a modifier that is not a valid class identifier fails instead of
-/// producing a broken selector. `[if-condition]` captures bypass modifier splitting
-/// and become their canonical condition text, which keeps slashes in comparison values.
-/// They require an exact `builtin-if-variant` intrinsic body and no modifier
-/// declaration.
+/// A variant-stack capture is resolved recursively and applied to the body, or negated
+/// when the body is exactly the `builtin-not-variant` intrinsic; aria and data captures
+/// become attribute selectors; `nth` and support conditions are validated by CSS itself
+/// before substitution. A modifier is serialized through the declared modifier type, so
+/// a modifier that is not a valid class identifier fails instead of producing a broken
+/// selector. A variant-stack definition without a modifier declaration passes the
+/// modifier to its inner variant, as described by [`split_typed_capture`].
+/// `[if-condition]` captures bypass modifier splitting and become their canonical
+/// condition text, which keeps slashes in comparison values. They require an exact
+/// `builtin-if-variant` intrinsic body and no modifier declaration.
 fn resolve_typed_variant(
     custom: &CustomVariant,
     value_type: BuiltinVariantValueType,
@@ -391,19 +411,26 @@ fn resolve_typed_variant(
     theme: &ThemeIndex,
 ) -> Option<VariantApplication> {
     if value_type == BuiltinVariantValueType::IfCondition {
-        if custom.modifier_type.is_some() || !is_conditional_intrinsic(custom) {
+        if custom.modifier_type.is_some() || !has_intrinsic_body(custom, "builtin-if-variant") {
             return None;
         }
         return RuntimeCondition::parse(capture)
             .map(|condition| VariantApplication::Conditional(condition.to_lean_str()));
     }
-    let (capture, modifier) = split_variant_modifier(capture);
+    let (capture, modifier) = split_typed_capture(custom, capture);
     let body = substitute_typed_modifier(&custom.body, custom.modifier_type, modifier)?;
     match value_type {
         BuiltinVariantValueType::IfCondition => None,
         BuiltinVariantValueType::Variant => {
             let inner = parse_nested_variant(capture);
             let application = resolve_variant(&inner, theme)?;
+            if has_intrinsic_body(custom, "builtin-not-variant") {
+                return custom
+                    .modifier_type
+                    .is_none()
+                    .then(|| negate(&application))
+                    .flatten();
+            }
             apply_nested_variant(&body, &application)
         }
         BuiltinVariantValueType::Aria => {
@@ -426,6 +453,25 @@ fn resolve_typed_variant(
             };
             resolve_variant_body(&body)
         }
+    }
+}
+
+/// Splits a typed definition's capture into its value and the definition's own
+/// modifier.
+///
+/// A `[variant]` definition without a `modifier:` declaration has no modifier of its
+/// own, so the whole capture, including `/modifier`, belongs to the inner variant:
+/// `not-group-hover/menu` passes `group-hover/menu` to the inner variant. Other
+/// definitions split the capture with [`split_variant_modifier`].
+pub(in crate::evaluation) fn split_typed_capture<'a>(
+    custom: &CustomVariant,
+    capture: &'a str,
+) -> (&'a str, Option<&'a str>) {
+    if custom.value_type == Some(BuiltinVariantValueType::Variant) && custom.modifier_type.is_none()
+    {
+        (capture, None)
+    } else {
+        split_variant_modifier(capture)
     }
 }
 

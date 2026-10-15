@@ -3,15 +3,17 @@
 //!
 //! A variant is a small CSS program. [`body`] reads an authored definition body and
 //! classifies it, [`substitution`] fills the capture and composes nested variants,
-//! [`resolve`] is the public entry point, and [`order`] compares two resolved stacks
-//! using the registry's declared ordering rather than the order the classes appear in
-//! markup. [`usage`] records direct token selections and viewport value origins from
-//! the selected definition for source policies.
+//! [`negation`] negates a resolved application for `not-*`, [`resolve`] is the public
+//! entry point, and [`order`] compares two resolved stacks using the registry's
+//! declared ordering rather than the order the classes appear in markup. [`usage`]
+//! records direct token selections and viewport value origins from the selected
+//! definition for source policies.
 //!
 //! Theme definitions remain immutable. Usage inspection creates an isolated recorder,
 //! so resolving a stack repeatedly produces identical applications and usage records.
 
 mod body;
+mod negation;
 mod order;
 mod resolve;
 mod substitution;

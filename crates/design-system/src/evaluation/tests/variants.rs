@@ -88,7 +88,7 @@ fn resolves_dynamic_media_structural_and_attribute_variants() {
     );
     assert_eq!(
         resolve("supports-[display:grid]:flex"),
-        Some(VariantApplication::Supports("display:grid".to_lean_str()))
+        Some(VariantApplication::Supports("(display:grid)".to_lean_str()))
     );
     assert_eq!(
         resolve("aria-checked:flex"),
@@ -134,4 +134,77 @@ fn reports_variant_selectors_that_do_not_depend_on_the_subject() {
     assert_eq!(document_scoped("hover:flex"), None);
     assert_eq!(document_scoped("motion-reduce:flex"), None);
     assert_eq!(document_scoped("supports-[display:grid]:flex"), None);
+}
+
+#[test]
+fn negates_resolved_variants_and_passes_modifiers_to_inner_variants() {
+    let theme = theme();
+    let resolve =
+        |candidate: &str| resolve_variant(&parse_candidate(candidate).unwrap().variants[0], &theme);
+    let template = |selector: &str| VariantApplication::SelectorTemplate(selector.to_lean_str());
+    let media = |condition: &str| VariantApplication::Media(condition.to_lean_str());
+
+    for (candidate, expected) in [
+        ("not-sm:flex", media("not (width >= 40rem)")),
+        ("not-not-sm:flex", media("(width >= 40rem)")),
+        ("not-print:flex", media("not print")),
+        ("not-[@media_not_print]:flex", media("print")),
+        (
+            "not-supports-[display:grid]:flex",
+            VariantApplication::Supports("not (display:grid)".to_lean_str()),
+        ),
+        (
+            "not-@md/side:flex",
+            VariantApplication::Container("side not (width >= 28rem)".to_lean_str()),
+        ),
+        ("not-[.foo_&]:flex", template("&:not(.foo *)")),
+        ("not-[:hover]:flex", template("&:not(:is(:hover))")),
+        (
+            "not-in-data-open:flex",
+            template("&:not(:where([data-open]) *)"),
+        ),
+        (
+            "not-hover:flex",
+            VariantApplication::Compound(vec![
+                template("&:not(:hover)"),
+                media("not (hover: hover)"),
+            ]),
+        ),
+        (
+            "not-group-hover/menu:flex",
+            VariantApplication::Compound(vec![
+                template(r"&:not(:is(:where(.group\/menu):hover *))"),
+                media("not (hover: hover)"),
+            ]),
+        ),
+        (
+            "not-group-has-checked/menu:flex",
+            template(r"&:not(:is(:where(.group\/menu):has(:checked) *))"),
+        ),
+        (
+            "has-group-hover/menu:flex",
+            VariantApplication::SelectorMedia {
+                selector: r"&:has(:is(:where(.group\/menu):hover *))".to_lean_str(),
+                condition: "(hover: hover)".to_lean_str(),
+            },
+        ),
+        (
+            "in-group-focus/menu:flex",
+            template(r":where(:is(:where(.group\/menu):focus *)) &"),
+        ),
+    ] {
+        assert_eq!(resolve(candidate), Some(expected), "{candidate}");
+    }
+    for candidate in [
+        "not-before:flex",
+        "not-placeholder:flex",
+        "not-file:flex",
+        "not-starting:flex",
+        "not-hover/menu:flex",
+        "not-[&_.foo]:flex",
+        "not-*:flex",
+        "not-**:flex",
+    ] {
+        assert_eq!(resolve(candidate), None, "{candidate}");
+    }
 }

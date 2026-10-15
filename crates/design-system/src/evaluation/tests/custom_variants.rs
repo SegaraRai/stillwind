@@ -219,3 +219,39 @@ fn resolves_wildcard_conditional_variants_from_css() {
         Some(VariantApplication::Media("(width < 40rem)".to_lean_str()))
     );
 }
+
+#[test]
+fn shorthand_variants_resolve_at_rules_and_selectors() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "@custom-variant pm (@media print);\n@custom-variant grid-ok (@supports (display: grid));\n@custom-variant dim (&:where(.dark, .dark *));",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+    let resolve =
+        |candidate: &str| resolve_variant(&parse_candidate(candidate).unwrap().variants[0], &theme);
+
+    for (candidate, expected) in [
+        ("pm:flex", VariantApplication::Media("print".to_lean_str())),
+        (
+            "not-pm:flex",
+            VariantApplication::Media("not print".to_lean_str()),
+        ),
+        (
+            "grid-ok:flex",
+            VariantApplication::Supports("(display: grid)".to_lean_str()),
+        ),
+        (
+            "dim:flex",
+            VariantApplication::SelectorTemplate("&:where(.dark, .dark *)".to_lean_str()),
+        ),
+        (
+            "not-dim:flex",
+            VariantApplication::SelectorTemplate("&:not(:where(.dark, .dark *))".to_lean_str()),
+        ),
+    ] {
+        assert_eq!(resolve(candidate), Some(expected), "{candidate}");
+    }
+}

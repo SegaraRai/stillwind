@@ -22,7 +22,7 @@ use stillwind_syntax::{Variant, VariantKind};
 use super::super::builtins::builtin_variants;
 use super::super::values::decode_arbitrary;
 use super::super::values::theme_arbitrary_types;
-use super::resolve::{parse_nested_variant, split_variant_modifier};
+use super::resolve::{parse_nested_variant, split_typed_capture, split_variant_modifier};
 use super::substitution::registered_variant_candidates;
 use crate::{
     BuiltinVariantSortDirection, BuiltinVariantValueType, CustomVariant, ThemeIndex, ThemeNamespace,
@@ -235,23 +235,23 @@ fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Varia
     };
     let capture = compound_variant_capture(theme.variants(), value)
         .or_else(|| compound_variant_capture(builtin_variants(theme), value))?;
-    Some(parse_nested_variant(split_variant_modifier(&capture).0))
+    Some(parse_nested_variant(&capture))
 }
 
-/// The capture of the first definition whose declared value type is a variant stack, so
-/// the capture can be parsed as an inner variant.
+/// The inner variant text of the first definition whose declared value type is a variant
+/// stack, without that definition's own modifier.
 fn compound_variant_capture(variants: &[Arc<CustomVariant>], value: &str) -> Option<LeanString> {
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {
             (variant.value_type == Some(BuiltinVariantValueType::Variant))
-                .then(|| capture.map(LeanString::from))?
+                .then(|| capture.map(|capture| split_typed_capture(variant, capture).0.into()))?
         })
 }
 
 /// Compares variant stacks using first registration positions in the expanded CSS.
-/// This uses an order-bit comparison while leaving
-/// utility/property ordering independent.
+/// This uses an order-bit comparison while leaving utility/property ordering
+/// independent.
 ///
 /// Each stack contributes the distinct positions of its variants, and the positions are
 /// compared in descending order, so the highest registry position decides first. Ties

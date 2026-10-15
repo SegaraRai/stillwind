@@ -15,7 +15,7 @@ use super::super::values::expand_placeholder;
 use super::body::resolve_variant_body;
 use super::resolve::{
     VariantApplication, parse_nested_variant, resolve_named_variant_with,
-    resolve_registered_variant_candidate, resolve_variant, split_variant_modifier,
+    resolve_registered_variant_candidate, resolve_variant, split_typed_capture,
 };
 use super::substitution::{
     resolve_variant_css_placeholders, resolve_variant_value_with_source,
@@ -91,7 +91,7 @@ pub fn resolve_variant_with_usage(
         let mut tokens = BTreeSet::new();
         let mut media_values = Vec::new();
         if custom.value_type == Some(BuiltinVariantValueType::Variant) {
-            let inner = parse_nested_variant(split_variant_modifier(capture?).0);
+            let inner = parse_nested_variant(split_typed_capture(custom, capture?).0);
             let resolved = resolve_variant_with_usage(&inner, theme)?;
             tokens.extend(resolved.tokens);
             media_values.extend(resolved.media_values);
