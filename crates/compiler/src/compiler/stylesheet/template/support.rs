@@ -254,6 +254,16 @@ impl<'a> SupportSelection<'a> {
                     );
                     continue;
                 }
+                let fallback = self.theme.color_fallback(
+                    &format_args!("{}:{value};", token.name.value).to_lean_string(),
+                );
+                if let Some(fallback) = &fallback {
+                    declarations.text(
+                        fallback,
+                        resolve_origin(self.sources, Some(token.value.span)),
+                    );
+                    declarations.text("@supports (color:color-mix(in lab,red,red)){", None);
+                }
                 declarations.text(
                     &token.name.value,
                     resolve_origin(self.sources, Some(token.name.span)),
@@ -261,6 +271,9 @@ impl<'a> SupportSelection<'a> {
                 declarations.text(":", None);
                 declarations.text(&value, resolve_origin(self.sources, Some(token.value.span)));
                 declarations.text(";", None);
+                if fallback.is_some() {
+                    declarations.text("}", None);
+                }
             }
         }
         if emit_tokens && !declarations.css.is_empty() {

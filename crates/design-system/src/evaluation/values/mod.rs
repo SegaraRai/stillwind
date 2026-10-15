@@ -20,7 +20,7 @@ mod placeholders;
 mod theme;
 
 pub(super) use arbitrary::decode_arbitrary;
-pub(super) use colors::CompatColorMode;
+pub(crate) use colors::color_fallback;
 pub(super) use domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 pub(super) use expansion::expand_placeholder;
 pub(super) use placeholders::{PreparedValues, resolve_css_placeholders};

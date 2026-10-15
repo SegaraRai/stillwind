@@ -10,11 +10,13 @@ test("analysis projects pass their compiler settings to native loaders", () => {
     name: "web",
     typeFacts: false,
     utilityOrder: "tailwind",
+    target: ["chrome111", "safari17"],
     prefix: "--project-",
     automatic: false,
   };
   expect(compilerOptions(project)).toMatchObject({
     utilityOrder: "tailwind",
+    target: ["chrome111", "safari17"],
     prefix: "--project-",
   });
 });

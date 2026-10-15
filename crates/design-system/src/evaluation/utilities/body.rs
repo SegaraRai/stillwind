@@ -168,7 +168,7 @@ fn resolve_valid_utility_body(
     let selector = prepared.selector.clone();
     let parent_body = prepared.parent_body.as_deref();
     let required_properties = prepared.required_properties.clone();
-    let resolve = |body: &str| {
+    let resolve = |body: &str, color_compatibility| {
         resolve_css_declarations(
             body,
             utility.name.as_str(),
@@ -176,6 +176,7 @@ fn resolve_valid_utility_body(
             modifier,
             theme,
             utility.builtin_order.is_some(),
+            color_compatibility,
         )
     };
     // A slash modifier is meaningful only when a branch explicitly consumes it. This
@@ -187,7 +188,7 @@ fn resolve_valid_utility_body(
     if modifier.is_some() && !consumes_modifier {
         return None;
     }
-    let declarations = resolve(body)?;
+    let declarations = resolve(body, true)?;
     let mut token_uses = declarations.token_uses;
     let mut arbitrary_uses = declarations.arbitrary_uses;
     let declaration = declarations.base;
@@ -200,6 +201,7 @@ fn resolve_valid_utility_body(
             compatibility: true,
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
+            parent: None,
             declaration: modern,
             inside: true,
         });
@@ -214,7 +216,9 @@ fn resolve_valid_utility_body(
             let uses_modifier = body.contains("--modifier(")
                 || body.contains("--modifier-map(")
                 || body.contains("--fraction()");
-            let Some(declarations) = resolve(&body) else {
+            let color_compatibility =
+                *at_rule != NestedUtilityAtRule::Supports || !condition.contains("color-mix(");
+            let Some(declarations) = resolve(&body, color_compatibility) else {
                 continue;
             };
             let declaration = declarations.base;
@@ -231,7 +235,8 @@ fn resolve_valid_utility_body(
                 resolved_nested.push(NestedUtilityRule {
                     compatibility: false,
                     at_rule: *at_rule,
-                    condition: (condition).into(),
+                    condition: condition.to_lean_str(),
+                    parent: None,
                     declaration: (declaration).into(),
                     inside: true,
                 });
@@ -240,6 +245,7 @@ fn resolve_valid_utility_body(
                         compatibility: true,
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
+                        parent: Some((*at_rule, condition.to_lean_str())),
                         declaration: modern,
                         inside: true,
                     });
@@ -251,7 +257,7 @@ fn resolve_valid_utility_body(
         return None;
     }
     if let Some(parent_body) = parent_body {
-        let parent = resolve(parent_body)?;
+        let parent = resolve(parent_body, true)?;
         for usage in &mut token_uses {
             usage.base = false;
         }
@@ -261,6 +267,18 @@ fn resolve_valid_utility_body(
         arbitrary_uses.extend(parent.arbitrary_uses);
         token_uses.extend(parent.token_uses);
         let parent_declaration = parent.base;
+        let parent_nested = parent
+            .compat_modern
+            .into_iter()
+            .map(|modern| NestedUtilityRule {
+                compatibility: true,
+                at_rule: NestedUtilityAtRule::Supports,
+                condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
+                parent: None,
+                declaration: modern,
+                inside: true,
+            })
+            .collect();
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
                 declaration: (declaration).into(),
@@ -274,7 +292,7 @@ fn resolve_valid_utility_body(
             required_properties,
             declaration: (parent_declaration).into(),
             selector: None,
-            nested: Vec::new(),
+            nested: parent_nested,
             additional,
             builtin_order: match theme.utility_order() {
                 UtilityOrderMode::Authored => theme

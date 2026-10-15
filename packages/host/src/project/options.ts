@@ -40,6 +40,7 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
     prefix: resolved.prefix,
     tailwindPrefix: resolved.tailwindPrefix,
     utilityOrder: resolved.utilityOrder,
+    target: resolved.target,
     classNamespace: resolved.classNamespace,
     useCssIf: resolved.useCssIf,
     namingRevision: resolved.namingRevision,

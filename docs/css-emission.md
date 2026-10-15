@@ -137,6 +137,41 @@ contributions. Renderers do not reconstruct them from serialized CSS.
 retain that metadata. Renderers with string inputs accept authored CSS; `module_css` and
 `to_css` are inspection outputs rather than reconstruction inputs.
 
+## Browser targets
+
+Set `target` in `stillwind.config.ts` to minimum browser versions:
+
+```ts
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      target: ["chrome111", "firefox113", "safari17"],
+    },
+  ],
+});
+```
+
+`target` accepts one string or an array. Browser names are `android`, `chrome`,
+`edge`, `firefox`, `ie`, `ios`, `opera`, `safari`, and `samsung`. Versions contain
+one to three decimal components, such as `safari16.2`. Omission or an empty array
+keeps color compatibility output.
+
+Targets only remove generated color fallbacks and their capability queries.
+They do not lower CSS syntax or change authored `@supports` rules. Every target
+must support a value before its fallback is removed. `color-mix()` requires
+Chrome/Edge/Android 111, Firefox 113, Safari/iOS 16.2, Opera 97, or Samsung 22.
+Colors containing `currentcolor` or runtime color variables require Safari/iOS 17,
+matching the preset's guard against earlier WebKit failures.
+
+Without removal, color compatibility output follows Tailwind: known theme values
+can supply an sRGB fallback, unresolved variables and `currentcolor` keep the
+first color without its opacity, and fixed arbitrary colors need no extra branch.
+Final asset minification can evaluate a fixed fallback for older browsers.
+
 ## Tailwind comparison
 
 `tools/tailwind-compat/comparison.ts` compares CSS under an explicit shared
@@ -150,6 +185,7 @@ tests are equivalent for this comparison; ordinary declarations have no such exc
 The comparison retains layer bodies and conditions, property registrations,
 fallbacks, importance, selectors, keyframe contents, and interfering declaration
 order. CSS parsing, calc evaluation, and Lightning CSS normalize representation.
+Lightning CSS lowers nesting on both sides before minification.
 Empty custom-property values remain distinct from missing or invalid values.
 These rules define the harness context; they do not prove arbitrary CSS equivalence.
 Integration tests separately check real resource owners, URLs, maps, and delivery order.

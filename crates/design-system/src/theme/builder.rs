@@ -9,10 +9,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
 
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
-use crate::BuiltinDefinitions;
-use crate::UtilityOrderMode;
-use crate::registry::CustomUtility;
-use crate::registry::CustomVariant;
+use crate::{BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, UtilityOrderMode};
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
@@ -44,6 +41,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) authored_properties: BTreeSet<LeanStr>,
     /// Host-selected ordering strategy for resolved utilities.
     pub(crate) utility_order: UtilityOrderMode,
+    /// Minimum browser versions used to remove generated color compatibility branches.
+    pub(crate) target: BrowserTargets,
 }
 
 impl ThemeBuilder {

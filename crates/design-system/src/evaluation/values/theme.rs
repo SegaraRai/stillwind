@@ -3,9 +3,7 @@
 //! Two lookups exist and must not be confused. [`theme_value`] produces the value the
 //! generated declaration should reference, which is a `var()` reference for an ordinary
 //! token and the authored text for an inline token. [`theme_value_literal`] always
-//! produces the authored text, because the compatibility fallback branch of a color
-//! declaration must carry a usable value even where a `var()` reference would be the
-//! only thing emitted.
+//! produces the authored text for explicit literal lookups and theme shadow modifiers.
 //!
 //! Typed captures - `[hint:value]`, parenthesized variables, and arbitrary lengths -
 //! are validated against the namespace's CSS-declared value types, so the accepted

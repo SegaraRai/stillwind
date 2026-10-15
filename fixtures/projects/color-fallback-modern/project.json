@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "color-fallback-modern",
+  "title": "Color fallbacks: modern browsers",
+  "description": "The same colors with generated fallbacks removed for Chrome 111, Firefox 113, and Safari 17. Authored supports rules and Preflight remain.",
+  "tags": ["color", "fallback", "target"],
+  "theme": "stillwind.css",
+  "sources": ["src/Colors.tsx"],
+  "compilerOptions": {
+    "target": ["chrome111", "firefox113", "safari17"]
+  }
+}

@@ -10,7 +10,7 @@
 
 @stillwind-utility bg-* {
   background-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -306,7 +306,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-utility via-* (tw-sort: --tw-gradient-via) {
   --tw-gradient-via: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent),
+    --value(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-via-stops:
@@ -337,7 +337,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-utility from-* (tw-sort: --tw-gradient-from) {
   --tw-gradient-from: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent),
+    --value(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-stops: var(
@@ -368,7 +368,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-utility to-* (tw-sort: --tw-gradient-to) {
   --tw-gradient-to: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent),
+    --value(--color-*, current, inherit, transparent),
     --alpha(--modifier())
   );
   --tw-gradient-stops: var(

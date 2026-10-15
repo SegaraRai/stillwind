@@ -1,4 +1,4 @@
-//! Host configuration of generated property prefixes and utility ordering.
+//! Host configuration of property prefixes, utility ordering, and browser targets.
 //!
 //! Snapshot construction validates the supplied namespaces and captures the ordering
 //! strategy before utility evaluation. Generated identifiers use the captured prefixes.
@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ReplaceText;
+
+use crate::target::BrowserTargets;
 
 /// Property namespaces and utility ordering captured by a design-system snapshot.
 ///
@@ -23,6 +25,8 @@ pub struct DesignSystemOptions {
     pub tailwind_prefix: LeanStr,
     /// Strategy for ordering resolved utilities.
     pub utility_order: UtilityOrderMode,
+    /// Minimum browser versions used to omit unnecessary color fallbacks.
+    pub target: BrowserTargets,
 }
 
 impl Default for DesignSystemOptions {
@@ -31,6 +35,7 @@ impl Default for DesignSystemOptions {
             prefix: "--sw-".to_lean_str(),
             tailwind_prefix: "--tw-".to_lean_str(),
             utility_order: UtilityOrderMode::default(),
+            target: BrowserTargets::default(),
         }
     }
 }

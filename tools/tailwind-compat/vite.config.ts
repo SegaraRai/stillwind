@@ -7,7 +7,7 @@ export default defineConfig({
   root: import.meta.dirname,
   test: {
     name: "tailwind-compat",
-    include: ["*.test.ts"],
+    include: ["*.test.ts", "tests/*.test.ts"],
     exclude: ["browser.test.ts"],
     testTimeout: 30000,
   },

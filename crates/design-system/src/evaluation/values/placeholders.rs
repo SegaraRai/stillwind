@@ -17,7 +17,7 @@ use stillwind_syntax::Value;
 
 use super::super::EvaluationContext;
 use super::arbitrary::alpha;
-use super::colors::{CompatColorMode, resolve_compat_color, resolve_shadow_color};
+use super::colors::{resolve_compat_color, resolve_shadow_color};
 use super::domains::{resolve_value_domains, split_domains};
 use super::expansion::{expand_placeholders, matching_functions};
 use super::macros::{
@@ -86,14 +86,7 @@ impl PreparedValues {
                 resolve_value(&self.body[call.arguments.clone()], capture, modifier, theme)?;
             // An authored inline token can introduce further compiler functions.
             if PLACEHOLDERS.iter().any(|marker| value.contains(marker)) {
-                return resolve_css_placeholders(
-                    &self.body,
-                    utility_name,
-                    name,
-                    modifier,
-                    theme,
-                    CompatColorMode::Legacy,
-                );
+                return resolve_css_placeholders(&self.body, utility_name, name, modifier, theme);
             }
             output.push_str(&self.body[cursor..call.start]);
             output.push_str(&value);
@@ -143,7 +136,6 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
     name: &str,
     modifier: Option<&Value>,
     theme: &EvaluationContext<'_>,
-    compat_color_mode: CompatColorMode,
 ) -> Option<LeanString> {
     let capture = utility_name
         .strip_suffix('*')
@@ -153,9 +145,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
         &mut body,
         &PLACEHOLDERS[..6],
         |function, arguments| match function {
-            "--value-literal" => {
-                resolve_literal_value_placeholder(arguments, capture, theme, compat_color_mode)
-            }
+            "--value-literal" => resolve_literal_value_placeholder(arguments, capture, theme),
             "--stillwind-theme-suffix" => {
                 resolve_theme_suffix_placeholder(arguments, capture, theme)
             }
@@ -207,7 +197,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
         &PLACEHOLDERS[7..],
         |function, arguments| match function {
             "--alpha" => alpha(arguments).map(Into::into),
-            "--compat-color" => resolve_compat_color(arguments, compat_color_mode).map(Into::into),
+            "--compat-color" => resolve_compat_color(arguments).map(Into::into),
             "--stillwind-builtin-shadow-color" => {
                 resolve_shadow_color(arguments, capture, theme).map(Into::into)
             }
@@ -263,15 +253,12 @@ mod tests {
         let body = format_args!("width:{};", "--value([number]) ".repeat(4097)).to_lean_string();
         let prepared = PreparedValues::parse(&body).unwrap();
         assert!(prepared.resolve("x-*", "x-[1]", None, &theme).is_none());
-        assert!(
-            resolve_css_placeholders(&body, "x-*", "x-[1]", None, &theme, CompatColorMode::Legacy)
-                .is_none()
-        );
+        assert!(resolve_css_placeholders(&body, "x-*", "x-[1]", None, &theme).is_none());
         let body = "content:'--value([number])';width:--value([number]);";
         let prepared = PreparedValues::parse(body).unwrap();
         assert_eq!(
             prepared.resolve("x-*", "x-[1]", None, &theme),
-            resolve_css_placeholders(body, "x-*", "x-[1]", None, &theme, CompatColorMode::Legacy)
+            resolve_css_placeholders(body, "x-*", "x-[1]", None, &theme)
         );
     }
 
@@ -279,9 +266,7 @@ mod tests {
     fn batch_resolution_preserves_phase_barrier_and_rejects_reintroduced_families() {
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
-        let resolve = |body| {
-            resolve_css_placeholders(body, "x-*", "x-a", None, &theme, CompatColorMode::Legacy)
-        };
+        let resolve = |body| resolve_css_placeholders(body, "x-*", "x-a", None, &theme);
         assert_eq!(
             resolve("opacity:--value-map(a:--alpha(.5));"),
             Some("opacity:50%;".into())
@@ -309,47 +294,19 @@ mod tests {
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
-            resolve_css_placeholders(
-                "width:--value([length]);",
-                "w-*",
-                "w-[2px]",
-                None,
-                &theme,
-                CompatColorMode::Legacy
-            ),
+            resolve_css_placeholders("width:--value([length]);", "w-*", "w-[2px]", None, &theme,),
             Some("width:2px;".into())
         );
         assert_eq!(
-            resolve_css_placeholders(
-                "width:--value([length]);",
-                "w-*",
-                "w-[red]",
-                None,
-                &theme,
-                CompatColorMode::Legacy
-            ),
+            resolve_css_placeholders("width:--value([length]);", "w-*", "w-[red]", None, &theme,),
             None
         );
         assert_eq!(
-            resolve_css_placeholders(
-                "opacity:--modifier([number]);",
-                "x-*",
-                "x-a",
-                None,
-                &theme,
-                CompatColorMode::Legacy
-            ),
+            resolve_css_placeholders("opacity:--modifier([number]);", "x-*", "x-a", None, &theme,),
             None
         );
         assert_eq!(
-            resolve_css_placeholders(
-                "opacity:--alpha(.5);",
-                "x",
-                "x",
-                None,
-                &theme,
-                CompatColorMode::Legacy
-            ),
+            resolve_css_placeholders("opacity:--alpha(.5);", "x", "x", None, &theme,),
             Some("opacity:50%;".into())
         );
     }

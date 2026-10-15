@@ -4,6 +4,7 @@ import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler"
 import type { TestProject } from "vite-plus/test/node";
 
 import { compileParity } from "./comparison.ts";
+import { compileFixtureSource } from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 export interface BrowserCssCase {
@@ -14,6 +15,7 @@ export interface BrowserCssCase {
   expectedClass: string;
   actualClass: string;
   parent?: string;
+  target?: string | string[];
   extra?: string;
   different?: boolean;
 }
@@ -71,6 +73,41 @@ export default async function setup(project: TestProject) {
       extra: "@layer overrides{:root{--color-brand:green}}",
     },
     {
+      name: "modern targets preserve theme color overrides with opacity",
+      candidates: ["bg-brand/50"],
+      properties: ["background-color"],
+      input: "@theme {--color-brand:red;}",
+      extra: "@layer overrides{:root{--color-brand:blue}}",
+      target: ["chrome111", "firefox113", "safari17"],
+    },
+    {
+      name: "modern targets preserve currentcolor opacity",
+      candidates: ["bg-current/50"],
+      properties: ["background-color"],
+      parent: "color:rgb(20 40 60)",
+      target: ["chrome111", "firefox113", "safari17"],
+    },
+    {
+      name: "modern targets preserve currentcolor through a runtime color variable",
+      candidates: ["bg-(--brand)/50"],
+      properties: ["background-color"],
+      parent: "--brand:currentcolor;color:rgb(20 40 60)",
+      target: ["chrome111", "firefox113", "safari17"],
+    },
+    {
+      name: "modern targets preserve shadow color and opacity composition",
+      candidates: ["shadow-md", "shadow-red-500/50"],
+      properties: ["box-shadow"],
+      target: ["chrome111", "firefox113", "safari17"],
+    },
+    {
+      name: "color compatibility keeps the utility media condition",
+      candidates: ["conditional-color"],
+      properties: ["background-color"],
+      input:
+        "@utility conditional-color{@media (width > 99999px){background-color:color-mix(in oklab,var(--color-red-500) 50%,transparent);}}",
+    },
+    {
       name: "mask initial values survive fallback omission",
       candidates: ["mask-b-from-0"],
       properties: ["mask-image", "mask-composite"],
@@ -96,10 +133,12 @@ export default async function setup(project: TestProject) {
       candidates: entry.candidates,
       base: resolve(root, "fixtures/tailwind-v4"),
     });
-    const native = compileParity(
-      `import {style} from 'stillwind/react';style(${JSON.stringify(entry.candidates.join(" "))});`,
-      stillwindFixtureCss(input),
-    );
+    const source = `import {style} from 'stillwind/react';style(${JSON.stringify(entry.candidates.join(" "))});`;
+    const native = entry.target
+      ? compileFixtureSource(source, "src/Parity.tsx", stillwindFixtureCss(input), {
+          target: entry.target,
+        })
+      : compileParity(source, stillwindFixtureCss(input));
     if (native.diagnostics.length) {
       throw new Error(JSON.stringify(native.diagnostics));
     }

@@ -4,7 +4,7 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, RootFontSize};
-use stillwind_design_system::UtilityOrderMode;
+use stillwind_design_system::{BrowserTargets, UtilityOrderMode};
 
 use super::NativeLintOptions;
 
@@ -21,6 +21,9 @@ pub struct NativeCompilerOptions {
     pub tailwind_prefix: Option<String>,
     /// Ordering strategy: authored or tailwind. Defaults to authored.
     pub utility_order: Option<String>,
+    /// Minimum browser versions, for example `["chrome111", "safari17"]`.
+    /// Omission or an empty list keeps generated color compatibility branches.
+    pub target: Option<Vec<String>>,
     /// Identifier namespace for generated class names.
     pub class_namespace: Option<String>,
     /// Emit native CSS `if()` for experimental conditional values and variants.
@@ -65,6 +68,8 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                 .class_namespace
                 .map(Into::into)
                 .unwrap_or(defaults.class_namespace),
+            target: BrowserTargets::parse(input.target.unwrap_or_default())
+                .map_err(|error| Error::from_reason(error.to_string()))?,
             use_css_if: input.use_css_if.unwrap_or(defaults.use_css_if),
             naming_revision: input
                 .naming_revision

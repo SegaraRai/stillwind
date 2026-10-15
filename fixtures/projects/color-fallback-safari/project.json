@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "color-fallback-safari",
+  "title": "Color fallbacks: Safari 16.2",
+  "description": "Chrome 111 and Safari 16.2 remove fallbacks for fixed colors while retaining protection for currentcolor and runtime color variables.",
+  "tags": ["color", "fallback", "target"],
+  "theme": "stillwind.css",
+  "sources": ["src/Colors.tsx"],
+  "compilerOptions": {
+    "target": ["chrome111", "safari16.2"]
+  }
+}

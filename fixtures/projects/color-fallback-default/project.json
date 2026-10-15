@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "color-fallback-default",
+  "title": "Color fallbacks: no target",
+  "description": "Theme colors, literals, runtime values, shadows, rings, and gradients with generated color fallbacks retained.",
+  "tags": ["color", "fallback", "target"],
+  "theme": "stillwind.css",
+  "sources": ["src/Colors.tsx"]
+}

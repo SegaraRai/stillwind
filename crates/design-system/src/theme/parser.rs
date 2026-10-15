@@ -26,12 +26,12 @@ use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 use super::builder::ThemeBuilder;
 use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
-use crate::BuiltinDefinitions;
 use crate::output::{parse_output_template, theme_blocks};
-use crate::registry::extract_custom_variants;
-use crate::registry::registration_positions;
-use crate::registry::{extract_custom_utilities, extract_marker_utilities};
-use crate::registry::{extract_declaration_formats, extract_relationship_patterns};
+use crate::registry::{
+    extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
+    extract_marker_utilities, extract_relationship_patterns, registration_positions,
+};
+use crate::{BrowserTargets, BuiltinDefinitions, UtilityOrderMode};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
@@ -196,7 +196,8 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
-        utility_order: crate::UtilityOrderMode::default(),
+        utility_order: UtilityOrderMode::default(),
+        target: BrowserTargets::default(),
     })
 }
 

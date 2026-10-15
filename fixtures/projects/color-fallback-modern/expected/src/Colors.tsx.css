@@ -1,0 +1,72 @@
+.sw_vy68q {
+  background-color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
+}
+.sw_zepmw {
+  background-color: color-mix(in oklab, var(--color-red-500) 0%, transparent);
+}
+.sw_nt6nv {
+  background-color: var(--color-red-500);
+}
+.sw_3l5bg {
+  background-color: color-mix(in oklab, red 50%, transparent);
+}
+.sw_kis31 {
+  background-color: color-mix(in oklab, transparent 50%, transparent);
+}
+.sw_p6vlg {
+  background-color: color-mix(in oklab, currentcolor 50%, transparent);
+}
+.sw_gb0pv {
+  background-color: color-mix(in oklab, var(--brand) 50%, transparent);
+}
+.sw_3z62v {
+  background-color: color-mix(in oklab, red var(--opacity), transparent);
+}
+.sw_dc9bk {
+  background-color: color-mix(in oklab, var(--color-red-500) var(--opacity), transparent);
+}
+.sw_i1fjv {
+  background-color: color-mix(in oklab, var(--color-alias) 50%, transparent);
+}
+.sw_bplc1 {
+  background-color: color-mix(in oklab, var(--color-linked) 50%, transparent);
+}
+.sw_8ddh8 {
+  background-color: color-mix(in oklab, var(--color-nested) 50%, transparent);
+}
+.sw_s0ive {
+  --tw-shadow-color: color-mix(
+    in oklab,
+    color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha),
+    transparent
+  );
+}
+.sw_i1cya {
+  --tw-shadow-color: color-mix(
+    in oklab,
+    color-mix(in oklab, red 50%, transparent) var(--tw-shadow-alpha),
+    transparent
+  );
+}
+.sw_spbjk {
+  --tw-shadow-color: color-mix(
+    in oklab,
+    color-mix(in oklab, var(--brand) 50%, transparent) var(--tw-shadow-alpha),
+    transparent
+  );
+}
+.sw_lito5 {
+  --tw-ring-color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
+}
+.sw_ftbn1 {
+  --tw-gradient-from: color-mix(in oklab, var(--brand) 50%, transparent);
+  --tw-gradient-stops: var(
+    --tw-gradient-via-stops,
+    var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position)
+  );
+}
+.sw_u0hce {
+  color: color-mix(in oklab, var(--brand) 50%, transparent);
+}

@@ -310,6 +310,7 @@ fn merge_nested_rules(primary: &mut Vec<NestedUtilityRule>, secondary: Vec<Neste
         let conflicts = primary.iter().any(|existing| {
             existing.at_rule == rule.at_rule
                 && existing.condition == rule.condition
+                && existing.parent == rule.parent
                 && existing.inside == rule.inside
                 && declaration_property_names(&existing.declaration)
                     .iter()

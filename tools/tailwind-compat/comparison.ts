@@ -7,7 +7,7 @@ import {
   NativeProjectSession,
 } from "@stillwind/native";
 import { fork, generate, parse, walk, type CssNode } from "css-tree";
-import { transform } from "lightningcss";
+import { Features, transform } from "lightningcss";
 
 import {
   comparableFixtureClasses,
@@ -200,6 +200,7 @@ export function comparisonCss(
   const result = transform({
     filename: "parity.css",
     code: Buffer.from(foldCalcExpressions(layerOrder + generate(ast))),
+    include: Features.Nesting,
     minify: true,
     errorRecovery: false,
   }).code.toString();

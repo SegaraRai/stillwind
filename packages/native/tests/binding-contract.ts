@@ -11,6 +11,51 @@ import { stillwindCva } from "../../core/src/runtime/react.ts";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("browser targets retain color fallbacks unless every target supports the value", async () => {
+    const { NativeDesignSystemLoader, compileSource } = await import(bindingSpecifier);
+    const css =
+      "@theme{--color-brand:red;}:root,:host{@stillwind-slot theme;}@utility tone{color:--compat-color(var(--color-brand),50%);}@utility current{color:--compat-color(currentcolor,50%);}@utility alpha{color:--compat-color(red,var(--opacity));}@utility authored{@supports (color:color-mix(in oklab,red,red)){color:color-mix(in oklab,var(--external) 50%,transparent);}}@stillwind-slot utilities;";
+    for (const [target, fallback, alphaFallback] of [
+      [undefined, true, true],
+      [[], true, true],
+      [["chrome110"], true, true],
+      [["safari16.1"], true, true],
+      [["safari16.2"], true, false],
+      [["chrome111", "safari16.5"], true, false],
+      [["chrome111", "firefox113", "safari17"], false, false],
+    ] as const) {
+      const options = {
+        target: target && [...target],
+      };
+      const loader = new NativeDesignSystemLoader(options);
+      loader.provide(0, "root.css", css);
+      const query = loader.editorQuery();
+      for (const candidate of ["tone", "current"]) {
+        const preview = query.previewCandidate(candidate);
+        expect(preview).toContain("color-mix(in oklab");
+        expect(preview?.includes("@supports")).toBe(fallback);
+      }
+      expect(query.previewCandidate("alpha")?.includes("@supports")).toBe(alphaFallback);
+      expect(query.previewCandidate("authored")).toContain("@supports");
+      const output = compileSource(
+        oneShotInput(
+          'import {style} from "stillwind/react";export const tone=style("tone");export const current=style("current");',
+          "targets.tsx",
+          css,
+        ),
+        options,
+      );
+      expect(output.diagnostics).toEqual([]);
+      expect(output.css.includes("@supports")).toBe(fallback);
+    }
+    expect(
+      () =>
+        new NativeDesignSystemLoader({
+          target: ["unknown1"],
+        }),
+    ).toThrow("invalid browser target");
+  });
+
   test("module summaries preserve UTF-8 module identities across the binding", async () => {
     const { summarizeSource } = await import(bindingSpecifier);
     for (const moduleId of ["short.ts", "a".repeat(16), "a".repeat(17), "日本/😀\0entry.ts"]) {

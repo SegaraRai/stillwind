@@ -202,14 +202,10 @@ fn render_utility_steps(
     }
     let mut rule = format_args!("{selector}{{{declaration}}}").to_lean_string();
     if let Some(nested) = nested_rule {
-        rule = match nested.at_rule {
-            NestedUtilityAtRule::Media => {
-                format_args!("@media {}{{{rule}}}", nested.condition).to_lean_string()
-            }
-            NestedUtilityAtRule::Supports => {
-                format_args!("@supports ({}){{{rule}}}", nested.condition).to_lean_string()
-            }
-        };
+        rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
+        if let Some((at_rule, condition)) = &nested.parent {
+            rule = wrap_condition(&rule, *at_rule, condition);
+        }
     }
     for condition in supports.into_iter().rev() {
         rule = format_args!("@supports {condition}{{{rule}}}").to_lean_string();
@@ -230,6 +226,15 @@ fn render_utility_steps(
         Ok(protect(&rule))
     } else {
         Ok(rule)
+    }
+}
+
+fn wrap_condition(rule: &str, at_rule: NestedUtilityAtRule, condition: &str) -> LeanString {
+    match at_rule {
+        NestedUtilityAtRule::Media => format_args!("@media {condition}{{{rule}}}").to_lean_string(),
+        NestedUtilityAtRule::Supports => {
+            format_args!("@supports ({condition}){{{rule}}}").to_lean_string()
+        }
     }
 }
 
@@ -383,6 +388,7 @@ mod render_step_tests {
             compatibility: false,
             at_rule: NestedUtilityAtRule::Supports,
             condition: "display:grid".to_lean_str(),
+            parent: None,
             declaration: "display:grid;".to_lean_str(),
             inside: false,
         };

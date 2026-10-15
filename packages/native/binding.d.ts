@@ -641,6 +641,11 @@ export interface NativeCompilerOptions {
   tailwindPrefix?: string
   /** Ordering strategy: authored or tailwind. Defaults to authored. */
   utilityOrder?: string
+  /**
+   * Minimum browser versions, for example `["chrome111", "safari17"]`.
+   * Omission or an empty list keeps generated color compatibility branches.
+   */
+  target?: Array<string>
   /** Identifier namespace for generated class names. */
   classNamespace?: string
   /**

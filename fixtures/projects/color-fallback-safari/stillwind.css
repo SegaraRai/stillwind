@@ -1,0 +1,13 @@
+@import "stillwind";
+
+@theme {
+  --color-linked: var(--external);
+  --color-alias: var(--color-red-500);
+  --color-nested: color-mix(in oklab, var(--color-red-500) 50%, blue);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .authored {
+    color: color-mix(in oklab, currentcolor 50%, transparent);
+  }
+}

@@ -15,12 +15,12 @@ use super::declarations::ThemeToken;
 use super::namespace::ThemeNamespace;
 use super::references::{inline_theme_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
-use crate::UtilityOrderMode;
-use crate::evaluation::UtilityPrograms;
-use crate::registry::CustomUtility;
-use crate::registry::CustomVariant;
+use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::UtilityLookup;
-use crate::{BuiltinDefinitions, ThemeReferenceError, ThemeTokenMode};
+use crate::{
+    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, ThemeReferenceError,
+    ThemeTokenMode, UtilityOrderMode,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 struct ThemeDeclarations {
@@ -38,6 +38,7 @@ struct ThemeDeclarations {
     relationship_patterns: BTreeSet<LeanStr>,
     authored_properties: BTreeSet<LeanStr>,
     utility_order: UtilityOrderMode,
+    target: BrowserTargets,
 }
 
 #[derive(Debug)]
@@ -86,6 +87,7 @@ impl ThemeIndex {
             relationship_patterns: builder.relationship_patterns,
             authored_properties: builder.authored_properties,
             utility_order: builder.utility_order,
+            target: builder.target,
         };
         let tokens = TokenLookup::new(&declarations.tokens);
         let utilities = UtilityLookup::new(&declarations.utilities);
@@ -182,6 +184,18 @@ impl ThemeIndex {
     /// Host-selected ordering strategy for resolved utilities.
     pub fn utility_order(&self) -> UtilityOrderMode {
         self.inner.declarations.utility_order
+    }
+
+    /// Browser versions captured for color compatibility output.
+    pub(crate) fn target(&self) -> &BrowserTargets {
+        &self.inner.declarations.target
+    }
+
+    /// Computes the compatibility declaration for a property/value pair.
+    /// Known theme values are expanded in the fallback. Returns `None` when the
+    /// declaration needs no fallback or every configured target supports its colors.
+    pub fn color_fallback(&self, declaration: &str) -> Option<LeanString> {
+        color_fallback(declaration, self)
     }
 
     /// The named token in `namespace`, or `None` when it is not active.

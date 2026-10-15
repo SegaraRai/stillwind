@@ -13,7 +13,9 @@ use lean_string::{LeanStr, ToLeanStr};
 use serde::{Deserialize, Deserializer, Serialize, de};
 
 use stillwind_css::is_length_unit;
-use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode};
+use stillwind_design_system::{
+    BrowserTargets, DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode,
+};
 use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
 use stillwind_source::ReplaceText;
 
@@ -38,6 +40,8 @@ pub struct CompilerOptions {
     /// Strategy for ordering resolved utilities. Defaults to authored definition
     /// positions.
     pub utility_order: UtilityOrderMode,
+    /// Minimum browser versions used to remove generated color compatibility branches.
+    pub target: BrowserTargets,
     /// Extra namespace mixed into class identity, so two independently built projects
     /// can share one design system without colliding on generated class names.
     pub class_namespace: LeanStr,
@@ -72,6 +76,7 @@ impl Default for CompilerOptions {
             prefix: "--sw-".to_lean_str(),
             tailwind_prefix: "--tw-".to_lean_str(),
             utility_order: UtilityOrderMode::default(),
+            target: BrowserTargets::default(),
             class_namespace: LeanStr::new(),
             use_css_if: false,
             naming_revision: LeanStr::new(),
@@ -88,10 +93,12 @@ impl CompilerOptions {
             prefix: self.prefix.clone(),
             tailwind_prefix: self.tailwind_prefix.clone(),
             utility_order: self.utility_order,
+            target: self.target.clone(),
         }
     }
 
-    /// Returns effective lint settings for this compilation without modifying the design system.
+    /// Returns effective lint settings for this compilation without modifying the
+    /// design system.
     pub fn lint_settings(&self) -> LintSettings {
         self.lint.resolve(&LintSettings::with_defaults())
     }
@@ -116,7 +123,8 @@ impl CompilerOptions {
         Ok(())
     }
 
-    /// Returns the same options with prefixes and utility ordering taken from `snapshot`.
+    /// Returns options with prefixes, utility ordering, and browser targets taken from
+    /// `snapshot`.
     ///
     /// Generated text must use the same namespaces and ordering as the snapshot used
     /// to resolve utilities.
@@ -125,6 +133,7 @@ impl CompilerOptions {
             prefix: snapshot.config().prefix.clone(),
             tailwind_prefix: snapshot.config().tailwind_prefix.clone(),
             utility_order: snapshot.config().utility_order,
+            target: snapshot.config().target.clone(),
             ..self
         }
     }

@@ -12,28 +12,17 @@
 use lean_string::{LeanStr, ToLeanStr};
 
 use super::super::EvaluationContext;
-use super::colors::CompatColorMode;
-use super::domains::{
-    resolve_literal_value_domains, resolve_value_domains, split_domains, theme_domain_pattern,
-};
+use super::domains::{resolve_literal_value_domains, split_domains, theme_domain_pattern};
 use super::theme::theme_value;
 
-/// Resolves one `--value-literal(...)` to the authored token text.
-///
-/// The compatibility mode decides the lookup: the fallback branch must read the literal
-/// value, while the modern branch takes the same reference the ordinary `--value(...)`
-/// form would produce.
+/// Resolves one `--value-literal(...)` to the authored token text. Non-theme domains
+/// use the ordinary value resolver.
 pub(in crate::evaluation) fn resolve_literal_value_placeholder(
     arguments: &str,
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
-    compat_color_mode: CompatColorMode,
 ) -> Option<LeanStr> {
-    let replacement = match compat_color_mode {
-        CompatColorMode::Legacy => resolve_literal_value_domains(arguments, capture, theme)?,
-        CompatColorMode::Modern => resolve_value_domains(arguments, capture, theme)?,
-    };
-    Some(replacement)
+    resolve_literal_value_domains(arguments, capture, theme)
 }
 
 /// Resolves one `--stillwind-theme-suffix(...)` to a composed token value.
@@ -96,12 +85,7 @@ mod tests {
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
-            resolve_literal_value_placeholder(
-                "[number]",
-                Some("[2]"),
-                &theme,
-                CompatColorMode::Legacy
-            ),
+            resolve_literal_value_placeholder("[number]", Some("[2]"), &theme,),
             Some("2".into())
         );
         assert_eq!(

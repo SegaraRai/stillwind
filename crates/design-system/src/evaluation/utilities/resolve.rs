@@ -16,12 +16,14 @@ use stillwind_css::inspect_css_value;
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
 use super::super::builtins::{
-    animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
+    COMPAT_COLOR_SUPPORT, animation_option_property_mappings, arbitrary_property_order,
+    builtin_animation_options,
 };
+use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
 use super::formatting::finalize_declaration;
 use super::matching::{resolve_css_utility_branches, resolve_named_utility};
-use super::nested::NestedUtilityRule;
+use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
 use crate::{ThemeIndex, UtilityOrderMode};
 
@@ -117,6 +119,17 @@ pub fn resolve_utility(
             let value = value.as_str();
             let mut resolution =
                 UtilityResolution::plain(format_args!("{property}:{value};").to_lean_string());
+            if let Some(fallback) = color_fallback(&resolution.declaration, theme) {
+                resolution.nested.push(NestedUtilityRule {
+                    compatibility: true,
+                    at_rule: NestedUtilityAtRule::Supports,
+                    condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
+                    parent: None,
+                    declaration: resolution.declaration.clone(),
+                    inside: true,
+                });
+                resolution.declaration = fallback.into();
+            }
             resolution.arbitrary_uses.push(UtilityArbitraryUse {
                 base: true,
                 property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),

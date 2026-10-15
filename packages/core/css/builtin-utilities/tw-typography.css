@@ -246,7 +246,7 @@ Tailwind.
 
 @stillwind-utility text-* {
   color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -459,7 +459,7 @@ Tailwind.
 @stillwind-utility placeholder-* (tw-sort: placeholder-color) {
   &::placeholder {
     color: --compat-color(
-      --value-literal(--color-*, current, inherit, transparent, [color]),
+      --value(--color-*, current, inherit, transparent, [color]),
       --alpha(--modifier())
     );
   }
@@ -635,7 +635,7 @@ Tailwind.
 
 @stillwind-utility decoration-* {
   text-decoration-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }

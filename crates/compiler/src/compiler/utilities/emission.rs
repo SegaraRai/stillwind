@@ -192,20 +192,30 @@ fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> Le
 }
 
 fn emit_nested_rule(output: &mut LeanString, nested: &NestedUtilityRule) {
-    match nested.at_rule {
+    if let Some((at_rule, condition)) = &nested.parent {
+        emit_condition(output, *at_rule, condition);
+    }
+    emit_condition(output, nested.at_rule, &nested.condition);
+    output.push_str(&nested.declaration);
+    output.push('}');
+    if nested.parent.is_some() {
+        output.push('}');
+    }
+}
+
+fn emit_condition(output: &mut LeanString, at_rule: NestedUtilityAtRule, condition: &str) {
+    match at_rule {
         NestedUtilityAtRule::Media => {
             output.push_str("@media ");
-            output.push_str(&nested.condition);
+            output.push_str(condition);
             output.push('{');
         }
         NestedUtilityAtRule::Supports => {
             output.push_str("@supports (");
-            output.push_str(&nested.condition);
+            output.push_str(condition);
             output.push_str("){");
         }
     }
-    output.push_str(&nested.declaration);
-    output.push('}');
 }
 
 #[cfg(test)]
@@ -219,6 +229,7 @@ mod tests {
             compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
+            parent: None,
             declaration: "color:blue;".into(),
             inside: false,
         };
@@ -232,6 +243,7 @@ mod tests {
             compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
+            parent: None,
             declaration: "color:blue;".into(),
             inside: true,
         };

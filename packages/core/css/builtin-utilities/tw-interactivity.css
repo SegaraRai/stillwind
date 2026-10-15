@@ -526,7 +526,7 @@
 
 @stillwind-utility scrollbar-thumb-* {
   --tw-scrollbar-thumb: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
@@ -539,7 +539,7 @@
 
 @stillwind-utility scrollbar-track-* {
   --tw-scrollbar-track: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
   scrollbar-color: var(--tw-scrollbar-thumb) var(--tw-scrollbar-track);
@@ -589,7 +589,7 @@
 
 @stillwind-utility caret-* {
   caret-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -608,7 +608,7 @@
 
 @stillwind-utility accent-* {
   accent-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }

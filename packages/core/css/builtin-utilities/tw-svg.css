@@ -10,7 +10,7 @@
 
 @stillwind-utility fill-* {
   fill: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -29,7 +29,7 @@
 
 @stillwind-utility stroke-* {
   stroke: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }

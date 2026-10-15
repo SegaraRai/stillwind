@@ -17,6 +17,7 @@ defineConfig({
       tsconfig: "tsconfig.app.json",
       sort: false,
       rootFontSize: 20,
+      target: ["chrome111", "firefox113", "safari17"],
       preview: {
         themeValues: false,
         colorEquivalents: "exact",

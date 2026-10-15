@@ -27,7 +27,8 @@
 //! `registry` parses utility and variant definitions. `evaluation` resolves candidates
 //! against those definitions, and `conditionals` recognizes runtime tests. `options`
 //! validates configuration, `output` parses output slots, and `snapshot` owns the
-//! immutable revision shared by compilation and editor requests.
+//! immutable revision shared by compilation and editor requests. `target` checks
+//! browser versions before removing generated color fallbacks.
 
 #![cfg_attr(
     not(test),
@@ -48,6 +49,7 @@ mod options;
 mod output;
 mod registry;
 mod snapshot;
+mod target;
 mod theme;
 
 pub use conditionals::{RuntimeCondition, is_runtime_condition, runtime_if_arguments};
@@ -84,6 +86,7 @@ pub use snapshot::{
     DesignSystemSnapshot, PropertyRegistry, ThemeRegistry, UtilityRegistry, UtilitySearchEntry,
     UtilitySearchIndex, VariantRegistry,
 };
+pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
     ThemeIndex, ThemeNamespace, ThemeReferenceError, ThemeToken, ThemeTokenKind, ThemeTokenMode,
     parse_theme, parse_theme_namespace_types,

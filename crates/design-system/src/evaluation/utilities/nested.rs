@@ -24,6 +24,9 @@ pub struct NestedUtilityRule {
     pub at_rule: NestedUtilityAtRule,
     /// Condition text without the at-rule keyword or braces.
     pub condition: LeanStr,
+    /// Authored condition enclosing a generated compatibility query. The tuple
+    /// contains its at-rule kind and condition text in the same format as `condition`.
+    pub parent: Option<(NestedUtilityAtRule, LeanStr)>,
     /// Declarations to place inside the conditional.
     pub declaration: LeanStr,
     /// Whether the conditional was authored inside the utility's selector block (or as

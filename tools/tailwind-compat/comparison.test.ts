@@ -38,6 +38,19 @@ test("supports query values, bodies and ordinary background declarations stay st
   );
 });
 
+test("nested conditions flatten without changing their scope or declaration order", () => {
+  const nested = ".x{@media print{color:red;@supports (display:grid){color:blue}}}";
+  const flat = "@media print{.x{color:red}@supports (display:grid){.x{color:blue}}}";
+  expect(comparisonCss(nested)).toBe(comparisonCss(flat));
+  for (const other of [
+    "@media print{.x{color:red}}@supports (display:grid){.x{color:blue}}",
+    "@media print{@supports (display:grid){.x{color:blue}}.x{color:red}}",
+    flat.replace("print", "screen"),
+  ]) {
+    expect(comparisonCss(nested)).not.toBe(comparisonCss(other));
+  }
+});
+
 test("layer bodies, registration semantics, fallbacks and interfering order stay strict", () => {
   for (const [a, b] of [
     ["@layer theme{.x{color:red}}", ".x{color:red}"],

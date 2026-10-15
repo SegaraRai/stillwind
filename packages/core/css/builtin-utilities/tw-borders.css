@@ -249,7 +249,7 @@
 
 @stillwind-utility border-* {
   border-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -284,7 +284,7 @@
 
 @stillwind-utility border-x-* {
   border-inline-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -315,7 +315,7 @@
 
 @stillwind-utility border-y-* {
   border-block-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -346,7 +346,7 @@
 
 @stillwind-utility border-s-* {
   border-inline-start-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -377,7 +377,7 @@
 
 @stillwind-utility border-e-* {
   border-inline-end-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -408,7 +408,7 @@
 
 @stillwind-utility border-bs-* {
   border-block-start-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -439,7 +439,7 @@
 
 @stillwind-utility border-be-* {
   border-block-end-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -470,7 +470,7 @@
 
 @stillwind-utility border-t-* {
   border-top-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -501,7 +501,7 @@
 
 @stillwind-utility border-r-* {
   border-right-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -532,7 +532,7 @@
 
 @stillwind-utility border-b-* {
   border-bottom-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -563,7 +563,7 @@
 
 @stillwind-utility border-l-* {
   border-left-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
@@ -749,7 +749,7 @@
 @stillwind-utility divide-* (tw-sort: divide-color) {
   :where(& > :not(:last-child)) {
     border-color: --compat-color(
-      --value-literal(--color-*, current, inherit, transparent),
+      --value(--color-*, current, inherit, transparent),
       --alpha(--modifier())
     );
   }
@@ -804,7 +804,7 @@
 
 @stillwind-utility outline-* {
   outline-color: --compat-color(
-    --value-literal(--color-*, current, inherit, transparent, [color]),
+    --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }

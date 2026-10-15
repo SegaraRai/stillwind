@@ -52,6 +52,24 @@ test("root font size accepts positive finite numbers", () => {
   }
 });
 
+test("browser targets normalize to an owned list and reject unsupported syntax", () => {
+  expect(normalizeCompilerConfig({}).target).toEqual([]);
+  expect(normalizeCompilerConfig({ target: "chrome111" }).target).toEqual(["chrome111"]);
+  const target = ["firefox113", "safari17"];
+  const normalized = normalizeCompilerConfig({ target });
+  target[0] = "firefox112";
+  expect(normalized.target).toEqual(["firefox113", "safari17"]);
+  for (const target of [
+    "chrome",
+    "es2022",
+    "safari16..2",
+    "chrome65536",
+    ["chrome111", "unknown1"],
+  ]) {
+    expect(() => validateCompilerConfig({ target })).toThrow("config.target");
+  }
+});
+
 test("false disables all sorting targets and remains disabled after normalization", () => {
   const normalized = normalizeCompilerConfig({
     sort: false,

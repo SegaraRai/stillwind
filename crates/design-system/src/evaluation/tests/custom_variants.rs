@@ -92,7 +92,7 @@ fn resolves_compat_color_value_function() {
         resolve_utility("tone-brand/50", &theme)
             .unwrap()
             .declaration,
-        "color: color-mix(in srgb, var(--color-brand) 50%, transparent);"
+        "color: color-mix(in srgb, red 50%, transparent);"
     );
     let utility = resolve_utility("tone-brand/50", &theme).unwrap();
     assert_eq!(utility.nested.len(), 1);
@@ -115,7 +115,7 @@ fn resolves_compat_color_value_function() {
         resolve_utility("plain-tone", &plain_theme)
             .unwrap()
             .declaration,
-        "color: color-mix(in srgb, red 50%, transparent);"
+        "color: color-mix(in oklab, red 50%, transparent);"
     );
 
     let nested_source = SourceFile::new(
@@ -125,7 +125,7 @@ fn resolves_compat_color_value_function() {
     let nested_theme = parse_fixture_theme(&nested_source).unwrap();
     let nested = resolve_utility("nested-tone-brand/50", &nested_theme).unwrap();
     assert!(nested.nested.iter().any(|rule| {
-        rule.at_rule == NestedUtilityAtRule::Supports
+        rule.at_rule == NestedUtilityAtRule::Media
             && rule.declaration.contains("color-mix(in oklab")
     }));
 }

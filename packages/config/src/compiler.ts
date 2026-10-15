@@ -62,6 +62,12 @@ export interface BaseConfig {
    */
   utilityOrder?: "authored" | "tailwind";
   /**
+   * Minimum browser versions, such as ["chrome111", "firefox113", "safari17"].
+   * A single string is accepted. Omission or an empty list keeps color fallbacks.
+   * Removes generated compatibility branches only when every target supports the value.
+   */
+  target?: string | readonly string[];
+  /**
    * Namespace for Stillwind-owned CSS identifiers.
    * Starts with --, ends with -, and contains no whitespace.
    * Defaults to --sw-.
@@ -128,6 +134,22 @@ const sortOptionsSchema = strictObject({
   attributes: v.optional(v.boolean()),
 });
 
+const browserTarget = v.pipe(
+  v.string(),
+  v.regex(
+    /^(?:android|chrome|edge|firefox|ie|ios|opera|safari|samsung)\d+(?:\.\d+){0,2}$/,
+    "must name a browser followed by one to three decimal version components",
+  ),
+  v.check(
+    (value) =>
+      value
+        .replace(/^[a-z]+/, "")
+        .split(".")
+        .every((part) => Number(part) <= 65535),
+    "version components must not exceed 65535",
+  ),
+);
+
 /** Shared schemas for compiler fields, excluding delivery options and analysis scope. Lint is validated separately. */
 export const compilerEntries = {
   root: v.optional(v.string()),
@@ -137,6 +159,7 @@ export const compilerEntries = {
   tailwindPrefix: v.optional(namespace),
   classNamespace: v.optional(v.string()),
   utilityOrder: v.optional(v.picklist(["authored", "tailwind"])),
+  target: v.optional(v.union([browserTarget, v.array(browserTarget)])),
   useCssIf: v.optional(v.boolean()),
   namingRevision: v.optional(v.string()),
   hashLength: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(50))),
@@ -212,6 +235,8 @@ export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   classNamespace: string;
   /** Ordering policy after applying the authored-order default. */
   utilityOrder: "authored" | "tailwind";
+  /** Captured minimum browser versions. An empty list keeps color fallbacks. */
+  target: string[];
   /** Whether native CSS if() features are enabled. Defaults to false. */
   useCssIf: boolean;
   /** Caller-supplied revision of naming callbacks, defaulting to an empty string. */
@@ -258,6 +283,7 @@ export function normalizeCompilerConfig(
     tailwindPrefix: config.tailwindPrefix ?? "--tw-",
     classNamespace: config.classNamespace ?? "",
     utilityOrder: config.utilityOrder ?? "authored",
+    target: typeof config.target === "string" ? [config.target] : [...(config.target ?? [])],
     useCssIf: config.useCssIf ?? false,
     namingRevision: config.namingRevision ?? "",
     hashLength: config.hashLength ?? 5,

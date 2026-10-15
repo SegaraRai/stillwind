@@ -37,6 +37,7 @@ pub use variants::{
 };
 
 pub(crate) use programs::UtilityPrograms;
+pub(crate) use values::color_fallback;
 
 use context::{EvaluationContext, ValueSelections};
 

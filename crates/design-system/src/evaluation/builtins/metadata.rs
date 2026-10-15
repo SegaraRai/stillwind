@@ -71,10 +71,7 @@ pub(in crate::evaluation) fn builtin_theme_namespace_types(
     theme.registry().theme_namespace_types()
 }
 
-/// Color space of the compatibility fallback branch.
-pub(in crate::evaluation) const COMPAT_COLOR_LEGACY_SPACE: &str = "srgb";
-
-/// Color space of the modern branch, which the capability query guards.
+/// Color space used for generated opacity expressions.
 pub(in crate::evaluation) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
 
 /// Capability query that decides whether the modern color branch is usable.

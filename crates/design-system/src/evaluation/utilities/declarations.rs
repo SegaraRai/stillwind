@@ -16,8 +16,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::Value;
 
-use super::super::values::CompatColorMode;
-use super::super::values::{PreparedValues, resolve_css_placeholders};
+use super::super::values::{PreparedValues, color_fallback, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;
@@ -131,6 +130,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     modifier: Option<&Value>,
     theme: &ThemeIndex,
     builtin: bool,
+    color_compatibility: bool,
 ) -> Option<ResolvedCssDeclarations> {
     let expanded;
     let prepared = if let Some(prepared) = theme.programs().declarations(body) {
@@ -179,15 +179,8 @@ pub(in crate::evaluation) fn resolve_css_declarations(
                 .resolve(utility_name, name, modifier, theme)
                 .map(Into::into)
         } else {
-            resolve_css_placeholders(
-                authored_declaration,
-                utility_name,
-                name,
-                modifier,
-                theme,
-                CompatColorMode::Legacy,
-            )
-            .map(Into::into)
+            resolve_css_placeholders(authored_declaration, utility_name, name, modifier, theme)
+                .map(Into::into)
         };
         if let Some(declaration) = resolved
             && !declaration.trim().is_empty()
@@ -207,24 +200,20 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
             resolved_required_declarations += usize::from(contains_required);
+            let declaration = if color_compatibility
+                && let Some(fallback) = color_fallback(&declaration, theme)
+            {
+                output
+                    .compat_modern
+                    .push(declaration.trim_start().to_lean_str());
+                fallback.into()
+            } else {
+                declaration
+            };
             if output.base.is_empty() {
                 output.base.push_str(declaration.trim_start());
             } else {
                 output.base.push_str(&declaration);
-            }
-            if authored_declaration.contains("--compat-color(")
-                && let Some(modern) = resolve_css_placeholders(
-                    authored_declaration,
-                    utility_name,
-                    name,
-                    modifier,
-                    theme,
-                    CompatColorMode::Modern,
-                )
-                .map(|modern| resolve_declaration_value(&modern, theme, builtin))
-                && modern != declaration
-            {
-                output.compat_modern.push(modern.trim_start().to_lean_str());
             }
         }
     }
@@ -348,7 +337,8 @@ mod tests {
                 "w-[red]",
                 None,
                 &theme,
-                false
+                false,
+                true,
             )
             .is_none()
         );
@@ -359,6 +349,7 @@ mod tests {
             None,
             &theme,
             false,
+            true,
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");
