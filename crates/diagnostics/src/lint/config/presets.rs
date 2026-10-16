@@ -49,6 +49,10 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::RedundantVariant, LintSeverity::Warn),
     (LintKind::UnsatisfiableVariants, LintSeverity::Warn),
     (LintKind::ClampedValue, LintSeverity::Warn),
+    (LintKind::InvalidThemeReference, LintSeverity::Deny),
+    (LintKind::DuplicateDefinition, LintSeverity::Warn),
+    (LintKind::InvalidThemeValue, LintSeverity::Deny),
+    (LintKind::ImplicitNestingSelector, LintSeverity::Warn),
 ];
 
 const STYLISTIC: &[(LintKind, LintSeverity)] = &[

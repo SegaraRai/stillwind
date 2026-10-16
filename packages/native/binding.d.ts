@@ -1098,6 +1098,8 @@ export interface NativeLintOptions {
   unknownVariant?: string
   /** Settings for `missing-document-target`. */
   missingDocumentTarget?: string
+  /** Settings for `invalid-theme-reference`. */
+  invalidThemeReference?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */
@@ -1136,6 +1138,10 @@ export interface NativeLintOptions {
   unsatisfiableVariants?: string
   /** Settings for `clamped-value`. */
   clampedValue?: string
+  /** Settings for `duplicate-definition`. */
+  duplicateDefinition?: string
+  /** Settings for `invalid-theme-value`. */
+  invalidThemeValue?: string
   /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
   /** Settings for `no-arbitrary-spacing`. */
@@ -1168,6 +1174,8 @@ export interface NativeLintOptions {
   redundantVariant?: string
   /** Settings for `prefer-typed-variables`. */
   preferTypedVariables?: string
+  /** Settings for `implicit-nesting-selector`. */
+  implicitNestingSelector?: string
   /** Settings for `invalid-lint-suppression`. */
   invalidLintSuppression?: string
   /** Settings for `unused-lint-suppression`. */

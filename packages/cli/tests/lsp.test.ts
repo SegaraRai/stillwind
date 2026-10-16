@@ -292,3 +292,90 @@ test("LSP publishes stylesheet diagnostics for unsaved CSS buffers and offers th
     await stop();
   }
 });
+
+test("LSP offers the nesting selector fix at a variant definition", async () => {
+  const { root, state, send, wait, stop } = await startServer(".test-lsp-css-");
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.tsx"]}]};',
+    );
+    const head = "@stillwind-slot utilities;\n";
+    await writeFile(path.join(root, "root.css"), head);
+    const uri = pathToFileURL(path.join(root, "root.css")).href;
+    send("initialize", { rootUri: pathToFileURL(root).href, capabilities: {} }, 1);
+    expect((await wait((message) => message.id === 1)).error, state.stderr).toBeUndefined();
+    send("initialized", {});
+    send("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text: `${head}@custom-variant kid (:hover, > .item);\n`,
+      },
+    });
+    const published = await wait(
+      (message) =>
+        message.method === "textDocument/publishDiagnostics" &&
+        message.params?.uri === uri &&
+        message.params.version === 1 &&
+        Boolean(message.params.diagnostics?.length),
+    );
+    expect(published.params!.diagnostics).toMatchObject([
+      {
+        code: "implicit-nesting-selector",
+        range: {
+          start: { line: 1, character: 21 },
+          end: { line: 1, character: 36 },
+        },
+      },
+    ]);
+    send(
+      "textDocument/codeAction",
+      {
+        textDocument: { uri },
+        range: {
+          start: { line: 1, character: 0 },
+          end: { line: 1, character: 37 },
+        },
+        context: {
+          diagnostics: [],
+          only: ["quickfix"],
+        },
+      },
+      2,
+    );
+    const actions = await wait((message) => message.id === 2);
+    expect(actions.result).toMatchObject([
+      {
+        title: "Write the nesting selector `&`",
+        edit: {
+          documentChanges: [
+            {
+              textDocument: { uri, version: 1 },
+              edits: [
+                {
+                  range: {
+                    start: { line: 1, character: 21 },
+                    end: { line: 1, character: 21 },
+                  },
+                  newText: "& ",
+                },
+                {
+                  range: {
+                    start: { line: 1, character: 29 },
+                    end: { line: 1, character: 29 },
+                  },
+                  newText: "& ",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(state.protocolError).toBeUndefined();
+  } finally {
+    await stop();
+  }
+});

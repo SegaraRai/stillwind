@@ -218,10 +218,9 @@ mod tests {
     fn shorthands_nest_selectors_unless_the_definition_has_document_scope() {
         assert_eq!(
             shorthand_variant_application(":hover", VariantScope::Nested),
-            Some(VariantApplication::BareSelector {
-                selector: "& :hover".to_lean_str(),
-                top_level: ":hover".to_lean_str(),
-            })
+            Some(VariantApplication::SelectorTemplate(
+                "& :hover".to_lean_str()
+            ))
         );
         assert_eq!(
             shorthand_variant_application(":host", VariantScope::Document),

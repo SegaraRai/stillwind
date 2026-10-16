@@ -53,6 +53,8 @@ pub struct NativeLintOptions {
     pub unknown_variant: Option<String>,
     /// Settings for `missing-document-target`.
     pub missing_document_target: Option<String>,
+    /// Settings for `invalid-theme-reference`.
+    pub invalid_theme_reference: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -91,6 +93,10 @@ pub struct NativeLintOptions {
     pub unsatisfiable_variants: Option<String>,
     /// Settings for `clamped-value`.
     pub clamped_value: Option<String>,
+    /// Settings for `duplicate-definition`.
+    pub duplicate_definition: Option<String>,
+    /// Settings for `invalid-theme-value`.
+    pub invalid_theme_value: Option<String>,
     /// Settings for `no-arbitrary-colors`.
     pub no_arbitrary_colors: Option<String>,
     /// Settings for `no-arbitrary-spacing`.
@@ -123,6 +129,8 @@ pub struct NativeLintOptions {
     pub redundant_variant: Option<String>,
     /// Settings for `prefer-typed-variables`.
     pub prefer_typed_variables: Option<String>,
+    /// Settings for `implicit-nesting-selector`.
+    pub implicit_nesting_selector: Option<String>,
     /// Settings for `invalid-lint-suppression`.
     pub invalid_lint_suppression: Option<String>,
     /// Settings for `unused-lint-suppression`.
@@ -211,6 +219,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .missing_document_target
                 .map(|value| lint_severity(&value))
                 .transpose()?,
+            invalid_theme_reference: input
+                .invalid_theme_reference
+                .map(|value| lint_severity(&value))
+                .transpose()?,
             mutating_macro_argument: input
                 .mutating_macro_argument
                 .map(|value| lint_severity(&value))
@@ -287,6 +299,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .clamped_value
                 .map(|value| lint_severity(&value))
                 .transpose()?,
+            duplicate_definition: input
+                .duplicate_definition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_theme_value: input
+                .invalid_theme_value
+                .map(|value| lint_severity(&value))
+                .transpose()?,
             no_arbitrary_colors: input
                 .no_arbitrary_colors
                 .map(|value| lint_severity(&value))
@@ -349,6 +369,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             prefer_typed_variables: input
                 .prefer_typed_variables
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            implicit_nesting_selector: input
+                .implicit_nesting_selector
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_lint_suppression: input

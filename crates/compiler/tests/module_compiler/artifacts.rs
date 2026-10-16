@@ -99,8 +99,11 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             CompileDiagnostic::MissingUtilitiesSlot,
         ),
         (
-            "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(--missing);}",
-            CompileDiagnostic::UnresolvedThemeReference,
+            "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(missing);}",
+            CompileDiagnostic::InvalidThemeReference {
+                offset: 15,
+                detail: "invalid --theme() property `missing` at byte 0".into(),
+            },
         ),
     ] {
         let theme = SourceFile::new(FileId(2), None, None, css).unwrap();

@@ -127,6 +127,14 @@ pub struct LintOverrides {
     pub clamped_value: Option<LintSeverity>,
     /// Reporting level for `prefer-typed-variables`.
     pub prefer_typed_variables: Option<LintSeverity>,
+    /// Reporting level for `invalid-theme-reference`.
+    pub invalid_theme_reference: Option<LintSeverity>,
+    /// Reporting level for `duplicate-definition`.
+    pub duplicate_definition: Option<LintSeverity>,
+    /// Reporting level for `invalid-theme-value`.
+    pub invalid_theme_value: Option<LintSeverity>,
+    /// Reporting level for `implicit-nesting-selector`.
+    pub implicit_nesting_selector: Option<LintSeverity>,
 }
 
 impl LintOverrides {
@@ -200,7 +208,7 @@ impl LintOverrides {
     }
 
     fn resolve_reporting_levels(&self, settings: &mut LintSettings) {
-        self.resolve_input_reporting_levels(settings);
+        self.resolve_input_and_definition_reporting_levels(settings);
         for (kind, severity) in [
             (
                 LintKind::MismatchedFrameworkImport,
@@ -296,8 +304,18 @@ impl LintOverrides {
         }
     }
 
-    fn resolve_input_reporting_levels(&self, settings: &mut LintSettings) {
+    fn resolve_input_and_definition_reporting_levels(&self, settings: &mut LintSettings) {
         for (kind, severity) in [
+            (
+                LintKind::InvalidThemeReference,
+                self.invalid_theme_reference,
+            ),
+            (LintKind::DuplicateDefinition, self.duplicate_definition),
+            (LintKind::InvalidThemeValue, self.invalid_theme_value),
+            (
+                LintKind::ImplicitNestingSelector,
+                self.implicit_nesting_selector,
+            ),
             (
                 LintKind::InvalidRuleGroupInput,
                 self.invalid_rule_group_input,

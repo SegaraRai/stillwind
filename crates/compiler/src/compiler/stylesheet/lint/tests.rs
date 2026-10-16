@@ -16,7 +16,7 @@ use crate::CompilerOptions;
 const IMPORT: &str = "@import 'stillwind';\n";
 
 /// Loads `css` as a marked user source that imports the unmarked package.
-fn snapshot(css: &str, options: &CompilerOptions) -> DesignSystemSnapshot {
+pub(super) fn snapshot(css: &str, options: &CompilerOptions) -> DesignSystemSnapshot {
     let file = |id, name: &str, uri: &str, content: String, lint| CssFileInput {
         id,
         name: name.into(),
@@ -49,7 +49,10 @@ fn snapshot(css: &str, options: &CompilerOptions) -> DesignSystemSnapshot {
 }
 
 /// Returns the rule, covered text, and fixed CSS of each finding for `css`.
-fn findings(css: &str, options: &CompilerOptions) -> Vec<(LintKind, String, Option<String>)> {
+pub(super) fn findings(
+    css: &str,
+    options: &CompilerOptions,
+) -> Vec<(LintKind, String, Option<String>)> {
     let snapshot = snapshot(css, options);
     let source = Arc::clone(&snapshot.sources().sources[0].source);
     lint_stylesheets(&snapshot, options)
@@ -76,15 +79,19 @@ fn findings(css: &str, options: &CompilerOptions) -> Vec<(LintKind, String, Opti
 }
 
 /// Returns [`findings`] under the default options.
-fn default_findings(css: &str) -> Vec<(LintKind, String, Option<String>)> {
+pub(super) fn default_findings(css: &str) -> Vec<(LintKind, String, Option<String>)> {
     findings(css, &CompilerOptions::default())
 }
 
-fn finding(kind: LintKind, covered: &str) -> (LintKind, String, Option<String>) {
+pub(super) fn finding(kind: LintKind, covered: &str) -> (LintKind, String, Option<String>) {
     (kind, covered.to_owned(), None)
 }
 
-fn fixed(kind: LintKind, covered: &str, css: &str) -> (LintKind, String, Option<String>) {
+pub(super) fn fixed(
+    kind: LintKind,
+    covered: &str,
+    css: &str,
+) -> (LintKind, String, Option<String>) {
     (kind, covered.to_owned(), Some(css.to_owned()))
 }
 
@@ -192,14 +199,14 @@ fn fixes_edit_the_stylesheet() {
         findings(".a { @apply p-4 /* x */ [display:flex]; }", &options),
         [
             fixed(
-                LintKind::PreferCanonicalUtilities,
-                "[display:flex]",
-                ".a { @apply p-4 /* x */ flex; }"
-            ),
-            fixed(
                 LintKind::PreferSortedUtilities,
                 "p-4 /* x */ [display:flex]",
                 ".a { @apply [display:flex] /* x */ p-4; }"
+            ),
+            fixed(
+                LintKind::PreferCanonicalUtilities,
+                "[display:flex]",
+                ".a { @apply p-4 /* x */ flex; }"
             ),
         ]
     );

@@ -69,6 +69,14 @@ the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if
 Other input lints use `invalid-*` rules. Input lints other than `unknown-utility` and
 `unknown-variant` default to `deny`.
 
+The same contract applies to authored stylesheets. A declaration whose `--theme()` call
+names an inactive token without a fallback is omitted, and `invalid-theme-reference`
+reports the call. [Stylesheet lint](standalone-analysis.md#stylesheet-lint) also checks
+definitions: `implicit-nesting-selector` reports variant selectors without `&`,
+`duplicate-definition` reports definitions that later definitions hide, and
+`invalid-theme-value` reports theme token values of the wrong type. These rules check
+only stylesheets.
+
 An arbitrary value without a type hint is emitted as written when the grammar of
 every matching utility definition rejects it, as in Tailwind: `w-[1/2]` emits
 `width: 1/2`, and `text-[12px_foo]` emits `color: 12px foo`. The hazard rule
@@ -742,7 +750,7 @@ and every later variant applies relative to it.
 | A selector with `&`, such as `hover:` or `[&_.item]:`       | Relative to the anchor                                | Invalid                         |
 | An arbitrary selector without `&`, such as `[:hover]:`      | `&:is(:hover)`                                        | `:hover`, which sets the anchor |
 | `[:host(...)]:`, `[:root]:`, and `host:`                    | Document-wide, reported by `document-scoped-selector` | Sets the anchor                 |
-| A custom variant without `&`, such as `(:hover)`            | `& :hover`, which styles descendants                  | `:hover`, which sets the anchor |
+| A custom variant without `&`, such as `(:hover)`            | `& :hover`, which styles descendants                  | Invalid                         |
 | `not-*`                                                     | A condition on the anchor                             | Invalid                         |
 | At-rule variants, such as `sm:`, `dark:`, and `supports-*:` | Unaffected                                            | Unaffected                      |
 
@@ -761,9 +769,15 @@ name:
 @custom-variant shell scope(document) (:host);
 ```
 
-The marker keeps the selector as written. Without it, `@custom-variant shell (:host)`
-styles `:host` elements inside the anchor (`& :host`). With it, the variant stays
-document-wide where an anchor exists and sets the anchor where none exists.
+The marker means that the variant can set the anchor, and it keeps the selector as
+written. With it, the variant stays document-wide where an anchor exists and sets the
+anchor where none exists. Without it, a selector without `&` is relative to the anchor in
+every context, as a nested selector without `&` is relative to its parent in CSS
+Nesting: `@custom-variant shell (:host)` means `& :host` and styles `:host` elements
+inside the anchor. Such a variant is invalid where no anchor exists. Only variants with
+the marker and arbitrary selector variants such as `[:hover]:` set the anchor.
+`implicit-nesting-selector` reports a definition selector without `&`, and its fix
+writes the `&` without changing the meaning.
 
 A document-level style omits a candidate that does not select an element, such as
 `size-full` or `hover:flex`, and `missing-document-target` reports it. The finding

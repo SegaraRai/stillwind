@@ -13,13 +13,19 @@ use stillwind_diagnostics::{
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use super::application::check_application;
+use super::definitions::definitions;
+use super::nesting::check_nesting;
+use super::shadowing::{addresses, shadowed_definitions};
+use super::theme_references::{check_theme_references, check_utility_namespaces};
+use super::theme_values::check_theme_values;
 use super::variant::check_variant_block;
 use crate::{CompilerOptions, DesignSystemQuery};
 
 /// Lint findings in the stylesheets that the host marked for linting.
 #[derive(Debug)]
 pub struct StylesheetLint {
-    /// Findings in source acceptance order, then in authored order within a source.
+    /// Findings in source acceptance order, then by the start of their primary label
+    /// within a source.
     /// Suppression comments are already applied, and reporters apply severities. Each
     /// primary label and each fix addresses a marked source of the snapshot.
     pub findings: Vec<LintFinding>,
@@ -47,6 +53,11 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
     let mut findings = Vec::new();
     if lint_settings.has_enabled_rules() {
         let query = DesignSystemQuery::new(snapshot.clone(), options);
+        let shadowed = if lint_settings.enabled_for_detection(LintKind::DuplicateDefinition) {
+            shadowed_definitions(snapshot)
+        } else {
+            Vec::new()
+        };
         for source in snapshot
             .sources()
             .sources
@@ -60,12 +71,23 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
                 settings: &lint_settings,
                 findings: Vec::new(),
             };
-            checker.visit(
-                &parse_structure(source.source.text()),
-                &[LeanString::new()],
-                false,
+            let nodes = parse_structure(source.source.text());
+            checker.visit(&nodes, &[LeanString::new()], false);
+            for definition in definitions(&nodes, source.source.text()) {
+                check_nesting(&mut checker, &definition);
+                check_utility_namespaces(&mut checker, &definition);
+            }
+            check_theme_values(&mut checker, &nodes);
+            check_theme_references(&mut checker, &nodes, false);
+            checker.report_all(
+                shadowed
+                    .iter()
+                    .filter(|finding| addresses(finding, source.source.id()))
+                    .cloned(),
             );
             let mut source_findings = checker.findings;
+            source_findings
+                .sort_by_key(|finding| finding.labels.first().map(|label| label.span.start));
             finish_lint_findings(
                 &source.source,
                 LintSurface::Stylesheet,
@@ -168,7 +190,7 @@ impl Checker<'_> {
 
 /// Returns whether the at-rule `name` defines design-system semantics when it appears
 /// outside a style rule.
-fn is_definition(name: &str) -> bool {
+pub(super) fn is_definition(name: &str) -> bool {
     name.starts_with("stillwind-")
         || matches!(
             name,

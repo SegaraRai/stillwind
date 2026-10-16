@@ -249,9 +249,6 @@ pub enum CompileDiagnostic {
         /// Display text from the CSS parser used to collect custom-property usage.
         detail: LeanStr,
     },
-    /// An authored theme lookup has neither a resolved token nor a usable fallback.
-    #[error("authored CSS contains an unresolved --theme() reference without a usable fallback")]
-    UnresolvedThemeReference,
     /// A `--theme()` call has invalid syntax at a byte offset within its value.
     #[error("invalid --theme() reference at value byte {offset}: {detail}")]
     InvalidThemeReference {

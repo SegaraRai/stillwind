@@ -127,7 +127,7 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
             samples,
         });
     }
-    let namespace = theme_namespace(name)?;
+    let namespace = ThemeNamespace::of_token(name)?;
     theme.custom_property(name)?;
     let types = theme_arbitrary_types(namespace, theme);
     let mut samples = Vec::new();
@@ -144,22 +144,6 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
         source: VariableTypeSource::Theme(namespace.css_name().into()),
         samples,
     })
-}
-
-/// The theme namespace with the longest name that `name` belongs to: `text-shadow` for
-/// `--text-shadow-sm` and `text` for `--text-sm`. Names with a second `--`, such as
-/// `--text-sm--line-height`, belong to no namespace because they hold a different
-/// property of the token.
-fn theme_namespace(name: &str) -> Option<ThemeNamespace> {
-    let rest = name.strip_prefix("--")?;
-    if rest.contains("--") {
-        return None;
-    }
-    rest.match_indices('-')
-        .map(|(index, _)| &rest[..index])
-        .chain(std::iter::once(rest))
-        .filter_map(ThemeNamespace::parse)
-        .next_back()
 }
 
 /// Representative values of `value_type`, or `None` when the type has no small set of
@@ -349,18 +333,6 @@ mod tests {
         }
         let resolved = resolve_utility("bg-red-500/50", &theme).unwrap().unwrap();
         assert_eq!(resolved.invalid_value, None);
-    }
-
-    #[test]
-    fn namespaces_prefer_the_longest_name_and_skip_token_properties() {
-        assert_eq!(theme_namespace("--text-sm"), Some(ThemeNamespace::Text));
-        assert_eq!(
-            theme_namespace("--text-shadow-sm"),
-            Some(ThemeNamespace::TextShadow)
-        );
-        assert_eq!(theme_namespace("--spacing"), Some(ThemeNamespace::Spacing));
-        assert_eq!(theme_namespace("--text-sm--line-height"), None);
-        assert_eq!(theme_namespace("--my-len"), None);
     }
 
     #[test]

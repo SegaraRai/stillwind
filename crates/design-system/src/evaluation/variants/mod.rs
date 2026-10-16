@@ -37,7 +37,10 @@ pub use conditions::{
     unsatisfiable_variants,
 };
 pub use order::{VariantSequenceOrder, compare_variant_sequences};
-pub use resolve::{ConditionContext, VariantFailure, VariantFailureReason, resolve_variant};
+pub use resolve::{
+    ConditionContext, VariantFailure, VariantFailureReason, exact_variant_definition_resolves,
+    resolve_variant,
+};
 pub use usage::{
     ResolvedVariant, VariantMediaValue, VariantValueSource, resolve_variant_with_usage,
 };

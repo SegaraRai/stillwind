@@ -1,10 +1,12 @@
-//! Spelling suggestions for unknown utility and variant names.
+//! Spelling suggestions for unknown utility, variant, and theme token names.
 //!
 //! A suggestion is offered only for a likely typo: the candidate must be within a small
 //! edit distance of the unknown text, and the caller confirms that the suggested
 //! spelling resolves before it is reported.
 
-use lean_string::LeanString;
+use lean_string::{LeanString, ToLeanString};
+
+use crate::ThemeIndex;
 
 /// Maximum number of close spellings that [`closest_spelling`] passes to `resolves`.
 ///
@@ -40,6 +42,20 @@ pub(in crate::evaluation) fn closest_spelling(
         .take(MAX_CHECKED)
         .map(|(_, candidate)| candidate)
         .find(|candidate| resolves(candidate))
+}
+
+/// Returns the name of the active theme token of `theme` that is closest to `name`, as
+/// [`closest_spelling`] compares spellings, or `None` when no token name is close.
+#[must_use]
+pub fn suggested_theme_token(name: &str, theme: &ThemeIndex) -> Option<LeanString> {
+    closest_spelling(
+        name,
+        theme
+            .active_tokens()
+            .into_iter()
+            .map(|token| token.name.value.to_lean_string()),
+        |_| true,
+    )
 }
 
 /// Returns the number of character insertions, deletions, and substitutions that turn

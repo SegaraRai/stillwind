@@ -255,8 +255,10 @@ pub(super) fn stylesheet_reports(
     let failure = |error: &dyn std::fmt::Display| Error::from_reason(error.to_string());
     let lint = lint_stylesheets(snapshot, options);
     let mut registry = sources.fork_empty();
+    // Primary labels address marked sources, but a related label can address any
+    // source with a URI, such as a later definition in an imported file.
     for source in &snapshot.sources().sources {
-        if source.lint && source.source.uri().is_some() {
+        if source.source.uri().is_some() {
             registry
                 .retain(source.source.clone())
                 .map_err(|error| failure(&error))?;

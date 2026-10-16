@@ -193,6 +193,62 @@ test("lint checks the CSS entry and imported user CSS, and lint fixes edit them"
   }
 });
 
+test("lint reports stylesheet definitions and fixes implicit nesting selectors", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-css-"));
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"implicit-nesting-selector":"deny"}}}]}',
+    );
+    const entry = path.join(root, "root.css");
+    await writeFile(
+      entry,
+      '@import "./local.css"; @custom-variant hv (&:hover); @custom-variant kid (:hover, > .item); @utility flex { display: flex; } @stillwind-slot utilities;\n',
+    );
+    await writeFile(path.join(root, "local.css"), "@custom-variant hv (&:focus);\n");
+    await writeFile(
+      path.join(root, "entry.tsx"),
+      'import {style} from "stillwind/react";export const value=style("flex");',
+    );
+    /**
+     * Lists the code, primary document, and related documents of each finding in JSON
+     * output.
+     * @param stdout - JSON printed by the CLI.
+     * @returns Finding codes with the file names of their locations.
+     */
+    const findings = (stdout: string) =>
+      JSON.parse(stdout).diagnostics.map(
+        ({
+          report,
+        }: {
+          report: {
+            code: string;
+            primary: { location: { uri: string } };
+            related: { location: { uri: string } }[];
+          };
+        }) => [
+          report.code,
+          path.basename(fileURLToPath(report.primary.location.uri)),
+          report.related.map(({ location }) => path.basename(fileURLToPath(location.uri))),
+        ],
+      );
+    const report = await run(root, ["lint", "--format", "json"]);
+    expect(report.code, report.stderr).toBe(1);
+    expect(findings(report.stdout)).toEqual([
+      ["duplicate-definition", "local.css", ["root.css"]],
+      ["implicit-nesting-selector", "root.css", []],
+    ]);
+    const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
+    expect(fixed.code, fixed.stderr).toBe(0);
+    expect(findings(fixed.stdout)).toEqual([["duplicate-definition", "local.css", ["root.css"]]]);
+    expect(await readFile(entry, "utf8")).toBe(
+      '@import "./local.css"; @custom-variant hv (&:hover); @custom-variant kid (& :hover, & > .item); @utility flex { display: flex; } @stillwind-slot utilities;\n',
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI checks unused files, keeps overlapping project results, and isolates config logs from JSON", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-"));
   try {

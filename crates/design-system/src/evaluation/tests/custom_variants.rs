@@ -269,22 +269,19 @@ fn selectors_without_nesting_selector_style_descendants() {
     let variant = |candidate: &str| parse_candidate(candidate).unwrap().variants[0].clone();
     let resolve = |candidate: &str| resolve_variant(&variant(candidate), &theme).ok();
 
-    for (candidate, expected, top_level) in [
-        ("hv:flex", "& :hover", Some(":hover")),
-        ("op:flex", "& .open", Some(".open")),
-        ("child:flex", "& > .item", None),
-        ("either:flex", "& :hover, & .open", Some(":hover, .open")),
-        ("blk:flex", "& :hover", Some(":hover")),
+    for (candidate, expected) in [
+        ("hv:flex", "& :hover"),
+        ("op:flex", "& .open"),
+        ("child:flex", "& > .item"),
+        ("either:flex", "& :hover, & .open"),
+        ("blk:flex", "& :hover"),
     ] {
         let application = resolve(candidate);
-        let expected = match top_level {
-            Some(top_level) => VariantApplication::BareSelector {
-                selector: expected.to_lean_str(),
-                top_level: top_level.to_lean_str(),
-            },
-            None => VariantApplication::SelectorTemplate(expected.to_lean_str()),
-        };
-        assert_eq!(application, Some(expected), "{candidate}");
+        assert_eq!(
+            application,
+            Some(VariantApplication::SelectorTemplate(expected.to_lean_str())),
+            "{candidate}"
+        );
         assert_eq!(document_scoped_selector(&application.unwrap()), None);
         assert_eq!(repeated_subject_selector(&variant(candidate), &theme), None);
     }

@@ -10,7 +10,7 @@
 //! applications and their ordering. [`context`] records direct selections for one
 //! evaluation. [`programs`] prepares utility syntax and declaration branches.
 //! [`syntax`] matches delimiters while reading definition expressions. [`suggestions`]
-//! proposes spellings for unknown utility and variant names.
+//! proposes spellings for unknown utility, variant, and theme token names.
 
 mod builtins;
 mod context;
@@ -38,9 +38,12 @@ pub use variants::{
     VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
     VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
     compatibility_marker_class, document_scoped_selector, document_target,
-    is_tailwind_relationship_candidate, redundant_variants, repeated_subject_selector,
-    resolve_variant, resolve_variant_with_usage, unsatisfiable_variants,
+    exact_variant_definition_resolves, is_tailwind_relationship_candidate, redundant_variants,
+    repeated_subject_selector, resolve_variant, resolve_variant_with_usage, unsatisfiable_variants,
 };
+
+pub use suggestions::suggested_theme_token;
+pub use values::{ThemeValueMismatch, theme_value_mismatch, unresolvable_value_namespaces};
 
 pub(crate) use programs::UtilityPrograms;
 pub(crate) use values::color_fallback;

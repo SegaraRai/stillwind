@@ -191,6 +191,46 @@ pub(in crate::evaluation) fn named_domain_values(
     names
 }
 
+/// Returns the theme namespace patterns, such as `--size-*`, of the `--value(...)`
+/// placeholders of the utility body `body` when no domain of `body` can resolve a
+/// value.
+///
+/// A pattern resolves a value when it names a theme namespace that has an active token
+/// with the pattern's suffix, or when it is `--spacing-*` and the theme defines the
+/// `--spacing` scale. A pattern of a name outside the theme namespaces never resolves,
+/// whatever tokens exist. The result is empty when `body` has no `--value(...)`, when a
+/// pattern resolves a value, or when a domain is not a namespace pattern, such as
+/// `integer`, `[length]`, or a keyword.
+#[must_use]
+pub fn unresolvable_value_namespaces(body: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
+    let mut patterns = Vec::new();
+    let mut resolves = false;
+    let mut body = body.to_lean_string();
+    let _ = expand_placeholder(&mut body, "--value", |domains| {
+        for domain in split_domains(domains) {
+            let domain = domain.trim();
+            if !domain.starts_with("--") || !domain.contains("-*") {
+                resolves = true;
+                continue;
+            }
+            resolves |= theme_domain_pattern(domain).is_some_and(|(namespace, suffix)| {
+                (namespace == ThemeNamespace::Spacing
+                    && suffix.is_empty()
+                    && theme.scale(namespace).is_some())
+                    || theme.tokens_in(namespace).into_iter().any(|token| {
+                        matches!(&token.kind, ThemeTokenKind::Token { name, .. } if name.ends_with(suffix))
+                    })
+            });
+            let domain = domain.to_lean_str();
+            if !patterns.contains(&domain) {
+                patterns.push(domain);
+            }
+        }
+        Some(LeanStr::new())
+    });
+    if resolves { Vec::new() } else { patterns }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,5 +262,35 @@ mod tests {
             Some("2".into())
         );
         assert_eq!(resolve_value_domains("[number]", None, &theme), None);
+    }
+
+    #[test]
+    fn value_namespaces_without_values_are_unresolvable() {
+        let source = stillwind_source::SourceFile::new(
+            stillwind_source::FileId(1),
+            None,
+            None,
+            "@theme { --size-4: 1rem; --color-x: red; }",
+        )
+        .unwrap();
+        let theme = crate::test_support::parse_fixture_theme(&source).unwrap();
+        for (body, expected) in [
+            ("width: --value(--size-*);", &["--size-*"][..]),
+            (
+                "color: --value(--color-*-strong, --size-*);",
+                &["--color-*-strong", "--size-*"],
+            ),
+            ("color: --value(--color-*);", &[]),
+            ("width: --value(--spacing-*);", &[]),
+            ("width: --value(--size-*, integer);", &[]),
+            ("width: --value(--size-*, [length]);", &[]),
+            ("width: 1px;", &[]),
+        ] {
+            assert_eq!(
+                unresolvable_value_namespaces(body, &theme),
+                expected,
+                "{body}"
+            );
+        }
     }
 }

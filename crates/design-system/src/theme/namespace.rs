@@ -124,6 +124,26 @@ impl ThemeNamespace {
         }
     }
 
+    /// Returns the namespace with the longest name that the theme token `name` belongs
+    /// to: `text-shadow` for `--text-shadow-sm` and `text` for `--text-sm`.
+    ///
+    /// Returns `None` for a name outside every namespace. It also returns `None` for a
+    /// name with a second `--`, such as `--text-sm--line-height`, because that token
+    /// holds a different property of `--text-sm`, and for a namespace reset such as
+    /// `--color-*`.
+    #[must_use]
+    pub fn of_token(name: &str) -> Option<Self> {
+        let rest = name.strip_prefix("--")?;
+        if rest.contains("--") || rest.contains('*') {
+            return None;
+        }
+        rest.match_indices('-')
+            .map(|(index, _)| &rest[..index])
+            .chain(std::iter::once(rest))
+            .filter_map(Self::parse)
+            .next_back()
+    }
+
     /// Parses a namespace name; matching is case-sensitive.
     ///
     /// The order of the candidates is checked by the test suite against
@@ -176,6 +196,25 @@ mod tests {
             namespaces[&ThemeNamespace::Leading],
             vec![ValueType::Number, ValueType::Length]
         );
+    }
+
+    #[test]
+    fn tokens_belong_to_the_longest_namespace_without_token_properties() {
+        assert_eq!(
+            ThemeNamespace::of_token("--text-sm"),
+            Some(ThemeNamespace::Text)
+        );
+        assert_eq!(
+            ThemeNamespace::of_token("--text-shadow-sm"),
+            Some(ThemeNamespace::TextShadow)
+        );
+        assert_eq!(
+            ThemeNamespace::of_token("--spacing"),
+            Some(ThemeNamespace::Spacing)
+        );
+        for name in ["--text-sm--line-height", "--my-len", "--color-*", "--*"] {
+            assert_eq!(ThemeNamespace::of_token(name), None, "{name}");
+        }
     }
 
     #[test]

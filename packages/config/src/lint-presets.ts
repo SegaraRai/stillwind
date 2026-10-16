@@ -45,6 +45,10 @@ const recommended = {
     "redundant-variant": "warn",
     "unsatisfiable-variants": "warn",
     "clamped-value": "warn",
+    "invalid-theme-reference": "deny",
+    "duplicate-definition": "warn",
+    "invalid-theme-value": "deny",
+    "implicit-nesting-selector": "warn",
   },
 } as const;
 
@@ -100,6 +104,10 @@ export const lintPresets = {
       "redundant-variant": "deny",
       "unsatisfiable-variants": "deny",
       "clamped-value": "deny",
+      "invalid-theme-reference": "deny",
+      "duplicate-definition": "deny",
+      "invalid-theme-value": "deny",
+      "implicit-nesting-selector": "deny",
       "unused-lint-suppression": "deny",
     },
   },

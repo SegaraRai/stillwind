@@ -14,7 +14,7 @@ pub use element::{
 };
 pub use list::{selector_is_valid, selector_list_branches};
 pub use subject::{
-    absolutize_nested_selector, instantiate_selector, selector_repeats_subject,
-    selector_uses_subject, subject_as_universal,
+    absolutize_nested_selector, implicit_nesting_positions, instantiate_selector,
+    selector_repeats_subject, selector_uses_subject, subject_as_universal,
 };
 pub use target::{SelectorTarget, selector_target};

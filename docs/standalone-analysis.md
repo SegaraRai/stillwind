@@ -276,8 +276,46 @@ as [Variant targets](macro-contract.md#variant-targets) describes. `duplicate-ut
 and `conflicting-utilities` compare the candidates of one `@apply` statement.
 `redundant-variant` and `unsatisfiable-variants` check a `@variant` sequence or an
 `@apply` candidate together with the sequences of the enclosing `@variant` blocks. A
-nested style rule starts a new stack, because it selects another element. Definitions
-such as `@utility` and `@custom-variant` are not checked.
+nested style rule starts a new stack, because it selects another element.
+
+Other rules check only stylesheets. They check definitions and theme references:
+
+- `implicit-nesting-selector` (style, default `warn`) reports a selector of a
+  `@custom-variant`, `@variant`, or `@stillwind-variant` definition that has a branch
+  without `&` or a branch that starts with a combinator, such as `(:hover)`,
+  `(> .item)`, or `{ :hover { @slot; } }`. Such a selector is relative to `&` in every
+  context, so `(:hover)` means `(& :hover)`. Definitions with `scope(document)` are not
+  reported. The finding covers the selector at the definition and never covers a use.
+  Its fix inserts `& ` before each such branch, which keeps the meaning. The message
+  names `scope(document)` for a selector that should select a document-level element,
+  but no fix adds it, because the marker changes the meaning.
+- `duplicate-definition` (hazard, default `warn`) reports an earlier `@custom-variant`
+  or `@utility` that later definitions with the same name hide completely, so it is
+  never used. A later variant definition hides an earlier one when it resolves.
+  Later `@utility` definitions hide an earlier one when they set every property of
+  its declarations, because exact utility definitions merge. Definitions with a
+  capture, such as `tab-*`, are overloads, and redefinitions of built-in names such as
+  `dark` are customizations; neither is reported. The finding covers the name of the
+  hidden definition, and a related location covers the later definition. Definitions
+  are ordered after import expansion, so the later definition can be in another file.
+- `invalid-theme-value` (hazard, default `deny`) reports a `@theme` token value that
+  matches no value type of its namespace, such as `--color-brand: 12px` or
+  `--breakpoint-tab: blue`. The value types come from the built-in registry: `<color>`
+  for `--color-*`, `<length>` for `--spacing`, `--breakpoint-*`, and `--container-*`, a
+  font size for `--text-*`, and so on. A shadow namespace accepts a comma-separated list
+  of shadows. Values that contain `var()`, `theme()`, or `--theme()` are not checked.
+  The output does not change.
+- `invalid-theme-reference` (input, default `deny`) reports a `theme()` or `--theme()`
+  call that names an inactive token without a fallback, in authored rules, `@utility`
+  bodies, and variant definitions. Stylesheet rendering omits the declaration that
+  contains such a `--theme()` call, or the rule whose selector or prelude contains it.
+  A `--theme()` fallback of `initial` omits the declaration on purpose and is not
+  reported. The finding suggests an active token with a close spelling. The rule also
+  reports, at the name, a `@utility` with a capture whose `--value()` domains are
+  only theme namespaces that provide no value. A namespace provides no value when it
+  has no active token, and also when its name is not a theme namespace: tokens such as
+  `--size-4` never resolve `--value(--size-*)`. Uses of that utility still report
+  `unknown-utility`.
 
 The rule catalog records whether each rule checks scripts, stylesheets, or both. Macro
 rules, such as `mutating-macro-argument` and the ref and view-transition rules, never

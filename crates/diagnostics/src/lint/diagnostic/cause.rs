@@ -585,10 +585,69 @@ pub enum LintDiagnostic {
         /// The utility with the type hint added.
         replacement: LeanStr,
     },
+    /// A selector of a variant definition has a branch without `&` or a branch that
+    /// starts with a combinator, so it is relative to `&` without writing it
+    /// (`implicit-nesting-selector`).
+    #[error(
+        "variant selector `{selector}` is relative to `&` and means `{nested}`; write the `&`, or add `scope(document)` to the definition to select a document-level element"
+    )]
+    ImplicitNestingSelector {
+        /// Selector as written.
+        selector: LeanStr,
+        /// Selector with `&` inserted, which the variant applies.
+        nested: LeanStr,
+    },
+    /// A later definition with the same name hides an earlier `@utility` or variant
+    /// definition, so the earlier one is never used (`duplicate-definition`).
+    #[error(
+        "`{directive} {name}` is never used because a later definition with the same name replaces it"
+    )]
+    DuplicateDefinition {
+        /// Directive of the hidden definition, such as `@utility` or `@custom-variant`.
+        directive: LeanStr,
+        /// Definition name as written.
+        name: LeanStr,
+    },
+    /// A theme token value matches no value type of its namespace
+    /// (`invalid-theme-value`).
+    #[error(
+        "`{value}` is not a valid value for `{token}` because tokens of `--{namespace}-*` must be `{expected}`"
+    )]
+    InvalidThemeValue {
+        /// Token name, including the leading `--`.
+        token: LeanStr,
+        /// Value as written.
+        value: LeanStr,
+        /// Namespace name without `--` and `-*`, such as `color`.
+        namespace: LeanStr,
+        /// Accepted type hints joined with ` or `.
+        expected: LeanStr,
+    },
+    /// A `theme()` or `--theme()` call names a theme token that is not active and has
+    /// no fallback (`invalid-theme-reference`).
+    #[error("`{reference}` names no theme token and has no fallback{}", DidYouMean(.suggestion))]
+    UnresolvedThemeReference {
+        /// Call text as written, such as `--theme(--color-nope)`.
+        reference: LeanStr,
+        /// Name of an active token with a close spelling.
+        suggestion: Option<LeanStr>,
+    },
+    /// Every `--value()` domain of a `@utility` reads a theme namespace that provides no
+    /// value, so no candidate resolves (`invalid-theme-reference`).
+    #[error(
+        "`@utility {utility}` reads values only from `{namespaces}`, but no theme token provides a value there, so no candidate can use it"
+    )]
+    EmptyThemeNamespace {
+        /// Utility name as written, such as `box-*`.
+        utility: LeanStr,
+        /// Namespace patterns as written, such as `--size-*`, joined with `, `.
+        namespaces: LeanStr,
+    },
 }
 
 impl LintDiagnostic {
     /// Returns the rule selected by the diagnostic.
+    #[allow(clippy::too_many_lines)]
     pub const fn kind(&self) -> LintKind {
         match self {
             Self::EmptyRefCondition
@@ -689,6 +748,12 @@ impl LintDiagnostic {
             Self::UnsatisfiableVariants { .. } => LintKind::UnsatisfiableVariants,
             Self::ClampedValue { .. } => LintKind::ClampedValue,
             Self::UntypedVariable { .. } => LintKind::PreferTypedVariables,
+            Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
+            Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
+            Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
+            Self::UnresolvedThemeReference { .. } | Self::EmptyThemeNamespace { .. } => {
+                LintKind::InvalidThemeReference
+            }
         }
     }
 

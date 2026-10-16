@@ -211,11 +211,7 @@ mod tests {
                 ":root{display:flex;}",
                 Some(":root{display:flex;}"),
             ),
-            (
-                "hv:flex",
-                ".c :hover{display:flex;}",
-                Some(":hover{display:flex;}"),
-            ),
+            ("hv:flex", ".c :hover{display:flex;}", None),
             (
                 "hover:flex",
                 "@media (hover: hover){.c:hover{display:flex;}}",

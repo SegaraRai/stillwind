@@ -14,6 +14,7 @@ mod arbitrary;
 mod definition;
 mod variant;
 
+pub use definition::exact_variant_definition_resolves;
 pub use variant::{ConditionContext, VariantFailure, VariantFailureReason, resolve_variant};
 
 pub(in crate::evaluation) use arbitrary::{

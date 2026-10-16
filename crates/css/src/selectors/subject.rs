@@ -57,8 +57,25 @@ fn subject_uses(parser: &mut Parser<'_>) -> usize {
 /// that contains no `&` gets `& ` in front of it, so `:hover` becomes `& :hover` and
 /// `> .item` becomes `& > .item`. Other branches, whitespace and comments stay as
 /// written. Quoted, escaped, commented, and attribute-value ampersands are literal text
-/// and do not count as `&`.
+/// and do not count as `&`. [`implicit_nesting_positions`] returns the insertion points.
 pub fn absolutize_nested_selector(selector: &str) -> LeanString {
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    for position in implicit_nesting_positions(selector) {
+        output.push_str(&selector[cursor..position]);
+        output.push_str("& ");
+        cursor = position;
+    }
+    output.push_str(&selector[cursor..]);
+    output
+}
+
+/// Returns the byte offset of the first token of each branch of `selector` that
+/// [`absolutize_nested_selector`] prefixes with `& `, in increasing order.
+///
+/// The result is empty when every branch contains `&` and no branch starts with a
+/// combinator.
+pub fn implicit_nesting_positions(selector: &str) -> Vec<usize> {
     let mut parser = Parser::new(selector);
     let mut insertions = Vec::new();
     let mut branch: Option<(usize, bool)> = None;
@@ -103,15 +120,7 @@ pub fn absolutize_nested_selector(selector: &str) -> LeanString {
             _ => {}
         }
     }
-    let mut output = LeanString::new();
-    let mut cursor = 0;
-    for position in insertions {
-        output.push_str(&selector[cursor..position]);
-        output.push_str("& ");
-        cursor = position;
-    }
-    output.push_str(&selector[cursor..]);
-    output
+    insertions
 }
 
 /// Emits a selector template with CSS nesting tokens bound to `parent`.

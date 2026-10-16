@@ -6,10 +6,11 @@
 //! starting-style block, or a selector rule, in that priority order.
 //!
 //! A selector rule is a nested style rule, so a selector without `&` is relative to the
-//! styled element as in CSS Nesting: `:hover { @slot; }` styles hovered descendants.
-//! Such a selector resolves to [`VariantApplication::BareSelector`], which also keeps
-//! the selector as written for a variant stack that has not selected an element yet. A
-//! definition with [`VariantScope::Document`] keeps its selectors as written.
+//! styled element as in CSS Nesting: `:hover { @slot; }` styles hovered descendants in
+//! every context. A definition with [`VariantScope::Document`] keeps its selectors as
+//! written, and an `&`-less selector of such a definition resolves to
+//! [`VariantApplication::BareSelector`], which selects the element of a variant stack
+//! that has not selected one yet.
 //!
 //! A selector rule may also declare properties of its own (for example a `group`
 //! variant that also sets a custom property). Those declarations are kept separate from
@@ -38,8 +39,9 @@ pub(in crate::evaluation) fn resolve_variant_body(body: &str) -> Option<VariantA
 /// construct the emitter can place.
 ///
 /// A selector rule without declarations resolves to [`VariantApplication::BareSelector`]
-/// when no branch of its selector contains `&`. A selector rule inside `@media` keeps
-/// only the form relative to `&`.
+/// when `scope` is [`VariantScope::Document`] and no branch of its selector contains
+/// `&`. A selector rule inside `@media` resolves to [`VariantApplication::SelectorMedia`]
+/// with the same selector.
 pub(in crate::evaluation) fn resolve_scoped_variant_body(
     body: &str,
     scope: VariantScope,
@@ -166,8 +168,8 @@ pub(in crate::evaluation) struct VariantSelectorRule {
     /// Selector template for use relative to `&`. Each branch contains `&`, except in a
     /// definition with [`VariantScope::Document`], which keeps its selector as written.
     pub(in crate::evaluation) selector: LeanStr,
-    /// The selector as written, when it is valid without `&` and no branch contains
-    /// `&`.
+    /// The selector as written, when the definition has [`VariantScope::Document`], the
+    /// selector is valid without `&`, and no branch contains `&`.
     pub(in crate::evaluation) top_level: Option<LeanStr>,
     /// Declarations stated by the rule itself, in authored order.
     pub(in crate::evaluation) declarations: Vec<VariantDeclaration>,
@@ -223,8 +225,10 @@ fn selector_rule_from_variant_body(body: &str, scope: VariantScope) -> Option<Va
     if !inner[start..].trim().is_empty() {
         return None;
     }
-    let top_level = (!selector_uses_subject(selector) && selector_is_valid(selector))
-        .then(|| selector.to_lean_str());
+    let top_level = (scope == VariantScope::Document
+        && !selector_uses_subject(selector)
+        && selector_is_valid(selector))
+    .then(|| selector.to_lean_str());
     let selector = match scope {
         VariantScope::Nested => absolutize_nested_selector(selector).to_lean_str(),
         VariantScope::Document => selector.to_lean_str(),
@@ -280,34 +284,25 @@ mod tests {
         for body in ["color: { @slot; }", "&: { @slot; }", ".a, { @slot; }"] {
             assert_eq!(resolve_variant_body(body), None, "{body}");
         }
-        for (body, selector, top_level) in [
-            (":hover { @slot; }", "& :hover", Some(":hover")),
-            ("> .item { @slot; }", "& > .item", None),
-            (
-                ":hover, .open { @slot; }",
-                "& :hover, & .open",
-                Some(":hover, .open"),
-            ),
-            ("&:hover, .open { @slot; }", "&:hover, & .open", None),
+        for (body, selector) in [
+            (":hover { @slot; }", "& :hover"),
+            ("> .item { @slot; }", "& > .item"),
+            (":hover, .open { @slot; }", "& :hover, & .open"),
+            ("&:hover, .open { @slot; }", "&:hover, & .open"),
             (
                 r#"[data-value="&{"] .\& { @slot; }"#,
                 r#"& [data-value="&{"] .\&"#,
-                Some(r#"[data-value="&{"] .\&"#),
             ),
             (
                 "::view-transition-old(*) { @slot; }",
                 "& ::view-transition-old(*)",
-                Some("::view-transition-old(*)"),
             ),
         ] {
-            let expected = match top_level {
-                Some(top_level) => VariantApplication::BareSelector {
-                    selector: selector.into(),
-                    top_level: top_level.into(),
-                },
-                None => VariantApplication::SelectorTemplate(selector.into()),
-            };
-            assert_eq!(resolve_variant_body(body), Some(expected), "{body}");
+            assert_eq!(
+                resolve_variant_body(body),
+                Some(VariantApplication::SelectorTemplate(selector.into())),
+                "{body}"
+            );
         }
         assert_eq!(
             resolve_variant_body("@media print { .open { @slot; } }"),

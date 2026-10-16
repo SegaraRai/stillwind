@@ -140,7 +140,6 @@ define_compile_codes! {
         MalformedUtilityRequirement { .. } => "SW14008",
         UnknownRequiredProperty { .. } => "SW14009",
         PropertyUsageParse { .. } => "SW14010",
-        UnresolvedThemeReference => "SW14011",
         InvalidThemeReference { .. } => "SW14012",
         InvalidRuntimeConditional { .. } => "SW14013",
     }

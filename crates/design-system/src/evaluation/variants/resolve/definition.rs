@@ -69,6 +69,19 @@ pub(in crate::evaluation) fn resolve_named_variant_with<T>(
     None
 }
 
+/// Returns whether the variant definition `custom` resolves for its own name.
+///
+/// A definition without a capture resolves the same way for every use. When it
+/// resolves, it hides every earlier definition with the same name, because resolution
+/// tries later definitions first and falls back only after a failure. A definition with
+/// a capture or a value type returns `false`.
+#[must_use]
+pub fn exact_variant_definition_resolves(custom: &CustomVariant, theme: &ThemeIndex) -> bool {
+    custom.wildcard.is_none()
+        && custom.value_type.is_none()
+        && resolve_registered_variant_candidate(custom, None, &custom.name, 0, theme).is_ok()
+}
+
 /// Resolves one definition for a concrete capture and explains a failure.
 ///
 /// A typed definition delegates to [`resolve_typed_variant`]; otherwise the body is

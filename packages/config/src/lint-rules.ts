@@ -122,6 +122,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-theme-reference": {
+    category: "input",
+    nativeName: "invalidThemeReference",
+    defaults: null,
+    options: null,
+  },
   "mutating-macro-argument": {
     category: "contract",
     nativeName: "mutatingMacroArgument",
@@ -239,6 +245,18 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "duplicate-definition": {
+    category: "hazard",
+    nativeName: "duplicateDefinition",
+    defaults: null,
+    options: null,
+  },
+  "invalid-theme-value": {
+    category: "hazard",
+    nativeName: "invalidThemeValue",
+    defaults: null,
+    options: null,
+  },
   "no-arbitrary-colors": {
     category: "restriction",
     nativeName: "noArbitraryColors",
@@ -350,6 +368,12 @@ export const lintRules = {
   "prefer-typed-variables": {
     category: "style",
     nativeName: "preferTypedVariables",
+    defaults: null,
+    options: null,
+  },
+  "implicit-nesting-selector": {
+    category: "style",
+    nativeName: "implicitNestingSelector",
     defaults: null,
     options: null,
   },

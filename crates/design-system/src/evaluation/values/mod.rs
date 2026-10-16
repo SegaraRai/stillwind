@@ -5,7 +5,8 @@
 //! is split by what the value depends on: the theme ([`theme`]), the capture's grammar
 //! ([`domains`]), CSS color compatibility ([`colors`]), textual decoding of arbitrary
 //! values ([`arbitrary`]), the nested placeholder forms ([`macros`]), and the ordered
-//! expansion that applies all of them ([`placeholders`]).
+//! expansion that applies all of them ([`placeholders`]). [`token_values`] checks
+//! authored token values against the types of their namespace for lint.
 //!
 //! Resolution is fail-closed: when a placeholder cannot be resolved the whole
 //! declaration is rejected, and the caller then tries the next overload rather than
@@ -18,9 +19,14 @@ mod expansion;
 mod macros;
 mod placeholders;
 mod theme;
+mod token_values;
+
+pub use domains::unresolvable_value_namespaces;
+pub use token_values::{ThemeValueMismatch, theme_value_mismatch};
+
+pub(crate) use colors::color_fallback;
 
 pub(super) use arbitrary::decode_arbitrary;
-pub(crate) use colors::color_fallback;
 pub(super) use domains::{
     named_domain_values, resolve_value_domains, split_domains, theme_domain_pattern,
 };

@@ -256,6 +256,7 @@ define_lint_rules! {
         InvalidVariant => "invalid-variant",
         UnknownVariant => "unknown-variant",
         MissingDocumentTarget => "missing-document-target",
+        InvalidThemeReference => "invalid-theme-reference",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",
@@ -279,6 +280,8 @@ define_lint_rules! {
         InvalidPropertyValue => "invalid-property-value",
         UnsatisfiableVariants => "unsatisfiable-variants",
         ClampedValue => "clamped-value",
+        DuplicateDefinition => "duplicate-definition",
+        InvalidThemeValue => "invalid-theme-value",
     }
     Restriction {
         NoArbitraryColors => "no-arbitrary-colors",
@@ -299,6 +302,7 @@ define_lint_rules! {
         PreferSortedUtilities => "prefer-sorted-utilities",
         RedundantVariant => "redundant-variant",
         PreferTypedVariables => "prefer-typed-variables",
+        ImplicitNestingSelector => "implicit-nesting-selector",
     }
     Suppression {
         InvalidLintSuppression => "invalid-lint-suppression",
@@ -322,65 +326,37 @@ impl LintKind {
     /// suppression comment that names a rule that does not check its source is invalid.
     pub const fn checks(self, surface: LintSurface) -> bool {
         match surface {
-            LintSurface::Script => true,
-            LintSurface::Stylesheet => match self {
+            LintSurface::Script => !matches!(
+                self,
+                Self::InvalidThemeReference
+                    | Self::DuplicateDefinition
+                    | Self::InvalidThemeValue
+                    | Self::ImplicitNestingSelector
+            ),
+            LintSurface::Stylesheet => matches!(
+                self,
                 Self::InvalidUtility
-                | Self::UnknownUtility
-                | Self::InvalidVariant
-                | Self::UnknownVariant
-                | Self::DuplicateUtility
-                | Self::ConflictingUtilities
-                | Self::DocumentScopedSelector
-                | Self::RepeatedNestingSelector
-                | Self::InvalidPropertyValue
-                | Self::UnsatisfiableVariants
-                | Self::ClampedValue
-                | Self::PreferCanonicalUtilities
-                | Self::PreferSortedUtilities
-                | Self::RedundantVariant
-                | Self::PreferTypedVariables
-                | Self::InvalidLintSuppression
-                | Self::UnusedLintSuppression => true,
-                Self::InvalidRuleGroupInput
-                | Self::InvalidStyleInput
-                | Self::InvalidCvaConfig
-                | Self::InvalidCvaInput
-                | Self::InvalidKeyframesUse
-                | Self::InvalidKeyframesDefinition
-                | Self::InvalidKeyframesVariant
-                | Self::InvalidViewTransitionUse
-                | Self::InvalidViewTransitionDefinition
-                | Self::InvalidViewTransitionVariant
-                | Self::InvalidRefInput
-                | Self::InvalidAnimationOption
-                | Self::InvalidStyleComposition
-                | Self::RuntimeConditionRequiresCssIf
-                | Self::MissingDocumentTarget
-                | Self::MutatingMacroArgument
-                | Self::SuspendingMacroArgument
-                | Self::MismatchedFrameworkImport
-                | Self::ConflictingProviderProperties
-                | Self::UnverifiedStyleBase
-                | Self::AmbiguousStyleBaseOrder
-                | Self::InterferingImportedStyleBase
-                | Self::MissingRefAttachment
-                | Self::MissingViewTransitionName
-                | Self::DuplicateViewTransitionName
-                | Self::SplitViewTransitionClass
-                | Self::IneffectiveAnchorScope
-                | Self::NoArbitraryColors
-                | Self::NoArbitrarySpacing
-                | Self::NoClassProperty
-                | Self::NoRestrictedUtilities
-                | Self::NoRestrictedDeclarations
-                | Self::NoImportant
-                | Self::NoRestrictedLengthUnits
-                | Self::NoRestrictedThemeTokens
-                | Self::NoArbitraryBreakpoints
-                | Self::PreferDirectStyling
-                | Self::PreferLogicalProperties
-                | Self::PreferTypedRelationships => false,
-            },
+                    | Self::UnknownUtility
+                    | Self::InvalidVariant
+                    | Self::UnknownVariant
+                    | Self::DuplicateUtility
+                    | Self::ConflictingUtilities
+                    | Self::DocumentScopedSelector
+                    | Self::RepeatedNestingSelector
+                    | Self::InvalidPropertyValue
+                    | Self::UnsatisfiableVariants
+                    | Self::ClampedValue
+                    | Self::PreferCanonicalUtilities
+                    | Self::PreferSortedUtilities
+                    | Self::RedundantVariant
+                    | Self::PreferTypedVariables
+                    | Self::InvalidThemeReference
+                    | Self::DuplicateDefinition
+                    | Self::InvalidThemeValue
+                    | Self::ImplicitNestingSelector
+                    | Self::InvalidLintSuppression
+                    | Self::UnusedLintSuppression
+            ),
         }
     }
 }
