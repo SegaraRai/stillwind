@@ -37,7 +37,7 @@ pub use utilities::{
 };
 pub use variants::{
     BuiltinVariantModifierType, BuiltinVariantSort, BuiltinVariantSortDirection,
-    BuiltinVariantValueType, CustomVariant, parse_builtin_variant_definitions,
+    BuiltinVariantValueType, CustomVariant, VariantScope, parse_builtin_variant_definitions,
     parse_variant_definitions,
 };
 

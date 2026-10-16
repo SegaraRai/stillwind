@@ -14,7 +14,8 @@ use stillwind_css::{
     property_covers, property_value_domains, selector_target,
 };
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, VariantValueSource, resolve_variant, resolve_variant_with_usage,
+    ThemeIndex, VariantApplication, VariantContext, VariantValueSource, resolve_variant,
+    resolve_variant_with_usage,
 };
 use stillwind_diagnostics::{
     Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -504,6 +505,9 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
                         selector = append_element_condition(&selector, condition);
                     }
                     VariantStep::SelectorTemplate(template)
+                    | VariantStep::BareSelector {
+                        selector: template, ..
+                    }
                     | VariantStep::SelectorRule {
                         selector: template, ..
                     }
@@ -540,7 +544,7 @@ pub(crate) fn candidate_allowed(raw: &str, theme: &ThemeIndex, settings: &LintSe
     {
         return true;
     }
-    let Ok(Ok(utilities)) = resolve_utility_targets(raw, theme) else {
+    let Ok(Ok(utilities)) = resolve_utility_targets(raw, theme, VariantContext::Element) else {
         return false;
     };
     utilities.iter().all(|utility| {

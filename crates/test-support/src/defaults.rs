@@ -28,6 +28,7 @@ pub const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/core/css/builtin-variants/tw-dynamic-selector.css"),
     include_str!("../../../packages/core/css/builtin-variants/tw-conditional.css"),
     include_str!("../../../packages/core/css/builtin-variants/sw-conditional.css"),
+    include_str!("../../../packages/core/css/builtin-variants/sw-document.css"),
     include_str!("../../../packages/core/css/builtin-metadata/tw-properties.css"),
     include_str!("../../../packages/core/css/builtins.css"),
 );

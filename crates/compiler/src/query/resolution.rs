@@ -7,7 +7,8 @@ use std::rc::Rc;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    DesignSystemRevision, UtilityFailure, UtilityResolutionError, builtin_property_definitions,
+    DesignSystemRevision, UtilityFailure, UtilityResolutionError, VariantContext,
+    builtin_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ModuleId;
@@ -171,7 +172,7 @@ impl QueryContext {
         let selector = selector.as_str();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
-        let targets = resolve_utility_targets(candidate, theme)?;
+        let targets = resolve_utility_targets(candidate, theme, VariantContext::Element)?;
         let mut contributions = Vec::new();
         let mut failures = match targets {
             Ok(targets) => {
@@ -266,7 +267,7 @@ fn candidate_selector(candidate: &str) -> LeanString {
 /// Starts an independent context with built-in release naming and the default hash
 /// length. A true `preview` adds fresh readable names for helpers; it does not select
 /// a CSS subject.
-fn candidate_identifiers(preview: bool) -> IdentifierContext {
+pub(super) fn candidate_identifiers(preview: bool) -> IdentifierContext {
     let identifiers = IdentifierContext::new(
         GeneratorSet::default(),
         IdentifierMode::Release,

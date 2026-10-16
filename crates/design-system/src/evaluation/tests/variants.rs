@@ -137,6 +137,7 @@ fn reports_variant_selectors_that_do_not_depend_on_the_subject() {
         Some("::view-transition-old(*)")
     );
     assert_eq!(document_scoped("[:root]:flex").as_deref(), Some(":root"));
+    assert_eq!(document_scoped("host:flex").as_deref(), Some(":host"));
     assert_eq!(document_scoped("[&:hover]:flex"), None);
     assert_eq!(document_scoped("[:hover]:flex"), None);
     assert_eq!(document_scoped("hover:flex"), None);

@@ -179,6 +179,7 @@ pub(super) fn application_branches(
             )]
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorRule { selector, .. } => {
             vec![selector_conditions(selector, variant)]

@@ -1,10 +1,12 @@
 //! Explanations of utility candidates that resolution rejects.
 //!
-//! [`diagnose_utility`] runs only after resolution failed. It resolves variations of the
-//! candidate, such as the candidate without its modifier, so each explanation agrees
-//! with what resolution accepts. [`check_candidate_variants`] locates the first variant
-//! of a candidate that does not resolve.
+//! [`diagnose_utility`] runs only after resolution failed. It resolves variations of
+//! the candidate, such as the candidate without its modifier, so each explanation
+//! agrees with what resolution accepts. [`check_candidate_variants`] locates the first
+//! variant of a candidate that does not resolve, and in document context checks that a
+//! variant selects the element to style.
 
+use std::fmt;
 use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
@@ -13,7 +15,9 @@ use stillwind_syntax::{Candidate, Utility, Value, parse_candidate};
 
 use super::super::suggestions::closest_spelling;
 use super::super::values::{decode_arbitrary, named_domain_values};
-use super::super::variants::{VariantFailureReason, resolve_variant};
+use super::super::variants::{
+    DocumentTargetFailure, VariantContext, VariantFailureReason, document_target, resolve_variant,
+};
 use super::matching::resolve_named_utility;
 use crate::{CustomUtility, ThemeIndex};
 
@@ -133,6 +137,31 @@ pub enum UtilityFailureReason {
     /// A variant of the candidate does not resolve.
     #[error(transparent)]
     Variant(VariantFailureReason),
+    /// In document context, no variant selects the element that the candidate styles,
+    /// or a variant refers to `&` before an earlier variant selects an element.
+    #[error("{}", MissingTargetMessage(.variant.as_deref()))]
+    MissingDocumentTarget {
+        /// Text of the variant that refers to `&` too early, or `None` when no variant
+        /// selects an element.
+        variant: Option<LeanStr>,
+    },
+}
+
+/// Message of [`UtilityFailureReason::MissingDocumentTarget`].
+struct MissingTargetMessage<'a>(Option<&'a str>);
+
+impl fmt::Display for MissingTargetMessage<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            Some(variant) => write!(
+                formatter,
+                "`{variant}` refers to the styled element, but no earlier variant selects one"
+            ),
+            None => formatter.write_str(
+                "no variant selects the element to style; start with a variant such as `host:` or `[:root]:`",
+            ),
+        }
+    }
 }
 
 impl UtilityFailureReason {
@@ -247,27 +276,55 @@ pub(super) fn modifier_value_range(raw: &str, candidate: &Candidate) -> Option<R
     Some(modifier.start + 1..modifier.end)
 }
 
-/// Resolves every variant of `candidate` in order.
+/// Resolves every variant of `candidate` in order and, in [`VariantContext::Document`],
+/// checks that a variant selects the element to style, as [`document_target`]
+/// describes.
 ///
 /// # Errors
 ///
 /// Returns the first variant that does not resolve, with its range located in
-/// `candidate.raw`.
+/// `candidate.raw`. In document context, returns
+/// [`UtilityFailureReason::MissingDocumentTarget`] at the variant that refers to `&`
+/// too early, or at the whole candidate when no variant selects an element.
 pub fn check_candidate_variants(
     candidate: &Candidate,
     theme: &ThemeIndex,
+    context: VariantContext,
 ) -> Result<(), UtilityFailure> {
     let layout = CandidateLayout::new(&candidate.raw, candidate);
-    for (variant, start) in candidate.variants.iter().zip(layout.variants) {
-        if let Err(failure) = resolve_variant(variant, theme) {
-            let failure = failure.shifted(start);
-            return Err(UtilityFailure {
-                range: failure.range,
-                reason: UtilityFailureReason::Variant(failure.reason),
-            });
+    let mut applications = Vec::new();
+    for (variant, &start) in candidate.variants.iter().zip(&layout.variants) {
+        match resolve_variant(variant, theme) {
+            Ok(application) => applications.push(application),
+            Err(failure) => {
+                let failure = failure.shifted(start);
+                return Err(UtilityFailure {
+                    range: failure.range,
+                    reason: UtilityFailureReason::Variant(failure.reason),
+                });
+            }
         }
     }
-    Ok(())
+    if context == VariantContext::Element {
+        return Ok(());
+    }
+    match document_target(&applications) {
+        Ok(_) => Ok(()),
+        Err(DocumentTargetFailure::NoTarget) => Err(UtilityFailure {
+            range: 0..candidate.raw.len(),
+            reason: UtilityFailureReason::MissingDocumentTarget { variant: None },
+        }),
+        Err(DocumentTargetFailure::BeforeTarget(index)) => {
+            let variant = &candidate.variants[index];
+            let start = layout.variants[index];
+            Err(UtilityFailure {
+                range: start..start + variant.raw.len(),
+                reason: UtilityFailureReason::MissingDocumentTarget {
+                    variant: Some(variant.raw.clone()),
+                },
+            })
+        }
+    }
 }
 
 /// Explains why the utility part of `raw` does not resolve. `candidate` is the parse of
@@ -509,9 +566,69 @@ mod tests {
             assert_eq!(failure.reason.to_lean_string(), message, "{raw}");
         }
         let candidate = parse_candidate("hover:foo:flex").unwrap();
-        let failure = check_candidate_variants(&candidate, &theme).unwrap_err();
+        let failure =
+            check_candidate_variants(&candidate, &theme, VariantContext::Element).unwrap_err();
         assert_eq!(failure.range, 6..9);
         assert!(failure.reason.is_unknown() && failure.reason.is_variant());
+    }
+
+    #[test]
+    fn document_context_requires_a_variant_that_selects_the_element() {
+        let theme = theme();
+        let check = |raw: &str, context| {
+            check_candidate_variants(&parse_candidate(raw).unwrap(), &theme, context).map_err(
+                |failure| {
+                    (
+                        raw[failure.range.clone()].to_lean_string(),
+                        failure.reason.to_lean_string(),
+                    )
+                },
+            )
+        };
+        for raw in [
+            "size-full",
+            "hover:flex",
+            "not-hover:flex",
+            "host:flex",
+            "host:hover:flex",
+        ] {
+            assert_eq!(check(raw, VariantContext::Element), Ok(()), "{raw}");
+        }
+        for raw in [
+            "host:flex",
+            "print:host:hover:flex",
+            "[:hover]:flex",
+            "[:root]:dark:flex",
+            "[:host(.compact)]:not-hover:flex",
+        ] {
+            assert_eq!(check(raw, VariantContext::Document), Ok(()), "{raw}");
+        }
+        let missing = "no variant selects the element to style; start with a variant such as `host:` or `[:root]:`";
+        for raw in ["size-full", "print:flex", "supports-grid:dark:flex"] {
+            assert_eq!(
+                check(raw, VariantContext::Document),
+                Err((raw.to_lean_string(), missing.to_lean_string())),
+                "{raw}"
+            );
+        }
+        for (raw, variant) in [
+            ("hover:flex", "hover"),
+            ("print:hover:host:flex", "hover"),
+            ("not-hover:host:flex", "not-hover"),
+            ("[&:hover]:flex", "[&:hover]"),
+        ] {
+            assert_eq!(
+                check(raw, VariantContext::Document),
+                Err((
+                    variant.to_lean_string(),
+                    format_args!(
+                        "`{variant}` refers to the styled element, but no earlier variant selects one"
+                    )
+                    .to_lean_string()
+                )),
+                "{raw}"
+            );
+        }
     }
 
     #[test]

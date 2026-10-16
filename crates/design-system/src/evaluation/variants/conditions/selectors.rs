@@ -24,6 +24,7 @@ pub(super) fn is_filter(application: &VariantApplication) -> bool {
         | VariantApplication::Conditional(_) => true,
         VariantApplication::SelectorSuffix(suffix) => subject_compound(suffix).is_some(),
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorMedia { selector, .. } => selector
             .strip_prefix('&')
@@ -49,6 +50,7 @@ pub(super) fn moves_subject(application: &VariantApplication) -> bool {
         | VariantApplication::StartingStyle => false,
         VariantApplication::SelectorSuffix(suffix) => subject_compound(suffix).is_none(),
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. }

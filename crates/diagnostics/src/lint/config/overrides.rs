@@ -115,6 +115,8 @@ pub struct LintOverrides {
     pub invalid_variant: Option<LintSeverity>,
     /// Reporting level for `unknown-variant`.
     pub unknown_variant: Option<LintSeverity>,
+    /// Reporting level for `missing-document-target`.
+    pub missing_document_target: Option<LintSeverity>,
     /// Reporting level for `invalid-property-value`.
     pub invalid_property_value: Option<LintSeverity>,
     /// Reporting level for `redundant-variant`.
@@ -257,6 +259,10 @@ impl LintOverrides {
             (LintKind::UnknownUtility, self.unknown_utility),
             (LintKind::InvalidVariant, self.invalid_variant),
             (LintKind::UnknownVariant, self.unknown_variant),
+            (
+                LintKind::MissingDocumentTarget,
+                self.missing_document_target,
+            ),
             (LintKind::InvalidPropertyValue, self.invalid_property_value),
             (LintKind::RedundantVariant, self.redundant_variant),
             (LintKind::UnsatisfiableVariants, self.unsatisfiable_variants),

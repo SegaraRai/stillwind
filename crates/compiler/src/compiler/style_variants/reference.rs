@@ -88,7 +88,10 @@ fn reference_path(
     for step in path {
         match step {
             VariantStep::SelectorSuffix(suffix) => reference.push_str(suffix),
-            VariantStep::SelectorTemplate(template) if selector_uses_subject(template) => {
+            VariantStep::SelectorTemplate(template)
+            | VariantStep::BareSelector {
+                selector: template, ..
+            } if selector_uses_subject(template) => {
                 reference = instantiate_selector(template, &reference);
             }
             VariantStep::SelectorRule {

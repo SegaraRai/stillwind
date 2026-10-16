@@ -6,8 +6,9 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, compatibility_marker_class, is_tailwind_relationship_candidate,
-    repeated_subject_selector, resolve_variant, unsatisfiable_variants, utility_value_range,
+    ThemeIndex, VariantApplication, VariantContext, compatibility_marker_class,
+    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
+    unsatisfiable_variants, utility_value_range,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -122,7 +123,7 @@ impl LiteralContribution {
                 contribution.markers.push((marker).into());
                 continue;
             }
-            match resolve_utility_targets(&raw, theme) {
+            match resolve_utility_targets(&raw, theme, VariantContext::Element) {
                 Ok(Ok(mut resolved)) => {
                     let canonical_candidate =
                         format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
@@ -133,6 +134,7 @@ impl LiteralContribution {
                         theme,
                         lint_settings,
                         utility.span,
+                        0,
                     ));
                     lint_findings.extend(resolved_candidate_lints(
                         &raw,
@@ -194,13 +196,15 @@ pub(super) struct TransitionContribution {
 ///
 /// Each rule reports at most one finding at the span of the responsible variant within
 /// `span`: a selector that does not depend on the styled element, and a selector that
-/// uses `&` more than once in one complex selector. An unparsable candidate returns no
-/// findings.
-fn variant_selector_lints(
+/// uses `&` more than once in one complex selector. The first `unchecked` variants are
+/// not checked; a document-level style passes the variants up to the one that selects
+/// its element. An unparsable candidate returns no findings.
+pub(super) fn variant_selector_lints(
     raw: &str,
     theme: &ThemeIndex,
     lint_settings: &LintSettings,
     span: Span,
+    unchecked: usize,
 ) -> Vec<LintFinding> {
     let Some(candidate) = parse_candidate(raw) else {
         return Vec::new();
@@ -218,6 +222,7 @@ fn variant_selector_lints(
             .variants
             .iter()
             .zip(&spans)
+            .skip(unchecked)
             .find_map(|(variant, span)| Some((document_scoped_selector(variant, theme)?, *span)))
     {
         findings.push(LintFinding::new(diagnostic, span));
@@ -227,6 +232,7 @@ fn variant_selector_lints(
             .variants
             .iter()
             .zip(&spans)
+            .skip(unchecked)
             .find_map(|(variant, span)| Some((repeated_subject_selector(variant, theme)?, *span)))
     {
         findings.push(LintFinding::new(
@@ -248,7 +254,7 @@ fn variant_selector_lints(
 /// the first literal value that browsers clamp, and `invalid-property-value` reports a
 /// negative filter amount, at the value of the utility. `resolved` holds every rule of
 /// the candidate.
-fn resolved_candidate_lints(
+pub(super) fn resolved_candidate_lints(
     raw: &str,
     written: usize,
     resolved: &[CompiledUtility],

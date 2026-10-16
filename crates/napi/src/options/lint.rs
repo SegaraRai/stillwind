@@ -51,6 +51,8 @@ pub struct NativeLintOptions {
     pub invalid_variant: Option<String>,
     /// Settings for `unknown-variant`.
     pub unknown_variant: Option<String>,
+    /// Settings for `missing-document-target`.
+    pub missing_document_target: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -203,6 +205,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             unknown_variant: input
                 .unknown_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            missing_document_target: input
+                .missing_document_target
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             mutating_macro_argument: input

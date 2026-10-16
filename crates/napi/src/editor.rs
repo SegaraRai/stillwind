@@ -101,7 +101,8 @@ impl From<NativeCandidateContext> for CandidateContext {
 impl From<CandidateContext> for NativeCandidateContext {
     fn from(value: CandidateContext) -> Self {
         match value {
-            CandidateContext::Utility => Self::Utility,
+            // No source syntax produces a document-level site yet.
+            CandidateContext::Utility | CandidateContext::Document => Self::Utility,
             CandidateContext::KeyframesFrame => Self::KeyframesFrame,
             CandidateContext::AnimationOptions => Self::AnimationOptions,
             CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,

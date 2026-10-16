@@ -1066,6 +1066,8 @@ export interface NativeLintOptions {
   invalidVariant?: string
   /** Settings for `unknown-variant`. */
   unknownVariant?: string
+  /** Settings for `missing-document-target`. */
+  missingDocumentTarget?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */

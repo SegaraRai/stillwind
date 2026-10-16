@@ -3,7 +3,9 @@
 //! `@custom-variant` and `@variant` are user-authored, so a definition is identified by
 //! its body or selector alone. `@stillwind-variant` is compiler-owned and may add a
 //! typed header - a value type, a modifier type, or sort metadata - which is parsed
-//! here and used only for built-ins.
+//! here and used only for built-ins. Both forms may declare that a variant selects a
+//! document-level target, as [`VariantScope`] describes: a built-in header with
+//! `scope: document`, or `@custom-variant` with `scope(document)` after the name.
 //!
 //! One unescaped `*` captures the variant's argument between literal boundaries; an
 //! escaped `\*` is a literal asterisk in the name. Capture and sort handling stay in
@@ -50,6 +52,30 @@ pub struct BuiltinVariantSort {
     pub bare: bool,
 }
 
+/// Whether the `&`-less selectors of a variant definition are relative to `&`.
+///
+/// Without a declared scope, a selector rule in a definition body is a nested style
+/// rule, so `:hover { @slot; }` styles hovered descendants of `&`. A definition with
+/// the document scope writes selectors for document-level elements, such as `:host` or
+/// `:root`. Its selectors are kept as written: they set the target in document context,
+/// and they stay document-wide where `&` already selects an element.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum VariantScope {
+    /// `&`-less selectors are relative to `&`, as in CSS Nesting.
+    #[default]
+    Nested,
+    /// `&`-less selectors select document-level elements. Declared as `scope: document`
+    /// in a `@stillwind-variant` header or as `scope(document)` after the name of a
+    /// `@custom-variant`.
+    Document,
+}
+
+impl VariantScope {
+    fn parse(value: &str) -> Option<Self> {
+        (value.trim() == "document").then_some(Self::Document)
+    }
+}
+
 /// One variant definition, from user CSS or from the compiler-owned registry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomVariant {
@@ -70,6 +96,8 @@ pub struct CustomVariant {
     pub value_type: Option<BuiltinVariantValueType>,
     /// Grammar required when the capture contains a `/modifier` suffix.
     pub modifier_type: Option<BuiltinVariantModifierType>,
+    /// Whether `&`-less selectors of the body or shorthand are relative to `&`.
+    pub scope: VariantScope,
 }
 
 impl CustomVariant {
@@ -246,6 +274,7 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
                 sort: header.sort,
                 value_type: header.value_type,
                 modifier_type: header.modifier_type,
+                scope: header.scope,
             })
         })
         .collect()
@@ -253,7 +282,8 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 
 /// The parsed header of a `@stillwind-variant` definition.
 pub(crate) struct ParsedBuiltinVariantHeader {
-    /// Decoded definition name, retaining a capture asterisk at the recorded offset, if present.
+    /// Decoded definition name, retaining a capture asterisk at the recorded offset, if
+    /// present.
     name: LeanStr,
     /// UTF-8 byte offset of the unescaped capture in the decoded name, if present.
     wildcard: Option<usize>,
@@ -263,6 +293,8 @@ pub(crate) struct ParsedBuiltinVariantHeader {
     value_type: Option<BuiltinVariantValueType>,
     /// Optional grammar of the slash modifier.
     modifier_type: Option<BuiltinVariantModifierType>,
+    /// Declared scope of `&`-less selectors in the body.
+    scope: VariantScope,
 }
 
 /// Returns the decoded variant name and the optional UTF-8 byte offset of its capture `*`.
@@ -309,6 +341,7 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
             sort: None,
             value_type: None,
             modifier_type: None,
+            scope: VariantScope::Nested,
         });
     }
     let arguments = arguments.strip_prefix('(')?.strip_suffix(')')?;
@@ -316,12 +349,14 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
     let mut has_sort = false;
     let mut value_type = None;
     let mut modifier_type = None;
+    let mut scope = VariantScope::Nested;
     for descriptor in arguments.split(',') {
         let (key, value) = descriptor.trim().split_once(':')?;
         let value = value.trim();
         match key.trim() {
             "value" => value_type = Some(BuiltinVariantValueType::parse(value)?),
             "modifier" => modifier_type = Some(BuiltinVariantModifierType::parse(value)?),
+            "scope" => scope = VariantScope::parse(value)?,
             "group" => {
                 sort.group = Some(value.to_lean_str());
                 has_sort = true;
@@ -351,6 +386,7 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
         sort: has_sort.then_some(sort),
         value_type,
         modifier_type,
+        scope,
     })
 }
 
@@ -362,14 +398,13 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
         .filter_map(|(offset, header)| {
             let split = header.find(char::is_whitespace)?;
             let (name, wildcard) = parse_variant_name(&header[..split])?;
-            let selector = header[split..]
-                .trim()
-                .strip_prefix('(')?
-                .strip_suffix(')')?;
+            let (scope, selector) = split_custom_variant_scope(&header[split..])?;
+            let selector = selector.strip_prefix('(')?.strip_suffix(')')?;
             Some((
                 offset,
                 name,
                 wildcard,
+                scope,
                 selector.to_lean_string(),
                 LeanString::new(),
             ))
@@ -383,15 +418,29 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
                     if directive == "@variant" && !body.contains("@slot") {
                         return None;
                     }
-                    let (name, wildcard) = parse_variant_name(header.split_whitespace().next()?)?;
-                    Some((offset, name, wildcard, LeanString::new(), body.into()))
+                    let header = header.trim();
+                    let split = header.find(char::is_whitespace).unwrap_or(header.len());
+                    let (name, wildcard) = parse_variant_name(&header[..split])?;
+                    let scope = if directive == "@custom-variant" {
+                        split_custom_variant_scope(&header[split..])?.0
+                    } else {
+                        VariantScope::Nested
+                    };
+                    Some((
+                        offset,
+                        name,
+                        wildcard,
+                        scope,
+                        LeanString::new(),
+                        body.into(),
+                    ))
                 }),
         );
     }
     definitions.sort_by_key(|definition| definition.0);
     definitions
         .into_iter()
-        .map(|(_, name, wildcard, selector, body)| CustomVariant {
+        .map(|(_, name, wildcard, scope, selector, body)| CustomVariant {
             name,
             wildcard,
             selector: (selector).into(),
@@ -400,8 +449,23 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
             sort: None,
             value_type: None,
             modifier_type: None,
+            scope,
         })
         .collect()
+}
+
+/// Splits the optional `scope(document)` marker from the text after a `@custom-variant`
+/// name, and returns the scope with the trimmed remaining text.
+///
+/// Returns `None` for a `scope(...)` marker with any other value, so a mistyped marker
+/// drops the definition instead of registering a variant with nested selectors.
+fn split_custom_variant_scope(text: &str) -> Option<(VariantScope, &str)> {
+    let text = text.trim();
+    let Some(marker) = text.strip_prefix("scope(") else {
+        return Some((VariantScope::Nested, text));
+    };
+    let (value, rest) = marker.split_once(')')?;
+    Some((VariantScope::parse(value)?, rest.trim()))
 }
 
 #[cfg(test)]
@@ -507,6 +571,42 @@ mod tests {
             Some("responsive-min")
         );
         assert!(variants[1].sort.as_ref().unwrap().bare);
+    }
+
+    #[test]
+    fn parses_document_scope_markers() {
+        let builtins = parse_builtin_variant_definitions(
+            "@stillwind-variant host (scope: document) { :host { @slot; } }\
+             @stillwind-variant hover { &:hover { @slot; } }",
+        );
+        assert_eq!(builtins[0].scope, VariantScope::Document);
+        assert_eq!(builtins[1].scope, VariantScope::Nested);
+        assert!(parse_builtin_variant_header("host (scope: element)").is_none());
+
+        let custom = parse_variant_definitions(
+            "@custom-variant host scope(document) (:host);\
+             @custom-variant root scope(document) { :root { @slot; } }\
+             @custom-variant hv (:hover);\
+             @custom-variant bad scope(nested) (:host);",
+        );
+        let scopes = custom
+            .iter()
+            .map(|variant| {
+                (
+                    variant.name.as_str(),
+                    variant.scope,
+                    variant.selector.as_str(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            scopes,
+            [
+                ("host", VariantScope::Document, ":host"),
+                ("root", VariantScope::Document, ""),
+                ("hv", VariantScope::Nested, ":hover"),
+            ]
+        );
     }
 }
 

@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 55);
+        assert_eq!(names.len(), 56);
         for name in [
             "custom",
             "",
@@ -151,6 +151,7 @@ mod tests {
                 "unknown-utility": "warn",
                 "invalid-variant": "deny",
                 "unknown-variant": "warn",
+                "missing-document-target": "deny",
                 "invalid-property-value": "deny",
                 "redundant-variant": "warn",
                 "unsatisfiable-variants": "warn",

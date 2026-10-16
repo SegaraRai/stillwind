@@ -9,9 +9,12 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{append_element_condition, instantiate_selector};
+use stillwind_css::{
+    append_element_condition, instantiate_selector, selector_list_branches, selector_uses_subject,
+};
 use stillwind_design_system::{
-    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, resolve_variant,
+    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
+    resolve_variant,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 
@@ -123,6 +126,11 @@ pub(in crate::compiler) fn render_utility_rule_path(
 /// stay attached to the reference and the surrounding variants to the target.
 /// Declarations a variant contributes are only prepended when the body does not already
 /// set that property.
+///
+/// In [`VariantContext::Document`], the rule starts from the element that
+/// [`document_rule_target`] finds instead of `class_selector`, and the step that
+/// selects it contributes only its declarations and conditions. A path without such a
+/// step renders nothing.
 fn render_utility_steps(
     class_selector: &str,
     utility: &CompiledUtility,
@@ -132,23 +140,30 @@ fn render_utility_steps(
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut declaration = declaration.to_lean_string();
-    let class_selector = class_selector.to_lean_string();
+    let Some((start, target)) = rule_start(class_selector, utility, applications) else {
+        return Ok(LeanString::new());
+    };
     let mut selector = utility.selector.as_deref().map_or_else(
-        || class_selector.clone(),
-        |selector| instantiate_selector(selector, &class_selector),
+        || start.clone(),
+        |selector| instantiate_selector(selector, &start),
     );
     let mut media = Vec::new();
     let mut containers = Vec::new();
     let mut supports = Vec::new();
     let mut starting_style = false;
     let mut conditions = Vec::new();
-    for &application in applications {
+    for (index, &application) in applications.iter().enumerate() {
+        // The step that selects the element of a document-level rule keeps the selector.
+        let anchored = |template| if target == Some(index) { "&" } else { template };
         match application {
             VariantStep::SelectorSuffix(suffix) => {
                 selector.push_str(suffix);
             }
-            VariantStep::SelectorTemplate(template) => {
-                selector = instantiate_selector(template, &selector);
+            VariantStep::SelectorTemplate(template)
+            | VariantStep::BareSelector {
+                selector: template, ..
+            } => {
+                selector = instantiate_selector(anchored(template), &selector);
             }
             VariantStep::SelectorCondition(condition) => {
                 selector = append_element_condition(&selector, condition);
@@ -157,14 +172,14 @@ fn render_utility_steps(
                 selector: template,
                 declarations,
             } => {
-                selector = instantiate_selector(template, &selector);
+                selector = instantiate_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
             VariantStep::SelectorMedia {
                 selector: template,
                 condition,
             } => {
-                selector = instantiate_selector(template, &selector);
+                selector = instantiate_selector(anchored(template), &selector);
                 media.push(condition.to_lean_string());
             }
             VariantStep::SelectorMediaRule {
@@ -172,7 +187,7 @@ fn render_utility_steps(
                 declarations,
                 condition,
             } => {
-                selector = instantiate_selector(template, &selector);
+                selector = instantiate_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
                 media.push(condition.to_lean_string());
             }
@@ -226,6 +241,80 @@ fn render_utility_steps(
         Ok(protect(&rule))
     } else {
         Ok(rule)
+    }
+}
+
+/// Returns the selector that a rule starts from and, in [`VariantContext::Document`],
+/// the index of the step that selects the element. Returns `None` for a document-level
+/// path without such a step.
+fn rule_start(
+    class_selector: &str,
+    utility: &CompiledUtility,
+    steps: &[VariantStep<'_>],
+) -> Option<(LeanString, Option<usize>)> {
+    match utility.source.context {
+        VariantContext::Element => Some((class_selector.to_lean_string(), None)),
+        VariantContext::Document => {
+            let (index, target) = document_rule_target(steps)?;
+            Some((
+                nesting_parent(target, utility, &steps[index + 1..]),
+                Some(index),
+            ))
+        }
+    }
+}
+
+/// Returns the index of the step that selects the element of a document-level rule,
+/// with the selector of that element.
+///
+/// The first step with a selector must select the element: a
+/// [`VariantStep::BareSelector`] selects it with its top-level form, and another
+/// selector step selects it when its selector has no `&`. Returns `None` when a step
+/// that refers to `&` comes first or when no step has a selector.
+fn document_rule_target<'a>(steps: &[VariantStep<'a>]) -> Option<(usize, &'a str)> {
+    steps.iter().enumerate().find_map(|(index, step)| {
+        let selector = match *step {
+            VariantStep::BareSelector { top_level, .. } => return Some(Some((index, top_level))),
+            VariantStep::SelectorTemplate(selector)
+            | VariantStep::SelectorRule { selector, .. }
+            | VariantStep::SelectorMedia { selector, .. }
+            | VariantStep::SelectorMediaRule { selector, .. } => selector,
+            VariantStep::SelectorSuffix(_)
+            | VariantStep::SelectorCondition(_)
+            | VariantStep::Conditional(_) => return Some(None),
+            VariantStep::Media(_)
+            | VariantStep::Container(_)
+            | VariantStep::Supports(_)
+            | VariantStep::StartingStyle => return None,
+        };
+        Some((!selector_uses_subject(selector)).then_some((index, selector)))
+    })?
+}
+
+/// Returns the selector that a document-level rule starts from.
+///
+/// A selector list that later steps or the utility's own selector substitute for `&` is
+/// wrapped in `:is()`, so that each later selector applies to every branch, as `&` does
+/// in CSS Nesting. A list that is used as written keeps its branches.
+fn nesting_parent(
+    target: &str,
+    utility: &CompiledUtility,
+    later: &[VariantStep<'_>],
+) -> LeanString {
+    let substituted = utility.selector.is_some()
+        || later.iter().any(|step| {
+            !matches!(
+                step,
+                VariantStep::Media(_)
+                    | VariantStep::Container(_)
+                    | VariantStep::Supports(_)
+                    | VariantStep::StartingStyle
+            )
+        });
+    if substituted && selector_list_branches(target).len() > 1 {
+        format_args!(":is({target})").to_lean_string()
+    } else {
+        target.to_lean_string()
     }
 }
 

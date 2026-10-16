@@ -63,6 +63,7 @@ fn part_obstacle(application: &VariantApplication) -> Option<VariantObstacle> {
             selector_obstacle(&format_args!("&{suffix}").to_lean_string())
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. } => selector_obstacle(selector),
         VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMediaRule { selector, .. } => {
@@ -135,7 +136,8 @@ fn negated_branches(application: &VariantApplication) -> Option<Vec<Branch>> {
         VariantApplication::SelectorSuffix(suffix) => Some(vec![vec![negate_selector(
             &format_args!("&{suffix}").to_lean_string(),
         )?]]),
-        VariantApplication::SelectorTemplate(selector) => {
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. } => {
             Some(vec![vec![negate_selector(selector)?]])
         }
         VariantApplication::Media(condition) => Some(vec![negate_media(condition)?]),

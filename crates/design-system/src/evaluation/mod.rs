@@ -33,12 +33,13 @@ pub use utilities::{
     resolve_animation_option, resolve_utility, utility_value_range,
 };
 pub use variants::{
-    ConditionContext, RedundantVariant, ResolvedVariant, UnsatisfiableVariants, VariantApplication,
-    VariantDeclaration, VariantFailure, VariantFailureReason, VariantMediaValue, VariantObstacle,
-    VariantRedundancy, VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
-    compatibility_marker_class, document_scoped_selector, is_tailwind_relationship_candidate,
-    redundant_variants, repeated_subject_selector, resolve_variant, resolve_variant_with_usage,
-    unsatisfiable_variants,
+    ConditionContext, DocumentTargetFailure, RedundantVariant, ResolvedVariant,
+    UnsatisfiableVariants, VariantApplication, VariantContext, VariantDeclaration, VariantFailure,
+    VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
+    VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
+    compatibility_marker_class, document_scoped_selector, document_target,
+    is_tailwind_relationship_candidate, redundant_variants, repeated_subject_selector,
+    resolve_variant, resolve_variant_with_usage, unsatisfiable_variants,
 };
 
 pub(crate) use programs::UtilityPrograms;

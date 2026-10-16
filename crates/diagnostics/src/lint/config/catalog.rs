@@ -255,6 +255,7 @@ define_lint_rules! {
         UnknownUtility => "unknown-utility",
         InvalidVariant => "invalid-variant",
         UnknownVariant => "unknown-variant",
+        MissingDocumentTarget => "missing-document-target",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",

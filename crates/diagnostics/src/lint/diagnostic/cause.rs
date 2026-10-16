@@ -217,6 +217,16 @@ pub enum LintDiagnostic {
         /// Explanation that names the rejected part and the reason.
         detail: LeanStr,
     },
+    /// A candidate of a document-level style does not select the element it styles,
+    /// because no variant selects one or a variant refers to `&` before one does
+    /// (`missing-document-target`).
+    #[error("{detail}")]
+    MissingDocumentTarget {
+        /// Candidate or variant text that the finding's range covers.
+        candidate: LeanStr,
+        /// Explanation that names the variant that refers to `&` too early, if any.
+        detail: LeanStr,
+    },
     /// An animation option token is not recognized by the option resolver.
     #[error("unknown animation option `{option}`")]
     UnknownAnimationOption {
@@ -631,6 +641,7 @@ impl LintDiagnostic {
             Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
             Self::InvalidVariantPrefix | Self::InvalidVariant { .. } => LintKind::InvalidVariant,
             Self::UnknownVariant { .. } => LintKind::UnknownVariant,
+            Self::MissingDocumentTarget { .. } => LintKind::MissingDocumentTarget,
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
             Self::RuntimeConditionRequiresCssIf { .. } => LintKind::RuntimeConditionRequiresCssIf,
             Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,

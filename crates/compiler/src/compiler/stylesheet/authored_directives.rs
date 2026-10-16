@@ -231,7 +231,8 @@ pub(in crate::compiler) fn render_authored_variant_path(
                             format_args!("&{condition}{{{body}}}").to_lean_string(),
                             gates,
                         )),
-                        VariantStep::SelectorTemplate(selector) => {
+                        VariantStep::SelectorTemplate(selector)
+                        | VariantStep::BareSelector { selector, .. } => {
                             Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
                         }
                         VariantStep::SelectorRule {

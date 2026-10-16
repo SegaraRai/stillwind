@@ -14,7 +14,7 @@ use super::super::super::EvaluationContext;
 use super::super::super::builtins::builtin_variants;
 use super::super::super::values::decode_arbitrary;
 use super::super::application::VariantApplication;
-use super::super::body::resolve_variant_body;
+use super::super::body::{resolve_scoped_variant_body, resolve_variant_body};
 use super::super::negation::{negate, negation_obstacle};
 use super::super::order::variant_sort_namespace;
 use super::super::substitution::{
@@ -22,8 +22,10 @@ use super::super::substitution::{
     resolve_variant_css_placeholders, substitute_quoted_variant_value, substitute_typed_modifier,
     substitute_variant_capture,
 };
-use super::arbitrary::{parse_nested_variant, relative_selector, shorthand_variant_application};
-use super::{ConditionContext, VariantFailure, VariantFailureReason, resolve_variant};
+use super::arbitrary::{
+    parse_nested_variant, relative_selector, resolve_nested_variant, shorthand_variant_application,
+};
+use super::{ConditionContext, VariantFailure, VariantFailureReason};
 use crate::{BuiltinVariantValueType, CustomVariant, RuntimeCondition, ThemeIndex};
 
 /// Visits definitions in resolution order, including the registry's bare token form.
@@ -103,9 +105,12 @@ pub(in crate::evaluation) fn resolve_registered_variant_candidate(
         &EvaluationContext::untracked(theme),
     )
     .ok_or_else(fail)?;
-    resolve_variant_body(&body)
+    resolve_scoped_variant_body(&body, custom.scope)
         .or_else(|| {
-            shorthand_variant_application(&substitute_variant_capture(&custom.selector, capture)?)
+            shorthand_variant_application(
+                &substitute_variant_capture(&custom.selector, capture)?,
+                custom.scope,
+            )
         })
         .ok_or_else(fail)
 }
@@ -249,7 +254,7 @@ fn resolve_typed_variant(
                     )
                 });
             }
-            let application = resolve_variant(&inner, theme)
+            let application = resolve_nested_variant(&inner, theme)
                 .map_err(|failure| failure.shifted(capture_offset))?;
             if has_intrinsic_body(custom, "builtin-not-variant") {
                 if custom.modifier_type.is_some() {

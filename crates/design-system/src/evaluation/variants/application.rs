@@ -41,6 +41,20 @@ pub enum VariantApplication {
     SelectorSuffix(&'static str),
     /// A resolved selector template containing `&` for the utility selector.
     SelectorTemplate(LeanStr),
+    /// A selector written without `&`, whose meaning depends on whether an earlier
+    /// variant or the host has already selected an element (the anchor).
+    ///
+    /// Where an anchor exists, `selector` applies like [`Self::SelectorTemplate`].
+    /// Where none exists, as at the start of a document-level style, `top_level`
+    /// selects the element and becomes the anchor for later variants.
+    BareSelector {
+        /// Selector template for use where an anchor exists, such as `&:is(:hover)` for
+        /// `[:hover]`, `& :hover` for a custom variant `(:hover)`, or `:root`, which
+        /// keeps no reference to the anchor.
+        selector: LeanStr,
+        /// Selector list as written, without `&`.
+        top_level: LeanStr,
+    },
     /// Adds a compound selector condition to the final element selected by a rule.
     /// The renderer inserts it before that element's pseudo-elements, if present.
     SelectorCondition(LeanStr),
@@ -92,6 +106,7 @@ impl VariantApplication {
                 children.iter().any(Self::uses_subject)
             }
             Self::SelectorTemplate(selector)
+            | Self::BareSelector { selector, .. }
             | Self::SelectorRule { selector, .. }
             | Self::SelectorMedia { selector, .. }
             | Self::SelectorMediaRule { selector, .. } => selector_uses_subject(selector),
@@ -194,6 +209,7 @@ pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str
             children.iter().find_map(document_scoped_selector)
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. }
         | VariantApplication::SelectorMediaRule { selector, .. } => {
@@ -246,6 +262,7 @@ fn repeated_application_selector(application: &VariantApplication) -> Option<&st
             children.iter().find_map(repeated_application_selector)
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. }

@@ -59,6 +59,8 @@ candidate appears:
 - `invalid-variant` reports an existing variant that rejects its value, its modifier,
   or its inner variant, and arbitrary variant text that is not a valid selector, such
   as `min-[foo]:`, `min-(--x):`, `not-before:`, `group-sm:`, or `[color:red;]:`.
+- `missing-document-target` reports a candidate of a document-level style whose
+  variants do not select an element, as [Variant targets](#variant-targets) describes.
 
 Each finding covers the failing part of the candidate, such as the value `red-999` or
 the inner variant `sm`. An unknown name gets a spelling suggestion when a close
@@ -347,7 +349,9 @@ A `@custom-variant` selector is a nested style rule selector, in both the shorth
 Tailwind, `& ` is inserted before each branch that contains no `&` or that starts with
 a combinator. Such a branch styles another element: `(:hover)` becomes `& :hover`, and
 `(> .item)` becomes `& > .item`. These selectors depend on the styled element, so they
-do not produce `DocumentScopedSelector` findings.
+do not produce `DocumentScopedSelector` findings. A definition with the
+`scope(document)` marker keeps its selectors as written; see
+[Variant targets](#variant-targets).
 
 An arbitrary variant selector without `&` tests the styled element, as in Tailwind:
 `[:hover]:`, `[.is-open]:`, and `[:hover,:focus]:` become `&:is(...)`. The selector
@@ -721,6 +725,52 @@ instead, and an absent registration does not make `if(...)` a built-in name in
 Rust. Literal prefix and suffix text surround the single unescaped `*`; escaped
 asterisks are literal. Ordinary CSS overrides keep their normal registry precedence.
 `--if(...)` remains a compiler-defined value function, independent of variant registration.
+
+## Variant targets
+
+Variants apply from left to right, and the leftmost variant is the outermost one, as in
+CSS Nesting: `host:hover:flex` selects `:host:hover`. While variants apply, `&` refers
+to the element that is selected so far. This element is the anchor. In `style()`, the
+anchor starts as the generated class. In `@apply`, it starts as the selector of the
+authored rule. A document-level style, which the planned `style.css()` API creates,
+starts without an anchor. The first variant that selects an element sets the anchor,
+and every later variant applies relative to it.
+
+| Variant                                                     | With an anchor                                        | Without an anchor               |
+| ----------------------------------------------------------- | ----------------------------------------------------- | ------------------------------- |
+| A selector with `&`, such as `hover:` or `[&_.item]:`       | Relative to the anchor                                | Invalid                         |
+| An arbitrary selector without `&`, such as `[:hover]:`      | `&:is(:hover)`                                        | `:hover`, which sets the anchor |
+| `[:host(...)]:`, `[:root]:`, and `host:`                    | Document-wide, reported by `document-scoped-selector` | Sets the anchor                 |
+| A custom variant without `&`, such as `(:hover)`            | `& :hover`, which styles descendants                  | `:hover`, which sets the anchor |
+| `not-*`                                                     | A condition on the anchor                             | Invalid                         |
+| At-rule variants, such as `sm:`, `dark:`, and `supports-*:` | Unaffected                                            | Unaffected                      |
+
+The built-in `host:` variant selects `:host`. A definition declares that its selectors
+without `&` select a document-level element. `@stillwind-variant` uses
+`scope: document` in its header, and `@custom-variant` uses `scope(document)` after the
+name:
+
+```css
+@stillwind-variant host (scope: document) {
+  :host {
+    @slot;
+  }
+}
+
+@custom-variant shell scope(document) (:host);
+```
+
+The marker keeps the selector as written. Without it, `@custom-variant shell (:host)`
+styles `:host` elements inside the anchor (`& :host`). With it, the variant stays
+document-wide where an anchor exists and sets the anchor where none exists.
+
+A document-level style omits a candidate that does not select an element, such as
+`size-full` or `hover:flex`, and `missing-document-target` reports it. The finding
+covers the variant that refers to `&` before an earlier variant selects an element, or
+the whole candidate when no variant selects one. When a variant with a selector list
+sets the anchor, later selectors apply to every branch through `:is()`.
+`document-scoped-selector` checks only the variants after the anchor, so
+`host:[:root]:flex` reports `[:root]`.
 
 ## Variant negation
 

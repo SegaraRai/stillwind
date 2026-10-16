@@ -54,18 +54,20 @@ mod theme;
 
 pub use conditionals::{RuntimeCondition, is_runtime_condition, runtime_if_arguments};
 pub use evaluation::{
-    ConditionContext, InvalidPropertyValue, InvalidValueReason, NestedUtilityAtRule,
-    NestedUtilityRule, RedundantVariant, ResolvedUtility, ResolvedUtilityTarget, ResolvedVariant,
-    UnsatisfiableVariants, UntypedVariable, UtilityArbitraryUse, UtilityFailure,
-    UtilityFailureReason, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
-    UtilityTokenUse, VariableMismatch, VariableTypeSource, VariantApplication, VariantDeclaration,
-    VariantFailure, VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
-    VariantSequenceOrder, VariantValueSource, builtin_declaration_formats, builtin_definitions,
+    ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason,
+    NestedUtilityAtRule, NestedUtilityRule, RedundantVariant, ResolvedUtility,
+    ResolvedUtilityTarget, ResolvedVariant, UnsatisfiableVariants, UntypedVariable,
+    UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
+    UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
+    VariantApplication, VariantContext, VariantDeclaration, VariantFailure, VariantFailureReason,
+    VariantMediaValue, VariantObstacle, VariantRedundancy, VariantSequenceOrder,
+    VariantValueSource, builtin_declaration_formats, builtin_definitions,
     builtin_omit_token_prefixes, builtin_property_definitions, builtin_theme_order,
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
-    compatibility_marker_class, document_scoped_selector, is_tailwind_relationship_candidate,
-    redundant_variants, repeated_subject_selector, resolve_animation_option, resolve_utility,
-    resolve_variant, resolve_variant_with_usage, unsatisfiable_variants, utility_value_range,
+    compatibility_marker_class, document_scoped_selector, document_target,
+    is_tailwind_relationship_candidate, redundant_variants, repeated_subject_selector,
+    resolve_animation_option, resolve_utility, resolve_variant, resolve_variant_with_usage,
+    unsatisfiable_variants, utility_value_range,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
@@ -77,7 +79,7 @@ pub use output::parse_output_template;
 pub use registry::{
     BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
     BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, CustomUtility,
-    CustomVariant, declaration_format, parse_animation_option_property_mappings,
+    CustomVariant, VariantScope, declaration_format, parse_animation_option_property_mappings,
     parse_builtin_animation_option_definitions, parse_builtin_arbitrary_property_order,
     parse_builtin_utility_definitions, parse_builtin_variant_definitions,
     parse_declaration_formats, parse_marker_utilities, parse_omit_token_prefixes,

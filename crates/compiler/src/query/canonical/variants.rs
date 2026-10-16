@@ -87,6 +87,7 @@ fn contextual(application: &VariantApplication) -> bool {
             children.iter().any(contextual)
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. } => !selector.contains('&'),
         VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }

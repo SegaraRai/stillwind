@@ -116,6 +116,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "missing-document-target": {
+    category: "input",
+    nativeName: "missingDocumentTarget",
+    defaults: null,
+    options: null,
+  },
   "mutating-macro-argument": {
     category: "contract",
     nativeName: "mutatingMacroArgument",

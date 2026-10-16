@@ -5,14 +5,18 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_design_system::{UtilityResolutionError, resolve_variant};
+use stillwind_design_system::{
+    DocumentTargetFailure, UtilityResolutionError, document_target, resolve_variant,
+};
+use stillwind_diagnostics::LintSettings;
 use stillwind_source::{FileId, Span, Spanned};
 use stillwind_syntax::parse_candidate;
 
 use super::DesignSystemQuery;
+use super::resolution::candidate_identifiers;
 use crate::compiler::{
-    OptionVariants, condition_paths, emit_view_transition_utilities, resolve_frame,
-    resolve_options, wrap_conditions,
+    OptionVariants, condition_paths, emit_document_style, emit_view_transition_utilities,
+    resolve_frame, resolve_options, wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
@@ -25,7 +29,8 @@ pub enum CandidateContext {
     Utility,
     /// Declarations inside a keyframe; utility variants are rejected.
     KeyframesFrame,
-    /// Options of a keyframes use; variants, importance, and negative values are rejected.
+    /// Options of a keyframes use; variants, importance, and negative values are
+    /// rejected.
     AnimationOptions,
     /// View-transition group options, with media and supports conditions.
     ViewTransitionOptions,
@@ -33,6 +38,11 @@ pub enum CandidateContext {
     ViewTransitionUtilities,
     /// Media and supports prefixes that can contain a global definition.
     DefinitionVariants,
+    /// Utilities of a document-level style, which has no generated class. The first
+    /// variant that selects an element, such as `host:` or `[:root]:`, must come before
+    /// any variant that refers to `&`. Only tests use this role until the
+    /// document-level API is finalized.
+    Document,
 }
 
 impl CandidateContext {
@@ -49,13 +59,15 @@ impl CandidateContext {
 }
 
 impl DesignSystemQuery {
-    /// Renders decoded `candidate` text under `context`, using `&` as the utility subject.
-    /// Ordinary utility input accepts one candidate; declaration roles accept a token list.
-    /// Definition prefixes may include trailing colons and return empty enclosing at-rules.
-    /// Other roles apply the configured conditional mode and restore authored resource URLs.
-    /// The result omits enclosing source conditions and document support declarations.
-    /// Unsupported operands contribute no declarations. Empty output or failed
-    /// conditional lowering returns `None`.
+    /// Renders decoded `candidate` text under `context`, using `&` as the utility
+    /// subject. Ordinary utility input accepts one candidate; declaration roles and
+    /// document-level styles accept a token list. A document-level style uses the
+    /// element that its variants select instead of `&`, and omits candidates that
+    /// select none. Definition prefixes may include trailing colons and return empty
+    /// enclosing at-rules. Other roles apply the configured conditional mode and
+    /// restore authored resource URLs. The result omits enclosing source conditions and
+    /// document support declarations. Unsupported operands contribute no declarations.
+    /// Empty output or failed conditional lowering returns `None`.
     ///
     /// # Errors
     ///
@@ -135,6 +147,15 @@ impl DesignSystemQuery {
                 }
                 css
             }
+            CandidateContext::Document => emit_document_style(
+                &input,
+                theme,
+                &LintSettings::default(),
+                &candidate_identifiers(true),
+                &mut diagnostics,
+                &mut lint_findings,
+            )
+            .unwrap_or_default(),
             CandidateContext::ViewTransitionUtilities => {
                 let mut css = LeanString::new();
                 emit_view_transition_utilities(
@@ -178,8 +199,11 @@ impl DesignSystemQuery {
     }
 
     /// Checks a decoded variant prefix without a trailing colon. Ordinary utilities
-    /// require every variant to resolve; definition and view-transition roles permit
-    /// only media and supports conditions. Roles that forbid variants return false.
+    /// require every variant to resolve. A document-level style also rejects a variant
+    /// that refers to `&` before an earlier variant selects an element, so its first
+    /// variant must select one or be an at-rule condition. Definition and
+    /// view-transition roles permit only media and supports conditions. Roles that
+    /// forbid variants return false.
     pub(super) fn valid_input_variant(&self, text: &str, context: CandidateContext) -> bool {
         if !context.variants() {
             return false;
@@ -190,10 +214,24 @@ impl DesignSystemQuery {
             return false;
         };
 
-        if context == CandidateContext::Utility {
-            return candidate.variants.iter().all(|variant| {
-                resolve_variant(variant, self.context.design_system.theme()).is_ok()
-            });
+        let theme = self.context.design_system.theme();
+        if matches!(
+            context,
+            CandidateContext::Utility | CandidateContext::Document
+        ) {
+            let Some(applications) = candidate
+                .variants
+                .iter()
+                .map(|variant| resolve_variant(variant, theme).ok())
+                .collect::<Option<Vec<_>>>()
+            else {
+                return false;
+            };
+            return context == CandidateContext::Utility
+                || !matches!(
+                    document_target(&applications),
+                    Err(DocumentTargetFailure::BeforeTarget(_))
+                );
         }
 
         condition_paths(&candidate.variants, self.context.design_system.theme()).is_some()

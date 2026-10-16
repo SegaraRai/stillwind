@@ -521,4 +521,66 @@ mod tests {
                 .is_empty()
         );
     }
+
+    /// The first variant of a document-level style must select an element or be an
+    /// at-rule condition; later positions offer every variant.
+    #[test]
+    fn document_completions_start_with_variants_that_select_an_element() {
+        let theme = css_source(
+            FileId(1),
+            "@import 'stillwind'; @custom-variant shell scope(document) (:host);",
+        )
+        .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+        let labels = |prefix: &str| {
+            query
+                .complete_candidate(CompletionInput {
+                    prefix: prefix.into(),
+                    context: CandidateContext::Document,
+                })
+                .unwrap()
+                .into_iter()
+                .map(|item| item.label)
+                .collect::<Vec<_>>()
+        };
+        for (prefix, offered, omitted) in [
+            ("h", Some("host:"), "hover:"),
+            ("sh", Some("shell:"), "shell:flex"),
+            ("pr", Some("print:"), "print:flex"),
+            ("print:h", Some("print:host:"), "print:hover:"),
+            ("host:h", Some("host:hover:"), "host:hidden:"),
+            ("host:hid", Some("host:hidden"), "hidden"),
+            ("not-h", None, "not-hover:"),
+        ] {
+            let labels = labels(prefix);
+            assert!(
+                offered.is_none_or(|offered| labels.iter().any(|label| label == offered)),
+                "{prefix}: {labels:?}"
+            );
+            assert!(
+                labels.iter().all(|label| label != omitted),
+                "{prefix}: {labels:?}"
+            );
+        }
+        assert_eq!(labels("hid"), [] as [LeanStr; 0]);
+        assert_eq!(
+            query
+                .preview_candidate("host:hover:flex size-full", CandidateContext::Document)
+                .unwrap()
+                .as_deref(),
+            Some("@media (hover: hover){:host:hover{display:flex;}}")
+        );
+        assert_eq!(
+            query
+                .preview_candidate("size-full", CandidateContext::Document)
+                .unwrap(),
+            None
+        );
+    }
 }

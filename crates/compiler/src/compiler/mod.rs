@@ -12,6 +12,8 @@
 //! names and emit asset definitions. [`utilities`] and [`stylesheet`] render CSS.
 //! [`output`] defines compilation results and structured CSS contributions. [`editor`]
 //! captures source occurrences and reuses emission for isolated CSS previews.
+//! [`document`] resolves document-level styles, whose variants select the element to
+//! style.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -23,6 +25,7 @@ mod api;
 mod class_units;
 mod conditionals;
 mod definitions;
+mod document;
 mod editor;
 mod emission;
 mod expression_render;
@@ -49,6 +52,7 @@ pub use symbols::{GeneratedSymbol, GeneratedSymbolKind, SymbolOrigin};
 pub(crate) use animation_options::{OptionVariants, resolve_options};
 pub(crate) use conditionals::lower as lower_conditionals;
 pub(crate) use definitions::{emit_view_transition_utilities, resolve_frame};
+pub(crate) use document::emit_document_style;
 pub(crate) use editor::{preview_resource_urls, reserve_preview_names};
 pub(crate) use rule_boundaries::RuleBoundaries;
 pub(crate) use stylesheet::{render_mapped, render_module_stylesheet, render_stylesheet};

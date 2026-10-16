@@ -54,6 +54,7 @@ Preserve that precedence when adding or moving definitions.
 @import "./builtin-variants/tw-conditional.css";
 
 @import "./builtin-variants/sw-conditional.css";
+@import "./builtin-variants/sw-document.css";
 
 /*
 Load custom-property registrations used by the built-in utilities.

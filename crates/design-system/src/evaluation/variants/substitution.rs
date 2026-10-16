@@ -101,7 +101,10 @@ pub(in crate::evaluation) fn apply_nested_variant(
         VariantApplication::SelectorSuffix(suffix) => {
             apply_nested_selector(body, &format_args!("&{suffix}").to_lean_string())
         }
-        VariantApplication::SelectorTemplate(selector) => apply_nested_selector(body, selector),
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. } => {
+            apply_nested_selector(body, selector)
+        }
         VariantApplication::SelectorMedia {
             selector,
             condition,
@@ -154,6 +157,7 @@ pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> Var
                 .unwrap_or(VariantObstacle::Unsupported)
         }
         VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. }
         | VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMediaRule { selector, .. } => {
@@ -204,10 +208,13 @@ pub(in crate::evaluation) fn apply_relative_selector(
 /// and rule-less variants are rejected.
 fn attach_media(application: VariantApplication, condition: &str) -> Option<VariantApplication> {
     match application {
-        VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorMedia {
-            selector,
-            condition: condition.to_lean_str(),
-        }),
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. } => {
+            Some(VariantApplication::SelectorMedia {
+                selector,
+                condition: condition.to_lean_str(),
+            })
+        }
         VariantApplication::SelectorRule {
             selector,
             declarations,
@@ -226,10 +233,13 @@ pub(in crate::evaluation) fn attach_declarations(
     declarations: Vec<VariantDeclaration>,
 ) -> Option<VariantApplication> {
     match application {
-        VariantApplication::SelectorTemplate(selector) => Some(VariantApplication::SelectorRule {
-            selector,
-            declarations,
-        }),
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::BareSelector { selector, .. } => {
+            Some(VariantApplication::SelectorRule {
+                selector,
+                declarations,
+            })
+        }
         VariantApplication::SelectorMedia {
             selector,
             condition,

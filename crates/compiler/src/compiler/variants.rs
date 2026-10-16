@@ -21,12 +21,14 @@ use stillwind_syntax::Variant;
 pub(super) enum VariantStep<'a> {
     /// Custom-property test evaluated on the target element or pseudo-element.
     Conditional(
-        /// Validated presence test or `--name:value` comparison, optionally prefixed by one `!`.
+        /// Validated presence test or `--name:value` comparison, optionally prefixed by
+        /// one `!`.
         &'a str,
     ),
     /// Appends a selector suffix to the current selector.
     SelectorSuffix(
-        /// CSS selector suffix, including its combinators or punctuation; no separator is inserted.
+        /// CSS selector suffix, including its combinators or punctuation; no separator
+        /// is inserted.
         &'a str,
     ),
     /// Instantiates a selector template against the current selector.
@@ -34,6 +36,14 @@ pub(super) enum VariantStep<'a> {
         /// CSS selector template with ampersands marking the current selector.
         &'a str,
     ),
+    /// A selector written without `&`. Where an element is selected, it applies like
+    /// [`Self::SelectorTemplate`]; otherwise `top_level` selects the element.
+    BareSelector {
+        /// CSS selector template for use where an element is selected.
+        selector: &'a str,
+        /// CSS selector list without `&`.
+        top_level: &'a str,
+    },
     /// Adds a compound selector condition to the final originating element.
     SelectorCondition(
         /// Selector fragment inserted before any pseudo-element in the final compound.
@@ -50,7 +60,8 @@ pub(super) enum VariantStep<'a> {
     SelectorMedia {
         /// CSS selector template with ampersand substitution sites, without braces.
         selector: &'a str,
-        /// Media query prelude without @media or braces; internal whitespace is retained.
+        /// Media query prelude without @media or braces; internal whitespace is
+        /// retained.
         condition: &'a str,
     },
     /// Applies a selector and declarations inside a media query.
@@ -59,22 +70,26 @@ pub(super) enum VariantStep<'a> {
         selector: &'a str,
         /// Variant declarations in their emission order.
         declarations: &'a [VariantDeclaration],
-        /// Media query prelude without @media or braces; internal whitespace is retained.
+        /// Media query prelude without @media or braces; internal whitespace is
+        /// retained.
         condition: &'a str,
     },
     /// A CSS `@media` wrapper.
     Media(
-        /// Query prelude without `@media` or braces; includes required condition parentheses.
+        /// Query prelude without `@media` or braces; includes required condition
+        /// parentheses.
         &'a str,
     ),
     /// A CSS `@container` wrapper.
     Container(
-        /// Container query prelude without `@container` or braces, including any container name.
+        /// Container query prelude without `@container` or braces, including any
+        /// container name.
         &'a str,
     ),
     /// A CSS `@supports` wrapper.
     Supports(
-        /// Support condition without `@supports` or braces, including its outer parentheses.
+        /// Support condition without `@supports` or braces, including its outer
+        /// parentheses.
         &'a str,
     ),
     /// A CSS `@starting-style` wrapper with no prelude.
@@ -105,6 +120,13 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::SelectorTemplate(selector) => {
                     VariantStep::SelectorTemplate(selector)
                 }
+                VariantApplication::BareSelector {
+                    selector,
+                    top_level,
+                } => VariantStep::BareSelector {
+                    selector,
+                    top_level,
+                },
                 VariantApplication::SelectorCondition(condition) => {
                     VariantStep::SelectorCondition(condition)
                 }

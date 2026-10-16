@@ -12,8 +12,9 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
     InvalidPropertyValue, InvalidValueReason, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex,
-    UtilityArbitraryUse, UtilityFailure, UtilityOrder, UtilityResolutionError, UtilityTokenUse,
-    VariableTypeSource, VariantApplication, check_candidate_variants,
+    UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
+    UtilityResolutionError, UtilityTokenUse, VariableTypeSource, VariantApplication,
+    VariantContext, check_candidate_variants,
 };
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_source::Span;
@@ -66,9 +67,13 @@ pub(in crate::compiler) struct UtilitySource {
     pub(in crate::compiler) wrapper_variant_count: usize,
     /// Value that its property rejects; the declarations emit it as written.
     pub(in crate::compiler) invalid_value: Option<InvalidPropertyValue>,
+    /// Whether the rule selector starts from the class selector or from the element
+    /// that a variant selects.
+    pub(in crate::compiler) context: VariantContext,
 }
 
-/// Resolves a candidate and returns its first target, for callers that render a single rule.
+/// Resolves a candidate and returns its first target, for callers that render a single
+/// rule.
 ///
 /// # Errors
 ///
@@ -77,16 +82,21 @@ pub(in crate::compiler) fn resolve_utility(
     utility: &str,
     theme: &ThemeIndex,
 ) -> Result<Result<CompiledUtility, UtilityFailure>, UtilityResolutionError> {
-    Ok(resolve_utility_targets(utility, theme)?.map(|mut targets| targets.swap_remove(0)))
+    Ok(
+        resolve_utility_targets(utility, theme, VariantContext::Element)?
+            .map(|mut targets| targets.swap_remove(0)),
+    )
 }
 
 /// Resolves a candidate into every rule it expands to, in emission order.
 ///
 /// Every variant must also resolve; an absent CSS registration never drops its guard
-/// and turns the candidate into an unconditional utility. The inner error explains why
-/// the candidate does not resolve; the caller decides whether that is a lint finding,
-/// an external class name, or a diagnostic. A failing variant is reported before a
-/// failing utility name, because it comes first in the candidate text.
+/// and turns the candidate into an unconditional utility. In
+/// [`VariantContext::Document`], a variant must also select the element to style, as
+/// [`check_candidate_variants`] describes. The inner error explains why the candidate
+/// does not resolve; the caller decides whether that is a lint finding, an external
+/// class name, or a diagnostic. A failing variant is reported before a failing utility
+/// name, because it comes first in the candidate text.
 ///
 /// # Errors
 ///
@@ -94,17 +104,18 @@ pub(in crate::compiler) fn resolve_utility(
 pub(crate) fn resolve_utility_targets(
     utility: &str,
     theme: &ThemeIndex,
+    context: VariantContext,
 ) -> Result<Result<Vec<CompiledUtility>, UtilityFailure>, UtilityResolutionError> {
     let resolved = match CandidateResolver::resolve(utility, theme)? {
         Ok(resolved) => resolved,
         Err(failure) => {
             let variants = parse_candidate(utility).map_or(Ok(()), |candidate| {
-                check_candidate_variants(&candidate, theme)
+                check_candidate_variants(&candidate, theme, VariantContext::Element)
             });
             return Ok(Err(variants.err().unwrap_or(failure)));
         }
     };
-    if let Err(failure) = check_candidate_variants(&resolved.candidate, theme) {
+    if let Err(failure) = check_candidate_variants(&resolved.candidate, theme, context) {
         return Ok(Err(failure));
     }
     let mut targets = vec![ResolvedUtilityTarget {
@@ -121,6 +132,7 @@ pub(crate) fn resolve_utility_targets(
                 token_uses: resolved.token_uses.clone(),
                 arbitrary_uses: resolved.arbitrary_uses.clone(),
                 invalid_value: resolved.invalid_value.clone(),
+                context,
                 ..UtilitySource::default()
             },
             variants: resolved.candidate.variants.clone(),
@@ -182,6 +194,10 @@ pub(crate) fn unresolved_utility_finding(
             variant: part(),
             detail,
         },
+        LintKind::MissingDocumentTarget => LintDiagnostic::MissingDocumentTarget {
+            candidate: part(),
+            detail,
+        },
         LintKind::UnknownUtility => LintDiagnostic::UnknownUtility {
             utility,
             detail,
@@ -192,9 +208,14 @@ pub(crate) fn unresolved_utility_finding(
     LintFinding::new(diagnostic, span)
 }
 
-/// Returns the rule that reports `failure`: `unknown-utility` or `unknown-variant` for
-/// a name that does not exist, and `invalid-utility` or `invalid-variant` otherwise.
+/// Returns the rule that reports `failure`: `missing-document-target` for a
+/// document-level candidate without an element to style, `unknown-utility` or
+/// `unknown-variant` for a name that does not exist, and `invalid-utility` or
+/// `invalid-variant` otherwise.
 pub(crate) const fn unresolved_lint_kind(failure: &UtilityFailure) -> LintKind {
+    if let UtilityFailureReason::MissingDocumentTarget { .. } = failure.reason {
+        return LintKind::MissingDocumentTarget;
+    }
     match (failure.reason.is_variant(), failure.reason.is_unknown()) {
         (true, true) => LintKind::UnknownVariant,
         (true, false) => LintKind::InvalidVariant,
@@ -317,14 +338,14 @@ mod tests {
     fn unresolved_findings_cover_the_failing_part_of_the_written_text() {
         let theme = ThemeIndex::default();
         let span = Span::new(FileId(1), 10, 16);
-        let failure = resolve_utility_targets("hover:", &theme)
+        let failure = resolve_utility_targets("hover:", &theme, VariantContext::Element)
             .unwrap()
             .err()
             .unwrap();
         let finding = unresolved_utility_finding("hover:", 6, &failure, span, &theme);
         assert_eq!(finding.kind(), LintKind::InvalidUtility);
         assert_eq!(finding.labels[0].span, span);
-        let failure = resolve_utility_targets("foo:x", &theme)
+        let failure = resolve_utility_targets("foo:x", &theme, VariantContext::Element)
             .unwrap()
             .err()
             .unwrap();

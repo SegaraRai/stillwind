@@ -1,0 +1,13 @@
+/* Built-in Stillwind variants that select a document-level element. */
+
+/*
+`scope: document` keeps the selector as written instead of nesting it under `&`.
+In `style()`, the rule stays document-wide, and `document-scoped-selector`
+reports it. In a document-level style, the variant selects the element that
+later variants and the utility apply to.
+*/
+@stillwind-variant host (scope: document) {
+  :host {
+    @slot;
+  }
+}
