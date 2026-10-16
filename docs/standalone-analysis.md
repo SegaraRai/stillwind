@@ -312,10 +312,9 @@ Other rules check only stylesheets. They check definitions and theme references:
   A `--theme()` fallback of `initial` omits the declaration on purpose and is not
   reported. The finding suggests an active token with a close spelling. The rule also
   reports, at the name, a `@utility` with a capture whose `--value()` domains are
-  only theme namespaces that provide no value. A namespace provides no value when it
-  has no active token, and also when its name is not a theme namespace: tokens such as
-  `--size-4` never resolve `--value(--size-*)`. Uses of that utility still report
-  `unknown-utility`.
+  only theme namespaces that provide no value. A namespace can have any name, such as
+  `--size-*`, and it provides no value when it has no active token with the pattern's
+  suffix. Uses of that utility still report `unknown-utility`.
 
 `prefer-variant-directive` (style, default `off`, enabled by the `stylistic` preset)
 also checks only stylesheets. It reports a nested style rule or a conditional at-rule

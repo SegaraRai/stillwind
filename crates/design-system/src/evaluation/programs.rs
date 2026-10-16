@@ -6,8 +6,7 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::PropertyRequirementError;
 
-use super::utilities::PreparedDeclarations;
-use super::utilities::PreparedUtilityBody;
+use super::utilities::{PreparedDeclarations, PreparedUtilityBody};
 use crate::ThemeIndex;
 
 /// Parsed syntax shared by registered utilities with identical body text.

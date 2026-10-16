@@ -20,6 +20,7 @@ use super::super::builtins::{
     COMPAT_COLOR_SUPPORT, animation_option_property_mappings, arbitrary_property_order,
     builtin_animation_options,
 };
+use super::super::context::ArbitraryValueCheck;
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
 use super::diagnosis::{
@@ -30,7 +31,6 @@ use super::matching::{resolve_css_utility_branches, resolve_named_utility};
 use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
 use super::variables::VariableMismatch;
-use crate::evaluation::ArbitraryValueCheck;
 use crate::{ThemeIndex, UtilityOrderMode};
 
 /// One candidate resolved to the declarations and selectors it emits.

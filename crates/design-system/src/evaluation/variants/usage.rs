@@ -11,6 +11,7 @@ use lean_string::LeanStr;
 use stillwind_css::{inspect_css_value, media_size_comparisons};
 use stillwind_syntax::{Variant, VariantKind};
 
+use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::super::values::expand_placeholder;
 use super::application::VariantApplication;
 use super::body::resolve_variant_body;
@@ -22,7 +23,6 @@ use super::substitution::{
     resolve_variant_css_placeholders, resolve_variant_value_with_source,
     substitute_variant_capture, variant_value_capture,
 };
-use crate::evaluation::{ArbitraryValueCheck, EvaluationContext};
 use crate::{BuiltinVariantValueType, ThemeIndex};
 
 /// One resolved variant and the direct values its selected definition uses.

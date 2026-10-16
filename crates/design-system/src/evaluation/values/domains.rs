@@ -11,12 +11,12 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueDomain, value_is_well_formed};
 
-use super::super::{ArbitraryValueCheck, EvaluationContext};
+use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::expansion::expand_placeholder;
-use super::theme::{ViewportAxis, axis_size_value, fraction_value, theme_value};
+use super::theme::{PatternNamespace, ViewportAxis, axis_size_value, fraction_value, theme_value};
 use crate::conditionals::accepts_runtime_value;
-use crate::{ThemeIndex, ThemeNamespace, ThemeTokenKind};
+use crate::{ThemeIndex, ThemeNamespace};
 
 /// Resolves the first matching domain in a comma-separated domain list.
 ///
@@ -65,13 +65,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
             return capture.and_then(|capture| axis_size_value(capture, ViewportAxis::Height));
         }
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
-            return capture.and_then(|capture| {
-                theme_value(
-                    namespace,
-                    &format_args!("{capture}{suffix}").to_lean_str(),
-                    theme,
-                )
-            });
+            return capture.and_then(|capture| namespace.resolve(capture, suffix, theme));
         }
         if !domain.starts_with('[') && !domain.starts_with("--") {
             return capture.filter(|value| *value == domain).map(|value| {
@@ -144,15 +138,18 @@ pub(in crate::evaluation) fn split_domains(value: &str) -> Vec<&str> {
     domains
 }
 
-/// Splits a theme namespace pattern into its namespace and trailing suffix.
+/// Splits a theme namespace pattern such as `--color-*` or `--text-*--line-height` into
+/// its namespace and trailing suffix.
 ///
-/// Only a pattern of the form `--namespace-*` is recognized; an unknown namespace or a
-/// missing `-*` marker is not a theme domain, which keeps a custom property out of
-/// utility resolution.
-pub(in crate::evaluation) fn theme_domain_pattern(domain: &str) -> Option<(ThemeNamespace, &str)> {
+/// Only a pattern of the form `--namespace-*` with a non-empty namespace name is
+/// recognized. The namespace can have any name, such as `size` or `size-lg`.
+pub(in crate::evaluation) fn theme_domain_pattern(
+    domain: &str,
+) -> Option<(PatternNamespace<'_>, &str)> {
     let domain = domain.strip_prefix("--")?;
     let (namespace, suffix) = domain.split_once("-*")?;
-    Some((ThemeNamespace::parse(namespace)?, suffix))
+    (!namespace.is_empty() && !namespace.contains(char::is_whitespace))
+        .then(|| (PatternNamespace::parse(namespace), suffix))
 }
 
 /// Returns the captures written without brackets that the `--value(...)` placeholders
@@ -171,12 +168,12 @@ pub(in crate::evaluation) fn named_domain_values(
         for domain in split_domains(domains) {
             let domain = domain.trim();
             if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
-                names.extend(theme.tokens_in(namespace).into_iter().filter_map(|token| {
-                    let ThemeTokenKind::Token { name, .. } = &token.kind else {
-                        return None;
-                    };
-                    name.strip_suffix(suffix).map(ToLeanString::to_lean_string)
-                }));
+                names.extend(
+                    namespace
+                        .keys(suffix, theme)
+                        .into_iter()
+                        .map(ToLeanString::to_lean_string),
+                );
             } else if !domain.is_empty()
                 && !domain.starts_with(['[', '-'])
                 && domain
@@ -195,12 +192,11 @@ pub(in crate::evaluation) fn named_domain_values(
 /// placeholders of the utility body `body` when no domain of `body` can resolve a
 /// value.
 ///
-/// A pattern resolves a value when it names a theme namespace that has an active token
-/// with the pattern's suffix, or when it is `--spacing-*` and the theme defines the
-/// `--spacing` scale. A pattern of a name outside the theme namespaces never resolves,
-/// whatever tokens exist. The result is empty when `body` has no `--value(...)`, when a
-/// pattern resolves a value, or when a domain is not a namespace pattern, such as
-/// `integer`, `[length]`, or a keyword.
+/// A pattern resolves a value when its namespace, which can have any name, has an
+/// active token with the pattern's suffix, or when it is `--spacing-*` and the theme
+/// defines the `--spacing` scale. The result is empty when `body` has no
+/// `--value(...)`, when a pattern resolves a value, or when a domain is not a namespace
+/// pattern, such as `integer`, `[length]`, or a keyword.
 #[must_use]
 pub fn unresolvable_value_namespaces(body: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
     let mut patterns = Vec::new();
@@ -214,12 +210,10 @@ pub fn unresolvable_value_namespaces(body: &str, theme: &ThemeIndex) -> Vec<Lean
                 continue;
             }
             resolves |= theme_domain_pattern(domain).is_some_and(|(namespace, suffix)| {
-                (namespace == ThemeNamespace::Spacing
+                (namespace == PatternNamespace::Builtin(ThemeNamespace::Spacing)
                     && suffix.is_empty()
-                    && theme.scale(namespace).is_some())
-                    || theme.tokens_in(namespace).into_iter().any(|token| {
-                        matches!(&token.kind, ThemeTokenKind::Token { name, .. } if name.ends_with(suffix))
-                    })
+                    && theme.scale(ThemeNamespace::Spacing).is_some())
+                    || !namespace.keys(suffix, theme).is_empty()
             });
             let domain = domain.to_lean_str();
             if !patterns.contains(&domain) {
@@ -233,8 +227,11 @@ pub fn unresolvable_value_namespaces(body: &str, theme: &ThemeIndex) -> Vec<Lean
 
 #[cfg(test)]
 mod tests {
+    use stillwind_source::{FileId, SourceFile};
+
     use super::*;
     use crate::ThemeIndex;
+    use crate::test_support::parse_fixture_theme;
 
     #[test]
     fn domain_lists_keep_function_commas_and_typed_capture_boundaries() {
@@ -244,9 +241,15 @@ mod tests {
         );
         assert_eq!(
             theme_domain_pattern("--color-*"),
-            Some((ThemeNamespace::Color, ""))
+            Some((PatternNamespace::Builtin(ThemeNamespace::Color), ""))
         );
-        assert_eq!(theme_domain_pattern("--missing-*"), None);
+        assert_eq!(
+            theme_domain_pattern("--size-lg-*--alt"),
+            Some((PatternNamespace::Other("size-lg"), "--alt"))
+        );
+        for domain in ["---*", "--size", "-size-*"] {
+            assert_eq!(theme_domain_pattern(domain), None, "{domain}");
+        }
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
         assert_eq!(
@@ -265,20 +268,61 @@ mod tests {
     }
 
     #[test]
+    fn namespace_patterns_read_tokens_of_any_namespace_by_name_only() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            r"@theme {
+                --size-4: 1rem; --size-lg-2: 3rem; --size-1_5: 6px; --size-2\.5: 10px;
+                --size-x: 1px; --size-x--alt: 2px; --size-y--alt: 2px; --inset-x: 3px; --inset-shadow-x: 4px;
+             }
+             @theme inline { --size-in: 5px; }",
+        )
+        .unwrap();
+        let theme = parse_fixture_theme(&source).unwrap();
+        let theme = EvaluationContext::untracked(&theme);
+        for (domains, capture, expected) in [
+            ("--size-*", "4", Some("var(--size-4)")),
+            ("--size-*", "lg-2", Some("var(--size-lg-2)")),
+            ("--size-lg-*", "2", Some("var(--size-lg-2)")),
+            ("--size-*", "1.5", Some("var(--size-1_5)")),
+            ("--size-*", "2.5", Some(r"var(--size-2\.5)")),
+            ("--size-*--alt", "x", Some("var(--size-x--alt)")),
+            ("--size-*--alt", "y", None),
+            ("--size-*", "in", Some("5px")),
+            ("--inset-*", "x", Some("var(--inset-x)")),
+            ("--inset-*", "shadow-x", None),
+            ("--size-*", "1_5", Some("var(--size-1_5)")),
+            ("--size-*", "3", None),
+            ("--size-*", "[2px]", None),
+            ("--size-*", "(--v)", None),
+            ("--size-*, [length]", "[2px]", Some("2px")),
+        ] {
+            assert_eq!(
+                resolve_value_domains(domains, Some(capture), &theme).as_deref(),
+                expected,
+                "{domains} {capture}"
+            );
+        }
+    }
+
+    #[test]
     fn value_namespaces_without_values_are_unresolvable() {
-        let source = stillwind_source::SourceFile::new(
-            stillwind_source::FileId(1),
+        let source = SourceFile::new(
+            FileId(1),
             None,
             None,
             "@theme { --size-4: 1rem; --color-x: red; }",
         )
         .unwrap();
-        let theme = crate::test_support::parse_fixture_theme(&source).unwrap();
+        let theme = parse_fixture_theme(&source).unwrap();
         for (body, expected) in [
-            ("width: --value(--size-*);", &["--size-*"][..]),
+            ("width: --value(--size-*);", &[][..]),
+            ("width: --value(--size-lg-*);", &["--size-lg-*"]),
             (
-                "color: --value(--color-*-strong, --size-*);",
-                &["--color-*-strong", "--size-*"],
+                "color: --value(--color-*-strong, --box-*);",
+                &["--color-*-strong", "--box-*"],
             ),
             ("color: --value(--color-*);", &[]),
             ("width: --value(--spacing-*);", &[]),

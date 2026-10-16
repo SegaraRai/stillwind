@@ -14,9 +14,126 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 use stillwind_css::{ValueType, value_is_well_formed};
 
 use super::super::builtins::builtin_theme_namespace_types;
-use super::super::{ArbitraryValueCheck, EvaluationContext};
+use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
-use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
+use crate::{ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenKind, ThemeTokenMode};
+
+/// The namespace that a theme namespace pattern such as `--color-*` reads.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::evaluation) enum PatternNamespace<'a> {
+    /// A namespace with built-in meaning. [`theme_value`] resolves its captures, so its
+    /// declared value types, typed arbitrary values, and the `--spacing` scale apply.
+    Builtin(ThemeNamespace),
+    /// Any other namespace name, such as `size` or `color-red`, without the leading
+    /// `--` and the trailing `-`. Only named tokens resolve, as
+    /// [`ThemeIndex::namespace_token`] describes, and no value types are declared.
+    Other(&'a str),
+}
+
+impl<'a> PatternNamespace<'a> {
+    /// Reads the namespace name `name`, such as `color` or `size-lg`.
+    pub(in crate::evaluation) fn parse(name: &'a str) -> Self {
+        ThemeNamespace::parse(name).map_or(Self::Other(name), Self::Builtin)
+    }
+
+    /// Resolves the capture `key` with the pattern suffix `suffix`, such as `--alt` of
+    /// `--size-*--alt`, to the text a declaration should contain. Returns [`None`] when
+    /// the namespace has no matching value.
+    pub(in crate::evaluation) fn resolve(
+        self,
+        key: &str,
+        suffix: &str,
+        theme: &EvaluationContext<'_>,
+    ) -> Option<LeanStr> {
+        match self {
+            Self::Builtin(namespace) => theme_value(
+                namespace,
+                &format_args!("{key}{suffix}").to_lean_str(),
+                theme,
+            ),
+            Self::Other(_) => self
+                .token(key, suffix, theme)
+                .map(|token| token_reference(token, theme)),
+        }
+    }
+
+    /// Returns the active token that the capture `key` with the pattern suffix `suffix`
+    /// selects.
+    ///
+    /// A [`Self::Builtin`] namespace reads the token named by `key` followed by
+    /// `suffix`. A [`Self::Other`] namespace with a suffix first requires the token
+    /// that `key` selects, such as `--size-x`, and then reads the token whose name adds
+    /// `suffix`, such as `--size-x--alt`, as Tailwind does.
+    pub(in crate::evaluation) fn token<'t>(
+        self,
+        key: &str,
+        suffix: &str,
+        theme: &'t ThemeIndex,
+    ) -> Option<&'t ThemeToken> {
+        match self {
+            Self::Builtin(namespace) => {
+                theme.token_in(namespace, &format_args!("{key}{suffix}").to_lean_str())
+            }
+            Self::Other(namespace) => {
+                let token = theme.namespace_token(namespace, key)?;
+                if suffix.is_empty() {
+                    return Some(token);
+                }
+                theme.custom_property(&format_args!("{}{suffix}", token.name.value).to_lean_str())
+            }
+        }
+    }
+
+    /// Returns the captures that select an active token with the pattern suffix
+    /// `suffix`, as [`Self::token`] describes. Captures can repeat, and a scale such as
+    /// `--spacing` is not included.
+    pub(in crate::evaluation) fn keys<'t>(
+        self,
+        suffix: &str,
+        theme: &'t ThemeIndex,
+    ) -> Vec<&'t str> {
+        match self {
+            Self::Builtin(namespace) => theme
+                .tokens_in(namespace)
+                .into_iter()
+                .filter_map(|token| match &token.kind {
+                    ThemeTokenKind::Token { name, .. } => name.strip_suffix(suffix),
+                    _ => None,
+                })
+                .collect(),
+            Self::Other(namespace) => {
+                let keys = theme
+                    .namespace_tokens(namespace)
+                    .into_iter()
+                    .map(|(key, _)| key)
+                    .collect::<Vec<_>>();
+                keys.iter()
+                    .filter_map(|key| key.strip_suffix(suffix))
+                    .filter(|key| suffix.is_empty() || keys.contains(key))
+                    .collect()
+            }
+        }
+    }
+
+    /// The value types declared for the namespace, which are empty for [`Self::Other`].
+    pub(in crate::evaluation) fn value_types(self, theme: &ThemeIndex) -> &[ValueType] {
+        match self {
+            Self::Builtin(namespace) => theme_arbitrary_types(namespace, theme),
+            Self::Other(_) => &[],
+        }
+    }
+}
+
+/// Returns the text that refers to `token` in a declaration: the authored value of an
+/// inline token, and a `var()` reference otherwise. Records the token as used.
+fn token_reference(token: &ThemeToken, theme: &EvaluationContext<'_>) -> LeanStr {
+    theme.record_token(&token.name.value);
+    if matches!(token.mode, ThemeTokenMode::Inline) {
+        token.value.value.clone()
+    } else {
+        format_args!("var({})", token.name.value).to_lean_str()
+    }
+}
 
 /// Resolves a value in `namespace` to the text a declaration should contain.
 ///
@@ -38,14 +155,7 @@ pub(in crate::evaluation) fn theme_value(
         // This named-token lookup is ASCII-only; the earlier arbitrary-value and
         // variable paths do not share that restriction.
         _ if !value.is_ascii() => return None,
-        _ if let Some(token) = theme.token_in(namespace, value) => {
-            theme.record_token(&token.name.value);
-            if matches!(token.mode, ThemeTokenMode::Inline) {
-                token.value.value.clone()
-            } else {
-                format_args!("var({})", token.name.value).to_lean_str()
-            }
-        }
+        _ if let Some(token) = theme.token_in(namespace, value) => token_reference(token, theme),
         _ if namespace == ThemeNamespace::Spacing
             && theme.scale(ThemeNamespace::Spacing).is_some() =>
         {

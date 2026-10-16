@@ -11,9 +11,8 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use super::super::EvaluationContext;
+use super::super::context::EvaluationContext;
 use super::domains::{split_domains, theme_domain_pattern};
-use super::theme::theme_value;
 
 /// Resolves one `--stillwind-theme-suffix(...)` to a composed token value.
 ///
@@ -32,12 +31,11 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     let (namespace, domain_suffix) = theme_domain_pattern(domain.trim())?;
     let capture = capture?;
     let suffix = suffix.trim().strip_prefix("--")?;
-    let value = theme_value(
-        namespace,
-        &format_args!("{capture}{domain_suffix}--{suffix}").to_lean_str(),
+    namespace.resolve(
+        capture,
+        &format_args!("{domain_suffix}--{suffix}").to_lean_str(),
         theme,
-    )?;
-    Some(value)
+    )
 }
 
 /// Resolves one `--value-map(...)` to the entry matching the capture.

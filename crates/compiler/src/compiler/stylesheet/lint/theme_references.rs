@@ -153,7 +153,7 @@ mod tests {
         );
         assert_eq!(
             default_findings(
-                "@theme { --size-4: 1rem; --color-x: red; }                 @utility box-* { width: --value(--size-*); }                 @utility tx-* { color: --value(--color-*-strong); }"
+                "@theme { --size-4: 1rem; --color-x: red; }                 @utility box-* { width: --value(--size-lg-*); }                 @utility tx-* { color: --value(--color-*-strong); }"
             ),
             [
                 finding(LintKind::InvalidThemeReference, "box-*"),
@@ -161,6 +161,8 @@ mod tests {
             ]
         );
         for css in [
+            "@theme { --size-4: 1rem; } @utility box-* { width: --value(--size-*); }",
+            "@theme { --size-lg-4: 1rem; } @utility box-* { width: --value(--size-lg-*); }",
             "@theme { --tab-4: 4; } @utility box-* { width: --value(--spacing-*); }",
             "@utility box-* { width: --value(--size-*, integer); }",
             "@utility box-* { width: --value(--size-*, [length]); }",

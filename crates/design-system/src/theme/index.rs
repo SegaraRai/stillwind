@@ -12,7 +12,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property
 
 use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
-use super::namespace::ThemeNamespace;
+use super::namespace::{ThemeNamespace, excluded_from_namespace, namespace_key_names};
 use super::references::{inline_theme_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
@@ -253,6 +253,40 @@ impl ThemeIndex {
         }
         let expected = format_args!("--{namespace}-{name}").to_lean_string();
         self.custom_property(&expected)
+    }
+
+    /// Returns the active token that the candidate key `key` selects in the namespace
+    /// `namespace`, as Tailwind resolves `--value(--namespace-*)`.
+    ///
+    /// `namespace` is any namespace name without the leading `--` and the trailing `-`,
+    /// such as `size` or `size-lg`. The lookup does not use the classification of
+    /// [`ThemeNamespace`]. It also accepts `_` in a token name for `.` in `key`, and it
+    /// skips a token of a narrower namespace that Tailwind excludes, such as
+    /// `--font-weight-bold` for `font`.
+    #[must_use]
+    pub fn namespace_token(&self, namespace: &str, key: &str) -> Option<&ThemeToken> {
+        let token = namespace_key_names(namespace, key)
+            .iter()
+            .find_map(|name| self.custom_property(name))?;
+        (!excluded_from_namespace(namespace, &token.name.value)).then_some(token)
+    }
+
+    /// Returns every active token in the namespace `namespace` with its key, ordered by
+    /// custom-property name.
+    ///
+    /// `namespace` is written as in [`Self::namespace_token`], and the same narrower
+    /// namespaces are skipped. A key is the token name after `--{namespace}-`, as
+    /// authored, so it keeps CSS escapes.
+    #[must_use]
+    pub fn namespace_tokens(&self, namespace: &str) -> Vec<(&str, &ThemeToken)> {
+        let prefix = format_args!("--{namespace}-").to_lean_string();
+        self.active_token_definitions()
+            .filter(|token| !excluded_from_namespace(namespace, &token.name.value))
+            .filter_map(|token| {
+                let key = token.name.value.strip_prefix(prefix.as_str())?;
+                (!key.is_empty()).then_some((key, token.as_ref()))
+            })
+            .collect()
     }
 
     /// The authored value of a token, looked up as [`Self::token`] does.

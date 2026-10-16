@@ -6,9 +6,8 @@
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq, catalog_section};
 
-use crate::test_support::parse_fixture_theme;
-
 use super::*;
+use crate::test_support::parse_fixture_theme;
 
 #[test]
 fn resolves_directional_radius_theme_values() {

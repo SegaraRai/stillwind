@@ -25,6 +25,7 @@ pub use builtins::{
     builtin_declaration_formats, builtin_definitions, builtin_omit_token_prefixes,
     builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
 };
+pub use suggestions::suggested_theme_token;
 pub use utilities::{
     InvalidPropertyValue, InvalidValueReason, NestedUtilityAtRule, NestedUtilityRule,
     ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse, UtilityFailure,
@@ -32,6 +33,7 @@ pub use utilities::{
     UtilityTokenUse, VariableMismatch, VariableTypeSource, check_candidate_variants,
     resolve_animation_option, resolve_utility, utility_value_range,
 };
+pub use values::{ThemeValueMismatch, theme_value_mismatch, unresolvable_value_namespaces};
 pub use variants::{
     ConditionContext, DocumentTargetFailure, RedundantVariant, ResolvedVariant,
     UnsatisfiableVariants, VariantApplication, VariantContext, VariantDeclaration, VariantFailure,
@@ -42,13 +44,8 @@ pub use variants::{
     repeated_subject_selector, resolve_variant, resolve_variant_with_usage, unsatisfiable_variants,
 };
 
-pub use suggestions::suggested_theme_token;
-pub use values::{ThemeValueMismatch, theme_value_mismatch, unresolvable_value_namespaces};
-
 pub(crate) use programs::UtilityPrograms;
 pub(crate) use values::color_fallback;
-
-use context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 
 #[cfg(test)]
 mod tests;

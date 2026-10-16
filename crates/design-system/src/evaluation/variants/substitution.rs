@@ -14,12 +14,13 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{find_css_function, selector_is_element_condition};
 use stillwind_source::ReplaceText;
 
-use super::super::values::expand_placeholder;
-use super::super::values::{resolve_value_domains, split_domains, theme_domain_pattern};
+use super::super::context::EvaluationContext;
+use super::super::values::{
+    expand_placeholder, resolve_value_domains, split_domains, theme_domain_pattern,
+};
 use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
 use super::usage::VariantValueSource;
-use crate::evaluation::EvaluationContext;
 use crate::{BuiltinVariantModifierType, CustomVariant, ThemeNamespace};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
@@ -394,15 +395,13 @@ pub(super) fn resolve_variant_value_with_source(
         let domain = domain.trim();
         if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
             return capture.and_then(|name| {
-                theme
-                    .token_in(namespace, &format_args!("{name}{suffix}").to_lean_string())
-                    .map(|token| {
-                        theme.record_token(&token.name.value);
-                        (
-                            token.value.value.clone(),
-                            VariantValueSource::ThemeToken(token.name.value.clone()),
-                        )
-                    })
+                namespace.token(name, suffix, theme).map(|token| {
+                    theme.record_token(&token.name.value);
+                    (
+                        token.value.value.clone(),
+                        VariantValueSource::ThemeToken(token.name.value.clone()),
+                    )
+                })
             });
         }
         let value = resolve_value_domains(domain, capture, theme)?;

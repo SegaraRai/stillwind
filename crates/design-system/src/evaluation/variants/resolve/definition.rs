@@ -10,8 +10,8 @@ use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_source::ReplaceText;
 
-use super::super::super::EvaluationContext;
 use super::super::super::builtins::builtin_variants;
+use super::super::super::context::EvaluationContext;
 use super::super::super::values::decode_arbitrary;
 use super::super::application::VariantApplication;
 use super::super::body::{resolve_scoped_variant_body, resolve_variant_body};

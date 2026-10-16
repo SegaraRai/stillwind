@@ -18,15 +18,14 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
+use super::super::context::ArbitraryValueCheck;
 use super::super::values::{
-    decode_arbitrary, expand_placeholder, split_domains, theme_arbitrary_types,
-    theme_domain_pattern,
+    decode_arbitrary, expand_placeholder, split_domains, theme_domain_pattern,
 };
 use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
 use super::variables::{single_variable, variable_mismatch};
-use crate::evaluation::ArbitraryValueCheck;
 use crate::{CustomUtility, ThemeIndex};
 
 /// Resolves a named candidate through the registry layers.
@@ -358,7 +357,7 @@ fn declared_value_types(utility: &CustomUtility, theme: &ThemeIndex) -> Vec<Valu
             .into_iter()
             .filter_map(|domain| theme_domain_pattern(domain.trim()))
         {
-            for &value_type in theme_arbitrary_types(namespace, theme) {
+            for &value_type in namespace.value_types(theme) {
                 if !types.contains(&value_type) {
                     types.push(value_type);
                 }
@@ -401,7 +400,7 @@ fn fallback_type_hints(lookup: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
                 .into_iter()
                 .filter_map(|domain| theme_domain_pattern(domain.trim()))
             {
-                for &value_type in theme_arbitrary_types(namespace, theme) {
+                for &value_type in namespace.value_types(theme) {
                     namespaced.push((value_type, properties.clone()));
                 }
             }

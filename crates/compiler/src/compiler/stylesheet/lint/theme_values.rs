@@ -86,7 +86,9 @@ mod tests {
                    --color-*: initial;\
                    --text-big: 3rem;\
                    --text-big--line-height: 1;\
+                   --size-4: blue;\
                  }\
+                 @utility box-* { width: --value(--size-*); }\
                  .card { --color-brand: 12px; }"
             ),
             []

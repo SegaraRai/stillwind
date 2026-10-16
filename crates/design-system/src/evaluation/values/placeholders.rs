@@ -15,7 +15,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{CssFunctionMatch, declaration_ranges};
 use stillwind_syntax::Value;
 
-use super::super::EvaluationContext;
+use super::super::context::EvaluationContext;
 use super::arbitrary::alpha;
 use super::colors::{resolve_compat_color, resolve_shadow_color};
 use super::domains::{resolve_value_domains, split_domains};

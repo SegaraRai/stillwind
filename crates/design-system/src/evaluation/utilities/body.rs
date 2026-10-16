@@ -17,8 +17,8 @@ use stillwind_css::{PropertyRequirementError, ValueType, take_property_requireme
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
-use super::super::ArbitraryValueCheck;
 use super::super::builtins::COMPAT_COLOR_SUPPORT;
+use super::super::context::ArbitraryValueCheck;
 use super::declarations::resolve_css_declarations;
 use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,

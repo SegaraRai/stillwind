@@ -1,16 +1,22 @@
 //! The Tailwind theme namespaces that participate in utility and variant resolution,
-//! and their CSS-authored value types.
+//! their CSS-authored value types, and the token names that a key selects in any
+//! namespace.
 //!
-//! Namespace membership is a closed list. A custom property outside it stays available
-//! as authored CSS but never creates a candidate value, which is what stops a project's
-//! own variable from accidentally becoming a utility.
+//! [`ThemeNamespace`] is a closed list of the namespaces that have built-in meaning:
+//! value types, a scale, or classification of `@theme` tokens. A custom property
+//! outside it never creates a value for a built-in utility. An authored
+//! `--value(--size-*)` pattern can still read any namespace through
+//! [`namespace_key_names`].
 //!
 //! Value types are declared in CSS, not here, so a registry update can change which
 //! arbitrary values a namespace accepts without a Rust change.
 
 use std::collections::BTreeMap;
 
+use lean_string::{LeanString, ToLeanString};
+
 use stillwind_css::ValueType;
+use stillwind_source::ReplaceText;
 
 /// Parses the CSS-authored type set for each Tailwind theme namespace.
 ///
@@ -43,8 +49,8 @@ pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<Va
 }
 
 /// Tailwind v4 theme namespaces that participate in built-in utility and variant
-/// resolution. Unknown custom properties remain available as authored CSS but never
-/// accidentally create a utility.
+/// resolution. A custom property outside these namespaces creates no value for a
+/// built-in utility.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ThemeNamespace {
     /// `--animate-*`: animation shorthand values.
@@ -180,6 +186,80 @@ impl ThemeNamespace {
     }
 }
 
+/// Returns the custom-property names that the candidate key `key` can select in the
+/// namespace `namespace`, in lookup order, as Tailwind resolves
+/// `--value(--namespace-*)`.
+///
+/// `namespace` is the namespace name without the leading `--` and the trailing `-`,
+/// such as `size` or `size-lg`. The first name joins `namespace` and `key` unchanged.
+/// When `key` contains `.`, the names with `_` in place of each `.` follow, so `1.5`
+/// also selects `--size-1_5`. Each name is followed by its spelling with CSS escapes,
+/// such as `--size-1\.5`, because `@theme` keeps token names as authored.
+pub(super) fn namespace_key_names(namespace: &str, key: &str) -> Vec<LeanString> {
+    let mut keys = vec![key.to_lean_string()];
+    if key.contains('.') {
+        keys.push(key.replace_char('.', "_"));
+    }
+    let mut names = Vec::new();
+    for key in keys {
+        names.push(format_args!("--{namespace}-{key}").to_lean_string());
+        let escaped = escape_key(&key);
+        if escaped != key {
+            names.push(format_args!("--{namespace}-{escaped}").to_lean_string());
+        }
+    }
+    names
+}
+
+/// Escapes each ASCII character of `key` that a CSS identifier cannot contain
+/// unescaped.
+fn escape_key(key: &str) -> LeanString {
+    let mut escaped = LeanString::new();
+    for character in key.chars() {
+        if character.is_ascii()
+            && !character.is_ascii_alphanumeric()
+            && !matches!(character, '-' | '_')
+        {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+/// Returns whether Tailwind excludes the token `name` from the namespace `namespace`
+/// because it belongs to a narrower namespace.
+///
+/// For example, `--font-weight-bold` is excluded from `font`, and `--inset-shadow-sm`
+/// is excluded from `inset`. `namespace` is written as in [`namespace_key_names`].
+pub(super) fn excluded_from_namespace(namespace: &str, name: &str) -> bool {
+    let narrower: &[&str] = match namespace {
+        "font" => &["weight", "size"],
+        "inset" => &["shadow", "ring"],
+        "text" => &[
+            "color",
+            "decoration-color",
+            "decoration-thickness",
+            "indent",
+            "shadow",
+            "underline-offset",
+        ],
+        "grid-column" | "grid-row" => &["start", "end"],
+        _ => &[],
+    };
+    let Some(key) = name
+        .strip_prefix("--")
+        .and_then(|name| name.strip_prefix(namespace))
+        .and_then(|name| name.strip_prefix('-'))
+    else {
+        return false;
+    };
+    narrower.iter().any(|narrower| {
+        key.strip_prefix(narrower)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +333,28 @@ mod tests {
             types,
             BTreeMap::from([(ThemeNamespace::Duration, vec![ValueType::Time])])
         );
+    }
+
+    #[test]
+    fn namespace_keys_try_underscores_for_dots_and_escaped_spellings() {
+        assert_eq!(namespace_key_names("size", "4"), ["--size-4"]);
+        assert_eq!(
+            namespace_key_names("size-lg", "1.5"),
+            ["--size-lg-1.5", r"--size-lg-1\.5", "--size-lg-1_5",]
+        );
+        assert_eq!(
+            namespace_key_names("size", "1/2"),
+            ["--size-1/2", r"--size-1\/2"]
+        );
+    }
+
+    #[test]
+    fn narrower_namespaces_are_excluded_like_tailwind() {
+        assert!(excluded_from_namespace("font", "--font-weight-bold"));
+        assert!(excluded_from_namespace("inset", "--inset-shadow-sm"));
+        assert!(excluded_from_namespace("grid-row", "--grid-row-start-2"));
+        assert!(!excluded_from_namespace("font", "--font-weighty"));
+        assert!(!excluded_from_namespace("font", "--font-sans"));
+        assert!(!excluded_from_namespace("size", "--size-weight-1"));
     }
 }

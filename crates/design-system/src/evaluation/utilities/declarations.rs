@@ -16,11 +16,11 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::inspect_css_value;
 use stillwind_syntax::Value;
 
+use super::super::context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 use super::super::values::{PreparedValues, color_fallback, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;
-use crate::evaluation::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
